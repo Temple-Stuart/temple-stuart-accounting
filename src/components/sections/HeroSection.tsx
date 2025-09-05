@@ -4,6 +4,46 @@ import React, { useState } from 'react';
 
 export default function HeroSection() {
   const [isSignup, setIsSignup] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage('');
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const name = formData.get('name') as string;
+
+    const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
+    const payload = isSignup ? { email, password, name } : { email, password };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage(isSignup ? 'Account created successfully!' : 'Login successful!');
+        if (!isSignup) {
+          // Redirect to dashboard or refresh page
+          window.location.reload();
+        }
+      } else {
+        setMessage(data.error || 'An error occurred');
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="temple-hero-enhanced">
@@ -344,11 +384,37 @@ export default function HeroSection() {
           text-transform: uppercase !important;
           letter-spacing: 0.5px !important;
           transition: all 0.3s ease !important;
+          opacity: ${isLoading ? '0.7' : '1'} !important;
         }
 
         .login-btn:hover {
           transform: translateY(-2px) !important;
           box-shadow: 0 6px 20px rgba(180, 178, 55, 0.3) !important;
+        }
+
+        .login-btn:disabled {
+          cursor: not-allowed !important;
+          transform: none !important;
+        }
+
+        .message {
+          margin-top: 15px !important;
+          padding: 10px !important;
+          border-radius: 6px !important;
+          font-size: 14px !important;
+          text-align: center !important;
+        }
+
+        .message.success {
+          background: rgba(34, 197, 94, 0.1) !important;
+          color: #16a34a !important;
+          border: 1px solid rgba(34, 197, 94, 0.2) !important;
+        }
+
+        .message.error {
+          background: rgba(239, 68, 68, 0.1) !important;
+          color: #dc2626 !important;
+          border: 1px solid rgba(239, 68, 68, 0.2) !important;
         }
       `}</style>
 
@@ -421,30 +487,30 @@ export default function HeroSection() {
               </button>
             </div>
             
-            <form className="login-form">
+            <form className="login-form" onSubmit={handleAuth}>
               {isSignup && (
                 <div className="form-group">
                   <label htmlFor="name">Company Name</label>
-                  <input type="text" id="name" required />
+                  <input type="text" id="name" name="name" required />
                 </div>
               )}
               <div className="form-group">
                 <label htmlFor="email">Email</label>
-                <input type="email" id="email" required />
+                <input type="email" id="email" name="email" required />
               </div>
               <div className="form-group">
                 <label htmlFor="password">Password</label>
-                <input type="password" id="password" required />
+                <input type="password" id="password" name="password" required />
               </div>
-              {isSignup && (
-                <div className="form-group">
-                  <label htmlFor="confirmPassword">Confirm Password</label>
-                  <input type="password" id="confirmPassword" required />
+              <button type="submit" className="login-btn" disabled={isLoading}>
+                {isLoading ? 'Processing...' : (isSignup ? 'Create Account' : 'Access Portal')}
+              </button>
+              
+              {message && (
+                <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>
+                  {message}
                 </div>
               )}
-              <button type="submit" className="login-btn">
-                {isSignup ? 'Create Account' : 'Access Portal'}
-              </button>
             </form>
           </div>
         </div>
