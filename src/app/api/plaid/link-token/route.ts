@@ -3,7 +3,7 @@ import { PlaidApi, Configuration, PlaidEnvironments, LinkTokenCreateRequest, Cou
 import jwt from 'jsonwebtoken';
 
 const configuration = new Configuration({
-  basePath: PlaidEnvironments.sandbox,
+  basePath: PlaidEnvironments.production,
   baseOptions: {
     headers: {
       'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
