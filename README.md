@@ -37,3 +37,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 # temple-stuart-accounting
 Temple Stuart
+# Deployment fix
