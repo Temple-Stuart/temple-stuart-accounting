@@ -6,6 +6,22 @@ import { usePlaidLink } from 'react-plaid-link';
 export default function AccountsPage() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState([]);
+
+  // Fetch accounts data
+  const fetchAccounts = async () => {
+    try {
+      const response = await fetch('/api/accounts', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAccounts(data.plaidItems);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    }
+  };
 
   // Fetch link token from API
   const fetchLinkToken = async () => {
@@ -15,15 +31,11 @@ export default function AccountsPage() {
         credentials: 'include',
       });
       
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response text:', responseText);
-      
       if (!response.ok) {
-        throw new Error(`Failed to fetch link token: ${response.status} - ${responseText}`);
+        throw new Error('Failed to fetch link token');
       }
       
-      const data = JSON.parse(responseText);
+      const data = await response.json();
       setLinkToken(data.link_token);
     } catch (error) {
       console.error('Error fetching link token:', error);
@@ -51,8 +63,7 @@ export default function AccountsPage() {
         throw new Error('Failed to exchange token');
       }
 
-      const data = await response.json();
-      console.log('Successfully connected bank:', data);
+      await fetchAccounts(); // Refresh accounts after connecting
       alert('Bank account connected successfully!');
     } catch (error) {
       console.error('Error exchanging token:', error);
@@ -75,7 +86,15 @@ export default function AccountsPage() {
 
   useEffect(() => {
     fetchLinkToken();
+    fetchAccounts();
   }, []);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
 
   return (
     <div className="accounts-page">
@@ -90,7 +109,7 @@ export default function AccountsPage() {
         }
 
         .container {
-          max-width: 800px;
+          max-width: 1200px;
           margin: 0 auto;
           background: white;
           border-radius: 20px;
@@ -114,20 +133,7 @@ export default function AccountsPage() {
           border-radius: 12px;
           padding: 30px;
           text-align: center;
-        }
-
-        .connect-title {
-          color: #b4b237;
-          font-size: 24px;
-          font-weight: 600;
-          margin-bottom: 15px;
-        }
-
-        .connect-description {
-          color: #666;
-          font-size: 16px;
-          margin-bottom: 30px;
-          line-height: 1.6;
+          margin-bottom: 40px;
         }
 
         .plaid-btn {
@@ -154,25 +160,97 @@ export default function AccountsPage() {
           cursor: not-allowed;
           transform: none;
         }
+
+        .accounts-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+
+        .accounts-table th,
+        .accounts-table td {
+          padding: 15px;
+          text-align: left;
+          border-bottom: 1px solid #eee;
+        }
+
+        .accounts-table th {
+          background: #f8f9fa;
+          font-weight: 600;
+          color: #333;
+          text-transform: uppercase;
+          font-size: 14px;
+          letter-spacing: 0.5px;
+        }
+
+        .bank-name {
+          font-weight: 600;
+          color: #b4b237;
+          margin-bottom: 20px;
+          font-size: 18px;
+        }
+
+        .account-type {
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+
+        .type-investment {
+          background: #e3f2fd;
+          color: #1976d2;
+        }
+
+        .type-depository {
+          background: #e8f5e8;
+          color: #388e3c;
+        }
       `}</style>
 
       <div className="container">
         <h1 className="page-title">Your Accounts</h1>
         
         <div className="connect-section">
-          <h2 className="connect-title">Connect Your Bank Accounts</h2>
-          <p className="connect-description">
-            Securely link your bank accounts to get started with automated bookkeeping 
-            and financial insights. Your data is encrypted and protected.
-          </p>
           <button 
             className="plaid-btn" 
             onClick={open}
             disabled={!ready || loading}
           >
-            {loading ? 'Loading...' : 'Connect Bank Account'}
+            {loading ? 'Loading...' : '+ Connect Another Bank Account'}
           </button>
         </div>
+
+        {accounts.map((item: any) => (
+          <div key={item.id}>
+            <div className="bank-name">{item.institutionName}</div>
+            <table className="accounts-table">
+              <thead>
+                <tr>
+                  <th>Account Name</th>
+                  <th>Type</th>
+                  <th>Current Balance</th>
+                  <th>Available Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {item.accounts.map((account: any) => (
+                  <tr key={account.id}>
+                    <td>{account.name}</td>
+                    <td>
+                      <span className={`account-type type-${account.type}`}>
+                        {account.subtype || account.type}
+                      </span>
+                    </td>
+                    <td>{formatCurrency(account.balanceCurrent || 0)}</td>
+                    <td>{formatCurrency(account.balanceAvailable || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
     </div>
   );
