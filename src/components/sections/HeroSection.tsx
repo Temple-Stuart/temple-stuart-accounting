@@ -32,8 +32,8 @@ export default function HeroSection() {
       if (response.ok) {
         setMessage(isSignup ? 'Account created successfully!' : 'Login successful!');
         if (!isSignup) {
-          // Redirect to dashboard or refresh page
-          window.location.reload();
+          // Redirect to accounts page
+          window.location.href = '/accounts';
         }
       } else {
         setMessage(data.error || 'An error occurred');
