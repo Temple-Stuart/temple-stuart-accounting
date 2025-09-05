@@ -13,6 +13,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -20,6 +21,62 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  plaidItems  PlaidItem[]
 
   @@map("users")
+}
+
+model PlaidItem {
+  id          String   @id @default(cuid())
+  userId      String
+  itemId      String   @unique
+  accessToken String
+  institutionId String
+  institutionName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts    Account[]
+  
+  @@map("plaid_items")
+}
+
+model Account {
+  id              String    @id @default(cuid())
+  plaidItemId     String
+  accountId       String    @unique
+  name            String
+  officialName    String?
+  type            String
+  subtype         String?
+  balanceAvailable Float?
+  balanceCurrent  Float?
+  balanceLimit    Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  plaidItem       PlaidItem @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+  
+  @@map("accounts")
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  accountId     String
+  transactionId String   @unique
+  amount        Float
+  date          DateTime
+  name          String
+  merchantName  String?
+  category      String[]
+  pending       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  @@map("transactions")
 }
