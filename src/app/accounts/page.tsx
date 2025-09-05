@@ -96,6 +96,12 @@ export default function AccountsPage() {
     }).format(amount);
   };
 
+  const handleConnectClick = () => {
+    if (open) {
+      open();
+    }
+  };
+
   return (
     <div className="accounts-page">
       <style jsx>{`
@@ -215,7 +221,7 @@ export default function AccountsPage() {
         <div className="connect-section">
           <button 
             className="plaid-btn" 
-            onClick={open}
+            onClick={handleConnectClick}
             disabled={!ready || loading}
           >
             {loading ? 'Loading...' : '+ Connect Another Bank Account'}
