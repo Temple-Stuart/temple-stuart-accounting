@@ -88,7 +88,7 @@ export default function BookkeepingServicesForm() {
           color: #666 !important;
           font-size: 16px !important;
           line-height: 1.7 !important;
-          margin: 0 !important;
+          margin: 0 0 15px 0 !important;
         }
 
         .contact-form {
@@ -227,13 +227,16 @@ export default function BookkeepingServicesForm() {
       `}</style>
       
       <div className="form-header">
-        <h2 className="form-title">Bookkeeping Services</h2>
+        <h2 className="form-title">Request for Proposal</h2>
         <p className="form-subtitle">Professional • Accurate • Reliable</p>
       </div>
       
       <div className="form-description">
         <p className="description-text">
-          I handle the day-to-day bookkeeping that keeps your business running smoothly. From transaction recording and account reconciliation to financial statements and custom reporting, I ensure your books are accurate, current, and compliant. Get personalized service tailored to your specific business needs.
+          I handle the day-to-day bookkeeping that keeps your business running smoothly. From transaction recording and account reconciliation to financial statements and custom reporting, I ensure your books are accurate, current, and compliant.
+        </p>
+        <p className="description-text">
+          I also set up the connections that keep your systems talking and cut out manual work. That might mean linking banks, payroll, and CRMs to your accounting software, syncing data across platforms, or building dashboards for real-time reporting. I automate recurring reports, fix sync issues, and design custom data pipelines and workflows that run on your servers — so your data flows securely and efficiently without you having to touch it.
         </p>
       </div>
       
@@ -274,7 +277,8 @@ export default function BookkeepingServicesForm() {
               'Bank & Credit Card Reconciliation',
               'Financial Statements (P&L, Balance Sheet, Cash Flow)',
               'Monthly & Quarterly Closing',
-              'General Ledger Maintenance'
+              'General Ledger Maintenance',
+              'Payroll Processing & Recording'
             ].map((service) => (
               <div key={service} className="service-item">
                 <input 
@@ -308,33 +312,14 @@ export default function BookkeepingServicesForm() {
           </div>
 
           <div className="service-category">
-            <h4 className="category-title">Payroll & HR Support</h4>
+            <h4 className="category-title">Data Pipeline Setup</h4>
             {[
-              'Payroll Processing & Recording',
-              'Employee Records Management',
-              'Payroll Tax Compliance',
-              '1099 & W-2 Preparation',
-              'Time Tracking Integration'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
-          </div>
-
-          <div className="service-category">
-            <h4 className="category-title">Document & Organization</h4>
-            {[
-              'Document Organization & Filing',
-              'Receipt Processing & Digitization',
-              'Expense Report Management',
-              'Document Retention Policies',
-              'Cloud Storage Setup'
+              'Database Design & Setup',
+              'ETL Pipeline Development',
+              'API Integration & Development',
+              'Automated Data Sync Systems',
+              'Custom Workflow Automation',
+              'Server-Side Data Processing'
             ].map((service) => (
               <div key={service} className="service-item">
                 <input 
@@ -354,7 +339,7 @@ export default function BookkeepingServicesForm() {
               'Budget vs Actual Analysis',
               'Cash Flow Forecasting',
               'KPI Dashboards',
-              'Monthly Business Reviews'
+              'Automated Report Generation'
             ].map((service) => (
               <div key={service} className="service-item">
                 <input 
@@ -368,13 +353,12 @@ export default function BookkeepingServicesForm() {
           </div>
 
           <div className="service-category">
-            <h4 className="category-title">Communication & Support</h4>
+            <h4 className="category-title">Support & Consultation</h4>
             {[
               'Regular Business Consultations',
-              'Tax Preparation Support',
-              'Audit Preparation Assistance',
-              'Financial Planning Support',
-              'Ongoing Communication & Updates'
+              'System Setup & Training',
+              'Ongoing Technical Support',
+              'Process Optimization'
             ].map((service) => (
               <div key={service} className="service-item">
                 <input 
@@ -396,7 +380,7 @@ export default function BookkeepingServicesForm() {
               rows={4}
               value={formData.message}
               onChange={(e) => setFormData(prev => ({...prev, message: e.target.value}))}
-              placeholder="Tell me about your business, current bookkeeping situation, specific needs, or any questions you have..."
+              placeholder="Tell me about your business, current systems, specific data engineering needs, or any questions you have..."
             />
           </div>
         </div>
