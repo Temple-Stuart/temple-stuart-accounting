@@ -1,8 +1,82 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { usePlaidLink } from 'react-plaid-link';
 
 export default function AccountsPage() {
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch link token from API
+  const fetchLinkToken = async () => {
+    try {
+      const response = await fetch('/api/plaid/link-token', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch link token: ${response.status} - ${responseText}`);
+      }
+      
+      const data = JSON.parse(responseText);
+      setLinkToken(data.link_token);
+    } catch (error) {
+      console.error('Error fetching link token:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle successful Plaid Link
+  const onSuccess = useCallback(async (public_token: string, metadata: any) => {
+    try {
+      const response = await fetch('/api/plaid/exchange-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          public_token,
+          institution_name: metadata.institution?.name || 'Unknown Bank'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to exchange token');
+      }
+
+      const data = await response.json();
+      console.log('Successfully connected bank:', data);
+      alert('Bank account connected successfully!');
+    } catch (error) {
+      console.error('Error exchanging token:', error);
+      alert('Failed to connect bank account. Please try again.');
+    }
+  }, []);
+
+  // Plaid Link configuration
+  const config = {
+    token: linkToken,
+    onSuccess,
+    onExit: (err: any, metadata: any) => {
+      if (err) {
+        console.error('Plaid Link exit error:', err);
+      }
+    },
+  };
+
+  const { open, ready } = usePlaidLink(config);
+
+  useEffect(() => {
+    fetchLinkToken();
+  }, []);
+
   return (
     <div className="accounts-page">
       <style jsx>{`
@@ -74,6 +148,12 @@ export default function AccountsPage() {
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(180, 178, 55, 0.3);
         }
+
+        .plaid-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+          transform: none;
+        }
       `}</style>
 
       <div className="container">
@@ -85,8 +165,12 @@ export default function AccountsPage() {
             Securely link your bank accounts to get started with automated bookkeeping 
             and financial insights. Your data is encrypted and protected.
           </p>
-          <button className="plaid-btn">
-            Connect Bank Account
+          <button 
+            className="plaid-btn" 
+            onClick={open}
+            disabled={!ready || loading}
+          >
+            {loading ? 'Loading...' : 'Connect Bank Account'}
           </button>
         </div>
       </div>
