@@ -28,7 +28,20 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ plaidItems });
+    // Map the data to match frontend interface
+    const mappedPlaidItems = plaidItems.map(item => ({
+      id: item.id,
+      institutionName: item.institutionName,
+      accounts: item.accounts.map(account => ({
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        subtype: account.subtype || '',
+        balance: account.balanceCurrent || 0
+      }))
+    }));
+
+    return NextResponse.json({ plaidItems: mappedPlaidItems });
   } catch (error) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
