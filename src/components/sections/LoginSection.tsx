@@ -186,7 +186,7 @@ export default function LoginSection() {
         }
       `}</style>
 
-      <h3 className="portal-title">Client Portal</h3>
+      <h3 className="portal-title">Bookkeeping Dashboard</h3>
       
       <div className="portal-toggle">
         <button 
