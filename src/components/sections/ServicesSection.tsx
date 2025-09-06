@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 
 export default function ServicesSection() {
-  const [activeService, setActiveService] = useState('bookkeeping');
+  const [activeService, setActiveService] = useState<'bookkeeping' | 'tax' | 'automation'>('bookkeeping');
 
   const services = {
     bookkeeping: {
@@ -66,7 +66,7 @@ export default function ServicesSection() {
           {Object.entries(services).map(([key, service]) => (
             <button
               key={key}
-              onClick={() => setActiveService(key)}
+              onClick={() => setActiveService(key as 'bookkeeping' | 'tax' | 'automation')}
               className={`px-8 py-3 rounded-full font-semibold transition-all duration-300 ${
                 activeService === key
                   ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg transform -translate-y-1'
