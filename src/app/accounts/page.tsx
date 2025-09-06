@@ -187,7 +187,7 @@ export default function AccountsPage() {
                       color: '#2d3748',
                       fontSize: '16px'
                     }}>
-                      ${(account.balance || 0).toLocaleString()}
+                      ${account.balance.toLocaleString()}
                     </div>
                   </div>
                 ))}
