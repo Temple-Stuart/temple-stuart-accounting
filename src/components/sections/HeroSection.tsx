@@ -430,13 +430,13 @@ export default function HeroSection() {
                 <div className="metric-value">∑</div>
               </div>
               <div className="cube-face back">
-                <div className="metric-value">📊</div>
+                <div className="metric-value">%</div>
               </div>
               <div className="cube-face left">
-                <div className="metric-value">⚡</div>
+                <div className="metric-value">∆</div>
               </div>
               <div className="cube-face right">
-                <div className="metric-value">🔮</div>
+                <div className="metric-value">π</div>
               </div>
               <div className="cube-face top">
                 <div className="metric-value">♔</div>
@@ -450,7 +450,7 @@ export default function HeroSection() {
         
         <div className="hero-text">
           <h1 className="hero-name">Temple Stuart</h1>
-          <p className="hero-title">Bookkeeping, Data Architecture & Engineering</p>
+          <p className="hero-title">Bookkeeping + Data Automation</p>
           <p className="hero-description">
             Building tools that merges traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
           </p>
