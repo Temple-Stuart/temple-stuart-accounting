@@ -78,33 +78,33 @@ export default function HeroSection() {
                     <span className="text-2xl text-purple-600">∆</span>
                   </div>
                   <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateX(-90deg) translateZ(12px)'}}>
-                    <span className="text-2xl text-purple-600">♔</span>
+                    <span className="text-2xl text-purple-600">≈</span>
                   </div>
                 </div>
               </div>
 
               {/* Orbiting Accounting Elements */}
               <div className="absolute inset-0 animate-spin-reverse">
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
-                  🧮
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold">
+                  $
                 </div>
               </div>
               
               <div className="absolute inset-0 animate-spin-reverse animation-delay-1000">
-                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
-                  📊
+                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold">
+                  %
                 </div>
               </div>
               
               <div className="absolute inset-0 animate-spin-reverse animation-delay-2000">
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
-                  📋
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold">
+                  +
                 </div>
               </div>
               
               <div className="absolute inset-0 animate-spin-reverse animation-delay-3000">
-                <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
-                  🧾
+                <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold">
+                  =
                 </div>
               </div>
 
