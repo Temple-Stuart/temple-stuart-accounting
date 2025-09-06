@@ -2,393 +2,292 @@
 
 import React, { useState } from 'react';
 
-export default function BookkeepingServicesForm() {
-  const [formData, setFormData] = useState({
-    companyName: '',
-    email: '',
-    services: [] as string[],
-    message: ''
-  });
+interface Service {
+  name: string;
+  why: string;
+  value: string;
+  price: string;
+  frequency: string;
+}
 
-  const handleServiceChange = (service: string, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({
-        ...prev,
-        services: [...prev.services, service]
-      }));
+export default function ServiceMenu() {
+  const [selectedCategory, setSelectedCategory] = useState<string>('Monthly Essentials');
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+
+  const serviceCategories = {
+    'Monthly Essentials': [
+      {
+        name: "Complete Bookkeeping",
+        why: "68% of small businesses spend 25+ hours weekly on manual data entry",
+        value: "Get back 20 hours per week + accurate financial reports",
+        price: "$400",
+        frequency: "monthly"
+      },
+      {
+        name: "Bank Reconciliation", 
+        why: "Unreconciled accounts hide cash flow problems until it's too late",
+        value: "Catch errors before they compound, know your real cash position",
+        price: "$150",
+        frequency: "monthly"
+      },
+      {
+        name: "Bill Management",
+        why: "Late payments cost 2% per month in fees and damage credit",
+        value: "Never miss a payment, optimize cash flow timing",
+        price: "$250",
+        frequency: "monthly"
+      },
+      {
+        name: "Customer Payment Tracking",
+        why: "Businesses lose 5% revenue annually to uncollected invoices",
+        value: "Reduce collection time by 30 days, improve cash flow",
+        price: "$300",
+        frequency: "monthly"
+      }
+    ],
+    'Automation Setup': [
+      {
+        name: "QuickBooks Setup & Training",
+        why: "82% of businesses use outdated or incorrectly configured systems",
+        value: "Reduce errors by 90%, cut monthly bookkeeping time in half",
+        price: "$800",
+        frequency: "one-time"
+      },
+      {
+        name: "Bank Feed Integration",
+        why: "Manual transaction entry creates 15-20 errors per 100 transactions",
+        value: "99.7% accuracy, instant transaction import from all accounts",
+        price: "$300",
+        frequency: "one-time"
+      },
+      {
+        name: "Receipt Scanner Setup",
+        why: "Lost receipts cost businesses $4,800 annually in missed deductions",
+        value: "Capture 100% of expenses, automatic categorization",
+        price: "$400",
+        frequency: "one-time"
+      }
+    ],
+    'Data Integration': [
+      {
+        name: "CRM to Accounting Sync",
+        why: "Disconnected systems create data silos and duplicate work",
+        value: "Sales data flows automatically, no double entry",
+        price: "$1,200",
+        frequency: "one-time"
+      },
+      {
+        name: "E-commerce Integration",
+        why: "Manual sales entry delays reporting by 2-3 weeks",
+        value: "Real-time sales data, instant profit margins by product",
+        price: "$900",
+        frequency: "one-time"
+      },
+      {
+        name: "Payment Processing Sync",
+        why: "Payment fees and timing discrepancies mess up cash flow",
+        value: "Automatic fee tracking, accurate cash flow projections",
+        price: "$600",
+        frequency: "one-time"
+      }
+    ],
+    'Business Intelligence': [
+      {
+        name: "Financial Dashboard",
+        why: "87% of small businesses can't access real-time financial data",
+        value: "See profit margins, cash flow, trends updated daily",
+        price: "$2,000",
+        frequency: "one-time"
+      },
+      {
+        name: "Cash Flow Forecasting",
+        why: "82% of business failures are due to poor cash flow management",
+        value: "Predict cash needs 3-6 months ahead, prevent shortfalls",
+        price: "$1,500",
+        frequency: "one-time"
+      }
+    ]
+  };
+
+  const toggleService = (service: Service) => {
+    if (selectedServices.find(s => s.name === service.name)) {
+      setSelectedServices(selectedServices.filter(s => s.name !== service.name));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        services: prev.services.filter(s => s !== service)
-      }));
+      setSelectedServices([...selectedServices, service]);
     }
   };
 
+  const calculateTotal = () => {
+    const oneTime = selectedServices
+      .filter(s => s.frequency === 'one-time')
+      .reduce((sum, s) => sum + parseInt(s.price.replace('$', '').replace(',', '')), 0);
+    
+    const monthly = selectedServices
+      .filter(s => s.frequency === 'monthly')
+      .reduce((sum, s) => sum + parseInt(s.price.replace('$', '').replace(',', '')), 0);
+
+    return { oneTime, monthly };
+  };
+
+  const totals = calculateTotal();
+
   return (
-    <div className="bookkeeping-services-form">
-      <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Inter:wght@300;400;600;700&display=swap');
-        
-        .bookkeeping-services-form {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-          width: 100% !important;
-          max-width: 800px !important;
-          margin: 40px auto 0 auto !important;
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.02) 0%, 
-            rgba(180, 178, 55, 0.05) 50%, 
-            rgba(180, 178, 55, 0.02) 100%) !important;
-          border: 1px solid rgba(180, 178, 55, 0.15) !important;
-          border-radius: 20px !important;
-          padding: 50px 40px !important;
-          position: relative !important;
-          overflow: hidden !important;
-          box-shadow: 
-            0 8px 32px rgba(180, 178, 55, 0.08),
-            0 0 60px rgba(180, 178, 55, 0.03) inset !important;
-          box-sizing: border-box !important;
-        }
-
-        .form-header {
-          text-align: center !important;
-          margin-bottom: 30px !important;
-        }
-
-        .form-title {
-          font-family: 'Cinzel', serif !important;
-          color: #b4b237 !important;
-          font-size: 32px !important;
-          font-weight: 600 !important;
-          margin: 0 0 10px 0 !important;
-          letter-spacing: 1.5px !important;
-          text-transform: uppercase !important;
-        }
-
-        .form-subtitle {
-          color: #b4b237 !important;
-          font-size: 14px !important;
-          font-weight: 300 !important;
-          letter-spacing: 2px !important;
-          text-transform: uppercase !important;
-          margin: 0 0 20px 0 !important;
-          opacity: 0.8 !important;
-        }
-
-        .form-description {
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.03) 0%, 
-            rgba(180, 178, 55, 0.01) 100%) !important;
-          border: 1px solid rgba(180, 178, 55, 0.1) !important;
-          border-radius: 15px !important;
-          padding: 30px !important;
-          margin-bottom: 35px !important;
-        }
-
-        .description-text {
-          color: #666 !important;
-          font-size: 16px !important;
-          line-height: 1.7 !important;
-          margin: 0 0 15px 0 !important;
-        }
-
-        .contact-form {
-          background: rgba(180, 178, 55, 0.03) !important;
-          padding: 30px !important;
-          border-radius: 15px !important;
-          border: 1px solid rgba(180, 178, 55, 0.1) !important;
-        }
-
-        .form-section {
-          margin-bottom: 35px !important;
-        }
-
-        .section-title {
-          color: #b4b237 !important;
-          font-size: 18px !important;
-          font-weight: 600 !important;
-          margin: 0 0 20px 0 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
-        }
-
-        .form-group {
-          margin-bottom: 20px !important;
-        }
-
-        .form-group label {
-          display: block !important;
-          color: #b4b237 !important;
-          font-weight: 500 !important;
-          margin-bottom: 8px !important;
-          text-transform: uppercase !important;
-          font-size: 14px !important;
-          letter-spacing: 0.5px !important;
-        }
-
-        .form-group input,
-        .form-group textarea {
-          width: 100% !important;
-          padding: 14px 16px !important;
-          border: 1px solid rgba(180, 178, 55, 0.2) !important;
-          border-radius: 8px !important;
-          background: rgba(180, 178, 55, 0.02) !important;
-          font-size: 16px !important;
-          box-sizing: border-box !important;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-          outline: none !important;
-          border-color: #b4b237 !important;
-          background: rgba(180, 178, 55, 0.05) !important;
-        }
-
-        .services-grid {
-          display: grid !important;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-          gap: 15px !important;
-        }
-
-        .service-category {
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.02) 0%, 
-            rgba(180, 178, 55, 0.005) 100%) !important;
-          border: 1px solid rgba(180, 178, 55, 0.08) !important;
-          border-radius: 10px !important;
-          padding: 20px !important;
-          margin-bottom: 20px !important;
-        }
-
-        .category-title {
-          color: #b4b237 !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          margin: 0 0 15px 0 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-          border-bottom: 1px solid rgba(180, 178, 55, 0.2) !important;
-          padding-bottom: 8px !important;
-        }
-
-        .service-item {
-          display: flex !important;
-          align-items: center !important;
-          gap: 12px !important;
-          padding: 10px 0 !important;
-          cursor: pointer !important;
-        }
-
-        .service-item:hover {
-          background: rgba(180, 178, 55, 0.02) !important;
-          border-radius: 6px !important;
-          margin: 0 -10px !important;
-          padding: 10px !important;
-        }
-
-        .service-item input {
-          width: auto !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          cursor: pointer !important;
-        }
-
-        .service-item label {
-          margin: 0 !important;
-          font-size: 14px !important;
-          cursor: pointer !important;
-          text-transform: none !important;
-          letter-spacing: 0 !important;
-          color: #333 !important;
-          font-weight: 400 !important;
-        }
-
-        .submit-btn {
-          width: 100% !important;
-          max-width: 300px !important;
-          margin: 30px auto 0 auto !important;
-          padding: 16px 24px !important;
-          background: linear-gradient(135deg, #b4b237, rgba(180, 178, 55, 0.8)) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 8px !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          letter-spacing: 1px !important;
-          text-transform: uppercase !important;
-          cursor: pointer !important;
-          display: block !important;
-          transition: all 0.3s ease !important;
-        }
-
-        .submit-btn:hover {
-          transform: translateY(-3px) !important;
-          box-shadow: 0 8px 25px rgba(180, 178, 55, 0.3) !important;
-        }
-      `}</style>
+    <div style={{
+      fontFamily: 'Inter, sans-serif',
+      maxWidth: '900px',
+      margin: '40px auto',
+      padding: '30px',
+      background: 'linear-gradient(135deg, rgba(180, 178, 55, 0.02) 0%, rgba(180, 178, 55, 0.05) 50%, rgba(180, 178, 55, 0.02) 100%)',
+      border: '1px solid rgba(180, 178, 55, 0.15)',
+      borderRadius: '16px',
+      boxShadow: '0 8px 32px rgba(180, 178, 55, 0.08)'
+    }}>
       
-      <div className="form-header">
-        <h2 className="form-title">Request for Proposal</h2>
-        <p className="form-subtitle">Professional • Accurate • Reliable</p>
-      </div>
-      
-      <div className="form-description">
-        <p className="description-text">
-          I handle the day-to-day bookkeeping that keeps your business running smoothly. From transaction recording and account reconciliation to financial statements and custom reporting, I ensure your books are accurate, current, and compliant.
-        </p>
-        <p className="description-text">
-          I also set up the connections that keep your systems talking and cut out manual work. That might mean linking banks, payroll, and CRMs to your accounting software, syncing data across platforms, or building dashboards for real-time reporting. I automate recurring reports, fix sync issues, and design custom data pipelines and workflows that run on your servers — so your data flows securely and efficiently without you having to touch it.
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <h2 style={{
+          fontFamily: 'Cinzel, serif',
+          color: '#b4b237',
+          fontSize: '28px',
+          fontWeight: '600',
+          margin: '0 0 12px 0',
+          letterSpacing: '1px',
+          textTransform: 'uppercase'
+        }}>
+          Services & Pricing
+        </h2>
+        <p style={{
+          color: '#b4b237',
+          fontSize: '13px',
+          fontWeight: '300',
+          letterSpacing: '1.5px',
+          textTransform: 'uppercase',
+          opacity: '0.8'
+        }}>
+          What • Why • Value
         </p>
       </div>
-      
-      <form className="contact-form">
-        <div className="form-section">
-          <h3 className="section-title">Business Information</h3>
-          
-          <div className="form-group">
-            <label htmlFor="companyName">Company Name</label>
-            <input 
-              type="text" 
-              id="companyName"
-              value={formData.companyName}
-              onChange={(e) => setFormData(prev => ({...prev, companyName: e.target.value}))}
-              required 
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input 
-              type="email" 
-              id="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
-              required 
-            />
-          </div>
+
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '25px', justifyContent: 'center' }}>
+        {Object.keys(serviceCategories).map(category => (
+          <button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            style={{
+              padding: '10px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              backgroundColor: selectedCategory === category ? '#b4b237' : 'rgba(180, 178, 55, 0.1)',
+              color: selectedCategory === category ? 'white' : '#b4b237',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px' }}>
+        <div>
+          {serviceCategories[selectedCategory].map(service => {
+            const isSelected = selectedServices.find(s => s.name === service.name);
+            return (
+              <div
+                key={service.name}
+                onClick={() => toggleService(service)}
+                style={{
+                  padding: '20px',
+                  marginBottom: '15px',
+                  border: `1px solid ${isSelected ? '#b4b237' : 'rgba(180, 178, 55, 0.1)'}`,
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  backgroundColor: isSelected ? 'rgba(180, 178, 55, 0.05)' : 'rgba(180, 178, 55, 0.01)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, color: '#333', fontSize: '16px', fontWeight: '600' }}>
+                    {service.name}
+                  </h3>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: '#b4b237' }}>
+                      {service.price}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {service.frequency}
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: '8px' }}>
+                  <strong style={{ color: '#666', fontSize: '13px' }}>Problem: </strong>
+                  <span style={{ color: '#666', fontSize: '13px' }}>{service.why}</span>
+                </div>
+                
+                <div>
+                  <strong style={{ color: '#666', fontSize: '13px' }}>Value: </strong>
+                  <span style={{ color: '#666', fontSize: '13px' }}>{service.value}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="form-section">
-          <h3 className="section-title">Select Your Services</h3>
-          
-          <div className="service-category">
-            <h4 className="category-title">Core Bookkeeping</h4>
-            {[
-              'Transaction Recording & Categorization',
-              'Bank & Credit Card Reconciliation',
-              'Financial Statements (P&L, Balance Sheet, Cash Flow)',
-              'Monthly & Quarterly Closing',
-              'General Ledger Maintenance',
-              'Payroll Processing & Recording'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
-          </div>
+        <div style={{ position: 'sticky', top: '20px', height: 'fit-content' }}>
+          <div style={{
+            padding: '20px',
+            backgroundColor: 'rgba(180, 178, 55, 0.08)',
+            borderRadius: '10px',
+            border: '1px solid rgba(180, 178, 55, 0.15)'
+          }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#b4b237', fontSize: '18px', fontWeight: '600' }}>
+              Your Quote
+            </h3>
+            
+            {selectedServices.length === 0 ? (
+              <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>Select services to see total</p>
+            ) : (
+              <>
+                {totals.oneTime > 0 && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <span style={{ color: '#333', fontSize: '16px', fontWeight: '600' }}>
+                      Setup: ${totals.oneTime.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                
+                {totals.monthly > 0 && (
+                  <div style={{ marginBottom: '15px' }}>
+                    <span style={{ color: '#333', fontSize: '16px', fontWeight: '600' }}>
+                      Monthly: ${totals.monthly.toLocaleString()}
+                    </span>
+                  </div>
+                )}
 
-          <div className="service-category">
-            <h4 className="category-title">Accounts Management</h4>
-            {[
-              'Accounts Payable Management',
-              'Accounts Receivable Management',
-              'Invoice Processing & Tracking',
-              'Vendor Management',
-              'Customer Payment Processing'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
-          </div>
-
-          <div className="service-category">
-            <h4 className="category-title">Data Pipeline Setup</h4>
-            {[
-              'Database Design & Setup',
-              'ETL Pipeline Development',
-              'API Integration & Development',
-              'Automated Data Sync Systems',
-              'Custom Workflow Automation',
-              'Server-Side Data Processing'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
-          </div>
-
-          <div className="service-category">
-            <h4 className="category-title">Analysis & Reporting</h4>
-            {[
-              'Custom Financial Reports',
-              'Budget vs Actual Analysis',
-              'Cash Flow Forecasting',
-              'KPI Dashboards',
-              'Automated Report Generation'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
-          </div>
-
-          <div className="service-category">
-            <h4 className="category-title">Support & Consultation</h4>
-            {[
-              'Regular Business Consultations',
-              'System Setup & Training',
-              'Ongoing Technical Support',
-              'Process Optimization'
-            ].map((service) => (
-              <div key={service} className="service-item">
-                <input 
-                  type="checkbox"
-                  id={service}
-                  onChange={(e) => handleServiceChange(service, e.target.checked)}
-                />
-                <label htmlFor={service}>{service}</label>
-              </div>
-            ))}
+                <button style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: '#b4b237',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  cursor: 'pointer'
+                }}>
+                  Get Quote
+                </button>
+              </>
+            )}
           </div>
         </div>
-
-        <div className="form-section">
-          <div className="form-group">
-            <label htmlFor="message">Additional Details & Requirements</label>
-            <textarea 
-              id="message"
-              rows={4}
-              value={formData.message}
-              onChange={(e) => setFormData(prev => ({...prev, message: e.target.value}))}
-              placeholder="Tell me about your business, current systems, specific data engineering needs, or any questions you have..."
-            />
-          </div>
-        </div>
-        
-        <button type="submit" className="submit-btn">
-          Get Started Today
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
