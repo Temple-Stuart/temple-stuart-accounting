@@ -10,11 +10,18 @@ interface Service {
   frequency: string;
 }
 
-export default function ServiceMenu() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('Monthly Essentials');
+type ServiceCategories = {
+  'Monthly Essentials': Service[];
+  'Automation Setup': Service[];
+  'Data Integration': Service[];
+  'Business Intelligence': Service[];
+};
+
+export default function BookkeepingSection() {
+  const [selectedCategory, setSelectedCategory] = useState<keyof ServiceCategories>('Monthly Essentials');
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
 
-  const serviceCategories = {
+  const serviceCategories: ServiceCategories = {
     'Monthly Essentials': [
       {
         name: "Complete Bookkeeping",
@@ -171,7 +178,7 @@ export default function ServiceMenu() {
         {Object.keys(serviceCategories).map(category => (
           <button
             key={category}
-            onClick={() => setSelectedCategory(category)}
+            onClick={() => setSelectedCategory(category as keyof ServiceCategories)}
             style={{
               padding: '10px 16px',
               border: 'none',
