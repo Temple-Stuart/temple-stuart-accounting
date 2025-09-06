@@ -57,7 +57,7 @@ export default function TransactionsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{maxWidth: '200px'}}>
                     Merchant
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -80,8 +80,8 @@ export default function TransactionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(transaction.date).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-sm" style={{maxWidth: '200px', wordWrap: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal'}}>
+                      <div className="font-medium text-gray-900">
                         {transaction.merchant_name || transaction.name}
                       </div>
                     </td>
