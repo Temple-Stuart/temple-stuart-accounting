@@ -1,50 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 
 export default function HeroSection() {
-  const [isSignup, setIsSignup] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-
-    const formData = new FormData(e.target as HTMLFormElement);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const name = formData.get('name') as string;
-
-    const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/login';
-    const payload = isSignup ? { email, password, name } : { email, password };
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(isSignup ? 'Account created successfully!' : 'Login successful!');
-        if (!isSignup) {
-          // Redirect to accounts page
-          window.location.href = '/accounts';
-        }
-      } else {
-        setMessage(data.error || 'An error occurred');
-      }
-    } catch (error) {
-      setMessage('Network error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="temple-hero-enhanced">
       <style jsx>{`
@@ -286,136 +244,6 @@ export default function HeroSection() {
           text-transform: uppercase !important;
           margin: 0 !important;
         }
-
-        .client-portal-section {
-          margin-top: 40px !important;
-          padding-top: 30px !important;
-          border-top: 1px solid rgba(180, 178, 55, 0.15) !important;
-        }
-
-        .portal-title {
-          color: #b4b237 !important;
-          font-size: 24px !important;
-          font-weight: 600 !important;
-          margin: 0 0 20px 0 !important;
-          letter-spacing: 1px !important;
-          text-transform: uppercase !important;
-          text-align: center !important;
-        }
-
-        .portal-toggle {
-          display: flex !important;
-          gap: 0 !important;
-          margin-bottom: 25px !important;
-          background: rgba(180, 178, 55, 0.1) !important;
-          border-radius: 8px !important;
-          padding: 4px !important;
-        }
-
-        .toggle-btn {
-          flex: 1 !important;
-          padding: 10px 16px !important;
-          background: transparent !important;
-          color: #b4b237 !important;
-          border: none !important;
-          border-radius: 6px !important;
-          font-size: 14px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-          transition: all 0.3s ease !important;
-        }
-
-        .toggle-btn.active {
-          background: #b4b237 !important;
-          color: white !important;
-          box-shadow: 0 2px 8px rgba(180, 178, 55, 0.3) !important;
-        }
-
-        .login-form {
-          max-width: 100% !important;
-          background: rgba(180, 178, 55, 0.03) !important;
-          padding: 25px !important;
-          border-radius: 12px !important;
-          border: 1px solid rgba(180, 178, 55, 0.1) !important;
-        }
-
-        .form-group {
-          margin-bottom: 20px !important;
-        }
-
-        .form-group label {
-          display: block !important;
-          color: #b4b237 !important;
-          font-weight: 500 !important;
-          margin-bottom: 6px !important;
-          text-transform: uppercase !important;
-          font-size: 12px !important;
-          letter-spacing: 0.5px !important;
-        }
-
-        .form-group input {
-          width: 100% !important;
-          padding: 12px 14px !important;
-          border: 1px solid rgba(180, 178, 55, 0.2) !important;
-          border-radius: 6px !important;
-          background: rgba(180, 178, 55, 0.02) !important;
-          font-size: 14px !important;
-          box-sizing: border-box !important;
-        }
-
-        .form-group input:focus {
-          outline: none !important;
-          border-color: #b4b237 !important;
-          background: rgba(180, 178, 55, 0.05) !important;
-        }
-
-        .login-btn {
-          width: 100% !important;
-          padding: 12px !important;
-          background: linear-gradient(135deg, #b4b237, rgba(180, 178, 55, 0.8)) !important;
-          color: white !important;
-          border: none !important;
-          border-radius: 6px !important;
-          font-size: 14px !important;
-          font-weight: 600 !important;
-          cursor: pointer !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-          transition: all 0.3s ease !important;
-          opacity: ${isLoading ? '0.7' : '1'} !important;
-        }
-
-        .login-btn:hover {
-          transform: translateY(-2px) !important;
-          box-shadow: 0 6px 20px rgba(180, 178, 55, 0.3) !important;
-        }
-
-        .login-btn:disabled {
-          cursor: not-allowed !important;
-          transform: none !important;
-        }
-
-        .message {
-          margin-top: 15px !important;
-          padding: 10px !important;
-          border-radius: 6px !important;
-          font-size: 14px !important;
-          text-align: center !important;
-        }
-
-        .message.success {
-          background: rgba(34, 197, 94, 0.1) !important;
-          color: #16a34a !important;
-          border: 1px solid rgba(34, 197, 94, 0.2) !important;
-        }
-
-        .message.error {
-          background: rgba(239, 68, 68, 0.1) !important;
-          color: #dc2626 !important;
-          border: 1px solid rgba(239, 68, 68, 0.2) !important;
-        }
       `}</style>
 
       <div className="hero-content">
@@ -450,68 +278,24 @@ export default function HeroSection() {
         
         <div className="hero-text">
           <h1 className="hero-name">Temple Stuart</h1>
-          <p className="hero-title">Bookkeeping + Data Automation</p>
+          <p className="hero-title">Bookkeeping + Automation</p>
           <p className="hero-description">
             Building tools that merges traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
           </p>
           
           <div className="expertise-badges">
             <div className="badge">
-              <p className="badge-text">Bookkeeping</p>
+              <p className="badge-text">Bookkeeping Dashboard</p>
+            </div>
+            <div className="badge">
+              <p className="badge-text">Data Integratons</p>
             </div>
             <div className="badge">
               <p className="badge-text">Data Automation</p>
             </div>
             <div className="badge">
-              <p className="badge-text">Data Integrations</p>
+              <p className="badge-text">Client Portal</p>
             </div>
-          </div>
-
-          <div className="client-portal-section">
-            <h3 className="portal-title">Client Portal</h3>
-            
-            <div className="portal-toggle">
-              <button 
-                type="button"
-                className={`toggle-btn ${!isSignup ? 'active' : ''}`}
-                onClick={() => setIsSignup(false)}
-              >
-                Login
-              </button>
-              <button 
-                type="button"
-                className={`toggle-btn ${isSignup ? 'active' : ''}`}
-                onClick={() => setIsSignup(true)}
-              >
-                Sign Up
-              </button>
-            </div>
-            
-            <form className="login-form" onSubmit={handleAuth}>
-              {isSignup && (
-                <div className="form-group">
-                  <label htmlFor="name">Company Name</label>
-                  <input type="text" id="name" name="name" required />
-                </div>
-              )}
-              <div className="form-group">
-                <label htmlFor="email">Email</label>
-                <input type="email" id="email" name="email" required />
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input type="password" id="password" name="password" required />
-              </div>
-              <button type="submit" className="login-btn" disabled={isLoading}>
-                {isLoading ? 'Processing...' : (isSignup ? 'Create Account' : 'Access Portal')}
-              </button>
-              
-              {message && (
-                <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>
-                  {message}
-                </div>
-              )}
-            </form>
           </div>
         </div>
       </div>
