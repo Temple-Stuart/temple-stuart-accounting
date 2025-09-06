@@ -47,7 +47,12 @@ export async function GET(request: NextRequest) {
 
       try {
         const response = await client.transactionsGet(request);
-        allTransactions.push(...response.data.transactions);
+        // Add institution name to each transaction
+        const transactionsWithInstitution = response.data.transactions.map(transaction => ({
+          ...transaction,
+          institution_name: item.institutionName
+        }));
+        allTransactions.push(...transactionsWithInstitution);
         console.log(`Found ${response.data.transactions.length} transactions for item ${item.id}`);
       } catch (error) {
         console.error('Error fetching transactions for item:', item.id, error instanceof Error ? error.message : String(error));
