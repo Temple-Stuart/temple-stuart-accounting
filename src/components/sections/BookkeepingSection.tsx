@@ -139,320 +139,116 @@ export default function BookkeepingSection() {
   const totals = calculateTotal();
 
   return (
-    <div style={{
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-      width: '100%',
-      maxWidth: '900px',
-      margin: '40px auto',
-      background: 'linear-gradient(135deg, rgba(180, 178, 55, 0.03) 0%, rgba(180, 178, 55, 0.08) 50%, rgba(180, 178, 55, 0.03) 100%)',
-      border: '2px solid rgba(180, 178, 55, 0.2)',
-      borderRadius: '20px',
-      padding: '60px 40px',
-      position: 'relative',
-      overflow: 'hidden',
-      boxShadow: '0 10px 40px rgba(180, 178, 55, 0.1), 0 0 80px rgba(180, 178, 55, 0.05) inset',
-      boxSizing: 'border-box'
-    }}>
-      
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .bookkeeping-container {
-            padding: 30px 20px !important;
-            margin: 20px auto !important;
-          }
-          .category-buttons {
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-          }
-          .category-button {
-            padding: 8px 12px !important;
-            font-size: 11px !important;
-          }
-          .services-grid {
-            grid-template-columns: 1fr !important;
-            gap: 20px !important;
-          }
-          .service-item {
-            padding: 15px !important;
-          }
-          .service-header {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 8px !important;
-          }
-        }
+    <section className="py-8 bg-gradient-to-br from-purple-50 via-amber-50 to-white">
+      <div className="max-w-7xl mx-auto px-6">
         
-        @media (max-width: 480px) {
-          .bookkeeping-container {
-            padding: 20px 15px !important;
-            margin: 15px auto !important;
-          }
-          .hero-title {
-            font-size: 24px !important;
-          }
-          .category-button {
-            padding: 6px 8px !important;
-            font-size: 10px !important;
-          }
-        }
-      `}</style>
-
-      <div className="bookkeeping-container" style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 className="hero-title" style={{
-            fontFamily: 'Cinzel, serif',
-            color: '#b4b237',
-            fontSize: '42px',
-            fontWeight: '600',
-            margin: '0 0 12px 0',
-            letterSpacing: '2px',
-            textTransform: 'uppercase'
-          }}>
-            Services & Pricing
+        {/* Section Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
+            BOOKKEEPING + AUTOMATION
           </h2>
-          <p style={{
-            color: '#b4b237',
-            fontSize: '20px',
-            fontWeight: '300',
-            letterSpacing: '3px',
-            textTransform: 'uppercase',
-            opacity: '0.9',
-            margin: '0'
-          }}>
-            What • Why • Value
+          <p className="text-xl text-gray-600 uppercase tracking-widest opacity-90">
+            FINANCIAL DATA SOLUTIONS
           </p>
         </div>
 
-        <div className="category-buttons" style={{ 
-          display: 'flex', 
-          gap: '15px', 
-          marginBottom: '40px', 
-          justifyContent: 'center',
-          flexWrap: 'wrap'
-        }}>
+        {/* Category Buttons */}
+        <div className="flex flex-wrap justify-center gap-4 mb-12">
           {Object.keys(serviceCategories).map(category => (
             <button
               key={category}
-              className="category-button"
               onClick={() => setSelectedCategory(category as keyof ServiceCategories)}
-              style={{
-                background: selectedCategory === category 
-                  ? 'linear-gradient(135deg, #b4b237, rgba(180, 178, 55, 0.8))'
-                  : 'linear-gradient(135deg, rgba(180, 178, 55, 0.1), rgba(180, 178, 55, 0.05))',
-                border: `1px solid ${selectedCategory === category ? '#b4b237' : 'rgba(180, 178, 55, 0.3)'}`,
-                padding: '12px 20px',
-                borderRadius: '25px',
-                color: selectedCategory === category ? 'white' : '#b4b237',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                transition: 'all 0.3s ease',
-                boxShadow: selectedCategory === category ? '0 5px 15px rgba(180, 178, 55, 0.2)' : 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (selectedCategory !== category) {
-                  e.currentTarget.style.borderColor = '#b4b237';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 5px 15px rgba(180, 178, 55, 0.2)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedCategory !== category) {
-                  e.currentTarget.style.borderColor = 'rgba(180, 178, 55, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
+              className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
+                selectedCategory === category 
+                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg transform -translate-y-1'
+                  : 'bg-gradient-to-r from-purple-100 to-amber-100 text-purple-700 hover:from-purple-200 hover:to-amber-200'
+              }`}
             >
               {category}
             </button>
           ))}
         </div>
 
-        <div className="services-grid" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1fr 1fr', 
-          gap: '40px',
-          alignItems: 'start'
-        }}>
-          <div style={{ height: '100%' }}>
+        <div className="grid lg:grid-cols-2 gap-12">
+          
+          {/* Services List */}
+          <div className="space-y-6">
             {serviceCategories[selectedCategory].map(service => {
               const isSelected = selectedServices.find(s => s.name === service.name);
               return (
                 <div
                   key={service.name}
-                  className="service-item"
                   onClick={() => toggleService(service)}
-                  style={{
-                    padding: '24px',
-                    marginBottom: '20px',
-                    border: `2px solid ${isSelected ? '#b4b237' : 'rgba(180, 178, 55, 0.2)'}`,
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, rgba(180, 178, 55, 0.08), rgba(180, 178, 55, 0.05))'
-                      : 'linear-gradient(135deg, rgba(180, 178, 55, 0.02), rgba(180, 178, 55, 0.01))',
-                    transition: 'all 0.3s ease',
-                    boxShadow: isSelected ? '0 8px 32px rgba(180, 178, 55, 0.15)' : '0 4px 16px rgba(180, 178, 55, 0.05)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(180, 178, 55, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = isSelected ? '0 8px 32px rgba(180, 178, 55, 0.15)' : '0 4px 16px rgba(180, 178, 55, 0.05)';
-                  }}
+                  className={`p-6 rounded-2xl cursor-pointer transition-all duration-300 transform hover:-translate-y-2 ${
+                    isSelected 
+                      ? 'bg-gradient-to-r from-purple-100 to-amber-100 border-2 border-amber-400 shadow-xl'
+                      : 'bg-gradient-to-r from-purple-50 to-amber-50 border-2 border-purple-200 hover:shadow-lg'
+                  }`}
                 >
-                  <div className="service-header" style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'flex-start', 
-                    marginBottom: '16px' 
-                  }}>
-                    <h3 style={{ 
-                      margin: 0, 
-                      color: '#333', 
-                      fontSize: '18px', 
-                      fontWeight: '600',
-                      maxWidth: '60%'
-                    }}>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 max-w-xs">
                       {service.name}
                     </h3>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ 
-                        fontSize: '20px', 
-                        fontWeight: '700', 
-                        color: '#b4b237',
-                        marginBottom: '4px'
-                      }}>
+                    <div className="text-right">
+                      <div className="text-xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
                         {service.price}
                       </div>
-                      <div style={{ 
-                        fontSize: '11px', 
-                        color: '#b4b237', 
-                        textTransform: 'uppercase', 
-                        letterSpacing: '0.5px',
-                        opacity: '0.8'
-                      }}>
+                      <div className="text-xs text-purple-600 uppercase tracking-wide">
                         {service.frequency}
                       </div>
                     </div>
                   </div>
                   
-                  <div style={{ marginBottom: '12px' }}>
-                    <strong style={{ color: '#b4b237', fontSize: '13px', fontWeight: '600' }}>Problem: </strong>
-                    <span style={{ color: '#666', fontSize: '13px', lineHeight: '1.5' }}>{service.why}</span>
+                  <div className="mb-3">
+                    <span className="font-semibold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent text-sm">Problem: </span>
+                    <span className="text-gray-600 text-sm">{service.why}</span>
                   </div>
                   
                   <div>
-                    <strong style={{ color: '#b4b237', fontSize: '13px', fontWeight: '600' }}>Value: </strong>
-                    <span style={{ color: '#666', fontSize: '13px', lineHeight: '1.5' }}>{service.value}</span>
+                    <span className="font-semibold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent text-sm">Value: </span>
+                    <span className="text-gray-600 text-sm">{service.value}</span>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ position: 'sticky', top: '20px', height: 'fit-content' }}>
-            <div style={{
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(180, 178, 55, 0.1), rgba(180, 178, 55, 0.05))',
-              borderRadius: '16px',
-              border: '2px solid rgba(180, 178, 55, 0.2)',
-              boxShadow: '0 8px 32px rgba(180, 178, 55, 0.1)'
-            }}>
-              <h3 style={{ 
-                margin: '0 0 24px 0', 
-                color: '#b4b237', 
-                fontSize: '24px', 
-                fontWeight: '600',
-                textAlign: 'center',
-                letterSpacing: '1px'
-              }}>
+          {/* Quote Section */}
+          <div className="sticky top-8">
+            <div className="bg-gradient-to-br from-purple-100 to-amber-100 rounded-2xl p-8 border-2 border-purple-200 shadow-xl">
+              <h3 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
                 Your Quote
               </h3>
               
               {selectedServices.length === 0 ? (
-                <p style={{ 
-                  margin: 0, 
-                  color: '#666', 
-                  fontSize: '16px',
-                  textAlign: 'center',
-                  fontStyle: 'italic'
-                }}>
+                <p className="text-center text-gray-600 italic">
                   Select services to see total
                 </p>
               ) : (
-                <>
+                <div className="space-y-4">
                   {totals.oneTime > 0 && (
-                    <div style={{ 
-                      marginBottom: '16px',
-                      padding: '16px',
-                      background: 'rgba(180, 178, 55, 0.05)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(180, 178, 55, 0.2)'
-                    }}>
-                      <div style={{ color: '#b4b237', fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>
-                        One-time Setup
-                      </div>
-                      <span style={{ color: '#333', fontSize: '20px', fontWeight: '700' }}>
-                        ${totals.oneTime.toLocaleString()}
-                      </span>
+                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                      <div className="text-sm font-semibold text-purple-600 mb-1">One-time Setup</div>
+                      <div className="text-2xl font-bold text-gray-900">${totals.oneTime.toLocaleString()}</div>
                     </div>
                   )}
                   
                   {totals.monthly > 0 && (
-                    <div style={{ 
-                      marginBottom: '24px',
-                      padding: '16px',
-                      background: 'rgba(180, 178, 55, 0.05)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(180, 178, 55, 0.2)'
-                    }}>
-                      <div style={{ color: '#b4b237', fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>
-                        Monthly Service
-                      </div>
-                      <span style={{ color: '#333', fontSize: '20px', fontWeight: '700' }}>
-                        ${totals.monthly.toLocaleString()}
-                      </span>
+                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                      <div className="text-sm font-semibold text-purple-600 mb-1">Monthly Service</div>
+                      <div className="text-2xl font-bold text-gray-900">${totals.monthly.toLocaleString()}</div>
                     </div>
                   )}
 
-                  <button style={{
-                    width: '100%',
-                    padding: '16px',
-                    background: 'linear-gradient(135deg, #b4b237, rgba(180, 178, 55, 0.8))',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '25px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 16px rgba(180, 178, 55, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(180, 178, 55, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(180, 178, 55, 0.3)';
-                  }}
-                  >
+                  <button className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg">
                     Get Quote
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

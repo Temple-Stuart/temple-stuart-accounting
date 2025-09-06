@@ -45,208 +45,110 @@ export default function LoginSection() {
   };
 
   return (
-    <div className="login-section">
-      <style jsx>{`
-        .login-section {
-          width: 100%;
-          max-width: 800px;
-          margin: 40px auto;
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.03) 0%, 
-            rgba(180, 178, 55, 0.08) 50%, 
-            rgba(180, 178, 55, 0.03) 100%);
-          border: 2px solid rgba(180, 178, 55, 0.2);
-          border-radius: 20px;
-          padding: 60px 40px;
-          box-shadow: 0 10px 40px rgba(180, 178, 55, 0.1);
-          box-sizing: border-box;
-        }
-
-        .portal-title {
-          color: #b4b237;
-          font-size: 42px;
-          font-weight: 600;
-          margin: 0 0 12px 0;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          text-align: center;
-          font-family: 'Cinzel', serif;
-        }
-
-        .portal-subtitle {
-          color: #b4b237;
-          font-size: 20px;
-          font-weight: 300;
-          margin: 0 0 40px 0;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-          opacity: 0.9;
-          text-align: center;
-        }
-
-        .portal-toggle {
-          display: flex;
-          gap: 0;
-          margin-bottom: 25px;
-          background: rgba(180, 178, 55, 0.1);
-          border-radius: 8px;
-          padding: 4px;
-          max-width: 400px;
-          margin: 0 auto 25px auto;
-        }
-
-        .toggle-btn {
-          flex: 1;
-          padding: 12px 16px;
-          background: transparent;
-          color: #b4b237;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          transition: all 0.3s ease;
-        }
-
-        .toggle-btn.active {
-          background: #b4b237;
-          color: white;
-          box-shadow: 0 2px 8px rgba(180, 178, 55, 0.3);
-        }
-
-        .login-form {
-          background: rgba(180, 178, 55, 0.03);
-          padding: 25px;
-          border-radius: 12px;
-          border: 1px solid rgba(180, 178, 55, 0.1);
-          max-width: 400px;
-          margin: 0 auto;
-        }
-
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-group label {
-          display: block;
-          color: #b4b237;
-          font-weight: 500;
-          margin-bottom: 6px;
-          text-transform: uppercase;
-          font-size: 12px;
-          letter-spacing: 0.5px;
-        }
-
-        .form-group input {
-          width: 100%;
-          padding: 12px 14px;
-          border: 1px solid rgba(180, 178, 55, 0.2);
-          border-radius: 6px;
-          background: rgba(180, 178, 55, 0.02);
-          font-size: 14px;
-          box-sizing: border-box;
-        }
-
-        .form-group input:focus {
-          outline: none;
-          border-color: #b4b237;
-          background: rgba(180, 178, 55, 0.05);
-        }
-
-        .login-btn {
-          width: 100%;
-          padding: 12px;
-          background: linear-gradient(135deg, #b4b237, rgba(180, 178, 55, 0.8));
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          transition: all 0.3s ease;
-          opacity: ${isLoading ? '0.7' : '1'};
-        }
-
-        .login-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(180, 178, 55, 0.3);
-        }
-
-        .login-btn:disabled {
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .message {
-          margin-top: 15px;
-          padding: 10px;
-          border-radius: 6px;
-          font-size: 14px;
-          text-align: center;
-        }
-
-        .message.success {
-          background: rgba(34, 197, 94, 0.1);
-          color: #16a34a;
-          border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        .message.error {
-          background: rgba(239, 68, 68, 0.1);
-          color: #dc2626;
-          border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-      `}</style>
-
-      <h3 className="portal-title">Bookkeeping Dashboard</h3>
-      <p className="portal-subtitle">Secure Client Portal</p>
-      
-      <div className="portal-toggle">
-        <button 
-          type="button"
-          className={`toggle-btn ${!isSignup ? 'active' : ''}`}
-          onClick={() => setIsSignup(false)}
-        >
-          Login
-        </button>
-        <button 
-          type="button"
-          className={`toggle-btn ${isSignup ? 'active' : ''}`}
-          onClick={() => setIsSignup(true)}
-        >
-          Sign Up
-        </button>
-      </div>
-      
-      <form className="login-form" onSubmit={handleAuth}>
-        {isSignup && (
-          <div className="form-group">
-            <label htmlFor="name">Company Name</label>
-            <input type="text" id="name" name="name" required />
-          </div>
-        )}
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input type="email" id="email" name="email" required />
-        </div>
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
-          <input type="password" id="password" name="password" required />
-        </div>
-        <button type="submit" className="login-btn" disabled={isLoading}>
-          {isLoading ? 'Processing...' : (isSignup ? 'Create Account' : 'Access Portal')}
-        </button>
+    <section className="py-20 bg-gradient-to-br from-amber-50 via-white to-purple-50">
+      <div className="max-w-4xl mx-auto px-6">
         
-        {message && (
-          <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>
-            {message}
+        <div className="bg-gradient-to-br from-purple-100 to-amber-100 rounded-2xl p-12 border-2 border-purple-200 shadow-2xl">
+          
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
+              Bookkeeping Dashboard
+            </h3>
+            <p className="text-xl text-gray-600 uppercase tracking-widest">
+              Secure Client Portal
+            </p>
           </div>
-        )}
-      </form>
-    </div>
+
+          {/* Toggle */}
+          <div className="flex bg-white rounded-full p-1 mb-8 max-w-md mx-auto shadow-lg">
+            <button 
+              type="button"
+              onClick={() => setIsSignup(false)}
+              className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all duration-300 ${
+                !isSignup 
+                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-md' 
+                  : 'text-purple-600 hover:text-purple-700'
+              }`}
+            >
+              Login
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsSignup(true)}
+              className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all duration-300 ${
+                isSignup 
+                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-md' 
+                  : 'text-purple-600 hover:text-purple-700'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+          
+          {/* Form */}
+          <div className="max-w-md mx-auto">
+            <form onSubmit={handleAuth} className="space-y-6">
+              
+              {isSignup && (
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-2 uppercase tracking-wide">
+                    Company Name
+                  </label>
+                  <input 
+                    type="text" 
+                    name="name" 
+                    required 
+                    className="w-full px-4 py-3 bg-white border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none transition-all duration-200"
+                  />
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-semibold text-purple-700 mb-2 uppercase tracking-wide">
+                  Email
+                </label>
+                <input 
+                  type="email" 
+                  name="email" 
+                  required 
+                  className="w-full px-4 py-3 bg-white border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none transition-all duration-200"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-purple-700 mb-2 uppercase tracking-wide">
+                  Password
+                </label>
+                <input 
+                  type="password" 
+                  name="password" 
+                  required 
+                  className="w-full px-4 py-3 bg-white border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:outline-none transition-all duration-200"
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isLoading ? 'Processing...' : (isSignup ? 'Create Account' : 'Access Portal')}
+              </button>
+              
+              {message && (
+                <div className={`p-4 rounded-lg text-center font-medium ${
+                  message.includes('successful') 
+                    ? 'bg-green-100 text-green-700 border border-green-200' 
+                    : 'bg-red-100 text-red-700 border border-red-200'
+                }`}>
+                  {message}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

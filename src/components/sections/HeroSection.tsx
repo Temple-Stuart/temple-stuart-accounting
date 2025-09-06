@@ -4,302 +4,147 @@ import React from 'react';
 
 export default function HeroSection() {
   return (
-    <div className="temple-hero-enhanced">
-      <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Inter:wght@300;400;600;700&display=swap');
-        
-        .temple-hero-enhanced {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-          width: 100% !important;
-          max-width: 800px !important;
-          margin: 0 auto !important;
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.03) 0%, 
-            rgba(180, 178, 55, 0.08) 50%, 
-            rgba(180, 178, 55, 0.03) 100%) !important;
-          border: 2px solid rgba(180, 178, 55, 0.2) !important;
-          border-radius: 20px !important;
-          padding: 60px 40px !important;
-          position: relative !important;
-          overflow: hidden !important;
-          box-shadow: 
-            0 10px 40px rgba(180, 178, 55, 0.1),
-            0 0 80px rgba(180, 178, 55, 0.05) inset !important;
-          box-sizing: border-box !important;
-        }
+    <section className="relative min-h-screen bg-gradient-to-br from-purple-50 via-white to-amber-50 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute top-20 right-10 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
 
-        .temple-hero-enhanced::before,
-        .temple-hero-enhanced::after {
-          content: '' !important;
-          position: absolute !important;
-          width: 100px !important;
-          height: 100px !important;
-          border: 1px solid rgba(180, 178, 55, 0.3) !important;
-          pointer-events: none !important;
-        }
-        
-        .temple-hero-enhanced::before {
-          top: 20px !important;
-          left: 20px !important;
-          border-right: none !important;
-          border-bottom: none !important;
-        }
-        
-        .temple-hero-enhanced::after {
-          bottom: 20px !important;
-          right: 20px !important;
-          border-left: none !important;
-          border-top: none !important;
-        }
-
-        .hero-content {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          gap: 40px !important;
-          position: relative !important;
-          z-index: 1 !important;
-          width: 100% !important;
-          text-align: center !important;
-        }
-
-        .royal-visual {
-          flex-shrink: 0 !important;
-          position: relative !important;
-          width: 200px !important;
-          height: 240px !important;
-          margin: 0 auto !important;
-          order: 1 !important;
-        }
-
-        .hero-text {
-          flex: none !important;
-          width: 100% !important;
-          max-width: 600px !important;
-          margin: 0 auto !important;
-          order: 2 !important;
-        }
-
-        .data-particle {
-          position: absolute;
-          width: 4px;
-          height: 4px;
-          background: rgba(180, 178, 55, 0.6);
-          border-radius: 50%;
-          animation: float 8s infinite ease-in-out;
-        }
-
-        .data-particle:nth-child(1) {
-          top: 10%;
-          left: 10%;
-          animation-delay: 0s;
-        }
-
-        .data-particle:nth-child(2) {
-          top: 80%;
-          right: 15%;
-          animation-delay: 2s;
-        }
-
-        .data-particle:nth-child(3) {
-          bottom: 10%;
-          left: 20%;
-          animation-delay: 4s;
-        }
-
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0) translateX(0);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          50% {
-            transform: translateY(-30px) translateX(20px);
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-        }
-
-        .visualization-container {
-          position: absolute;
-          width: 200px;
-          height: 200px;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          perspective: 1000px;
-        }
-
-        .data-cube {
-          width: 100px;
-          height: 100px;
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%) rotateX(25deg) rotateY(45deg);
-          transform-style: preserve-3d;
-          animation: cubeRotate 15s linear infinite;
-        }
-
-        @keyframes cubeRotate {
-          0% { transform: translate(-50%, -50%) rotateX(25deg) rotateY(45deg); }
-          100% { transform: translate(-50%, -50%) rotateX(25deg) rotateY(405deg); }
-        }
-
-        .cube-face {
-          position: absolute;
-          width: 100px;
-          height: 100px;
-          border: 2px solid #b4b237;
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.1) 0%, 
-            rgba(180, 178, 55, 0.05) 50%, 
-            rgba(180, 178, 55, 0.1) 100%);
-          backdrop-filter: blur(10px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .cube-face.front { transform: translateZ(50px); }
-        .cube-face.back { transform: rotateY(180deg) translateZ(50px); }
-        .cube-face.left { transform: rotateY(-90deg) translateZ(50px); }
-        .cube-face.right { transform: rotateY(90deg) translateZ(50px); }
-        .cube-face.top { transform: rotateX(90deg) translateZ(50px); }
-        .cube-face.bottom { transform: rotateX(-90deg) translateZ(50px); }
-
-        .metric-value {
-          color: #b4b237;
-          font-size: 40px;
-          font-weight: 300;
-          opacity: 0.8;
-        }
-
-        .hero-name {
-          font-family: 'Cinzel', serif !important;
-          color: #b4b237 !important;
-          font-size: 42px !important;
-          font-weight: 600 !important;
-          margin: 0 0 12px 0 !important;
-          letter-spacing: 2px !important;
-          text-transform: uppercase !important;
-          white-space: nowrap !important;
-        }
-
-        .hero-title {
-          color: #b4b237 !important;
-          font-size: 20px !important;
-          font-weight: 300 !important;
-          margin: 0 0 20px 0 !important;
-          letter-spacing: 3px !important;
-          text-transform: uppercase !important;
-          opacity: 0.9 !important;
-        }
-
-        .hero-description {
-          color: #666 !important;
-          font-size: 16px !important;
-          line-height: 1.6 !important;
-          margin: 0 0 30px 0 !important;
-          max-width: 500px !important;
-          text-align: center !important;
-          margin-left: auto !important;
-          margin-right: auto !important;
-        }
-
-        .expertise-badges {
-          display: flex !important;
-          gap: 15px !important;
-          flex-wrap: wrap !important;
-          justify-content: center !important;
-        }
-
-        .badge {
-          background: linear-gradient(135deg, 
-            rgba(180, 178, 55, 0.1), 
-            rgba(180, 178, 55, 0.05)) !important;
-          border: 1px solid rgba(180, 178, 55, 0.3) !important;
-          padding: 10px 16px !important;
-          border-radius: 25px !important;
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          transition: all 0.3s ease !important;
-        }
-
-        .badge:hover {
-          border-color: #b4b237 !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 5px 15px rgba(180, 178, 55, 0.2) !important;
-        }
-
-        .badge-text {
-          color: #b4b237 !important;
-          font-size: 13px !important;
-          font-weight: 600 !important;
-          letter-spacing: 0.5px !important;
-          text-transform: uppercase !important;
-          margin: 0 !important;
-        }
-      `}</style>
-
-      <div className="hero-content">
-        <div className="royal-visual">
-          <div className="data-particle"></div>
-          <div className="data-particle"></div>
-          <div className="data-particle"></div>
+      <div className="relative max-w-7xl mx-auto px-6 pt-32 pb-0">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
           
-          <div className="visualization-container">
-            <div className="data-cube">
-              <div className="cube-face front">
-                <div className="metric-value">∑</div>
+          {/* Left Content */}
+          <div className="text-center lg:text-left space-y-8">
+
+            {/* Main Headline */}
+            <div className="space-y-4">
+              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                <span className="block bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
+                  Bookkeeping + Automation
+                </span>
+              </h1>
+              <p className="text-xl text-purple-600 font-medium uppercase tracking-widest">
+                Financial Data Solutions
+              </p>
+              <p className="text-lg text-gray-600 max-w-xl">
+                Building tools that merge traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
+              </p>
+            </div>
+
+            {/* Service Badges with Descriptions */}
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-6 rounded-lg border border-purple-200">
+                <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Bookkeeping Dashboard</h3>
+                <p className="text-gray-600 text-sm">Connect all your accounts in one place. See everything and use the tools I build related to all your accounts. Let's you play with your data.</p>
               </div>
-              <div className="cube-face back">
-                <div className="metric-value">%</div>
-              </div>
-              <div className="cube-face left">
-                <div className="metric-value">∆</div>
-              </div>
-              <div className="cube-face right">
-                <div className="metric-value">π</div>
-              </div>
-              <div className="cube-face top">
-                <div className="metric-value">♔</div>
-              </div>
-              <div className="cube-face bottom">
-                <div className="metric-value">$</div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-4 rounded-lg border border-purple-200">
+                  <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Data Integrations</h3>
+                  <p className="text-gray-600 text-xs">I help clients get their pipelines set up.</p>
+                </div>
+                <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-4 rounded-lg border border-purple-200">
+                  <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Data Automation</h3>
+                  <p className="text-gray-600 text-xs">I get their data all linked up and running on its own.</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="hero-text">
-          <h1 className="hero-name">Bookkeeping + Automation</h1>
-          <p className="hero-title">Financial Data Solutions</p>
-          <p className="hero-description">
-            Building tools that merge traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
-          </p>
-          
-          <div className="expertise-badges">
-            <div className="badge">
-              <p className="badge-text">Bookkeeping Dashboard</p>
-            </div>
-            <div className="badge">
-              <p className="badge-text">Data Integrations</p>
-            </div>
-            <div className="badge">
-              <p className="badge-text">Data Automation</p>
-            </div>
-            <div className="badge">
-              <p className="badge-text">Client Portal</p>
+
+          {/* Right Visual - Orbiting Cube */}
+          <div className="relative flex items-center justify-center">
+            <div className="relative w-80 h-80">
+              
+              {/* Central Cube */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 perspective-1000">
+                <div className="w-24 h-24 transform-style-preserve-3d animate-spin-slow">
+                  
+                  {/* Cube Faces */}
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">π</span>
+                  </div>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(180deg) translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">∑</span>
+                  </div>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(-90deg) translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">$</span>
+                  </div>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(90deg) translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">%</span>
+                  </div>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateX(90deg) translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">∆</span>
+                  </div>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateX(-90deg) translateZ(12px)'}}>
+                    <span className="text-2xl text-purple-600">♔</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Orbiting Accounting Elements */}
+              <div className="absolute inset-0 animate-spin-reverse">
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
+                  🧮
+                </div>
+              </div>
+              
+              <div className="absolute inset-0 animate-spin-reverse animation-delay-1000">
+                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
+                  📊
+                </div>
+              </div>
+              
+              <div className="absolute inset-0 animate-spin-reverse animation-delay-2000">
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
+                  📋
+                </div>
+              </div>
+              
+              <div className="absolute inset-0 animate-spin-reverse animation-delay-3000">
+                <div className="absolute top-1/2 left-0 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-purple-400 to-amber-400 rounded-full flex items-center justify-center text-white text-lg">
+                  🧾
+                </div>
+              </div>
+
+              {/* Floating particles */}
+              <div className="absolute top-16 right-16 w-3 h-3 bg-purple-400 rounded-full opacity-60 animate-float"></div>
+              <div className="absolute bottom-16 left-16 w-2 h-2 bg-amber-400 rounded-full opacity-60 animate-float animation-delay-1000"></div>
+              <div className="absolute top-32 left-32 w-2 h-2 bg-purple-300 rounded-full opacity-60 animate-float animation-delay-2000"></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      
+      <style jsx>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        @keyframes spin-slow {
+          from { transform: rotateX(25deg) rotateY(0deg); }
+          to { transform: rotateX(25deg) rotateY(360deg); }
+        }
+        @keyframes spin-reverse {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
+        .animate-spin-reverse { animation: spin-reverse 15s linear infinite; }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        .animation-delay-1000 { animation-delay: 1s; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-3000 { animation-delay: 3s; }
+        .transform-style-preserve-3d { transform-style: preserve-3d; }
+        .perspective-1000 { perspective: 1000px; }
+      `}</style>
+    </section>
   );
 }
