@@ -4,15 +4,15 @@ import React from 'react';
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-purple-50 via-white to-amber-50 overflow-hidden">
+    <section className="relative overflow-hidden py-20">
       {/* Animated background elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-20 right-10 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute top-20 right-10 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-6 pt-32 pb-0">
+      <div className="relative max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           
           {/* Left Content */}
@@ -35,17 +35,17 @@ export default function HeroSection() {
 
             {/* Service Badges with Descriptions */}
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-6 rounded-lg border border-purple-200">
+              <div className="bg-white/70 backdrop-blur p-6 rounded-lg border border-purple-200">
                 <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Bookkeeping Dashboard</h3>
                 <p className="text-gray-600 text-sm">Connect all your accounts in one place. See everything and use the tools I build related to all your accounts. Let's you play with your data.</p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-4 rounded-lg border border-purple-200">
+                <div className="bg-white/70 backdrop-blur p-4 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Data Integrations</h3>
                   <p className="text-gray-600 text-xs">I help clients get their pipelines set up.</p>
                 </div>
-                <div className="bg-gradient-to-r from-purple-100 to-amber-100 p-4 rounded-lg border border-purple-200">
+                <div className="bg-white/70 backdrop-blur p-4 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-700 text-sm uppercase tracking-wide mb-2">Data Automation</h3>
                   <p className="text-gray-600 text-xs">I get their data all linked up and running on its own.</p>
                 </div>
@@ -62,22 +62,22 @@ export default function HeroSection() {
                 <div className="w-24 h-24 transform-style-preserve-3d animate-spin-slow">
                   
                   {/* Cube Faces */}
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">π</span>
                   </div>
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(180deg) translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateY(180deg) translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">∑</span>
                   </div>
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(-90deg) translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateY(-90deg) translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">$</span>
                   </div>
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateY(90deg) translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateY(90deg) translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">%</span>
                   </div>
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateX(90deg) translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateX(90deg) translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">∆</span>
                   </div>
-                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-gradient-to-br from-purple-100 to-amber-100 flex items-center justify-center" style={{transform: 'rotateX(-90deg) translateZ(12px)'}}>
+                  <div className="absolute w-24 h-24 border-2 border-purple-400 bg-white/80 backdrop-blur flex items-center justify-center" style={{transform: 'rotateX(-90deg) translateZ(12px)'}}>
                     <span className="text-2xl text-purple-600">♔</span>
                   </div>
                 </div>
