@@ -139,19 +139,9 @@ export default function BookkeepingSection() {
   const totals = calculateTotal();
 
   return (
-    <section className="py-8 bg-gradient-to-br from-purple-50 via-amber-50 to-white">
+    <section className="py-20">
       <div className="max-w-7xl mx-auto px-6">
         
-        {/* Section Header */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
-            BOOKKEEPING + AUTOMATION
-          </h2>
-          <p className="text-xl text-gray-600 uppercase tracking-widest opacity-90">
-            FINANCIAL DATA SOLUTIONS
-          </p>
-        </div>
-
         {/* Category Buttons */}
         <div className="flex flex-wrap justify-center gap-4 mb-12">
           {Object.keys(serviceCategories).map(category => (
@@ -161,7 +151,7 @@ export default function BookkeepingSection() {
               className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                 selectedCategory === category 
                   ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg transform -translate-y-1'
-                  : 'bg-gradient-to-r from-purple-100 to-amber-100 text-purple-700 hover:from-purple-200 hover:to-amber-200'
+                  : 'bg-white/70 backdrop-blur text-purple-700 hover:bg-white/90 border border-purple-200'
               }`}
             >
               {category}
@@ -182,7 +172,7 @@ export default function BookkeepingSection() {
                   className={`p-6 rounded-2xl cursor-pointer transition-all duration-300 transform hover:-translate-y-2 ${
                     isSelected 
                       ? 'bg-gradient-to-r from-purple-100 to-amber-100 border-2 border-amber-400 shadow-xl'
-                      : 'bg-gradient-to-r from-purple-50 to-amber-50 border-2 border-purple-200 hover:shadow-lg'
+                      : 'bg-white/70 backdrop-blur border-2 border-purple-200 hover:shadow-lg'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-4">
