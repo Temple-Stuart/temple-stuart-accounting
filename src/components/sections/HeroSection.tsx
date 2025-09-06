@@ -187,6 +187,7 @@ export default function HeroSection() {
           margin: 0 0 12px 0 !important;
           letter-spacing: 2px !important;
           text-transform: uppercase !important;
+          white-space: nowrap !important;
         }
 
         .hero-title {
