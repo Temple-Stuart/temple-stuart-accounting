@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
-import { PlaidApi, Configuration, PlaidEnvironments, TransactionsGetRequest } from 'plaid';
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
@@ -25,24 +25,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-    } catch (error) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
 
     const plaidItems = await prisma.plaidItem.findMany({
-      where: { userId: decoded.userId }
+      where: { userId: decoded.userId },
+      include: { accounts: true }
     });
 
     const allTransactions = [];
 
     for (const item of plaidItems) {
-      const request: TransactionsGetRequest = {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      const endDate = new Date();
+
+      const request = {
         access_token: item.accessToken,
-        start_date: '2020-01-01',
-        end_date: new Date().toISOString().split('T')[0]
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
       };
 
       try {
@@ -50,14 +50,11 @@ export async function GET(request: NextRequest) {
         allTransactions.push(...response.data.transactions);
         console.log(`Found ${response.data.transactions.length} transactions for item ${item.id}`);
       } catch (error) {
-        console.error('Error fetching transactions for item:', item.id, error.response?.data || error);
+        console.error('Error fetching transactions for item:', item.id, error instanceof Error ? error.message : String(error));
       }
     }
 
-    return NextResponse.json({ 
-      transactions: allTransactions,
-      total_count: allTransactions.length 
-    });
+    return NextResponse.json({ transactions: allTransactions });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
