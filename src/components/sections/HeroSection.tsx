@@ -277,10 +277,10 @@ export default function HeroSection() {
         </div>
         
         <div className="hero-text">
-          <h1 className="hero-name">Temple Stuart</h1>
-          <p className="hero-title">Bookkeeping + Automation</p>
+          <h1 className="hero-name">Bookkeeping + Automation</h1>
+          <p className="hero-title">Financial Data Solutions</p>
           <p className="hero-description">
-            Building tools that merges traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
+            Building tools that merge traditional accounting with automation. Transforming complex data into strategic insights through AI and data integrations.
           </p>
           
           <div className="expertise-badges">
@@ -288,7 +288,7 @@ export default function HeroSection() {
               <p className="badge-text">Bookkeeping Dashboard</p>
             </div>
             <div className="badge">
-              <p className="badge-text">Data Integratons</p>
+              <p className="badge-text">Data Integrations</p>
             </div>
             <div className="badge">
               <p className="badge-text">Data Automation</p>
