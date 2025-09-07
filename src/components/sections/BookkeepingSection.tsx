@@ -20,6 +20,19 @@ type ServiceCategories = {
 export default function BookkeepingSection() {
   const [selectedCategory, setSelectedCategory] = useState<keyof ServiceCategories>('Monthly Essentials');
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+  
+  // Form fields
+  const [formData, setFormData] = useState({
+    businessName: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    needs: '',
+    why: '',
+    timeline: ''
+  });
 
   const serviceCategories: ServiceCategories = {
     'Monthly Essentials': [
@@ -136,11 +149,66 @@ export default function BookkeepingSection() {
     return { oneTime, monthly };
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitMessage('');
+
+    try {
+      const response = await fetch('/api/rfp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          selectedServices,
+          totals: calculateTotal()
+        })
+      });
+
+      if (response.ok) {
+        setSubmitMessage('Quote request submitted successfully! We\'ll be in touch soon.');
+        // Clear form
+        setFormData({
+          businessName: '',
+          contactName: '',
+          email: '',
+          phone: '',
+          needs: '',
+          why: '',
+          timeline: ''
+        });
+        setSelectedServices([]);
+      } else {
+        setSubmitMessage('Something went wrong. Please try again.');
+      }
+    } catch (error) {
+      setSubmitMessage('Error submitting request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const totals = calculateTotal();
 
   return (
     <section className="py-20">
       <div className="max-w-7xl mx-auto px-6">
+        
+        {/* Section Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
+            Request for Proposal
+          </h2>
+          <p className="text-xl text-gray-600 uppercase tracking-widest opacity-90">
+            Select Services & Get Your Custom Quote
+          </p>
+        </div>
         
         {/* Category Buttons */}
         <div className="flex flex-wrap justify-center gap-4 mb-12">
@@ -210,12 +278,100 @@ export default function BookkeepingSection() {
                 Your Quote
               </h3>
               
-              {selectedServices.length === 0 ? (
-                <p className="text-center text-gray-600 italic">
-                  Select services to see total
-                </p>
-              ) : (
-                <div className="space-y-4">
+              {/* Form Fields */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Business Name</label>
+                  <input
+                    type="text"
+                    name="businessName"
+                    value={formData.businessName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Contact Name</label>
+                  <input
+                    type="text"
+                    name="contactName"
+                    value={formData.contactName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">What do you need?</label>
+                  <textarea
+                    name="needs"
+                    value={formData.needs}
+                    onChange={handleInputChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Why do you need it?</label>
+                  <textarea
+                    name="why"
+                    value={formData.why}
+                    onChange={handleInputChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Timeline</label>
+                  <select
+                    name="timeline"
+                    value={formData.timeline}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                  >
+                    <option value="">Select timeline</option>
+                    <option value="immediate">Immediate (This week)</option>
+                    <option value="month">Within a month</option>
+                    <option value="quarter">Within 3 months</option>
+                    <option value="planning">Just planning</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Selected Services Summary */}
+              {selectedServices.length > 0 && (
+                <div className="space-y-4 mb-4">
                   {totals.oneTime > 0 && (
                     <div className="bg-white rounded-lg p-4 border border-purple-200">
                       <div className="text-sm font-semibold text-purple-600 mb-1">One-time Setup</div>
@@ -229,10 +385,24 @@ export default function BookkeepingSection() {
                       <div className="text-2xl font-bold text-gray-900">${totals.monthly.toLocaleString()}</div>
                     </div>
                   )}
+                </div>
+              )}
 
-                  <button className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg">
-                    Get Quote
-                  </button>
+              <button 
+                onClick={handleSubmit}
+                disabled={isSubmitting || !formData.businessName || !formData.email}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Submitting...' : 'Get Quote'}
+              </button>
+
+              {submitMessage && (
+                <div className={`mt-4 p-3 rounded-lg text-center ${
+                  submitMessage.includes('successfully') 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {submitMessage}
                 </div>
               )}
             </div>
