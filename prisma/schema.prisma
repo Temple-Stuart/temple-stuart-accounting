@@ -80,3 +80,20 @@ model Transaction {
   
   @@map("transactions")
 }
+
+model RFP {
+  id             String   @id @default(cuid())
+  businessName   String
+  contactName    String
+  email          String
+  phone          String?
+  needs          String
+  why            String
+  timeline       String
+  services       Json
+  oneTimeTotal   Int
+  monthlyTotal   Int
+  status         String   @default("new")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
