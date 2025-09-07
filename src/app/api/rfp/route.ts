@@ -13,13 +13,14 @@ export async function POST(request: Request) {
         businessName: data.businessName,
         contactName: data.contactName,
         email: data.email,
-        phone: '', // Always empty now
+        phone: '', 
         needs: data.needs,
-        why: data.why,
+        why: data.why || '',
         timeline: data.timeline,
         services: data.selectedServices,
         oneTimeTotal: data.totals.oneTime,
-        monthlyTotal: data.totals.monthly
+        monthlyTotal: data.totals.monthly,
+        expenseTier: data.expenseTier || null
       }
     });
 
