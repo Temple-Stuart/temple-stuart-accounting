@@ -13,7 +13,7 @@ export async function POST(request: Request) {
         businessName: data.businessName,
         contactName: data.contactName,
         email: data.email,
-        phone: data.phone || '',
+        phone: '', // Always empty now
         needs: data.needs,
         why: data.why,
         timeline: data.timeline,
@@ -23,8 +23,6 @@ export async function POST(request: Request) {
       }
     });
 
-    // Send email notification (you'll need to set up an email service)
-    // For now, we'll just log it
     console.log('New RFP submitted:', rfp);
 
     return NextResponse.json({ success: true, id: rfp.id });

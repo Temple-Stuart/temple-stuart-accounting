@@ -23,12 +23,11 @@ export default function BookkeepingSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   
-  // Form fields
+  // Form fields (removed phone)
   const [formData, setFormData] = useState({
     businessName: '',
     contactName: '',
     email: '',
-    phone: '',
     needs: '',
     why: '',
     timeline: ''
@@ -178,7 +177,6 @@ export default function BookkeepingSection() {
           businessName: '',
           contactName: '',
           email: '',
-          phone: '',
           needs: '',
           why: '',
           timeline: ''
@@ -317,18 +315,7 @@ export default function BookkeepingSection() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-1">What do you need?</label>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">What do you need me to do?</label>
                   <textarea
                     name="needs"
                     value={formData.needs}
@@ -340,7 +327,7 @@ export default function BookkeepingSection() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-1">Why do you need it?</label>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">Why do you need this done?</label>
                   <textarea
                     name="why"
                     value={formData.why}
@@ -352,7 +339,7 @@ export default function BookkeepingSection() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-1">Timeline</label>
+                  <label className="block text-sm font-semibold text-purple-700 mb-1">When do you need it by?</label>
                   <select
                     name="timeline"
                     value={formData.timeline}
