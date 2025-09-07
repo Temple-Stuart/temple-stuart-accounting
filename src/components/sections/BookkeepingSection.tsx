@@ -8,6 +8,7 @@ interface Service {
   value: string;
   price: string;
   frequency: string;
+  basePrice?: number; // For tier calculations
 }
 
 type ServiceCategories = {
@@ -22,8 +23,9 @@ export default function BookkeepingSection() {
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [expenseTier, setExpenseTier] = useState('tier1'); // New state for expense tier
   
-  // Form fields (removed phone)
+  // Form fields
   const [formData, setFormData] = useState({
     businessName: '',
     contactName: '',
@@ -33,6 +35,14 @@ export default function BookkeepingSection() {
     timeline: ''
   });
 
+  // Tier multipliers
+  const tierMultipliers = {
+    tier1: 1,    // Under $25k
+    tier2: 1.5,  // $25k-$75k
+    tier3: 2,    // $75k-$150k
+    tier4: 2.5   // $150k+
+  };
+
   const serviceCategories: ServiceCategories = {
     'Monthly Essentials': [
       {
@@ -40,28 +50,32 @@ export default function BookkeepingSection() {
         why: "68% of small businesses spend 25+ hours weekly on manual data entry",
         value: "Get back 20 hours per week + accurate financial reports",
         price: "$400",
-        frequency: "monthly"
+        frequency: "monthly",
+        basePrice: 400
       },
       {
         name: "Bank Reconciliation", 
         why: "Unreconciled accounts hide cash flow problems until it's too late",
         value: "Catch errors before they compound, know your real cash position",
         price: "$150",
-        frequency: "monthly"
+        frequency: "monthly",
+        basePrice: 150
       },
       {
         name: "Bill Management",
         why: "Late payments cost 2% per month in fees and damage credit",
         value: "Never miss a payment, optimize cash flow timing",
         price: "$250",
-        frequency: "monthly"
+        frequency: "monthly",
+        basePrice: 250
       },
       {
         name: "Customer Payment Tracking",
         why: "Businesses lose 5% revenue annually to uncollected invoices",
         value: "Reduce collection time by 30 days, improve cash flow",
         price: "$300",
-        frequency: "monthly"
+        frequency: "monthly",
+        basePrice: 300
       }
     ],
     'Automation Setup': [
@@ -128,11 +142,31 @@ export default function BookkeepingSection() {
     ]
   };
 
+  // Apply tier pricing to Monthly Essentials
+  const getAdjustedServices = () => {
+    if (selectedCategory === 'Monthly Essentials') {
+      const multiplier = tierMultipliers[expenseTier as keyof typeof tierMultipliers];
+      return serviceCategories['Monthly Essentials'].map(service => ({
+        ...service,
+        price: `$${Math.round((service.basePrice || 0) * multiplier).toLocaleString()}`
+      }));
+    }
+    return serviceCategories[selectedCategory];
+  };
+
   const toggleService = (service: Service) => {
+    // When toggling, use the adjusted price
+    const adjustedService = selectedCategory === 'Monthly Essentials' 
+      ? {
+          ...service,
+          price: `$${Math.round((service.basePrice || 0) * tierMultipliers[expenseTier as keyof typeof tierMultipliers]).toLocaleString()}`
+        }
+      : service;
+      
     if (selectedServices.find(s => s.name === service.name)) {
       setSelectedServices(selectedServices.filter(s => s.name !== service.name));
     } else {
-      setSelectedServices([...selectedServices, service]);
+      setSelectedServices([...selectedServices, adjustedService]);
     }
   };
 
@@ -166,7 +200,8 @@ export default function BookkeepingSection() {
         body: JSON.stringify({
           ...formData,
           selectedServices,
-          totals: calculateTotal()
+          totals: calculateTotal(),
+          expenseTier: selectedCategory === 'Monthly Essentials' ? expenseTier : null
         })
       });
 
@@ -193,6 +228,7 @@ export default function BookkeepingSection() {
   };
 
   const totals = calculateTotal();
+  const displayServices = getAdjustedServices();
 
   return (
     <section className="py-20">
@@ -209,7 +245,7 @@ export default function BookkeepingSection() {
         </div>
         
         {/* Category Buttons */}
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
           {Object.keys(serviceCategories).map(category => (
             <button
               key={category}
@@ -225,11 +261,36 @@ export default function BookkeepingSection() {
           ))}
         </div>
 
+        {/* Expense Tier Selector - Only shows for Monthly Essentials */}
+        {selectedCategory === 'Monthly Essentials' && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-purple-200">
+              <label className="block text-sm font-semibold text-purple-700 mb-2">
+                Your Monthly Business Expenses:
+              </label>
+              <select
+                value={expenseTier}
+                onChange={(e) => {
+                  setExpenseTier(e.target.value);
+                  // Clear selected monthly services when tier changes
+                  setSelectedServices(selectedServices.filter(s => s.frequency !== 'monthly'));
+                }}
+                className="px-4 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="tier1">Under $25,000/month</option>
+                <option value="tier2">$25,000 - $75,000/month</option>
+                <option value="tier3">$75,000 - $150,000/month</option>
+                <option value="tier4">Over $150,000/month</option>
+              </select>
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-12">
           
           {/* Services List */}
           <div className="space-y-6">
-            {serviceCategories[selectedCategory].map(service => {
+            {displayServices.map(service => {
               const isSelected = selectedServices.find(s => s.name === service.name);
               return (
                 <div
