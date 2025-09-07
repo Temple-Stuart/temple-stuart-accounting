@@ -25,13 +25,12 @@ export default function BookkeepingSection() {
   const [submitMessage, setSubmitMessage] = useState('');
   const [expenseTier, setExpenseTier] = useState('tier1'); // New state for expense tier
   
-  // Form fields
+  // Form fields (removed why field)
   const [formData, setFormData] = useState({
     businessName: '',
     contactName: '',
     email: '',
     needs: '',
-    why: '',
     timeline: ''
   });
 
@@ -199,6 +198,7 @@ export default function BookkeepingSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          why: '', // Send empty string for backwards compatibility
           selectedServices,
           totals: calculateTotal(),
           expenseTier: selectedCategory === 'Monthly Essentials' ? expenseTier : null
@@ -213,7 +213,6 @@ export default function BookkeepingSection() {
           contactName: '',
           email: '',
           needs: '',
-          why: '',
           timeline: ''
         });
         setSelectedServices([]);
@@ -381,19 +380,7 @@ export default function BookkeepingSection() {
                     name="needs"
                     value={formData.needs}
                     onChange={handleInputChange}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-purple-700 mb-1">Why do you need this done?</label>
-                  <textarea
-                    name="why"
-                    value={formData.why}
-                    onChange={handleInputChange}
-                    rows={2}
+                    rows={3}
                     className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />

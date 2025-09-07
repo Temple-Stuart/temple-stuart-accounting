@@ -90,6 +90,7 @@ model RFP {
   needs          String
   why            String
   timeline       String
+  expenseTier    String?  // Add this line
   services       Json
   oneTimeTotal   Int
   monthlyTotal   Int
