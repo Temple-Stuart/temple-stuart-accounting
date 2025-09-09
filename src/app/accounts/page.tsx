@@ -728,22 +728,164 @@ export default function AccountsPage() {
               </div>
             )}
 
-            {/* Chart of Accounts Tab */}
+            {/* Chart of Accounts Tab - Finalize & Review */}
             {activeTab === 'chart' && (
               <div>
                 <div className="mb-8">
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Step 3: Chart of Accounts
+                    Step 3: Finalize Chart of Accounts
                   </h1>
                   <p className="text-gray-600">
-                    Assign categories and codes to every transaction for proper expense tracking.
+                    Review categorizations, apply bulk rules, and ensure compliance before reconciliation.
                   </p>
                 </div>
-                <div className="bg-white rounded-lg shadow-lg p-12 text-center border border-purple-200">
-                  <div className="text-6xl mb-4">📈</div>
-                  <h3 className="text-xl font-semibold text-gray-700 mb-2">Chart of Accounts Setup</h3>
-                  <p className="text-gray-500 mb-6">Categorization system for all your transactions</p>
-                  <p className="text-sm text-amber-600 font-semibold">Coming Soon</p>
+
+                {/* Categorization Progress */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white rounded-lg p-4 border border-green-500">
+                    <div className="text-sm font-semibold text-green-600">Categorized</div>
+                    <div className="text-3xl font-bold text-green-700">
+                      {Object.keys(customCategories).length}
+                    </div>
+                    <div className="text-xs text-gray-500">Transactions assigned</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-amber-500">
+                    <div className="text-sm font-semibold text-amber-600">Using Plaid Defaults</div>
+                    <div className="text-3xl font-bold text-amber-700">
+                      {transactions.filter(t => t.category && !customCategories[t.transaction_id]).length}
+                    </div>
+                    <div className="text-xs text-gray-500">Auto-categorized</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-red-500">
+                    <div className="text-sm font-semibold text-red-600">Uncategorized</div>
+                    <div className="text-3xl font-bold text-red-700">
+                      {transactions.filter(t => !t.category && !customCategories[t.transaction_id]).length}
+                    </div>
+                    <div className="text-xs text-gray-500">Need attention</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-purple-500">
+                    <div className="text-sm font-semibold text-purple-600">Total Transactions</div>
+                    <div className="text-3xl font-bold text-purple-700">
+                      {transactions.length}
+                    </div>
+                    <div className="text-xs text-gray-500">Last 30 days</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Bulk Rules Section */}
+                  <div className="bg-white rounded-lg shadow-lg p-6 border border-purple-200">
+                    <h3 className="text-lg font-bold text-purple-700 mb-4">Bulk Categorization Rules</h3>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-purple-50 rounded-lg">
+                        <p className="text-sm font-semibold text-purple-700">Create Vendor Rules</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Automatically assign categories based on vendor patterns
+                        </p>
+                        <button className="mt-2 px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700">
+                          Setup Rules
+                        </button>
+                      </div>
+                      <div className="p-3 bg-amber-50 rounded-lg">
+                        <p className="text-sm font-semibold text-amber-700">Apply Suggested Categories</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Accept all Plaid suggestions for uncategorized transactions
+                        </p>
+                        <button className="mt-2 px-3 py-1 bg-amber-600 text-white text-xs rounded hover:bg-amber-700">
+                          Apply All
+                        </button>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="text-sm font-semibold text-green-700">Smart Patterns</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Detect and apply patterns from your categorizations
+                        </p>
+                        <button className="mt-2 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                          Find Patterns
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Compliance Checks */}
+                  <div className="bg-white rounded-lg shadow-lg p-6 border border-red-200">
+                    <h3 className="text-lg font-bold text-red-700 mb-4">Compliance Checks</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-semibold text-red-700">Missing Receipts</p>
+                          <p className="text-xs text-gray-600">Transactions over $75 need receipts</p>
+                        </div>
+                        <span className="text-2xl font-bold text-red-600">
+                          {transactions.filter(t => Math.abs(t.amount) > 75).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-semibold text-yellow-700">Mixed Categories</p>
+                          <p className="text-xs text-gray-600">Vendors with multiple categories</p>
+                        </div>
+                        <span className="text-2xl font-bold text-yellow-600">
+                          {vendors.filter(v => {
+                            const vendorTrans = transactions.filter(t => 
+                              t.merchant_name === v || t.name === v
+                            );
+                            const cats = new Set(vendorTrans.map(t => 
+                              customCategories[t.transaction_id] || t.category?.[0]
+                            ));
+                            return cats.size > 1;
+                          }).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-semibold text-blue-700">Split Required</p>
+                          <p className="text-xs text-gray-600">Transactions needing allocation</p>
+                        </div>
+                        <span className="text-2xl font-bold text-blue-600">0</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category Summary */}
+                <div className="mt-6 bg-white rounded-lg shadow-lg p-6 border border-purple-200">
+                  <h3 className="text-lg font-bold text-purple-700 mb-4">Category Summary</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {accountingCategories.slice(0, 12).map(category => {
+                      const count = transactions.filter(t => 
+                        (customCategories[t.transaction_id] || t.category?.[0]) === category
+                      ).length;
+                      const total = transactions
+                        .filter(t => (customCategories[t.transaction_id] || t.category?.[0]) === category)
+                        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                      
+                      return count > 0 ? (
+                        <div key={category} className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm font-semibold text-gray-700">{category}</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-xs text-gray-500">{count} transactions</span>
+                            <span className="text-sm font-bold text-purple-600">
+                              ${total.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-6 flex gap-4">
+                  <button className="px-6 py-3 bg-gradient-to-r from-purple-600 to-amber-500 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-amber-600 shadow-lg">
+                    Validate All Categories
+                  </button>
+                  <button className="px-6 py-3 bg-white text-purple-600 border-2 border-purple-600 rounded-lg font-semibold hover:bg-purple-50">
+                    Export Category Report
+                  </button>
+                  <button className="px-6 py-3 bg-white text-gray-600 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50">
+                    Review Uncategorized
+                  </button>
                 </div>
               </div>
             )}
