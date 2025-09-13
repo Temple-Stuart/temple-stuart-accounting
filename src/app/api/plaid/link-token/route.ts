@@ -3,7 +3,11 @@ import { Configuration, PlaidApi, Products, PlaidEnvironments, LinkTokenCreateRe
 import jwt from 'jsonwebtoken';
 
 const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments],
+  basePath: process.env.PLAID_ENV === 'sandbox'
+    ? PlaidEnvironments.sandbox
+    : process.env.PLAID_ENV === 'development'
+    ? PlaidEnvironments.development
+    : PlaidEnvironments.production,
   baseOptions: {
     headers: {
       'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
@@ -17,7 +21,7 @@ const client = new PlaidApi(configuration);
 export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('auth_token')?.value;
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
 
     const request_data: LinkTokenCreateRequest = {
-      products: [Products.Transactions],
+      products: [Products.Transactions, Products.Investments],
       client_name: "Temple Stuart Accounting",
       country_codes: [CountryCode.Us],
       language: 'en',

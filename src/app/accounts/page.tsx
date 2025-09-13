@@ -58,6 +58,7 @@ export default function AccountsPage() {
   const [customCategories, setCustomCategories] = useState<{[key: string]: string}>({});
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   
+  const [syncing, setSyncing] = useState(false);
   // Standard accounting categories for dropdown
   const accountingCategories = [
     'Advertising & Marketing',
@@ -150,6 +151,27 @@ export default function AccountsPage() {
       .filter(Boolean)
   )).sort();
 
+
+  const syncAllTransactions = async () => {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/transactions/sync", {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(`Synced ${result.results.reduce((sum: number, r: any) => sum + (r.synced || 0), 0)} transactions from 24 months!`);
+        if (activeTab === "transactions") {
+          await fetchTransactions();
+        }
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      alert("Failed to sync transactions");
+    } finally {
+      setSyncing(false);
+    }
+  };
   useEffect(() => {
     fetchLinkToken();
     fetchAccounts();
@@ -464,6 +486,13 @@ export default function AccountsPage() {
                     Review all imported transactions and prepare them for categorization.
                   </p>
                 </div>
+                  <button
+                    onClick={syncAllTransactions}
+                    disabled={syncing}
+                    className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {syncing ? "Syncing..." : "Sync 24 Months of Transactions"}
+                  </button>
 
                 {transactionsLoading ? (
                   <div className="text-center py-8">
