@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,6 +45,5 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
   } finally {
-    await prisma.$disconnect();
   }
 }

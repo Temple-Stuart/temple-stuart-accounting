@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
       include: {
-        accounts: true
+        plaidItems: true
       },
       orderBy: {
         createdAt: 'desc'

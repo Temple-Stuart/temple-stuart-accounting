@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 
 const configuration = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments],
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
         while (hasMore) {
           const response = await client.transactionsGet({
             ...request,
-            offset: offset
+            options: { offset: offset }
           });
           
           // Add institution name to each transaction
@@ -85,6 +84,5 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
   } finally {
-    await prisma.$disconnect();
   }
 }

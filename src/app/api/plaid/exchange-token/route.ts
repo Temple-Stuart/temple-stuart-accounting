@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
 
 const configuration = new Configuration({
   basePath: PlaidEnvironments.production,
@@ -84,6 +83,5 @@ export async function POST(request: NextRequest) {
     console.error('Error exchanging token:', error);
     return NextResponse.json({ error: 'Failed to exchange token' }, { status: 500 });
   } finally {
-    await prisma.$disconnect();
   }
 }

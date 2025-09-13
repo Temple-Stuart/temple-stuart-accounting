@@ -10,7 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.15.0",
+    "@prisma/client": "^5.19.0",
     "@types/jsonwebtoken": "^8.5.9",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
@@ -29,7 +29,7 @@
     "eslint": "^8",
     "eslint-config-next": "15.5.2",
     "postcss": "^8",
-    "prisma": "^6.15.0",
+    "prisma": "^5.19.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
