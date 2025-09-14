@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
 import { plaidClient } from '@/lib/plaid';
 import { verifyAuth } from '@/lib/auth';
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       },
       client_name: 'Temple Stuart Accounting',
       products: ['transactions', 'investments'],
-      country_codes: ['US' as const],
+      country_codes: [CountryCode.Us],
       language: 'en',
       // removed redirect_uri - it's optional and was causing the HTTPS error
     };
