@@ -1,7 +1,7 @@
 // Debug function to check and fix transaction categories
 export async function fixTransactionCategories() {
   const { prisma } = await import('./prisma');
-  const { plaidClient } from await import('./plaid');
+  const { plaidClient } = await import('./plaid');
   
   const plaidItems = await prisma.plaid_items.findMany({
     include: { accounts: true }
