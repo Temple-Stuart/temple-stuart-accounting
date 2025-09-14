@@ -15,6 +15,18 @@ interface Transaction {
   category?: string[];
   pending: boolean;
   institution_name?: string;
+  personal_finance_category?: {
+    primary: string;
+    detailed: string;
+    confidence_level: string;
+  };
+  personal_finance_category_icon_url?: string;
+  counterparties?: any[];
+  logo_url?: string;
+  website?: string;
+  payment_channel?: string;
+  location?: any;
+  payment_meta?: any;
 }
 
 interface Account {
