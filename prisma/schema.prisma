@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -14,87 +7,109 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  plaidItems  PlaidItem[]
-
-  @@map("users")
-}
-
-model PlaidItem {
-  id          String   @id @default(cuid())
-  userId      String
-  itemId      String   @unique
-  accessToken String
-  institutionId String
-  institutionName String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accounts    Account[]
-  
-  @@map("plaid_items")
-}
-
-model Account {
-  id              String    @id @default(cuid())
-  plaidItemId     String
-  accountId       String    @unique
-  name            String
-  officialName    String?
-  type            String
-  subtype         String?
-  balanceAvailable Float?
-  balanceCurrent  Float?
-  balanceLimit    Float?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  plaidItem       PlaidItem @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
-  transactions    Transaction[]
-  
-  @@map("accounts")
-}
-
-model Transaction {
-  id            String   @id @default(cuid())
-  accountId     String
-  transactionId String   @unique
-  amount        Float
-  date          DateTime
-  name          String
-  merchantName  String?
-  category      String[]
-  pending       Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  
-  @@map("transactions")
-}
-
 model RFP {
-  id             String   @id @default(cuid())
-  businessName   String
-  contactName    String
-  email          String
-  phone          String?
-  needs          String
-  why            String
-  timeline       String
-  expenseTier    String?  // Add this line
-  services       Json
-  oneTimeTotal   Int
-  monthlyTotal   Int
-  status         String   @default("new")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id
+  businessName String
+  contactName  String
+  email        String
+  phone        String?
+  needs        String
+  why          String
+  timeline     String
+  services     Json
+  oneTimeTotal Int
+  monthlyTotal Int
+  status       String   @default("new")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  expenseTier  String?
+}
+
+model accounts {
+  id               String         @id
+  plaidItemId      String
+  accountId        String         @unique
+  name             String
+  officialName     String?
+  type             String
+  subtype          String?
+  balanceAvailable Float?
+  balanceCurrent   Float?
+  balanceLimit     Float?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime
+  plaid_items      plaid_items    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions     transactions[]
+}
+
+model plaid_items {
+  id              String     @id
+  userId          String
+  itemId          String     @unique
+  accessToken     String
+  institutionId   String
+  institutionName String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime
+  needs_update    Boolean?   @default(false)
+  last_synced_at  DateTime?
+  accounts        accounts[]
+  users           users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model rfps {
+  id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  user_id    String
+  name       String
+  email      String
+  phone      String?
+  company    String?
+  tier       String
+  message    String?
+  status     String?   @default("pending")
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model transactions {
+  id                                 String    @id
+  accountId                          String
+  transactionId                      String    @unique
+  amount                             Float
+  date                               DateTime
+  name                               String
+  merchantName                       String?
+  category                           String[]
+  pending                            Boolean   @default(false)
+  createdAt                          DateTime  @default(now())
+  updatedAt                          DateTime
+  personal_finance_category          Json?
+  personal_finance_category_icon_url String?
+  counterparties                     Json?
+  logo_url                           String?
+  website                            String?
+  payment_channel                    String?
+  location                           Json?
+  payment_meta                       Json?
+  iso_currency_code                  String?   @default("USD")
+  authorized_date                    DateTime? @db.Date
+  transaction_type                   String?
+  check_number                       String?
+  datetime                           DateTime? @db.Timestamp(6)
+  accounts                           accounts  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([payment_channel], map: "idx_payment_channel")
+}
+
+model users {
+  id          String        @id
+  email       String        @unique
+  password    String
+  name        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  plaid_items plaid_items[]
+  rfps        rfps[]
 }

@@ -1,43 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Configuration, PlaidApi, Products, PlaidEnvironments, LinkTokenCreateRequest, CountryCode } from 'plaid';
-import jwt from 'jsonwebtoken';
-
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-
-const client = new PlaidApi(configuration);
+import { plaidClient } from '@/lib/plaid';
+import { verifyAuth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const userId = await verifyAuth(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-
-    const request_data: LinkTokenCreateRequest = {
-      products: [Products.Transactions],
-      client_name: "Temple Stuart Accounting",
-      country_codes: [CountryCode.Us],
-      language: 'en',
+    const configs = {
       user: {
-        client_user_id: decoded.userId
-      }
+        client_user_id: userId,
+      },
+      client_name: 'Temple Stuart Accounting',
+      products: ['transactions', 'investments'],
+      country_codes: ['US'],
+      language: 'en',
+      // removed redirect_uri - it's optional and was causing the HTTPS error
     };
 
-    const response = await client.linkTokenCreate(request_data);
-    return NextResponse.json({ link_token: response.data.link_token });
-  } catch (error) {
-    console.error('Error creating link token:', error);
-    return NextResponse.json({ error: 'Failed to create link token' }, { status: 500 });
+    console.log('Creating link token with config:', {
+      ...configs,
+      environment: 'production'
+    });
+
+    const createTokenResponse = await plaidClient.linkTokenCreate(configs);
+    
+    return NextResponse.json({ 
+      link_token: createTokenResponse.data.link_token,
+      environment: 'production',
+      expiration: createTokenResponse.data.expiration 
+    });
+    
+  } catch (error: any) {
+    console.error('Link token error:', {
+      message: error.response?.data?.error_message || error.message,
+      code: error.response?.data?.error_code,
+      type: error.response?.data?.error_type,
+    });
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to create link token',
+        details: error.response?.data?.error_message || error.message,
+        code: error.response?.data?.error_code 
+      },
+      { status: 500 }
+    );
   }
 }

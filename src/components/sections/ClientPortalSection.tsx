@@ -1,19 +1,58 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ClientPortalSection() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLogin) {
-      console.log('Login attempt:', { email, password });
-    } else {
-      console.log('Signup attempt:', { name, email, password });
+    setLoading(true);
+    setMessage('');
+
+    try {
+      if (isLogin) {
+        // Login
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (response.ok) {
+          setMessage('Login successful! Redirecting...');
+          setTimeout(() => router.push('/accounts'), 1000);
+        } else {
+          const data = await response.json();
+          setMessage(data.error || 'Login failed');
+        }
+      } else {
+        // Signup
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password }),
+        });
+
+        if (response.ok) {
+          setMessage('Account created! Please log in.');
+          setIsLogin(true);
+        } else {
+          const data = await response.json();
+          setMessage(data.error || 'Signup failed');
+        }
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -105,11 +144,22 @@ export default function ClientPortalSection() {
 
               <button
                 type="submit"
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg"
+                disabled={loading}
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg disabled:opacity-50"
               >
-                {isLogin ? 'Access Portal' : 'Create Account'}
+                {loading ? 'Processing...' : (isLogin ? 'Access Portal' : 'Create Account')}
               </button>
             </form>
+
+            {message && (
+              <div className={`mt-4 p-3 rounded-lg text-center ${
+                message.includes('successful') || message.includes('created') 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {message}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,90 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
-
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-
-const client = new PlaidApi(configuration);
+import { verifyAuth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const userId = await verifyAuth(request);
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-
-    const plaidItems = await prisma.plaidItem.findMany({
-      where: { userId: decoded.userId },
+    const plaidItems = await prisma.plaid_items.findMany({
+      where: { userId },
       include: { accounts: true }
     });
 
-    const allTransactions = [];
-
-    for (const item of plaidItems) {
-      // Get 24 months of data instead of 30 days
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 24); // 24 months back
-      const endDate = new Date();
-
-      const request = {
-        access_token: item.accessToken,
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0],
-        count: 500, // Max transactions per request
-        offset: 0
-      };
-
-      try {
-        // Plaid returns max 500 transactions at a time, so we need to paginate
-        let hasMore = true;
-        let offset = 0;
-        
-        while (hasMore) {
-          const response = await client.transactionsGet({
-            ...request,
-            offset: offset
-          });
-          
-          // Add institution name to each transaction
-          const transactionsWithInstitution = response.data.transactions.map(transaction => ({
-            ...transaction,
-            institution_name: item.institutionName
-          }));
-          
-          allTransactions.push(...transactionsWithInstitution);
-          
-          // Check if there are more transactions to fetch
-          const totalTransactions = response.data.total_transactions;
-          offset += response.data.transactions.length;
-          hasMore = offset < totalTransactions;
-          
-          console.log(`Fetched ${offset} of ${totalTransactions} transactions for ${item.institutionName}`);
-        }
-      } catch (error) {
-        console.error('Error fetching transactions for item:', item.id, error instanceof Error ? error.message : String(error));
-      }
+    if (!plaidItems.length) {
+      return NextResponse.json({ 
+        transactions: [], 
+        accounts: [],
+        message: 'No connected accounts' 
+      });
     }
 
-    console.log(`Total transactions fetched: ${allTransactions.length}`);
-    return NextResponse.json({ transactions: allTransactions });
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    // Now fetch ALL columns including the new ones
+    const transactions = await prisma.transactions.findMany({
+      where: {
+        accountId: {
+          in: plaidItems.flatMap(item => 
+            item.accounts.map(acc => acc.id)
+          )
+        }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    const mappedTransactions = transactions.map(txn => ({
+      transaction_id: txn.transactionId,
+      account_id: txn.accountId,
+      amount: Number(txn.amount),
+      date: txn.date.toISOString(),
+      name: txn.name,
+      merchant_name: txn.merchantName,
+      category: Array.isArray(txn.category) ? txn.category : [],
+      pending: txn.pending,
+      institution_name: plaidItems.find(item => 
+        item.accounts.some(acc => acc.id === txn.accountId)
+      )?.institutionName,
+      // Add all the new rich data fields
+      personal_finance_category: txn.personal_finance_category,
+      personal_finance_category_icon_url: txn.personal_finance_category_icon_url,
+      counterparties: txn.counterparties,
+      logo_url: txn.logo_url,
+      website: txn.website,
+      payment_channel: txn.payment_channel,
+      location: txn.location,
+      payment_meta: txn.payment_meta
+    }));
+
+    return NextResponse.json({ 
+      transactions: mappedTransactions,
+      accounts: plaidItems.flatMap(item => item.accounts),
+      count: mappedTransactions.length
+    });
+
+  } catch (error: any) {
+    console.error('Transactions API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch transactions', details: error.message },
+      { status: 500 }
+    );
   }
 }
