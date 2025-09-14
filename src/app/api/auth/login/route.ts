@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // For development, create a user if it doesn't exist
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email }
     });
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
           .update(password)
           .digest('hex');
 
-        user = await prisma.user.create({
+        user = await prisma.users.create({
           data: {
             email,
             password: hashedPassword,
