@@ -35,15 +35,11 @@ export async function POST(request: NextRequest) {
         await prisma.$executeRaw`
           UPDATE transactions 
           SET 
-            personal_finance_category = ${JSON.stringify(txn.personal_finance_category)}::jsonb,
-            personal_finance_category_icon_url = ${txn.personal_finance_category_icon_url},
-            counterparties = ${JSON.stringify(txn.counterparties)}::jsonb,
-            logo_url = ${txn.logo_url},
-            website = ${txn.website},
-            payment_channel = ${txn.payment_channel},
-            location = ${JSON.stringify(txn.location)}::jsonb,
-            payment_meta = ${JSON.stringify(txn.payment_meta)}::jsonb,
-            "merchantName" = ${txn.merchant_name},
+            personal_finance_category = ${JSON.stringify(txn.personal_finance_category || null)}::jsonb,
+            counterparties = ${JSON.stringify(txn.counterparties || null)}::jsonb,
+            payment_channel = ${txn.payment_channel || null},
+            location = ${JSON.stringify(txn.location || null)}::jsonb,
+            "merchantName" = ${txn.merchant_name || null},
             category = ${txn.category || []}
           WHERE "transactionId" = ${txn.transaction_id}
         `;
