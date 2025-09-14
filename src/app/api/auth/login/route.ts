@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAuthToken, setAuthCookie } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -29,6 +30,8 @@ export async function POST(request: NextRequest) {
 
         user = await prisma.users.create({
           data: {
+            id: crypto.randomUUID(),
+            updatedAt: new Date(),
             email,
             password: hashedPassword,
             name: email.split('@')[0],
