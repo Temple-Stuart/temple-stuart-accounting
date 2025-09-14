@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       },
       client_name: 'Temple Stuart Accounting',
       products: ['transactions', 'investments'],
-      country_codes: ['US'],
+      country_codes: ['US' as const],
       language: 'en',
       // removed redirect_uri - it's optional and was causing the HTTPS error
     };
