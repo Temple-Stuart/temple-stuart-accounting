@@ -1,4 +1,5 @@
 import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
+import { NextRequest, NextResponse } from 'next/server';
 import { plaidClient } from '@/lib/plaid';
 import { verifyAuth } from '@/lib/auth';
 
