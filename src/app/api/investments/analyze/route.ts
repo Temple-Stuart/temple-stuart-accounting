@@ -5,7 +5,7 @@ import { plaidClient } from '@/lib/plaid';
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const userEmail = cookieStore.get('userEmail')?.value;
 
     if (!userEmail) {
