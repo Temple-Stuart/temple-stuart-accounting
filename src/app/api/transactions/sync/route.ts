@@ -1,143 +1,128 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { plaidClient } from '@/lib/plaid';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
+import { plaidClient } from '@/lib/plaid';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { months = 24 } = await request.json();
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: { accounts: true }
     });
 
-    if (!plaidItems.length) {
-      return NextResponse.json({ 
-        error: 'No connected accounts',
-        synced: 0 
-      });
-    }
-
-    const results = [];
-    let totalSynced = 0;
-
-    // Calculate date range based on months parameter
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - months);
-
-    console.log(`Syncing ${months} months of transactions from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    let totalAdded = 0;
+    let totalModified = 0;
+    let totalRemoved = 0;
 
     for (const item of plaidItems) {
       try {
-        console.log(`Fetching transactions for ${item.institutionName}...`);
+        console.log(`Fetching transactions for item ${item.id}...`);
         
         let hasMore = true;
         let offset = 0;
-        const batchSize = 500;
-        let itemTransactions = 0;
         
         while (hasMore) {
-          const response = await plaidClient.transactionsGet({
+          const response = await plaidClient.transactionsSync({
             access_token: item.accessToken,
-            start_date: startDate.toISOString().split('T')[0],
-            end_date: endDate.toISOString().split('T')[0],
-            options: {
-              count: batchSize,
-              offset: offset,
-              include_personal_finance_category: true,
-            }
+            count: 500,
+            offset
           });
-          
-          // Store each transaction
-          for (const txn of response.data.transactions) {
-            const account = item.accounts.find(a => a.accountId === txn.account_id);
+
+          const { added, modified, removed, has_more } = response.data;
+
+          // Process added transactions
+          for (const txn of added) {
+            const account = item.accounts.find(acc => acc.accountId === txn.account_id);
             if (!account) continue;
 
+            const txnId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
             await prisma.transactions.upsert({
               where: { transactionId: txn.transaction_id },
-              update: {
-                amount: txn.amount,
-                name: txn.name,
-                merchantName: txn.merchant_name,
-                pending: txn.pending,
-                updatedAt: new Date(),
-              },
               create: {
-                id: crypto.randomUUID(),
-                accountId: account.id,
+                id: txnId,
                 transactionId: txn.transaction_id,
+                accountId: account.id,
                 amount: txn.amount,
                 date: new Date(txn.date),
                 name: txn.name,
                 merchantName: txn.merchant_name,
-                category: txn.category || [],
-                pending: txn.pending,
-                updatedAt: new Date(),
+                category: txn.category ? txn.category.join(', ') : null,
+                pending: txn.pending || false,
+                updatedAt: new Date()
+              },
+              update: {
+                amount: txn.amount,
+                date: new Date(txn.date),
+                name: txn.name,
+                merchantName: txn.merchant_name,
+                category: txn.category ? txn.category.join(', ') : null,
+                pending: txn.pending || false,
+                updatedAt: new Date()
               }
             });
-            itemTransactions++;
           }
-          
-          const totalTransactions = response.data.total_transactions;
-          offset += response.data.transactions.length;
-          hasMore = offset < totalTransactions;
-          
-          console.log(`Progress: ${offset}/${totalTransactions} for ${item.institutionName}`);
-          
-          if (offset > 10000) break; // Safety limit
+
+          // Process modified transactions
+          for (const txn of modified) {
+            await prisma.transactions.updateMany({
+              where: { transactionId: txn.transaction_id },
+              data: {
+                amount: txn.amount,
+                date: new Date(txn.date),
+                name: txn.name,
+                merchantName: txn.merchant_name,
+                category: txn.category ? txn.category.join(', ') : null,
+                pending: txn.pending || false,
+                updatedAt: new Date()
+              }
+            });
+          }
+
+          // Process removed transactions
+          for (const txn of removed) {
+            await prisma.transactions.deleteMany({
+              where: { transactionId: txn.transaction_id }
+            });
+          }
+
+          totalAdded += added.length;
+          totalModified += modified.length;
+          totalRemoved += removed.length;
+
+          hasMore = has_more;
+          offset += added.length + modified.length;
         }
-        
-        totalSynced += itemTransactions;
-        
-        // Update last synced time
-        await prisma.plaid_items.update({
-          where: { id: item.id },
-          data: { 
-            last_synced_at: new Date(),
-            updatedAt: new Date()
-          }
-        });
-        
-        results.push({
-          institution: item.institutionName,
-          synced: itemTransactions,
-          status: 'success'
-        });
-        
-      } catch (error: any) {
-        console.error(`Sync failed for ${item.institutionName}:`, error.message);
-        results.push({
-          institution: item.institutionName,
-          error: error.response?.data?.error_message || error.message,
-          status: 'failed'
-        });
+      } catch (error) {
+        console.error('Error syncing transactions for item:', item.id, error);
       }
     }
 
     return NextResponse.json({
       success: true,
-      totalSynced,
-      months,
-      results,
-      dateRange: {
-        start: startDate.toISOString(),
-        end: endDate.toISOString()
+      stats: {
+        added: totalAdded,
+        modified: totalModified,
+        removed: totalRemoved
       }
     });
-
-  } catch (error: any) {
-    console.error('Sync error:', error);
-    return NextResponse.json(
-      { error: 'Failed to sync transactions', details: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Transaction sync error:', error);
+    return NextResponse.json({ error: 'Failed to sync transactions' }, { status: 500 });
   }
 }
