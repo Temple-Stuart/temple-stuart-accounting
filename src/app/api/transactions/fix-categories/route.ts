@@ -1,58 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
-import { plaidClient } from '@/lib/plaid';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { plaidClient } from '@/lib/plaid';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
-      include: { accounts: true }
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
     });
-    
-    let fixed = 0;
-    
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const plaidItems = await prisma.plaid_items.findMany({
+      where: { userId: user.id }
+    });
+
+    let updatedCount = 0;
+
     for (const item of plaidItems) {
       try {
-        const endDate = new Date().toISOString().split('T')[0];
-        const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        
         const response = await plaidClient.transactionsGet({
           access_token: item.accessToken,
-          start_date: startDate,
-          end_date: endDate,
-          options: { count: 500, offset: 0 }
+          start_date: '2024-01-01',
+          end_date: new Date().toISOString().split('T')[0]
         });
-        
+
         for (const plaidTxn of response.data.transactions) {
           await prisma.transactions.updateMany({
             where: { transactionId: plaidTxn.transaction_id },
             data: { 
-              category: plaidTxn.category || [],
+              category: plaidTxn.category ? plaidTxn.category.join(', ') : null,
               merchantName: plaidTxn.merchant_name
             }
           });
-          fixed++;
+          updatedCount++;
         }
       } catch (error) {
-        console.error(`Failed to fix categories for ${item.institutionName}:`, error);
+        console.error('Error fixing categories for item:', item.id, error);
       }
     }
-    
+
     return NextResponse.json({ 
-      success: true,
-      fixed,
-      message: `Updated categories for ${fixed} transactions`
+      success: true, 
+      updatedCount 
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: 'Failed to fix categories', details: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Fix categories error:', error);
+    return NextResponse.json({ error: 'Failed to fix categories' }, { status: 500 });
   }
 }
