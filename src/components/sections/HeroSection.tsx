@@ -5,85 +5,85 @@ import React from 'react';
 export default function HeroSection() {
   return (
     <>
-      <section className="relative bg-white py-24 overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-8">
-          <div className="grid lg:grid-cols-2 gap-20 items-center">
+      <section className="relative bg-white py-12 sm:py-16 lg:py-24 overflow-hidden">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-20 items-center">
             
-            {/* Left Content - Simple, Clear */}
-            <div className="space-y-8">
-              <div className="space-y-6">
+            {/* Left Content - Mobile responsive */}
+            <div className="space-y-6 lg:space-y-8">
+              <div className="space-y-4 lg:space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#b4b237]">
+                  <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#b4b237]">
                     Bookkeeping Pipeline
                   </p>
-                  <h1 className="text-5xl lg:text-6xl font-light text-gray-900 leading-tight">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-light text-gray-900 leading-tight">
                     Take control of your finances
                   </h1>
                 </div>
                 
-                <p className="text-lg text-gray-600 leading-relaxed max-w-xl">
+                <p className="text-base sm:text-lg text-gray-600 leading-relaxed max-w-xl">
                   See all your accounts in one place. Personal and business together. 
                   Make better decisions with real data. Built for people who want to get organized.
                 </p>
               </div>
 
-              {/* Simple Benefits */}
-              <div className="space-y-4">
+              {/* Simple Benefits - Mobile responsive */}
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-start space-x-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2 flex-shrink-0"></div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Everything Connected</h3>
-                    <p className="text-gray-600 text-sm">Banks, credit cards, payment processors - all in one dashboard</p>
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Everything Connected</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">Banks, credit cards, payment processors - all in one dashboard</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2 flex-shrink-0"></div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Real-Time Updates</h3>
-                    <p className="text-gray-600 text-sm">Data imports automatically, books stay current without the work</p>
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Real-Time Updates</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">Data imports automatically, books stay current without the work</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#b4b237] mt-2 flex-shrink-0"></div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Organized Dashboard</h3>
-                    <p className="text-gray-600 text-sm">See where your money goes, make better decisions</p>
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Organized Dashboard</h3>
+                    <p className="text-gray-600 text-xs sm:text-sm">See where your money goes, make better decisions</p>
                   </div>
                 </div>
               </div>
 
-              {/* CTAs */}
-              <div className="flex items-center space-x-4">
-                <a href="#pricing" className="px-8 py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-full hover:shadow-xl transition-all">
+              {/* CTAs - Stack on mobile */}
+              <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <a href="#pricing" className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-full hover:shadow-xl transition-all">
                   See Pricing
                 </a>
-                <a href="#pipeline" className="px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-full hover:border-purple-400 hover:text-purple-700 transition-all">
+                <a href="#pipeline" className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-full hover:border-purple-400 hover:text-purple-700 transition-all">
                   How It Works
                 </a>
               </div>
 
-              {/* Real Trust Indicators */}
-              <div className="flex items-center space-x-8 pt-8 border-t border-gray-100">
+              {/* Trust Indicators - Responsive grid */}
+              <div className="grid grid-cols-3 gap-4 sm:gap-8 pt-6 sm:pt-8 border-t border-gray-100">
                 <div>
-                  <p className="text-2xl font-light text-gray-900">Bank-Grade</p>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Security</p>
+                  <p className="text-lg sm:text-2xl font-light text-gray-900">Bank-Grade</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Security</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-light text-gray-900">Real-Time</p>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Data Import</p>
+                  <p className="text-lg sm:text-2xl font-light text-gray-900">Real-Time</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Data Import</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-light text-gray-900">One</p>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Dashboard</p>
+                  <p className="text-lg sm:text-2xl font-light text-gray-900">One</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Dashboard</p>
                 </div>
               </div>
             </div>
 
-            {/* Right Visual - Premium Purple Glass Cube */}
-            <div className="relative flex items-center justify-center lg:block">
-              <div className="relative w-[450px] h-[450px]">
+            {/* Right Visual - Hide on mobile, show on lg+ */}
+            <div className="hidden lg:flex items-center justify-center">
+              <div className="relative w-[400px] xl:w-[450px] h-[400px] xl:h-[450px]">
                 
                 {/* Glass Cube with Purple Tint */}
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 perspective-1000">
@@ -149,26 +149,26 @@ export default function HeroSection() {
         `}</style>
       </section>
 
-      {/* Pipeline Section - Clear and Simple */}
-      <section id="pipeline" className="py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#b4b237] mb-4">
+      {/* Pipeline Section - Mobile responsive */}
+      <section id="pipeline" className="py-12 sm:py-16 lg:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#b4b237] mb-3 sm:mb-4">
               The Complete System
             </p>
-            <h2 className="text-4xl font-light text-gray-900 mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 mb-3 sm:mb-4">
               Double-Entry Bookkeeping Pipeline
             </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-3xl mx-auto px-4">
               Every transaction gets recorded twice - once as a debit, once as a credit. 
               This catches errors and keeps your books balanced. It's the gold standard of accounting, 
               made simple for regular people.
             </p>
           </div>
 
-          {/* Pipeline Flow */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 mb-12">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Pipeline Flow - Horizontal scroll on mobile */}
+          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-sm border border-gray-100 mb-8 sm:mb-12 overflow-x-auto">
+            <div className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 gap-4 min-w-[600px] sm:min-w-0">
               {[
                 { num: "1", title: "Onboard", desc: "Connect accounts" },
                 { num: "2", title: "Import", desc: "Gather data" },
@@ -182,79 +182,79 @@ export default function HeroSection() {
                 { num: "10", title: "Close", desc: "Lock the period" }
               ].map((step, i) => (
                 <div key={i} className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-gradient-to-r from-[#b4b237] to-[#9a9630] rounded-full flex items-center justify-center text-white font-bold mb-2">
+                  <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-[#b4b237] to-[#9a9630] rounded-full flex items-center justify-center text-white font-bold mb-1 sm:mb-2 text-xs sm:text-base">
                     {step.num}
                   </div>
-                  <h3 className="font-semibold text-gray-900 text-sm">{step.title}</h3>
-                  <p className="text-xs text-gray-500">{step.desc}</p>
+                  <h3 className="font-semibold text-gray-900 text-xs sm:text-sm">{step.title}</h3>
+                  <p className="text-[10px] sm:text-xs text-gray-500">{step.desc}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* What This Means */}
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">For Regular People</h3>
-              <p className="text-gray-600 text-sm mb-4">
+          {/* What This Means - Stack on mobile */}
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3">For Regular People</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
                 No accounting degree needed. I handle the technical stuff. 
                 You just connect your accounts and get clean reports.
               </p>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  See all accounts together
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>See all accounts together</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Understand where money goes
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Understand where money goes</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Get organized for taxes
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Get organized for taxes</span>
                 </li>
               </ul>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">For Small Business</h3>
-              <p className="text-gray-600 text-sm mb-4">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3">For Small Business</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
                 Professional books without the accounting firm prices. 
                 Perfect for contractors, consultants, online businesses.
               </p>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Separate business & personal
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Separate business & personal</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Track profit by project
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Track profit by project</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Financial statements ready
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Financial statements ready</span>
                 </li>
               </ul>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">What You Get</h3>
-              <p className="text-gray-600 text-sm mb-4">
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3">What You Get</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4">
                 Three key reports every period that show exactly where you stand financially.
               </p>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Balance Sheet (what you own/owe)
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Balance Sheet (what you own/owe)</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Income Statement (profit/loss)
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Income Statement (profit/loss)</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="text-[#b4b237] mr-2">✓</span>
-                  Cash Flow (money in/out)
+                  <span className="text-[#b4b237] mr-2 flex-shrink-0">✓</span>
+                  <span>Cash Flow (money in/out)</span>
                 </li>
               </ul>
             </div>
