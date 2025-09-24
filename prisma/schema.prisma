@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,7 +23,7 @@ model RFP {
   biggestPainPoint String?
   
   preferredTime String?
-  additionalInfo String? @db.NVarChar(Max)
+  additionalInfo String?
   
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -86,7 +86,7 @@ model transactions {
   date            DateTime
   name            String
   merchantName    String?
-  category        String?   @db.NVarChar(Max)
+  category        String?
   pending         Boolean  @default(false)
   
   createdAt       DateTime @default(now())
