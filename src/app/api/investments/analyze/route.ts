@@ -19,7 +19,7 @@ export async function GET() {
     let allTransactions: any[] = [];
     let holdings: any[] = [];
     
-    const plaidItems = await prisma.plaidItem.findMany({
+    const plaidItems = await prisma.plaid_items.findMany({
       where: { userId: user.id }
     });
 
