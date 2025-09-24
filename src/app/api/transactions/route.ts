@@ -1,73 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
-      include: { accounts: true }
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
     });
 
-    if (!plaidItems.length) {
-      return NextResponse.json({ 
-        transactions: [], 
-        accounts: [],
-        message: 'No connected accounts' 
-      });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Now fetch ALL columns including the new ones
-    const transactions = await prisma.transactions.findMany({
-      where: {
-        accountId: {
-          in: plaidItems.flatMap(item => 
-            item.accounts.map(acc => acc.id)
-          )
-        }
-      },
-      orderBy: { date: 'desc' }
+    // Get all transactions for the user
+    const accounts = await prisma.accounts.findMany({
+      where: { userId: user.id },
+      include: { transactions: true }
     });
 
-    const mappedTransactions = transactions.map(txn => ({
-      transaction_id: txn.transactionId,
-      account_id: txn.accountId,
-      amount: Number(txn.amount),
-      date: txn.date.toISOString(),
-      name: txn.name,
-      merchant_name: txn.merchantName,
-      category: Array.isArray(txn.category) ? txn.category : [],
-      pending: txn.pending,
-      institution_name: plaidItems.find(item => 
-        item.accounts.some(acc => acc.id === txn.accountId)
-      )?.institutionName,
-      // Add all the new rich data fields
-      personal_finance_category: txn.personal_finance_category,
-      personal_finance_category_icon_url: txn.personal_finance_category_icon_url,
-      counterparties: txn.counterparties,
-      logo_url: txn.logo_url,
-      website: txn.website,
-      payment_channel: txn.payment_channel,
-      location: txn.location,
-      payment_meta: txn.payment_meta
-    }));
-
-    return NextResponse.json({ 
-      transactions: mappedTransactions,
-      accounts: plaidItems.flatMap(item => item.accounts),
-      count: mappedTransactions.length
-    });
-
-  } catch (error: any) {
-    console.error('Transactions API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch transactions', details: error.message },
-      { status: 500 }
+    // Flatten all transactions
+    const allTransactions = accounts.flatMap(account => 
+      account.transactions.map(txn => ({
+        id: txn.id,
+        date: txn.date,
+        description: txn.name,
+        amount: txn.amount,
+        category: txn.category || 'Uncategorized',
+        accountId: txn.accountId,
+        accountName: account.name,
+        transactionId: txn.transactionId,
+        merchantName: txn.merchantName,
+        pending: txn.pending
+      }))
     );
+
+    // Sort by date (newest first)
+    allTransactions.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    return NextResponse.json(allTransactions);
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
   }
 }
