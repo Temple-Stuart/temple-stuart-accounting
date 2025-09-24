@@ -8,7 +8,7 @@ datasource db {
 }
 
 model RFP {
-  id         String   @id
+  id         String   @id @default(uuid())
   businessName String
   contactName String
   email      String
@@ -45,6 +45,8 @@ model plaid_items {
   id          String   @id
   accessToken String   @unique
   itemId      String   @unique
+  institutionId String?
+  institutionName String?
   userId      String
   user        users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt   DateTime @default(now())
@@ -68,13 +70,14 @@ model accounts {
   plaidItemId   String
   plaidItem     plaid_items @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
-  userId        String
-  user          users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId        String?
+  user          users?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   transactions  transactions[]
+  investment_transactions investment_transactions[]
 }
 
 model transactions {
@@ -89,6 +92,42 @@ model transactions {
   category        String?
   pending         Boolean  @default(false)
   
+  // New comprehensive fields
+  authorized_date DateTime?
+  authorized_datetime DateTime?
+  counterparties  Json?
+  location        Json?
+  payment_channel String?
+  payment_meta    Json?
+  personal_finance_category Json?
+  personal_finance_category_icon_url String?
+  transaction_code String?
+  transaction_type String?
+  logo_url        String?
+  website         String?
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model investment_transactions {
+  id                        String   @id @default(uuid())
+  investment_transaction_id String   @unique
+  accountId                 String
+  account                   accounts @relation(fields: [accountId], references: [id])
+  amount                    Float?
+  cancel_transaction_id     String?
+  date                      DateTime
+  fees                      Float?
+  iso_currency_code         String?
+  name                      String
+  price                     Float?
+  quantity                  Float?
+  security_id               String?
+  subtype                   String?
+  type                      String?
+  unofficial_currency_code  String?
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 }

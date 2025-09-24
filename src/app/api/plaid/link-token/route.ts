@@ -1,27 +1,29 @@
-import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
-import { verifyAuth } from '@/lib/auth';
+import { Products, CountryCode } from 'plaid';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('Creating link token with config:', {
-      user: { client_user_id: userId },
-      client_name: 'Temple Stuart Accounting',
-      products: ['transactions', 'investments'],
-      country_codes: ['US'],
-      language: 'en',
-      environment: process.env.PLAID_ENV
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
     });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
     const configs = {
       user: {
-        client_user_id: userId,
+        client_user_id: user.id,
       },
       client_name: 'Temple Stuart Accounting',
       products: [Products.Transactions, Products.Investments],
