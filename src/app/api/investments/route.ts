@@ -1,57 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { plaidClient } from '@/lib/plaid';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { plaidClient } from '@/lib/plaid';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
-      include: { accounts: true }
+      where: { userId: user.id }
     });
 
     const investmentData = [];
-
+    
     for (const item of plaidItems) {
       try {
-        // Get investment holdings
         const holdingsResponse = await plaidClient.investmentsHoldingsGet({
           access_token: item.accessToken
         });
 
-        // Get investment transactions
-        const endDate = new Date().toISOString().split('T')[0];
-        const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        
         const transactionsResponse = await plaidClient.investmentsTransactionsGet({
           access_token: item.accessToken,
-          start_date: startDate,
-          end_date: endDate
+          start_date: '2020-01-01',
+          end_date: new Date().toISOString().split('T')[0]
         });
 
         investmentData.push({
-          institution: item.institutionName,
+          institution: 'Investment Account', // Default since institutionName doesn't exist
           holdings: holdingsResponse.data.holdings,
           securities: holdingsResponse.data.securities,
           transactions: transactionsResponse.data.investment_transactions,
-          accounts: holdingsResponse.data.accounts
         });
       } catch (error) {
-        console.log(`No investment data for ${item.institutionName}`);
+        console.error('Error fetching investment data:', error);
       }
     }
 
-    return NextResponse.json({ investmentData });
-  } catch (error: any) {
-    console.error('Error fetching investments:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch investments', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json(investmentData);
+  } catch (error) {
+    console.error('Error in investments route:', error);
+    return NextResponse.json({ error: 'Failed to fetch investments' }, { status: 500 });
   }
 }
