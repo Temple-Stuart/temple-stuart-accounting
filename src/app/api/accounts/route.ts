@@ -1,38 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { verifyAuth } from '@/lib/auth';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all Plaid items and accounts for this user
-    const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
-      include: {
-        accounts: true
-      }
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
     });
 
-    // Map the data to match frontend interface
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const plaidItems = await prisma.plaid_items.findMany({
+      where: { userId: user.id },
+      include: { accounts: true }
+    });
+
     const mappedPlaidItems = plaidItems.map(item => ({
       id: item.id,
-      institutionName: item.institutionName,
       accounts: item.accounts.map(account => ({
         id: account.id,
         name: account.name,
+        institution: 'Bank', // Default since institutionName doesn't exist
         type: account.type,
         subtype: account.subtype || '',
-        balance: account.balanceCurrent || 0
+        balance: account.currentBalance || 0,
+        lastSync: account.updatedAt
       }))
     }));
 
-    console.log('Returning plaid items:', mappedPlaidItems.length);
-    
-    return NextResponse.json({ plaidItems: mappedPlaidItems });
+    const allAccounts = mappedPlaidItems.flatMap(item => item.accounts);
+
+    return NextResponse.json(allAccounts);
   } catch (error) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
