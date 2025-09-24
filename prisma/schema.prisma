@@ -46,7 +46,7 @@ model plaid_items {
   accessToken String   @unique
   itemId      String   @unique
   userId      String
-  user        users    @relation(fields: [userId], references: [id])
+  user        users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -66,10 +66,10 @@ model accounts {
   isoCurrencyCode String?
   
   plaidItemId   String
-  plaidItem     plaid_items @relation(fields: [plaidItemId], references: [id])
+  plaidItem     plaid_items @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   userId        String
-  user          users      @relation(fields: [userId], references: [id])
+  user          users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -81,7 +81,7 @@ model transactions {
   id              String   @id
   transactionId   String   @unique
   accountId       String
-  account         accounts  @relation(fields: [accountId], references: [id])
+  account         accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   amount          Float
   date            DateTime
   name            String
