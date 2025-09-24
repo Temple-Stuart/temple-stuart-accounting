@@ -18,32 +18,24 @@ export default function ClientPortalSection() {
     setMessage('');
 
     try {
-      if (isLogin) {
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
+      const body = isLogin 
+        ? { email, password }
+        : { email, password, name };
 
-        if (response.ok) {
-          setMessage('Success! Redirecting to dashboard...');
-          setTimeout(() => router.push('/accounts'), 1000);
-        } else {
-          setMessage('Invalid email or password');
-        }
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage('Success! Redirecting to dashboard...');
+        setTimeout(() => router.push('/dashboard'), 1000);
       } else {
-        const response = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
-        });
-
-        if (response.ok) {
-          setMessage('Account created! Please sign in.');
-          setIsLogin(true);
-        } else {
-          setMessage('Email already exists');
-        }
+        setMessage(data.error || 'Something went wrong');
       }
     } catch (error) {
       setMessage('Connection error. Please try again.');
@@ -71,7 +63,7 @@ export default function ClientPortalSection() {
           {/* Toggle */}
           <div className="flex border-b border-gray-100">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => {setIsLogin(true); setMessage('');}}
               className={`flex-1 py-4 text-sm font-medium transition-all ${
                 isLogin 
                   ? 'text-[#b4b237] border-b-2 border-[#b4b237]' 
@@ -81,7 +73,7 @@ export default function ClientPortalSection() {
               Sign In
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => {setIsLogin(false); setMessage('');}}
               className={`flex-1 py-4 text-sm font-medium transition-all ${
                 !isLogin 
                   ? 'text-purple-600 border-b-2 border-purple-600' 
@@ -131,6 +123,7 @@ export default function ClientPortalSection() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
                 required
+                minLength={8}
               />
             </div>
 
@@ -144,7 +137,7 @@ export default function ClientPortalSection() {
             
             {message && (
               <div className={`text-center text-sm ${
-                message.includes('Success') || message.includes('created') 
+                message.includes('Success') 
                   ? 'text-green-600' 
                   : 'text-red-600'
               }`}>

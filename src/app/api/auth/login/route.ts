@@ -1,75 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAuthToken, setAuthCookie } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password required' },
+        { error: 'Missing email or password' },
         { status: 400 }
       );
     }
 
-    // For development, create a user if it doesn't exist
-    let user = await prisma.users.findUnique({
+    // Find user in Azure database
+    const user = await prisma.users.findUnique({
       where: { email }
     });
 
     if (!user) {
-      // In development, auto-create user on first login
-      if (process.env.NODE_ENV === 'development') {
-        const hashedPassword = crypto
-          .createHash('sha256')
-          .update(password)
-          .digest('hex');
-
-        user = await prisma.users.create({
-          data: {
-            id: crypto.randomUUID(),
-            updatedAt: new Date(),
-            email,
-            password: hashedPassword,
-            name: email.split('@')[0],
-          }
-        });
-      } else {
-        return NextResponse.json(
-          { error: 'Invalid credentials' },
-          { status: 401 }
-        );
-      }
-    } else {
-      // Verify password
-      const hashedPassword = crypto
-        .createHash('sha256')
-        .update(password)
-        .digest('hex');
-
-      if (user.password !== hashedPassword) {
-        return NextResponse.json(
-          { error: 'Invalid credentials' },
-          { status: 401 }
-        );
-      }
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
     }
 
-    // Create JWT token
-    const token = createAuthToken(user.id, user.email);
+    // Verify password with bcrypt
+    const isValid = await bcrypt.compare(password, user.password);
+    
+    if (!isValid) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
 
-    // Set cookie and return success
-    return NextResponse.json(
-      { success: true, user: { id: user.id, email: user.email, name: user.name } },
-      { headers: setAuthCookie(token) }
-    );
+    // Set secure cookie
+    const cookieStore = await cookies();
+    cookieStore.set('userEmail', user.email, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
 
-  } catch (error: any) {
+    return NextResponse.json({ 
+      success: true,
+      user: { email: user.email, name: user.name }
+    });
+  } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Login failed', details: error.message },
+      { error: 'Failed to login' },
       { status: 500 }
     );
   }
