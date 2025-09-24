@@ -1,91 +1,77 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { plaidClient } from '@/lib/plaid';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
+import { plaidClient } from '@/lib/plaid';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { public_token, metadata } = await request.json();
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
+    });
 
-    if (!public_token) {
-      return NextResponse.json({ error: 'Missing public token' }, { status: 400 });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    console.log('Exchanging public token for institution:', metadata?.institution?.name);
+    const { publicToken } = await request.json();
 
-    // Exchange public token for access token
     const exchangeResponse = await plaidClient.itemPublicTokenExchange({
-      public_token,
+      public_token: publicToken
     });
 
-    const accessToken = exchangeResponse.data.access_token;
-    const itemId = exchangeResponse.data.item_id;
+    const { access_token: accessToken, item_id: itemId } = exchangeResponse.data;
 
-    // Get account details
-    const accountsResponse = await plaidClient.accountsGet({
-      access_token: accessToken,
-    });
+    // Generate unique ID for plaid_item
+    const plaidItemId = `plaid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Store in database - using the correct table name 'plaid_items'
-    const plaidItem = await prisma.plaid_items.create({
+    // Store in database
+    await prisma.plaid_items.create({
       data: {
-        id: crypto.randomUUID(),
-        userId,
+        id: plaidItemId,
         itemId,
         accessToken,
-        institutionId: metadata?.institution?.institution_id || 'unknown',
-        institutionName: metadata?.institution?.name || 'Unknown Bank',
+        userId: user.id,
         updatedAt: new Date(),
       },
     });
 
-    // Store accounts - using the correct table name 'accounts'
+    // Sync accounts
+    const accountsResponse = await plaidClient.accountsGet({
+      access_token: accessToken
+    });
+
     for (const account of accountsResponse.data.accounts) {
+      const accountId = `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       await prisma.accounts.create({
         data: {
-          id: crypto.randomUUID(),
-          plaidItemId: plaidItem.id,
+          id: accountId,
           accountId: account.account_id,
           name: account.name,
           officialName: account.official_name,
           type: account.type,
           subtype: account.subtype,
-          balanceAvailable: account.balances.available,
-          balanceCurrent: account.balances.current,
-          balanceLimit: account.balances.limit,
+          mask: account.mask,
+          currentBalance: account.balances.current,
+          availableBalance: account.balances.available,
+          isoCurrencyCode: account.balances.iso_currency_code,
+          plaidItemId: plaidItemId,
+          userId: user.id,
           updatedAt: new Date(),
-        },
+        }
       });
     }
 
-    console.log('Successfully connected', accountsResponse.data.accounts.length, 'accounts');
-
-    return NextResponse.json({ 
-      success: true,
-      institution: metadata?.institution?.name,
-      accounts: accountsResponse.data.accounts.length 
-    });
-
-  } catch (error: any) {
-    console.error('Token exchange error:', {
-      message: error.message,
-      code: error.response?.data?.error_code,
-      type: error.response?.data?.error_type,
-    });
-
-    return NextResponse.json(
-      { 
-        error: 'Failed to exchange token',
-        details: error.message,
-        code: error.response?.data?.error_code 
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Token exchange error:', error);
+    return NextResponse.json({ error: 'Failed to exchange token' }, { status: 500 });
   }
 }
