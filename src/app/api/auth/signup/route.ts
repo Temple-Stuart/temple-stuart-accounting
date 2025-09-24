@@ -29,12 +29,17 @@ export async function POST(request: Request) {
     // Hash password with bcrypt (bank-level security)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Save to Azure database
+    // Generate unique ID
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Save to Azure database with all required fields
     const user = await prisma.users.create({
       data: {
+        id: userId,
         email,
         password: hashedPassword,
-        name
+        name,
+        updatedAt: new Date()
       }
     });
 
