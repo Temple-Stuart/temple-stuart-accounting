@@ -5,11 +5,13 @@ import ClientPortalSection from '@/components/sections/ClientPortalSection';
 
 export default function Home() {
   return (
-    <>
+    <div className="min-h-screen bg-white overflow-x-hidden">
       <Header />
-      <HeroSection />
-      <ProspectSection />
-      <ClientPortalSection />
-    </>
+      <main>
+        <HeroSection />
+        <ProspectSection />
+        <ClientPortalSection />
+      </main>
+    </div>
   );
 }
