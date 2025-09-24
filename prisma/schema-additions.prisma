@@ -1,0 +1,85 @@
+// Add these models to your existing schema
+
+model Entity {
+  id          String   @id @default(uuid())
+  name        String   
+  type        String   // 'personal' or 'business'
+  userId      String
+  user        users    @relation(fields: [userId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  chartOfAccounts ChartOfAccount[]
+  journalEntries  JournalEntry[]
+  periods         AccountingPeriod[]
+}
+
+model ChartOfAccount {
+  id              String   @id @default(uuid())
+  entityId        String
+  entity          Entity   @relation(fields: [entityId], references: [id])
+  accountNumber   String   
+  accountName     String
+  accountType     String   // Asset, Liability, Equity, Revenue, Expense
+  subType         String?  // Current Asset, Fixed Asset, etc.
+  normalBalance   String   // 'debit' or 'credit'
+  parentAccountId String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  
+  journalLines    JournalLine[]
+  @@unique([entityId, accountNumber])
+}
+
+model JournalEntry {
+  id              String   @id @default(uuid())
+  entityId        String
+  entity          Entity   @relation(fields: [entityId], references: [id])
+  entryDate       DateTime
+  description     String
+  reference       String?  // Check number, invoice number, etc.
+  status          String   @default("draft") // draft, posted, void
+  periodId        String
+  period          AccountingPeriod @relation(fields: [periodId], references: [id])
+  createdAt       DateTime @default(now())
+  postedAt        DateTime?
+  
+  lines           JournalLine[]
+  attachments     DocumentAttachment[]
+  sourceTransaction String? // Link to original Plaid transaction if applicable
+}
+
+model JournalLine {
+  id              String   @id @default(uuid())
+  journalEntryId  String
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId       String
+  account         ChartOfAccount @relation(fields: [accountId], references: [id])
+  debit           Float?
+  credit          Float?
+  memo            String?
+  
+  @@index([accountId])
+}
+
+model AccountingPeriod {
+  id          String   @id @default(uuid())
+  entityId    String
+  entity      Entity   @relation(fields: [entityId], references: [id])
+  name        String   // "January 2025", "Q1 2025", etc.
+  startDate   DateTime
+  endDate     DateTime
+  isClosed    Boolean  @default(false)
+  closedAt    DateTime?
+  
+  journalEntries JournalEntry[]
+}
+
+model DocumentAttachment {
+  id              String   @id @default(uuid())
+  journalEntryId  String
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id])
+  fileName        String
+  fileUrl         String
+  uploadedAt      DateTime @default(now())
+}
