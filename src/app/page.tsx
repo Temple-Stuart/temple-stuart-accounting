@@ -1,13 +1,15 @@
+import Header from '@/components/Header';
 import HeroSection from '@/components/sections/HeroSection';
-import BookkeepingSection from '@/components/sections/BookkeepingSection';
+import ProspectSection from '@/components/sections/ProspectSection';
 import ClientPortalSection from '@/components/sections/ClientPortalSection';
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <>
+      <Header />
       <HeroSection />
-      <BookkeepingSection />
+      <ProspectSection />
       <ClientPortalSection />
-    </main>
+    </>
   );
 }

@@ -19,7 +19,6 @@ export default function ClientPortalSection() {
 
     try {
       if (isLogin) {
-        // Login
         const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -27,14 +26,12 @@ export default function ClientPortalSection() {
         });
 
         if (response.ok) {
-          setMessage('Login successful! Redirecting...');
+          setMessage('Success! Redirecting to dashboard...');
           setTimeout(() => router.push('/accounts'), 1000);
         } else {
-          const data = await response.json();
-          setMessage(data.error || 'Login failed');
+          setMessage('Invalid email or password');
         }
       } else {
-        // Signup
         const response = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -42,125 +39,119 @@ export default function ClientPortalSection() {
         });
 
         if (response.ok) {
-          setMessage('Account created! Please log in.');
+          setMessage('Account created! Please sign in.');
           setIsLogin(true);
         } else {
-          const data = await response.json();
-          setMessage(data.error || 'Signup failed');
+          setMessage('Email already exists');
         }
       }
     } catch (error) {
-      setMessage('Network error. Please try again.');
+      setMessage('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section id="client-portal" className="py-20">
-      <div className="max-w-7xl mx-auto px-6">
+    <section id="portal" className="py-24 bg-gray-50">
+      <div className="max-w-md mx-auto px-8">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
-            Client Portal
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#b4b237] mb-4">
+            Client Access
+          </p>
+          <h2 className="text-4xl font-light text-gray-900 mb-4">
+            Your Dashboard
           </h2>
-          <p className="text-xl text-gray-600 uppercase tracking-widest opacity-90">
-            Access Your Financial Dashboard
+          <p className="text-lg text-gray-600">
+            View your books anytime, anywhere
           </p>
         </div>
 
-        <div className="max-w-md mx-auto">
-          <div className="bg-white/80 backdrop-blur rounded-2xl shadow-xl p-8 border-2 border-purple-200">
-            {/* Toggle buttons */}
-            <div className="flex mb-8">
-              <button
-                onClick={() => setIsLogin(true)}
-                className={`flex-1 py-2 font-semibold rounded-l-lg transition-all ${
-                  isLogin 
-                    ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setIsLogin(false)}
-                className={`flex-1 py-2 font-semibold rounded-r-lg transition-all ${
-                  !isLogin 
-                    ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                Set Up Account
-              </button>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+          {/* Toggle */}
+          <div className="flex border-b border-gray-100">
+            <button
+              onClick={() => setIsLogin(true)}
+              className={`flex-1 py-4 text-sm font-medium transition-all ${
+                isLogin 
+                  ? 'text-[#b4b237] border-b-2 border-[#b4b237]' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setIsLogin(false)}
+              className={`flex-1 py-4 text-sm font-medium transition-all ${
+                !isLogin 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                  required={!isLogin}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                required
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {!isLogin && (
-                <div>
-                  <label htmlFor="name" className="block text-sm font-semibold text-purple-700 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="John Doe"
-                    required={!isLogin}
-                  />
-                </div>
-              )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                required
+              />
+            </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-purple-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-purple-700 mb-2">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg disabled:opacity-50"
-              >
-                {loading ? 'Processing...' : (isLogin ? 'Access Portal' : 'Create Account')}
-              </button>
-            </form>
-
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-lg hover:shadow-xl transition-all disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+            </button>
+            
             {message && (
-              <div className={`mt-4 p-3 rounded-lg text-center ${
-                message.includes('successful') || message.includes('created') 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-red-100 text-red-700'
+              <div className={`text-center text-sm ${
+                message.includes('Success') || message.includes('created') 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
               }`}>
                 {message}
               </div>
             )}
-          </div>
+          </form>
         </div>
       </div>
     </section>

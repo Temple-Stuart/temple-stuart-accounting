@@ -43,7 +43,7 @@ interface PlaidItem {
   accounts: Account[];
 }
 
-type TabType = 'connect' | 'transactions' | 'chart' | 'reconcile' | 'reports' | 'taxes';
+type TabType = 'connect' | 'transactions' | 'investing' | 'chart' | 'reconcile' | 'reports' | 'taxes';
 
 interface WorkflowStep {
   id: TabType;
@@ -71,7 +71,29 @@ export default function AccountsPage() {
   const [customCategories, setCustomCategories] = useState<{[key: string]: string}>({});
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  
+
+  const syncAllTransactions = async (months = 24) => {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/transactions/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ months }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(`Successfully synced ${result.totalSynced} transactions from the last ${months} months!`);
+        await fetchTransactions();
+      } else {
+        alert(`Error: ${result.error || "Failed to sync"}`);
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      alert("Failed to sync transactions");
+    } finally {
+      setSyncing(false);
+    }
+  };  
   // Standard accounting categories for dropdown
   const accountingCategories = [
     'Advertising & Marketing',
@@ -120,16 +142,24 @@ export default function AccountsPage() {
       status: plaidItems.length > 0 ? 'current' : 'upcoming'
     },
     {
-      id: 'chart',
+      id: 'investing',
       number: '3',
+      title: 'Options Trading',
+      description: 'Track spreads, P&L, and performance',
+      icon: '📈',
+      status: plaidItems.length > 0 ? 'current' : 'upcoming'
+    },
+    {
+      id: 'chart',
+      number: '4',
       title: 'Chart of Accounts',
       description: 'Categorize expenses & income',
-      icon: '📈',
+      icon: '📝',
       status: 'upcoming'
     },
     {
       id: 'reconcile',
-      number: '4',
+      number: '5',
       title: 'Bank Reconciliation',
       description: 'Match records with bank statements',
       icon: '✅',
@@ -137,7 +167,7 @@ export default function AccountsPage() {
     },
     {
       id: 'reports',
-      number: '5',
+      number: '6',
       title: 'Financial Reports',
       description: 'P&L, Balance Sheet, Cash Flow',
       icon: '📑',
@@ -145,7 +175,7 @@ export default function AccountsPage() {
     },
     {
       id: 'taxes',
-      number: '6',
+      number: '7',
       title: 'Tax Preparation',
       description: 'Organize for tax filing',
       icon: '🧾',
@@ -153,39 +183,6 @@ export default function AccountsPage() {
     }
   ];
 
-  // Derive unique categories and vendors from transactions
-  const categories = Array.from(new Set(
-    transactions.flatMap(t => t.category || [])
-  )).sort();
-
-  const vendors = Array.from(new Set(
-    transactions
-      .map(t => t.merchant_name || t.name)
-      .filter(Boolean)
-  )).sort();
-
-  const syncAllTransactions = async (months = 24) => {
-    setSyncing(true);
-    try {
-      const response = await fetch("/api/transactions/sync", {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ months }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        alert(`Successfully synced ${result.totalSynced} transactions from the last ${months} months!`);
-        await fetchTransactions();
-      } else {
-        alert(`Error: ${result.error || 'Failed to sync'}`);
-      }
-    } catch (error) {
-      console.error("Sync error:", error);
-      alert("Failed to sync transactions");
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   useEffect(() => {
     fetchLinkToken();
@@ -281,20 +278,6 @@ export default function AccountsPage() {
     return [...data].sort((a, b) => {
       let aVal: any = a[sortField as keyof Transaction];
       let bVal: any = b[sortField as keyof Transaction];
-      
-      if (sortField === 'date') {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      }
-      
-      if (sortDirection === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
-      }
-    });
-  };
-
   const filterData = (data: Transaction[]) => {
     if (!Array.isArray(data)) return [];
     
@@ -335,6 +318,34 @@ export default function AccountsPage() {
   };
 
   const getVendorTotal = (vendor: string) => {
+    return transactions
+      .filter(t => (t.merchant_name === vendor) || (t.name === vendor))
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  };
+  // Derive unique categories and vendors from transactions
+  const categories = Array.from(new Set(
+    transactions.flatMap(t => t.category || [])
+  )).sort();
+
+  const vendors = Array.from(new Set(
+    transactions
+      .map(t => t.merchant_name || t.name)
+      .filter(Boolean)
+  )).sort();
+
+  const getCategoryCount = (category) => {
+    return transactions.filter(t => 
+      t.category && t.category.includes(category)
+    ).length;
+  };
+
+  const getVendorCount = (vendor) => {
+    return transactions.filter(t => 
+      (t.merchant_name === vendor) || (t.name === vendor)
+    ).length;
+  };
+
+  const getVendorTotal = (vendor) => {
     return transactions
       .filter(t => (t.merchant_name === vendor) || (t.name === vendor))
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -757,6 +768,116 @@ export default function AccountsPage() {
             )}
 
             {/* Chart of Accounts Tab */}
+
+            {/* Investing Tab */}
+            {activeTab === 'investing' && (
+              <div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    Step 3: Options Trading Dashboard
+                  </h1>
+                  <p className="text-gray-600">
+                    Track your credit spreads, iron condors, and trading performance.
+                  </p>
+                </div>
+
+                {/* Performance Metrics */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="text-sm font-semibold text-purple-600">Total P&L</div>
+                    <div className="text-2xl font-bold text-green-600">+$2,847</div>
+                    <div className="text-xs text-gray-500">All time</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="text-sm font-semibold text-purple-600">Win Rate</div>
+                    <div className="text-2xl font-bold">73%</div>
+                    <div className="text-xs text-gray-500">Last 100 trades</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="text-sm font-semibold text-purple-600">Avg Win</div>
+                    <div className="text-2xl font-bold text-green-600">+$187</div>
+                    <div className="text-xs text-gray-500">Per spread</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="text-sm font-semibold text-purple-600">Avg Loss</div>
+                    <div className="text-2xl font-bold text-red-600">-$142</div>
+                    <div className="text-xs text-gray-500">Per spread</div>
+                  </div>
+                </div>
+
+                {/* Active Positions */}
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Active Positions</h2>
+                  <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gradient-to-r from-purple-600 to-amber-500 text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-left">Ticker</th>
+                          <th className="px-4 py-3 text-left">Strategy</th>
+                          <th className="px-4 py-3 text-left">Expiration</th>
+                          <th className="px-4 py-3 text-right">Credit</th>
+                          <th className="px-4 py-3 text-right">Max Risk</th>
+                          <th className="px-4 py-3 text-right">Current P&L</th>
+                          <th className="px-4 py-3 text-center">DTE</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3 font-bold">TSLA</td>
+                          <td className="px-4 py-3">Put Credit Spread</td>
+                          <td className="px-4 py-3">10/03/25</td>
+                          <td className="px-4 py-3 text-right text-green-600">+$110</td>
+                          <td className="px-4 py-3 text-right text-red-600">-$390</td>
+                          <td className="px-4 py-3 text-right font-bold text-green-600">+$82</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">21</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Coming Soon Features */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-white rounded-lg shadow-lg p-6 border border-purple-200">
+                    <h3 className="text-lg font-bold text-purple-600 mb-4">Risk Management</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Kelly Criterion:</span>
+                        <span className="font-bold">18% position size</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Current Exposure:</span>
+                        <span className="font-bold text-amber-600">$1,170 (90%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Assignment Risk:</span>
+                        <span className="font-bold text-green-600">Low</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg shadow-lg p-6 border border-amber-500">
+                    <h3 className="text-lg font-bold text-amber-600 mb-4">Top Performers</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>TSLA:</span>
+                        <span className="font-bold text-green-600">+$1,247 (78% win)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>AMD:</span>
+                        <span className="font-bold text-green-600">+$892 (71% win)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>COIN:</span>
+                        <span className="font-bold text-green-600">+$437 (83% win)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             {activeTab === 'chart' && (
               <div>
                 <div className="mb-8">
