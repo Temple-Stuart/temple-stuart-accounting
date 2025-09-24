@@ -33,17 +33,21 @@ export async function POST() {
       try {
         console.log(`Fetching transactions for item ${item.id}...`);
         
+        let cursor = undefined;
         let hasMore = true;
-        let offset = 0;
         
         while (hasMore) {
-          const response = await plaidClient.transactionsSync({
+          const request: any = {
             access_token: item.accessToken,
-            count: 500,
-            offset
-          });
-
-          const { added, modified, removed, has_more } = response.data;
+            count: 500
+          };
+          
+          if (cursor) {
+            request.cursor = cursor;
+          }
+          
+          const response = await plaidClient.transactionsSync(request);
+          const { added, modified, removed, has_more, next_cursor } = response.data;
 
           // Process added transactions
           for (const txn of added) {
@@ -106,7 +110,7 @@ export async function POST() {
           totalRemoved += removed.length;
 
           hasMore = has_more;
-          offset += added.length + modified.length;
+          cursor = next_cursor;
         }
       } catch (error) {
         console.error('Error syncing transactions for item:', item.id, error);
