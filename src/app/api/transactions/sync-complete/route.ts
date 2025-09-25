@@ -31,7 +31,7 @@ export async function POST() {
     for (const item of plaidItems) {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
       
-      // Get ALL transactions with ALL enrichments
+      // Get ALL transactions with enrichments
       try {
         let hasMore = true;
         let offset = 0;
@@ -65,27 +65,28 @@ export async function POST() {
                 category: txn.category?.join(', '),
                 pending: txn.pending || false,
                 
-                // ALL enriched fields
+                // Standard enriched fields
                 authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
                 authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
-                counterparties: txn.counterparties || null,
-                location: txn.location || null,
+                // Cast to any to access these fields that exist at runtime
+                counterparties: (txn as any).counterparties || null,
+                location: (txn as any).location || null,
                 payment_channel: txn.payment_channel,
-                payment_meta: txn.payment_meta || null,
-                personal_finance_category: txn.personal_finance_category || null,
-                personal_finance_category_icon_url: txn.personal_finance_category_icon_url,
+                payment_meta: (txn as any).payment_meta || null,
+                personal_finance_category: (txn as any).personal_finance_category || null,
+                personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
                 transaction_code: txn.transaction_code,
-                transaction_type: txn.transaction_type,
-                logo_url: txn.logo_url,
-                website: txn.website
+                transaction_type: (txn as any).transaction_type,
+                logo_url: (txn as any).logo_url,
+                website: (txn as any).website
               },
               update: {
                 // Update ALL fields to ensure we have latest data
                 amount: txn.amount,
                 merchantName: txn.merchant_name,
-                personal_finance_category: txn.personal_finance_category || null,
-                counterparties: txn.counterparties || null,
-                location: txn.location || null,
+                personal_finance_category: (txn as any).personal_finance_category || null,
+                counterparties: (txn as any).counterparties || null,
+                location: (txn as any).location || null,
                 payment_channel: txn.payment_channel
               }
             });
