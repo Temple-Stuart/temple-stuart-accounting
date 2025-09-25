@@ -5,8 +5,16 @@ export async function GET() {
   try {
     const users = await prisma.users.findMany({
       include: {
+        accounts: {
+          include: {
+            plaidItem: true
+          }
+        },
         _count: {
-          select: { accounts: true }
+          select: { 
+            accounts: true,
+            transactions: true
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
