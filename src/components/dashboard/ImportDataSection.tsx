@@ -155,7 +155,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       
       <div className="space-y-6">
         {/* Connected Accounts */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg">
+        <div className="bg-white border border-gray-100 rounded-xl">
           <div className="px-4 sm:px-6 py-4 border-b">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <h3 className="text-lg font-medium">Connected Accounts</h3>
@@ -163,14 +163,14 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 <button
                   onClick={syncCompleteData}
                   disabled={loading || accounts.length === 0}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-[#b4b237] text-white rounded-lg hover:bg-[#b4b237] disabled:opacity-50 text-sm"
                 >
                   {loading ? 'Syncing...' : 'Sync All Data'}
                 </button>
                 <button
                   onClick={openPlaidLink}
                   disabled={!linkToken}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-[#b4b237] text-white rounded-lg hover:bg-[#9a9630] disabled:opacity-50 text-sm"
                 >
                   + Connect
                 </button>
@@ -179,7 +179,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
           </div>
           <div className="p-4 sm:p-6">
             {syncStatus && (
-              <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-[#b4b237]/5 text-gray-700 rounded-lg text-sm">
                 {syncStatus}
               </div>
             )}
@@ -204,14 +204,14 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         </div>
 
         {/* Transaction Tabs */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
           <div className="border-b">
             <div className="flex">
               <button
                 onClick={() => setActiveTab('spending')}
                 className={`px-4 sm:px-6 py-3 font-medium whitespace-nowrap ${
                   activeTab === 'spending'
-                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    ? 'border-b-2 border-[#b4b237] text-[#b4b237]'
                     : 'text-gray-600'
                 }`}
               >
@@ -221,7 +221,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 onClick={() => setActiveTab('investments')}
                 className={`px-4 sm:px-6 py-3 font-medium whitespace-nowrap ${
                   activeTab === 'investments'
-                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    ? 'border-b-2 border-[#b4b237] text-[#b4b237]'
                     : 'text-gray-600'
                 }`}
               >
@@ -253,8 +253,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       <td className="px-2 py-2">
                         <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
                           getInstitution(txn.account) === 'Wells Fargo' 
-                            ? 'bg-red-100 text-red-800' 
-                            : 'bg-green-100 text-green-800'
+                            ? 'bg-red-50 text-red-600' 
+                            : 'bg-[#b4b237]/10 text-[#b4b237]'
                         }`}>
                           {getInstitution(txn.account)}
                         </span>

@@ -34,37 +34,37 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-purple-900">
+    <div className="min-h-screen bg-white">
       {/* Navigation Header - matching homepage style */}
-      <nav className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+      <nav className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
-              <h1 className="text-2xl font-bold text-white">Temple Stuart Accounting</h1>
+              <h1 className="text-2xl font-light text-gray-900">Temple Stuart Accounting</h1>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setSelectedEntity('personal')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
                     selectedEntity === 'personal'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                      ? 'bg-[#b4b237] text-white'
+                      : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Personal
                 </button>
                 <button
                   onClick={() => setSelectedEntity('business')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
                     selectedEntity === 'business'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                      ? 'bg-[#b4b237] text-white'
+                      : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
                   Business
@@ -73,7 +73,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              className="px-4 py-1.5 text-sm text-red-600 hover:text-red-700 font-medium"
             >
               Logout
             </button>
@@ -83,34 +83,40 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - matching homepage card style */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar - matching homepage minimal style */}
           <div className="lg:col-span-1">
-            <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Accounting Pipeline</h2>
-              <nav className="space-y-2">
+            <div className="bg-white border border-gray-100 rounded-xl p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b4b237] mb-4">
+                Accounting Pipeline
+              </p>
+              <nav className="space-y-1">
                 {[
-                  { icon: '📊', label: 'Import Data', active: true },
-                  { icon: '📈', label: 'Chart of Accounts' },
-                  { icon: '📝', label: 'Journal Entries' },
-                  { icon: '📚', label: 'Post to Ledger' },
-                  { icon: '✅', label: 'Reconciliation' },
-                  { icon: '🔧', label: 'Adjusting Entries' },
-                  { icon: '📑', label: 'Financial Statements' },
-                  { icon: '📊', label: '3-Statement Analysis' },
-                  { icon: '📊', label: 'Metrics & Projections' },
-                  { icon: '📕', label: 'Close Books' },
-                ].map((item, idx) => (
+                  { num: '1', label: 'Import Data', active: true },
+                  { num: '2', label: 'Chart of Accounts' },
+                  { num: '3', label: 'Journal Entries' },
+                  { num: '4', label: 'Post to Ledger' },
+                  { num: '5', label: 'Reconciliation' },
+                  { num: '6', label: 'Adjusting Entries' },
+                  { num: '7', label: 'Financial Statements' },
+                  { num: '8', label: '3-Statement Analysis' },
+                  { num: '9', label: 'Metrics & Projections' },
+                  { num: '10', label: 'Close Books' },
+                ].map((item) => (
                   <button
-                    key={idx}
-                    className={`w-full text-left px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
+                    key={item.num}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center gap-3 ${
                       item.active
-                        ? 'bg-purple-500 text-white'
-                        : 'text-gray-700 hover:bg-purple-50'
+                        ? 'bg-[#b4b237]/10 text-gray-900 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    <span>{item.icon}</span>
-                    <span className="text-sm font-medium">{idx + 1}. {item.label}</span>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                      item.active ? 'bg-[#b4b237] text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {item.num}
+                    </span>
+                    <span className="text-sm">{item.label}</span>
                   </button>
                 ))}
               </nav>
