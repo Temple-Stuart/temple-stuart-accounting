@@ -45,18 +45,34 @@ export default function AccountsPage() {
       }
       const accountsData = await accountsRes.json();
       
-      // FIX: Extract accounts from the nested structure
-      const allAccounts = accountsData.items?.flatMap(item => 
-        item.accounts?.map(account => ({
+      // Handle both array and nested structure
+      let allAccounts: Account[] = [];
+      
+      if (Array.isArray(accountsData)) {
+        // Direct array of accounts
+        allAccounts = accountsData.map((account: any) => ({
           id: account.id,
           name: account.name,
-          institution: item.institutionName,
+          institution: account.plaidItem?.institutionName || 'Bank',
           type: account.type,
           subtype: account.subtype,
-          balance: account.balance,
+          balance: account.currentBalance || account.balance || 0,
           lastSync: new Date().toISOString()
-        })) || []
-      ) || [];
+        }));
+      } else if (accountsData.items) {
+        // Nested structure
+        allAccounts = accountsData.items.flatMap((item: any) => 
+          item.accounts?.map((account: any) => ({
+            id: account.id,
+            name: account.name,
+            institution: item.institutionName,
+            type: account.type,
+            subtype: account.subtype,
+            balance: account.balance,
+            lastSync: new Date().toISOString()
+          })) || []
+        );
+      }
       
       setAccounts(allAccounts);
 
@@ -105,18 +121,18 @@ export default function AccountsPage() {
                 <h2 className="text-xl font-semibold">Recent Transactions</h2>
               </div>
               <div className="divide-y">
-                {transactions.slice(0, 10).map(transaction => (
+                {transactions.slice(0, 10).map((transaction: any) => (
                   <div key={transaction.id} className="px-6 py-4">
                     <div className="flex justify-between">
                       <div>
-                        <p className="font-medium">{transaction.description}</p>
+                        <p className="font-medium">{transaction.name || transaction.description}</p>
                         <p className="text-sm text-gray-500">{transaction.category}</p>
                       </div>
                       <div className="text-right">
                         <p className={`font-medium ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           ${Math.abs(transaction.amount).toFixed(2)}
                         </p>
-                        <p className="text-sm text-gray-500">{transaction.date}</p>
+                        <p className="text-sm text-gray-500">{new Date(transaction.date).toLocaleDateString()}</p>
                       </div>
                     </div>
                   </div>
