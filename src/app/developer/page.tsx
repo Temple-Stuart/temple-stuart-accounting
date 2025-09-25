@@ -6,14 +6,11 @@ import { useRouter } from 'next/navigation';
 export default function DeveloperDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [clients, setClients] = useState<any[]>([]);
   const [prospects, setProspects] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'prospects'>('overview');
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [selectedProspect, setSelectedProspect] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'prospects'>('overview');
   const router = useRouter();
 
-  const DEV_PASSWORD = 'temple2024';
+  const DEV_PASSWORD = 'temple2024'; // Password still here!
 
   useEffect(() => {
     const devAuth = sessionStorage.getItem('devAuth');
@@ -36,16 +33,6 @@ export default function DeveloperDashboard() {
 
   const loadData = async () => {
     try {
-      const clientsRes = await fetch('/api/developer/clients');
-      if (clientsRes.ok) {
-        const data = await clientsRes.json();
-        setClients(data);
-      }
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    }
-
-    try {
       const prospectsRes = await fetch('/api/developer/prospects');
       if (prospectsRes.ok) {
         const data = await prospectsRes.json();
@@ -56,17 +43,13 @@ export default function DeveloperDashboard() {
     }
   };
 
-  // Calculate metrics
-  const totalRevenue = clients.reduce((sum, client) => {
-    const accountCount = client._count?.accounts || 0;
-    const transactionCount = client._count?.transactions || 0;
-    // Estimate monthly revenue based on activity
-    return sum + (accountCount * 50) + (transactionCount * 0.1);
-  }, 0);
-
-  const activeClients = clients.filter(c => c._count?.accounts > 0).length;
-  const totalAccounts = clients.reduce((sum, c) => sum + (c._count?.accounts || 0), 0);
-  const totalTransactions = clients.reduce((sum, c) => sum + (c._count?.transactions || 0), 0);
+  // Calculate total pipeline value
+  const totalPipeline = prospects.reduce((sum, p) => sum + (p.monthlyValue || 0), 0);
+  const newProspects = prospects.filter(p => {
+    const created = new Date(p.createdAt);
+    const daysSince = (Date.now() - created.getTime()) / (1000 * 3600 * 24);
+    return daysSince <= 7;
+  });
 
   if (!authenticated) {
     return (
@@ -103,9 +86,9 @@ export default function DeveloperDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
-              <h1 className="text-2xl font-light text-gray-900">Business Intelligence</h1>
+              <h1 className="text-2xl font-light text-gray-900">Prospect Pipeline</h1>
               <div className="flex space-x-1">
-                {['overview', 'clients', 'prospects'].map((tab) => (
+                {['overview', 'prospects'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -135,64 +118,65 @@ export default function DeveloperDashboard() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Pipeline Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-xl border border-gray-100">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                  Monthly Revenue
+                  New This Week
                 </p>
                 <p className="text-3xl font-light text-gray-900">
-                  ${totalRevenue.toFixed(0)}
+                  {newProspects.length}
                 </p>
-                <p className="text-xs text-green-600 mt-2">+12% from last month</p>
+                <p className="text-xs text-gray-500 mt-2">prospects</p>
               </div>
               
               <div className="bg-white p-6 rounded-xl border border-gray-100">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                  Active Clients
-                </p>
-                <p className="text-3xl font-light text-gray-900">{activeClients}</p>
-                <p className="text-xs text-gray-500 mt-2">of {clients.length} total</p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl border border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                  Connected Accounts
-                </p>
-                <p className="text-3xl font-light text-gray-900">{totalAccounts}</p>
-                <p className="text-xs text-gray-500 mt-2">across all clients</p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl border border-gray-100">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                  Total Transactions
+                  Total Pipeline Value
                 </p>
                 <p className="text-3xl font-light text-gray-900">
-                  {totalTransactions.toLocaleString()}
+                  ${totalPipeline.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-2">this month</p>
+                <p className="text-xs text-gray-500 mt-2">per month</p>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl border border-gray-100">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                  Hot Leads
+                </p>
+                <p className="text-3xl font-light text-gray-900">
+                  {prospects.filter(p => p.timeline === 'immediate').length}
+                </p>
+                <p className="text-xs text-red-600 mt-2">need immediate help</p>
               </div>
             </div>
 
-            {/* Recent Activity */}
+            {/* New Prospects List */}
             <div className="bg-white rounded-xl border border-gray-100">
               <div className="p-6 border-b border-gray-100">
-                <h3 className="text-lg font-light text-gray-900">Recent Activity</h3>
+                <h3 className="text-lg font-light text-gray-900">Latest Prospects</h3>
               </div>
               <div className="divide-y divide-gray-100">
-                {clients.slice(0, 5).map((client) => (
-                  <div key={client.id} className="p-6 flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-gray-900">{client.name}</p>
-                      <p className="text-sm text-gray-500">{client.email}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">
-                        {client._count?.accounts || 0} accounts
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Joined {new Date(client.createdAt).toLocaleDateString()}
-                      </p>
+                {prospects.slice(0, 5).map((prospect) => (
+                  <div key={prospect.id} className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900">{prospect.businessName}</p>
+                        <p className="text-sm text-gray-600">{prospect.contactName} • {prospect.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">Needs: {prospect.needs}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-light text-gray-900">
+                          ${prospect.monthlyValue}/mo
+                        </p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          prospect.timeline === 'immediate' 
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {prospect.timeline}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -201,104 +185,13 @@ export default function DeveloperDashboard() {
           </div>
         )}
 
-        {/* Clients Tab */}
-        {activeTab === 'clients' && (
-          <div className="bg-white rounded-xl border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-light text-gray-900">
-                  Registered Clients ({clients.length})
-                </h3>
-                <button className="text-sm text-[#b4b237] hover:text-[#9a9630]">
-                  Export CSV
-                </button>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Client
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Accounts
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transactions
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Active
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Revenue
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {clients.map((client) => (
-                    <tr key={client.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{client.name}</p>
-                          <p className="text-xs text-gray-500">{client.email}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900">
-                          {client._count?.accounts || 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900">
-                          {client._count?.transactions || 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-500">
-                          {client.updatedAt 
-                            ? new Date(client.updatedAt).toLocaleDateString()
-                            : 'Never'
-                          }
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-gray-900">
-                          ${((client._count?.accounts || 0) * 50).toFixed(0)}/mo
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => setSelectedClient(client)}
-                          className="text-xs text-[#b4b237] hover:text-[#9a9630]"
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Prospects Tab */}
+        {/* Prospects Tab - Full Details */}
         {activeTab === 'prospects' && (
           <div className="bg-white rounded-xl border border-gray-100">
             <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-light text-gray-900">
-                  Sales Pipeline ({prospects.length})
-                </h3>
-                <button className="text-sm text-[#b4b237] hover:text-[#9a9630]">
-                  Export CSV
-                </button>
-              </div>
+              <h3 className="text-lg font-light text-gray-900">
+                All Prospects ({prospects.length})
+              </h3>
             </div>
             
             <div className="overflow-x-auto">
@@ -309,19 +202,19 @@ export default function DeveloperDashboard() {
                       Business
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
+                      Contact Info
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Services Needed
+                      Pipeline Info
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Est. Value
+                      Monthly Value
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Timeline
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      Files
                     </th>
                   </tr>
                 </thead>
@@ -332,20 +225,34 @@ export default function DeveloperDashboard() {
                         <p className="text-sm font-medium text-gray-900">
                           {prospect.businessName}
                         </p>
+                        <p className="text-xs text-gray-500">
+                          {prospect.expenseTier && `Tier: ${prospect.expenseTier}`}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm text-gray-900">{prospect.contactName}</p>
-                          <p className="text-xs text-gray-500">{prospect.email}</p>
-                        </div>
+                        <p className="text-sm text-gray-900">{prospect.contactName}</p>
+                        <p className="text-xs text-gray-600">{prospect.email}</p>
+                        <p className="text-xs text-gray-600">{prospect.phone}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-gray-900">{prospect.needs || 'Not specified'}</p>
+                        <p className="text-xs text-gray-700">
+                          Banks: {prospect.numBankAccounts || 'N/A'}<br/>
+                          Cards: {prospect.numCreditCards || 'N/A'}<br/>
+                          Txns/mo: {prospect.monthlyTransactions || 'N/A'}<br/>
+                          Payroll: {prospect.hasPayroll || 'N/A'}<br/>
+                          Current: {prospect.currentBookkeeping || 'None'}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Pain: {prospect.biggestPainPoint || 'Not specified'}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-gray-900">
-                          ${prospect.totals?.monthly || 0}/mo
-                        </span>
+                        <p className="text-lg font-medium text-gray-900">
+                          ${prospect.monthlyValue || 0}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {prospect.frequency || 'monthly'}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs rounded-full ${
@@ -359,47 +266,18 @@ export default function DeveloperDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <select className="text-xs border border-gray-200 rounded px-2 py-1">
-                          <option>New</option>
-                          <option>Contacted</option>
-                          <option>Qualified</option>
-                          <option>Proposal</option>
-                          <option>Won</option>
-                          <option>Lost</option>
-                        </select>
+                        {prospect.files && prospect.files.length > 0 ? (
+                          <span className="text-xs text-[#b4b237]">
+                            {prospect.files.length} files
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">None</span>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-        )}
-
-        {/* Client Details Modal */}
-        {selectedClient && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl">
-              <h3 className="text-xl font-light text-gray-900 mb-4">{selectedClient.name}</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="text-sm">{selectedClient.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Joined</p>
-                    <p className="text-sm">{new Date(selectedClient.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-                {/* Add more client details here */}
-              </div>
-              <button
-                onClick={() => setSelectedClient(null)}
-                className="mt-6 px-4 py-2 bg-gray-100 rounded-lg text-sm"
-              >
-                Close
-              </button>
             </div>
           </div>
         )}
