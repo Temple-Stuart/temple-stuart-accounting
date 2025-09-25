@@ -131,3 +131,36 @@ model investment_transactions {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 }
+
+model prospects {
+  id                    String   @id @default(uuid())
+  businessName          String
+  contactName           String
+  email                 String
+  phone                 String?
+  
+  // Pricing calculation fields
+  expenseTier           String?
+  frequency             String?
+  monthlyValue          Float?
+  
+  // Pipeline assessment
+  numBankAccounts       String?
+  numCreditCards        String?
+  monthlyTransactions   String?
+  hasPayroll            String?
+  hasInventory          String?
+  currentBookkeeping    String?
+  biggestPainPoint      String?
+  
+  // Service needs
+  needs                 String?
+  timeline              String?
+  
+  // Status tracking
+  status                String   @default("new") // new, contacted, qualified, proposal, won, lost
+  notes                 String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
