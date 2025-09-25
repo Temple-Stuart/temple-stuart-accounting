@@ -19,23 +19,10 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const transactions = await prisma.transactions.findMany({
+    const investmentTxns = await prisma.investment_transactions.findMany({
       where: {
         account: {
           userId: user.id
-        }
-      },
-      include: {
-        account: {
-          select: {
-            name: true,
-            type: true,
-            plaidItem: {
-              select: {
-                institutionName: true
-              }
-            }
-          }
         }
       },
       orderBy: {
@@ -43,9 +30,10 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(transactions);
+    // Return as direct array, not wrapped object
+    return NextResponse.json(investmentTxns);
   } catch (error) {
-    console.error('Error fetching transactions:', error);
-    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+    console.error('Error:', error);
+    return NextResponse.json([]);
   }
 }

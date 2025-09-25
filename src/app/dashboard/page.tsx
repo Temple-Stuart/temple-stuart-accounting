@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ImportDataSection } from '@/components/dashboard/ImportDataSection';
-import { ChartOfAccountsSection } from '@/components/dashboard/ChartOfAccountsSection';
+import { DataDebugSection } from "@/components/dashboard/DataDebugSection";import { ChartOfAccountsSection } from '@/components/dashboard/ChartOfAccountsSection';
 import { JournalEntriesSection } from '@/components/dashboard/JournalEntriesSection';
 
 // Placeholder components for now
