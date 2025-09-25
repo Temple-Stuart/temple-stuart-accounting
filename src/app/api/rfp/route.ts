@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    // Lazy load prisma to avoid build issues
     const { prisma } = await import('@/lib/prisma');
-    
     const data = await request.json();
 
+    // Save to database
     const prospect = await prisma.prospects.create({
       data: {
         businessName: data.businessName,
@@ -28,6 +27,37 @@ export async function POST(request: Request) {
         status: 'new'
       }
     });
+
+    // Send email notification
+    try {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'Temple Stuart <noreply@templestuart.com>',
+          to: 'your-email@gmail.com', // Replace with your email
+          subject: `New Prospect: ${data.businessName}`,
+          html: `
+            <h2>New Prospect Submission</h2>
+            <p><strong>Business:</strong> ${data.businessName}</p>
+            <p><strong>Contact:</strong> ${data.contactName}</p>
+            <p><strong>Email:</strong> ${data.email}</p>
+            <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
+            <p><strong>Monthly Value:</strong> $${data.totals?.monthly || 0}</p>
+            <p><strong>Timeline:</strong> ${data.timeline || 'Not specified'}</p>
+            <p><strong>Needs:</strong> ${data.needs || 'Not specified'}</p>
+            <hr>
+            <p>View in dashboard: <a href="https://templestuart.com/developer">Developer Dashboard</a></p>
+          `
+        })
+      });
+    } catch (emailError) {
+      console.error('Email send failed:', emailError);
+      // Don't fail the whole request if email fails
+    }
     
     return NextResponse.json({ success: true, id: prospect.id });
     
