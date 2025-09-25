@@ -80,7 +80,6 @@ export default function DeveloperDashboard() {
     }
   };
 
-  // Calculate pipeline stages
   const pipelineStages = {
     new: prospects.filter(p => p.status === 'new').length,
     contacted: prospects.filter(p => p.status === 'contacted').length,
@@ -156,10 +155,9 @@ export default function DeveloperDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Overview */}
+        {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Pipeline Stages */}
             <div className="bg-white rounded-xl border border-gray-100 p-6">
               <h3 className="text-lg font-light text-gray-900 mb-4">Sales Pipeline</h3>
               <div className="grid grid-cols-6 gap-4">
@@ -190,7 +188,6 @@ export default function DeveloperDashboard() {
               </div>
             </div>
 
-            {/* Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-xl border border-gray-100">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
@@ -218,7 +215,6 @@ export default function DeveloperDashboard() {
               </div>
             </div>
 
-            {/* Active Clients List */}
             <div className="bg-white rounded-xl border border-gray-100">
               <div className="p-6 border-b border-gray-100">
                 <h3 className="text-lg font-light text-gray-900">Active Clients</h3>
@@ -245,8 +241,143 @@ export default function DeveloperDashboard() {
           </div>
         )}
 
-        {/* Rest of the tabs stay the same... */}
-        {/* Prospects and Clients tabs code continues here */}
+        {/* Prospects Tab */}
+        {activeTab === 'prospects' && (
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-light text-gray-900">
+                All Prospects ({prospects.length})
+              </h3>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Business
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Contact
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Pipeline Info
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Value
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {prospects.map((prospect) => (
+                    <tr key={prospect.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-gray-900">{prospect.businessName}</p>
+                        <p className="text-xs text-gray-500">{prospect.expenseTier}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm">{prospect.contactName}</p>
+                        <p className="text-xs text-gray-600">{prospect.email}</p>
+                        <p className="text-xs text-gray-600">{prospect.phone}</p>
+                      </td>
+                      <td className="px-6 py-4 text-xs">
+                        <p>Banks: {prospect.numBankAccounts || 'N/A'}</p>
+                        <p>Cards: {prospect.numCreditCards || 'N/A'}</p>
+                        <p>Txns: {prospect.monthlyTransactions || 'N/A'}</p>
+                        <p>Current: {prospect.currentBookkeeping || 'None'}</p>
+                        <p>Pain: {prospect.biggestPainPoint || 'None'}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-lg font-medium">${prospect.monthlyValue || 0}</p>
+                        <p className="text-xs text-gray-500">{prospect.timeline}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <select 
+                          value={prospect.status}
+                          onChange={(e) => updateProspectStatus(prospect.id, e.target.value)}
+                          className="text-xs border rounded px-2 py-1"
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="qualified">Qualified</option>
+                          <option value="proposal">Proposal</option>
+                          <option value="won">Won</option>
+                          <option value="lost">Lost</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => deleteProspect(prospect.id)}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Clients Tab */}
+        {activeTab === 'clients' && (
+          <div className="bg-white rounded-xl border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-light text-gray-900">
+                Active Clients ({clients.length})
+              </h3>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Accounts
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Joined
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {clients.map((client) => (
+                    <tr key={client.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-gray-900">{client.name}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-gray-600">{client.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm">{client._count?.accounts || 0}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-gray-600">
+                          {new Date(client.createdAt).toLocaleDateString()}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
