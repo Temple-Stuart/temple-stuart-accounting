@@ -155,7 +155,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       
       <div className="space-y-6">
         {/* Connected Accounts */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg">
           <div className="px-4 sm:px-6 py-4 border-b">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <h3 className="text-lg font-medium">Connected Accounts</h3>
@@ -163,14 +163,14 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 <button
                   onClick={syncCompleteData}
                   disabled={loading || accounts.length === 0}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
                 >
                   {loading ? 'Syncing...' : 'Sync All Data'}
                 </button>
                 <button
                   onClick={openPlaidLink}
                   disabled={!linkToken}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 text-sm"
                 >
                   + Connect
                 </button>
@@ -204,7 +204,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         </div>
 
         {/* Transaction Tabs */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden">
           <div className="border-b">
             <div className="flex">
               <button
