@@ -1,47 +1,52 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-export async function GET() {
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
+    const items = await prisma.plaid_items.findMany({
+      include: {
+        accounts: {
+          include: {
+            transactions: {
+              orderBy: { date: 'desc' },
+              take: 100
+            },
+            investment_transactions: {
+              orderBy: { date: 'desc' },
+              take: 100
+            }
+          }
+        }
+      }
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId: user.id },
-      include: { accounts: true }
-    });
-
-    const mappedPlaidItems = plaidItems.map(item => ({
+    const transformedItems = items.map(item => ({
       id: item.id,
+      institutionName: item.institutionName,
+      accessToken: item.accessToken,
       accounts: item.accounts.map(account => ({
         id: account.id,
+        accountId: account.accountId,
         name: account.name,
-        institution: 'Bank', // Default since institutionName doesn't exist
         type: account.type,
-        subtype: account.subtype || '',
+        subtype: account.subtype,
+        // CRITICAL FIX: Use currentBalance and map to balance
         balance: account.currentBalance || 0,
-        lastSync: account.updatedAt
+        available_balance: account.availableBalance || 0,
+        transactions: account.transactions,
+        investment_transactions: account.investment_transactions
       }))
     }));
 
-    const allAccounts = mappedPlaidItems.flatMap(item => item.accounts);
+    return NextResponse.json({ items: transformedItems });
 
-    return NextResponse.json(allAccounts);
   } catch (error) {
     console.error('Error fetching accounts:', error);
-    return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch accounts' },
+      { status: 500 }
+    );
   }
 }

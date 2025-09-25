@@ -44,7 +44,1503 @@ export default function AccountsPage() {
         throw new Error('Failed to fetch accounts');
       }
       const accountsData = await accountsRes.json();
-      setAccounts(accountsData);
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
+
+      const transactionsRes = await fetch('/api/transactions');
+      if (transactionsRes.ok) {
+        const transactionsData = await transactionsRes.json();
+        setTransactions(transactionsData);
+      }
+    } catch (err) {
+      setError('Failed to load data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchAccountsAndTransactions = async () => {
+    try {
+      const accountsRes = await fetch('/api/accounts');
+      if (!accountsRes.ok) {
+        if (accountsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch accounts');
+      }
+      const accountsData = await accountsRes.json();
+      
+      // FIX: Extract accounts from the nested structure
+      const allAccounts = accountsData.items?.flatMap(item => 
+        item.accounts?.map(account => ({
+          id: account.id,
+          name: account.name,
+          institution: item.institutionName,
+          type: account.type,
+          subtype: account.subtype,
+          balance: account.balance,
+          lastSync: new Date().toISOString()
+        })) || []
+      ) || [];
+      
+      setAccounts(allAccounts);
 
       const transactionsRes = await fetch('/api/transactions');
       if (transactionsRes.ok) {
