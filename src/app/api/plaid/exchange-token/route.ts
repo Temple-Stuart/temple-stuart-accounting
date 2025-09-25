@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
+import { CountryCode } from 'plaid';
 
 export async function POST(request: Request) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       try {
         const institutionResponse = await plaidClient.institutionsGetById({
           institution_id: institutionId,
-          country_codes: ['US']
+          country_codes: [CountryCode.Us]
         });
         institutionName = institutionResponse.data.institution.name;
       } catch (e) {
