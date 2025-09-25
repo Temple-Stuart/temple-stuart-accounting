@@ -38,14 +38,18 @@ export async function POST(request: Request) {
 
     // Get the actual institution name from Plaid
     let institutionName = 'Unknown';
-    try {
-      const institutionResponse = await plaidClient.institutionsGetById({
-        institution_id: itemResponse.data.item.institution_id,
-        country_codes: ['US']
-      });
-      institutionName = institutionResponse.data.institution.name;
-    } catch (e) {
-      console.log('Could not fetch institution name');
+    const institutionId = itemResponse.data.item.institution_id;
+    
+    if (institutionId) {
+      try {
+        const institutionResponse = await plaidClient.institutionsGetById({
+          institution_id: institutionId,
+          country_codes: ['US']
+        });
+        institutionName = institutionResponse.data.institution.name;
+      } catch (e) {
+        console.log('Could not fetch institution name');
+      }
     }
 
     // Store in database with correct institution info
@@ -54,7 +58,7 @@ export async function POST(request: Request) {
         id: plaidItemId,
         itemId,
         accessToken,
-        institutionId: itemResponse.data.item.institution_id || 'unknown',
+        institutionId: institutionId || 'unknown',
         institutionName: institutionName,
         userId: user.id,
         updatedAt: new Date(),
