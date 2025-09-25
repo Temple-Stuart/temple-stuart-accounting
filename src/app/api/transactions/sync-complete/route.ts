@@ -44,8 +44,7 @@ export async function POST() {
             options: {
               offset: offset,
               count: 100,
-              include_personal_finance_category: true,
-              include_logo_and_counterparty_beta: true
+              include_personal_finance_category: true
             }
           });
 
@@ -127,6 +126,7 @@ export async function POST() {
             await prisma.investment_transactions.upsert({
               where: { investment_transaction_id: txn.investment_transaction_id },
               create: {
+                id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 investment_transaction_id: txn.investment_transaction_id,
                 accountId: account.id,
                 amount: txn.amount,
