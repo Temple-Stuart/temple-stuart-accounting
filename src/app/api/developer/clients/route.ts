@@ -7,20 +7,39 @@ export async function GET() {
       include: {
         accounts: {
           include: {
-            plaidItem: true
+            plaidItem: true,
+            _count: {
+              select: {
+                transactions: true
+              }
+            }
           }
         },
         _count: {
           select: { 
-            accounts: true,
-            transactions: true
+            accounts: true
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json(users);
+    // Calculate total transactions per user
+    const usersWithStats = users.map(user => {
+      const totalTransactions = user.accounts.reduce((sum, account) => 
+        sum + (account._count?.transactions || 0), 0
+      );
+      
+      return {
+        ...user,
+        _count: {
+          ...user._count,
+          transactions: totalTransactions
+        }
+      };
+    });
+
+    return NextResponse.json(usersWithStats);
   } catch (error) {
     console.error('Error fetching clients:', error);
     return NextResponse.json([]);
