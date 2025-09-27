@@ -38,7 +38,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       const res = await fetch('/api/accounts');
       if (res.ok) {
         const data = await res.json();
-        let accountsList = [];
+        let accountsList: any[] = [];
         if (data.accounts) {
           accountsList = data.accounts;
         } else if (data.items) {
@@ -60,15 +60,15 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       const res = await fetch('/api/transactions');
       if (res.ok) {
         const data = await res.json();
-        let allTxns = [];
+        let allTxns: any[] = [];
         if (data.transactions) {
           allTxns = data.transactions;
         } else if (Array.isArray(data)) {
           allTxns = data;
         }
         
-        const committed = allTxns.filter(t => t.accountCode);
-        const uncommitted = allTxns.filter(t => !t.accountCode);
+        const committed = allTxns.filter((t: any) => t.accountCode);
+        const uncommitted = allTxns.filter((t: any) => !t.accountCode);
         
         setCommittedTransactions(committed);
         setTransactions(uncommitted);
@@ -81,7 +81,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       const res = await fetch('/api/investment-transactions');
       if (res.ok) {
         const data = await res.json();
-        let investments = [];
+        let investments: any[] = [];
         if (data.transactions) {
           investments = data.transactions;
         } else if (data.investments) {
@@ -178,8 +178,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   };
 
   const getMerchants = () => {
-    const merchants = new Map();
-    transactions.forEach(t => {
+    const merchants = new Map<string, number>();
+    transactions.forEach((t: any) => {
       const merchant = t.merchantName || t.merchant_name || t.name;
       if (merchant) {
         merchants.set(merchant, (merchants.get(merchant) || 0) + 1);
@@ -189,8 +189,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   };
 
   const getPrimaryCategories = () => {
-    const categories = new Map();
-    transactions.forEach(t => {
+    const categories = new Map<string, number>();
+    transactions.forEach((t: any) => {
       const cat = t.personal_finance_category?.primary || 'Uncategorized';
       categories.set(cat, (categories.get(cat) || 0) + 1);
     });
@@ -198,8 +198,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   };
 
   const getDetailedCategories = () => {
-    const categories = new Map();
-    transactions.forEach(t => {
+    const categories = new Map<string, number>();
+    transactions.forEach((t: any) => {
       const cat = t.personal_finance_category?.detailed;
       if (cat) {
         categories.set(cat, (categories.get(cat) || 0) + 1);
@@ -210,7 +210,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
 
   const getFilteredTransactions = () => {
     if (!selectedFilter) return transactions;
-    return transactions.filter(t => {
+    return transactions.filter((t: any) => {
       if (selectedFilter.type === 'merchant') {
         return (t.merchantName || t.merchant_name || t.name) === selectedFilter.value;
       }
@@ -230,7 +230,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       return;
     }
     const filtered = getFilteredTransactions();
-    const transactionIds = filtered.map(t => t.id);
+    const transactionIds = filtered.map((t: any) => t.id);
     try {
       const res = await fetch('/api/transactions/assign-coa', {
         method: 'POST',
@@ -308,7 +308,6 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const totalTransactions = transactions.length + committedTransactions.length;
   const progressPercent = totalTransactions > 0 ? (committedTransactions.length / totalTransactions * 100) : 0;
 
-  // FULL COA LIST - IRS/GAAP Compliant
   const coaOptions = [
     { group: "1000 - Assets", options: [
       { code: "1010", name: "Petty Cash" },
@@ -448,7 +447,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 {syncStatus}
               </div>
             )}
-            {accounts.map(account => (
+            {accounts.map((account: any) => (
               <div key={account.id} className="border rounded-lg p-3 mb-4 flex justify-between">
                 <div>
                   <h4 className="font-medium">{account.name}</h4>
@@ -607,7 +606,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {(selectedFilter ? getFilteredTransactions() : transactions).map((txn) => (
+                    {(selectedFilter ? getFilteredTransactions() : transactions).map((txn: any) => (
                       <tr key={txn.id} className={selectedFilter && getFilteredTransactions().includes(txn) ? 'bg-yellow-50' : ''}>
                         <td className="px-2 py-2">
                           <span className={`px-1 py-0.5 rounded text-xs font-medium ${
@@ -639,7 +638,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                             onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), sub: e.target.value}})}
                             className="text-xs border rounded px-1 py-0.5 w-20">
                             <option value="">-</option>
-                            {subAccountsList.map(sub => (
+                            {subAccountsList.map((sub: string) => (
                               <option key={sub} value={sub}>{sub}</option>
                             ))}
                           </select>
@@ -665,7 +664,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                           <th className="px-2 py-2">
                             <input type="checkbox" onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedCommitted(committedTransactions.map(t => t.id));
+                                setSelectedCommitted(committedTransactions.map((t: any) => t.id));
                               } else {
                                 setSelectedCommitted([]);
                               }
@@ -680,7 +679,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-green-200">
-                        {committedTransactions.map((txn) => (
+                        {committedTransactions.map((txn: any) => (
                           <tr key={txn.id} className="bg-white">
                             <td className="px-2 py-2">
                               <input type="checkbox" checked={selectedCommitted.includes(txn.id)}
@@ -688,7 +687,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                                   if (e.target.checked) {
                                     setSelectedCommitted([...selectedCommitted, txn.id]);
                                   } else {
-                                    setSelectedCommitted(selectedCommitted.filter(id => id !== txn.id));
+                                    setSelectedCommitted(selectedCommitted.filter((id: string) => id !== txn.id));
                                   }
                                 }} />
                             </td>
@@ -727,7 +726,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {investmentTransactions.map((txn) => (
+                  {investmentTransactions.map((txn: any) => (
                     <tr key={txn.id || txn.investment_transaction_id} className="hover:bg-gray-50">
                       <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
                       <td className="px-2 py-2 font-medium">{txn.security?.ticker_symbol || '-'}</td>
