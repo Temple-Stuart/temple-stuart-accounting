@@ -42,7 +42,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         if (data.accounts) {
           accountsList = data.accounts;
         } else if (data.items) {
-          data.items.forEach(item => {
+          data.items.forEach((item: any) => {
             if (item.accounts) {
               accountsList.push(...item.accounts);
             }
