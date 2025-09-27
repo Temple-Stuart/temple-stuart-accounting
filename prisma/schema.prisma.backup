@@ -25,9 +25,7 @@ model RFP {
   preferredTime String?
   additionalInfo String?
   
-  accountCode     String?
-  subAccount      String?
-    createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
 
@@ -36,9 +34,7 @@ model users {
   email      String   @unique
   password   String
   name       String
-  accountCode     String?
-  subAccount      String?
-    createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
   plaid_items plaid_items[]
@@ -53,9 +49,7 @@ model plaid_items {
   institutionName String?
   userId      String
   user        users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accountCode     String?
-  subAccount      String?
-    createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   accounts    accounts[]
@@ -79,9 +73,7 @@ model accounts {
   userId        String?
   user          users?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
-  accountCode     String?
-  subAccount      String?
-    createdAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   transactions  transactions[]
@@ -114,9 +106,6 @@ model transactions {
   logo_url        String?
   website         String?
   
-  accountCode     String?
-  subAccount      String?
-  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -139,9 +128,7 @@ model investment_transactions {
   type                      String?
   unofficial_currency_code  String?
   
-  accountCode     String?
-  subAccount      String?
-    createdAt                 DateTime @default(now())
+  createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 }
 
@@ -174,12 +161,6 @@ model prospects {
   status                String   @default("new") // new, contacted, qualified, proposal, won, lost
   notes                 String?
   
-  accountCode     String?
-  subAccount      String?
-    createdAt             DateTime @default(now())
+  createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
-
-// If this doesn't work, manually add these lines to your transactions model:
-// accountCode  String?
-// subAccount   String?
