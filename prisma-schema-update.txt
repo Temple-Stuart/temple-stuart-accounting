@@ -1,0 +1,24 @@
+// Add these fields to your Transaction model in prisma/schema.prisma:
+
+model Transaction {
+  // ... existing fields ...
+  
+  accountCode    String?    @db.VarChar(10)
+  subAccount     String?    @db.VarChar(50)
+  
+  // ... rest of model ...
+}
+
+model InvestmentTransaction {
+  // ... existing fields ...
+  
+  accountCode    String?    @db.VarChar(10)
+  subAccount     String?    @db.VarChar(50)
+  
+  // ... rest of model ...
+}
+
+// After updating schema, run:
+// npx prisma db push
+// or
+// npx prisma migrate dev --name add-coa-fields
