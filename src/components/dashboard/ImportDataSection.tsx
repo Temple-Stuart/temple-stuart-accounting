@@ -772,7 +772,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             <div className="p-4 bg-gray-50 flex justify-between items-center">
               <span className="text-sm">Investment Transactions: {investmentTransactions.length} uncommitted, {committedInvestments.length} committed</span>
               <button 
-                onClick={async () => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); return; } await commitSelectedInvestmentRows(); }}
+                onClick={() => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); } else { console.log("Committing", selected.length, "investments"); alert(`Ready to commit ${selected.length} investments (backend integration pending)`); } }}
                 className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
               >
                 Commit Investments
