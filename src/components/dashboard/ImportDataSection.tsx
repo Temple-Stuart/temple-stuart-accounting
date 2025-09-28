@@ -800,7 +800,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 <tbody className="divide-y">
                   {investmentTransactions.filter(txn => {
                     const txnDate = new Date(txn.date).toISOString().split('T')[0];
-                    const symbol = txn.name?.split(' ').find(part => part.match(/^[A-Z]+$/)) || '';
+                    const symbol = txn.name?.split(' ').find((part: string) => part.match(/^[A-Z]+$/)) || '';
                     const position = txn.name?.toLowerCase().includes('close') ? 'close' : 'open';
                     
                     return (!dateFilter || txnDate === dateFilter) &&
