@@ -769,7 +769,10 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             </>
           )}
 
-            <div className="p-4 bg-gray-50 flex justify-between items-center">
+
+          {activeTab === 'investments' && (
+            <>
+                          <div className="p-4 bg-gray-50 flex justify-between items-center">
               <span className="text-sm">Investment Transactions: {investmentTransactions.length} uncommitted, {committedInvestments.length} committed</span>
               <button 
                 onClick={() => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); } else { console.log("Committing", selected.length, "investments"); alert(`Ready to commit ${selected.length} investments (backend integration pending)`); } }}
@@ -921,6 +924,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 Total Investment Transactions: {investmentTransactions.length}
               </div>
             </div>
+            </>
+          )}
         </div>
       </div>
     </>
