@@ -14,6 +14,9 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [committedTransactions, setCommittedTransactions] = useState<any[]>([]);
   const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
+  const [committedInvestments, setCommittedInvestments] = useState<any[]>([]);
+  const [investmentRowChanges, setInvestmentRowChanges] = useState<{[key: string]: {strategy: string, coa: string, sub: string}}>({});
+  const [selectedCommittedInvestments, setSelectedCommittedInvestments] = useState<string[]>([]);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
@@ -25,6 +28,9 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [selectedSubAccount, setSelectedSubAccount] = useState('');
   const [subAccountsList, setSubAccountsList] = useState<string[]>([]);
   const [newSubAccount, setNewSubAccount] = useState('');
+  const [symbolFilter, setSymbolFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [positionFilter, setPositionFilter] = useState<string>('');
   const [rowChanges, setRowChanges] = useState<{[key: string]: {coa: string, sub: string}}>({});
   const [selectedCommitted, setSelectedCommitted] = useState<string[]>([]);
 
@@ -89,7 +95,10 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         } else if (Array.isArray(data)) {
           investments = data;
         }
-        setInvestmentTransactions(investments);
+        const committedInv = investments.filter((t: any) => t.accountCode);
+        const uncommittedInv = investments.filter((t: any) => !t.accountCode);
+        setCommittedInvestments(committedInv);
+        setInvestmentTransactions(uncommittedInv);
       }
     } catch (error) {
       console.error('Error loading investments:', error);
@@ -284,6 +293,59 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     if (selectedCommitted.length === 0) {
       alert('Select transactions to uncommit');
       return;
+
+  const commitSelectedInvestmentRows = async () => {
+    const updates = Object.entries(investmentRowChanges).filter(([id, values]) => values.coa && values.strategy);
+    if (updates.length === 0) {
+      alert('Investments need both Strategy and COA assigned');
+      return;
+    }
+    try {
+      for (const [txnId, values] of updates) {
+        await fetch('/api/transactions/assign-coa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionIds: [txnId],
+            accountCode: values.coa,
+            subAccount: values.sub || null,
+            strategy: values.strategy
+          })
+        });
+      }
+      await loadData();
+      setInvestmentRowChanges({});
+      alert(`✅ Committed ${updates.length} investment transactions`);
+    } catch (error) {
+      alert('Failed to commit investment transactions');
+    }
+  };
+
+  const massUncommitInvestments = async () => {
+    if (selectedCommittedInvestments.length === 0) {
+      alert('Select investment transactions to uncommit');
+      return;
+    }
+    try {
+      for (const txnId of selectedCommittedInvestments) {
+        await fetch('/api/transactions/assign-coa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionIds: [txnId],
+            accountCode: null,
+            subAccount: null,
+            strategy: null
+          })
+        });
+      }
+      await loadData();
+      setSelectedCommittedInvestments([]);
+      alert(`✅ Uncommitted ${selectedCommittedInvestments.length} investment transactions`);
+    } catch (error) {
+      alert('Failed to uncommit');
+    }
+  };
     }
     try {
       for (const txnId of selectedCommitted) {
@@ -305,7 +367,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     }
   };
 
-  const totalTransactions = transactions.length + committedTransactions.length;
+  const totalTransactions = transactions.length + committedTransactions.length + investmentTransactions.length + committedInvestments.length;
   const progressPercent = totalTransactions > 0 ? (committedTransactions.length / totalTransactions * 100) : 0;
 
   const coaOptions = [
@@ -601,7 +663,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       <th className="px-2 py-2 text-right">Amount</th>
                       <th className="px-2 py-2 text-left">Primary</th>
                       <th className="px-2 py-2 text-left">Detailed</th>
-                      <th className="px-2 py-2 text-left bg-yellow-50">COA</th>
+                      <th className="px-2 py-2 text-left bg-yellow-50 min-w-[180px]">COA</th>
                       <th className="px-2 py-2 text-left bg-yellow-50">Sub</th>
                     </tr>
                   </thead>
@@ -622,12 +684,12 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                         <td className="px-2 py-1 bg-yellow-50">
                           <select value={rowChanges[txn.id]?.coa || ''}
                             onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), coa: e.target.value}})}
-                            className="text-xs border rounded px-1 py-0.5 w-20">
+                            className="text-xs border rounded px-1 py-0.5 w-full">
                             <option value="">-</option>
                             {coaOptions.map(group => (
                               <optgroup key={group.group} label={group.group}>
                                 {group.options.map(opt => (
-                                  <option key={opt.code} value={opt.code}>{opt.code}</option>
+                                  <option key={opt.code} value={opt.code}>{opt.code} - {opt.name}</option>
                                 ))}
                               </optgroup>
                             ))}
@@ -636,7 +698,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                         <td className="px-2 py-1 bg-yellow-50">
                           <select value={rowChanges[txn.id]?.sub || ''}
                             onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), sub: e.target.value}})}
-                            className="text-xs border rounded px-1 py-0.5 w-20">
+                            className="text-xs border rounded px-1 py-0.5 w-full">
                             <option value="">-</option>
                             {subAccountsList.map((sub: string) => (
                               <option key={sub} value={sub}>{sub}</option>
@@ -707,7 +769,15 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             </>
           )}
 
-          {activeTab === 'investments' && (
+            <div className="p-4 bg-gray-50 flex justify-between items-center">
+              <span className="text-sm">Investment Transactions: {investmentTransactions.length} uncommitted, {committedInvestments.length} committed</span>
+              <button 
+                onClick={async () => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); return; } await commitSelectedInvestmentRows(); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
+              >
+                Commit Investments
+              </button>
+            </div>
             <div className="overflow-auto" style={{maxHeight: '600px'}}>
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 sticky top-0">
@@ -717,22 +787,57 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                     <th className="px-2 py-2 text-left">Name</th>
                     <th className="px-2 py-2 text-left">Type</th>
                     <th className="px-2 py-2 text-left">Subtype</th>
+                    <th className="px-2 py-2 text-left">Position</th>
                     <th className="px-2 py-2 text-right">Qty</th>
                     <th className="px-2 py-2 text-right">Price</th>
                     <th className="px-2 py-2 text-right">Amount</th>
                     <th className="px-2 py-2 text-right">Fees</th>
-                    <th className="px-2 py-2 text-left bg-yellow-50">COA</th>
+                    <th className="px-2 py-2 text-left bg-yellow-50 min-w-[120px]">Strategy</th>
+                    <th className="px-2 py-2 text-left bg-yellow-50 min-w-[180px]">COA</th>
                     <th className="px-2 py-2 text-left bg-yellow-50">Sub</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {investmentTransactions.map((txn: any) => (
+                  {investmentTransactions.filter(txn => {
+                    const txnDate = new Date(txn.date).toISOString().split('T')[0];
+                    const symbol = txn.name?.split(' ').find(part => part.match(/^[A-Z]+$/)) || '';
+                    const position = txn.name?.toLowerCase().includes('close') ? 'close' : 'open';
+                    
+                    return (!dateFilter || txnDate === dateFilter) &&
+                           (!symbolFilter || symbol.includes(symbolFilter)) &&
+                           (!positionFilter || position === positionFilter);
+                  }).map((txn: any) => {
+                    const txnId = txn.id || txn.investment_transaction_id;
+                    // Extract symbol from name
+                    // For options: "sell 1,000 INTC put for $0.17" -> "INTC"
+                    // For stocks: "buy 1,000 INTC" -> "INTC"
+                    let symbol = '-';
+                    const nameParts = txn.name?.split(' ') || [];
+                    // Skip "buy"/"sell", find first text after number that's all caps
+                    for (let j = 0; j < nameParts.length; j++) {
+                      if (nameParts[j].match(/^[A-Z]+$/)) {
+                        symbol = nameParts[j];
+                        break;
+                      }
+                    }
+                    if (symbol === '-' && txn.security?.ticker_symbol) {
+                      symbol = txn.security.ticker_symbol;
+                    }
+
+                    return (
                     <tr key={txn.id || txn.investment_transaction_id} className="hover:bg-gray-50">
                       <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
-                      <td className="px-2 py-2 font-medium">{txn.security?.ticker_symbol || '-'}</td>
+                      <td className="px-2 py-2 font-medium">{symbol}</td>
                       <td className="px-2 py-2">{txn.name}</td>
                       <td className="px-2 py-2">{txn.type}</td>
                       <td className="px-2 py-2">{txn.subtype}</td>
+                      <td className="px-2 py-2">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          txn.name?.toLowerCase().includes('close') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {txn.name?.toLowerCase().includes('close') ? 'Close' : 'Open'}
+                        </span>
+                      </td>
                       <td className="px-2 py-2 text-right">{txn.quantity || '-'}</td>
                       <td className="px-2 py-2 text-right">${txn.price || 0}</td>
                       <td className={`px-2 py-2 text-right font-medium ${
@@ -742,27 +847,80 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       </td>
                       <td className="px-2 py-2 text-right">${txn.fees || 0}</td>
                       <td className="px-2 py-1 bg-yellow-50">
-                        <select className="text-xs border rounded px-1 py-0.5 w-20">
-                          <option value="">-</option>
-                          <option value="1500">1500</option>
-                          <option value="4120">4120</option>
-                          <option value="4130">4130</option>
+                        <select 
+                          value={investmentRowChanges[txnId]?.strategy || ''}
+                          onChange={(e) => setInvestmentRowChanges({
+                            ...investmentRowChanges, 
+                            [txnId]: {...(investmentRowChanges[txnId] || {}), strategy: e.target.value}
+                          })}
+                          className="text-xs border rounded px-1 py-0.5 w-24">
+                          <option value="">Select</option>
+                          <optgroup label="Credit Spreads">
+                            <option value="call-credit">Call Credit</option>
+                            <option value="put-credit">Put Credit</option>
+                            <option value="iron-condor">Iron Condor</option>
+                          </optgroup>
+                          <optgroup label="Debit Spreads">
+                            <option value="call-debit">Call Debit</option>
+                            <option value="put-debit">Put Debit</option>
+                          </optgroup>
+                          <optgroup label="Volatility">
+                            <option value="straddle">Straddle</option>
+                            <option value="strangle">Strangle</option>
+                          </optgroup>
+                          <optgroup label="Single Options">
+                            <option value="long-call">Long Call</option>
+                            <option value="long-put">Long Put</option>
+                            <option value="short-call">Short Call</option>
+                            <option value="short-put">Short Put</option>
+                            <option value="covered-call">Covered Call</option>
+                            <option value="csp">Cash Secured Put</option>
+                          </optgroup>
+                          <optgroup label="Stock">
+                            <option value="buy">Buy Stock</option>
+                            <option value="sell">Sell Stock</option>
+                          </optgroup>
                         </select>
                       </td>
                       <td className="px-2 py-1 bg-yellow-50">
-                        <select className="text-xs border rounded px-1 py-0.5 w-20">
+                        <select 
+                          value={investmentRowChanges[txnId]?.coa || ''}
+                          onChange={(e) => setInvestmentRowChanges({
+                            ...investmentRowChanges, 
+                            [txnId]: {...(investmentRowChanges[txnId] || {}), coa: e.target.value}
+                          })}
+                          className="text-xs border rounded px-1 py-0.5 w-full">
+                          <option value="">Select COA</option>
+                          <optgroup label="Income">
+                            <option value="4120">4120 - Options Premium</option>
+                            <option value="4110">4110 - Dividends</option>
+                            <option value="4130">4130 - Capital Gains</option>
+                            <option value="4140">4140 - Capital Losses</option>
+                          </optgroup>
+                          <optgroup label="Assets">
+                            <option value="1500">1500 - Options Positions</option>
+                            <option value="1510">1510 - Stock Holdings</option>
+                          </optgroup>
+                          <optgroup label="Expenses">
+                            <option value="6650">6650 - Trading Fees</option>
+                            <option value="6660">6660 - Margin Interest</option>
+                          </optgroup>
+                        </select>
+                      </td>
+                      <td className="px-2 py-1 bg-yellow-50">
+                        <select className="text-xs border rounded px-1 py-0.5 w-full">
                           <option value="">-</option>
                         </select>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               <div className="p-4 bg-gray-50 text-sm">
                 Total Investment Transactions: {investmentTransactions.length}
               </div>
             </div>
-          )}
         </div>
       </div>
     </>
