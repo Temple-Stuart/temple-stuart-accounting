@@ -21,6 +21,9 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'spending' | 'investments'>('spending');
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [symbolFilter, setSymbolFilter] = useState<string>('');
+  const [positionFilter, setPositionFilter] = useState<string>('');
   
   const [selectedFilter, setSelectedFilter] = useState<{type: string, value: string} | null>(null);
   const [showCOAAssignment, setShowCOAAssignment] = useState(false);
@@ -28,9 +31,9 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [selectedSubAccount, setSelectedSubAccount] = useState('');
   const [subAccountsList, setSubAccountsList] = useState<string[]>([]);
   const [newSubAccount, setNewSubAccount] = useState('');
-  const [symbolFilter, setSymbolFilter] = useState<string>('');
-  const [dateFilter, setDateFilter] = useState<string>('');
-  const [positionFilter, setPositionFilter] = useState<string>('');
+
+
+
   const [rowChanges, setRowChanges] = useState<{[key: string]: {coa: string, sub: string}}>({});
   const [selectedCommitted, setSelectedCommitted] = useState<string[]>([]);
 
@@ -664,7 +667,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       <th className="px-2 py-2 text-left">Primary</th>
                       <th className="px-2 py-2 text-left">Detailed</th>
                       <th className="px-2 py-2 text-left bg-yellow-50 min-w-[180px]">COA</th>
-                      <th className="px-2 py-2 text-left bg-yellow-50">Sub</th>
+                      <th className="px-2 py-2 text-center bg-blue-50 min-w-[60px]">Trade #</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -772,15 +775,53 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
 
           {activeTab === 'investments' && (
             <>
-                          <div className="p-4 bg-gray-50 flex justify-between items-center">
+                          <div className="space-y-4">
+                {/* Filter Row */}
+                <div className="flex gap-3 p-4 bg-white border rounded-lg">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
+                    <input 
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Symbol</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. INTC, SPY"
+                      value={symbolFilter}
+                      onChange={(e) => setSymbolFilter(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Position</label>
+                    <select
+                      value={positionFilter}
+                      onChange={(e) => setPositionFilter(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    >
+                      <option value="">All Positions</option>
+                      <option value="open">Open</option>
+                      <option value="close">Close</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Commit Button Bar */}
+                <div className="p-4 bg-gray-50 flex justify-between items-center">
               <span className="text-sm">Investment Transactions: {investmentTransactions.length} uncommitted, {committedInvestments.length} committed</span>
               <button 
-                onClick={() => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); } else { console.log("Committing", selected.length, "investments"); alert(`Ready to commit ${selected.length} investments (backend integration pending)`); } }}
+                onClick={() => { const selected = Object.keys(investmentRowChanges).filter(id => investmentRowChanges[id]?.coa && investmentRowChanges[id]?.strategy && tradeCounters[id]); if(selected.length === 0) { alert("Select Strategy and COA for transactions to commit"); } else { console.log("Committing", selected.length, "investments"); alert(`Ready to commit ${selected.length} investments (backend integration pending)`); } }}
                 className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
               >
                 Commit Investments
               </button>
             </div>
+          </div>
             <div className="overflow-auto" style={{maxHeight: '600px'}}>
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 sticky top-0">
@@ -797,7 +838,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                     <th className="px-2 py-2 text-right">Fees</th>
                     <th className="px-2 py-2 text-left bg-yellow-50 min-w-[120px]">Strategy</th>
                     <th className="px-2 py-2 text-left bg-yellow-50 min-w-[180px]">COA</th>
-                    <th className="px-2 py-2 text-left bg-yellow-50">Sub</th>
+                    <th className="px-2 py-2 text-center bg-blue-50 min-w-[60px]">Trade #</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
