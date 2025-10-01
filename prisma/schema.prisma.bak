@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RFP {
+  id         String   @id @default(uuid())
+  businessName String
+  contactName String
+  email      String
+  phone      String?
+  
+  numBankAccounts String?
+  numCreditCards String?
+  monthlyTransactions String?
+  hasPayroll String?
+  hasInventory String?
+  currentBookkeeping String?
+  biggestPainPoint String?
+  
+  preferredTime String?
+  additionalInfo String?
+  
+  accountCode     String?
+  subAccount      String?
+    createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model users {
+  id         String   @id
+  email      String   @unique
+  password   String
+  name       String
+  accountCode     String?
+  subAccount      String?
+    createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  plaid_items plaid_items[]
+  accounts    accounts[]
+}
+
+model plaid_items {
+  id          String   @id
+  accessToken String   @unique
+  itemId      String   @unique
+  institutionId String?
+  institutionName String?
+  userId      String
+  user        users    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accountCode     String?
+  subAccount      String?
+    createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  accounts    accounts[]
+}
+
+model accounts {
+  id            String    @id
+  accountId     String    @unique
+  name          String
+  officialName  String?
+  type          String
+  subtype       String?
+  mask          String?
+  currentBalance Float?
+  availableBalance Float?
+  isoCurrencyCode String?
+  
+  plaidItemId   String
+  plaidItem     plaid_items @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  userId        String?
+  user          users?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  accountCode     String?
+  subAccount      String?
+    createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  transactions  transactions[]
+  investment_transactions investment_transactions[]
+}
+
+model transactions {
+  id              String   @id
+  transactionId   String   @unique
+  accountId       String
+  account         accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amount          Float
+  date            DateTime
+  name            String
+  merchantName    String?
+  category        String?
+  pending         Boolean  @default(false)
+  
+  // New comprehensive fields
+  authorized_date DateTime?
+  authorized_datetime DateTime?
+  counterparties  Json?
+  location        Json?
+  payment_channel String?
+  payment_meta    Json?
+  personal_finance_category Json?
+  personal_finance_category_icon_url String?
+  transaction_code String?
+  transaction_type String?
+  logo_url        String?
+  website         String?
+  
+  accountCode     String?
+  subAccount      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model investment_transactions {
+  id                        String   @id @default(uuid())
+  investment_transaction_id String   @unique
+  accountId                 String
+  account                   accounts @relation(fields: [accountId], references: [id])
+  amount                    Float?
+  cancel_transaction_id     String?
+  date                      DateTime
+  fees                      Float?
+  iso_currency_code         String?
+  name                      String
+  price                     Float?
+  quantity                  Float?
+  security_id               String?
+  subtype                   String?
+  type                      String?
+  unofficial_currency_code  String?
+  
+  accountCode     String?
+  subAccount      String?
+    createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model prospects {
+  id                    String   @id @default(uuid())
+  businessName          String
+  contactName           String
+  email                 String
+  phone                 String?
+  
+  // Pricing calculation fields
+  expenseTier           String?
+  frequency             String?
+  monthlyValue          Float?
+  
+  // Pipeline assessment
+  numBankAccounts       String?
+  numCreditCards        String?
+  monthlyTransactions   String?
+  hasPayroll            String?
+  hasInventory          String?
+  currentBookkeeping    String?
+  biggestPainPoint      String?
+  
+  // Service needs
+  needs                 String?
+  timeline              String?
+  
+  // Status tracking
+  status                String   @default("new") // new, contacted, qualified, proposal, won, lost
+  notes                 String?
+  
+  accountCode     String?
+  subAccount      String?
+    createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// If this doesn't work, manually add these lines to your transactions model:
+// accountCode  String?
+// subAccount   String?
+
+// Double-Entry Accounting Tables
+model Account {
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(50)
+  name            String   @db.VarChar(255)
+  accountType     String   @map("account_type") @db.VarChar(50)
+  balanceType     String   @map("balance_type") @db.Char(1)
+  settledBalance  BigInt   @default(0) @map("settled_balance")
+  pendingBalance  BigInt   @default(0) @map("pending_balance")
+  version         Int      @default(0)
+  isArchived      Boolean  @default(false) @map("is_archived")
+  entityType      String?  @map("entity_type") @db.VarChar(10)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  ledgerEntries   LedgerEntry[]
+  
+  @@map("accounts")
+}
+
+model JournalTransaction {
+  id                        String   @id @default(uuid()) @db.Uuid
+  transactionDate           DateTime @map("transaction_date")
+  description               String?  @db.Text
+  externalTransactionId     String?  @map("external_transaction_id") @db.VarChar(255)
+  plaidTransactionId        String?  @map("plaid_transaction_id") @db.VarChar(255)
+  documentId                String?  @map("document_id") @db.Uuid
+  postedAt                  DateTime? @map("posted_at")
+  reversedByTransactionId   String?  @map("reversed_by_transaction_id") @db.Uuid
+  createdBy                 String?  @map("created_by") @db.Uuid
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at")
+  
+  ledgerEntries             LedgerEntry[]
+  reversedBy                JournalTransaction? @relation("ReversedTransactions", fields: [reversedByTransactionId], references: [id])
+  reversals                 JournalTransaction[] @relation("ReversedTransactions")
+  
+  @@index([transactionDate], name: "idx_transactions_date")
+  @@index([externalTransactionId], name: "idx_transactions_external")
+  @@index([plaidTransactionId], name: "idx_transactions_plaid")
+  @@map("journal_transactions")
+}
+
+model LedgerEntry {
+  id              String   @id @default(uuid()) @db.Uuid
+  transactionId   String   @map("transaction_id") @db.Uuid
+  accountId       String   @map("account_id") @db.Uuid
+  amount          BigInt
+  entryType       String   @map("entry_type") @db.Char(1)
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  transaction     JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  account         Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  
+  @@index([accountId, createdAt], name: "idx_ledger_account_date")
+  @@index([transactionId], name: "idx_ledger_transaction")
+  @@map("ledger_entries")
+}
