@@ -215,3 +215,34 @@ model LedgerEntry {
   @@index([transactionId], name: "idx_ledger_transaction")
   @@map("ledger_entries")
 }
+
+// Auto-categorization tables
+model MerchantCoaMapping {
+  id                    String    @id @default(uuid()) @db.Uuid
+  merchantName          String    @map("merchant_name") @db.VarChar(255)
+  plaidCategoryPrimary  String?   @map("plaid_category_primary") @db.VarChar(100)
+  plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
+  coaCode               String    @map("coa_code") @db.VarChar(50)
+  subAccount            String?   @map("sub_account") @db.VarChar(100)
+  usageCount            Int       @default(1) @map("usage_count")
+  confidenceScore       Decimal   @default(1.0) @map("confidence_score") @db.Decimal(3,2)
+  lastUsedAt            DateTime  @default(now()) @map("last_used_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  createdBy             String?   @map("created_by") @db.Uuid
+  
+  @@unique([merchantName, plaidCategoryPrimary])
+  @@index([merchantName], name: "idx_merchant_lookup")
+  @@index([plaidCategoryPrimary], name: "idx_category_lookup")
+  @@map("merchant_coa_mappings")
+}
+
+model CategoryCoaDefault {
+  id                    String    @id @default(uuid()) @db.Uuid
+  plaidCategoryPrimary  String    @unique @map("plaid_category_primary") @db.VarChar(100)
+  plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
+  coaCode               String    @map("coa_code") @db.VarChar(50)
+  entityType            String?   @map("entity_type") @db.VarChar(10)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  
+  @@map("category_coa_defaults")
+}
