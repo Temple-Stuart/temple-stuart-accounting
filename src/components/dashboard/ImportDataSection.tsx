@@ -244,7 +244,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     const filtered = getFilteredTransactions();
     const transactionIds = filtered.map((t: any) => t.id);
     try {
-      const res = await fetch('/api/transactions/assign-coa', {
+      const res = await fetch('/api/transactions/commit-to-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -253,13 +253,18 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
           subAccount: selectedSubAccount || null
         })
       });
-      if (res.ok) {
+      
+      const result = await res.json();
+      
+      if (result.success) {
         await loadData();
-        alert(`✅ Committed ${transactionIds.length} transactions`);
+        alert(`✅ Committed ${result.committed} transactions with journal entries`);
         setSelectedFilter(null);
         setShowCOAAssignment(false);
         setSelectedAccount('');
         setSelectedSubAccount('');
+      } else {
+        alert(`❌ ${result.errors.length} errors occurred`);
       }
     } catch (error) {
       alert('Failed to save');
@@ -273,20 +278,28 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       return;
     }
     try {
-      for (const [txnId, values] of updates) {
-        await fetch('/api/transactions/assign-coa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transactionIds: [txnId],
-            accountCode: values.coa,
-            subAccount: values.sub || null
-          })
-        });
+      const transactionIds = updates.map(([id]) => id);
+      const accountCode = updates[0][1].coa; // Use first transaction's COA
+      
+      const res = await fetch('/api/transactions/commit-to-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds,
+          accountCode,
+          subAccount: updates[0][1].sub || null
+        })
+      });
+      
+      const result = await res.json();
+      
+      if (result.success) {
+        await loadData();
+        setRowChanges({});
+        alert(`✅ Committed ${result.committed} transactions with journal entries`);
+      } else {
+        alert(`❌ Errors: ${result.errors.length}`);
       }
-      await loadData();
-      setRowChanges({});
-      alert(`✅ Committed ${updates.length} transactions`);
     } catch (error) {
       alert('Failed to commit transactions');
     }
