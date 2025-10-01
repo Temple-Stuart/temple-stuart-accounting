@@ -1,0 +1,7 @@
+
+Investment wrapper at: 768
+Spending end at: -1
+Gap: 769 lines
+
+The investment content needs to be immediately after spending closes, 
+within the same parent div and return statement.
