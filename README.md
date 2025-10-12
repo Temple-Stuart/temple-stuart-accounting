@@ -62,4 +62,4 @@ This was built working with Claude (Anthropic's AI). Wanted to test if you could
 
 ## License
 
-MIT
+AGPL-3.0 - See LICENSE file for details.
