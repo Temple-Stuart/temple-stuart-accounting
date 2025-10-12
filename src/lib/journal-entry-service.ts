@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 interface JournalEntryLine {
   accountCode: string;
-  amount: number; // in cents
+  amount: number;
   entryType: 'D' | 'C';
 }
 
@@ -18,13 +18,9 @@ interface CreateJournalEntryParams {
 
 export class JournalEntryService {
   
-  /**
-   * Create a balanced journal entry with validation
-   */
   async createJournalEntry(params: CreateJournalEntryParams) {
     const { date, description, lines, plaidTransactionId, externalTransactionId } = params;
     
-    // Validate: debits must equal credits
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     
@@ -32,7 +28,6 @@ export class JournalEntryService {
       throw new Error(`Unbalanced transaction: debits=${debits} credits=${credits}`);
     }
     
-    // Get account IDs from codes
     const accountCodes = lines.map(l => l.accountCode);
     const accounts = await prisma.chartOfAccount.findMany({
       where: { code: { in: accountCodes } }
@@ -42,12 +37,11 @@ export class JournalEntryService {
       const missing = accountCodes.filter(code => 
         !accounts.find(a => a.code === code)
       );
+      // FIXED: Actually show which codes are missing
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
     }
     
-    // Create transaction and ledger entries atomically
     const result = await prisma.$transaction(async (tx) => {
-      // Create journal transaction
       const journalTxn = await tx.journalTransaction.create({
         data: {
           transactionDate: date,
@@ -58,7 +52,6 @@ export class JournalEntryService {
         }
       });
       
-      // Create ledger entries
       for (const line of lines) {
         const account = accounts.find(a => a.code === line.accountCode)!;
         
@@ -71,7 +64,6 @@ export class JournalEntryService {
           }
         });
         
-        // Update account balance
         const balanceChange = line.entryType === account.balanceType 
           ? BigInt(line.amount) 
           : BigInt(-line.amount);
@@ -91,16 +83,13 @@ export class JournalEntryService {
     return result;
   }
   
-  /**
-   * Convert Plaid transaction to journal entry
-   */
   async convertPlaidTransaction(
     plaidTxnId: string,
     bankAccountCode: string,
     expenseOrIncomeCode: string
   ) {
     const plaidTxn = await prisma.transactions.findUnique({
-      where: { transaction_id: plaidTxnId }
+      where: { transactionId: plaidTxnId }
     });
     
     if (!plaidTxn) {
@@ -108,9 +97,9 @@ export class JournalEntryService {
     }
     
     const amountCents = Math.abs(Math.round(plaidTxn.amount * 100));
+    const isExpense = plaidTxn.amount > 0;
     
-    // Determine if money in or out
-    const isExpense = plaidTxn.amount > 0; // Plaid: positive = money out
+    console.log(`Converting transaction: ${plaidTxn.name}, Bank: ${bankAccountCode}, Expense/Income: ${expenseOrIncomeCode}`);
     
     const lines: JournalEntryLine[] = isExpense 
       ? [
@@ -126,8 +115,8 @@ export class JournalEntryService {
       date: new Date(plaidTxn.date),
       description: plaidTxn.name,
       lines,
-      plaidTransactionId: plaidTxn.transaction_id,
-      externalTransactionId: plaidTxn.transaction_id,
+      plaidTransactionId: plaidTxn.transactionId,
+      externalTransactionId: plaidTxn.transactionId,
     });
   }
 }

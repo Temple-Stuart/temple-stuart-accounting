@@ -1,0 +1,117 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { journalEntryService } from '@/lib/journal-entry-service';
+
+export async function POST(request: Request) {
+  try {
+    const { periodEnd, periodType } = await request.json();
+
+    if (!periodEnd) {
+      return NextResponse.json({ error: 'Period end date is required' }, { status: 400 });
+    }
+
+    // Check if period already closed
+    const existing = await prisma.closingPeriod.findFirst({
+      where: {
+        periodEnd: new Date(periodEnd),
+        status: 'closed'
+      }
+    });
+
+    if (existing) {
+      return NextResponse.json({ error: 'This period is already closed' }, { status: 400 });
+    }
+
+    // Calculate net income
+    const accounts = await prisma.chartOfAccount.findMany({
+      where: { isArchived: false }
+    });
+
+    let revenue = 0;
+    let expenses = 0;
+
+    accounts.forEach(acc => {
+      const balance = Number(acc.settledBalance) / 100;
+      const type = acc.accountType.toLowerCase();
+      
+      if (type === 'revenue') revenue += balance;
+      else if (type === 'expense') expenses += balance;
+    });
+
+    const netIncome = revenue - expenses;
+
+    // Create closing entry
+    const lines = [];
+    
+    // Close revenue accounts (debit)
+    if (revenue !== 0) {
+      const revenueAccount = accounts.find(a => a.accountType.toLowerCase() === 'revenue' && Number(a.settledBalance) !== 0);
+      if (revenueAccount) {
+        lines.push({
+          accountCode: revenueAccount.code,
+          entryType: 'D' as const,
+          amount: Math.abs(Math.round(revenue * 100))
+        });
+      }
+    }
+
+    // Close expense accounts (credit)
+    if (expenses !== 0) {
+      const expenseAccount = accounts.find(a => a.accountType.toLowerCase() === 'expense' && Number(a.settledBalance) !== 0);
+      if (expenseAccount) {
+        lines.push({
+          accountCode: expenseAccount.code,
+          entryType: 'C' as const,
+          amount: Math.abs(Math.round(expenses * 100))
+        });
+      }
+    }
+
+    // Transfer to retained earnings/equity
+    const equityAccount = accounts.find(a => 
+      a.code.includes('3130') || // B-3130 Retained Earnings
+      a.code.includes('3010')    // P-3010 Personal Net Worth
+    );
+
+    if (equityAccount && netIncome !== 0) {
+      lines.push({
+        accountCode: equityAccount.code,
+        entryType: netIncome > 0 ? 'C' as const : 'D' as const,
+        amount: Math.abs(Math.round(netIncome * 100))
+      });
+    }
+
+    let closingEntryId = null;
+
+    if (lines.length >= 2) {
+      const entry = await journalEntryService.createJournalEntry({
+        date: new Date(periodEnd),
+        description: `Closing entry for ${periodType} period ending ${periodEnd}`,
+        lines
+      });
+      closingEntryId = entry.id;
+    }
+
+    // Create closing period record
+    const closingPeriod = await prisma.closingPeriod.create({
+      data: {
+        periodEnd: new Date(periodEnd),
+        periodType,
+        status: 'closed',
+        closedAt: new Date(),
+        closedBy: 'system',
+        closingEntryId
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      periodId: closingPeriod.id,
+      netIncome,
+      closingEntryId
+    });
+  } catch (error) {
+    console.error('Close period error:', error);
+    return NextResponse.json({ error: 'Failed to close period' }, { status: 500 });
+  }
+}

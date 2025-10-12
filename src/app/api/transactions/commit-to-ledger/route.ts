@@ -31,29 +31,76 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
+        // Use YOUR actual account codes with P- prefix
         const institutionName = plaidTxn.account?.plaidItem?.institutionName?.toLowerCase() || '';
-        let bankAccountCode = 'P-1010';
+        const accountType = plaidTxn.account?.type?.toLowerCase() || '';
         
-        if (institutionName.includes('robinhood')) {
-          bankAccountCode = 'P-1200';
+        let bankAccountCode = 'P-1010'; // Personal Checking (Wells Fargo)
+        
+        if (institutionName.includes('robinhood') || accountType.includes('investment')) {
+          bankAccountCode = 'P-1200'; // Brokerage Cash Account
         } else if (institutionName.includes('wells')) {
-          bankAccountCode = 'P-1010';
+          bankAccountCode = 'P-1010'; // Personal Checking
         }
         
+        // Create journal entry
         const journalEntry = await journalEntryService.convertPlaidTransaction(
-          plaidTxn.transaction_id,
+          plaidTxn.transactionId,
           bankAccountCode,
           accountCode
         );
         
+        // Update transaction with COA assignment
         await prisma.transactions.update({
           where: { id: txnId },
-          data: { accountCode, subAccount: subAccount || null }
+          data: { 
+            accountCode, 
+            subAccount: subAccount || null 
+          }
         });
+        
+        // Save merchant mapping
+        if (plaidTxn.merchantName) {
+          const merchantName = plaidTxn.merchantName;
+          const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
+          const categoryDetailed = (plaidTxn.personal_finance_category as any)?.detailed || null;
+          
+          const existing = await prisma.merchantCoaMapping.findUnique({
+            where: {
+              merchantName_plaidCategoryPrimary: {
+                merchantName,
+                plaidCategoryPrimary: categoryPrimary || ''
+              }
+            }
+          });
+          
+          if (existing) {
+            await prisma.merchantCoaMapping.update({
+              where: { id: existing.id },
+              data: {
+                usageCount: { increment: 1 },
+                confidenceScore: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
+                lastUsedAt: new Date()
+              }
+            });
+          } else {
+            await prisma.merchantCoaMapping.create({
+              data: {
+                merchantName,
+                plaidCategoryPrimary: categoryPrimary,
+                plaidCategoryDetailed: categoryDetailed,
+                coaCode: accountCode,
+                subAccount: subAccount || null,
+                confidenceScore: 0.5
+              }
+            });
+          }
+        }
         
         results.push({ txnId, journalEntryId: journalEntry.id, success: true });
         
       } catch (error: any) {
+        console.error('Error committing transaction:', txnId, error);
         errors.push({ txnId, error: error.message });
       }
     }
@@ -61,12 +108,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       committed: results.length,
-      errors: errors.length,
+      errorCount: errors.length,
       results,
       errors
     });
     
   } catch (error: any) {
+    console.error('Commit API error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

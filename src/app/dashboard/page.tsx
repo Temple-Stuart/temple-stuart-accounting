@@ -2,6 +2,15 @@
 
 import { useState } from 'react';
 import { ImportDataSection } from '@/components/dashboard/ImportDataSection';
+import ChartOfAccountsTab from '@/components/dashboard/ChartOfAccountsTab';
+import JournalEntriesTab from '@/components/dashboard/JournalEntriesTab';
+import LedgerTab from '@/components/dashboard/LedgerTab';
+import ReconciliationTab from '@/components/dashboard/ReconciliationTab';
+import AdjustingEntriesTab from '@/components/dashboard/AdjustingEntriesTab';
+import FinancialStatementsTab from '@/components/dashboard/FinancialStatementsTab';
+import ThreeStatementAnalysisTab from '@/components/dashboard/ThreeStatementAnalysisTab';
+import MetricsAndProjectionsTab from '@/components/dashboard/MetricsAndProjectionsTab';
+import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 
 export default function Dashboard() {
   const [activeStep, setActiveStep] = useState(1);
@@ -44,7 +53,15 @@ export default function Dashboard() {
 
           <div className="flex-1">
             {activeStep === 1 && <ImportDataSection entityId={activeEntity} />}
-            {activeStep !== 1 && <div>Step {activeStep} - Coming Soon</div>}
+            {activeStep === 2 && <ChartOfAccountsTab />}
+            {activeStep === 3 && <JournalEntriesTab />}
+            {activeStep === 4 && <LedgerTab />}
+            {activeStep === 5 && <ReconciliationTab />}
+            {activeStep === 6 && <AdjustingEntriesTab />}
+            {activeStep === 7 && <FinancialStatementsTab />}
+            {activeStep === 8 && <ThreeStatementAnalysisTab />}
+            {activeStep === 9 && <MetricsAndProjectionsTab />}
+            {activeStep === 10 && <CloseBooksTab />}
           </div>
         </div>
       </div>

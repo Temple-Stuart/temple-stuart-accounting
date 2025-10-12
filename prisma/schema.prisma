@@ -128,6 +128,8 @@ model investment_transactions {
   updatedAt                 DateTime @updatedAt
   accountCode               String?
   subAccount                String?
+  strategy                  String?
+  tradeNum                  String?
   account                   accounts @relation(fields: [accountId], references: [id])
 }
 
@@ -245,4 +247,19 @@ model CategoryCoaDefault {
   createdAt             DateTime  @default(now()) @map("created_at")
   
   @@map("category_coa_defaults")
+}
+
+
+model ClosingPeriod {
+  id              String   @id @default(uuid())
+  periodEnd       DateTime
+  periodType      String   // 'monthly', 'quarterly', 'yearly'
+  status          String   @default("open") // 'open', 'closed'
+  closedAt        DateTime?
+  closedBy        String?
+  closingEntryId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("closing_periods")
 }
