@@ -1,69 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { journalEntryService } from '@/lib/journal-entry-service';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const body = await request.json();
-    const { plaidTransactionId, bankAccountCode, expenseAccountCode } = body;
-    
-    if (!plaidTransactionId || !bankAccountCode || !expenseAccountCode) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-    
-    const journalEntry = await journalEntryService.convertPlaidTransaction(
-      plaidTransactionId,
-      bankAccountCode,
-      expenseAccountCode
-    );
-    
-    return NextResponse.json({
-      success: true,
-      journalEntryId: journalEntry.id,
-      message: 'Journal entry created successfully'
-    });
-    
-  } catch (error: any) {
-    console.error('Journal entry creation error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create journal entry' },
-      { status: 500 }
-    );
-  }
-}
-
-// Get journal entries for display
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
-    const entries = await prisma.journalTransaction.findMany({
-      take: limit,
-      orderBy: { transactionDate: 'desc' },
+    const journalEntries = await prisma.journalTransaction.findMany({
       include: {
         ledgerEntries: {
           include: {
             account: true
           }
         }
-      }
+      },
+      orderBy: { transactionDate: 'desc' }
     });
-    
-    await prisma.$disconnect();
-    
+
+    // Convert BigInt to number for JSON serialization
+    const entries = journalEntries.map(je => ({
+      id: je.id,
+      date: je.transactionDate,
+      description: je.description || 'No description',
+      createdAt: je.createdAt,
+      ledgerEntries: je.ledgerEntries.map(le => ({
+        id: le.id,
+        accountCode: le.account.code,
+        entryType: le.entryType,
+        amount: Number(le.amount),
+        chartOfAccount: {
+          code: le.account.code,
+          name: le.account.name
+        }
+      }))
+    }));
+
     return NextResponse.json({ entries });
-    
-  } catch (error: any) {
-    console.error('Error fetching journal entries:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch journal entries' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Journal entries fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch journal entries' }, { status: 500 });
   }
 }

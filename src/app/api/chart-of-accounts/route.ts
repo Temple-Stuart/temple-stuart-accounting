@@ -1,37 +1,40 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const entityId = searchParams.get('entityId') || 'personal';
+    const entityType = searchParams.get('entityType') || null;
     
-    // For now, return sample chart of accounts
-    const sampleAccounts = [
-      { id: '1', accountNumber: '1000', accountName: 'Cash', accountType: 'Asset', subType: 'Current Asset', normalBalance: 'debit', entityId },
-      { id: '2', accountNumber: '1200', accountName: 'Accounts Receivable', accountType: 'Asset', subType: 'Current Asset', normalBalance: 'debit', entityId },
-      { id: '3', accountNumber: '2000', accountName: 'Accounts Payable', accountType: 'Liability', subType: 'Current Liability', normalBalance: 'credit', entityId },
-      { id: '4', accountNumber: '3000', accountName: 'Owners Equity', accountType: 'Equity', subType: 'Owners Equity', normalBalance: 'credit', entityId },
-      { id: '5', accountNumber: '4000', accountName: 'Revenue', accountType: 'Revenue', subType: 'Operating Revenue', normalBalance: 'credit', entityId },
-      { id: '6', accountNumber: '5000', accountName: 'Operating Expenses', accountType: 'Expense', subType: 'Operating Expense', normalBalance: 'debit', entityId },
-    ];
-    
-    return NextResponse.json(sampleAccounts);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch chart of accounts' }, { status: 500 });
-  }
-}
+    const accounts = await prisma.chartOfAccount.findMany({
+      where: {
+        isArchived: false,
+        ...(entityType && { entityType })
+      },
+      orderBy: [
+        { code: 'asc' }
+      ]
+    });
 
-export async function POST(request: Request) {
-  try {
-    const data = await request.json();
-    
-    // In production, save to database
-    // const account = await prisma.chartOfAccount.create({ data });
-    
-    return NextResponse.json({ success: true, account: data });
+    // Convert ALL BigInt fields to numbers for JSON serialization
+    const serializedAccounts = accounts.map(acc => ({
+      id: acc.id,
+      code: acc.code,
+      name: acc.name,
+      accountType: acc.accountType,
+      balanceType: acc.balanceType,
+      settledBalance: Number(acc.settledBalance),
+      pendingBalance: Number(acc.pendingBalance),
+      version: Number(acc.version),
+      isArchived: acc.isArchived,
+      entityType: acc.entityType,
+      createdAt: acc.createdAt,
+      updatedAt: acc.updatedAt
+    }));
+
+    return NextResponse.json({ accounts: serializedAccounts });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
+    console.error('COA fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch chart of accounts' }, { status: 500 });
   }
 }
