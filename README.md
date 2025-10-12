@@ -1,46 +1,65 @@
 # Temple Stuart Accounting
 
-TEMPLE STUART ACCOUNTING - SYSTEM PROMPT
-PROJECT OVERVIEW
-Build CPA-quality unified accounting platform combining:
+I built my own accounting system.
 
-Personal finances (SSN entity)
-Business bookkeeping (EIN entity)
-Options trading with wash sale tracking
-Double-entry ledger system
+## Why
 
-No existing solution does this well. Combining TradeLog wash sales + QuickBooks COA + Square immutable ledger + hledger flexibility.
-CHART OF ACCOUNTS STRUCTURE
-Entity Separation (Critical):
+I'm trading options daily and starting a business. I needed one place to:
+- Track my trades properly
+- Handle business accounting
+- Learn to code by building something real
 
-Personal: P-prefix (P-1010 Checking, P-3010 Net Worth)
-Business: B-prefix (B-1010 Checking, B-3010 Owner Capital)
-Never commingle funds - legal/tax requirement
+Instead of paying for QuickBooks or patching together different tools, I just built what I needed.
 
-Account Numbering:
+## What It Does
 
-1000-1999: Assets
-2000-2999: Liabilities
-3000-3999: Equity
-4000-4999: Revenue
-5000-5999: COGS
-6000-7999: Operating Expenses
-8000-8999: Other Income/Expenses
-9000-9999: Tax accounts
+Full accounting system with:
+- Bank integration (Plaid API)
+- Transaction categorization
+- Investment/options trade tracking
+- Double-entry bookkeeping
+- Financial statements (P&L, balance sheet)
+- Bank reconciliation
+- Period closing
+- Financial analysis and projections
 
-Options-Specific Accounts:
+## How It Works
 
-P-1210: Options Positions - Open (long)
-P-2100: Options Positions - Written (short)
-P-5200: Commissions & Fees
-P-4100: Trading Income
-P-5100: Trading Losses
+Built as a 10-tab system:
 
-## 📝 License
+1. **Import Data** - Connect banks, pull transactions
+2. **Chart of Accounts** - Manage account structure
+3. **Journal Entries** - View accounting entries
+4. **Post to Ledger** - General ledger view
+5. **Reconciliation** - Match bank to books
+6. **Adjusting Entries** - Manual corrections
+7. **Financial Statements** - P&L and balance sheet
+8. **3-Statement Analysis** - Period comparisons
+9. **Metrics & Projections** - KPIs and forecasts
+10. **Close Books** - Period-end workflow
 
-Copyright (c) 2025 Temple Stuart Accounting / Alexander Stuart
-All rights reserved. Proprietary and confidential.
+## Tech Stack
 
----
+- Next.js 15 + TypeScript
+- PostgreSQL (Azure)
+- Prisma ORM
+- Plaid API
+- Tailwind CSS
 
-Built with ❤️ for small business owners who deserve better than QuickBooks.
+## Setup
+
+1. Clone repo
+2. Set up PostgreSQL database
+3. Get Plaid API keys
+4. Copy `.env.example` to `.env` with your credentials
+5. `npm install`
+6. `npx prisma db push`
+7. `npm run dev`
+
+## Built With AI
+
+This was built working with Claude (Anthropic's AI). Wanted to test if you could build a real production system by pairing with AI. Turns out you can.
+
+## License
+
+MIT
