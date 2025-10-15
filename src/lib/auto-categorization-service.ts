@@ -20,7 +20,7 @@ interface CategorizationRule {
 
 async function autoCategorizePendingTransactions(userId: string) {
   // Get user's bank accounts first
-  const userAccounts = await prisma.bankAccounts.findMany({
+  const userAccounts = await prisma.accounts.findMany({
     where: { userId },
     select: { id: true }
   });
@@ -64,7 +64,7 @@ async function autoCategorizePendingTransactions(userId: string) {
 
 async function getCategorizationRules(userId: string): Promise<CategorizationRule[]> {
   // Get user's bank accounts first
-  const userAccounts = await prisma.bankAccounts.findMany({
+  const userAccounts = await prisma.accounts.findMany({
     where: { userId },
     select: { id: true }
   });
