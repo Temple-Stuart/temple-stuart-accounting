@@ -4,184 +4,191 @@ import { useState, useEffect } from 'react';
 
 interface BankAccount {
   id: string;
-  name: string;
-  type: string;
-  subtype: string;
+  institutionName: string;
+  accountName: string;
+  accountType: string;
   balance: number;
-  institutionName?: string;
+  lastSynced: string;
+}
+
+interface LedgerAccount {
+  accountCode: string;
+  accountName: string;
+  closingBalance: number;
 }
 
 interface ReconciliationItem {
-  bankAccount: BankAccount;
+  bankAccountId: string;
+  bankAccountName: string;
+  institutionName: string;
   ledgerBalance: number;
+  bankBalance: number;
   difference: number;
   isReconciled: boolean;
 }
 
 export default function ReconciliationTab() {
-  const [items, setItems] = useState<ReconciliationItem[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [ledgerAccounts, setLedgerAccounts] = useState<LedgerAccount[]>([]);
+  const [reconciliationItems, setReconciliationItems] = useState<ReconciliationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadReconciliation();
+    Promise.all([
+      fetch('/api/bank-accounts').then(res => res.json()),
+      fetch('/api/ledger/accounts').then(res => res.json())
+    ])
+      .then(([bankData, ledgerData]) => {
+        setBankAccounts(bankData.accounts || []);
+        setLedgerAccounts(ledgerData.accounts || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load reconciliation data:', err);
+        setLoading(false);
+      });
   }, []);
 
-  const loadReconciliation = async () => {
-    setLoading(true);
-    try {
-      // Load bank accounts
-      const accountsRes = await fetch('/api/accounts');
-      const accountsData = await accountsRes.json();
-      
-      let bankAccounts: BankAccount[] = [];
-      if (accountsData.accounts) {
-        bankAccounts = accountsData.accounts;
-      } else if (accountsData.items) {
-        accountsData.items.forEach((item: any) => {
-          if (item.accounts) {
-            bankAccounts.push(...item.accounts.map((acc: any) => ({
-              ...acc,
-              institutionName: item.institutionName
-            })));
-          }
-        });
-      }
-
-      // Load ledger balances
-      const ledgerRes = await fetch('/api/ledger');
-      const ledgerData = await ledgerRes.json();
-
-      // Match bank accounts to ledger accounts
-      const reconciliationItems: ReconciliationItem[] = bankAccounts.map(bankAcc => {
-        // Find matching ledger account (simplified matching by name)
-        const ledgerAccount = ledgerData.ledgers?.find((l: any) => 
-          l.accountName.toLowerCase().includes(bankAcc.name.toLowerCase()) ||
-          l.accountName.toLowerCase().includes('checking') && bankAcc.subtype === 'checking' ||
-          l.accountName.toLowerCase().includes('brokerage') && bankAcc.type === 'investment'
+  useEffect(() => {
+    if (bankAccounts.length > 0 && ledgerAccounts.length > 0) {
+      const items = bankAccounts.map(bankAcc => {
+        // Match bank account to ledger account
+        // This is simplified - in production you'd have proper mapping
+        const ledgerAccount = ledgerAccounts.find(
+          l => l.accountName.toLowerCase().includes(bankAcc.accountName.toLowerCase())
         );
 
         const ledgerBalance = ledgerAccount?.closingBalance || 0;
-        const bankBalance = bankAcc.balance || bankAcc.currentBalance || 0;
+        const bankBalance = bankAcc.balance || 0;
         const difference = bankBalance - ledgerBalance;
 
         return {
-          bankAccount: bankAcc,
+          bankAccountId: bankAcc.id,
+          bankAccountName: bankAcc.accountName,
+          institutionName: bankAcc.institutionName,
           ledgerBalance,
+          bankBalance,
           difference,
-          isReconciled: Math.abs(difference) < 0.01
+          isReconciled: Math.abs(difference) < 0.01 // Within 1 cent
         };
       });
 
-      setItems(reconciliationItems);
-    } catch (error) {
-      console.error('Error loading reconciliation:', error);
+      setReconciliationItems(items);
     }
-    setLoading(false);
-  };
+  }, [bankAccounts, ledgerAccounts]);
+
+  const totalDifference = reconciliationItems.reduce(
+    (sum, item) => sum + Math.abs(item.difference),
+    0
+  );
 
   if (loading) {
-    return <div className="p-8 text-center">Loading reconciliation...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-xl text-gray-600">Loading reconciliation data...</div>
+      </div>
+    );
   }
-
-  const totalBankBalance = items.reduce((sum, item) => sum + (item.bankAccount.balance || item.bankAccount.currentBalance || 0), 0);
-  const totalLedgerBalance = items.reduce((sum, item) => sum + item.ledgerBalance, 0);
-  const totalDifference = totalBankBalance - totalLedgerBalance;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Bank Reconciliation</h2>
-          <p className="text-sm text-gray-600 mt-1">{items.length} accounts to reconcile</p>
-        </div>
-        <button 
-          onClick={loadReconciliation}
-          className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm"
-        >
-          Refresh
-        </button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-gray-600 mb-1">Total Bank Balance</div>
-          <div className="text-2xl font-bold text-blue-600">${totalBankBalance.toFixed(2)}</div>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-gray-600 mb-1">Total Ledger Balance</div>
-          <div className="text-2xl font-bold text-green-600">${totalLedgerBalance.toFixed(2)}</div>
-        </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-gray-600 mb-1">Difference</div>
-          <div className={`text-2xl font-bold ${
-            Math.abs(totalDifference) < 0.01 ? 'text-green-600' : 'text-red-600'
-          }`}>
-            ${Math.abs(totalDifference).toFixed(2)}
+      {/* Summary Card */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Total Accounts</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {reconciliationItems.length}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Reconciled</p>
+            <p className="text-2xl font-bold text-green-600">
+              {reconciliationItems.filter(i => i.isReconciled).length}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Total Variance</p>
+            <p className="text-2xl font-bold text-red-600">
+              ${totalDifference.toFixed(2)}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Reconciliation Table */}
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <table className="w-full">
+      {/* Reconciliation Items */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Account</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Institution</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Type</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Bank Balance</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Ledger Balance</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Difference</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Account
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Bank Balance
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Ledger Balance
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Difference
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
-            {items.map((item) => {
-              const bankBalance = item.bankAccount.balance || item.bankAccount.currentBalance || 0;
-              
-              return (
-                <tr key={item.bankAccount.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium">{item.bankAccount.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{item.bankAccount.institutionName || '-'}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      {item.bankAccount.subtype}
+          <tbody className="bg-white divide-y divide-gray-200">
+            {reconciliationItems.map((item) => (
+              <tr key={item.bankAccountId} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-gray-900">
+                    {item.bankAccountName}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {item.institutionName}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                  ${item.bankBalance.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                  ${item.ledgerBalance.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                  <span className={item.difference === 0 ? 'text-gray-900' : 'text-red-600 font-medium'}>
+                    ${Math.abs(item.difference).toFixed(2)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  {item.isReconciled ? (
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                      Reconciled
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-blue-600">
-                    ${bankBalance.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-green-600">
-                    ${item.ledgerBalance.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold">
-                    <span className={Math.abs(item.difference) < 0.01 ? 'text-gray-400' : 'text-red-600'}>
-                      ${Math.abs(item.difference).toFixed(2)}
+                  ) : (
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                      Needs Review
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      item.isReconciled ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {item.isReconciled ? 'Reconciled' : 'Review Needed'}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                  <button className="text-blue-600 hover:text-blue-900 font-medium">
+                    Review
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-      </div>
 
-      {/* Help Text */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-blue-900 mb-2">About Reconciliation</h3>
-        <p className="text-sm text-blue-800">
-          Bank reconciliation compares your bank account balances (from Plaid) with your accounting ledger balances. 
-          Differences may occur due to timing differences, pending transactions, or unrecorded items. 
-          Review accounts marked "Review Needed" to investigate discrepancies.
-        </p>
+        {reconciliationItems.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No accounts to reconcile</p>
+          </div>
+        )}
       </div>
     </div>
   );
