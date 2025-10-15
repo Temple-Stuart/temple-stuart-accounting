@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface LedgerEntry {
   id: string;
   date: string;
-  description: string;
   accountCode: string;
   accountName: string;
+  description: string;
   debit: number;
   credit: number;
   balance: number;
@@ -15,21 +15,21 @@ interface LedgerEntry {
 
 export default function LedgerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [accounts, setAccounts] = useState<string[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/ledger')
       .then(res => res.json())
       .then(data => {
         setEntries(data.entries || []);
-        const uniqueAccounts = [...new Set(data.entries.map((e: LedgerEntry) => e.accountCode))];
+        const uniqueAccounts = Array.from(new Set(data.entries.map((e: LedgerEntry) => e.accountCode))) as string[];
         setAccounts(uniqueAccounts);
         setLoading(false);
       })
       .catch(err => {
-        console.error(err);
+        console.error('Failed to load ledger:', err);
         setLoading(false);
       });
   }, []);
@@ -38,60 +38,98 @@ export default function LedgerPage() {
     ? entries 
     : entries.filter(e => e.accountCode === selectedAccount);
 
-  const formatMoney = (cents: number) => {
-    return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  };
-
-  if (loading) return <div className="p-8">Loading ledger...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl text-gray-600">Loading ledger...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">General Ledger</h1>
-
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2">Filter by Account:</label>
-        <select 
-          value={selectedAccount}
-          onChange={(e) => setSelectedAccount(e.target.value)}
-          className="border rounded px-4 py-2 w-64"
-        >
-          <option value="all">All Accounts</option>
-          {accounts.map(code => (
-            <option key={code} value={code}>{code}</option>
-          ))}
-        </select>
-      </div>
-
-      <table className="w-full border">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-3 text-left">Date</th>
-            <th className="p-3 text-left">Account</th>
-            <th className="p-3 text-left">Description</th>
-            <th className="p-3 text-right">Debit</th>
-            <th className="p-3 text-right">Credit</th>
-            <th className="p-3 text-right">Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredEntries.map(entry => (
-            <tr key={entry.id} className="border-t">
-              <td className="p-3">{new Date(entry.date).toLocaleDateString()}</td>
-              <td className="p-3 font-mono">{entry.accountCode} - {entry.accountName}</td>
-              <td className="p-3">{entry.description}</td>
-              <td className="p-3 text-right">{entry.debit > 0 ? formatMoney(entry.debit) : ''}</td>
-              <td className="p-3 text-right">{entry.credit > 0 ? formatMoney(entry.credit) : ''}</td>
-              <td className="p-3 text-right font-semibold">{formatMoney(entry.balance)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {filteredEntries.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          No ledger entries yet. Commit some transactions to see them here.
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">General Ledger</h1>
+          <p className="text-gray-600 mt-2">All posted transactions</p>
         </div>
-      )}
+
+        {/* Account Filter */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Filter by Account
+          </label>
+          <select
+            value={selectedAccount}
+            onChange={(e) => setSelectedAccount(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Accounts</option>
+            {accounts.map(acc => (
+              <option key={acc} value={acc}>{acc}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Ledger Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Account
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Debit
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Credit
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Balance
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredEntries.map((entry) => (
+                <tr key={entry.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(entry.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="font-medium text-gray-900">{entry.accountCode}</div>
+                    <div className="text-gray-500">{entry.accountName}</div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {entry.description}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    {entry.debit > 0 ? `$${entry.debit.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                    {entry.credit > 0 ? `$${entry.credit.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
+                    ${entry.balance.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {filteredEntries.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No entries found</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
