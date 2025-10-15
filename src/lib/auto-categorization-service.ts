@@ -19,7 +19,7 @@ interface CategorizationRule {
 }
 
 async function autoCategorizePendingTransactions(userId: string) {
-  const pendingTransactions = await prisma.transaction.findMany({
+  const pendingTransactions = await prisma.transactions.findMany({
     where: {
       userId,
       chartOfAccountsId: null,
@@ -34,7 +34,7 @@ async function autoCategorizePendingTransactions(userId: string) {
     const matchedRule = findMatchingRule(transaction, rules);
     
     if (matchedRule) {
-      await prisma.transaction.update({
+      await prisma.transactions.update({
         where: { id: transaction.id },
         data: {
           chartOfAccountsId: matchedRule.chartOfAccountsId,
@@ -55,7 +55,7 @@ async function autoCategorizePendingTransactions(userId: string) {
 }
 
 async function getCategorizationRules(userId: string): Promise<CategorizationRule[]> {
-  const historicalData = await prisma.transaction.findMany({
+  const historicalData = await prisma.transactions.findMany({
     where: {
       userId,
       chartOfAccountsId: { not: null },
