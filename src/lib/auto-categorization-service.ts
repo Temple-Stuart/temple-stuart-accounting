@@ -2,150 +2,119 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-interface TransactionToCateg categorize {
+interface TransactionToCategorize {
   id: string;
   merchantName?: string;
   plaidCategoryPrimary?: string;
   plaidCategoryDetailed?: string;
   amount: number;
+  date: Date;
 }
 
-interface CategorizationSuggestion {
-  transactionId: string;
-  suggestedCoaCode: string;
-  suggestedSubAccount?: string;
-  confidence: number; // 0-1
-  reason: 'merchant_history' | 'category_default' | 'manual_needed';
+interface CategorizationRule {
+  merchantPattern?: string;
+  plaidCategory?: string;
+  chartOfAccountsId: string;
+  priority: number;
 }
 
-export class AutoCategorizationService {
-  
-  /**
-   * Get COA suggestions for a batch of transactions
-   */
-  async suggestCategories(transactions: TransactionToCategorize[]): Promise<CategorizationSuggestion[]> {
-    const suggestions: CategorizationSuggestion[] = [];
-    
-    for (const txn of transactions) {
-      const suggestion = await this.suggestForTransaction(txn);
-      suggestions.push(suggestion);
+export async function autoCategorizePendingTransactions(userId: string) {
+  const pendingTransactions = await prisma.transaction.findMany({
+    where: {
+      userId,
+      chartOfAccountsId: null,
+      status: 'pending'
     }
+  });
+
+  const rules = await getCategorizationRules(userId);
+  const categorized: string[] = [];
+
+  for (const transaction of pendingTransactions) {
+    const matchedRule = findMatchingRule(transaction, rules);
     
-    return suggestions;
-  }
-  
-  /**
-   * Suggest COA code for a single transaction
-   */
-  private async suggestForTransaction(txn: TransactionToCategorize): Promise<CategorizationSuggestion> {
-    // Priority 1: Check merchant history
-    if (txn.merchantName) {
-      const merchantMapping = await prisma.merchantCoaMapping.findFirst({
-        where: { merchantName: txn.merchantName },
-        orderBy: { usageCount: 'desc' }
-      });
-      
-      if (merchantMapping) {
-        return {
-          transactionId: txn.id,
-          suggestedCoaCode: merchantMapping.coaCode,
-          suggestedSubAccount: merchantMapping.subAccount || undefined,
-          confidence: Number(merchantMapping.confidenceScore),
-          reason: 'merchant_history'
-        };
-      }
-    }
-    
-    // Priority 2: Check category defaults
-    if (txn.plaidCategoryPrimary) {
-      const categoryDefault = await prisma.categoryCoaDefault.findUnique({
-        where: { plaidCategoryPrimary: txn.plaidCategoryPrimary }
-      });
-      
-      if (categoryDefault) {
-        return {
-          transactionId: txn.id,
-          suggestedCoaCode: categoryDefault.coaCode,
-          confidence: 0.7,
-          reason: 'category_default'
-        };
-      }
-    }
-    
-    // Priority 3: Manual review needed
-    return {
-      transactionId: txn.id,
-      suggestedCoaCode: 'P-8900', // Other Personal Expense as fallback
-      confidence: 0.3,
-      reason: 'manual_needed'
-    };
-  }
-  
-  /**
-   * Learn from user's manual assignment
-   */
-  async learnFromAssignment(
-    merchantName: string,
-    plaidCategoryPrimary: string | null,
-    coaCode: string,
-    subAccount?: string
-  ) {
-    const existing = await prisma.merchantCoaMapping.findFirst({
-      where: {
-        merchantName,
-        plaidCategoryPrimary: plaidCategoryPrimary || undefined
-      }
-    });
-    
-    if (existing) {
-      // Update existing mapping
-      await prisma.merchantCoaMapping.update({
-        where: { id: existing.id },
+    if (matchedRule) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
         data: {
-          coaCode,
-          subAccount,
-          usageCount: { increment: 1 },
-          confidenceScore: Math.min(Number(existing.confidenceScore) + 0.1, 1.0),
-          lastUsedAt: new Date()
+          chartOfAccountsId: matchedRule.chartOfAccountsId,
+          status: 'categorized',
+          lastCategorizedAt: new Date(),
+          lastCategorizedBy: userId
         }
       });
-    } else {
-      // Create new mapping
-      await prisma.merchantCoaMapping.create({
-        data: {
-          merchantName,
-          plaidCategoryPrimary: plaidCategoryPrimary || undefined,
-          coaCode,
-          subAccount,
-          usageCount: 1,
-          confidenceScore: 0.8
-        }
-      });
+      categorized.push(transaction.id);
     }
   }
-  
-  /**
-   * Get filtered COA suggestions based on transaction type
-   */
-  async getRelevantCoaOptions(
-    plaidCategory: string | null,
-    amount: number
-  ): Promise<string[]> {
-    const isExpense = amount > 0;
-    
-    // Get accounts appropriate for this transaction type
-    const accounts = await prisma.chartOfAccount.findMany({
-      where: {
-        isArchived: false,
-        entityType: 'personal', // For now, default to personal
-        accountType: isExpense ? 'expense' : 'revenue'
-      },
-      select: { code: true },
-      orderBy: { code: 'asc' }
-    });
-    
-    return accounts.map(a => a.code);
-  }
+
+  return {
+    processed: pendingTransactions.length,
+    categorized: categorized.length,
+    remaining: pendingTransactions.length - categorized.length
+  };
 }
 
-export const autoCategorizationService = new AutoCategorizationService();
+async function getCategorizationRules(userId: string): Promise<CategorizationRule[]> {
+  const historicalData = await prisma.transaction.findMany({
+    where: {
+      userId,
+      chartOfAccountsId: { not: null },
+      status: 'categorized'
+    },
+    select: {
+      merchantName: true,
+      plaidCategoryPrimary: true,
+      plaidCategoryDetailed: true,
+      chartOfAccountsId: true
+    }
+  });
+
+  const ruleMap = new Map<string, CategorizationRule>();
+
+  for (const tx of historicalData) {
+    if (tx.merchantName && tx.chartOfAccountsId) {
+      const key = `merchant:${tx.merchantName}`;
+      if (!ruleMap.has(key)) {
+        ruleMap.set(key, {
+          merchantPattern: tx.merchantName,
+          chartOfAccountsId: tx.chartOfAccountsId,
+          priority: 1
+        });
+      }
+    }
+
+    if (tx.plaidCategoryPrimary && tx.chartOfAccountsId) {
+      const key = `plaid:${tx.plaidCategoryPrimary}`;
+      if (!ruleMap.has(key)) {
+        ruleMap.set(key, {
+          plaidCategory: tx.plaidCategoryPrimary,
+          chartOfAccountsId: tx.chartOfAccountsId,
+          priority: 2
+        });
+      }
+    }
+  }
+
+  return Array.from(ruleMap.values()).sort((a, b) => a.priority - b.priority);
+}
+
+function findMatchingRule(
+  transaction: TransactionToCategorize,
+  rules: CategorizationRule[]
+): CategorizationRule | null {
+  for (const rule of rules) {
+    if (rule.merchantPattern && transaction.merchantName) {
+      if (transaction.merchantName.toLowerCase().includes(rule.merchantPattern.toLowerCase())) {
+        return rule;
+      }
+    }
+
+    if (rule.plaidCategory && transaction.plaidCategoryPrimary) {
+      if (transaction.plaidCategoryPrimary === rule.plaidCategory) {
+        return rule;
+      }
+    }
+  }
+
+  return null;
+}
