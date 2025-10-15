@@ -18,7 +18,7 @@ interface CategorizationRule {
   priority: number;
 }
 
-export async function autoCategorizePendingTransactions(userId: string) {
+async function autoCategorizePendingTransactions(userId: string) {
   const pendingTransactions = await prisma.transaction.findMany({
     where: {
       userId,
@@ -118,3 +118,8 @@ function findMatchingRule(
 
   return null;
 }
+
+// Export as object to match import
+export const autoCategorizationService = {
+  autoCategorizePendingTransactions
+};
