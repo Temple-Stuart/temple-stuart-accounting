@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-
 export async function POST(request: Request) {
   try {
     const { prisma } = await import('@/lib/prisma');
     const data = await request.json();
-
     const prospect = await prisma.prospects.create({
       data: {
         businessName: data.businessName,
@@ -23,6 +21,14 @@ export async function POST(request: Request) {
         biggestPainPoint: data.biggestPainPoint || null,
         needs: data.needs || null,
         timeline: data.timeline || null,
+        problem: data.problem || null,
+        dreamSystem: data.dreamSystem || null,
+        enablement: data.enablement || null,
+        systemType: data.systemType || null,
+        currentTools: data.currentTools || null,
+        hasData: data.hasData || null,
+        whyNow: data.whyNow || null,
+        additionalInfo: data.additionalInfo || null,
         status: 'new'
       }
     });

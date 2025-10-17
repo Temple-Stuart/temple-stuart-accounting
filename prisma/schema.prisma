@@ -1,265 +1,250 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+provider = "postgresql"
+url      = env("DATABASE_URL")
 }
-
 model RFP {
-  id                  String   @id @default(uuid())
-  businessName        String
-  contactName         String
-  email               String
-  phone               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  additionalInfo      String?
-  biggestPainPoint    String?
-  currentBookkeeping  String?
-  hasInventory        String?
-  hasPayroll          String?
-  monthlyTransactions String?
-  numBankAccounts     String?
-  numCreditCards      String?
-  preferredTime       String?
-  accountCode         String?
-  subAccount          String?
+id                  String   @id @default(uuid())
+businessName        String
+contactName         String
+email               String
+phone               String?
+createdAt           DateTime @default(now())
+updatedAt           DateTime @updatedAt
+additionalInfo      String?
+biggestPainPoint    String?
+currentBookkeeping  String?
+hasInventory        String?
+hasPayroll          String?
+monthlyTransactions String?
+numBankAccounts     String?
+numCreditCards      String?
+preferredTime       String?
+accountCode         String?
+subAccount          String?
 }
-
 model users {
-  id          String        @id
-  email       String        @unique
-  password    String
-  name        String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  accountCode String?
-  subAccount  String?
-  accounts    accounts[]
-  plaid_items plaid_items[]
+id          String        @id
+email       String        @unique
+password    String
+name        String
+createdAt   DateTime      @default(now())
+updatedAt   DateTime      @updatedAt
+accountCode String?
+subAccount  String?
+accounts    accounts[]
+plaid_items plaid_items[]
 }
-
 model plaid_items {
-  id              String     @id
-  userId          String
-  itemId          String     @unique
-  accessToken     String     @unique
-  institutionId   String?
-  institutionName String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  accountCode     String?
-  subAccount      String?
-  accounts        accounts[]
-  user            users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+id              String     @id
+userId          String
+itemId          String     @unique
+accessToken     String     @unique
+institutionId   String?
+institutionName String?
+createdAt       DateTime   @default(now())
+updatedAt       DateTime   @updatedAt
+accountCode     String?
+subAccount      String?
+accounts        accounts[]
+user            users      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
-
 model accounts {
-  id                      String                    @id
-  plaidItemId             String
-  accountId               String                    @unique
-  name                    String
-  officialName            String?
-  type                    String
-  subtype                 String?
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  availableBalance        Float?
-  currentBalance          Float?
-  isoCurrencyCode         String?
-  mask                    String?
-  userId                  String?
-  accountCode             String?
-  subAccount              String?
-  plaidItem               plaid_items               @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user                    users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  investment_transactions investment_transactions[]
-  transactions            transactions[]
+id                      String                    @id
+plaidItemId             String
+accountId               String                    @unique
+name                    String
+officialName            String?
+type                    String
+subtype                 String?
+createdAt               DateTime                  @default(now())
+updatedAt               DateTime                  @updatedAt
+availableBalance        Float?
+currentBalance          Float?
+isoCurrencyCode         String?
+mask                    String?
+userId                  String?
+accountCode             String?
+subAccount              String?
+plaidItem               plaid_items               @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+user                    users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+investment_transactions investment_transactions[]
+transactions            transactions[]
 }
-
 model transactions {
-  id                                 String    @id
-  accountId                          String
-  transactionId                      String    @unique
-  amount                             Float
-  date                               DateTime
-  name                               String
-  merchantName                       String?
-  category                           String?
-  pending                            Boolean   @default(false)
-  createdAt                          DateTime  @default(now())
-  updatedAt                          DateTime  @updatedAt
-  authorized_date                    DateTime?
-  authorized_datetime                DateTime?
-  counterparties                     Json?
-  location                           Json?
-  payment_channel                    String?
-  payment_meta                       Json?
-  personal_finance_category          Json?
-  personal_finance_category_icon_url String?
-  transaction_code                   String?
-  transaction_type                   String?
-  logo_url                           String?
-  website                            String?
-  accountCode                        String?
-  subAccount                         String?
-  account                            accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+id                                 String    @id
+accountId                          String
+transactionId                      String    @unique
+amount                             Float
+date                               DateTime
+name                               String
+merchantName                       String?
+category                           String?
+pending                            Boolean   @default(false)
+createdAt                          DateTime  @default(now())
+updatedAt                          DateTime  @updatedAt
+authorized_date                    DateTime?
+authorized_datetime                DateTime?
+counterparties                     Json?
+location                           Json?
+payment_channel                    String?
+payment_meta                       Json?
+personal_finance_category          Json?
+personal_finance_category_icon_url String?
+transaction_code                   String?
+transaction_type                   String?
+logo_url                           String?
+website                            String?
+accountCode                        String?
+subAccount                         String?
+account                            accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
-
 model investment_transactions {
-  id                        String   @id @default(uuid())
-  investment_transaction_id String   @unique
-  accountId                 String
-  amount                    Float?
-  cancel_transaction_id     String?
-  date                      DateTime
-  fees                      Float?
-  iso_currency_code         String?
-  name                      String
-  price                     Float?
-  quantity                  Float?
-  security_id               String?
-  subtype                   String?
-  type                      String?
-  unofficial_currency_code  String?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  accountCode               String?
-  subAccount                String?
-  strategy                  String?
-  tradeNum                  String?
-  account                   accounts @relation(fields: [accountId], references: [id])
+id                        String   @id @default(uuid())
+investment_transaction_id String   @unique
+accountId                 String
+amount                    Float?
+cancel_transaction_id     String?
+date                      DateTime
+fees                      Float?
+iso_currency_code         String?
+name                      String
+price                     Float?
+quantity                  Float?
+security_id               String?
+subtype                   String?
+type                      String?
+unofficial_currency_code  String?
+createdAt                 DateTime @default(now())
+updatedAt                 DateTime @updatedAt
+accountCode               String?
+subAccount                String?
+strategy                  String?
+tradeNum                  String?
+account                   accounts @relation(fields: [accountId], references: [id])
 }
-
 model prospects {
-  id                  String   @id @default(uuid())
-  businessName        String
-  contactName         String
-  email               String
-  phone               String?
-  expenseTier         String?
-  frequency           String?
-  monthlyValue        Float?
-  numBankAccounts     String?
-  numCreditCards      String?
-  monthlyTransactions String?
-  hasPayroll          String?
-  hasInventory        String?
-  currentBookkeeping  String?
-  biggestPainPoint    String?
-  needs               String?
-  timeline            String?
-  status              String   @default("new")
-  notes               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  accountCode         String?
-  subAccount          String?
+id                  String   @id @default(uuid())
+businessName        String
+contactName         String
+email               String
+phone               String?
+expenseTier         String?
+frequency           String?
+monthlyValue        Float?
+numBankAccounts     String?
+numCreditCards      String?
+monthlyTransactions String?
+hasPayroll          String?
+hasInventory        String?
+currentBookkeeping  String?
+biggestPainPoint    String?
+needs               String?
+timeline            String?
+status              String   @default("new")
+notes               String?
+problem             String?
+dreamSystem         String?
+enablement          String?
+systemType          String?
+currentTools        String?
+hasData             String?
+whyNow              String?
+additionalInfo      String?
+createdAt           DateTime @default(now())
+updatedAt           DateTime @updatedAt
+accountCode         String?
+subAccount          String?
 }
-
 // Double-Entry Accounting Tables
 model ChartOfAccount {
-  id              String   @id @default(uuid()) @db.Uuid
-  code            String   @unique @db.VarChar(50)
-  name            String   @db.VarChar(255)
-  accountType     String   @map("account_type") @db.VarChar(50)
-  balanceType     String   @map("balance_type") @db.Char(1)
-  settledBalance  BigInt   @default(0) @map("settled_balance")
-  pendingBalance  BigInt   @default(0) @map("pending_balance")
-  version         Int      @default(0)
-  isArchived      Boolean  @default(false) @map("is_archived")
-  entityType      String?  @map("entity_type") @db.VarChar(10)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
-  
-  ledgerEntries   LedgerEntry[]
-  
-  @@map("chart_of_accounts")
+id              String   @id @default(uuid()) @db.Uuid
+code            String   @unique @db.VarChar(50)
+name            String   @db.VarChar(255)
+accountType     String   @map("account_type") @db.VarChar(50)
+balanceType     String   @map("balance_type") @db.Char(1)
+settledBalance  BigInt   @default(0) @map("settled_balance")
+pendingBalance  BigInt   @default(0) @map("pending_balance")
+version         Int      @default(0)
+isArchived      Boolean  @default(false) @map("is_archived")
+entityType      String?  @map("entity_type") @db.VarChar(10)
+createdAt       DateTime @default(now()) @map("created_at")
+updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+ledgerEntries   LedgerEntry[]
+@@map("chart_of_accounts")
 }
-
 model JournalTransaction {
-  id                        String   @id @default(uuid()) @db.Uuid
-  transactionDate           DateTime @map("transaction_date")
-  description               String?  @db.Text
-  externalTransactionId     String?  @map("external_transaction_id") @db.VarChar(255)
-  plaidTransactionId        String?  @map("plaid_transaction_id") @db.VarChar(255)
-  documentId                String?  @map("document_id") @db.Uuid
-  postedAt                  DateTime? @map("posted_at")
-  reversedByTransactionId   String?  @map("reversed_by_transaction_id") @db.Uuid
-  createdBy                 String?  @map("created_by") @db.Uuid
-  createdAt                 DateTime @default(now()) @map("created_at")
-  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at")
-  
-  ledgerEntries             LedgerEntry[]
-  reversedBy                JournalTransaction? @relation("ReversedTransactions", fields: [reversedByTransactionId], references: [id])
-  reversals                 JournalTransaction[] @relation("ReversedTransactions")
-  
-  @@index([transactionDate], name: "idx_transactions_date")
-  @@index([externalTransactionId], name: "idx_transactions_external")
-  @@index([plaidTransactionId], name: "idx_transactions_plaid")
-  @@map("journal_transactions")
+id                        String   @id @default(uuid()) @db.Uuid
+transactionDate           DateTime @map("transaction_date")
+description               String?  @db.Text
+externalTransactionId     String?  @map("external_transaction_id") @db.VarChar(255)
+plaidTransactionId        String?  @map("plaid_transaction_id") @db.VarChar(255)
+documentId                String?  @map("document_id") @db.Uuid
+postedAt                  DateTime? @map("posted_at")
+reversedByTransactionId   String?  @map("reversed_by_transaction_id") @db.Uuid
+createdBy                 String?  @map("created_by") @db.Uuid
+createdAt                 DateTime @default(now()) @map("created_at")
+updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at")
+ledgerEntries             LedgerEntry[]
+reversedBy                JournalTransaction? @relation("ReversedTransactions", fields: [reversedByTransactionId], references: [id])
+reversals                 JournalTransaction[] @relation("ReversedTransactions")
+@@index([transactionDate], name: "idx_transactions_date")
+@@index([externalTransactionId], name: "idx_transactions_external")
+@@index([plaidTransactionId], name: "idx_transactions_plaid")
+@@map("journal_transactions")
 }
-
 model LedgerEntry {
-  id              String   @id @default(uuid()) @db.Uuid
-  transactionId   String   @map("transaction_id") @db.Uuid
-  accountId       String   @map("account_id") @db.Uuid
-  amount          BigInt
-  entryType       String   @map("entry_type") @db.Char(1)
-  createdAt       DateTime @default(now()) @map("created_at")
-  
-  transaction     JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
-  account         ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  
-  @@index([accountId, createdAt], name: "idx_ledger_account_date")
-  @@index([transactionId], name: "idx_ledger_transaction")
-  @@map("ledger_entries")
+id              String   @id @default(uuid()) @db.Uuid
+transactionId   String   @map("transaction_id") @db.Uuid
+accountId       String   @map("account_id") @db.Uuid
+amount          BigInt
+entryType       String   @map("entry_type") @db.Char(1)
+createdAt       DateTime @default(now()) @map("created_at")
+transaction     JournalTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+account         ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+@@index([accountId, createdAt], name: "idx_ledger_account_date")
+@@index([transactionId], name: "idx_ledger_transaction")
+@@map("ledger_entries")
 }
-
 // Auto-categorization tables
 model MerchantCoaMapping {
-  id                    String    @id @default(uuid()) @db.Uuid
-  merchantName          String    @map("merchant_name") @db.VarChar(255)
-  plaidCategoryPrimary  String?   @map("plaid_category_primary") @db.VarChar(100)
-  plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
-  coaCode               String    @map("coa_code") @db.VarChar(50)
-  subAccount            String?   @map("sub_account") @db.VarChar(100)
-  usageCount            Int       @default(1) @map("usage_count")
-  confidenceScore       Decimal   @default(1.0) @map("confidence_score") @db.Decimal(3,2)
-  lastUsedAt            DateTime  @default(now()) @map("last_used_at")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  createdBy             String?   @map("created_by") @db.Uuid
-  
-  @@unique([merchantName, plaidCategoryPrimary])
-  @@index([merchantName], name: "idx_merchant_lookup")
-  @@index([plaidCategoryPrimary], name: "idx_category_lookup")
-  @@map("merchant_coa_mappings")
+id                    String    @id @default(uuid()) @db.Uuid
+merchantName          String    @map("merchant_name") @db.VarChar(255)
+plaidCategoryPrimary  String?   @map("plaid_category_primary") @db.VarChar(100)
+plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
+coaCode               String    @map("coa_code") @db.VarChar(50)
+subAccount            String?   @map("sub_account") @db.VarChar(100)
+usageCount            Int       @default(1) @map("usage_count")
+confidenceScore       Decimal   @default(1.0) @map("confidence_score") @db.Decimal(3,2)
+lastUsedAt            DateTime  @default(now()) @map("last_used_at")
+createdAt             DateTime  @default(now()) @map("created_at")
+createdBy             String?   @map("created_by") @db.Uuid
+@@unique([merchantName, plaidCategoryPrimary])
+@@index([merchantName], name: "idx_merchant_lookup")
+@@index([plaidCategoryPrimary], name: "idx_category_lookup")
+@@map("merchant_coa_mappings")
 }
-
 model CategoryCoaDefault {
-  id                    String    @id @default(uuid()) @db.Uuid
-  plaidCategoryPrimary  String    @unique @map("plaid_category_primary") @db.VarChar(100)
-  plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
-  coaCode               String    @map("coa_code") @db.VarChar(50)
-  entityType            String?   @map("entity_type") @db.VarChar(10)
-  createdAt             DateTime  @default(now()) @map("created_at")
-  
-  @@map("category_coa_defaults")
+id                    String    @id @default(uuid()) @db.Uuid
+plaidCategoryPrimary  String    @unique @map("plaid_category_primary") @db.VarChar(100)
+plaidCategoryDetailed String?   @map("plaid_category_detailed") @db.VarChar(100)
+coaCode               String    @map("coa_code") @db.VarChar(50)
+entityType            String?   @map("entity_type") @db.VarChar(10)
+createdAt             DateTime  @default(now()) @map("created_at")
+@@map("category_coa_defaults")
 }
-
-
 model ClosingPeriod {
-  id              String   @id @default(uuid())
-  periodEnd       DateTime
-  periodType      String   // 'monthly', 'quarterly', 'yearly'
-  status          String   @default("open") // 'open', 'closed'
-  closedAt        DateTime?
-  closedBy        String?
-  closingEntryId  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("closing_periods")
+id              String   @id @default(uuid())
+periodEnd       DateTime
+periodType      String   // 'monthly', 'quarterly', 'yearly'
+status          String   @default("open") // 'open', 'closed'
+closedAt        DateTime?
+closedBy        String?
+closingEntryId  String?
+createdAt       DateTime @default(now())
+updatedAt       DateTime @updatedAt
+@@map("closing_periods")
 }
