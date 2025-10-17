@@ -79,14 +79,21 @@ export default function ProspectSection() {
           businessName: formData.businessName,
           contactName: formData.contactName,
           email: formData.email,
-          needs: `Problem: ${formData.problem}\n\nDream System: ${formData.dreamSystem}\n\nEnablement: ${formData.enablement}\n\nSystem Type: ${formData.systemType}\n\nCurrent Tools: ${formData.currentTools}\n\nHas Data: ${formData.hasData}\n\nWhy Now: ${formData.whyNow}\n\nAdditional: ${formData.additionalInfo}`,
+          problem: formData.problem,
+          dreamSystem: formData.dreamSystem,
+          enablement: formData.enablement,
+          systemType: formData.systemType,
+          currentTools: formData.currentTools,
+          hasData: formData.hasData,
           timeline: formData.timeline,
+          whyNow: formData.whyNow,
+          additionalInfo: formData.additionalInfo,
+          expenseTier: formData.budget,
           selectedServices: [],
           totals: { 
             monthly: 0,
             oneTime: 0 
-          },
-          expenseTier: formData.budget
+          }
         })
       });
 
@@ -109,6 +116,14 @@ export default function ProspectSection() {
     <section id="pricing" className="min-h-screen py-12 sm:py-16 lg:py-24 bg-gradient-to-br from-white to-gray-50">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         
+        {/* Title Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl font-light text-gray-900 mb-4">Start a Project</h1>
+          <p className="text-lg text-gray-600 max-w-xl mx-auto">
+            Answer these questions to submit your project request. I'll review it personally and reach out within 24 hours if it's a good fit.
+          </p>
+        </div>
+
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-200">

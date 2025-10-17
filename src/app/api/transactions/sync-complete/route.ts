@@ -31,7 +31,37 @@ export async function POST() {
     for (const item of plaidItems) {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
       
-      // Get ALL transactions with enrichments
+      // FIRST: Update account balances
+      try {
+        console.log(`Fetching balances for ${item.institutionName}...`);
+        const balanceResponse = await plaidClient.accountsBalanceGet({
+          access_token: item.accessToken
+        });
+
+        console.log(`Got ${balanceResponse.data.accounts.length} accounts from Plaid`);
+        
+        for (const plaidAccount of balanceResponse.data.accounts) {
+          const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
+          
+          if (dbAccount) {
+            console.log(`Updating ${plaidAccount.name}: ${plaidAccount.balances.current}`);
+            await prisma.accounts.update({
+              where: { id: dbAccount.id },
+              data: {
+                currentBalance: plaidAccount.balances.current || 0,
+                availableBalance: plaidAccount.balances.available || 0
+              }
+            });
+            console.log(`✓ Updated balance for ${plaidAccount.name}`);
+          } else {
+            console.log(`⚠️ No DB account found for Plaid account ${plaidAccount.account_id}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating balances:', error);
+      }
+      
+      // THEN: Sync transactions (keeping your existing code)
       try {
         let hasMore = true;
         let offset = 0;
@@ -65,10 +95,8 @@ export async function POST() {
                 category: txn.category?.join(', '),
                 pending: txn.pending || false,
                 
-                // Standard enriched fields
                 authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
                 authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
-                // Cast to any to access these fields that exist at runtime
                 counterparties: (txn as any).counterparties || null,
                 location: (txn as any).location || null,
                 payment_channel: txn.payment_channel,
@@ -81,7 +109,6 @@ export async function POST() {
                 website: (txn as any).website
               },
               update: {
-                // Update ALL fields to ensure we have latest data
                 amount: txn.amount,
                 merchantName: txn.merchant_name,
                 personal_finance_category: (txn as any).personal_finance_category || null,
@@ -104,7 +131,7 @@ export async function POST() {
         console.error('Error syncing transactions:', error);
       }
 
-      // Sync ALL investment transactions
+      // Sync investment transactions (keeping existing code)
       try {
         let offset = 0;
         let hasMore = true;
@@ -168,4 +195,3 @@ export async function POST() {
     return NextResponse.json({ error: 'Failed to sync' }, { status: 500 });
   }
 }
-// Build: Wed Sep 24 19:52:02 PDT 2025
