@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Temple Stuart | Elite Financial Pipeline',
-  description: 'Prestigious bookkeeping and financial automation for discerning businesses',
+  title: 'Temple Stuart | Custom Data & Finance Systems',
+  description: 'I build automated dashboards, pipelines, and API integrations for growing businesses. Custom systems that eliminate manual work and unlock scale.',
 };
 
 export default function RootLayout({
