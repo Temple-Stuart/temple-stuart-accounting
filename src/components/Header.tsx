@@ -28,18 +28,18 @@ export default function Header() {
             />
           </Link>
 
-          {/* Two Buttons - Login and Email */}
+          {/* Two Buttons - Start Project and Email */}
           <div className="flex items-center space-x-2 sm:space-x-4">
             <a 
-              href="#portal" 
-              onClick={(e) => scrollToSection(e, 'portal')}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors text-sm sm:text-base"
+              href="#pricing" 
+              onClick={(e) => scrollToSection(e, 'pricing')}
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white rounded-lg hover:shadow-xl font-medium transition-all text-sm sm:text-base"
             >
-              Login
+              Start a Project
             </a>
             <a 
-              href="mailto:astuart@templestuart.com?subject=Bookkeeping%20Inquiry"
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-[#b4b237] text-white rounded-lg hover:bg-[#9a9630] font-medium transition-colors text-sm sm:text-base"
+              href="mailto:astuart@templestuart.com?subject=Project%20Inquiry"
+              className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-[#b4b237] hover:text-[#b4b237] font-medium transition-all text-sm sm:text-base"
             >
               Email
             </a>

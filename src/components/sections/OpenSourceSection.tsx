@@ -40,7 +40,7 @@ export default function OpenSourceSection() {
   ];
 
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-gray-50 to-white">
+    <section id="case-studies" className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
@@ -147,13 +147,6 @@ export default function OpenSourceSection() {
                     View Repo
                   </a>
                 </div>
-
-                <a
-                  href={project.caseStudy}
-                  className="block w-full py-3 text-center text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors"
-                >
-                  Read Case Study →
-                </a>
 
               </div>
             </div>

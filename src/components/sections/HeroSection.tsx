@@ -3,6 +3,14 @@
 import React from 'react';
 
 export default function HeroSection() {
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+    e.preventDefault();
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <section className="relative bg-white py-12 sm:py-16 lg:py-24 overflow-hidden">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,91 +62,79 @@ export default function HeroSection() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
-              <a href="#contact" className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-full hover:shadow-xl transition-all">
+              <a 
+                href="#pricing" 
+                onClick={(e) => scrollToSection(e, 'pricing')}
+                className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-full hover:shadow-xl transition-all"
+              >
                 Start a Project
               </a>
-              <a href="#work" className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-full hover:border-purple-400 hover:text-purple-700 transition-all">
+              <a 
+                href="#case-studies" 
+                onClick={(e) => scrollToSection(e, 'case-studies')}
+                className="w-full sm:w-auto text-center px-6 sm:px-8 py-3 border border-gray-300 text-gray-700 font-medium rounded-full hover:border-purple-400 hover:text-purple-700 transition-all"
+              >
                 See My Work
               </a>
             </div>
-
-            {/* Trust Indicators */}
-            <div className="grid grid-cols-3 gap-4 sm:gap-8 pt-6 sm:pt-8 border-t border-gray-100">
-              <div>
-                <p className="text-lg sm:text-2xl font-light text-gray-900">Custom</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Built for You</p>
-              </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-light text-gray-900">Automated</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Zero Manual Work</p>
-              </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-light text-gray-900">Scalable</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide">Grows With You</p>
-              </div>
-            </div>
           </div>
 
-          {/* Right Visual - Purple Cube */}
-          <div className="hidden lg:flex items-center justify-center">
-            <div className="relative w-[400px] xl:w-[450px] h-[400px] xl:h-[450px]">
-              
-              {/* Glass Cube */}
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 perspective-1000">
-                <div className="w-44 h-44 transform-style-preserve-3d animate-rotate-cube">
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-purple-400/20 via-purple-500/15 to-purple-600/20 backdrop-blur-md border border-purple-300/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-lg"></div>
+          {/* Right Visual */}
+          <div className="relative lg:block">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-100">
+              <div className="bg-gradient-to-br from-[#b4b237]/10 via-purple-50 to-white p-6 sm:p-8 lg:p-12">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex items-center space-x-3 sm:space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#b4b237] to-[#9a9630] flex items-center justify-center">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm font-semibold text-[#b4b237] uppercase tracking-wide">Live Data</p>
+                      <p className="text-lg sm:text-xl font-light text-gray-900">Real-Time Sync</p>
+                    </div>
                   </div>
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-purple-500/20 via-purple-600/15 to-[#b4b237]/10 backdrop-blur-md border border-purple-300/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'rotateY(180deg) translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-tl from-white/10 to-transparent rounded-lg"></div>
-                  </div>
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-[#b4b237]/20 via-[#9a9630]/15 to-purple-500/20 backdrop-blur-md border border-[#b4b237]/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'rotateY(90deg) translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-lg"></div>
-                  </div>
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-purple-400/20 via-purple-500/15 to-[#b4b237]/20 backdrop-blur-md border border-purple-300/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'rotateY(-90deg) translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-l from-white/10 to-transparent rounded-lg"></div>
-                  </div>
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-purple-300/25 to-purple-500/20 backdrop-blur-md border border-purple-200/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'rotateX(90deg) translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent rounded-lg"></div>
-                  </div>
-                  
-                  <div className="absolute w-44 h-44 bg-gradient-to-br from-purple-600/25 to-[#b4b237]/15 backdrop-blur-md border border-purple-400/30 shadow-2xl rounded-lg" 
-                       style={{transform: 'rotateX(-90deg) translateZ(88px)'}}>
-                    <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent rounded-lg"></div>
+
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs sm:text-sm text-gray-600">Monthly Revenue</span>
+                        <span className="text-base sm:text-lg font-semibold text-gray-900">$142,500</span>
+                      </div>
+                      <div className="mt-2 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-[#b4b237] to-[#9a9630]" style={{width: '75%'}}></div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs sm:text-sm text-gray-600">Transactions Synced</span>
+                        <span className="text-base sm:text-lg font-semibold text-gray-900">2,847</span>
+                      </div>
+                      <div className="mt-2 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-purple-600 to-purple-700" style={{width: '92%'}}></div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs sm:text-sm text-gray-600">Automation Status</span>
+                        <span className="text-xs sm:text-sm font-semibold text-green-600">Active</span>
+                      </div>
+                      <div className="mt-2 flex items-center space-x-1.5 sm:space-x-2">
+                        <div className="h-1.5 sm:h-2 flex-1 bg-green-500 rounded-full animate-pulse"></div>
+                        <div className="h-1.5 sm:h-2 flex-1 bg-green-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                        <div className="h-1.5 sm:h-2 flex-1 bg-green-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Orbital rings */}
-              <div className="absolute inset-0">
-                <div className="absolute inset-8 border border-purple-200/10 rounded-full"></div>
-                <div className="absolute inset-16 border border-[#b4b237]/10 rounded-full"></div>
-                <div className="absolute inset-24 border border-purple-200/5 rounded-full"></div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
-      <style jsx>{`
-        @keyframes rotate-cube {
-          from { transform: rotateX(-20deg) rotateY(0deg); }
-          to { transform: rotateX(-20deg) rotateY(360deg); }
-        }
-        .animate-rotate-cube { animation: rotate-cube 30s linear infinite; }
-        .transform-style-preserve-3d { transform-style: preserve-3d; }
-        .perspective-1000 { perspective: 1000px; }
-      `}</style>
     </section>
   );
 }
