@@ -356,7 +356,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         </span>
       </div>
 
-      <div className="overflow-auto" style={{maxHeight: '400px'}}>
+      <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '400px'}}>
         <table className="w-full text-xs">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
@@ -434,7 +434,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               Uncommit Selected
             </button>
           </div>
-          <div className="overflow-auto" style={{maxHeight: '300px'}}>
+          <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
             <table className="w-full text-xs">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
