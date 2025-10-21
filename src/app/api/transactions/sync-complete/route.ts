@@ -32,34 +32,6 @@ export async function POST() {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
       
       // FIRST: Update account balances
-      try {
-        console.log(`Fetching balances for ${item.institutionName}...`);
-        const balanceResponse = await plaidClient.accountsBalanceGet({
-          access_token: item.accessToken
-        });
-
-        console.log(`Got ${balanceResponse.data.accounts.length} accounts from Plaid`);
-        
-        for (const plaidAccount of balanceResponse.data.accounts) {
-          const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
-          
-          if (dbAccount) {
-            console.log(`Updating ${plaidAccount.name}: ${plaidAccount.balances.current}`);
-            await prisma.accounts.update({
-              where: { id: dbAccount.id },
-              data: {
-                currentBalance: plaidAccount.balances.current || 0,
-                availableBalance: plaidAccount.balances.available || 0
-              }
-            });
-            console.log(`✓ Updated balance for ${plaidAccount.name}`);
-          } else {
-            console.log(`⚠️ No DB account found for Plaid account ${plaidAccount.account_id}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error updating balances:', error);
-      }
       
       // THEN: Sync transactions (keeping your existing code)
       try {
@@ -77,6 +49,22 @@ export async function POST() {
               include_personal_finance_category: true
             }
           });
+
+      // Update balances from transactionsGet response (first iteration only)
+      if (offset === 0 && response.data.accounts) {
+        for (const plaidAccount of response.data.accounts) {
+          const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
+          if (dbAccount) {
+            await prisma.accounts.update({
+              where: { id: dbAccount.id },
+              data: {
+                currentBalance: plaidAccount.balances.current || 0,
+                availableBalance: plaidAccount.balances.available || 0
+              }
+            });
+          }
+        }
+      }
 
           for (const txn of response.data.transactions) {
             const account = item.accounts.find(acc => acc.accountId === txn.account_id);
