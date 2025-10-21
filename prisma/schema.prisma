@@ -69,6 +69,7 @@ mask                    String?
 userId                  String?
 accountCode             String?
 subAccount              String?
+  entityType              String?
 plaidItem               plaid_items               @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 user                    users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 investment_transactions investment_transactions[]
