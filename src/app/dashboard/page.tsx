@@ -11,6 +11,8 @@ import FinancialStatementsTab from '@/components/dashboard/FinancialStatementsTa
 import ThreeStatementAnalysisTab from '@/components/dashboard/ThreeStatementAnalysisTab';
 import MetricsAndProjectionsTab from '@/components/dashboard/MetricsAndProjectionsTab';
 import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
+import TradingJournalTab from '@/components/dashboard/TradingJournalTab';
+import SpendingTab from '@/components/dashboard/SpendingTab';
 
 export default function Dashboard() {
   const [activeStep, setActiveStep] = useState(1);
@@ -26,7 +28,9 @@ export default function Dashboard() {
     { id: 7, name: 'Financial Statements' },
     { id: 8, name: '3-Statement Analysis' },
     { id: 9, name: 'Metrics & Projections' },
-    { id: 10, name: 'Close Books' }
+    { id: 10, name: 'Close Books' },
+    { id: 11, name: 'Trading Journal' },
+    { id: 12, name: 'Spending' }
   ];
 
   return (
@@ -62,6 +66,8 @@ export default function Dashboard() {
             {activeStep === 8 && <ThreeStatementAnalysisTab />}
             {activeStep === 9 && <MetricsAndProjectionsTab />}
             {activeStep === 10 && <CloseBooksTab />}
+            {activeStep === 11 && <TradingJournalTab />}
+            {activeStep === 12 && <SpendingTab />}
           </div>
         </div>
       </div>

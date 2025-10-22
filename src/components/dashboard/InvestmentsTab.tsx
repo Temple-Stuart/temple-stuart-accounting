@@ -239,23 +239,35 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
                       }))}
                       className="text-xs border rounded px-1 py-0.5 w-full">
                         <option value="">- Select COA -</option>
-                      <optgroup label="Income (Credit received)">
-                        <option value="P-4100">P-4100 - Options Trading Income</option>
-                        <option value="P-4400">P-4400 - Dividend Income</option>
+                      <optgroup label="Revenue (Gains)">
+                        <option value="T-4100">T-4100 - Options Trading Gains</option>
+                        <option value="T-4110">T-4110 - Short-term Stock Gains</option>
+                        <option value="T-4120">T-4120 - Long-term Stock Gains</option>
+                        <option value="T-4200">T-4200 - Cryptocurrency Gains</option>
+                        <option value="T-4300">T-4300 - Dividend Income</option>
+                        <option value="T-4400">T-4400 - Interest Income</option>
                       </optgroup>
-                      <optgroup label="Losses (Debit paid)">
-                        <option value="P-5100">P-5100 - Options Trading Losses</option>
+                      <optgroup label="Expense (Losses)">
+                        <option value="T-5100">T-5100 - Options Trading Losses</option>
+                        <option value="T-5110">T-5110 - Short-term Stock Losses</option>
+                        <option value="T-5120">T-5120 - Long-term Stock Losses</option>
+                        <option value="T-5200">T-5200 - Cryptocurrency Losses</option>
+                        <option value="T-5300">T-5300 - Brokerage Commissions</option>
+                        <option value="T-5310">T-5310 - Exchange Fees</option>
+                        <option value="T-5320">T-5320 - Regulatory Fees</option>
+                        <option value="T-5400">T-5400 - Margin Interest</option>
                       </optgroup>
-                      <optgroup label="Assets (Holdings)">
-                        <option value="P-1210">P-1210 - Options Positions - Open</option>
-                        <option value="P-1250">P-1250 - Stock Investment</option>
-                        <option value="P-1300">P-1300 - Cryptocurrency</option>
+                      <optgroup label="Assets (Positions)">
+                        <option value="T-1100">T-1100 - Brokerage Cash</option>
+                        <option value="T-1200">T-1200 - Stock Positions</option>
+                        <option value="T-1210">T-1210 - Options Positions - Long</option>
+                        <option value="T-1300">T-1300 - Cryptocurrency Holdings</option>
+                        <option value="T-1400">T-1400 - Unrealized Gains</option>
                       </optgroup>
-                      <optgroup label="Liabilities (Written)">
-                        <option value="P-2100">P-2100 - Options Positions - Written</option>
-                      </optgroup>
-                      <optgroup label="Fees">
-                        <option value="P-5200">P-5200 - Brokerage Commissions & Fees</option>
+                      <optgroup label="Liabilities">
+                        <option value="T-2100">T-2100 - Options Positions - Short</option>
+                        <option value="T-2200">T-2200 - Margin Debt</option>
+                        <option value="T-2300">T-2300 - Unrealized Losses</option>
                       </optgroup>
                     </select>
                   </td>
