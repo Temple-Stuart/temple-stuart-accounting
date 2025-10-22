@@ -1,65 +1,90 @@
 # Temple Stuart Accounting
 
-I built my own accounting system.
+## What This Is
 
-## Why
+You want to start a business. You also trade stocks and options. You need to track your personal spending. Right now, that means juggling three different platforms:
 
-I'm trading options daily and starting a business. I needed one place to:
-- Track my trades properly
-- Handle business accounting
-- Learn to code by building something real
+- **Personal finance**: Mint, Personal Capital, or Kubera
+- **Business accounting**: QuickBooks, Xero, or Wave  
+- **Trading journal**: TraderSync, Tradervue, or Edgewonk
 
-Instead of paying for QuickBooks or patching together different tools, I just built what I needed.
+Temple Stuart replaces all three. One platform, one login, everything in one place.
 
-## What It Does
+## Why This Exists
 
-Full accounting system with:
-- Bank integration (Plaid API)
-- Transaction categorization
-- Investment/options trade tracking
-- Double-entry bookkeeping
-- Financial statements (P&L, balance sheet)
-- Bank reconciliation
-- Period closing
-- Financial analysis and projections
+I got tired of:
+- Paying for three separate subscriptions
+- Manually categorizing the same transaction in multiple places
+- Wondering if my books would survive an IRS audit
+- Explaining to my accountant why my trading income was mixed with business expenses
 
-## How It Works
+So I built what I needed. If you're a founder who trades, you probably need it too.
 
-Built as a 10-tab system:
+## What Makes It Different
 
-1. **Import Data** - Connect banks, pull transactions
-2. **Chart of Accounts** - Manage account structure
-3. **Journal Entries** - View accounting entries
-4. **Post to Ledger** - General ledger view
-5. **Reconciliation** - Match bank to books
-6. **Adjusting Entries** - Manual corrections
-7. **Financial Statements** - P&L and balance sheet
-8. **3-Statement Analysis** - Period comparisons
-9. **Metrics & Projections** - KPIs and forecasts
-10. **Close Books** - Period-end workflow
+**Account-Level Entity Assignment**  
+Connect your bank account once, mark it as "Personal" or "Business" or "Trading." Every transaction from that account automatically knows what it is. No more categorizing every purchase three times.
+
+**Hidden Double-Entry Bookkeeping**  
+You never see debits and credits. The system handles proper accounting in the background. Your CPA will be happy. You won't be confused.
+
+**Trader Tax Status (TTS) Ready**  
+If you elect Mark-to-Market accounting for trading, the system tracks it properly. Separate books for each entity, complete audit trail, zero cross-contamination.
+
+**Real-Time, Not Batch**  
+Most platforms import your data once a day. This syncs in real-time through Plaid. Your dashboard shows what's happening now, not yesterday.
+
+## Who This Is For
+
+- Founders running a startup while trading on the side
+- Solo contractors who need clean books for their business
+- Anyone tired of paying $50/month for three different finance apps
+- People who want CPA-grade accuracy without hiring a CPA (yet)
+
+## Current Status
+
+**What Works:**
+- ✅ Plaid integration (connects to banks, brokerages, credit cards)
+- ✅ Entity separation (personal/business/trading)
+- ✅ Transaction import from Wells Fargo, Robinhood, Relay Bank, Tasty Trade
+- ✅ Double-entry accounting engine (runs invisibly)
+- ✅ Chart of Accounts with entity prefixes (P-XXXX, B-XXXX, T-XXXX)
+
+**What's Being Built:**
+- Transaction categorization → journal entry pipeline
+- Financial statements (Income Statement, Balance Sheet, Cash Flow)
+- Tax Center (aggregates all entities for filing)
+- Trading journal analytics (win rate, strategy performance)
+- GPT-powered tax explanation (tells you WHY things were categorized certain ways)
 
 ## Tech Stack
 
-- Next.js 15 + TypeScript
-- PostgreSQL (Azure)
-- Prisma ORM
-- Plaid API
-- Tailwind CSS
+- **Frontend**: Next.js, TypeScript, Tailwind
+- **Backend**: Next.js API routes
+- **Database**: PostgreSQL (Azure)
+- **APIs**: Plaid for financial data
+- **Hosting**: Vercel
 
-## Setup
+## The Vision
 
-1. Clone repo
-2. Set up PostgreSQL database
-3. Get Plaid API keys
-4. Copy `.env.example` to `.env` with your credentials
-5. `npm install`
-6. `npx prisma db push`
-7. `npm run dev`
+Eventually, this becomes your entire financial operating system:
 
-## Built With AI
+- **Spending Module**: Track personal expenses, set budgets
+- **Business Module**: P&L, invoicing, expense tracking
+- **Trading Module**: Journal every trade, track strategies, calculate realized/unrealized gains
+- **Tax Center**: See what you owe, understand why
+- **Goals Module**: Plan for the future based on real data
 
-This was built working with Claude (Anthropic's AI). Wanted to test if you could build a real production system by pairing with AI. Turns out you can.
+All with proper entity separation so your personal Starbucks run doesn't accidentally show up on your business P&L.
+
+## Getting Started
+
+Not ready for public use yet. Still wiring up the core data flow. Check back soon.
 
 ## License
 
 AGPL-3.0 - See LICENSE file for details.
+
+---
+
+Built by someone who got tired of paying three companies to do one job poorly.
