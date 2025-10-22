@@ -62,7 +62,7 @@ Most platforms import your data once a day. This syncs in real-time through Plai
 - **Frontend**: Next.js, TypeScript, Tailwind
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL (Azure)
-- **APIs**: Plaid for financial data
+- **APIs**: Plaid for financial data, OpenAI for tax explanations
 - **Hosting**: Vercel
 
 ## The Vision
