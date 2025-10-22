@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       errors: [] as any[]
     };
 
-    const BROKERAGE_CASH = 'P-1200';
+    const BROKERAGE_CASH = 'T-1100';
 
     for (const txnId of transactionIds) {
       try {
@@ -46,7 +46,11 @@ export async function POST(request: Request) {
           date: invTxn.date,
           description: `${invTxn.name} - ${strategy || 'Investment'}`,
           lines,
-          externalTransactionId: invTxn.investment_transaction_id
+          externalTransactionId: invTxn.investment_transaction_id,
+          accountCode: accountCode,
+          amount: amountCents,
+          strategy: strategy,
+          tradeNum: tradeNum
         });
 
         await prisma.investment_transactions.update({

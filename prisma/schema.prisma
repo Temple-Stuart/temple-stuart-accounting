@@ -160,7 +160,6 @@ updatedAt           DateTime @updatedAt
 accountCode         String?
 subAccount          String?
 }
-// Double-Entry Accounting Tables
 model ChartOfAccount {
 id              String   @id @default(uuid()) @db.Uuid
 code            String   @unique @db.VarChar(50)
@@ -183,6 +182,10 @@ transactionDate           DateTime @map("transaction_date")
 description               String?  @db.Text
 externalTransactionId     String?  @map("external_transaction_id") @db.VarChar(255)
 plaidTransactionId        String?  @map("plaid_transaction_id") @db.VarChar(255)
+accountCode               String?  @map("account_code") @db.VarChar(20)
+amount                    Int?
+strategy                  String?  @db.VarChar(50)
+tradeNum                  String?  @map("trade_num") @db.VarChar(20)
 documentId                String?  @map("document_id") @db.Uuid
 postedAt                  DateTime? @map("posted_at")
 reversedByTransactionId   String?  @map("reversed_by_transaction_id") @db.Uuid
@@ -210,7 +213,6 @@ account         ChartOfAccount @relation(fields: [accountId], references: [id], 
 @@index([transactionId], name: "idx_ledger_transaction")
 @@map("ledger_entries")
 }
-// Auto-categorization tables
 model MerchantCoaMapping {
 id                    String    @id @default(uuid()) @db.Uuid
 merchantName          String    @map("merchant_name") @db.VarChar(255)
@@ -240,8 +242,8 @@ createdAt             DateTime  @default(now()) @map("created_at")
 model ClosingPeriod {
 id              String   @id @default(uuid())
 periodEnd       DateTime
-periodType      String   // 'monthly', 'quarterly', 'yearly'
-status          String   @default("open") // 'open', 'closed'
+periodType      String
+status          String   @default("open")
 closedAt        DateTime?
 closedBy        String?
 closingEntryId  String?

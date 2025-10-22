@@ -14,12 +14,16 @@ interface CreateJournalEntryParams {
   lines: JournalEntryLine[];
   plaidTransactionId?: string;
   externalTransactionId?: string;
+  accountCode?: string;
+  amount?: number;
+  strategy?: string;
+  tradeNum?: string;
 }
 
 export class JournalEntryService {
   
   async createJournalEntry(params: CreateJournalEntryParams) {
-    const { date, description, lines, plaidTransactionId, externalTransactionId } = params;
+    const { date, description, lines, plaidTransactionId, externalTransactionId, accountCode, amount, strategy, tradeNum } = params;
     
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
@@ -37,7 +41,6 @@ export class JournalEntryService {
       const missing = accountCodes.filter(code => 
         !accounts.find(a => a.code === code)
       );
-      // FIXED: Actually show which codes are missing
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
     }
     
@@ -48,6 +51,10 @@ export class JournalEntryService {
           description,
           plaidTransactionId,
           externalTransactionId,
+          accountCode,
+          amount,
+          strategy,
+          tradeNum,
           postedAt: new Date(),
         }
       });
