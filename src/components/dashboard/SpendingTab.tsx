@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 interface CoaOption {
   id: string;
   code: string;
@@ -23,7 +24,12 @@ interface SpendingTabProps {
 }
 
 export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload }: SpendingTabProps) {
+  if (transactions === undefined || committedTransactions === undefined || coaOptions === undefined) {
+  console.log("Guard check:", { transactions, committedTransactions, coaOptions, transUndef: transactions === undefined, commitUndef: committedTransactions === undefined, coaUndef: coaOptions === undefined });
+    return <div className="p-4">Loading...</div>;
+  }
   const [selectedFilter, setSelectedFilter] = useState<{type: string, value: string} | null>(null);
+
   const [showCOAAssignment, setShowCOAAssignment] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedSubAccount, setSelectedSubAccount] = useState('');
@@ -92,6 +98,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   };
 
   const getMerchants = () => {
+    if (!transactions || transactions.length === 0) return [];
     const merchants = new Map<string, number>();
     transactions.forEach((t: any) => {
       const merchant = t.merchantName || t.merchant_name || t.name;
@@ -101,6 +108,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   };
 
   const getPrimaryCategories = () => {
+    if (!transactions || transactions.length === 0) return [];
     const categories = new Map<string, number>();
     transactions.forEach((t: any) => {
       const cat = t.personal_finance_category?.primary || 'Uncategorized';
@@ -110,6 +118,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   };
 
   const getDetailedCategories = () => {
+    if (!transactions || transactions.length === 0) return [];
     const categories = new Map<string, number>();
     transactions.forEach((t: any) => {
       const cat = t.personal_finance_category?.detailed;
@@ -136,6 +145,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
   const groupCoaByType = () => {
     const grouped: {[key: string]: CoaOption[]} = {};
+    if (!coaOptions || coaOptions.length === 0) return {};
     coaOptions.forEach(opt => {
       if (!grouped[opt.accountType]) grouped[opt.accountType] = [];
       grouped[opt.accountType].push(opt);
@@ -477,4 +487,3 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   );
 }
 
-import { useState, useEffect } from 'react';

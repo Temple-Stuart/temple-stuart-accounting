@@ -1,0 +1,5 @@
+Add these 4 lines after line 11 (after plaidTransactionId):
+accountCode               String?  @map("account_code") @db.VarChar(20)
+amount                    Int?
+strategy                  String?  @db.VarChar(50)
+tradeNum                  String?  @map("trade_num") @db.VarChar(20)

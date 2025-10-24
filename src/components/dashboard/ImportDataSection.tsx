@@ -31,11 +31,11 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
   const [activeTab, setActiveTab] = useState<'spending' | 'investments'>('spending');
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
 
-useEffect(() => {
-loadData();
-createLinkToken();
-loadChartOfAccounts();
-}, [entityId]);
+  useEffect(() => {
+    loadData();
+    createLinkToken();
+    loadChartOfAccounts();
+  }, [entityId]);
 
   const loadChartOfAccounts = async () => {
     try {
@@ -49,40 +49,38 @@ loadChartOfAccounts();
     }
   };
 
+  const updateEntityType = async (accountId: string, entityType: string) => {
+    try {
+      await fetch('/api/accounts/update-entity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, entityType })
+      });
+      setAccounts(accounts.map(acc =>
+        acc.id === accountId ? {...acc, entityType} : acc
+      ));
+    } catch (error) {
+      console.error('Error updating entity type:', error);
+    }
+  };
 
-const updateEntityType = async (accountId: string, entityType: string) => {
-try {
-await fetch('/api/accounts/update-entity', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ accountId, entityType })
-});
-setAccounts(accounts.map(acc =>
-acc.id === accountId ? {...acc, entityType} : acc
-));
-} catch (error) {
-console.error('Error updating entity type:', error);
-}
-};
+  const syncAllAccounts = async () => {
+    try {
+      const itemsRes = await fetch('/api/plaid/items');
+      const items = await itemsRes.json();
+      for (const item of items) {
+        await fetch('/api/plaid/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: item.id })
+        });
+      }
+      loadData();
+    } catch (error) {
+      console.error('Sync error:', error);
+    }
+  };
 
-const syncAllAccounts = async () => {
-try {
-const itemsRes = await fetch('/api/plaid/items');
-const items = await itemsRes.json();
-  for (const item of items) {
-    await fetch('/api/plaid/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: item.id })
-    });
-  }
-  
-  // Reload data after sync
-  loadData();
-} catch (error) {
-  console.error('Sync error:', error);
-}
-};
   const loadData = async () => {
     try {
       const res = await fetch('/api/accounts');
@@ -248,35 +246,46 @@ const items = await itemsRes.json();
                 {syncStatus}
               </div>
             )}
-{accounts.map((account: any) => (
-<div key={account.id} className="border rounded-lg p-3 mb-4">
-<div className="flex justify-between mb-2">
-<div>
-<h4 className="font-medium">{account.name}</h4>
-<p className="text-sm text-gray-500">{account.type} • {account.subtype}</p>
-</div>
-<p className="text-xl font-semibold">
-${(account.balance || account.currentBalance || 0).toFixed(2)}
-</p>
-</div>
-<div className="mt-2">
-<label className="text-xs text-gray-600 block mb-1">Entity Type:</label>
-<select
-value={account.entityType || ''}
-onChange={(e) => updateEntityType(account.id, e.target.value)}
-className="border rounded px-2 py-1 text-sm w-full"
->
-<option value="">Not Set</option>
-<option value="personal">Personal</option>
-<option value="business">Business</option>
-<option value="trading">Trading</option>
-<option value="retirement">Retirement</option>
-</select>
-</div>
-</div>
-))}
-            <button onClick={() => setActiveTab('investments')} 
-              className={`px-6 py-3 font-medium ${activeTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237]' : 'text-gray-600'}`}>
+            {accounts.map((account: any) => (
+              <div key={account.id} className="border rounded-lg p-3 mb-4">
+                <div className="flex justify-between mb-2">
+                  <div>
+                    <h4 className="font-medium">{account.name}</h4>
+                    <p className="text-sm text-gray-500">{account.type} • {account.subtype}</p>
+                  </div>
+                  <p className="text-xl font-semibold">
+                    ${(account.balance || account.currentBalance || 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="mt-2">
+                  <label className="text-xs text-gray-600 block mb-1">Entity Type:</label>
+                  <select
+                    value={account.entityType || ''}
+                    onChange={(e) => updateEntityType(account.id, e.target.value)}
+                    className="border rounded px-2 py-1 text-sm w-full"
+                  >
+                    <option value="">Not Set</option>
+                    <option value="personal">Personal</option>
+                    <option value="business">Business</option>
+                    <option value="trading">Trading</option>
+                    <option value="retirement">Retirement</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-b flex">
+            <button 
+              onClick={() => setActiveTab('spending')} 
+              className={`px-6 py-3 font-medium ${activeTab === 'spending' ? 'border-b-2 border-[#b4b237] text-[#b4b237]' : 'text-gray-600'}`}
+            >
+              Spending ({transactions.length} uncommitted, {committedTransactions.length} committed)
+            </button>
+            <button 
+              onClick={() => setActiveTab('investments')} 
+              className={`px-6 py-3 font-medium ${activeTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237]' : 'text-gray-600'}`}
+            >
               Investments ({investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length} uncommitted, {committedInvestments.length} committed)
             </button>
           </div>
