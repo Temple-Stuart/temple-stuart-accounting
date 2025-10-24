@@ -25,6 +25,8 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
   
   // Monthly budgets by category (hardcoded for now, will be user-editable later)
   const [budgets] = useState<Record<string, number>>({
@@ -103,6 +105,31 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
       count: monthTransactions.length
     });
   }
+
+  const generateAIInsights = async () => {
+    setLoadingInsights(true);
+    try {
+      const response = await fetch("/api/ai/spending-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          thisMonthTotal,
+          thisYearTotal,
+          thisMonthCount: thisMonthTransactions.length,
+          categories: sortedCategories,
+          merchants: sortedMerchants,
+          trends: monthlyTrends,
+          entity: selectedEntity
+        })
+      });
+      const data = await response.json();
+      setAiInsights(data.insights);
+    } catch (error) {
+      console.error("Error generating AI insights:", error);
+      setAiInsights("Unable to generate insights at this time.");
+    }
+    setLoadingInsights(false);
+  };
   // Filter transactions
   const filteredTransactions = entityFilteredTransactions.filter(t => {
     if (selectedCategory && t.personal_finance_category?.primary !== selectedCategory) return false;
@@ -157,6 +184,28 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           Trading
         </button>
       </div>
+
+      {/* AI Insights Button */}
+      <button
+        onClick={generateAIInsights}
+        disabled={loadingInsights}
+        className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+      >
+        {loadingInsights ? "Analyzing..." : "🤖 Get AI Insights"}
+      </button>
+
+      {/* AI Insights Display */}
+      {aiInsights && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <div className="text-3xl">🤖</div>
+            <div>
+              <h3 className="text-lg font-semibold text-purple-900 mb-2">AI Financial Insights</h3>
+              <p className="text-gray-700 leading-relaxed">{aiInsights}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4">

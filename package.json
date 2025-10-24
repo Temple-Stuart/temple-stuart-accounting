@@ -15,6 +15,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "next": "15.5.2",
+    "openai": "^6.7.0",
     "plaid": "^11.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
