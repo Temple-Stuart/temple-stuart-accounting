@@ -25,6 +25,17 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  
+  // Monthly budgets by category (hardcoded for now, will be user-editable later)
+  const [budgets] = useState<Record<string, number>>({
+    'FOOD_AND_DRINK': 800,
+    'TRANSPORTATION': 300,
+    'RENT_AND_UTILITIES': 2000,
+    'GENERAL_MERCHANDISE': 500,
+    'GENERAL_SERVICES': 200,
+    'ENTERTAINMENT': 300,
+    'PERSONAL_CARE': 150,
+  });
 
   // Calculate current month/year totals
   const now = new Date();
@@ -193,27 +204,40 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
       </div>
       {/* Spending by Category */}
       <div className="bg-white border rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Top Categories</h3>
-        <div className="space-y-2">
-          {sortedCategories.map(([category, amount]) => (
-            <div key={category} className="flex items-center justify-between">
-              <button
-                onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
-                className={`text-left flex-1 ${selectedCategory === category ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
-              >
-                {category}
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="w-48 bg-gray-200 rounded-full h-4">
+        <h3 className="text-lg font-semibold mb-4">Top Categories (with Budgets)</h3>
+        <div className="space-y-3">
+          {sortedCategories.map(([category, amount]) => {
+            const budget = budgets[category];
+            const budgetPercent = budget ? (amount / budget) * 100 : 0;
+            const barColor = budgetPercent >= 100 ? 'bg-red-500' : budgetPercent >= 70 ? 'bg-yellow-500' : 'bg-green-500';
+            
+            return (
+              <div key={category} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                    className={`text-left ${selectedCategory === category ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                  >
+                    {category}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">${amount.toFixed(2)}</span>
+                    {budget && (
+                      <span className={`text-xs font-medium ${budgetPercent >= 100 ? 'text-red-600' : budgetPercent >= 70 ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {budgetPercent.toFixed(0)}% of ${budget}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
-                    className="bg-blue-600 h-4 rounded-full"
-                    style={{ width: `${(amount / sortedCategories[0][1]) * 100}%` }}
+                    className={`${barColor} h-3 rounded-full transition-all`}
+                    style={{ width: `${Math.min(budgetPercent, 100)}%` }}
                   />
                 </div>
-                <span className="font-semibold w-24 text-right">${amount.toFixed(2)}</span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
