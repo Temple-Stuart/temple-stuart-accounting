@@ -186,8 +186,8 @@ Visit `http://localhost:3000`
 
 **Personal use is free.** Want to use this commercially or host it for others?
 
-📧 Contact: licensing@templestuart.com  
-🌐 More info: https://templestuart.com/licensing
+📧 Contact: astuart@templestuart.com  
+🌐 More info: https://templestuart.com
 
 ---
 
