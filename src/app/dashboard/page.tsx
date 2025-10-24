@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ImportDataSection } from '@/components/dashboard/ImportDataSection';
 import ChartOfAccountsTab from '@/components/dashboard/ChartOfAccountsTab';
 import JournalEntriesTab from '@/components/dashboard/JournalEntriesTab';
@@ -12,11 +12,14 @@ import ThreeStatementAnalysisTab from '@/components/dashboard/ThreeStatementAnal
 import MetricsAndProjectionsTab from '@/components/dashboard/MetricsAndProjectionsTab';
 import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 import TradingJournalTab from '@/components/dashboard/TradingJournalTab';
-import SpendingTab from '@/components/dashboard/SpendingTab';
+import SpendingDashboard from '@/components/dashboard/SpendingDashboard';
 
 export default function Dashboard() {
   const [activeStep, setActiveStep] = useState(1);
   const [activeEntity, setActiveEntity] = useState('personal');
+  const [committedTransactions, setCommittedTransactions] = useState([]);
+  const [coaOptions, setCoaOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
   
   const pipelineSteps = [
     { id: 1, name: 'Import Data' },
@@ -32,6 +35,38 @@ export default function Dashboard() {
     { id: 11, name: 'Trading Journal' },
     { id: 12, name: 'Spending' }
   ];
+
+  // Load data when step 12 is active
+  useEffect(() => {
+    if (activeStep === 12) {
+      loadSpendingData();
+    }
+  }, [activeStep]);
+
+  const loadSpendingData = async () => {
+    setLoading(true);
+    try {
+      // Fetch transactions
+      const txnRes = await fetch('/api/transactions');
+      if (txnRes.ok) {
+        const txnData = await txnRes.json();
+        const allTxns = txnData.transactions || txnData || [];
+        // Only get committed transactions (those with accountCode)
+        const committed = allTxns.filter((t: any) => t.accountCode);
+        setCommittedTransactions(committed);
+      }
+
+      // Fetch COA options
+      const coaRes = await fetch('/api/chart-of-accounts');
+      if (coaRes.ok) {
+        const coaData = await coaRes.json();
+        setCoaOptions(coaData.accounts || []);
+      }
+    } catch (error) {
+      console.error('Error loading spending data:', error);
+    }
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -67,7 +102,16 @@ export default function Dashboard() {
             {activeStep === 9 && <MetricsAndProjectionsTab />}
             {activeStep === 10 && <CloseBooksTab />}
             {activeStep === 11 && <TradingJournalTab />}
-            {activeStep === 12 && <SpendingTab />}
+            {activeStep === 12 && (
+              loading ? (
+                <div className="p-6">Loading spending data...</div>
+              ) : (
+                <SpendingDashboard 
+                  transactions={committedTransactions}
+                  coaOptions={coaOptions}
+                />
+              )
+            )}
           </div>
         </div>
       </div>

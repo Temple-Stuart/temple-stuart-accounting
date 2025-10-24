@@ -1,0 +1,58 @@
+--- a/src/app/api/transactions/sync-complete/route.ts
++++ b/src/app/api/transactions/sync-complete/route.ts
+@@ -78,6 +78,21 @@
+}
+});
+
+
+
+     // Update balances from transactionsGet response (only on first iteration)
+
+
+     if (offset === 0 && response.data.accounts) {
+
+
+       for (const plaidAccount of response.data.accounts) {
+
+
+         const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
+
+
+         if (dbAccount) {
+
+
+           await prisma.accounts.update({
+
+
+             where: { id: dbAccount.id },
+
+
+             data: {
+
+
+               currentBalance: plaidAccount.balances.current || 0,
+
+
+               availableBalance: plaidAccount.balances.available || 0
+
+
+             }
+
+
+           });
+
+
+         }
+
+
+       }
+
+
+     }
+
+
+     for (const txn of response.data.transactions) {
+       const account = item.accounts.find(acc => acc.accountId === txn.account_id);
+       if (!account) continue;
+
+
