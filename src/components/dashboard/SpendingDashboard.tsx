@@ -24,18 +24,29 @@ interface SpendingDashboardProps {
 export default function SpendingDashboard({ transactions, coaOptions }: SpendingDashboardProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<string | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
 
   // Calculate current month/year totals
   const now = new Date();
+
+  // Filter by entity if selected
+  const entityFilteredTransactions = selectedEntity
+    ? transactions.filter(t => {
+        if (selectedEntity === 'Personal') return t.accountCode?.startsWith('P-');
+        if (selectedEntity === 'Business') return t.accountCode?.startsWith('B-');
+        if (selectedEntity === 'Trading') return t.accountCode?.startsWith('T-');
+        return true;
+      })
+    : transactions;
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  const thisMonthTransactions = transactions.filter(t => {
+  const thisMonthTransactions = entityFilteredTransactions.filter(t => {
     const txnDate = new Date(t.date);
     return txnDate.getMonth() === currentMonth && txnDate.getFullYear() === currentYear;
   });
 
-  const thisYearTransactions = transactions.filter(t => {
+  const thisYearTransactions = entityFilteredTransactions.filter(t => {
     const txnDate = new Date(t.date);
     return txnDate.getFullYear() === currentYear;
   });
@@ -44,7 +55,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
   const thisYearTotal = thisYearTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   // Group by category
-  const categoryTotals = transactions.reduce((acc, t) => {
+  const categoryTotals = entityFilteredTransactions.reduce((acc, t) => {
     const category = t.personal_finance_category?.primary || 'Uncategorized';
     acc[category] = (acc[category] || 0) + Math.abs(t.amount);
     return acc;
@@ -55,7 +66,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
     .slice(0, 10);
 
   // Group by merchant
-  const merchantTotals = transactions.reduce((acc, t) => {
+  const merchantTotals = entityFilteredTransactions.reduce((acc, t) => {
     const merchant = t.merchantName || t.name || 'Unknown';
     acc[merchant] = (acc[merchant] || 0) + Math.abs(t.amount);
     return acc;
@@ -65,8 +76,24 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
+
+  // Monthly spending trends (last 6 months)
+  const monthlyTrends = [];
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(currentYear, currentMonth - i, 1);
+    const monthTransactions = entityFilteredTransactions.filter(t => {
+      const txnDate = new Date(t.date);
+      return txnDate.getMonth() === date.getMonth() && txnDate.getFullYear() === date.getFullYear();
+    });
+    const total = monthTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    monthlyTrends.push({
+      month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      total,
+      count: monthTransactions.length
+    });
+  }
   // Filter transactions
-  const filteredTransactions = transactions.filter(t => {
+  const filteredTransactions = entityFilteredTransactions.filter(t => {
     if (selectedCategory && t.personal_finance_category?.primary !== selectedCategory) return false;
     if (selectedMerchant && (t.merchantName || t.name) !== selectedMerchant) return false;
     return true;
@@ -75,6 +102,50 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
   return (
     <div className="p-6 space-y-6">
       <h2 className="text-2xl font-bold">Spending Dashboard</h2>
+
+      {/* Entity Filter */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setSelectedEntity(null)}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            selectedEntity === null
+              ? 'bg-[#b4b237] text-white'
+              : 'bg-white text-gray-700 border hover:bg-gray-50'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setSelectedEntity('Personal')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            selectedEntity === 'Personal'
+              ? 'bg-[#b4b237] text-white'
+              : 'bg-white text-gray-700 border hover:bg-gray-50'
+          }`}
+        >
+          Personal
+        </button>
+        <button
+          onClick={() => setSelectedEntity('Business')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            selectedEntity === 'Business'
+              ? 'bg-[#b4b237] text-white'
+              : 'bg-white text-gray-700 border hover:bg-gray-50'
+          }`}
+        >
+          Business
+        </button>
+        <button
+          onClick={() => setSelectedEntity('Trading')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            selectedEntity === 'Trading'
+              ? 'bg-[#b4b237] text-white'
+              : 'bg-white text-gray-700 border hover:bg-gray-50'
+          }`}
+        >
+          Trading
+        </button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4">
@@ -90,6 +161,36 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
         </div>
       </div>
 
+
+      {/* Monthly Spending Trend */}
+      <div className="bg-white border rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4">Spending Trend (Last 6 Months)</h3>
+        <div className="relative h-64">
+          {monthlyTrends.length > 0 && (
+            <div className="flex items-end justify-between h-full gap-2">
+              {monthlyTrends.map((month, idx) => {
+                const maxAmount = Math.max(...monthlyTrends.map(m => m.total));
+                const heightPercent = maxAmount > 0 ? (month.total / maxAmount) * 100 : 0;
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-2">
+                    <div className="w-full flex flex-col items-center">
+                      <span className="text-xs font-semibold text-gray-700 mb-1">
+                        ${month.total.toFixed(0)}
+                      </span>
+                      <div
+                        className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                        style={{ height: `${heightPercent}%` }}
+                        title={`${month.month}: $${month.total.toFixed(2)} (${month.count} transactions)`}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600 text-center">{month.month}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
       {/* Spending by Category */}
       <div className="bg-white border rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Top Categories</h3>
