@@ -154,8 +154,8 @@ export class AutoCategorizationService {
         }
         
         // Check if user overrode the prediction
-        const wasOverridden = txn.accountCode && 
-          txn.accountCode !== txn.predictedCoaCode;
+        const wasOverridden = !!(txn.accountCode && 
+          txn.accountCode !== txn.predictedCoaCode);
         
         // Call existing commit API
         const response = await fetch('/api/transactions/commit-to-ledger', {
