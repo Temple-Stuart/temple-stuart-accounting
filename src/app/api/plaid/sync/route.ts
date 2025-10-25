@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
       await prisma.accounts.updateMany({
         where: { accountId: acc.account_id },
         data: {
-          balance: acc.balances.current || 0,
           currentBalance: acc.balances.current || 0,
           availableBalance: acc.balances.available || 0
         }
