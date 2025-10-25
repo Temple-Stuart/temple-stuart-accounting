@@ -101,6 +101,14 @@ logo_url                           String?
 website                            String?
 accountCode                        String?
 subAccount                         String?
+
+  // Auto-categorization fields
+  predictedCoaCode       String?  @map("predicted_coa_code") @db.VarChar(20)
+  predictionConfidence   Decimal? @map("prediction_confidence") @db.Decimal(3,2)
+  reviewStatus           String   @default("pending_review") @map("review_status") @db.VarChar(20)
+  manuallyOverridden     Boolean  @default(false) @map("manually_overridden")
+  overriddenAt           DateTime? @map("overridden_at")
+  overriddenBy           String?  @map("overridden_by") @db.VarChar(255)
 account                            accounts  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 model investment_transactions {
