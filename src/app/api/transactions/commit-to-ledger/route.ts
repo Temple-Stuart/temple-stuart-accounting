@@ -31,35 +31,69 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        // Use YOUR actual account codes with P- prefix
         const institutionName = plaidTxn.account?.plaidItem?.institutionName?.toLowerCase() || '';
         const accountType = plaidTxn.account?.type?.toLowerCase() || '';
         
-        let bankAccountCode = 'P-1010'; // Personal Checking (Wells Fargo)
+        let bankAccountCode = 'P-1010';
         
         if (institutionName.includes('robinhood') || accountType.includes('investment')) {
-          bankAccountCode = 'P-1200'; // Brokerage Cash Account
+          bankAccountCode = 'P-1200';
         } else if (institutionName.includes('wells')) {
-          bankAccountCode = 'P-1010'; // Personal Checking
+          bankAccountCode = 'P-1010';
         }
         
-        // Create journal entry
         const journalEntry = await journalEntryService.convertPlaidTransaction(
           plaidTxn.transactionId,
           bankAccountCode,
           accountCode
         );
         
-        // Update transaction with COA assignment
+        // LEARNING LOOP: Detect override
+        const wasOverridden = plaidTxn.predictedCoaCode && 
+                             plaidTxn.predictedCoaCode !== accountCode;
+        
+        if (wasOverridden && plaidTxn.merchantName) {
+          const merchantName = plaidTxn.merchantName;
+          const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
+          
+          const wrongMapping = await prisma.merchantCoaMapping.findUnique({
+            where: {
+              merchantName_plaidCategoryPrimary: {
+                merchantName,
+                plaidCategoryPrimary: categoryPrimary || ''
+              }
+            }
+          });
+          
+          if (wrongMapping && wrongMapping.coaCode === plaidTxn.predictedCoaCode) {
+            const newConfidence = Math.max(0, wrongMapping.confidenceScore.toNumber() - 0.2);
+            
+            if (newConfidence < 0.3) {
+              await prisma.merchantCoaMapping.delete({
+                where: { id: wrongMapping.id }
+              });
+            } else {
+              await prisma.merchantCoaMapping.update({
+                where: { id: wrongMapping.id },
+                data: {
+                  confidenceScore: newConfidence,
+                  lastUsedAt: new Date()
+                }
+              });
+            }
+          }
+        }
+        
         await prisma.transactions.update({
           where: { id: txnId },
           data: { 
             accountCode, 
-            subAccount: subAccount || null 
+            subAccount: subAccount || null,
+            manuallyOverridden: wasOverridden,
+            overriddenAt: wasOverridden ? new Date() : null
           }
         });
         
-        // Save merchant mapping
         if (plaidTxn.merchantName) {
           const merchantName = plaidTxn.merchantName;
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
@@ -74,7 +108,7 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          if (existing) {
+          if (existing && existing.coaCode === accountCode) {
             await prisma.merchantCoaMapping.update({
               where: { id: existing.id },
               data: {
@@ -83,7 +117,7 @@ export async function POST(request: NextRequest) {
                 lastUsedAt: new Date()
               }
             });
-          } else {
+          } else if (!existing || existing.coaCode !== accountCode) {
             await prisma.merchantCoaMapping.create({
               data: {
                 merchantName,
@@ -91,7 +125,7 @@ export async function POST(request: NextRequest) {
                 plaidCategoryDetailed: categoryDetailed,
                 coaCode: accountCode,
                 subAccount: subAccount || null,
-                confidenceScore: 0.5
+                confidenceScore: wasOverridden ? 0.6 : 0.5
               }
             });
           }

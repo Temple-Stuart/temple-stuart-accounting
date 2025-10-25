@@ -1,27 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextResponse } from 'next/server';
 import { autoCategorizationService } from '@/lib/auto-categorization-service';
 
-const prisma = new PrismaClient();
-
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const { userId } = await request.json();
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const result = await autoCategorizationService.autoCategorizePendingTransactions(userId);
-
-    return NextResponse.json(result);
-  } catch (error) {
+    const result = await autoCategorizationService.categorizePendingTransactions();
+    
+    return NextResponse.json({
+      success: true,
+      categorized: result.categorized,
+      failed: result.failed,
+      message: `Categorized ${result.categorized} transactions, ${result.failed} failed`
+    });
+  } catch (error: any) {
     console.error('Auto-categorization error:', error);
     return NextResponse.json(
-      { error: 'Failed to auto-categorize transactions' },
+      { error: error.message },
       { status: 500 }
     );
   }
