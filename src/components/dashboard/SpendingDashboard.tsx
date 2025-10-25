@@ -91,7 +91,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
 
 
   // Monthly spending trends (last 6 months)
-  const monthlyTrends = [];
+  const monthlyTrends: { month: string; total: number; count: number }[] = [];
   for (let i = 5; i >= 0; i--) {
     const date = new Date(currentYear, currentMonth - i, 1);
     const monthTransactions = entityFilteredTransactions.filter(t => {
