@@ -1,4 +1,4 @@
-import { PrismaClient, Decimal } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -104,7 +104,7 @@ export class AutoCategorizationService {
             where: { id: txn.id },
             data: {
               predictedCoaCode: prediction.coaCode,
-              predictionConfidence: new Decimal(prediction.confidence),
+              predictionConfidence: new Prisma.Decimal(prediction.confidence),
               reviewStatus: 'pending_review'
             }
           });
