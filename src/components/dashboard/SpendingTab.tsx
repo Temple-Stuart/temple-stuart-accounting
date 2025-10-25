@@ -399,7 +399,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                 <td className="px-2 py-2">{txn.personal_finance_category?.primary || '-'}</td>
                 <td className="px-2 py-2">{txn.personal_finance_category?.detailed || '-'}</td>
                 <td className="px-2 py-1 bg-yellow-50">
-                  <select value={rowChanges[txn.id]?.coa || (suggestion?.coaCode || '')}
+                  <select value={rowChanges[txn.id]?.coa || (txn.predictedCoaCode || '')}
                     onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), coa: e.target.value}})}
                     className="text-xs border rounded px-1 py-0.5 w-full">
                     <option value="">-</option>
@@ -413,7 +413,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                   </select>
                 </td>
                 <td className="px-2 py-1 bg-blue-50">
-                  <select value={rowChanges[txn.id]?.sub || (suggestion?.subAccount || '')}
+                  <select value={rowChanges[txn.id]?.sub || (txn.subAccount || '')}
                     onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), sub: e.target.value}})}
                     className="text-xs border rounded px-1 py-0.5 w-full">
                     <option value="">-</option>
@@ -423,9 +423,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                   </select>
                 </td>
                 <td className="px-2 py-2 text-center bg-green-50">
-                  {suggestion ? (
+                  {txn.predictionConfidence ? (
                     <span className="text-xs font-semibold text-green-700">
-                      {(suggestion.confidenceScore * 100).toFixed(0)}%
+                      {(parseFloat(txn.predictionConfidence) * 100).toFixed(0)}%
                     </span>
                   ) : '-'}
                 </td>

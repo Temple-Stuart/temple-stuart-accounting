@@ -1,39 +1,200 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Decimal } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-interface TransactionToCategorize {
-  id: string;
-  merchantName?: string;
-  amount: number;
-  date: Date;
+interface CategoryPrediction {
+  coaCode: string;
+  confidence: number;
+  source: 'merchant_mapping' | 'category_mapping' | 'gpt' | 'manual';
 }
 
-async function autoCategorizePendingTransactions(userId: string) {
-  // Get user's bank accounts first
-  const userAccounts = await prisma.accounts.findMany({
-    where: { userId },
-    select: { id: true }
-  });
-
-  const accountIds = userAccounts.map(acc => acc.id);
-
-  // Get all transactions for user's accounts
-  const transactions = await prisma.transactions.findMany({
-    where: {
-      accountId: { in: accountIds }
-    },
-    take: 100 // Limit for performance
-  });
-
-  return {
-    processed: transactions.length,
-    categorized: 0,
-    remaining: transactions.length
-  };
+export class AutoCategorizationService {
+  
+  /**
+   * Predict COA code for a transaction based on merchant mappings
+   */
+  async predictCategory(
+    merchantName: string | null,
+    categoryPrimary: string | null,
+    amount: number
+  ): Promise<CategoryPrediction | null> {
+    
+    // Try merchant mapping first (highest confidence)
+    if (merchantName && categoryPrimary) {
+      const merchantMapping = await prisma.merchantCoaMapping.findFirst({
+        where: {
+          merchantName: {
+            contains: merchantName,
+            mode: 'insensitive'
+          },
+          plaidCategoryPrimary: categoryPrimary
+        },
+        orderBy: {
+          confidenceScore: 'desc'
+        }
+      });
+      
+      if (merchantMapping && merchantMapping.confidenceScore.toNumber() > 0.5) {
+        return {
+          coaCode: merchantMapping.coaCode,
+          confidence: merchantMapping.confidenceScore.toNumber(),
+          source: 'merchant_mapping'
+        };
+      }
+    }
+    
+    // Fallback to category mapping
+    if (categoryPrimary) {
+      const categoryMap: Record<string, string> = {
+        'FOOD_AND_DRINK': 'P-6100',
+        'TRANSPORTATION': 'P-6400', 
+        'RENT_AND_UTILITIES': 'P-8100',
+        'GENERAL_MERCHANDISE': 'P-8900',
+        'GENERAL_SERVICES': 'P-8900',
+        'ENTERTAINMENT': 'P-8170',
+        'PERSONAL_CARE': 'P-8150',
+        'BANK_FEES': 'P-6300',
+        'MEDICAL': 'P-8130',
+        'TRAVEL': 'P-6200'
+      };
+      
+      const coaCode = categoryMap[categoryPrimary];
+      if (coaCode) {
+        return {
+          coaCode,
+          confidence: 0.6,
+          source: 'category_mapping'
+        };
+      }
+    }
+    
+    // No prediction available
+    return null;
+  }
+  
+  /**
+   * Categorize all pending transactions
+   */
+  async categorizePendingTransactions(): Promise<{
+    categorized: number;
+    failed: number;
+  }> {
+    const pendingTransactions = await prisma.transactions.findMany({
+      where: {
+        accountCode: null,
+        predictedCoaCode: null
+      }
+    });
+    
+    let categorized = 0;
+    let failed = 0;
+    
+    for (const txn of pendingTransactions) {
+      try {
+        const categoryPrimary = (txn.personal_finance_category as any)?.primary;
+        
+        const prediction = await this.predictCategory(
+          txn.merchantName,
+          categoryPrimary,
+          txn.amount
+        );
+        
+        if (prediction) {
+          await prisma.transactions.update({
+            where: { id: txn.id },
+            data: {
+              predictedCoaCode: prediction.coaCode,
+              predictionConfidence: new Decimal(prediction.confidence),
+              reviewStatus: 'pending_review'
+            }
+          });
+          categorized++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Error categorizing transaction ${txn.id}:`, error);
+        failed++;
+      }
+    }
+    
+    return { categorized, failed };
+  }
+  
+  /**
+   * Commit reviewed transactions to ledger
+   */
+  async commitReviewedTransactions(
+    transactionIds: string[],
+    userId: string
+  ): Promise<{
+    committed: number;
+    errors: Array<{ id: string; error: string }>;
+  }> {
+    const errors: Array<{ id: string; error: string }> = [];
+    let committed = 0;
+    
+    for (const txnId of transactionIds) {
+      try {
+        const txn = await prisma.transactions.findUnique({
+          where: { id: txnId }
+        });
+        
+        if (!txn) {
+          errors.push({ id: txnId, error: 'Transaction not found' });
+          continue;
+        }
+        
+        // Use accountCode if set (user edited), otherwise use predicted
+        const finalCoaCode = txn.accountCode || txn.predictedCoaCode;
+        
+        if (!finalCoaCode) {
+          errors.push({ id: txnId, error: 'No COA code available' });
+          continue;
+        }
+        
+        // Check if user overrode the prediction
+        const wasOverridden = txn.accountCode && 
+          txn.accountCode !== txn.predictedCoaCode;
+        
+        // Call existing commit API
+        const response = await fetch('/api/transactions/commit-to-ledger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionIds: [txnId],
+            accountCode: finalCoaCode,
+            subAccount: txn.subAccount
+          })
+        });
+        
+        if (!response.ok) {
+          const data = await response.json();
+          errors.push({ id: txnId, error: data.error || 'Commit failed' });
+          continue;
+        }
+        
+        // Update review status
+        await prisma.transactions.update({
+          where: { id: txnId },
+          data: {
+            reviewStatus: 'approved',
+            manuallyOverridden: wasOverridden,
+            overriddenAt: wasOverridden ? new Date() : null,
+            overriddenBy: wasOverridden ? userId : null
+          }
+        });
+        
+        committed++;
+        
+      } catch (error: any) {
+        console.error(`Error committing transaction ${txnId}:`, error);
+        errors.push({ id: txnId, error: error.message });
+      }
+    }
+    
+    return { committed, errors };
+  }
 }
 
-// Export as object to match import
-export const autoCategorizationService = {
-  autoCategorizePendingTransactions
-};
+export const autoCategorizationService = new AutoCategorizationService();
