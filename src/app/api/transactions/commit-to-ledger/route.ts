@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
         
         // LEARNING LOOP: Detect override
         const wasOverridden = plaidTxn.predictedCoaCode && 
-                             plaidTxn.predictedCoaCode !== accountCode;
-        
+        // LEARNING LOOP: Detect override
+        const wasOverridden = !!(plaidTxn.predictedCoaCode && 
+                               plaidTxn.predictedCoaCode !== accountCode);
         if (wasOverridden && plaidTxn.merchantName) {
           const merchantName = plaidTxn.merchantName;
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
