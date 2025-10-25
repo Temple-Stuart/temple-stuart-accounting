@@ -27,18 +27,3 @@ CREATE TABLE category_coa_defaults (
   entity_type VARCHAR(10) CHECK (entity_type IN ('personal', 'business')),
   created_at TIMESTAMP DEFAULT NOW()
 );
-
--- Seed common category mappings
-INSERT INTO category_coa_defaults (plaid_category_primary, coa_code, entity_type) VALUES
-('FOOD_AND_DRINK', 'P-6100', 'personal'),
-('TRAVEL', 'P-6200', 'personal'),
-('TRANSPORTATION', 'P-6400', 'personal'),
-('GENERAL_MERCHANDISE', 'P-8190', 'personal'),
-('RENT_AND_UTILITIES', 'P-8100', 'personal'),
-('MEDICAL', 'P-8130', 'personal'),
-('ENTERTAINMENT', 'P-8170', 'personal'),
-('GENERAL_SERVICES', 'P-8900', 'personal'),
-('LOAN_PAYMENTS', 'P-6700', 'personal'),
-('BANK_FEES', 'P-6300', 'personal'),
-('INCOME', 'P-4200', 'personal'),
-('TRANSFER_IN', 'P-4200', 'personal');

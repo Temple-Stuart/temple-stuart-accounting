@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-categorize",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}
