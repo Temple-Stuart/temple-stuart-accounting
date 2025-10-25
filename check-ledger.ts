@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function check() {
-  const lastJournal = await prisma.JournalTransaction.findFirst({
+  const lastJournal = await prisma.journalTransaction.findFirst({
     orderBy: { createdAt: 'desc' },
     include: { 
       ledgerEntries: {
