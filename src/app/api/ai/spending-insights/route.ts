@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: NextRequest) {
   try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     const { thisMonthTotal, thisYearTotal, thisMonthCount, categories, merchants, trends, entity } = await req.json();
 
     const entityText = entity ? ` for ${entity} accounts` : '';
     
-    // Build context for GPT
     const categoriesText = categories.map(([cat, amt]: [string, number]) => `${cat}: $${amt.toFixed(2)}`).join(', ');
     const merchantsText = merchants.map(([merch, amt]: [string, number]) => `${merch}: $${amt.toFixed(2)}`).join(', ');
     const trendsText = trends.map((t: any) => `${t.month}: $${t.total.toFixed(2)}`).join(', ');
