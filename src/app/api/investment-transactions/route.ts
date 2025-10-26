@@ -25,12 +25,14 @@ export async function GET() {
           userId: user.id
         }
       },
+      include: {
+        security: true
+      },
       orderBy: {
         date: 'desc'
       }
     });
 
-    // Return as direct array, not wrapped object
     return NextResponse.json(investmentTxns);
   } catch (error) {
     console.error('Error:', error);
