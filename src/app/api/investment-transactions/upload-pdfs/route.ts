@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import pdf from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,14 +37,18 @@ export async function POST(req: NextRequest) {
         try {
           console.log('📄 Processing file:', file.name, 'Size:', file.size);
           
-          // Convert PDF to base64
+          // Convert PDF to text
           const bytes = await file.arrayBuffer();
           const buffer = Buffer.from(bytes);
-          const base64 = buffer.toString('base64');
+          
+          console.log('📖 Extracting text from PDF...');
+          const pdfData = await pdf(buffer);
+          const pdfText = pdfData.text;
+          
+          console.log('✅ Text extracted, length:', pdfText.length);
+          console.log('📄 First 500 chars:', pdfText.substring(0, 500));
 
-          console.log('✅ File converted to base64, length:', base64.length);
-
-          // Extract with GPT-4o Vision
+          // Extract with GPT-4o (text mode, not vision)
           console.log('🤖 Calling GPT-4o...');
           
           const completion = await openai.chat.completions.create({
@@ -51,52 +56,61 @@ export async function POST(req: NextRequest) {
             messages: [
               {
                 role: 'system',
-                content: 'You are a data extraction expert. Extract ALL transaction data from Robinhood trade confirmation PDFs. Return JSON array with each transaction.'
+                content: 'You are a data extraction expert specializing in Robinhood trade confirmation PDFs. Extract ALL transaction data and return valid JSON only - no markdown, no code blocks, just pure JSON.'
               },
               {
                 role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Extract all transactions from this Robinhood PDF. For each transaction, return:
+                content: `Extract all transactions from this Robinhood trade confirmation text. 
+
+For each transaction, return this exact structure:
 {
   "symbol": "NVDA",
   "strike": 150.00,
   "expiry": "2025-07-25",
-  "contractType": "CALL",
+  "contractType": "CALL" or "PUT",
   "action": "B" or "S" or "BTC" or "STO",
   "quantity": 1,
   "price": 7.30,
   "principal": 730.00,
   "fees": 0.04,
+  "tranFee": 0.04,
+  "contrFee": 0.00,
   "netAmount": 730.04,
   "tradeDate": "2025-06-25"
 }
 
-Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If stock transaction, omit strike/expiry/contractType.`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: `data:application/pdf;base64,${base64}`
-                    }
-                  }
-                ]
+Return as JSON array with no markdown formatting. For stock transactions, set strike/expiry/contractType to null.
+
+PDF TEXT:
+${pdfText}`
               }
             ],
             temperature: 0,
-            max_tokens: 2000
+            max_tokens: 4000
           });
 
           console.log('✅ GPT-4o responded');
           
-          const result = completion.choices[0]?.message?.content;
-          console.log('📊 Result:', result?.substring(0, 200));
+          let result = completion.choices[0]?.message?.content || '';
+          console.log('📊 Raw result:', result.substring(0, 300));
+          
+          // Clean up markdown formatting if present
+          result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
           
           if (result) {
-            const transactions = JSON.parse(result);
-            console.log('✅ Parsed transactions:', transactions.length);
-            allExtractedTransactions.push(...transactions);
+            try {
+              const transactions = JSON.parse(result);
+              console.log('✅ Parsed transactions:', Array.isArray(transactions) ? transactions.length : 'not an array');
+              
+              if (Array.isArray(transactions)) {
+                allExtractedTransactions.push(...transactions);
+              } else {
+                console.error('❌ Result is not an array:', transactions);
+              }
+            } catch (parseError) {
+              console.error('❌ JSON parse error:', parseError);
+              console.error('Failed to parse:', result);
+            }
           }
 
           processedCount++;
@@ -109,16 +123,24 @@ Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If sto
     console.log('📊 Total extracted:', allExtractedTransactions.length);
 
     // Now match extracted transactions to existing Plaid data
+    const user = await prisma.users.findUnique({ where: { email: userEmail } });
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const existingTransactions = await prisma.investment_transactions.findMany({
       where: {
         account: {
-          userId: (await prisma.users.findUnique({ where: { email: userEmail } }))!.id
+          userId: user.id
         }
       },
       include: {
         security: true
       }
     });
+
+    console.log('📊 Existing Plaid transactions:', existingTransactions.length);
 
     const matchedData = allExtractedTransactions.map(rhTxn => {
       // Try to match with existing Plaid transaction
@@ -127,12 +149,11 @@ Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If sto
           new Date(rhTxn.tradeDate).getTime() - new Date(plaidTxn.date).getTime()
         ) / (1000 * 60 * 60 * 24);
         
-        return (
-          dateDiff <= 1 &&
-          rhTxn.symbol === (plaidTxn.security?.ticker_symbol || '') &&
-          Math.abs((rhTxn.strike || 0) - (plaidTxn.security?.option_strike_price || 0)) < 0.01 &&
-          Math.abs(rhTxn.quantity - (plaidTxn.quantity || 0)) < 0.01
-        );
+        const symbolMatch = rhTxn.symbol === (plaidTxn.security?.ticker_symbol || '');
+        const strikeMatch = Math.abs((rhTxn.strike || 0) - (plaidTxn.security?.option_strike_price || 0)) < 0.01;
+        const qtyMatch = Math.abs(rhTxn.quantity - (plaidTxn.quantity || 0)) < 0.01;
+        
+        return dateDiff <= 1 && symbolMatch && strikeMatch && qtyMatch;
       });
 
       return {
@@ -154,10 +175,13 @@ Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If sto
       };
     });
 
+    console.log('📊 Matched data:', matchedData.length);
+
     return NextResponse.json({
       success: true,
       processed: processedCount,
       total: files.length,
+      extracted: allExtractedTransactions.length,
       matches: matchedData
     });
 
