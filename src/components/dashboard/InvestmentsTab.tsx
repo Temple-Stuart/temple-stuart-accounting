@@ -133,6 +133,9 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
             <tr>
               <th className="px-2 py-2 text-left">Date</th>
               <th className="px-2 py-2 text-left">Symbol</th>
+              <th className="px-2 py-2 text-right bg-purple-50">Strike</th>
+              <th className="px-2 py-2 text-left bg-purple-50">Expiry</th>
+              <th className="px-2 py-2 text-center bg-purple-50">Type</th>
               <th className="px-2 py-2 text-left">Name</th>
               <th className="px-2 py-2 text-left">Type</th>
               <th className="px-2 py-2 text-left">Subtype</th>
@@ -176,6 +179,24 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
                 <tr key={txnId} className="hover:bg-gray-50">
                   <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
                   <td className="px-2 py-2 font-medium">{symbol}</td>
+                  <td className="px-2 py-2 text-right bg-purple-50">
+                    {txn.security?.option_strike_price ? `$${txn.security.option_strike_price.toFixed(2)}` : '-'}
+                  </td>
+                  <td className="px-2 py-2 bg-purple-50">
+                    {txn.security?.option_expiration_date 
+                      ? new Date(txn.security.option_expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+                      : '-'
+                    }
+                  </td>
+                  <td className="px-2 py-2 text-center bg-purple-50">
+                    {txn.security?.option_contract_type ? (
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        txn.security.option_contract_type === 'call' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {txn.security.option_contract_type.toUpperCase()}
+                      </span>
+                    ) : '-'}
+                  </td>
                   <td className="px-2 py-2">{txn.name}</td>
                   <td className="px-2 py-2">{txn.type}</td>
                   <td className="px-2 py-2">{txn.subtype}</td>
