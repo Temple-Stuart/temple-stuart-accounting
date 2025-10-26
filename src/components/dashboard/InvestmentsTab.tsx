@@ -15,6 +15,13 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
   const [positionFilter, setPositionFilter] = useState<string>('');
   const [investmentRowChanges, setInvestmentRowChanges] = useState<{[key: string]: {strategy?: string; coa?: string; sub?: string; tradeNum?: string}}>({});
   const [selectedCommittedInvestments, setSelectedCommittedInvestments] = useState<string[]>([]);
+  
+  // PDF Upload state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [matchedData, setMatchedData] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const commitSelectedInvestmentRows = async () => {
     const updates = Object.entries(investmentRowChanges).filter(([id, values]) => values.coa && values.strategy);
@@ -79,8 +86,116 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
     }
   };
 
+  const handlePDFUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    const fileArray = Array.from(files);
+    setUploadFiles(fileArray);
+    setIsProcessing(true);
+    setUploadProgress({ current: 0, total: fileArray.length });
+
+    try {
+      const formData = new FormData();
+      fileArray.forEach(file => formData.append('pdfs', file));
+
+      const res = await fetch('/api/investment-transactions/upload-pdfs', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        setMatchedData(result.matches);
+        setUploadProgress({ current: result.processed, total: result.total });
+        alert(`✅ Processed ${result.processed} PDFs`);
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert('Failed to upload PDFs');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <>
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Upload Robinhood Trade Confirmations</h3>
+              <button onClick={() => setShowUploadModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <input
+                type="file"
+                accept=".pdf"
+                multiple
+                onChange={(e) => handlePDFUpload(e.target.files)}
+                className="hidden"
+                id="pdf-upload"
+                disabled={isProcessing}
+              />
+              <label htmlFor="pdf-upload" className="cursor-pointer">
+                <div className="text-4xl mb-2">📄</div>
+                <div className="text-sm text-gray-600">
+                  {isProcessing ? (
+                    <>Processing {uploadProgress.current} / {uploadProgress.total} PDFs...</>
+                  ) : (
+                    <>Click to upload or drag and drop<br/>Robinhood trade confirmation PDFs</>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {matchedData.length > 0 && (
+              <div className="mt-4 max-h-96 overflow-auto">
+                <h4 className="font-medium mb-2">Matched Transactions ({matchedData.length})</h4>
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-1 text-left">Symbol</th>
+                      <th className="px-2 py-1 text-left">Date</th>
+                      <th className="px-2 py-1 text-right">RH Qty</th>
+                      <th className="px-2 py-1 text-right">RH Fees</th>
+                      <th className="px-2 py-1 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {matchedData.map((match, idx) => (
+                      <tr key={idx}>
+                        <td className="px-2 py-1">{match.robinhoodData.symbol}</td>
+                        <td className="px-2 py-1">{new Date(match.robinhoodData.tradeDate).toLocaleDateString()}</td>
+                        <td className="px-2 py-1 text-right">{match.robinhoodData.quantity}</td>
+                        <td className="px-2 py-1 text-right">${match.robinhoodData.fees?.toFixed(2)}</td>
+                        <td className="px-2 py-1 text-center">
+                          {match.matchStatus === 'matched' && '✅'}
+                          {match.matchStatus === 'fee_mismatch' && '⚠️'}
+                          {match.matchStatus === 'missing_from_plaid' && '❌'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="px-4 py-2 border rounded text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="flex gap-3 p-4 bg-white border rounded-lg">
           <div className="flex-1">
@@ -113,6 +228,14 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
               <option value="open">Open</option>
               <option value="close">Close</option>
             </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 whitespace-nowrap"
+            >
+              📄 Upload RH PDFs
+            </button>
           </div>
         </div>
         
