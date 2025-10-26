@@ -134,6 +134,7 @@ subAccount                String?
 strategy                  String?
 tradeNum                  String?
 account                   accounts @relation(fields: [accountId], references: [id])
+  security                  securities? @relation(fields: [security_id], references: [securityId])
 }
 model prospects {
 id                  String   @id @default(uuid())
@@ -258,4 +259,24 @@ closingEntryId  String?
 createdAt       DateTime @default(now())
 updatedAt       DateTime @updatedAt
 @@map("closing_periods")
+}
+
+model securities {
+  id                       String    @id @default(uuid())
+  securityId               String    @unique
+  isin                     String?
+  cusip                    String?
+  sedol                    String?
+  ticker_symbol            String?
+  name                     String?
+  type                     String?
+  close_price              Float?
+  close_price_as_of        DateTime?
+  option_contract_type     String?
+  option_strike_price      Float?
+  option_expiration_date   DateTime?
+  option_underlying_ticker String?
+  investment_transactions  investment_transactions[]
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 }
