@@ -16,6 +16,7 @@
     "lucide-react": "^0.544.0",
     "next": "15.5.2",
     "openai": "^6.7.0",
+    "pdf-parse": "^2.4.5",
     "plaid": "^11.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
