@@ -27,13 +27,12 @@ export async function POST() {
 
     let totalTransactions = 0;
     let totalInvestmentTransactions = 0;
+    let totalSecurities = 0;
 
     for (const item of plaidItems) {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
       
-      // FIRST: Update account balances
-      
-      // THEN: Sync transactions (keeping your existing code)
+      // Sync regular transactions
       try {
         let hasMore = true;
         let offset = 0;
@@ -50,21 +49,21 @@ export async function POST() {
             }
           });
 
-      // Update balances from transactionsGet response (first iteration only)
-      if (offset === 0 && response.data.accounts) {
-        for (const plaidAccount of response.data.accounts) {
-          const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
-          if (dbAccount) {
-            await prisma.accounts.update({
-              where: { id: dbAccount.id },
-              data: {
-                currentBalance: plaidAccount.balances.current || 0,
-                availableBalance: plaidAccount.balances.available || 0
+          // Update balances (first iteration only)
+          if (offset === 0 && response.data.accounts) {
+            for (const plaidAccount of response.data.accounts) {
+              const dbAccount = item.accounts.find(acc => acc.accountId === plaidAccount.account_id);
+              if (dbAccount) {
+                await prisma.accounts.update({
+                  where: { id: dbAccount.id },
+                  data: {
+                    currentBalance: plaidAccount.balances.current || 0,
+                    availableBalance: plaidAccount.balances.available || 0
+                  }
+                });
               }
-            });
+            }
           }
-        }
-      }
 
           for (const txn of response.data.transactions) {
             const account = item.accounts.find(acc => acc.accountId === txn.account_id);
@@ -82,7 +81,6 @@ export async function POST() {
                 merchantName: txn.merchant_name,
                 category: txn.category?.join(', '),
                 pending: txn.pending || false,
-                
                 authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
                 authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
                 counterparties: (txn as any).counterparties || null,
@@ -119,7 +117,7 @@ export async function POST() {
         console.error('Error syncing transactions:', error);
       }
 
-      // Sync investment transactions (keeping existing code)
+      // Sync investment transactions + securities
       try {
         let offset = 0;
         let hasMore = true;
@@ -135,6 +133,40 @@ export async function POST() {
             }
           });
 
+          // STORE SECURITIES DATA (includes option contract details)
+          for (const security of investResponse.data.securities) {
+            const optionContract = (security as any).option_contract;
+            
+            await prisma.securities.upsert({
+              where: { securityId: security.security_id },
+              create: {
+                securityId: security.security_id,
+                isin: security.isin,
+                cusip: security.cusip,
+                sedol: security.sedol,
+                ticker_symbol: security.ticker_symbol,
+                name: security.name,
+                type: security.type,
+                close_price: security.close_price,
+                close_price_as_of: security.close_price_as_of ? new Date(security.close_price_as_of) : null,
+                option_contract_type: optionContract?.contract_type || null,
+                option_strike_price: optionContract?.strike_price || null,
+                option_expiration_date: optionContract?.expiration_date ? new Date(optionContract.expiration_date) : null,
+                option_underlying_ticker: optionContract?.underlying_security_ticker || null
+              },
+              update: {
+                close_price: security.close_price,
+                close_price_as_of: security.close_price_as_of ? new Date(security.close_price_as_of) : null,
+                option_contract_type: optionContract?.contract_type || null,
+                option_strike_price: optionContract?.strike_price || null,
+                option_expiration_date: optionContract?.expiration_date ? new Date(optionContract.expiration_date) : null,
+                option_underlying_ticker: optionContract?.underlying_security_ticker || null
+              }
+            });
+            totalSecurities++;
+          }
+
+          // STORE INVESTMENT TRANSACTIONS
           for (const txn of investResponse.data.investment_transactions) {
             const account = item.accounts.find(acc => acc.accountId === txn.account_id);
             if (!account) continue;
@@ -175,7 +207,8 @@ export async function POST() {
       success: true,
       synced: {
         transactions: totalTransactions,
-        investmentTransactions: totalInvestmentTransactions
+        investmentTransactions: totalInvestmentTransactions,
+        securities: totalSecurities
       }
     });
   } catch (error) {
