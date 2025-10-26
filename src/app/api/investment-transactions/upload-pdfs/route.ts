@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const files = formData.getAll('pdfs') as File[];
 
+    console.log('📁 Files received:', files.length);
+
     if (files.length === 0) {
       return NextResponse.json({ error: 'No PDFs uploaded' }, { status: 400 });
     }
@@ -32,12 +34,18 @@ export async function POST(req: NextRequest) {
       
       for (const file of batch) {
         try {
+          console.log('📄 Processing file:', file.name, 'Size:', file.size);
+          
           // Convert PDF to base64
           const bytes = await file.arrayBuffer();
           const buffer = Buffer.from(bytes);
           const base64 = buffer.toString('base64');
 
+          console.log('✅ File converted to base64, length:', base64.length);
+
           // Extract with GPT-4o Vision
+          console.log('🤖 Calling GPT-4o...');
+          
           const completion = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [
@@ -80,18 +88,25 @@ Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If sto
             max_tokens: 2000
           });
 
+          console.log('✅ GPT-4o responded');
+          
           const result = completion.choices[0]?.message?.content;
+          console.log('📊 Result:', result?.substring(0, 200));
+          
           if (result) {
             const transactions = JSON.parse(result);
+            console.log('✅ Parsed transactions:', transactions.length);
             allExtractedTransactions.push(...transactions);
           }
 
           processedCount++;
         } catch (error) {
-          console.error(`Error processing ${file.name}:`, error);
+          console.error(`❌ Error processing ${file.name}:`, error);
         }
       }
     }
+
+    console.log('📊 Total extracted:', allExtractedTransactions.length);
 
     // Now match extracted transactions to existing Plaid data
     const existingTransactions = await prisma.investment_transactions.findMany({
@@ -147,7 +162,7 @@ Return as JSON array. Include ALL fee fields (Comm, Contr Fee, Tran Fee). If sto
     });
 
   } catch (error) {
-    console.error('PDF upload error:', error);
+    console.error('❌ PDF upload error:', error);
     return NextResponse.json({ 
       error: 'Failed to process PDFs',
       details: error instanceof Error ? error.message : 'Unknown error'
