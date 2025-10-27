@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import OpenAI from 'openai';
+import { parseRobinhoodPDF } from '@/lib/robinhood-parser';
 import { PDFParse } from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
@@ -13,9 +13,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     const formData = await req.formData();
     const files = formData.getAll('pdfs') as File[];
@@ -48,70 +45,12 @@ export async function POST(req: NextRequest) {
           console.log('✅ Text extracted, length:', pdfText.length);
           console.log('📄 First 500 chars:', pdfText.substring(0, 500));
 
-          // Extract with GPT-4o (text mode, not vision)
-          console.log('🤖 Calling GPT-4o...');
-          
-          const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are a data extraction expert specializing in Robinhood trade confirmation PDFs. Extract ALL transaction data and return valid JSON only - no markdown, no code blocks, just pure JSON.'
-              },
-              {
-                role: 'user',
-                content: `Extract all transactions from this Robinhood trade confirmation text. 
 
-For each transaction, return this exact structure:
-{
-  "symbol": "NVDA",
-  "strike": 150.00,
-  "expiry": "2025-07-25",
-  "contractType": "CALL" or "PUT",
-  "action": "B" or "S" or "BTC" or "STO",
-  "quantity": 1,
-  "price": 7.30,
-  "principal": 730.00,
-  "fees": 0.04,
-  "tranFee": 0.04,
-  "contrFee": 0.00,
-  "netAmount": 730.04,
-  "tradeDate": "2025-06-25"
-}
-
-Return as JSON array with no markdown formatting. For stock transactions, set strike/expiry/contractType to null.
-
-PDF TEXT:
-${pdfText}`
-              }
-            ],
-            temperature: 0,
-            max_tokens: 4000
-          });
-
-          console.log('✅ GPT-4o responded');
-          
-          let result = completion.choices[0]?.message?.content || '';
-          console.log('📊 Raw result:', result.substring(0, 300));
-          
-          // Clean up markdown formatting if present
-          result = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          
-          if (result) {
-            try {
-              const transactions = JSON.parse(result);
-              console.log('✅ Parsed transactions:', Array.isArray(transactions) ? transactions.length : 'not an array');
-              
-              if (Array.isArray(transactions)) {
-                allExtractedTransactions.push(...transactions);
-              } else {
-                console.error('❌ Result is not an array:', transactions);
-              }
-            } catch (parseError) {
-              console.error('❌ JSON parse error:', parseError);
-              console.error('Failed to parse:', result);
-            }
-          }
+          // Extract with regex parser
+          console.log('🔍 Parsing PDF with regex...');
+          const transactions = parseRobinhoodPDF(pdfText);
+          console.log('✅ Parsed transactions:', transactions.length);
+          allExtractedTransactions.push(...transactions);
 
           processedCount++;
         } catch (error) {
