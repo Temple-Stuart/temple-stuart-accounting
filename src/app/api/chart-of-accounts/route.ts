@@ -4,12 +4,12 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const entityType = searchParams.get('entityType') || null;
+    const entity_type = searchParams.get('entity_type') || null;
     
-    const accounts = await prisma.chartOfAccount.findMany({
+    const accounts = await prisma.chart_of_accounts.findMany({
       where: {
-        isArchived: false,
-        ...(entityType && { entityType })
+        is_archived: false,
+        ...(entity_type && { entity_type })
       },
       orderBy: [
         { code: 'asc' }
@@ -21,13 +21,13 @@ export async function GET(request: Request) {
       id: acc.id,
       code: acc.code,
       name: acc.name,
-      accountType: acc.accountType,
-      balanceType: acc.balanceType,
-      settledBalance: Number(acc.settledBalance),
-      pendingBalance: Number(acc.pendingBalance),
+      accountType: acc.account_type,
+      balanceType: acc.balance_type,
+      settledBalance: Number(acc.settled_balance),
+      pendingBalance: Number(acc.pending_balance),
       version: Number(acc.version),
-      isArchived: acc.isArchived,
-      entityType: acc.entityType,
+      is_archived: acc.is_archived,
+      entity_type: acc.entity_type,
       createdAt: acc.createdAt,
       updatedAt: acc.updatedAt
     }));

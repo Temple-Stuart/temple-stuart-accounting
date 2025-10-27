@@ -267,8 +267,11 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
               <th className="px-2 py-2 text-right">Price</th>
               <th className="px-2 py-2 text-right">Amount</th>
               <th className="px-2 py-2 text-right">Fees</th>
-              <th className="px-2 py-2 text-left bg-yellow-50 min-w-[120px]">Strategy</th>
-              <th className="px-2 py-2 text-left bg-yellow-50 min-w-[180px]">COA</th>
+              <th className="px-2 py-2 text-right bg-blue-50">RH Fees</th>
+              <th className="px-2 py-2 text-right bg-blue-50">RH Tran</th>
+              <th className="px-2 py-2 text-right bg-blue-50">RH Contr</th>
+              <th className="px-2 py-2 text-center bg-blue-50">RH Action</th>
+              <th className="px-2 py-2 text-center bg-blue-50">Recon</th>
               <th className="px-2 py-2 text-center bg-blue-50 min-w-[60px]">Trade #</th>
             </tr>
           </thead>
@@ -338,6 +341,19 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
                     ${Math.abs(txn.amount || 0).toFixed(2)}
                   </td>
                   <td className="px-2 py-2 text-right">${txn.fees || 0}</td>
+                  <td className="px-2 py-2 text-right bg-blue-50">${txn.rhFees ? txn.rhFees.toFixed(4) : "-"}</td>
+                  <td className="px-2 py-2 text-right bg-blue-50">${txn.rhTranFee ? txn.rhTranFee.toFixed(4) : "-"}</td>
+                  <td className="px-2 py-2 text-right bg-blue-50">${txn.rhContrFee ? txn.rhContrFee.toFixed(4) : "-"}</td>
+                  <td className="px-2 py-2 text-center bg-blue-50">{txn.rhAction || "-"}</td>
+                  <td className="px-2 py-2 text-center bg-blue-50">
+                    {txn.reconciliationStatus ? (
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        txn.reconciliationStatus === "matched" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {txn.reconciliationStatus}
+                      </span>
+                    ) : "-"}
+                  </td>
                   <td className="px-2 py-1 bg-yellow-50">
                     <select 
                       value={investmentRowChanges[txnId]?.strategy || ""}

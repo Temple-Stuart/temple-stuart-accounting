@@ -21,16 +21,16 @@ export async function GET() {
 
     const transactions = await prisma.transactions.findMany({
       where: {
-        account: {
+        accounts: {
           userId: user.id
         }
       },
       include: {
-        account: {
+        accounts: {
           select: {
             name: true,
             type: true,
-            plaidItem: {
+            plaid_items: {
               select: {
                 institutionName: true
               }

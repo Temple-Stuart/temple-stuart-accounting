@@ -21,7 +21,7 @@ export async function GET() {
 
     const investmentTxns = await prisma.investment_transactions.findMany({
       where: {
-        account: {
+        accounts: {
           userId: user.id
         }
       },

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
           const buffer = Buffer.from(bytes);
           
           console.log('📖 Extracting text from PDF...');
-          const pdfData = await pdf(buffer);
+          const parser = new PDFParse({ data: buffer }); const pdfData = await parser.getText();
           const pdfText = pdfData.text;
           
           console.log('✅ Text extracted, length:', pdfText.length);
@@ -131,7 +131,7 @@ ${pdfText}`
 
     const existingTransactions = await prisma.investment_transactions.findMany({
       where: {
-        account: {
+        accounts: {
           userId: user.id
         }
       },
@@ -176,6 +176,30 @@ ${pdfText}`
     });
 
     console.log('📊 Matched data:', matchedData.length);
+
+    // Save RH data to matched transactions
+    const updatePromises = matchedData
+      .filter(m => m.plaidData) // Only update matched transactions
+      .map(m => 
+        prisma.investment_transactions.update({
+          where: { id: m.plaidData!.id },
+          data: {
+            rhQuantity: m.robinhoodData.quantity,
+            rhPrice: m.robinhoodData.price,
+            rhPrincipal: m.robinhoodData.principal,
+            rhFees: m.robinhoodData.fees,
+            rhTranFee: m.robinhoodData.tranFee,
+            rhContrFee: m.robinhoodData.contrFee,
+            rhNetAmount: m.robinhoodData.netAmount,
+            rhAction: m.robinhoodData.action,
+            reconciliationStatus: m.matchStatus,
+            isReconciled: false,
+          }
+        })
+      );
+
+    await Promise.all(updatePromises);
+    console.log('💾 Saved RH data to', updatePromises.length, 'matched transactions');
 
     return NextResponse.json({
       success: true,
