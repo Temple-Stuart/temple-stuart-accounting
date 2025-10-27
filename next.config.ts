@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('pdf-parse', '@napi-rs/canvas', 'pdfjs-dist');
+    }
+    return config;
+  },
   async headers() {
     return [
       {
