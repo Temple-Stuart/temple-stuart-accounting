@@ -83,10 +83,10 @@ export async function POST(request: Request) {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
           merchant_name,
-          plaidCategoryPrimary,
-          plaidCategoryDetailed,
-          coaCode,
-          sub_account: sub_account: subAccount,
+          plaid_category_primary: plaidCategoryPrimary,
+          plaid_category_detailed: plaidCategoryDetailed,
+          coa_code: coaCode,
+          sub_account: subAccount,
           confidence_score: 0.5
         }
       });
