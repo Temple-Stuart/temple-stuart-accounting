@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
               await prisma.merchant_coa_mappings.update({
                 where: { id: wrongMapping.id },
                 data: {
-                  confidenceScore: newConfidence,
-                  lastUsedAt: new Date()
+                  confidence_score: newConfidence,
+                  last_used_at: new Date()
                 }
               });
             }
@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
               where: { id: existing.id },
               data: {
                 usageCount: { increment: 1 },
-                confidenceScore: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
-                lastUsedAt: new Date()
+                confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
+                last_used_at: new Date()
               }
             });
           } else if (!existing || existing.coaCode !== accountCode) {
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
                 plaidCategoryDetailed: categoryDetailed,
                 coaCode: accountCode,
                 subAccount: subAccount || null,
-                confidenceScore: wasOverridden ? 0.6 : 0.5
+                confidence_score: wasOverridden ? 0.6 : 0.5
               }
             });
           }
