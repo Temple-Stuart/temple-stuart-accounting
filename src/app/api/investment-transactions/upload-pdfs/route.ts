@@ -82,19 +82,28 @@ export async function POST(req: NextRequest) {
     console.log('📊 Existing Plaid transactions:', existingTransactions.length);
 
     const matchedData = allExtractedTransactions.map(rhTxn => {
+      console.log(`🔍 Trying to match RH: ${rhTxn.symbol} ${rhTxn.action} qty=${rhTxn.quantity} strike=${rhTxn.strike} date=${rhTxn.tradeDate}`);
+      let matchAttempts = 0;
+      
       // Try to match with existing Plaid transaction
       const match = existingTransactions.find(plaidTxn => {
         const dateDiff = Math.abs(
           new Date(rhTxn.tradeDate).getTime() - new Date(plaidTxn.date).getTime()
         ) / (1000 * 60 * 60 * 24);
         
-        const symbolMatch = rhTxn.symbol === (plaidTxn.security?.ticker_symbol || '');
+        // Extract underlying ticker from option symbol (e.g., "NVDA250725C00150000" -> "NVDA")
+        const plaidSymbol = (plaidTxn.security?.ticker_symbol || '').match(/^[A-Z]+/)?.[0] || '';
+        const symbolMatch = rhTxn.symbol === plaidSymbol;
         const strikeMatch = Math.abs((rhTxn.strike || 0) - (plaidTxn.security?.option_strike_price || 0)) < 0.01;
         const qtyMatch = Math.abs(rhTxn.quantity - (plaidTxn.quantity || 0)) < 0.01;
         
+        matchAttempts++;
+        if (matchAttempts <= 3) {
+          console.log(`  Attempt ${matchAttempts}: Plaid ${plaidTxn.security?.ticker_symbol || "?"} qty=${plaidTxn.quantity} strike=${plaidTxn.security?.option_strike_price} - dateDiff=${dateDiff.toFixed(2)} symbolMatch=${symbolMatch} strikeMatch=${strikeMatch} qtyMatch=${qtyMatch}`);
+        }
+        
         return dateDiff <= 1 && symbolMatch && strikeMatch && qtyMatch;
       });
-
       return {
         robinhoodData: rhTxn,
         plaidData: match ? {
