@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       });
     } else {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        orderBy: { lastUsedAt: 'desc' },
+        orderBy: { last_used_at: 'desc' },
         take: 50
       });
     }
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         data: {
           usage_count: { increment: 1 },
           confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
-          lastUsedAt: new Date()
+          last_used_at: new Date()
         }
       });
       return NextResponse.json({ mapping: updated, action: 'updated' });
