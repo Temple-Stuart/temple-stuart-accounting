@@ -18,7 +18,7 @@ export async function GET() {
     const accountMap = new Map<string, any>();
 
     ledgerEntries.forEach(entry => {
-      const accountId = entry.accountId;
+      const accountId = entry.account_id;
       
       if (!accountMap.has(accountId)) {
         accountMap.set(accountId, {
