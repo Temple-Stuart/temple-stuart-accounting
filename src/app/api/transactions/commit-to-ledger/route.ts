@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
         );
         
         // LEARNING LOOP: Detect override
-        const wasOverridden = !!(plaidTxn.predictedCoaCode && 
-                               plaidTxn.predictedCoaCode !== accountCode);
+        const wasOverridden = !!(plaidTxn.predicted_coa_code && 
+                               plaidTxn.predicted_coa_code !== accountCode);
         
         if (wasOverridden && plaidTxn.merchantName) {
           const merchantName = plaidTxn.merchantName;
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          if (wrongMapping && wrongMapping.coaCode === plaidTxn.predictedCoaCode) {
+          if (wrongMapping && wrongMapping.coaCode === plaidTxn.predicted_coa_code) {
             const newConfidence = Math.max(0, wrongMapping.confidenceScore.toNumber() - 0.2);
             
             if (newConfidence < 0.3) {
