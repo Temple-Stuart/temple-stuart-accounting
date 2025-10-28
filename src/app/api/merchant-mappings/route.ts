@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     
     if (merchantName) {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
+        where: { merchant_name: { contains: merchant_name, mode: 'insensitive' } },
         orderBy: [
           { confidence_score: 'desc' },
           { usage_count: 'desc' }
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { merchantName, plaidCategoryPrimary, plaidCategoryDetailed, coaCode, subAccount } = body;
+    const { merchant_name, plaidCategoryPrimary, plaidCategoryDetailed, coaCode, subAccount } = body;
     
     if (!merchantName || !coaCode) {
       return NextResponse.json(
@@ -62,8 +62,8 @@ export async function POST(request: Request) {
     
     const existing = await prisma.merchant_coa_mappings.findUnique({
       where: {
-        merchantName_plaid_category_primary: {
-          merchantName,
+        merchant_name_plaid_category_primary: {
+          merchant_name,
           plaid_category_primary: plaidCategoryPrimary || ''
         }
       }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     } else {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
-          merchantName,
+          merchant_name,
           plaidCategoryPrimary,
           plaidCategoryDetailed,
           coaCode,
