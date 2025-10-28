@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { journalEntryService } from '@/lib/journal-entry-service';
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
           } else if (!existing || existing.coa_code !== accountCode) {
             await prisma.merchant_coa_mappings.create({
               data: {
+                id: randomUUID(),
                 merchant_name: merchantName,
                 plaid_category_primary: categoryPrimary,
                 plaid_category_detailed: categoryDetailed,
