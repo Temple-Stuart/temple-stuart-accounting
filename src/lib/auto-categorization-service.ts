@@ -21,23 +21,23 @@ export class AutoCategorizationService {
     
     // Try merchant mapping first (highest confidence)
     if (merchantName && categoryPrimary) {
-      const merchantMapping = await prisma.merchantCoaMapping.findFirst({
+      const merchantMapping = await prisma.merchant_coa_mappings.findFirst({
         where: {
-          merchantName: {
+          merchant_name: {
             contains: merchantName,
             mode: 'insensitive'
           },
-          plaidCategoryPrimary: categoryPrimary
+          plaid_category_primary: categoryPrimary
         },
         orderBy: {
-          confidenceScore: 'desc'
+          confidence_score: 'desc'
         }
       });
       
-      if (merchantMapping && merchantMapping.confidenceScore.toNumber() > 0.5) {
+      if (merchantMapping && merchantMapping.confidence_score.toNumber() > 0.5) {
         return {
-          coaCode: merchantMapping.coaCode,
-          confidence: merchantMapping.confidenceScore.toNumber(),
+          coa_code: merchantMapping.coa_code,
+          confidence: merchantMapping.confidence_score.toNumber(),
           source: 'merchant_mapping'
         };
       }
@@ -103,7 +103,7 @@ export class AutoCategorizationService {
           await prisma.transactions.update({
             where: { id: txn.id },
             data: {
-              predictedCoaCode: prediction.coaCode,
+              predicted_coa_code: prediction.coaCode,
               predictionConfidence: new Prisma.Decimal(prediction.confidence),
               reviewStatus: 'pending_review'
             }
