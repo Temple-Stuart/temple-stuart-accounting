@@ -23,7 +23,7 @@ export async function GET() {
       ledger_entries: je.ledger_entries.map(le => ({
         id: le.id,
         accountCode: le.chart_of_accounts.code,
-        entryType: le.entryType,
+        entryType: le.entry_type,
         amount: Number(le.amount),
         chart_of_accounts: {
           code: le.chart_of_accounts.code,
