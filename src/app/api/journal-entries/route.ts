@@ -7,7 +7,7 @@ export async function GET() {
       include: {
         ledger_entries: {
           include: {
-            account: true
+            chart_of_accounts: true
           }
         }
       },
