@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const ledgerEntries = await prisma.ledgerEntry.findMany({
+    const ledgerEntries = await prisma.ledger_entries.findMany({
       include: {
-        account: true,
-        transaction: true
+        chart_of_accounts: true,
+        journal_transactions: true
       },
       orderBy: [
         { accountId: 'asc' },
@@ -22,10 +22,10 @@ export async function GET() {
       
       if (!accountMap.has(accountId)) {
         accountMap.set(accountId, {
-          accountCode: entry.account.code,
-          accountName: entry.account.name,
-          accountType: entry.account.account_type,
-          balanceType: entry.account.balance_type,
+          accountCode: entry.chart_of_accounts.code,
+          accountName: entry.chart_of_accounts.name,
+          accountType: entry.chart_of_accounts.account_type,
+          balanceType: entry.chart_of_accounts.balance_type,
           entries: [],
           runningBalance: 0
         });
@@ -34,7 +34,7 @@ export async function GET() {
       const account = accountMap.get(accountId);
       
       // Calculate running balance
-      const isNormalBalance = entry.entryType === entry.account.balance_type;
+      const isNormalBalance = entry.entry_type === entry.chart_of_accounts.balance_type;
       const change = isNormalBalance ? Number(entry.amount) : -Number(entry.amount);
       account.runningBalance += change;
 
@@ -42,7 +42,7 @@ export async function GET() {
         id: entry.id,
         date: entry.transaction.transactionDate,
         description: entry.transaction.description || 'No description',
-        entryType: entry.entryType,
+        entryType: entry.entry_type,
         amount: Number(entry.amount) / 100,
         runningBalance: account.runningBalance / 100
       });
