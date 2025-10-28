@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        const institutionName = plaidTxn.account?.plaid_items?.institutionName?.toLowerCase() || '';
-        const accountType = plaidTxn.account?.type?.toLowerCase() || '';
+        const institutionName = plaidTxn.accounts?.plaid_items?.institutionName?.toLowerCase() || '';
+        const accountType = plaidTxn.accounts?.type?.toLowerCase() || '';
         
         let bankAccountCode = 'P-1010';
         
