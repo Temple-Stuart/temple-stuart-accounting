@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const journalEntries = await prisma.journalTransaction.findMany({
+    const journalEntries = await prisma.journal_transactions.findMany({
       include: {
-        ledgerEntries: {
+        ledger_entries: {
           include: {
             account: true
           }
@@ -20,7 +20,7 @@ export async function GET() {
       date: je.transactionDate,
       description: je.description || 'No description',
       createdAt: je.created_at,
-      ledgerEntries: je.ledgerEntries.map(le => ({
+      ledger_entries: je.ledgerEntries.map(le => ({
         id: le.id,
         accountCode: le.account.code,
         entryType: le.entryType,
