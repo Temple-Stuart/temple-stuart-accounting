@@ -51,9 +51,9 @@ export async function GET() {
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-    const oldJournals = await prisma.journalTransaction.findMany({
+    const oldJournals = await prisma.journal_transactions.findMany({
       where: {
-        transactionDate: { lt: threeMonthsAgo }
+        transaction_date: { lt: threeMonthsAgo }
       },
       include: {
         ledgerEntries: {
