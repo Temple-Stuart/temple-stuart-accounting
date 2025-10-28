@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          if (wrongMapping && wrongMapping.coaCode === plaidTxn.predicted_coa_code) {
-            const newConfidence = Math.max(0, wrongMapping.confidenceScore.toNumber() - 0.2);
+          if (wrongMapping && wrongMapping.coa_code === plaidTxn.predicted_coa_code) {
+            const newConfidence = Math.max(0, wrongMapping.confidence_score.toNumber() - 0.2);
             
             if (newConfidence < 0.3) {
               await prisma.merchant_coa_mappings.delete({
