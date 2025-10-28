@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function verify() {
-  const tradingAccounts = await prisma.chartOfAccount.findMany({
+  const tradingAccounts = await prisma.chart_of_accounts.findMany({
     where: { entityType: 'trading' },
     orderBy: { code: 'asc' }
   });
