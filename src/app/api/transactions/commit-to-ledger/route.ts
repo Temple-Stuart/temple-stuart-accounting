@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
               where: { id: existing.id },
               data: {
                 usage_count: { increment: 1 },
-                confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
+                confidence_score: Math.min(0.99, existing.confidence_score.toNumber() + 0.1),
                 last_used_at: new Date()
               }
             });
