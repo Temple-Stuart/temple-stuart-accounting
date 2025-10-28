@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { merchant_name, plaid_category_primary: plaid_category_primary: plaidCategoryPrimary, plaid_category_detailed: plaid_category_detailed: plaidCategoryDetailed, coa_code: coa_code: coaCode, subAccount } = body;
+    const { merchant_name, plaidCategoryPrimary, plaidCategoryDetailed, coaCode, subAccount } = body;
     
     if (!merchant_name || !coaCode) {
       return NextResponse.json(
@@ -83,9 +83,9 @@ export async function POST(request: Request) {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
           merchant_name,
-          plaid_category_primary: plaid_category_primary: plaidCategoryPrimary,
-          plaid_category_detailed: plaid_category_detailed: plaidCategoryDetailed,
-          coa_code: coa_code: coaCode,
+          plaidCategoryPrimary,
+          plaidCategoryDetailed,
+          coaCode,
           sub_account: sub_account: subAccount,
           confidence_score: 0.5
         }
