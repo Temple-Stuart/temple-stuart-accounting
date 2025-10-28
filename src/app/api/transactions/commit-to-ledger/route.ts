@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
             where: {
               merchant_name_plaid_category_primary: {
                 merchant_name: merchantName,
-                plaid_category_primary: categoryPrimary categoryPrimary || ''
+                plaid_category_primary: categoryPrimary || ''
               }
             }
           });
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
             where: {
               merchant_name_plaid_category_primary: {
                 merchant_name: merchantName,
-                plaid_category_primary: categoryPrimary categoryPrimary || ''
+                plaid_category_primary: categoryPrimary || ''
               }
             }
           });
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
             await prisma.merchant_coa_mappings.create({
               data: {
                 merchant_name: merchantName,
-                plaid_category_primary: categoryPrimary categoryPrimary,
+                plaid_category_primary: categoryPrimary,
                 plaidCategoryDetailed: categoryDetailed,
                 coaCode: accountCode,
                 subAccount: subAccount || null,
