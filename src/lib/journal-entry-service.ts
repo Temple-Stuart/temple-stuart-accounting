@@ -51,10 +51,10 @@ export class JournalEntryService {
           description,
           plaid_transaction_id: plaidTransactionId,
           external_transaction_id: externalTransactionId,
-          accountCode,
+          account_code: accountCode,
           amount,
           strategy,
-          tradeNum,
+          trade_num: tradeNum,
           postedAt: new Date(),
         }
       });
