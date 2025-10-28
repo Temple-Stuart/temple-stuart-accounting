@@ -82,7 +82,7 @@ export class AutoCategorizationService {
     const pendingTransactions = await prisma.transactions.findMany({
       where: {
         accountCode: null,
-        predictedCoaCode: null
+        predicted_coa_code: null
       }
     });
     
