@@ -33,7 +33,7 @@ export class JournalEntryService {
     }
     
     const accountCodes = lines.map(l => l.accountCode);
-    const accounts = await prisma.chartOfAccount.findMany({
+    const accounts = await prisma.chart_of_accounts.findMany({
       where: { code: { in: accountCodes } }
     });
     
@@ -71,14 +71,14 @@ export class JournalEntryService {
           }
         });
         
-        const balanceChange = line.entryType === account.balanceType 
+        const balanceChange = line.entryType === account.balance_type 
           ? BigInt(line.amount) 
           : BigInt(-line.amount);
         
         await tx.chartOfAccount.update({
           where: { id: account.id },
           data: { 
-            settledBalance: { increment: balanceChange },
+            settled_balance: { increment: balanceChange },
             version: { increment: 1 }
           }
         });
