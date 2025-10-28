@@ -19,7 +19,7 @@ export async function GET() {
       id: je.id,
       date: je.transactionDate,
       description: je.description || 'No description',
-      createdAt: je.createdAt,
+      createdAt: je.created_at,
       ledgerEntries: je.ledgerEntries.map(le => ({
         id: le.id,
         accountCode: le.account.code,

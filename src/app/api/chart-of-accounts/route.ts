@@ -28,8 +28,8 @@ export async function GET(request: Request) {
       version: Number(acc.version),
       is_archived: acc.is_archived,
       entity_type: acc.entity_type,
-      createdAt: acc.createdAt,
-      updatedAt: acc.updatedAt
+      createdAt: acc.created_at,
+      updatedAt: acc.updated_at
     }));
 
     return NextResponse.json({ accounts: serializedAccounts });
