@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       const updated = await prisma.merchant_coa_mappings.update({
         where: { id: existing.id },
         data: {
+          id: randomUUID(),
           usage_count: { increment: 1 },
           confidence_score: Math.min(0.99, existing.confidence_score.toNumber() + 0.1),
           last_used_at: new Date()
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
     } else {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
+          id: randomUUID(),
           merchant_name,
           plaid_category_primary: plaidCategoryPrimary,
           plaid_category_detailed: plaidCategoryDetailed,
