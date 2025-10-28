@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     for (const tx of txResponse.data.added) {
       const account = await prisma.accounts.findFirst({
-        where: { account_id: tx.account_id }
+        where: { accountId: tx.account_id }
       });
       
       if (account) {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     for (const acc of balances.data.accounts) {
       await prisma.accounts.updateMany({
-        where: { account_id: acc.account_id },
+        where: { accountId: acc.account_id },
         data: {
           currentBalance: acc.balances.current || 0,
           availableBalance: acc.balances.available || 0
