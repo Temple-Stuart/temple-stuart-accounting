@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const periods = await prisma.closingPeriod.findMany({
-      orderBy: { periodEnd: 'desc' }
+    const periods = await prisma.closing_periods.findMany({
+      orderBy: { period_end: 'desc' }
     });
 
     return NextResponse.json({ periods });
