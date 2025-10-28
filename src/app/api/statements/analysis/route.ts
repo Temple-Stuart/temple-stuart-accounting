@@ -7,11 +7,11 @@ export async function GET(request: Request) {
     const period = searchParams.get('period') || 'monthly';
 
     // Get all journal entries with ledger entries
-    const journalEntries = await prisma.journalTransaction.findMany({
+    const journalEntries = await prisma.journal_transactions.findMany({
       include: {
-        ledgerEntries: {
+        ledger_entries: {
           include: {
-            account: true
+            chart_of_accounts: true
           }
         }
       },
@@ -47,10 +47,10 @@ export async function GET(request: Request) {
 
       const periodData = periodMap.get(periodKey);
 
-      je.ledgerEntries.forEach(le => {
+      je.ledger_entries.forEach(le => {
         const amount = Number(le.amount) / 100;
-        const accountType = le.account.account_type.toLowerCase();
-        const isNormalBalance = le.entryType === le.account.balance_type;
+        const accountType = le.chart_of_accounts.account_type.toLowerCase();
+        const isNormalBalance = le.entry_type === le.chart_of_accounts.balance_type;
         const effectiveAmount = isNormalBalance ? amount : -amount;
 
         if (accountType === 'revenue') {
