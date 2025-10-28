@@ -144,9 +144,9 @@ export default function ChartOfAccountsTab() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        account.is_archived ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
+                        account.isArchived ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
                       }`}>
-                        {account.is_archived ? 'Archived' : 'Active'}
+                        {account.isArchived ? 'Archived' : 'Active'}
                       </span>
                     </td>
                   </tr>
