@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     
     if (merchantName) {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        where: { merchant_name: { contains: merchant_name, mode: 'insensitive' } },
+        where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
         orderBy: [
           { confidence_score: 'desc' },
           { usage_count: 'desc' }
