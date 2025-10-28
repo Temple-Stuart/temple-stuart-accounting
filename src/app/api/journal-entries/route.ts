@@ -11,23 +11,23 @@ export async function GET() {
           }
         }
       },
-      orderBy: { transactionDate: 'desc' }
+      orderBy: { transaction_date: 'desc' }
     });
 
     // Convert BigInt to number for JSON serialization
     const entries = journalEntries.map(je => ({
       id: je.id,
-      date: je.transactionDate,
+      date: je.transaction_date,
       description: je.description || 'No description',
       createdAt: je.created_at,
-      ledger_entries: je.ledgerEntries.map(le => ({
+      ledger_entries: je.ledger_entries.map(le => ({
         id: le.id,
-        accountCode: le.account.code,
+        accountCode: le.chart_of_accounts.code,
         entryType: le.entryType,
         amount: Number(le.amount),
         chart_of_accounts: {
-          code: le.account.code,
-          name: le.account.name
+          code: le.chart_of_accounts.code,
+          name: le.chart_of_accounts.name
         }
       }))
     }));
