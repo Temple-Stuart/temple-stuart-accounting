@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       try {
         const plaidTxn = await prisma.transactions.findUnique({
           where: { id: txnId },
-          include: { account: { include: { plaid_items: true } } }
+          include: { accounts: { include: { plaid_items: true } } }
         });
         
         if (!plaidTxn) {
