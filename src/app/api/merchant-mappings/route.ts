@@ -16,7 +16,7 @@ export async function GET(request: Request) {
         where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
         orderBy: [
           { confidence_score: 'desc' },
-          { usageCount: 'desc' }
+          { usage_count: 'desc' }
         ],
         take: 5
       });
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
         where: { plaidCategoryPrimary: categoryPrimary },
         orderBy: [
           { confidence_score: 'desc' },
-          { usageCount: 'desc' }
+          { usage_count: 'desc' }
         ],
         take: 10
       });
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       const updated = await prisma.merchant_coa_mappings.update({
         where: { id: existing.id },
         data: {
-          usageCount: { increment: 1 },
+          usage_count: { increment: 1 },
           confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
           lastUsedAt: new Date()
         }
