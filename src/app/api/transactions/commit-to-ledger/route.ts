@@ -89,8 +89,8 @@ export async function POST(request: NextRequest) {
           data: { 
             accountCode, 
             subAccount: subAccount || null,
-            manuallyOverridden: wasOverridden,
-            overriddenAt: wasOverridden ? new Date() : null
+            manually_overridden: wasOverridden,
+            overridden_at: wasOverridden ? new Date() : null
           }
         });
         
