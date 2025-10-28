@@ -54,13 +54,13 @@ export function parseRobinhoodPDF(text: string): RobinhoodTransaction[] {
       
       // Expected: settleDate acctType price qty principal comm contrFee tranFee netAmount
       if (parts.length >= 9) {
-        const price = parseFloat(parts[1].replace(/[$,]/g, ''));
-        const quantity = parseInt(parts[2]);
-        const principal = parseFloat(parts[3].replace(/[$,]/g, ''));
-        const comm = parseFloat(parts[4].replace(/[$,]/g, ''));
-        const contrFee = parseFloat(parts[5].replace(/[$,]/g, ''));
-        const tranFee = parseFloat(parts[6].replace(/[$,]/g, ''));
-        const netAmount = parseFloat(parts[7].replace(/[$,]/g, ''));
+        const price = parseFloat(parts[2].replace(/[$,]/g, ''));
+        const quantity = parseInt(parts[3]);
+        const principal = parseFloat(parts[4].replace(/[$,]/g, ''));
+        const comm = parseFloat(parts[5].replace(/[$,]/g, ''));
+        const contrFee = parseFloat(parts[6].replace(/[$,]/g, ''));
+        const tranFee = parseFloat(parts[7].replace(/[$,]/g, ''));
+        const netAmount = parseFloat(parts[8].replace(/[$,]/g, ''));
         
         transactions.push({
           symbol,
