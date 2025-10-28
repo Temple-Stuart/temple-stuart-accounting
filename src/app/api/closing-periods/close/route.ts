@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { journalEntryService } from '@/lib/journal-entry-service';
@@ -95,12 +96,14 @@ export async function POST(request: Request) {
     // Create closing period record
     const closingPeriod = await prisma.closing_periods.create({
       data: {
+        id: randomUUID(),
         periodEnd: new Date(periodEnd),
         periodType,
         status: 'closed',
         closedAt: new Date(),
         closedBy: 'system',
-        closingEntryId
+        closingEntryId,
+        updatedAt: new Date()
       }
     });
 
@@ -108,7 +111,8 @@ export async function POST(request: Request) {
       success: true,
       periodId: closingPeriod.id,
       netIncome,
-      closingEntryId
+      closingEntryId,
+        updatedAt: new Date()
     });
   } catch (error) {
     console.error('Close period error:', error);
