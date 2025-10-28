@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           where: { id: txnId },
           data: { 
             accountCode, 
-            subAccount: subAccount || null,
+            sub_account: subAccount || null,
             manually_overridden: wasOverridden,
             overridden_at: wasOverridden ? new Date() : null
           }
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
                 plaid_category_primary: categoryPrimary,
                 plaid_category_detailed: categoryDetailed,
                 coa_code: accountCode,
-                subAccount: subAccount || null,
+                sub_account: subAccount || null,
                 confidence_score: wasOverridden ? 0.6 : 0.5
               }
             });
