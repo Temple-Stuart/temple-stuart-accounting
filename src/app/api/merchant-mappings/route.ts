@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       });
     } else if (categoryPrimary) {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        where: { plaidCategoryPrimary: categoryPrimary },
+        where: { plaid_category_primary: categoryPrimary },
         orderBy: [
           { confidence_score: 'desc' },
           { usage_count: 'desc' }
@@ -62,9 +62,9 @@ export async function POST(request: Request) {
     
     const existing = await prisma.merchant_coa_mappings.findUnique({
       where: {
-        merchantName_plaidCategoryPrimary: {
+        merchantName_plaid_category_primary: {
           merchantName,
-          plaidCategoryPrimary: plaidCategoryPrimary || ''
+          plaid_category_primary: plaidCategoryPrimary || ''
         }
       }
     });
