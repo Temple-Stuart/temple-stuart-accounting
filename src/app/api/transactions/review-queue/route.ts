@@ -47,11 +47,11 @@ export async function GET() {
       merchantName: txn.merchantName || txn.name,
       amount: txn.amount,
       category: (txn.personal_finance_category as any)?.primary || null,
-      predictedCoaCode: txn.predictedCoaCode,
-      predictionConfidence: txn.predictionConfidence ? Number(txn.predictionConfidence) : null,
+      predictedCoaCode: txn.predicted_coa_code,
+      predictionConfidence: txn.prediction_confidence ? Number(txn.prediction_confidence) : null,
       accountCode: txn.accountCode,
-      accountName: txn.account?.name,
-      institutionName: txn.account?.plaid_items?.institutionName
+      accountName: txn.accounts?.name,
+      institutionName: txn.accounts?.plaid_items?.institutionName
     }));
 
     return NextResponse.json({
