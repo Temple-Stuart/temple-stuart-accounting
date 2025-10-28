@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           where: { id: txnId },
           data: { 
             accountCode, 
-            sub_account: subAccount || null,
+            subAccount: subAccount || null,
             manually_overridden: wasOverridden,
             overridden_at: wasOverridden ? new Date() : null
           }
