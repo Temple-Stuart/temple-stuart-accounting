@@ -153,7 +153,9 @@ export async function POST() {
                 option_contract_type: optionContract?.contract_type || null,
                 option_strike_price: optionContract?.strike_price || null,
                 option_expiration_date: optionContract?.expiration_date ? new Date(optionContract.expiration_date) : null,
-                option_underlying_ticker: optionContract?.underlying_security_ticker || null
+                option_underlying_ticker: optionContract?.underlying_security_ticker || null,
+                id: `sec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                updatedAt: new Date()
               },
               update: {
                 close_price: security.close_price,
