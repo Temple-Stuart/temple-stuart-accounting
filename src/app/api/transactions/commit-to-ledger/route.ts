@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
           const merchantName = plaidTxn.merchantName;
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
           
-          const wrongMapping = await prisma.merchantCoaMapping.findUnique({
+          const wrongMapping = await prisma.merchant_coa_mappings.findUnique({
             where: {
-              merchantName_plaidCategoryPrimary: {
-                merchantName,
-                plaidCategoryPrimary: categoryPrimary || ''
+              merchant_name_plaid_category_primary: {
+                merchant_name: merchantName,
+                plaid_category_primary: categoryPrimary categoryPrimary || ''
               }
             }
           });
@@ -69,11 +69,11 @@ export async function POST(request: NextRequest) {
             const newConfidence = Math.max(0, wrongMapping.confidenceScore.toNumber() - 0.2);
             
             if (newConfidence < 0.3) {
-              await prisma.merchantCoaMapping.delete({
+              await prisma.merchant_coa_mappings.delete({
                 where: { id: wrongMapping.id }
               });
             } else {
-              await prisma.merchantCoaMapping.update({
+              await prisma.merchant_coa_mappings.update({
                 where: { id: wrongMapping.id },
                 data: {
                   confidenceScore: newConfidence,
@@ -99,17 +99,17 @@ export async function POST(request: NextRequest) {
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
           const categoryDetailed = (plaidTxn.personal_finance_category as any)?.detailed || null;
           
-          const existing = await prisma.merchantCoaMapping.findUnique({
+          const existing = await prisma.merchant_coa_mappings.findUnique({
             where: {
-              merchantName_plaidCategoryPrimary: {
-                merchantName,
-                plaidCategoryPrimary: categoryPrimary || ''
+              merchant_name_plaid_category_primary: {
+                merchant_name: merchantName,
+                plaid_category_primary: categoryPrimary categoryPrimary || ''
               }
             }
           });
           
           if (existing && existing.coaCode === accountCode) {
-            await prisma.merchantCoaMapping.update({
+            await prisma.merchant_coa_mappings.update({
               where: { id: existing.id },
               data: {
                 usageCount: { increment: 1 },
@@ -118,10 +118,10 @@ export async function POST(request: NextRequest) {
               }
             });
           } else if (!existing || existing.coaCode !== accountCode) {
-            await prisma.merchantCoaMapping.create({
+            await prisma.merchant_coa_mappings.create({
               data: {
-                merchantName,
-                plaidCategoryPrimary: categoryPrimary,
+                merchant_name: merchantName,
+                plaid_category_primary: categoryPrimary categoryPrimary,
                 plaidCategoryDetailed: categoryDetailed,
                 coaCode: accountCode,
                 subAccount: subAccount || null,
