@@ -112,7 +112,7 @@ export default function ChartOfAccountsTab() {
             </thead>
             <tbody className="divide-y">
               {filtered.map((account) => {
-                const balance = Number(account.settled_balance) / 100;
+                const balance = Number(account.settledBalance) / 100;
                 return (
                   <tr key={account.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
