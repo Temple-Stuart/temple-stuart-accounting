@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       try {
         const plaidTxn = await prisma.transactions.findUnique({
           where: { id: txnId },
-          include: { account: { include: { plaidItem: true } } }
+          include: { account: { include: { plaid_items: true } } }
         });
         
         if (!plaidTxn) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
         
-        const institutionName = plaidTxn.account?.plaidItem?.institutionName?.toLowerCase() || '';
+        const institutionName = plaidTxn.account?.plaid_items?.institutionName?.toLowerCase() || '';
         const accountType = plaidTxn.account?.type?.toLowerCase() || '';
         
         let bankAccountCode = 'P-1010';

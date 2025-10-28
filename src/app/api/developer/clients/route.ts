@@ -7,7 +7,7 @@ export async function GET() {
       include: {
         accounts: {
           include: {
-            plaidItem: true,
+            plaid_items: true,
             _count: {
               select: {
                 transactions: true

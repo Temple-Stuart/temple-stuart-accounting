@@ -31,7 +31,7 @@ export async function GET() {
       include: {
         account: {
           include: {
-            plaidItem: true
+            plaid_items: true
           }
         }
       },
@@ -51,7 +51,7 @@ export async function GET() {
       predictionConfidence: txn.predictionConfidence ? Number(txn.predictionConfidence) : null,
       accountCode: txn.accountCode,
       accountName: txn.account?.name,
-      institutionName: txn.account?.plaidItem?.institutionName
+      institutionName: txn.account?.plaid_items?.institutionName
     }));
 
     return NextResponse.json({
