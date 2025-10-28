@@ -124,8 +124,8 @@ export class JournalEntryService {
       date: new Date(plaidTxn.date),
       description: plaidTxn.name,
       lines,
-      plaid_transaction_id: plaidTxn.transactionId,
-      external_transaction_id: plaidTxn.transactionId,
+      plaidTransactionId: plaidTxn.transactionId,
+      externalTransactionId: plaidTxn.transactionId,
     });
   }
 }
