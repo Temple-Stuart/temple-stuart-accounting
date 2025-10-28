@@ -56,17 +56,17 @@ export async function GET() {
         transaction_date: { lt: threeMonthsAgo }
       },
       include: {
-        ledgerEntries: {
-          include: { account: true }
+        ledger_entries: {
+          include: { chart_of_accounts: true }
         }
       }
     });
 
     let oldRevenue = 0, oldIncome = 0, oldAssets = 0;
     oldJournals.forEach(je => {
-      je.ledgerEntries.forEach(le => {
+      je.ledger_entries.forEach(le => {
         const amt = Number(le.amount) / 100;
-        const type = le.account.account_type.toLowerCase();
+        const type = le.chart_of_accounts.account_type.toLowerCase();
         if (type === 'revenue') oldRevenue += amt;
         else if (type === 'expense') oldIncome -= amt;
         else if (type === 'asset') oldAssets += amt;
