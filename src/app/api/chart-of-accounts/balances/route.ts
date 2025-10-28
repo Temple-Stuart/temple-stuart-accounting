@@ -14,8 +14,8 @@ export async function GET() {
         name: acc.name,
         accountType: acc.account_type,
         balanceType: acc.balance_type,
-        settledBalance: acc.settledBalance.toString(),
-        entityType: acc.entityType
+        settledBalance: acc.settled_balance.toString(),
+        entityType: acc.entity_type
       }))
     });
   } catch (error) {

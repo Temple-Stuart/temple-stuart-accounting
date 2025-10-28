@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     let expenses = 0;
 
     accounts.forEach(acc => {
-      const balance = Number(acc.settledBalance) / 100;
+      const balance = Number(acc.settled_balance) / 100;
       const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') revenue += balance;
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     
     // Close revenue accounts (debit)
     if (revenue !== 0) {
-      const revenueAccount = accounts.find(a => a.account_type.toLowerCase() === 'revenue' && Number(a.settledBalance) !== 0);
+      const revenueAccount = accounts.find(a => a.account_type.toLowerCase() === 'revenue' && Number(a.settled_balance) !== 0);
       if (revenueAccount) {
         lines.push({
           accountCode: revenueAccount.code,
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     // Close expense accounts (credit)
     if (expenses !== 0) {
-      const expenseAccount = accounts.find(a => a.account_type.toLowerCase() === 'expense' && Number(a.settledBalance) !== 0);
+      const expenseAccount = accounts.find(a => a.account_type.toLowerCase() === 'expense' && Number(a.settled_balance) !== 0);
       if (expenseAccount) {
         lines.push({
           accountCode: expenseAccount.code,

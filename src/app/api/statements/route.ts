@@ -14,7 +14,7 @@ export async function GET() {
     let equity = BigInt(0);
 
     accounts.forEach(acc => {
-      const balance = acc.settledBalance;
+      const balance = acc.settled_balance;
       const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') {

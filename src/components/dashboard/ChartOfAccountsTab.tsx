@@ -112,7 +112,7 @@ export default function ChartOfAccountsTab() {
             </thead>
             <tbody className="divide-y">
               {filtered.map((account) => {
-                const balance = Number(account.settledBalance) / 100;
+                const balance = Number(account.settled_balance) / 100;
                 return (
                   <tr key={account.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
@@ -144,9 +144,9 @@ export default function ChartOfAccountsTab() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        account.isArchived ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
+                        account.is_archived ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
                       }`}>
-                        {account.isArchived ? 'Archived' : 'Active'}
+                        {account.is_archived ? 'Archived' : 'Active'}
                       </span>
                     </td>
                   </tr>
