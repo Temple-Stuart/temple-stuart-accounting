@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -5,50 +6,50 @@ const prisma = new PrismaClient();
 async function seedChartOfAccounts() {
   const accounts = [
     // Personal Assets (P-prefix)
-    { code: 'P-1010', name: 'Personal Checking', accountType: 'asset', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-1020', name: 'Personal Savings', accountType: 'asset', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-1200', name: 'Brokerage Cash Account', accountType: 'asset', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-1210', name: 'Options Positions - Open', accountType: 'asset', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-1240', name: 'Deferred Loss - Wash Sale', accountType: 'asset', balanceType: 'D', entityType: 'personal' },
+    { id: randomUUID(), code: 'P-1010', name: 'Personal Checking', account_type: 'asset', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-1020', name: 'Personal Savings', account_type: 'asset', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-1200', name: 'Brokerage Cash Account', account_type: 'asset', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-1210', name: 'Options Positions - Open', account_type: 'asset', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-1240', name: 'Deferred Loss - Wash Sale', account_type: 'asset', balance_type: 'D', entity_type: 'personal' },
     
     // Personal Liabilities
-    { code: 'P-2100', name: 'Options Positions - Written', accountType: 'liability', balanceType: 'C', entityType: 'personal' },
+    { id: randomUUID(), code: 'P-2100', name: 'Options Positions - Written', account_type: 'liability', balance_type: 'C', entity_type: 'personal' },
     
     // Personal Equity
-    { code: 'P-3010', name: 'Personal Net Worth', accountType: 'equity', balanceType: 'C', entityType: 'personal' },
+    { id: randomUUID(), code: 'P-3010', name: 'Personal Net Worth', account_type: 'equity', balance_type: 'C', entity_type: 'personal' },
     
     // Personal Income
-    { code: 'P-4100', name: 'Options Trading Income', accountType: 'revenue', balanceType: 'C', entityType: 'personal' },
+    { id: randomUUID(), code: 'P-4100', name: 'Options Trading Income', account_type: 'revenue', balance_type: 'C', entity_type: 'personal' },
     
     // Personal Expenses
-    { code: 'P-5100', name: 'Options Trading Losses', accountType: 'expense', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-5200', name: 'Brokerage Commissions & Fees', accountType: 'expense', balanceType: 'D', entityType: 'personal' },
-    { code: 'P-6100', name: 'Meals Expense', accountType: 'expense', balanceType: 'D', entityType: 'personal' },
+    { id: randomUUID(), code: 'P-5100', name: 'Options Trading Losses', account_type: 'expense', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-5200', name: 'Brokerage Commissions & Fees', account_type: 'expense', balance_type: 'D', entity_type: 'personal' },
+    { id: randomUUID(), code: 'P-6100', name: 'Meals Expense', account_type: 'expense', balance_type: 'D', entity_type: 'personal' },
     
     // Business Assets (B-prefix)
-    { code: 'B-1010', name: 'Business Checking', accountType: 'asset', balanceType: 'D', entityType: 'business' },
-    { code: 'B-1020', name: 'Business Savings', accountType: 'asset', balanceType: 'D', entityType: 'business' },
+    { id: randomUUID(), code: 'B-1010', name: 'Business Checking', account_type: 'asset', balance_type: 'D', entity_type: 'business' },
+    { id: randomUUID(), code: 'B-1020', name: 'Business Savings', account_type: 'asset', balance_type: 'D', entity_type: 'business' },
     
     // Business Liabilities
-    { code: 'B-2020', name: 'Credit Card Payable', accountType: 'liability', balanceType: 'C', entityType: 'business' },
-    { code: 'B-2110', name: 'Due to Owner', accountType: 'liability', balanceType: 'C', entityType: 'business' },
+    { id: randomUUID(), code: 'B-2020', name: 'Credit Card Payable', account_type: 'liability', balance_type: 'C', entity_type: 'business' },
+    { id: randomUUID(), code: 'B-2110', name: 'Due to Owner', account_type: 'liability', balance_type: 'C', entity_type: 'business' },
     
     // Business Equity
-    { code: 'B-3110', name: "Owner's Capital", accountType: 'equity', balanceType: 'C', entityType: 'business' },
-    { code: 'B-3120', name: "Owner's Draw", accountType: 'equity', balanceType: 'D', entityType: 'business' },
-    { code: 'B-3130', name: 'Retained Earnings', accountType: 'equity', balanceType: 'C', entityType: 'business' },
+    { id: randomUUID(), code: 'B-3110', name: "Owner's Capital", account_type: 'equity', balance_type: 'C', entity_type: 'business' },
+    { id: randomUUID(), code: 'B-3120', name: "Owner's Draw", account_type: 'equity', balance_type: 'D', entity_type: 'business' },
+    { id: randomUUID(), code: 'B-3130', name: 'Retained Earnings', account_type: 'equity', balance_type: 'C', entity_type: 'business' },
     
     // Business Revenue
-    { code: 'B-4010', name: 'Service Revenue', accountType: 'revenue', balanceType: 'C', entityType: 'business' },
+    { id: randomUUID(), code: 'B-4010', name: 'Service Revenue', account_type: 'revenue', balance_type: 'C', entity_type: 'business' },
     
     // Business Expenses
-    { code: 'B-6000', name: 'Rent Expense', accountType: 'expense', balanceType: 'D', entityType: 'business' },
-    { code: 'B-6100', name: 'Office Supplies', accountType: 'expense', balanceType: 'D', entityType: 'business' },
+    { id: randomUUID(), code: 'B-6000', name: 'Rent Expense', account_type: 'expense', balance_type: 'D', entity_type: 'business' },
+    { id: randomUUID(), code: 'B-6100', name: 'Office Supplies', account_type: 'expense', balance_type: 'D', entity_type: 'business' },
   ];
 
   for (const account of accounts) {
-    await prisma.chartOfAccount.upsert({
-      where: { code: account.code },
+    await prisma.chart_of_accounts.upsert({
+      where: { id: randomUUID(), code: account.code },
       update: {},
       create: account,
     });
