@@ -77,7 +77,7 @@ export class JournalEntryService {
           ? BigInt(line.amount) 
           : BigInt(-line.amount);
         
-        await tx.chartOfAccount.update({
+        await tx.chart_of_accounts.update({
           where: { id: account.id },
           data: { 
             settled_balance: { increment: balanceChange },
