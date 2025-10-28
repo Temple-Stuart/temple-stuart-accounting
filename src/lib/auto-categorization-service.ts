@@ -104,8 +104,8 @@ export class AutoCategorizationService {
             where: { id: txn.id },
             data: {
               predicted_coa_code: prediction.coaCode,
-              predictionConfidence: new Prisma.Decimal(prediction.confidence),
-              reviewStatus: 'pending_review'
+              prediction_confidence: new Prisma.Decimal(prediction.confidence),
+              review_status: 'pending_review'
             }
           });
           categorized++;
