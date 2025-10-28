@@ -65,6 +65,7 @@ export class JournalEntryService {
         
         await tx.ledger_entries.create({
           data: {
+            id: `led_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             transaction_id: journalTxn.id,
             account_id: account.id,
             amount: BigInt(line.amount),
