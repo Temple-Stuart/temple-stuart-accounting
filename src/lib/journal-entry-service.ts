@@ -63,12 +63,12 @@ export class JournalEntryService {
       for (const line of lines) {
         const account = accounts.find(a => a.code === line.accountCode)!;
         
-        await tx.ledgerEntry.create({
+        await tx.ledger_entries.create({
           data: {
-            transactionId: journalTxn.id,
-            accountId: account.id,
+            transaction_id: journalTxn.id,
+            account_id: account.id,
             amount: BigInt(line.amount),
-            entryType: line.entryType,
+            entry_type: line.entryType,
           }
         });
         
@@ -97,7 +97,7 @@ export class JournalEntryService {
     expenseOrIncomeCode: string
   ) {
     const plaidTxn = await prisma.transactions.findUnique({
-      where: { transactionId: plaidTxnId }
+      where: { transaction_id: plaidTxnId }
     });
     
     if (!plaidTxn) {
