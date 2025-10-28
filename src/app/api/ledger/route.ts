@@ -9,8 +9,8 @@ export async function GET() {
         journal_transactions: true
       },
       orderBy: [
-        { accountId: 'asc' },
-        { createdAt: 'asc' }
+        { account_id: 'asc' },
+        { created_at: 'asc' }
       ]
     });
 
