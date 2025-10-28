@@ -146,7 +146,7 @@ export class AutoCategorizationService {
         }
         
         // Use accountCode if set (user edited), otherwise use predicted
-        const finalCoaCode = txn.accountCode || txn.predictedCoaCode;
+        const finalCoaCode = txn.accountCode || txn.predicted_coa_code;
         
         if (!finalCoaCode) {
           errors.push({ id: txnId, error: 'No COA code available' });
