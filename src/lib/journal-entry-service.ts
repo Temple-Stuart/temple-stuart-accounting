@@ -98,7 +98,7 @@ export class JournalEntryService {
     expenseOrIncomeCode: string
   ) {
     const plaidTxn = await prisma.transactions.findUnique({
-      where: { transaction_id: plaidTxnId }
+      where: { transactionId: plaidTxnId }
     });
     
     if (!plaidTxn) {
