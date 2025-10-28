@@ -47,6 +47,7 @@ export class JournalEntryService {
     const result = await prisma.$transaction(async (tx) => {
       const journalTxn = await tx.journal_transactions.create({
         data: {
+          id: `jnl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           transaction_date: date,
           description,
           plaid_transaction_id: plaidTransactionId,
