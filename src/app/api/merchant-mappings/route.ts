@@ -12,25 +12,25 @@ export async function GET(request: Request) {
     let mappings;
     
     if (merchantName) {
-      mappings = await prisma.merchantCoaMapping.findMany({
-        where: { merchantName: { contains: merchantName, mode: 'insensitive' } },
+      mappings = await prisma.merchant_coa_mappings.findMany({
+        where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
         orderBy: [
-          { confidenceScore: 'desc' },
+          { confidence_score: 'desc' },
           { usageCount: 'desc' }
         ],
         take: 5
       });
     } else if (categoryPrimary) {
-      mappings = await prisma.merchantCoaMapping.findMany({
+      mappings = await prisma.merchant_coa_mappings.findMany({
         where: { plaidCategoryPrimary: categoryPrimary },
         orderBy: [
-          { confidenceScore: 'desc' },
+          { confidence_score: 'desc' },
           { usageCount: 'desc' }
         ],
         take: 10
       });
     } else {
-      mappings = await prisma.merchantCoaMapping.findMany({
+      mappings = await prisma.merchant_coa_mappings.findMany({
         orderBy: { lastUsedAt: 'desc' },
         take: 50
       });
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       );
     }
     
-    const existing = await prisma.merchantCoaMapping.findUnique({
+    const existing = await prisma.merchant_coa_mappings.findUnique({
       where: {
         merchantName_plaidCategoryPrimary: {
           merchantName,
@@ -70,24 +70,24 @@ export async function POST(request: Request) {
     });
     
     if (existing) {
-      const updated = await prisma.merchantCoaMapping.update({
+      const updated = await prisma.merchant_coa_mappings.update({
         where: { id: existing.id },
         data: {
           usageCount: { increment: 1 },
-          confidenceScore: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
+          confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
           lastUsedAt: new Date()
         }
       });
       return NextResponse.json({ mapping: updated, action: 'updated' });
     } else {
-      const created = await prisma.merchantCoaMapping.create({
+      const created = await prisma.merchant_coa_mappings.create({
         data: {
           merchantName,
           plaidCategoryPrimary,
           plaidCategoryDetailed,
           coaCode,
           subAccount,
-          confidenceScore: 0.5
+          confidence_score: 0.5
         }
       });
       return NextResponse.json({ mapping: created, action: 'created' });
