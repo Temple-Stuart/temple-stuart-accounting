@@ -36,7 +36,7 @@ export class AutoCategorizationService {
       
       if (merchantMapping && merchantMapping.confidence_score.toNumber() > 0.5) {
         return {
-          coa_code: merchantMapping.coa_code,
+          coaCode: merchantMapping.coa_code,
           confidence: merchantMapping.confidence_score.toNumber(),
           source: 'merchant_mapping'
         };
@@ -61,7 +61,7 @@ export class AutoCategorizationService {
       const coaCode = categoryMap[categoryPrimary];
       if (coaCode) {
         return {
-          coaCode,
+          coaCode: coaCode,
           confidence: 0.6,
           source: 'category_mapping'
         };
