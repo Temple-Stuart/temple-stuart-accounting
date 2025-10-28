@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const periodMap = new Map<string, any>();
 
     journalEntries.forEach(je => {
-      const date = new Date(je.transactionDate);
+      const date = new Date(je.transaction_date);
       let periodKey = '';
 
       if (period === 'monthly') {
