@@ -191,7 +191,8 @@ export async function POST() {
                 security_id: txn.security_id,
                 subtype: txn.subtype,
                 type: txn.type,
-                unofficial_currency_code: txn.unofficial_currency_code
+                unofficial_currency_code: txn.unofficial_currency_code,
+                updatedAt: new Date()
               },
               update: {}
             });
