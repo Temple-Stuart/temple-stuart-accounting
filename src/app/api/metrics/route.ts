@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     // Get current statements
-    const accounts = await prisma.chartOfAccount.findMany({
-      where: { isArchived: false }
+    const accounts = await prisma.chart_of_accounts.findMany({
+      where: { is_archived: false }
     });
 
     let revenue = 0, expenses = 0, assets = 0, liabilities = 0, equity = 0;
@@ -13,7 +13,7 @@ export async function GET() {
 
     accounts.forEach(acc => {
       const balance = Number(acc.settledBalance) / 100;
-      const type = acc.accountType.toLowerCase();
+      const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') revenue += balance;
       else if (type === 'expense') expenses += balance;
@@ -66,7 +66,7 @@ export async function GET() {
     oldJournals.forEach(je => {
       je.ledgerEntries.forEach(le => {
         const amt = Number(le.amount) / 100;
-        const type = le.account.accountType.toLowerCase();
+        const type = le.account.account_type.toLowerCase();
         if (type === 'revenue') oldRevenue += amt;
         else if (type === 'expense') oldIncome -= amt;
         else if (type === 'asset') oldAssets += amt;

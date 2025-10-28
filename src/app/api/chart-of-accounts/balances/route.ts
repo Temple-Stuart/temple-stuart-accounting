@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const accounts = await prisma.chartOfAccount.findMany({
-      where: { isArchived: false },
+    const accounts = await prisma.chart_of_accounts.findMany({
+      where: { is_archived: false },
       orderBy: { code: 'asc' }
     });
 
@@ -12,8 +12,8 @@ export async function GET() {
       accounts: accounts.map(acc => ({
         code: acc.code,
         name: acc.name,
-        accountType: acc.accountType,
-        balanceType: acc.balanceType,
+        accountType: acc.account_type,
+        balanceType: acc.balance_type,
         settledBalance: acc.settledBalance.toString(),
         entityType: acc.entityType
       }))

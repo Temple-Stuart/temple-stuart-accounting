@@ -25,7 +25,7 @@ export async function GET() {
         accountCode: le.account.code,
         entryType: le.entryType,
         amount: Number(le.amount),
-        chartOfAccount: {
+        chart_of_accounts: {
           code: le.account.code,
           name: le.account.name
         }
