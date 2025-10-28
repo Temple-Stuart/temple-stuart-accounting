@@ -92,7 +92,8 @@ export async function POST() {
                 transaction_code: txn.transaction_code,
                 transaction_type: (txn as any).transaction_type,
                 logo_url: (txn as any).logo_url,
-                website: (txn as any).website
+                website: (txn as any).website,
+                updatedAt: new Date()
               },
               update: {
                 amount: txn.amount,
