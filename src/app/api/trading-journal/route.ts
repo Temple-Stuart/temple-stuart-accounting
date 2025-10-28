@@ -21,7 +21,7 @@ export async function GET() {
 
     const trades = await prisma.investment_transactions.findMany({
       where: {
-        account: { userId: user.id },
+        accounts: { userId: user.id },
         accountCode: { not: null },
         strategy: { not: null }
       },
