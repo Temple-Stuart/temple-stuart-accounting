@@ -12,7 +12,7 @@ export async function GET() {
     let cashAssets = 0, currentAssets = 0;
 
     accounts.forEach(acc => {
-      const balance = Number(acc.settledBalance) / 100;
+      const balance = Number(acc.settled_balance) / 100;
       const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') revenue += balance;
