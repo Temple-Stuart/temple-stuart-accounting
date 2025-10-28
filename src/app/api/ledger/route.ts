@@ -40,8 +40,8 @@ export async function GET() {
 
       account.entries.push({
         id: entry.id,
-        date: entry.transaction.transactionDate,
-        description: entry.transaction.description || 'No description',
+        date: entry.journal_transactions.transaction_date,
+        description: entry.journal_transactions.description || 'No description',
         entryType: entry.entry_type,
         amount: Number(entry.amount) / 100,
         runningBalance: account.runningBalance / 100
