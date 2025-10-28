@@ -178,10 +178,10 @@ export class AutoCategorizationService {
         await prisma.transactions.update({
           where: { id: txnId },
           data: {
-            reviewStatus: 'approved',
-            manuallyOverridden: wasOverridden,
-            overriddenAt: wasOverridden ? new Date() : null,
-            overriddenBy: wasOverridden ? userId : null
+            review_status: 'approved',
+            manually_overridden: wasOverridden,
+            overridden_at: wasOverridden ? new Date() : null,
+            overridden_by: wasOverridden ? userId : null
           }
         });
         
