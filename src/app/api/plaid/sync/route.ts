@@ -41,23 +41,23 @@ export async function POST(request: NextRequest) {
       
       if (account) {
         await prisma.transactions.upsert({
-          where: { transaction_id: tx.transaction_id },
+          where: { transactionId: tx.transaction_id },
           create: {
             id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            account_id: account.id,
-            transaction_id: tx.transaction_id,
+            accountId: account.id,
+            transactionId: tx.transaction_id,
             amount: tx.amount,
             date: new Date(tx.date),
             name: tx.name,
-            merchant_name: tx.merchant_name,
+            merchantName: tx.merchant_name,
             category: tx.category?.join(', '),
             pending: tx.pending,
-            updated_at: new Date()
+            updatedAt: new Date()
           },
           update: {
             amount: tx.amount,
             pending: tx.pending,
-            updated_at: new Date()
+            updatedAt: new Date()
           }
         });
         addedCount++;
