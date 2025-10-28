@@ -11,9 +11,9 @@ export async function POST(request: Request) {
     }
 
     // Check if period already closed
-    const existing = await prisma.closingPeriod.findFirst({
+    const existing = await prisma.closing_periods.findFirst({
       where: {
-        periodEnd: new Date(periodEnd),
+        period_end: new Date(periodEnd),
         status: 'closed'
       }
     });
@@ -93,9 +93,9 @@ export async function POST(request: Request) {
     }
 
     // Create closing period record
-    const closingPeriod = await prisma.closingPeriod.create({
+    const closingPeriod = await prisma.closing_periods.create({
       data: {
-        periodEnd: new Date(periodEnd),
+        period_end: new Date(periodEnd),
         periodType,
         status: 'closed',
         closedAt: new Date(),

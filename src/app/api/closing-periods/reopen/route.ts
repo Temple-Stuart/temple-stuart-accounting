@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Period ID is required' }, { status: 400 });
     }
 
-    const period = await prisma.closingPeriod.findUnique({
+    const period = await prisma.closing_periods.findUnique({
       where: { id: periodId }
     });
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     }
 
     // Update status to open
-    await prisma.closingPeriod.update({
+    await prisma.closing_periods.update({
       where: { id: periodId },
       data: {
         status: 'open',
