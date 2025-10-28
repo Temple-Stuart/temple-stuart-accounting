@@ -55,7 +55,7 @@ export class JournalEntryService {
           amount,
           strategy,
           trade_num: tradeNum,
-          postedAt: new Date(),
+          posted_at: new Date(),
         }
       });
       
