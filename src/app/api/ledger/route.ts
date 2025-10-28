@@ -24,8 +24,8 @@ export async function GET() {
         accountMap.set(accountId, {
           accountCode: entry.account.code,
           accountName: entry.account.name,
-          accountType: entry.account.accountType,
-          balanceType: entry.account.balanceType,
+          accountType: entry.account.account_type,
+          balanceType: entry.account.balance_type,
           entries: [],
           runningBalance: 0
         });
@@ -34,7 +34,7 @@ export async function GET() {
       const account = accountMap.get(accountId);
       
       // Calculate running balance
-      const isNormalBalance = entry.entryType === entry.account.balanceType;
+      const isNormalBalance = entry.entryType === entry.account.balance_type;
       const change = isNormalBalance ? Number(entry.amount) : -Number(entry.amount);
       account.runningBalance += change;
 
@@ -52,7 +52,7 @@ export async function GET() {
     const ledgers = Array.from(accountMap.values()).map(account => ({
       accountCode: account.accountCode,
       accountName: account.accountName,
-      accountType: account.accountType.toLowerCase(),
+      accountType: account.account_type.toLowerCase(),
       entries: account.entries,
       openingBalance: 0,
       closingBalance: account.runningBalance / 100

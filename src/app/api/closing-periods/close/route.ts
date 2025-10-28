@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     }
 
     // Calculate net income
-    const accounts = await prisma.chartOfAccount.findMany({
-      where: { isArchived: false }
+    const accounts = await prisma.chart_of_accounts.findMany({
+      where: { is_archived: false }
     });
 
     let revenue = 0;
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     accounts.forEach(acc => {
       const balance = Number(acc.settledBalance) / 100;
-      const type = acc.accountType.toLowerCase();
+      const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') revenue += balance;
       else if (type === 'expense') expenses += balance;
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     
     // Close revenue accounts (debit)
     if (revenue !== 0) {
-      const revenueAccount = accounts.find(a => a.accountType.toLowerCase() === 'revenue' && Number(a.settledBalance) !== 0);
+      const revenueAccount = accounts.find(a => a.account_type.toLowerCase() === 'revenue' && Number(a.settledBalance) !== 0);
       if (revenueAccount) {
         lines.push({
           accountCode: revenueAccount.code,
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     // Close expense accounts (credit)
     if (expenses !== 0) {
-      const expenseAccount = accounts.find(a => a.accountType.toLowerCase() === 'expense' && Number(a.settledBalance) !== 0);
+      const expenseAccount = accounts.find(a => a.account_type.toLowerCase() === 'expense' && Number(a.settledBalance) !== 0);
       if (expenseAccount) {
         lines.push({
           accountCode: expenseAccount.code,

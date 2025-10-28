@@ -49,8 +49,8 @@ export async function GET(request: Request) {
 
       je.ledgerEntries.forEach(le => {
         const amount = Number(le.amount) / 100;
-        const accountType = le.account.accountType.toLowerCase();
-        const isNormalBalance = le.entryType === le.account.balanceType;
+        const accountType = le.account.account_type.toLowerCase();
+        const isNormalBalance = le.entryType === le.account.balance_type;
         const effectiveAmount = isNormalBalance ? amount : -amount;
 
         if (accountType === 'revenue') {

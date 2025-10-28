@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const accounts = await prisma.chartOfAccount.findMany({
-      where: { isArchived: false }
+    const accounts = await prisma.chart_of_accounts.findMany({
+      where: { is_archived: false }
     });
 
     let revenue = BigInt(0);
@@ -15,7 +15,7 @@ export async function GET() {
 
     accounts.forEach(acc => {
       const balance = acc.settledBalance;
-      const type = acc.accountType.toLowerCase();
+      const type = acc.account_type.toLowerCase();
       
       if (type === 'revenue') {
         revenue += balance;
