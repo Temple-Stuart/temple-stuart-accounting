@@ -108,16 +108,16 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          if (existing && existing.coaCode === accountCode) {
+          if (existing && existing.coa_code === accountCode) {
             await prisma.merchant_coa_mappings.update({
               where: { id: existing.id },
               data: {
-                usageCount: { increment: 1 },
+                usage_count: { increment: 1 },
                 confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
                 last_used_at: new Date()
               }
             });
-          } else if (!existing || existing.coaCode !== accountCode) {
+          } else if (!existing || existing.coa_code !== accountCode) {
             await prisma.merchant_coa_mappings.create({
               data: {
                 merchant_name: merchantName,
