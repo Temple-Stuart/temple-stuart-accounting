@@ -109,7 +109,7 @@ async function seedCompleteCOA() {
   ];
 
   for (const account of accounts) {
-    await prisma.chartOfAccount.upsert({
+    await prisma.chart_of_accounts.upsert({
       where: { code: account.code },
       update: {},
       create: account,
