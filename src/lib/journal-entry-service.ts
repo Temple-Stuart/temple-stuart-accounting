@@ -45,12 +45,12 @@ export class JournalEntryService {
     }
     
     const result = await prisma.$transaction(async (tx) => {
-      const journalTxn = await tx.journalTransaction.create({
+      const journalTxn = await tx.journal_transactions.create({
         data: {
-          transactionDate: date,
+          transaction_date: date,
           description,
-          plaidTransactionId,
-          externalTransactionId,
+          plaid_transaction_id: plaidTransactionId,
+          external_transaction_id: externalTransactionId,
           accountCode,
           amount,
           strategy,
@@ -122,8 +122,8 @@ export class JournalEntryService {
       date: new Date(plaidTxn.date),
       description: plaidTxn.name,
       lines,
-      plaidTransactionId: plaidTxn.transactionId,
-      externalTransactionId: plaidTxn.transactionId,
+      plaid_transaction_id: plaidTxn.transactionId,
+      external_transaction_id: plaidTxn.transactionId,
     });
   }
 }
