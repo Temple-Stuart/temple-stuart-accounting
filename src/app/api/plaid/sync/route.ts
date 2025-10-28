@@ -36,26 +36,28 @@ export async function POST(request: NextRequest) {
 
     for (const tx of txResponse.data.added) {
       const account = await prisma.accounts.findFirst({
-        where: { accountId: tx.account_id }
+        where: { account_id: tx.account_id }
       });
       
       if (account) {
         await prisma.transactions.upsert({
-          where: { transactionId: tx.transaction_id },
+          where: { transaction_id: tx.transaction_id },
           create: {
             id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            accountId: account.id,
-            transactionId: tx.transaction_id,
+            account_id: account.id,
+            transaction_id: tx.transaction_id,
             amount: tx.amount,
             date: new Date(tx.date),
             name: tx.name,
-            merchantName: tx.merchant_name,
+            merchant_name: tx.merchant_name,
             category: tx.category?.join(', '),
-            pending: tx.pending
+            pending: tx.pending,
+            updated_at: new Date()
           },
           update: {
             amount: tx.amount,
-            pending: tx.pending
+            pending: tx.pending,
+            updated_at: new Date()
           }
         });
         addedCount++;
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     for (const acc of balances.data.accounts) {
       await prisma.accounts.updateMany({
-        where: { accountId: acc.account_id },
+        where: { account_id: acc.account_id },
         data: {
           currentBalance: acc.balances.current || 0,
           availableBalance: acc.balances.available || 0
