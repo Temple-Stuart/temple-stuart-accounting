@@ -51,9 +51,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { merchant_name, plaidCategoryPrimary, plaidCategoryDetailed, coaCode, subAccount } = body;
+    const { merchant_name, plaid_category_primary: plaidCategoryPrimary, plaid_category_detailed: plaidCategoryDetailed, coa_code: coaCode, subAccount } = body;
     
-    if (!merchantName || !coaCode) {
+    if (!merchant_name || !coaCode) {
       return NextResponse.json(
         { error: 'merchantName and coaCode required' },
         { status: 400 }
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         where: { id: existing.id },
         data: {
           usage_count: { increment: 1 },
-          confidence_score: Math.min(0.99, existing.confidenceScore.toNumber() + 0.1),
+          confidence_score: Math.min(0.99, existing.confidence_score.toNumber() + 0.1),
           last_used_at: new Date()
         }
       });
@@ -83,10 +83,10 @@ export async function POST(request: Request) {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
           merchant_name,
-          plaidCategoryPrimary,
-          plaidCategoryDetailed,
-          coaCode,
-          subAccount,
+          plaid_category_primary: plaidCategoryPrimary,
+          plaid_category_detailed: plaidCategoryDetailed,
+          coa_code: coaCode,
+          sub_account: subAccount,
           confidence_score: 0.5
         }
       });
