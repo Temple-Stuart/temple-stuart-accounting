@@ -15,7 +15,7 @@ export async function GET(request: Request) {
           }
         }
       },
-      orderBy: { transactionDate: 'desc' }
+      orderBy: { transaction_date: 'desc' }
     });
 
     // Group by period
