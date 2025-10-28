@@ -23,13 +23,13 @@ export async function GET() {
     // Fetch transactions pending review
     const pendingTransactions = await prisma.transactions.findMany({
       where: {
-        reviewStatus: 'pending_review',
-        account: {
+        review_status: 'pending_review',
+        accounts: {
           userId: user.id
         }
       },
       include: {
-        account: {
+        accounts: {
           include: {
             plaid_items: true
           }
