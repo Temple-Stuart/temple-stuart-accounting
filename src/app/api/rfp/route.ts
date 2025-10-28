@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
@@ -5,6 +6,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     const prospect = await prisma.prospects.create({
       data: {
+        id: randomUUID(),
         businessName: data.businessName,
         contactName: data.contactName,
         email: data.email,
@@ -29,7 +31,7 @@ export async function POST(request: Request) {
         hasData: data.hasData || null,
         whyNow: data.whyNow || null,
         additionalInfo: data.additionalInfo || null,
-        status: 'new'
+        status: 'new',        updatedAt: new Date()
       }
     });
     
