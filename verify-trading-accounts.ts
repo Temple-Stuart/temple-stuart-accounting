@@ -11,8 +11,8 @@ async function verify() {
   
   const grouped: {[key: string]: number} = {};
   tradingAccounts.forEach(acc => {
-    if (!grouped[acc.accountType]) grouped[acc.accountType] = 0;
-    grouped[acc.accountType]++;
+    if (!grouped[acc.account_type]) grouped[acc.account_type] = 0;
+    grouped[acc.account_type]++;
   });
   
   Object.entries(grouped).forEach(([type, count]) => {
