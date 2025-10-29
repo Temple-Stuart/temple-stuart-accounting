@@ -6,7 +6,7 @@ async function verify() {
     orderBy: { created_at: 'desc' },
     include: { 
       ledger_entries: {
-        include: { accounts: true }
+        include: { chart_of_accounts: true }
       }
     }
   });
