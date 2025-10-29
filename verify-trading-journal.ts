@@ -12,10 +12,10 @@ async function verify() {
   });
   
   console.log('\n📝 Last Journal Entry:');
-  console.log(`  Account: ${lastJournal?.accountCode}`);
+  console.log(`  Account: ${lastJournal?.account_code}`);
   console.log(`  Amount: $${lastJournal?.amount}`);
   console.log(`  Strategy: ${lastJournal?.strategy}`);
-  console.log(`  Trade #: ${lastJournal?.tradeNum || 'N/A'}`);
+  console.log(`  Trade #: ${lastJournal?.trade_num || 'N/A'}`);
   console.log(`\n💰 Ledger Entries: ${lastJournal?.ledgerEntries.length}`);
   lastJournal?.ledgerEntries.forEach(entry => {
     const amt = Number(entry.amount) / 100;
