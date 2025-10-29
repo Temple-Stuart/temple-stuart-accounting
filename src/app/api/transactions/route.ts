@@ -43,7 +43,24 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(transactions);
+    // Transform to match component expectations
+    const transformedTransactions = transactions.map(txn => ({
+      ...txn,
+      account: txn.accounts ? {
+        name: txn.accounts.name,
+        type: txn.accounts.type,
+        plaidItem: txn.accounts.plaid_items ? {
+          institutionName: txn.accounts.plaid_items.institutionName
+        } : null
+      } : null,
+      predictedCoaCode: txn.predicted_coa_code,
+      predictionConfidence: txn.prediction_confidence,
+      accounts: undefined,
+      predicted_coa_code: undefined,
+      prediction_confidence: undefined
+    }));
+
+    return NextResponse.json(transformedTransactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
