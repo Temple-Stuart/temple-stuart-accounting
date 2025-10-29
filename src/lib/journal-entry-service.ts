@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
@@ -47,7 +48,7 @@ export class JournalEntryService {
     const result = await prisma.$transaction(async (tx) => {
       const journalTxn = await tx.journal_transactions.create({
         data: {
-          id: `jnl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: uuidv4(),
           transaction_date: date,
           description,
           plaid_transaction_id: plaidTransactionId,
@@ -65,7 +66,7 @@ export class JournalEntryService {
         
         await tx.ledger_entries.create({
           data: {
-            id: `led_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: uuidv4(),
             transaction_id: journalTxn.id,
             account_id: account.id,
             amount: BigInt(line.amount),
