@@ -1,82 +1,75 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { journalEntryService } from '@/lib/journal-entry-service';
+import { investmentLedgerService } from '@/lib/investment-ledger-service';
 
 export async function POST(request: Request) {
   try {
-    const { transactionIds, accountCode, subAccount, strategy, tradeNum } = await request.json();
+    const { transactionIds, strategy, tradeNum } = await request.json();
 
-    if (!transactionIds || !accountCode) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!transactionIds || !strategy || !tradeNum) {
+      return NextResponse.json(
+        { error: 'transactionIds, strategy, and tradeNum required' },
+        { status: 400 }
+      );
     }
 
-    const results = {
+    // Fetch all investment transactions with security details
+    const invTxns = await prisma.investment_transactions.findMany({
+      where: { id: { in: transactionIds } },
+      include: { security: true }
+    });
+
+    if (invTxns.length === 0) {
+      return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
+    }
+
+    // Transform to InvestmentLeg format
+    const legs = invTxns.map(txn => {
+      const name = txn.name.toLowerCase();
+      const positionEffect = name.includes('to open') ? 'open' : 'close';
+      const action = txn.type as 'buy' | 'sell';
+      
+      // Extract symbol from security or name
+      const symbol = txn.security?.option_underlying_ticker || 
+                     txn.name.split(' ').find(w => /^[A-Z]{1,5}$/.test(w)) || 
+                     'UNKNOWN';
+      
+      return {
+        id: txn.id,
+        date: txn.date,
+        symbol,
+        strike: txn.security?.option_strike_price || null,
+        expiry: txn.security?.option_expiration_date || null,
+        contractType: txn.security?.option_contract_type as 'call' | 'put' | null,
+        action,
+        positionEffect: positionEffect as 'open' | 'close',
+        quantity: txn.quantity || 1,
+        price: txn.price || 0,
+        fees: txn.rhFees || txn.fees || 0,
+        amount: txn.amount || 0
+      };
+    });
+
+    // Commit using IRS-compliant service
+    const result = await investmentLedgerService.commitOptionsTrade({
+      legs,
+      strategy,
+      tradeNum
+    });
+
+    return NextResponse.json({
       success: true,
-      committed: 0,
-      errors: [] as any[]
-    };
+      committed: legs.length,
+      tradeNum,
+      strategy,
+      details: result
+    });
 
-    const BROKERAGE_CASH = 'T-1100';
-
-    for (const txnId of transactionIds) {
-      try {
-        const invTxn = await prisma.investment_transactions.findUnique({
-          where: { id: txnId }
-        });
-
-        if (!invTxn) {
-          results.errors.push({ txnId, error: 'Transaction not found' });
-          continue;
-        }
-
-        const amountCents = Math.abs(Math.round((invTxn.amount || 0) * 100));
-        const isIncome = (invTxn.amount || 0) > 0;
-
-        const lines = isIncome 
-          ? [
-              { accountCode: BROKERAGE_CASH, amount: amountCents, entryType: 'D' as const },
-              { accountCode: accountCode, amount: amountCents, entryType: 'C' as const }
-            ]
-          : [
-              { accountCode: accountCode, amount: amountCents, entryType: 'D' as const },
-              { accountCode: BROKERAGE_CASH, amount: amountCents, entryType: 'C' as const }
-            ];
-
-        await journalEntryService.createJournalEntry({
-          date: invTxn.date,
-          description: `${invTxn.name} - ${strategy || 'Investment'}`,
-          lines,
-          externalTransactionId: invTxn.investment_transaction_id,
-          accountCode: accountCode,
-          amount: amountCents,
-          strategy: strategy,
-          tradeNum: tradeNum
-        });
-
-        await prisma.investment_transactions.update({
-          where: { id: txnId },
-          data: {
-            accountCode,
-            subAccount,
-            strategy,
-            tradeNum
-          }
-        });
-
-        results.committed++;
-      } catch (error) {
-        console.error('Investment commit error:', error);
-        results.errors.push({ txnId, error: String(error) });
-      }
-    }
-
-    if (results.errors.length > 0) {
-      results.success = false;
-    }
-
-    return NextResponse.json(results);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Investment commit error:', error);
-    return NextResponse.json({ error: 'Failed to commit investments' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Failed to commit investments' },
+      { status: 500 }
+    );
   }
 }

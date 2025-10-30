@@ -1,0 +1,200 @@
+Pending
+
+CAT Call Credit Spread
+Sep 16, 2025
+Placed
+Time in force
+Good till canceled
+Submitted
+9/16, 12:17 AM PDT
+Quantity
+1
+Status
+Placed
+Limit price
+$1.80
+Buy CAT $445 Call 10/31
+Type
+Limit Buy
+Position effect
+Close
+Quantity
+1
+Sell CAT $450 Call 10/31
+Type
+Limit Sell
+Position effect
+Close
+Quantity
+1
+
+Cancel Order
+
+Cancel and Replace Order
+Recent
+
+AVGO Call Credit Spread
+Oct 15
+$125.00
+Time in force
+Good till canceled
+Submitted
+10/15, 12:44 PM PDT
+Quantity
+1
+Status
+Filled
+Limit price
+$1.25
+Est cost
+$125.08
+Est regulatory fees
+$0.08
+Buy AVGO $375 Call 11/14
+Type
+Limit Buy
+Position effect
+Close
+Filled quantity
+1 contract at $8.50
+Filled
+10/17, 6:43 AM PDT
+Quantity
+1
+Sell AVGO $380 Call 11/14
+Type
+Limit Sell
+Position effect
+Close
+Filled quantity
+1 contract at $7.25
+Filled
+10/17, 6:43 AM PDT
+Quantity
+1
+Download Trade Confirmation
+
+AVGO Call Credit Spread
+Oct 15
+$145.00
+Time in force
+Good for day
+Submitted
+10/15, 12:43 PM PDT
+Quantity
+1
+Status
+Filled
+Limit price
+$1.45
+Est credit
+$144.92
+Est regulatory fees
+$0.08
+Sell AVGO $375 Call 11/14
+Type
+Limit Sell
+Position effect
+Open
+Filled quantity
+1 contract at $10.68
+Filled
+10/15, 12:43 PM PDT
+Quantity
+1
+Buy AVGO $380 Call 11/14
+Type
+Limit Buy
+Position effect
+Open
+Filled quantity
+1 contract at $9.23
+Filled
+10/15, 12:43 PM PDT
+Quantity
+1
+Download Trade Confirmation
+
+MU Put Credit Spread
+Oct 6
+$74.00
+Time in force
+Good till canceled
+Submitted
+10/6, 1:26 PM PDT
+Quantity
+1
+Status
+Filled
+Limit price
+$0.81
+Est cost
+$74.08
+Est regulatory fees
+$0.08
+Sell MU $182.5 Put 10/17
+Type
+Limit Sell
+Position effect
+Close
+Filled quantity
+1 contract at $3.21
+Filled
+10/7, 6:30 AM PDT
+Quantity
+1
+Buy MU $185 Put 10/17
+Type
+Limit Buy
+Position effect
+Close
+Filled quantity
+1 contract at $3.95
+Filled
+10/7, 6:30 AM PDT
+Quantity
+1
+Download Trade Confirmation
+
+LRCX Put Credit Spread
+Oct 6
+$95.00
+Time in force
+Good till canceled
+Submitted
+10/6, 12:25 PM PDT
+Quantity
+1
+Status
+Filled
+Limit price
+$0.95
+Est cost
+$95.08
+Est regulatory fees
+$0.08
+Sell LRCX $141 Put 10/31
+Type
+Limit Sell
+Position effect
+Close
+Filled quantity
+1 contract at $2.31
+Filled
+10/23, 8:52 AM PDT
+Quantity
+1
+Buy LRCX $144 Put 10/31
+Type
+Limit Buy
+Position effect
+Close
+Filled quantity
+1 contract at $3.26
+Filled
+10/23, 8:52 AM PDT
+Quantity
+1
+Download Trade Confirmation
+
+AMD Put Credit Spread
