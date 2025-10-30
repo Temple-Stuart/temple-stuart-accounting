@@ -23,6 +23,10 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
   const [matchedData, setMatchedData] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Robinhood History paste state
+  const [historyText, setHistoryText] = useState('');
+  const [historyStatus, setHistoryStatus] = useState<{loading?: boolean; success?: boolean; message?: string} | null>(null);
+
   const commitSelectedInvestmentRows = async () => {
     const updates = Object.entries(investmentRowChanges).filter(([id, values]) => values.coa && values.strategy);
     if (updates.length === 0) {
@@ -119,9 +123,46 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
     }
   };
 
+  const handleHistoryPaste = async () => {
+    if (!historyText.trim()) {
+      alert('Please paste some history text first');
+      return;
+    }
+    
+    setHistoryStatus({ loading: true });
+    
+    try {
+      const response = await fetch('/api/robinhood/append-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historyText })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setHistoryStatus({ 
+          success: true, 
+          message: result.message 
+        });
+        setHistoryText('');
+        setTimeout(() => setHistoryStatus(null), 5000);
+      } else {
+        setHistoryStatus({ 
+          success: false, 
+          message: result.error || 'Failed to update history' 
+        });
+      }
+    } catch (error) {
+      setHistoryStatus({ 
+        success: false, 
+        message: 'Network error - failed to update history' 
+      });
+    }
+  };
+
   return (
     <>
-      {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
@@ -236,6 +277,52 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
             >
               📄 Upload RH PDFs
             </button>
+          </div>
+        </div>
+
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg">
+          <h3 className="font-bold text-lg mb-2">📋 Paste Robinhood History</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Copy from Robinhood → History Tab → Paste here → Click Update. New trades will be added to the top of your history file.
+          </p>
+          
+          <textarea
+            className="w-full h-48 p-3 border-2 border-gray-300 rounded-lg font-mono text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            placeholder="Paste Robinhood history text here..."
+            value={historyText}
+            onChange={(e) => setHistoryText(e.target.value)}
+            disabled={historyStatus?.loading}
+          />
+          
+          <div className="mt-3 flex justify-between items-center">
+            <div className="flex-1">
+              {historyStatus?.loading && (
+                <span className="text-blue-600 font-medium">⏳ Updating history file...</span>
+              )}
+              {historyStatus?.success && (
+                <span className="text-green-600 font-medium">✅ {historyStatus.message}</span>
+              )}
+              {historyStatus?.success === false && (
+                <span className="text-red-600 font-medium">❌ {historyStatus.message}</span>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <button
+                onClick={() => setHistoryText('')}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-100"
+                disabled={!historyText.trim() || historyStatus?.loading}
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleHistoryPaste}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={!historyText.trim() || historyStatus?.loading}
+              >
+                {historyStatus?.loading ? 'Updating...' : 'Update History'}
+              </button>
+            </div>
           </div>
         </div>
         
