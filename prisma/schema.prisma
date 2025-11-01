@@ -49,6 +49,7 @@ model accounts {
   plaid_items             plaid_items               @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
+
   transactions            transactions[]
 }
 
@@ -256,6 +257,40 @@ model securities {
   updatedAt                DateTime
   investment_transactions  investment_transactions[]
 }
+/// IRS-compliant position tracking for options trading
+model trading_positions {
+  id                        String    @id @default(uuid()) @db.Uuid
+  open_investment_txn_id    String    @db.VarChar(255)
+  symbol                    String    @db.VarChar(20)
+  option_type               String?   @db.VarChar(10)
+  strike_price              Float?
+  expiration_date           DateTime?
+  position_type             String    @db.VarChar(10)
+  quantity                  Float
+  open_price                Float
+  open_fees                 Float     @default(0)
+  open_date                 DateTime
+  cost_basis                Float
+  status                    String    @default("OPEN") @db.VarChar(10)
+  close_investment_txn_id   String?   @db.VarChar(255)
+  close_price               Float?
+  close_fees                Float?
+  close_date                DateTime?
+  proceeds                  Float?
+  realized_pl               Float?
+  trade_num                 String?   @db.VarChar(20)
+  strategy                  String?   @db.VarChar(50)
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
+
+  @@index([open_investment_txn_id])
+  @@index([close_investment_txn_id])
+  @@index([symbol, expiration_date])
+  @@index([status])
+  @@index([trade_num])
+}
+
+
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model transactions {

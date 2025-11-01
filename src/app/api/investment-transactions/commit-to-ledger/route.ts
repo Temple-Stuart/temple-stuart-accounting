@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { investmentLedgerService } from '@/lib/investment-ledger-service';
+import { positionTrackerService } from '@/lib/position-tracker-service';
 
 export async function POST(request: Request) {
   try {
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
       };
     });
 
-    // Commit using IRS-compliant service
-    const result = await investmentLedgerService.commitOptionsTrade({
+    // Commit using IRS-compliant position tracker service
+    const result = await positionTrackerService.commitOptionsTrade({
       legs,
       strategy,
       tradeNum
