@@ -1,90 +1,353 @@
-interface RobinhoodTransaction {
+/**
+ * Temple Stuart Accounting - Robinhood History Parser
+ */
+
+interface RobinhoodLeg {
+  action: 'buy' | 'sell';
   symbol: string;
-  strike: number | null;
-  expiry: string | null;
-  contractType: string | null;
-  action: string;
-  quantity: number;
+  strike: number;
+  expiry: string;
+  optionType: 'call' | 'put';
+  position: 'open' | 'close';
   price: number;
-  principal: number;
-  fees: number;
-  tranFee: number;
-  contrFee: number;
-  netAmount: number;
-  tradeDate: string;
+  quantity: number;
+  filledDate: string;
+  filledTime: string;
 }
 
-export function parseRobinhoodPDF(text: string): RobinhoodTransaction[] {
-  const transactions: RobinhoodTransaction[] = [];
-  
-  console.log('🔎 DEBUG: Starting parse...');
-  console.log('📄 Total text length:', text.length);
-  
-  // Split into lines
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-  console.log('📊 Total lines:', lines.length);
-  
-  // Find lines that contain key transaction markers
-  const potentialLines = lines.filter(l => 
-    (l.includes('CALL') || l.includes('PUT')) && 
-    (l.includes('B ') || l.includes('S ') || l.includes('BTC') || l.includes('STO'))
-  );
-  
-  console.log('🎯 Potential transaction lines:', potentialLines.length);
-  potentialLines.slice(0, 3).forEach((line, idx) => {
-    console.log(`Line ${idx}:`, line.substring(0, 150));
-  });
-  
-  // Find the transaction table section
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+interface RobinhoodSpread {
+  strategyName: string;
+  symbol: string;
+  submitDate: string;
+  legs: RobinhoodLeg[];
+  isOpen: boolean;
+}
+
+interface PlaidTransaction {
+  id: string;
+  date: string;
+  name: string;
+  symbol: string;
+  type: string;
+  price: number;
+  quantity: number;
+  security?: {
+    ticker_symbol?: string;
+    option_underlying_ticker?: string;
+    option_strike_price?: number;
+    option_expiration_date?: string;
+    option_contract_type?: string;
+  };
+}
+
+interface MappingResult {
+  txnId: string;
+  tradeNum: string;
+  strategy: string;
+  coa: string;
+  confidence: 'high' | 'medium' | 'low';
+  matchedTo?: string;
+}
+
+interface TradeGroup {
+  tradeNum: number;
+  openSpread: RobinhoodSpread;
+  closeLegs: RobinhoodLeg[];
+}
+
+export class RobinhoodHistoryParser {
+  private tradeCounter = 1;
+
+  parseHistory(historyText: string): RobinhoodSpread[] {
+    const allSpreads: RobinhoodSpread[] = [];
+    const lines = historyText.split('\n');
     
-    // Look for pattern - more flexible matching
-    const match = line.match(/([A-Z]{2,5})\s+(\d{2}\/\d{2}\/\d{4})\s+(CALL|PUT)\s+\$?([\d.]+)\s+(B|S|BTC|STO)\s+(\d{2}\/\d{2}\/\d{4})/);
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      
+      if (this.isSpreadHeader(line)) {
+        const spread = this.parseSpread(lines, i);
+        if (spread) {
+          allSpreads.push(spread);
+          i = spread.endIndex;
+        }
+      }
+      i++;
+    }
     
-    if (match) {
-      console.log('✅ MATCH FOUND:', line.substring(0, 100));
-      const [_, symbol, expiry, contractType, strike, action, tradeDate] = match;
+    const filledSpreads = allSpreads.filter(spread => {
+      const hasFilledLegs = spread.legs.some(leg => leg.price > 0 && leg.filledDate);
+      return hasFilledLegs;
+    });
+    
+    return filledSpreads;
+  }
+
+  private isSpreadHeader(line: string): boolean {
+    const spreadPatterns = [
+      'Call Credit Spread',
+      'Put Credit Spread',
+      'Call Debit Spread',
+      'Put Debit Spread',
+      'Iron Condor',
+      'Short Iron Condor'
+    ];
+    
+    return spreadPatterns.some(pattern => line.includes(pattern));
+  }
+
+  private parseSpread(lines: string[], startIndex: number): (RobinhoodSpread & { endIndex: number }) | null {
+    const headerLine = lines[startIndex].trim();
+    const parts = headerLine.split(' ');
+    const symbol = parts[0];
+    const strategyType = headerLine.substring(symbol.length).trim();
+    const submitDate = lines[startIndex + 1]?.trim() || '';
+    
+    const legs: RobinhoodLeg[] = [];
+    let i = startIndex + 2;
+    
+    while (i < lines.length && i < startIndex + 50) {
+      const line = lines[i].trim();
       
-      // Continue parsing from this point to get remaining fields
-      const remainingText = line.substring(match[0].length);
-      const parts = remainingText.trim().split(/\s+/);
+      if (this.isLegDefinition(line)) {
+        const leg = this.parseLeg(lines, i);
+        if (leg) {
+          legs.push(leg);
+        }
+      }
       
-      console.log('📦 Remaining parts:', parts.slice(0, 10));
+      if (line.includes('Download Trade Confirmation') || 
+          (i > startIndex + 5 && this.isSpreadHeader(line))) {
+        break;
+      }
       
-      // Expected: settleDate acctType price qty principal comm contrFee tranFee netAmount
-      if (parts.length >= 9) {
-        const price = parseFloat(parts[2].replace(/[$,]/g, ''));
-        const quantity = parseInt(parts[3]);
-        const principal = parseFloat(parts[4].replace(/[$,]/g, ''));
-        const comm = parseFloat(parts[5].replace(/[$,]/g, ''));
-        const contrFee = parseFloat(parts[6].replace(/[$,]/g, ''));
-        const tranFee = parseFloat(parts[7].replace(/[$,]/g, ''));
-        const netAmount = parseFloat(parts[8].replace(/[$,]/g, ''));
+      i++;
+    }
+    
+    if (legs.length === 0) return null;
+    
+    const isOpen = legs[0].position === 'open';
+    
+    return {
+      strategyName: strategyType,
+      symbol,
+      submitDate,
+      legs,
+      isOpen,
+      endIndex: i
+    };
+  }
+
+  private isLegDefinition(line: string): boolean {
+    return /^(Buy|Sell)\s+[A-Z]+\s+\$[\d.]+\s+(Call|Put)\s+\d+\/\d+/.test(line);
+  }
+
+  private getNextNonEmptyLine(lines: string[], startIndex: number): string {
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.length > 0) return line;
+    }
+    return '';
+  }
+
+  private parseLeg(lines: string[], startIndex: number): RobinhoodLeg | null {
+    const legLine = lines[startIndex].trim();
+    const legMatch = legLine.match(/^(Buy|Sell)\s+([A-Z]+)\s+\$?([\d.]+)\s+(Call|Put)\s+([\d\/]+)/);
+    if (!legMatch) return null;
+    
+    const [, action, symbol, strike, optionType, expiry] = legMatch;
+    
+    let price = 0;
+    let quantity = 1;
+    let filledDate = '';
+    let filledTime = '';
+    let position: 'open' | 'close' = 'open';
+    
+    for (let i = startIndex + 1; i < Math.min(startIndex + 20, lines.length); i++) {
+      const line = lines[i].trim();
+      
+      if (line === 'Filled quantity') {
+        const nextLine = this.getNextNonEmptyLine(lines, i + 1);
+        const priceMatch = nextLine.match(/at\s+\$?([\d.]+)/);
+        if (priceMatch) {
+          price = parseFloat(priceMatch[1]);
+        }
         
-        transactions.push({
-          symbol,
-          strike: parseFloat(strike),
-          expiry,
-          contractType: contractType.toUpperCase(),
-          action: action.toUpperCase(),
-          quantity,
-          price,
-          principal,
-          fees: comm + contrFee + tranFee,
-          tranFee,
-          contrFee,
-          netAmount,
-          tradeDate
-        });
-        
-        console.log('💚 Transaction added:', symbol, action, quantity);
-      } else {
-        console.log('❌ Not enough parts:', parts.length);
+        const qtyMatch = nextLine.match(/^(\d+)\s+contract/);
+        if (qtyMatch) quantity = parseInt(qtyMatch[1]);
+      }
+      
+      if (line === 'Filled') {
+        const nextLine = this.getNextNonEmptyLine(lines, i + 1);
+        const dateMatch = nextLine.match(/([\d\/]+),\s*([\d:]+\s*[AP]M\s*\w+)/);
+        if (dateMatch) {
+          filledDate = dateMatch[1];
+          filledTime = dateMatch[2];
+        }
+      }
+      
+      if (line === 'Position effect') {
+        const posLine = this.getNextNonEmptyLine(lines, i + 1);
+        position = posLine.toLowerCase().includes('close') ? 'close' : 'open';
+      }
+      
+      if (i > startIndex + 1 && this.isLegDefinition(line)) break;
+      if (line.includes('Download Trade Confirmation')) break;
+    }
+    
+    return {
+      action: action.toLowerCase() as 'buy' | 'sell',
+      symbol,
+      strike: parseFloat(strike),
+      expiry,
+      optionType: optionType.toLowerCase() as 'call' | 'put',
+      position,
+      price,
+      quantity,
+      filledDate,
+      filledTime
+    };
+  }
+
+  matchToPlaid(spreads: RobinhoodSpread[], plaidTransactions: PlaidTransaction[]): MappingResult[] {
+    const mappings: MappingResult[] = [];
+    const openSpreads = spreads.filter(s => s.isOpen);
+    const closeSpreads = spreads.filter(s => !s.isOpen);
+    console.log("Found " + openSpreads.length + " OPEN spreads, " + closeSpreads.length + " CLOSE spreads");
+    const reversedOpens = [...openSpreads].reverse();
+    const tradeGroups: TradeGroup[] = [];
+    this.tradeCounter = 1;
+    for (const openSpread of reversedOpens) {
+      const closeLegs = this.findAllMatchingCloseLegs(openSpread, closeSpreads);
+      tradeGroups.push({ tradeNum: this.tradeCounter++, openSpread, closeLegs });
+    }
+    console.log("Created " + tradeGroups.length + " trade groups");
+    for (const group of tradeGroups) {
+      const strategy = this.mapStrategy(group.openSpread.strategyName);
+      const tradeNum = String(group.tradeNum);
+      for (const leg of group.openSpread.legs) {
+        if (leg.price === 0 || !leg.filledDate) continue;
+        const match = this.findMatchingPlaidTxn(leg, plaidTransactions);
+        const coa = this.assignCOA(leg);
+        if (match) {
+          mappings.push({ txnId: match.id, tradeNum, strategy, coa, confidence: 'high', matchedTo: group.openSpread.symbol + " " + strategy });
+        }
+      }
+      for (const leg of group.closeLegs) {
+        if (leg.price === 0 || !leg.filledDate) continue;
+        const match = this.findMatchingPlaidTxn(leg, plaidTransactions);
+        const coa = 'CLOSE';
+        if (match) {
+          mappings.push({ txnId: match.id, tradeNum, strategy, coa, confidence: 'high', matchedTo: group.openSpread.symbol + " " + strategy + " close" });
+        }
       }
     }
+    console.log("Created " + mappings.length + " total mappings for " + tradeGroups.length + " trades");
+    return mappings;
   }
-  
-  console.log('✅ Total transactions parsed:', transactions.length);
-  return transactions;
+
+  private findAllMatchingCloseLegs(openSpread: RobinhoodSpread, closeSpreads: RobinhoodSpread[]): RobinhoodLeg[] {
+    const closeLegs: RobinhoodLeg[] = [];
+    const openStrikes = openSpread.legs.map(l => l.strike).sort((a, b) => a - b);
+    for (const closeSpread of closeSpreads) {
+      if ((closeSpread as any).matched) continue;
+      if (closeSpread.symbol !== openSpread.symbol) continue;
+      const closeStrikes = closeSpread.legs.map(l => l.strike).sort((a, b) => a - b);
+      const hasMatchingStrike = closeStrikes.some(closeStrike => openStrikes.some(openStrike => Math.abs(openStrike - closeStrike) < 0.01));
+      if (hasMatchingStrike) {
+        (closeSpread as any).matched = true;
+        closeLegs.push(...closeSpread.legs);
+      }
+    }
+    return closeLegs;
+  }
+
+  private findMatchingPlaidTxn(leg: RobinhoodLeg, transactions: PlaidTransaction[]): PlaidTransaction | null {
+    for (const txn of transactions) {
+      if ((txn as any).mapped) continue;
+      const txnSymbol = txn.security?.option_underlying_ticker || txn.security?.ticker_symbol || txn.symbol;
+      if (txnSymbol !== leg.symbol) continue;
+      const txnStrike = txn.security?.option_strike_price;
+      if (!txnStrike || Math.abs(txnStrike - leg.strike) > 0.01) continue;
+      if (Math.abs(txn.price - leg.price) > 0.15) continue;
+      if (Math.abs(txn.quantity - leg.quantity) > 0) continue;
+      const txnType = txn.security?.option_contract_type;
+      if (txnType !== leg.optionType) continue;
+      if (txn.type !== leg.action) continue;
+      const nameHasClose = txn.name?.toLowerCase().includes('close') || false;
+      const matchesPosition = leg.position === 'close' ? nameHasClose : !nameHasClose;
+      if (!matchesPosition) continue;
+      const txnDate = new Date(txn.date);
+      const legDate = this.parseRHDate(leg.filledDate);
+      if (legDate) {
+        const daysDiff = Math.abs((txnDate.getTime() - legDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff > 3) continue;
+      }
+      (txn as any).mapped = true;
+      return txn;
+    }
+    return null;
+  }
+
+  private parseRHDate(rhDate: string): Date | null {
+    const match = rhDate.match(/(\d+)\/(\d+)/);
+    if (!match) return null;
+    const month = parseInt(match[1]) - 1;
+    const day = parseInt(match[2]);
+    const year = 2025;
+    return new Date(year, month, day);
+  }
+
+  private assignCOA(leg: RobinhoodLeg): string {
+    if (leg.position === 'close') {
+      return 'CLOSE';
+    }
+    if (leg.action === 'buy') {
+      return leg.optionType === 'call' ? 'T-1200' : 'T-1210';
+    } else {
+      return leg.optionType === 'call' ? 'T-2100' : '';
+    }
+  }
+
+  private mapStrategy(rhStrategy: string): string {
+    const strategyMap: Record<string, string> = {
+      'Call Credit Spread': 'call-credit',
+      'Put Credit Spread': 'put-credit',
+      'Call Debit Spread': 'call-debit',
+      'Put Debit Spread': 'put-debit',
+      'Iron Condor': 'iron-condor',
+      'Short Iron Condor': 'iron-condor',
+      'Closing Call Credit Spread': 'call-credit',
+      'Closing Put Credit Spread': 'put-credit',
+    };
+    if (strategyMap[rhStrategy]) {
+      return strategyMap[rhStrategy];
+    }
+    for (const [key, value] of Object.entries(strategyMap)) {
+      if (rhStrategy.includes(key)) {
+        return value;
+      }
+    }
+    if (rhStrategy.toLowerCase().includes('call')) {
+      return rhStrategy.toLowerCase().includes('credit') ? 'call-credit' : 'call-debit';
+    }
+    if (rhStrategy.toLowerCase().includes('put')) {
+      return rhStrategy.toLowerCase().includes('credit') ? 'put-credit' : 'put-debit';
+    }
+    return 'long-call';
+  }
+
+  resetCounter() {
+    this.tradeCounter = 1;
+  }
+}
+
+export const robinhoodParser = new RobinhoodHistoryParser();
+
+export async function fetchRobinhoodHistory(): Promise<string> {
+  const response = await fetch('/api/robinhood/get-history');
+  if (!response.ok) throw new Error('Failed to fetch history');
+  const data = await response.json();
+  return data.historyText || '';
 }
