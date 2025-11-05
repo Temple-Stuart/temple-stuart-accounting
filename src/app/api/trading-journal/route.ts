@@ -19,42 +19,56 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const trades = await prisma.investment_transactions.findMany({
+    // Query ALL trading positions (both OPEN and CLOSED)
+    const positions = await prisma.trading_positions.findMany({
       where: {
-        accounts: { userId: user.id },
-        accountCode: { not: null },
-        strategy: { not: null }
+        status: 'CLOSED'  // Only show completed trades
       },
-      orderBy: { date: 'desc' }
+      orderBy: { close_date: 'desc' }
     });
 
+    console.log(`Found ${positions.length} closed positions`);
+
+    // Group positions by trade_num
     const groupedByTradeNum: { [key: string]: any[] } = {};
     
-    trades.forEach(trade => {
-      const key = trade.tradeNum || trade.id;
+    positions.forEach(position => {
+      const key = position.trade_num || position.id;
       if (!groupedByTradeNum[key]) {
         groupedByTradeNum[key] = [];
       }
-      groupedByTradeNum[key].push(trade);
+      groupedByTradeNum[key].push(position);
     });
 
     const tradeGroups = Object.entries(groupedByTradeNum).map(([tradeNum, legs]) => {
-      const totalPL = legs.reduce((sum, leg) => sum + (leg.amount || 0), 0);
-      const totalFees = legs.reduce((sum, leg) => sum + (leg.fees || 0), 0);
-      const netPL = totalPL - totalFees;
+      // Use calculated realized_pl from position tracker (IRS-compliant)
+      const totalPL = legs.reduce((sum, leg) => sum + (Number(leg.realized_pl) || 0), 0);
+      const totalFees = legs.reduce((sum, leg) => sum + (Number(leg.open_fees) || 0) + (Number(leg.close_fees) || 0), 0);
+      const netPL = totalPL;
+      
+      const firstLeg = legs[0];
+      const lastLeg = legs[legs.length - 1];
       
       return {
         tradeNum,
-        strategy: legs[0].strategy,
-        symbol: legs[0].name?.split(' ').find((part: string) => part.match(/^[A-Z]+$/)) || 'Unknown',
-        entryDate: legs[0].date,
-        exitDate: legs[legs.length - 1].date,
+        strategy: firstLeg.strategy || 'Unknown',
+        symbol: firstLeg.symbol,
+        entryDate: firstLeg.open_date,
+        exitDate: lastLeg.close_date || lastLeg.open_date,
         legs: legs.length,
         totalPL,
         totalFees,
         netPL,
         isWinner: netPL > 0,
-        trades: legs
+        trades: legs.map(leg => ({
+          id: leg.id,
+          date: leg.open_date,
+          name: `${leg.position_type} ${leg.symbol} $${leg.strike_price} ${leg.option_type}`,
+          quantity: leg.quantity,
+          price: Number(leg.open_price),
+          amount: Number(leg.realized_pl),
+          fees: Number(leg.open_fees) + Number(leg.close_fees)
+        }))
       };
     });
 

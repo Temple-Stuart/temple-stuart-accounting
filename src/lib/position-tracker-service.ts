@@ -18,29 +18,86 @@ interface InvestmentLeg {
   amount: number;
 }
 
+type TransactionContext = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+
 export class PositionTrackerService {
-  async commitOptionsTrade(params: { legs: InvestmentLeg[]; strategy: string; tradeNum: string; }) {
-    const { legs, strategy, tradeNum } = params;
+  async commitOptionsTrade(params: { 
+    legs: InvestmentLeg[]; 
+    strategy: string; 
+    tradeNum: string;
+    tx?: TransactionContext; 
+  }) {
+    const { legs, strategy, tradeNum, tx } = params;
+    const db = tx || prisma;
     const results = [];
+    const skipped = [];
+    
+    console.log(`[Commit] Processing ${legs.length} legs for Trade #${tradeNum}`);
+    
+    // CRITICAL: Process ALL opens first to ensure positions exist in DB
     for (const leg of legs) {
       if (leg.positionEffect === 'open') {
-        const result = await this.openPosition(leg, strategy, tradeNum);
-        results.push(result);
-      } else {
-        const result = await this.closePosition(leg, strategy, tradeNum);
+        console.log(`  [OPEN] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
+        const result = await this.openPosition(leg, strategy, tradeNum, db);
         results.push(result);
       }
     }
+    
+    // Then process ALL closes (can now find the opens we just created)
     for (const leg of legs) {
-      await prisma.investment_transactions.update({
-        where: { id: leg.id },
-        data: { strategy, tradeNum, accountCode: results.find(r => r.legId === leg.id)?.coaCode || null }
-      });
+      if (leg.positionEffect === 'close') {
+        // Check if open position exists BEFORE attempting close
+        const openExists = await db.trading_positions.findFirst({
+          where: { 
+            symbol: leg.symbol, 
+            strike_price: leg.strike, 
+            option_type: leg.contractType?.toUpperCase(),
+            expiration_date: leg.expiry, 
+            status: 'OPEN' 
+          }
+        });
+        
+        if (!openExists) {
+          console.warn(`  [SKIP CLOSE] No open position for ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
+          skipped.push({
+            legId: leg.id,
+            reason: 'NO_OPEN_POSITION',
+            symbol: leg.symbol,
+            strike: leg.strike,
+            contractType: leg.contractType,
+            expiry: leg.expiry?.toLocaleDateString()
+          });
+          continue; // Skip this close, don't crash
+        }
+        
+        console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
+        const result = await this.closePosition(leg, strategy, tradeNum, db);
+        results.push(result);
+      }
     }
-    return { success: true, results };
+    
+    // Update investment_transactions table with COA codes
+    for (const leg of legs) {
+      const result = results.find(r => r.legId === leg.id);
+      if (result) {
+        await db.investment_transactions.update({
+          where: { id: leg.id },
+          data: { strategy, tradeNum, accountCode: result.coaCode }
+        });
+      }
+    }
+    
+    console.log(`[Commit] SUCCESS: ${results.length} committed, ${skipped.length} skipped`);
+    
+    return { success: true, results, skipped };
   }
 
-  private async openPosition(leg: InvestmentLeg, strategy: string, tradeNum: string) {
+  private async openPosition(
+    leg: InvestmentLeg, 
+    strategy: string, 
+    tradeNum: string,
+    db: TransactionContext
+  ) {
     const TRADING_CASH = 'T-1010';
     const multiplier = 100;
     let costBasis: number;
@@ -67,9 +124,10 @@ export class PositionTrackerService {
     const journalEntry = await this.createJournalEntry({
       date: leg.date,
       description: `OPEN ${positionType}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} ${leg.expiry?.toLocaleDateString()}`,
-      lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis
+      lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis,
+      db
     });
-    await prisma.trading_positions.create({
+    await db.trading_positions.create({
       data: {
         open_investment_txn_id: leg.id, symbol: leg.symbol, option_type: leg.contractType?.toUpperCase() as string,
         strike_price: leg.strike, expiration_date: leg.expiry, position_type: positionType, quantity: leg.quantity,
@@ -80,11 +138,21 @@ export class PositionTrackerService {
     return { legId: leg.id, journalId: journalEntry.id, coaCode: positionAccount, costBasis, action: 'OPEN' };
   }
 
-  private async closePosition(leg: InvestmentLeg, strategy: string, tradeNum: string) {
+  private async closePosition(
+    leg: InvestmentLeg, 
+    strategy: string, 
+    tradeNum: string,
+    db: TransactionContext
+  ) {
     const TRADING_CASH = 'T-1010';
-    const openPosition = await prisma.trading_positions.findFirst({
-      where: { symbol: leg.symbol, strike_price: leg.strike, option_type: leg.contractType?.toUpperCase(),
-        expiration_date: leg.expiry, status: 'OPEN' },
+    const openPosition = await db.trading_positions.findFirst({
+      where: { 
+        symbol: leg.symbol, 
+        strike_price: leg.strike, 
+        option_type: leg.contractType?.toUpperCase(),
+        expiration_date: leg.expiry, 
+        status: 'OPEN' 
+      },
       orderBy: { open_date: 'asc' }
     });
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
@@ -122,9 +190,10 @@ export class PositionTrackerService {
     const journalEntry = await this.createJournalEntry({
       date: leg.date,
       description: `CLOSE ${openPosition.position_type}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
-      lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds
+      lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
+      db
     });
-    await prisma.trading_positions.update({
+    await db.trading_positions.update({
       where: { id: openPosition.id },
       data: { status: 'CLOSED', close_investment_txn_id: leg.id, close_price: leg.price,
         close_fees: leg.fees, close_date: leg.date, proceeds: proceeds / 100, realized_pl: realizedPL / 100 }
@@ -136,36 +205,56 @@ export class PositionTrackerService {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
+    db: TransactionContext;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount, db } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
     const accountCodes = lines.map(l => l.accountCode);
-    const accounts = await prisma.chart_of_accounts.findMany({ where: { code: { in: accountCodes } } });
+    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes } } });
     if (accounts.length !== accountCodes.length) {
       const missing = accountCodes.filter(code => !accounts.find(a => a.code === code));
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
     }
-    return await prisma.$transaction(async (tx) => {
-      const journalTxn = await tx.journal_transactions.create({
-        data: { id: uuidv4(), transaction_date: date, description, external_transaction_id: externalTransactionId,
-          strategy, trade_num: tradeNum, amount, posted_at: new Date() }
-      });
-      for (const line of lines) {
-        const account = accounts.find(a => a.code === line.accountCode)!;
-        await tx.ledger_entries.create({
-          data: { id: uuidv4(), transaction_id: journalTxn.id, account_id: account.id,
-            amount: BigInt(line.amount), entry_type: line.entryType }
-        });
-        const balanceChange = line.entryType === account.balance_type ? BigInt(line.amount) : BigInt(-line.amount);
-        await tx.chart_of_accounts.update({
-          where: { id: account.id },
-          data: { settled_balance: { increment: balanceChange }, version: { increment: 1 } }
-        });
+    
+    // Create journal transaction
+    const journalTxn = await db.journal_transactions.create({
+      data: { 
+        id: uuidv4(), 
+        transaction_date: date, 
+        description, 
+        external_transaction_id: externalTransactionId,
+        strategy, 
+        trade_num: tradeNum, 
+        amount, 
+        posted_at: new Date() 
       }
-      return journalTxn;
     });
+    
+    // Create ledger entries and update account balances
+    for (const line of lines) {
+      const account = accounts.find(a => a.code === line.accountCode)!;
+      await db.ledger_entries.create({
+        data: { 
+          id: uuidv4(), 
+          transaction_id: journalTxn.id, 
+          account_id: account.id,
+          amount: BigInt(line.amount), 
+          entry_type: line.entryType 
+        }
+      });
+      const balanceChange = line.entryType === account.balance_type ? BigInt(line.amount) : BigInt(-line.amount);
+      await db.chart_of_accounts.update({
+        where: { id: account.id },
+        data: { 
+          settled_balance: { increment: balanceChange }, 
+          version: { increment: 1 } 
+        }
+      });
+    }
+    
+    return journalTxn;
   }
 
   async handleAssignmentExercise(params: {
@@ -200,7 +289,8 @@ export class PositionTrackerService {
     const journalEntry = await this.createJournalEntry({
       date: exerciseTransfer.date,
       description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
-      lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost
+      lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
+      db: prisma
     });
     await prisma.trading_positions.update({
       where: { id: openPosition.id },

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CommittedInvestmentsTable from "./CommittedInvestmentsTable";
+import { robinhoodParser } from '@/lib/robinhood-parser';
 
 interface InvestmentsTabProps {
   investmentTransactions: any[];
@@ -16,50 +17,190 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
   const [investmentRowChanges, setInvestmentRowChanges] = useState<{[key: string]: {strategy?: string; coa?: string; sub?: string; tradeNum?: string}}>({});
   const [selectedCommittedInvestments, setSelectedCommittedInvestments] = useState<string[]>([]);
   
-  // PDF Upload state
+  const [autoMapStatus, setAutoMapStatus] = useState<{loading?: boolean; success?: boolean; message?: string} | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [matchedData, setMatchedData] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Robinhood History paste state
   const [historyText, setHistoryText] = useState('');
   const [historyStatus, setHistoryStatus] = useState<{loading?: boolean; success?: boolean; message?: string} | null>(null);
+  const [commitStatus, setCommitStatus] = useState<{loading?: boolean; message?: string} | null>(null);
 
-  const commitSelectedInvestmentRows = async () => {
-    const updates = Object.entries(investmentRowChanges).filter(([id, values]) => values.coa && values.strategy);
-    if (updates.length === 0) {
-      alert('Investments need both Strategy and COA assigned');
-      return;
-    }
+  const handleAutoMapTrades = async () => {
+    setAutoMapStatus({ loading: true, message: 'Fetching Robinhood history...' });
+    
     try {
-      const transactionIds = updates.map(([id]) => id);
-      const firstUpdate = updates[0][1];
+      const response = await fetch('/api/robinhood/get-history');
+      const data = await response.json();
       
-      const res = await fetch('/api/investment-transactions/commit-to-ledger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionIds,
-          accountCode: firstUpdate.coa,
-          subAccount: firstUpdate.sub || null,
-          strategy: firstUpdate.strategy,
-          tradeNum: firstUpdate.tradeNum || null
-        })
+      if (!data.historyText || data.historyText.length === 0) {
+        setAutoMapStatus({
+          success: false,
+          message: 'No Robinhood history found. Please paste history first.'
+        });
+        setTimeout(() => setAutoMapStatus(null), 5000);
+        return;
+      }
+      
+      setAutoMapStatus({ loading: true, message: 'Parsing history file...' });
+      
+      console.log('=== AUTO-MAP DEBUG ===');
+      console.log('History file length:', data.historyText.length);
+      
+      robinhoodParser.resetCounter();
+      const spreads = robinhoodParser.parseHistory(data.historyText);
+      
+      console.log('Parsed spreads:', spreads.length);
+      if (spreads.length > 0) {
+        console.log('First spread:', spreads[0]);
+        console.log('First spread legs:', spreads[0].legs);
+      }
+      
+      if (spreads.length === 0) {
+        setAutoMapStatus({
+          success: false,
+          message: 'No spreads found in history file.'
+        });
+        setTimeout(() => setAutoMapStatus(null), 5000);
+        return;
+      }
+      
+      setAutoMapStatus({ loading: true, message: `Found ${spreads.length} spreads. Matching to transactions...` });
+      
+      const filteredTransactions = investmentTransactions.filter(txn => {
+        const cutoffDate = new Date("2025-06-10");
+        const transactionDate = new Date(txn.date);
+        return transactionDate >= cutoffDate;
       });
       
-      const result = await res.json();
-      
-      if (result.success) {
-        await onReload();
-        setInvestmentRowChanges({});
-        alert(`✅ Committed ${result.committed} investments with journal entries`);
-      } else {
-        alert(`❌ Errors: ${result.errors.length}`);
+      console.log('Filtered transactions:', filteredTransactions.length);
+      if (filteredTransactions.length > 0) {
+        console.log('First 3 transactions FULL:', filteredTransactions.slice(0, 3));
       }
+      
+      const mappings = robinhoodParser.matchToPlaid(spreads, filteredTransactions);
+      
+      console.log('Mappings found:', mappings.length);
+      if (mappings.length > 0) {
+        console.log('First mapping:', mappings[0]);
+      }
+      
+      if (mappings.length === 0) {
+        setAutoMapStatus({
+          success: false,
+          message: 'No matches found. Check browser console for debug info.'
+        });
+        setTimeout(() => setAutoMapStatus(null), 5000);
+        return;
+      }
+      
+      const newChanges: typeof investmentRowChanges = {};
+      
+      for (const mapping of mappings) {
+        newChanges[mapping.txnId] = {
+          strategy: mapping.strategy,
+          coa: mapping.coa,
+          tradeNum: mapping.tradeNum
+        };
+      }
+      
+      setInvestmentRowChanges(prev => ({ ...prev, ...newChanges }));
+      
+      setAutoMapStatus({
+        success: true,
+        message: `✅ Auto-mapped ${mappings.length} transactions from ${spreads.length} spreads!`
+      });
+      
+      setTimeout(() => setAutoMapStatus(null), 10000);
+      
     } catch (error) {
-      alert('Failed to commit investment transactions');
+      console.error('Auto-map error:', error);
+      setAutoMapStatus({
+        success: false,
+        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+      setTimeout(() => setAutoMapStatus(null), 5000);
+    }
+  };
+
+  const commitSelectedInvestmentRows = async () => {
+    const updates = Object.entries(investmentRowChanges).filter(([id, values]) => values.coa && values.strategy && values.tradeNum);
+    
+    if (updates.length === 0) {
+      alert('Investments need Strategy, COA, and Trade # assigned');
+      return;
+    }
+    
+    // CRITICAL FIX: Group transactions by trade number
+    const tradeGroups: { [tradeNum: string]: Array<[string, any]> } = {};
+    
+    for (const update of updates) {
+      const tradeNum = update[1].tradeNum;
+      if (!tradeGroups[tradeNum]) {
+        tradeGroups[tradeNum] = [];
+      }
+      tradeGroups[tradeNum].push(update);
+    }
+    
+    const totalTrades = Object.keys(tradeGroups).length;
+    let completedTrades = 0;
+    let totalCommitted = 0;
+    const errors: string[] = [];
+    
+    setCommitStatus({ loading: true, message: `Committing 0/${totalTrades} trades...` });
+    
+    try {
+      // Commit each trade separately (grouped by trade number)
+      for (const [tradeNum, tradeTransactions] of Object.entries(tradeGroups)) {
+        try {
+          const transactionIds = tradeTransactions.map(([id]) => id);
+          const firstTxn = tradeTransactions[0][1];
+          
+          console.log(`Committing Trade #${tradeNum} with ${transactionIds.length} legs`);
+          
+          const res = await fetch('/api/investment-transactions/commit-to-ledger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transactionIds,
+              accountCode: firstTxn.coa,
+              subAccount: firstTxn.sub || null,
+              strategy: firstTxn.strategy,
+              tradeNum
+            })
+          });
+          
+          const result = await res.json();
+          
+          if (result.success) {
+            completedTrades++;
+            totalCommitted += result.committed;
+            setCommitStatus({ 
+              loading: true, 
+              message: `Committing ${completedTrades}/${totalTrades} trades (${totalCommitted} legs)...` 
+            });
+          } else {
+            errors.push(`Trade #${tradeNum}: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error) {
+          errors.push(`Trade #${tradeNum}: ${error instanceof Error ? error.message : 'Failed'}`);
+        }
+      }
+      
+      await onReload();
+      setInvestmentRowChanges({});
+      setCommitStatus(null);
+      
+      if (errors.length === 0) {
+        alert(`✅ Successfully committed ${completedTrades} trades (${totalCommitted} legs)!`);
+      } else {
+        alert(`⚠️ Committed ${completedTrades}/${totalTrades} trades.\n\nErrors:\n${errors.join('\n')}`);
+      }
+      
+    } catch (error) {
+      setCommitStatus(null);
+      alert(`Failed to commit investments: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -325,14 +466,56 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
             </div>
           </div>
         </div>
+
+        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-lg mb-1">🚀 Auto-Map Trades</h3>
+              <p className="text-sm text-gray-600">
+                Automatically map transactions using your Robinhood history file
+              </p>
+              {autoMapStatus && (
+                <div className="mt-2">
+                  {autoMapStatus.loading && (
+                    <span className="text-blue-600 font-medium">⏳ {autoMapStatus.message}</span>
+                  )}
+                  {autoMapStatus.success && (
+                    <span className="text-green-600 font-medium">{autoMapStatus.message}</span>
+                  )}
+                  {autoMapStatus.success === false && (
+                    <span className="text-red-600 font-medium">❌ {autoMapStatus.message}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleAutoMapTrades}
+              disabled={autoMapStatus?.loading}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg font-bold text-base hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg transition-all hover:shadow-xl"
+            >
+              {autoMapStatus?.loading ? '⏳ Mapping...' : '🚀 Auto-Map All Trades'}
+            </button>
+          </div>
+        </div>
         
         <div className="p-4 bg-gray-50 flex justify-between items-center">
-          <span className="text-sm">Investment Transactions: {investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length} uncommitted, {committedInvestments.length} committed</span>
+          <span className="text-sm">
+            Investment Transactions: {investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length} uncommitted, {committedInvestments.length} committed
+            {Object.keys(investmentRowChanges).length > 0 && (
+              <span className="ml-2 text-green-600 font-medium">
+                ({Object.keys(investmentRowChanges).length} mapped)
+              </span>
+            )}
+            {commitStatus?.loading && (
+              <span className="ml-2 text-blue-600 font-medium">⏳ {commitStatus.message}</span>
+            )}
+          </span>
           <button 
             onClick={commitSelectedInvestmentRows}
-            className="px-4 py-2 bg-blue-600 text-white rounded text-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-400"
+            disabled={Object.keys(investmentRowChanges).length === 0 || commitStatus?.loading}
           >
-            Commit Investments
+            {commitStatus?.loading ? 'Committing...' : 'Commit Investments'}
           </button>
         </div>
       </div>
@@ -359,7 +542,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
               <th className="px-2 py-2 text-right bg-blue-50">RH Contr</th>
               <th className="px-2 py-2 text-center bg-blue-50">RH Action</th>
               <th className="px-2 py-2 text-center bg-blue-50">Recon</th>
-              <th className="px-2 py-2 text-center bg-blue-50 min-w-[60px]">Trade #</th>
+              <th className="px-2 py-2 text-center bg-green-50 min-w-[60px]">Trade #</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -388,8 +571,10 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
                 symbol = txn.security.ticker_symbol;
               }
 
+              const isMapped = !!investmentRowChanges[txnId];
+
               return (
-                <tr key={txnId} className="hover:bg-gray-50">
+                <tr key={txnId} className={`hover:bg-gray-50 ${isMapped ? 'bg-green-50' : ''}`}>
                   <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
                   <td className="px-2 py-2 font-medium">{symbol}</td>
                   <td className="px-2 py-2 text-right bg-purple-50">
@@ -518,7 +703,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
                       </optgroup>
                     </select>
                   </td>
-                  <td className="px-2 py-1 bg-blue-50">
+                  <td className="px-2 py-1 bg-green-50">
                     <input
                       type="text"
                       value={investmentRowChanges[txnId]?.tradeNum || ""}

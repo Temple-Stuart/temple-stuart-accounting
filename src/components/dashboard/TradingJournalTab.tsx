@@ -19,6 +19,7 @@ interface Trade {
 export default function TradingJournalTab() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,9 +30,27 @@ export default function TradingJournalTab() {
     try {
       const res = await fetch('/api/trading-journal');
       const data = await res.json();
-      setTrades(data);
+      
+      // CRITICAL: Check if API returned an error
+      if (!res.ok || data.error) {
+        setError(data.error || 'Failed to load trades');
+        setTrades([]);
+        return;
+      }
+      
+      // CRITICAL: Ensure data is an array
+      if (Array.isArray(data)) {
+        setTrades(data);
+        setError(null);
+      } else {
+        console.error('API returned non-array:', data);
+        setTrades([]);
+        setError('Invalid data format');
+      }
     } catch (error) {
       console.error('Failed to load trading journal:', error);
+      setError('Network error');
+      setTrades([]);
     } finally {
       setLoading(false);
     }
@@ -45,6 +64,36 @@ export default function TradingJournalTab() {
 
   if (loading) {
     return <div className="p-4">Loading trading journal...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="font-semibold text-red-800">Error Loading Trading Journal</div>
+          <div className="text-red-600 text-sm mt-1">{error}</div>
+          <button 
+            onClick={loadTrades}
+            className="mt-3 px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (totalTrades === 0) {
+    return (
+      <div className="p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="font-semibold text-yellow-800">No Closed Trades</div>
+          <div className="text-yellow-600 text-sm mt-1">
+            You have committed positions, but none are closed yet. Trades appear here when both OPEN and CLOSE legs are committed.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
