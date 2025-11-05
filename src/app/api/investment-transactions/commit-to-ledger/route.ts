@@ -50,12 +50,21 @@ export async function POST(request: Request) {
       };
     });
 
-    // Commit using IRS-compliant position tracker service
-    const result = await positionTrackerService.commitOptionsTrade({
-      legs,
-      strategy,
-      tradeNum
-    });
+    // CRITICAL FIX: Wrap ENTIRE commit in single transaction to prevent deadlocks
+    const result = await prisma.$transaction(
+      async (tx) => {
+        return await positionTrackerService.commitOptionsTrade({
+          legs,
+          strategy,
+          tradeNum,
+          tx  // Pass transaction context
+        });
+      },
+      {
+        maxWait: 30000,  // 30 seconds max wait
+        timeout: 120000, // 2 minutes timeout (for 316 transactions)
+      }
+    );
 
     return NextResponse.json({
       success: true,

@@ -270,7 +270,7 @@ export class RobinhoodHistoryParser {
         if (leg.price === 0 || !leg.filledDate) continue;
         
         const match = this.findMatchingPlaidTxn(leg, plaidTransactions);
-        const coa = this.assignCOA(leg);
+        const coa = 'CLOSE';
         
         mappings.push({
           txnId: match?.id || '',
@@ -339,7 +339,7 @@ export class RobinhoodHistoryParser {
       const legDate = this.parseRHDate(leg.filledDate);
       if (legDate) {
         const daysDiff = Math.abs((txnDate.getTime() - legDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 4) continue;
+        if (daysDiff > 1) continue;
       }
       
       (txn as any).mapped = true;
@@ -360,16 +360,17 @@ export class RobinhoodHistoryParser {
 
   private assignCOA(leg: RobinhoodLeg): string {
     if (leg.position === 'close') {
-      return 'T-4100';
+      return 'CLOSE';
     }
     
     if (leg.action === 'buy') {
       return leg.optionType === 'call' ? 'T-1200' : 'T-1210';
     } else {
+      // All short options (calls and puts) use T-2100
       return 'T-2100';
     }
   }
-  
+
   private mapStrategy(rhStrategy: string): string {
     const strategyMap: Record<string, string> = {
       'Call Credit Spread': 'call-credit',
