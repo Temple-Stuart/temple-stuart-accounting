@@ -1,7 +1,6 @@
 /**
- * Temple Stuart Accounting - Robinhood History Parser v11.0
- * PHASE 1: Opening positions → Trade #1-N
- * PHASE 2: Closing positions → Match to opens, inherit trade numbers
+ * Temple Stuart Accounting - Robinhood History Parser v7.0
+ * NEW: Sequential open-then-close matching
  */
 
 interface RobinhoodLeg {
@@ -15,9 +14,6 @@ interface RobinhoodLeg {
   quantity: number;
   filledDate: string;
   filledTime: string;
-  principal: number;
-  fees: number;
-  netAmount: number;
 }
 
 interface RobinhoodSpread {
@@ -27,7 +23,6 @@ interface RobinhoodSpread {
   limitPrice: number;
   legs: RobinhoodLeg[];
   isOpen: boolean;
-  tradeNum?: number; // Assigned during matching
 }
 
 interface PlaidTransaction {
@@ -56,13 +51,6 @@ interface MappingResult {
   coa: string;
   confidence: 'high' | 'medium' | 'low';
   matchedTo?: string;
-  rhQuantity: number;
-  rhPrice: number;
-  rhPrincipal: number;
-  rhFees: number;
-  rhNetAmount: number;
-  rhAction: string;
-  isClosing: boolean;
 }
 
 class RobinhoodHistoryParser {
@@ -79,7 +67,6 @@ class RobinhoodHistoryParser {
       while (i < lines.length) {
         const line = lines[i];
         
-        // Check for spread strategy
         const strategyMatch = line.match(/^([A-Z]{2,5})\s+(.+(?:Credit Spread|Debit Spread|Short Iron Condor|Iron Condor|Long Call|Short Call|Long Put|Short Put|2-Option Order))$/i);
         
         if (strategyMatch) {
@@ -131,10 +118,8 @@ class RobinhoodHistoryParser {
               let quantity = 1;
               let filledDate = '';
               let filledTime = '';
-              let fees = 0;
-              let netAmount = 0;
               
-              for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+              for (let j = i + 1; j < Math.min(i + 25, lines.length); j++) {
                 const scanLine = lines[j];
                 
                 if (scanLine === 'Position effect') {
@@ -152,28 +137,13 @@ class RobinhoodHistoryParser {
                 if (dateMatch) {
                   filledDate = dateMatch[1];
                   filledTime = dateMatch[2];
-                }
-                
-                if (scanLine === 'Est regulatory fees' && j + 1 < lines.length) {
-                  const feeMatch = lines[j + 1].match(/^\$?([\d.]+)$/);
-                  if (feeMatch) {
-                    fees = parseFloat(feeMatch[1]);
-                  }
-                }
-                
-                if ((scanLine === 'Est cost' || scanLine === 'Est credit') && j + 1 < lines.length) {
-                  const netMatch = lines[j + 1].match(/^\$?([\d.]+)$/);
-                  if (netMatch) {
-                    netAmount = parseFloat(netMatch[1]);
-                  }
+                  break;
                 }
                 
                 if (scanLine.match(/^(Buy|Sell)\s+([A-Z]{2,5})\s+\$/)) break;
               }
               
               if (price > 0 && filledDate) {
-                const principal = quantity * price * 100;
-                
                 legs.push({
                   action,
                   symbol: legSymbol,
@@ -184,10 +154,7 @@ class RobinhoodHistoryParser {
                   price,
                   quantity,
                   filledDate,
-                  filledTime,
-                  principal,
-                  fees,
-                  netAmount
+                  filledTime
                 });
               }
             }
@@ -211,132 +178,12 @@ class RobinhoodHistoryParser {
           continue;
         }
         
-        // Check for standalone option
-        const singleMatch = line.match(/^(Buy|Sell)\s+([A-Z]{2,5})\s+\$?([\d.]+)\s+(Call|Put)\s+([\d\/]+)$/i);
-        
-        if (singleMatch) {
-          const action = singleMatch[1].toLowerCase() as 'buy' | 'sell';
-          const symbol = singleMatch[2];
-          const strike = parseFloat(singleMatch[3]);
-          const optionType = singleMatch[4].toLowerCase() as 'call' | 'put';
-          const expiry = singleMatch[5];
-          
-          i++;
-          const submitDate = lines[i] || '';
-          
-          i++;
-          const limitPriceLine = lines[i] || '';
-          const limitPriceMatch = limitPriceLine.match(/^\$?([\d.]+)$/);
-          const limitPrice = limitPriceMatch ? parseFloat(limitPriceMatch[1]) : 0;
-          
-          let position: 'open' | 'close' = 'open';
-          let price = 0;
-          let quantity = 1;
-          let filledDate = '';
-          let filledTime = '';
-          let fees = 0;
-          let netAmount = 0;
-          
-          for (let j = i; j < Math.min(i + 30, lines.length); j++) {
-            const scanLine = lines[j];
-            
-            if (scanLine === 'Position effect') {
-              const posEffect = lines[j + 1] || '';
-              position = posEffect.toLowerCase().includes('close') ? 'close' : 'open';
-            }
-            
-            const qtyMatch = scanLine.match(/^([\d]+)\s+contracts?\s+at\s+\$?([\d.]+)$/i);
-            if (qtyMatch) {
-              quantity = parseInt(qtyMatch[1]);
-              price = parseFloat(qtyMatch[2]);
-            }
-            
-            const dateMatch = scanLine.match(/^(\d+\/\d+),\s+(\d+:\d+\s+[AP]M)/i);
-            if (dateMatch) {
-              filledDate = dateMatch[1];
-              filledTime = dateMatch[2];
-            }
-            
-            if (scanLine === 'Est regulatory fees' && j + 1 < lines.length) {
-              const feeMatch = lines[j + 1].match(/^\$?([\d.]+)$/);
-              if (feeMatch) {
-                fees = parseFloat(feeMatch[1]);
-              }
-            }
-            
-            if ((scanLine === 'Est cost' || scanLine === 'Est credit') && j + 1 < lines.length) {
-              const netMatch = lines[j + 1].match(/^\$?([\d.]+)$/);
-              if (netMatch) {
-                netAmount = parseFloat(netMatch[1]);
-              }
-            }
-            
-            if (scanLine.match(/^(Buy|Sell)\s+([A-Z]{2,5})\s+\$/)) break;
-          }
-          
-          if (price > 0 && filledDate) {
-            let strategyName = '';
-            
-            if (position === 'open') {
-              if (action === 'buy') {
-                strategyName = optionType === 'call' ? 'Long Call' : 'Long Put';
-              } else {
-                strategyName = optionType === 'call' ? 'Short Call' : 'Short Put';
-              }
-            } else {
-              // For closes, preserve the original strategy context
-              if (action === 'sell') {
-                strategyName = optionType === 'call' ? 'Long Call' : 'Long Put';
-              } else {
-                strategyName = optionType === 'call' ? 'Short Call' : 'Short Put';
-              }
-            }
-            
-            const principal = quantity * price * 100;
-            
-            const leg: RobinhoodLeg = {
-              action,
-              symbol,
-              strike,
-              expiry,
-              optionType,
-              position,
-              price,
-              quantity,
-              filledDate,
-              filledTime,
-              principal,
-              fees,
-              netAmount
-            };
-            
-            spreads.push({
-              strategyName,
-              symbol,
-              submitDate,
-              limitPrice: price,
-              legs: [leg],
-              isOpen: position === 'open'
-            });
-          }
-          
-          continue;
-        }
-        
         i++;
       }
       
-      // Sort chronologically (oldest first)
-      spreads.sort((a, b) => {
-        const dateA = this.parseFilledDateTime(a.legs[0]?.filledDate || '1/1', a.legs[0]?.filledTime || '12:00 AM');
-        const dateB = this.parseFilledDateTime(b.legs[0]?.filledDate || '1/1', b.legs[0]?.filledTime || '12:00 AM');
-        return dateA.getTime() - dateB.getTime();
-      });
+      spreads.reverse();
       
-      const openCount = spreads.filter(s => s.isOpen).length;
-      const closeCount = spreads.filter(s => !s.isOpen).length;
-      
-      console.log(`✅ Parsed ${spreads.length} positions: ${openCount} opens, ${closeCount} closes`);
+      console.log(`✅ Parsed ${spreads.length} spreads (chronological)`);
       return spreads;
       
     } catch (error) {
@@ -345,96 +192,81 @@ class RobinhoodHistoryParser {
     }
   }
 
-  private parseFilledDateTime(dateStr: string, timeStr: string): Date {
-    const dateMatch = dateStr.match(/(\d+)\/(\d+)/);
-    if (!dateMatch) return new Date(2025, 0, 1);
-    
-    const month = parseInt(dateMatch[1]) - 1;
-    const day = parseInt(dateMatch[2]);
-    
-    const timeMatch = timeStr.match(/(\d+):(\d+)\s+(AM|PM)/i);
-    let hours = 0;
-    let minutes = 0;
-    
-    if (timeMatch) {
-      hours = parseInt(timeMatch[1]);
-      minutes = parseInt(timeMatch[2]);
-      const period = timeMatch[3].toUpperCase();
-      
-      if (period === 'PM' && hours !== 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-    }
-    
-    return new Date(2025, month, day, hours, minutes);
-  }
-
   matchToPlaid(spreads: RobinhoodSpread[], plaidTransactions: PlaidTransaction[]): MappingResult[] {
     try {
-      console.log(`\n🔍 PHASE 1: Mapping OPENING positions`);
+      console.log(`\n🔍 MATCHING ${spreads.length} spreads to ${plaidTransactions.length} Plaid txns`);
+      
+      if (spreads.length === 0) return [];
       
       const results: MappingResult[] = [];
       const unmapped = plaidTransactions.filter(t => !(t as any).mapped);
       
+      // PHASE 1: Map all OPEN positions first
+      console.log(`\n📊 PHASE 1: Mapping OPEN positions`);
       const openSpreads = spreads.filter(s => s.isOpen);
-      console.log(`📊 ${openSpreads.length} opening positions to map\n`);
       
-      // Phase 1: Map opening positions
       for (const spread of openSpreads) {
         const tradeNum = this.tradeCounter++;
-        spread.tradeNum = tradeNum; // Store for Phase 2 matching
+        console.log(`\n🎯 Trade #${tradeNum}: OPEN ${spread.symbol} ${spread.strategyName}`);
+        console.log(`   Limit: $${spread.limitPrice}, Legs: ${spread.legs.length}`);
         
-        const legText = spread.legs.length === 1 ? 'Single' : `${spread.legs.length} legs`;
-        console.log(`\n🎯 Trade #${tradeNum}: ${spread.symbol} ${spread.strategyName}`);
-        console.log(`   Date: ${spread.legs[0]?.filledDate}, Price: $${spread.limitPrice}, ${legText}`);
-        
-        const matches = this.matchSpreadLegs(spread, unmapped, tradeNum, false);
+        const matches = this.matchSpreadLegs(spread, unmapped, tradeNum);
         
         if (matches.length > 0) {
           results.push(...matches);
-          console.log(`   ✅ Mapped ${matches.length} opening transaction(s)`);
+          console.log(`   ✅ Mapped ${matches.length} legs`);
         } else {
           console.log(`   ⚠️ No match found`);
         }
       }
       
-      console.log(`\n✅ PHASE 1 COMPLETE: ${results.length} opening transactions mapped\n`);
+      console.log(`\n📊 PHASE 1 COMPLETE: ${results.length} open legs mapped`);
       
-      // Phase 2: Map closing positions
-      console.log(`\n🔍 PHASE 2: Mapping CLOSING positions`);
-      
+      // PHASE 2: Map all CLOSE positions
+      console.log(`\n📊 PHASE 2: Mapping CLOSE positions`);
       const closeSpreads = spreads.filter(s => !s.isOpen);
-      console.log(`📊 ${closeSpreads.length} closing positions to map\n`);
       
-      for (const closeSpread of closeSpreads) {
-        // Find matching open spread
-        const matchingOpen = openSpreads.find(open => 
-          this.spreadsMatch(open, closeSpread)
-        );
+      // Build reverse lookup: strikes/expiry/type -> trade number
+      const positionMap = new Map<string, number>();
+      
+      for (const result of results) {
+        const key = result.matchedTo || '';
+        if (key && !positionMap.has(key)) {
+          positionMap.set(key, parseInt(result.tradeNum));
+        }
+      }
+      
+      for (const spread of closeSpreads) {
+        // Find matching open trade number by comparing strikes
+        let tradeNum = this.tradeCounter;
         
-        if (!matchingOpen || !matchingOpen.tradeNum) {
-          console.log(`\n❌ Close: ${closeSpread.symbol} ${closeSpread.strategyName} - No matching open found`);
-          continue;
+        for (const leg of spread.legs) {
+          const posKey = `${spread.symbol} ${leg.strike} ${leg.optionType}`;
+          if (positionMap.has(posKey)) {
+            tradeNum = positionMap.get(posKey)!;
+            break;
+          }
         }
         
-        const tradeNum = matchingOpen.tradeNum;
-        const legText = closeSpread.legs.length === 1 ? 'Single' : `${closeSpread.legs.length} legs`;
+        // If no match found, assign new trade number
+        if (tradeNum === this.tradeCounter) {
+          this.tradeCounter++;
+        }
         
-        console.log(`\n🔒 Trade #${tradeNum}: ${closeSpread.symbol} ${closeSpread.strategyName} CLOSE`);
-        console.log(`   Date: ${closeSpread.legs[0]?.filledDate}, Price: $${closeSpread.limitPrice}, ${legText}`);
+        console.log(`\n🎯 Trade #${tradeNum}: CLOSE ${spread.symbol} ${spread.strategyName}`);
+        console.log(`   Limit: $${spread.limitPrice}, Legs: ${spread.legs.length}`);
         
-        const matches = this.matchSpreadLegs(closeSpread, unmapped, tradeNum, true);
+        const matches = this.matchSpreadLegs(spread, unmapped, tradeNum);
         
         if (matches.length > 0) {
           results.push(...matches);
-          console.log(`   ✅ Mapped ${matches.length} closing transaction(s)`);
+          console.log(`   ✅ Mapped ${matches.length} legs`);
         } else {
           console.log(`   ⚠️ No match found`);
         }
       }
       
-      console.log(`\n✅ PHASE 2 COMPLETE: ${results.filter(r => r.isClosing).length} closing transactions mapped`);
-      console.log(`\n🎉 TOTAL: ${results.length} transactions mapped across ${this.tradeCounter - 1} trades`);
-      
+      console.log(`\n✅ FINAL: Mapped ${results.length} transactions across ${this.tradeCounter - 1} trades`);
       return results;
       
     } catch (error) {
@@ -443,52 +275,12 @@ class RobinhoodHistoryParser {
     }
   }
 
-  private spreadsMatch(open: RobinhoodSpread, close: RobinhoodSpread): boolean {
-    if (open.symbol !== close.symbol) return false;
-    if (open.legs.length !== close.legs.length) return false;
-    
-    // Match all legs
-    for (const closeLeg of close.legs) {
-      const matchingOpenLeg = open.legs.find(openLeg =>
-        Math.abs(openLeg.strike - closeLeg.strike) < 0.01 &&
-        openLeg.optionType === closeLeg.optionType &&
-        this.expiriesMatch(openLeg.expiry, closeLeg.expiry)
-      );
-      
-      if (!matchingOpenLeg) return false;
-    }
-    
-    return true;
-  }
-
-  private expiriesMatch(expiry1: string, expiry2: string): boolean {
-    const date1 = this.parseRHExpiry(expiry1);
-    const date2 = this.parseRHExpiry(expiry2);
-    
-    if (!date1 || !date2) return false;
-    
-    const daysDiff = Math.abs((date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24));
-    return daysDiff < 2;
-  }
-
   private matchSpreadLegs(
     spread: RobinhoodSpread,
     plaidTxns: PlaidTransaction[],
-    tradeNum: number,
-    isClosing: boolean
+    tradeNum: number
   ): MappingResult[] {
     const { symbol, limitPrice, legs } = spread;
-    
-    const symbolTxns = plaidTxns.filter(t => {
-      const txnSymbol = t.security?.option_underlying_ticker || t.symbol;
-      return txnSymbol === symbol;
-    });
-    
-    console.log(`   🔍 Found ${symbolTxns.length} transactions for ${symbol}`);
-    
-    if (symbolTxns.length === 0) {
-      return [];
-    }
     
     const dateGroups = new Map<string, PlaidTransaction[]>();
     
@@ -523,12 +315,15 @@ class RobinhoodHistoryParser {
         
         if (priceDiff > 0.10) continue;
         
+        console.log(`   💰 Found group: qty=${firstQty}, total=$${totalAmount.toFixed(2)}, per-contract=$${perContractAmount.toFixed(2)} (target: $${limitPrice})`);
+        
         const matches: Array<{ leg: RobinhoodLeg; txn: PlaidTransaction }> = [];
         
         for (const leg of legs) {
           const matchingTxn = combo.find(txn => this.legMatchesTxn(leg, txn));
           
           if (!matchingTxn) {
+            console.log(`   ❌ No match for leg: ${leg.action} ${leg.strike} ${leg.optionType}`);
             break;
           }
           
@@ -536,7 +331,7 @@ class RobinhoodHistoryParser {
         }
         
         if (matches.length === legs.length) {
-          console.log(`   ✅ All ${legs.length} leg(s) matched!`);
+          console.log(`   ✅ All ${legs.length} legs matched!`);
           
           const results: MappingResult[] = [];
           
@@ -545,16 +340,9 @@ class RobinhoodHistoryParser {
               txnId: txn.id || (txn as any).investment_transaction_id,
               tradeNum: tradeNum.toString(),
               strategy: this.mapStrategy(spread.strategyName),
-              coa: isClosing ? 'T-4100' : this.assignCOA(leg), // All closes use T-4100
+              coa: this.assignCOA(leg),
               confidence: 'high',
-              matchedTo: `${symbol} ${leg.strike} ${leg.optionType}`,
-              rhQuantity: leg.quantity,
-              rhPrice: leg.price,
-              rhPrincipal: leg.principal,
-              rhFees: leg.fees,
-              rhNetAmount: leg.netAmount,
-              rhAction: leg.action.toUpperCase(),
-              isClosing
+              matchedTo: `${symbol} ${leg.strike} ${leg.optionType}`
             });
             
             (txn as any).mapped = true;
@@ -565,6 +353,7 @@ class RobinhoodHistoryParser {
       }
     }
     
+    console.log(`   ⚠️ No valid match found`);
     return [];
   }
 
@@ -648,6 +437,10 @@ class RobinhoodHistoryParser {
   }
 
   private assignCOA(leg: RobinhoodLeg): string {
+    if (leg.position === 'close') {
+      return 'T-4100';
+    }
+    
     if (leg.action === 'buy') {
       return leg.optionType === 'call' ? 'T-1200' : 'T-1210';
     } else {
