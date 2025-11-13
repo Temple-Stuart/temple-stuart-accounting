@@ -209,25 +209,27 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
       alert('Select investment transactions to uncommit');
       return;
     }
+    
     try {
-      for (const txnId of selectedCommittedInvestments) {
-        await fetch('/api/investment-transactions/assign-coa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transactionIds: [txnId],
-            accountCode: null,
-            subAccount: null,
-            tradeNum: null,
-            strategy: null
-          })
-        });
+      const res = await fetch('/api/investment-transactions/uncommit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds: selectedCommittedInvestments
+        })
+      });
+      
+      const result = await res.json();
+      
+      if (result.success) {
+        await onReload();
+        setSelectedCommittedInvestments([]);
+        alert(`✅ ${result.message}`);
+      } else {
+        alert(`❌ Error: ${result.error || 'Failed to uncommit'}`);
       }
-      await onReload();
-      setSelectedCommittedInvestments([]);
-      alert(`✅ Uncommitted ${selectedCommittedInvestments.length} investment transactions`);
     } catch (error) {
-      alert('Failed to uncommit');
+      alert(`Failed to uncommit: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

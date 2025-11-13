@@ -1,0 +1,17 @@
+🚀 Testing RH → Plaid Matching
+
+📄 Parsing 7198 lines from history...
+✅ Parsed 162 spreads (chronological)
+✅ Parsed 162 spreads
+
+❌ Error: TypeError: Cannot read properties of undefined (reading 'findMany')
+    at testMatching (/Users/alexanderstuart/Desktop/temple-stuart-accounting/src/scripts/test-matching.ts:21:58)
+    at fs (/Users/alexanderstuart/Desktop/temple-stuart-accounting/src/scripts/test-matching.ts:77:1)
+    at Object.<anonymous> (/Users/alexanderstuart/Desktop/temple-stuart-accounting/src/scripts/test-matching.ts:77:14)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Object.transformer (/Users/alexanderstuart/Desktop/temple-stuart-accounting/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at cjsLoader (node:internal/modules/esm/translators:266:5)

@@ -1,13882 +1,7202 @@
-Pending
-CAT Call Credit Spread
-Sep 16, 2025
-Placed
-Time in force
-
-Good till canceled
-Submitted
-
-9/16, 12:17 AM PDT
-Quantity
-
-1
-Status
-
-Placed
-Limit price
-
-$1.80
-Buy CAT $445 Call 10/31
-Type
-
-Limit Buy
-Position effect
-
-Close
-Quantity
-
-1
-Sell CAT $450 Call 10/31
-Type
-
-Limit Sell
-Position effect
-
-Close
-Quantity
-
-1
-Cancel Order
-Cancel and Replace Order
 Recent
 AVGO Call Credit Spread
 Oct 15
 $125.00
 Time in force
-
 Good till canceled
 Submitted
-
 10/15, 12:44 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.25
 Est cost
-
 $125.08
 Est regulatory fees
-
 $0.08
-Buy AVGO $375 Call 11/14
+Buy AVGO $375 Call 11/14
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $8.50
+1 contract at $8.50
 Filled
-
 10/17, 6:43 AM PDT
 Quantity
-
 1
-Sell AVGO $380 Call 11/14
+Sell AVGO $380 Call 11/14
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.25
+1 contract at $7.25
 Filled
-
 10/17, 6:43 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AVGO Call Credit Spread
 Oct 15
 $145.00
 Time in force
-
 Good for day
 Submitted
-
 10/15, 12:43 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.45
 Est credit
-
 $144.92
 Est regulatory fees
-
 $0.08
-Sell AVGO $375 Call 11/14
+Sell AVGO $375 Call 11/14
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $10.68
+1 contract at $10.68
 Filled
-
 10/15, 12:43 PM PDT
 Quantity
-
 1
-Buy AVGO $380 Call 11/14
+Buy AVGO $380 Call 11/14
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $9.23
+1 contract at $9.23
 Filled
-
 10/15, 12:43 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
+Older
 MU Put Credit Spread
 Oct 6
 $74.00
 Time in force
-
 Good till canceled
 Submitted
-
 10/6, 1:26 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.81
 Est cost
-
 $74.08
 Est regulatory fees
-
 $0.08
-Sell MU $182.5 Put 10/17
+Sell MU $182.5 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.21
+1 contract at $3.21
 Filled
-
 10/7, 6:30 AM PDT
 Quantity
-
 1
-Buy MU $185 Put 10/17
+Buy MU $185 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.95
+1 contract at $3.95
 Filled
-
 10/7, 6:30 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 LRCX Put Credit Spread
 Oct 6
 $95.00
 Time in force
-
 Good till canceled
 Submitted
-
 10/6, 12:25 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.95
 Est cost
-
 $95.08
 Est regulatory fees
-
 $0.08
-Sell LRCX $141 Put 10/31
+Sell LRCX $141 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.31
+1 contract at $2.31
 Filled
-
 10/23, 8:52 AM PDT
 Quantity
-
 1
-Buy LRCX $144 Put 10/31
+Buy LRCX $144 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.26
+1 contract at $3.26
 Filled
-
 10/23, 8:52 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Oct 6
 $142.00
 Time in force
-
 Good till canceled
 Submitted
-
 10/6, 12:24 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.62
 Est cost
-
 $142.08
 Est regulatory fees
-
 $0.08
-Sell AMD $185 Put 11/7
+Sell AMD $185 Put 11/7
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.59
+1 contract at $4.59
 Filled
-
 10/7, 6:30 AM PDT
 Quantity
-
 1
-Buy AMD $190 Put 11/7
+Buy AMD $190 Put 11/7
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $6.01
+1 contract at $6.01
 Filled
-
 10/7, 6:30 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 LRCX Put Credit Spread
 Oct 6
 $105.00
 Time in force
-
 Good for day
 Submitted
-
 10/6, 12:23 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.05
 Est credit
-
 $104.92
 Est regulatory fees
-
 $0.08
-Buy LRCX $141 Put 10/31
+Buy LRCX $141 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.30
+1 contract at $4.30
 Filled
-
 10/6, 12:23 PM PDT
 Quantity
-
 1
-Sell LRCX $144 Put 10/31
+Sell LRCX $144 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.35
+1 contract at $5.35
 Filled
-
 10/6, 12:23 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 MU Put Credit Spread
 Oct 6
 $90.00
 Time in force
-
 Good for day
 Submitted
-
 10/6, 12:22 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.90
 Est credit
-
 $89.92
 Est regulatory fees
-
 $0.08
-Buy MU $182.5 Put 10/17
+Buy MU $182.5 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.25
+1 contract at $4.25
 Filled
-
 10/6, 12:28 PM PDT
 Quantity
-
 1
-Sell MU $185 Put 10/17
+Sell MU $185 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.15
+1 contract at $5.15
 Filled
-
 10/6, 12:28 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Oct 6
 $180.00
 Time in force
-
 Good for day
 Submitted
-
 10/6, 12:20 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.80
 Est credit
-
 $179.92
 Est regulatory fees
-
 $0.08
-Buy AMD $185 Put 11/7
+Buy AMD $185 Put 11/7
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $7.20
+1 contract at $7.20
 Filled
-
 10/6, 12:20 PM PDT
 Quantity
-
 1
-Sell AMD $190 Put 11/7
+Sell AMD $190 Put 11/7
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $9.00
+1 contract at $9.00
 Filled
-
 10/6, 12:20 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
-Older
 NKE Put Credit Spread
 Sep 29
 $28.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/29, 12:58 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.33
 Est cost
-
 $28.16
 Est regulatory fees
-
 $0.16
-Sell NKE $66 Put 10/17
+Sell NKE $66 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.39
+2 contracts at $0.39
 Filled
-
 10/1, 6:30 AM PDT
 Quantity
-
 2
-Buy NKE $67 Put 10/17
+Buy NKE $67 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.53
+2 contracts at $0.53
 Filled
-
 10/1, 6:30 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 WDC Put Credit Spread
 Sep 29
 $135.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/29, 12:57 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.35
 Est cost
-
 $135.08
 Est regulatory fees
-
 $0.08
-Sell WDC $104 Put 10/31
+Sell WDC $104 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.78
+1 contract at $1.78
 Filled
-
 10/1, 7:25 AM PDT
 Quantity
-
 1
-Buy WDC $110 Put 10/31
+Buy WDC $110 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.13
+1 contract at $3.13
 Filled
-
 10/1, 7:25 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 WDC Put Credit Spread
 Sep 29
 $150.00
 Time in force
-
 Good for day
 Submitted
-
 9/29, 12:56 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.50
 Est credit
-
 $149.92
 Est regulatory fees
-
 $0.08
-Buy WDC $104 Put 10/31
+Buy WDC $104 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.72
+1 contract at $2.72
 Filled
-
 9/29, 12:56 PM PDT
 Quantity
-
 1
-Sell WDC $110 Put 10/31
+Sell WDC $110 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.22
+1 contract at $4.22
 Filled
-
 9/29, 12:56 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NKE Put Credit Spread
 Sep 29
 $72.00
 Time in force
-
 Good for day
 Submitted
-
 9/29, 12:53 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.36
 Est credit
-
 $71.84
 Est regulatory fees
-
 $0.16
-Buy NKE $66 Put 10/17
+Buy NKE $66 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.67
+2 contracts at $1.67
 Filled
-
 9/29, 12:53 PM PDT
 Quantity
-
 2
-Sell NKE $67 Put 10/17
+Sell NKE $67 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $2.03
+2 contracts at $2.03
 Filled
-
 9/29, 12:53 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 26
 $124.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/26, 11:46 AM PDT
 Quantity
-
 4
 Status
-
 Filled
 Limit price
-
 $0.31
 Est cost
-
 $124.32
 Est regulatory fees
-
 $0.32
-Sell INTC $32 Put 10/24
+Sell INTC $32 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-4 contracts at $0.78
+4 contracts at $0.78
 Filled
-
 10/2, 6:31 AM PDT
 Quantity
-
 4
-Buy INTC $33 Put 10/24
+Buy INTC $33 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-4 contracts at $1.09
+4 contracts at $1.09
 Filled
-
 10/2, 6:31 AM PDT
 Quantity
-
 4
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 26
 $140.00
 Time in force
-
 Good for day
 Submitted
-
 9/26, 11:44 AM PDT
 Quantity
-
 4
 Status
-
 Filled
 Limit price
-
 $0.35
 Est credit
-
 $139.68
 Est regulatory fees
-
 $0.32
-Buy INTC $32 Put 10/24
+Buy INTC $32 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-4 contracts at $1.10
+4 contracts at $1.10
 Filled
-
 9/26, 11:44 AM PDT
 Quantity
-
 4
-Sell INTC $33 Put 10/24
+Sell INTC $33 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-4 contracts at $1.45
+4 contracts at $1.45
 Filled
-
 9/26, 11:44 AM PDT
 Quantity
-
 4
 Download Trade Confirmation
 JPM Call Credit Spread
 Sep 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 25
 $114.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/25, 12:59 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.41
 Est cost
-
 $114.24
 Est regulatory fees
-
 $0.24
-Sell INTC $30 Put 10/17
+Sell INTC $30 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.37
+3 contracts at $0.37
 Filled
-
 9/26, 6:30 AM PDT
 Quantity
-
 3
-Buy INTC $31.5 Put 10/17
+Buy INTC $31.5 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.75
+3 contracts at $0.75
 Filled
-
 9/26, 6:30 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 25
 $138.00
 Time in force
-
 Good for day
 Submitted
-
 9/25, 12:58 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.46
 Est credit
-
 $137.76
 Est regulatory fees
-
 $0.24
-Buy INTC $30 Put 10/17
+Buy INTC $30 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.64
+3 contracts at $0.64
 Filled
-
 9/25, 12:58 PM PDT
 Quantity
-
 3
-Sell INTC $31.5 Put 10/17
+Sell INTC $31.5 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $1.10
+3 contracts at $1.10
 Filled
-
 9/25, 12:58 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 25
 $81.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/25, 12:10 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.27
 Est cost
-
 $81.24
 Est regulatory fees
-
 $0.24
-Sell INTC $30 Put 10/24
+Sell INTC $30 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.62
+3 contracts at $0.62
 Filled
-
 9/26, 7:42 AM PDT
 Quantity
-
 3
-Buy INTC $31 Put 10/24
+Buy INTC $31 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.89
+3 contracts at $0.89
 Filled
-
 9/26, 7:42 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 25
 $96.00
 Time in force
-
 Good for day
 Submitted
-
 9/25, 12:08 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.32
 Est credit
-
 $95.76
 Est regulatory fees
-
 $0.24
-Buy INTC $30 Put 10/24
+Buy INTC $30 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.90
+3 contracts at $0.90
 Filled
-
 9/25, 12:08 PM PDT
 Quantity
-
 3
-Sell INTC $31 Put 10/24
+Sell INTC $31 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $1.22
+3 contracts at $1.22
 Filled
-
 9/25, 12:08 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 24
 $69.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/24, 12:53 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.23
 Est cost
-
 $69.24
 Est regulatory fees
-
 $0.24
-Sell INTC $27.5 Put 10/24
+Sell INTC $27.5 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.49
+3 contracts at $0.49
 Filled
-
 9/25, 7:03 AM PDT
 Quantity
-
 3
-Buy INTC $28.5 Put 10/24
+Buy INTC $28.5 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.72
+3 contracts at $0.72
 Filled
-
 9/25, 7:03 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 24
 $78.00
 Time in force
-
 Good for day
 Submitted
-
 9/24, 12:51 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.26
 Est credit
-
 $77.76
 Est regulatory fees
-
 $0.24
-Buy INTC $27.5 Put 10/24
+Buy INTC $27.5 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.62
+3 contracts at $0.62
 Filled
-
 9/24, 12:51 PM PDT
 Quantity
-
 3
-Sell INTC $28.5 Put 10/24
+Sell INTC $28.5 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.88
+3 contracts at $0.88
 Filled
-
 9/24, 12:51 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 24
 $81.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/24, 12:48 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.27
 Est cost
-
 $81.24
 Est regulatory fees
-
 $0.24
-Sell INTC $27.5 Put 10/24
+Sell INTC $27.5 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.53
+3 contracts at $0.53
 Filled
-
 9/24, 12:48 PM PDT
 Quantity
-
 3
-Buy INTC $28.5 Put 10/24
+Buy INTC $28.5 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $0.80
+3 contracts at $0.80
 Filled
-
 9/24, 12:48 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 24
 $90.00
 Time in force
-
 Good for day
 Submitted
-
 9/24, 12:47 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.30
 Est credit
-
 $89.76
 Est regulatory fees
-
 $0.24
-Buy INTC $27.5 Put 10/24
+Buy INTC $27.5 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.63
+3 contracts at $0.63
 Filled
-
 9/24, 12:47 PM PDT
 Quantity
-
 3
-Sell INTC $28.5 Put 10/24
+Sell INTC $28.5 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.93
+3 contracts at $0.93
 Filled
-
 9/24, 12:47 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 24
 $22.00
 Time in force
-
 Good for day
 Submitted
-
 9/24, 10:02 AM PDT
 Quantity
-
 4
 Status
-
 Filled
 Limit price
-
 $0.07
 Est cost
-
 $22.32
 Est regulatory fees
-
 $0.32
-Sell INTC $28.5 Put 9/26
+Sell INTC $28.5 Put 9/26
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-4 contracts at $0.065
+4 contracts at $0.065
 Filled
-
 9/24, 10:06 AM PDT
 Quantity
-
 4
-Buy INTC $29 Put 9/26
+Buy INTC $29 Put 9/26
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-4 contracts at $0.12
+4 contracts at $0.12
 Filled
-
 9/24, 10:06 AM PDT
 Quantity
-
 4
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 INTC Put Credit Spread
 Sep 22
 $27.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/22, 12:48 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.27
 Est cost
-
 $27.08
 Est regulatory fees
-
 $0.08
-Sell INTC $25.5 Put 10/31
+Sell INTC $25.5 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.49
+1 contract at $0.49
 Filled
-
 9/23, 6:40 AM PDT
 Quantity
-
 1
-Buy INTC $26.5 Put 10/31
+Buy INTC $26.5 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.76
+1 contract at $0.76
 Filled
-
 9/23, 6:40 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 22
 $30.00
 Time in force
-
 Good for day
 Submitted
-
 9/22, 12:46 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.30
 Est credit
-
 $29.92
 Est regulatory fees
-
 $0.08
-Buy INTC $25.5 Put 10/31
+Buy INTC $25.5 Put 10/31
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.63
+1 contract at $0.63
 Filled
-
 9/22, 12:46 PM PDT
 Quantity
-
 1
-Sell INTC $26.5 Put 10/31
+Sell INTC $26.5 Put 10/31
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.93
+1 contract at $0.93
 Filled
-
 9/22, 12:46 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 19
 $11.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/19, 9:05 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.11
 Est cost
-
 $11.08
 Est regulatory fees
-
 $0.08
-Sell INTC $28.5 Put 9/26
+Sell INTC $28.5 Put 9/26
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.17
+1 contract at $0.17
 Filled
-
 9/23, 9:46 AM PDT
 Quantity
-
 1
-Buy INTC $29 Put 9/26
+Buy INTC $29 Put 9/26
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.28
+1 contract at $0.28
 Filled
-
 9/23, 9:46 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 INTC Put Credit Spread
 Sep 18
 $60.00
 Time in force
-
 Good for day
 Submitted
-
 9/18, 11:14 AM PDT
 Quantity
-
 5
 Status
-
 Filled
 Limit price
-
 $0.12
 Est credit
-
 $59.60
 Est regulatory fees
-
 $0.40
-Buy INTC $28.5 Put 9/26
+Buy INTC $28.5 Put 9/26
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-5 contracts at $0.39
+5 contracts at $0.39
 Filled
-
 9/18, 11:14 AM PDT
 Quantity
-
 5
-Sell INTC $29 Put 9/26
+Sell INTC $29 Put 9/26
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-5 contracts at $0.51
+5 contracts at $0.51
 Filled
-
 9/18, 11:14 AM PDT
 Quantity
-
 5
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 16
 $122.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/16, 12:55 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.22
 Est cost
-
 $122.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $387.5 Put 10/3
+Sell TSLA $387.5 Put 10/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $6.66
+1 contract at $6.66
 Filled
-
 9/17, 11:04 AM PDT
 Quantity
-
 1
-Buy TSLA $392.5 Put 10/3
+Buy TSLA $392.5 Put 10/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.88
+1 contract at $7.88
 Filled
-
 9/17, 11:04 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 16
 $135.00
 Time in force
-
 Good for day
 Submitted
-
 9/16, 12:50 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.35
 Est credit
-
 $134.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $387.5 Put 10/3
+Buy TSLA $387.5 Put 10/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $7.60
+1 contract at $7.60
 Filled
-
 9/16, 12:51 PM PDT
 Quantity
-
 1
-Sell TSLA $392.5 Put 10/3
+Sell TSLA $392.5 Put 10/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $8.95
+1 contract at $8.95
 Filled
-
 9/16, 12:51 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 CAT Call Credit Spread
 Sep 16
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+CAT Call Credit Spread
+Sep 16
+Canceled
 TSLA Put Credit Spread
 Sep 16
 $153.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/16, 12:16 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.53
 Est cost
-
 $153.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $370 Put 10/24
+Sell TSLA $370 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $12.13
+1 contract at $12.13
 Filled
-
 9/16, 6:54 AM PDT
 Quantity
-
 1
-Buy TSLA $375 Put 10/24
+Buy TSLA $375 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $13.66
+1 contract at $13.66
 Filled
-
 9/16, 6:54 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 CAT Call Credit Spread
 Sep 15
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 CAT Call Credit Spread
 Sep 15
 $200.00
 Time in force
-
 Good for day
 Submitted
-
 9/15, 12:51 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.00
 Est credit
-
 $199.92
 Est regulatory fees
-
 $0.08
-Sell CAT $445 Call 10/31
+Sell CAT $445 Call 10/31
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $14.10
+1 contract at $14.10
 Filled
-
 9/15, 12:51 PM PDT
 Quantity
-
 1
-Buy CAT $450 Call 10/31
+Buy CAT $450 Call 10/31
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $12.10
+1 contract at $12.10
 Filled
-
 9/15, 12:51 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 15
 $170.00
 Time in force
-
 Good for day
 Submitted
-
 9/15, 12:46 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.70
 Est credit
-
 $169.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $370 Put 10/24
+Buy TSLA $370 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $14.81
+1 contract at $14.81
 Filled
-
 9/15, 12:46 PM PDT
 Quantity
-
 1
-Sell TSLA $375 Put 10/24
+Sell TSLA $375 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $16.51
+1 contract at $16.51
 Filled
-
 9/15, 12:46 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 LIN Call Credit Spread
 Sep 15
 $97.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/15, 9:45 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.97
 Est cost
-
 $97.08
 Est regulatory fees
-
 $0.08
-Buy LIN $500 Call 10/17
+Buy LIN $500 Call 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.50
+1 contract at $3.50
 Filled
-
 9/15, 9:45 AM PDT
 Quantity
-
 1
-Sell LIN $505 Call 10/17
+Sell LIN $505 Call 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.53
+1 contract at $2.53
 Filled
-
 9/15, 9:45 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 12
 $57.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/12, 12:18 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.10
 Est cost
-
 $57.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $355 Put 10/3
+Sell TSLA $355 Put 10/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.13
+1 contract at $3.13
 Filled
-
 9/15, 6:30 AM PDT
 Quantity
-
 1
-Buy TSLA $360 Put 10/3
+Buy TSLA $360 Put 10/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.70
+1 contract at $3.70
 Filled
-
 9/15, 6:30 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 12
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Sep 12
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 LIN Call Credit Spread
 Sep 12
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 LIN Call Credit Spread
 Sep 12
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 LIN Call Credit Spread
 Sep 12
 $113.00
 Time in force
-
 Good for day
 Submitted
-
 9/12, 12:04 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.00
 Est credit
-
 $112.92
 Est regulatory fees
-
 $0.08
-Sell LIN $500 Call 10/17
+Sell LIN $500 Call 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.98
+1 contract at $3.98
 Filled
-
 9/12, 12:04 PM PDT
 Quantity
-
 1
-Buy LIN $505 Call 10/17
+Buy LIN $505 Call 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.85
+1 contract at $2.85
 Filled
-
 9/12, 12:04 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 12
 $116.00
 Time in force
-
 Good for day
 Submitted
-
 9/12, 11:42 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.15
 Est credit
-
 $115.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $355 Put 10/3
+Buy TSLA $355 Put 10/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.12
+1 contract at $6.12
 Filled
-
 9/12, 11:42 AM PDT
 Quantity
-
 1
-Sell TSLA $360 Put 10/3
+Sell TSLA $360 Put 10/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $7.28
+1 contract at $7.28
 Filled
-
 9/12, 11:42 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 12
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Sep 10
 $208.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/10, 10:17 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.08
 Est cost
-
 $208.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $335 Put 10/24
+Sell TSLA $335 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $15.84
+1 contract at $15.84
 Filled
-
 9/10, 10:17 AM PDT
 Quantity
-
 1
-Buy TSLA $340 Put 10/24
+Buy TSLA $340 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $17.92
+1 contract at $17.92
 Filled
-
 9/10, 10:17 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 10
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Sep 10
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Call Credit Spread
 Sep 9
 $98.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/9, 11:29 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.98
 Est cost
-
 $98.08
 Est regulatory fees
-
 $0.08
-Buy AAPL $237.5 Call 9/26
+Buy AAPL $237.5 Call 9/26
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.51
+1 contract at $3.51
 Filled
-
 9/9, 11:29 AM PDT
 Quantity
-
 1
-Sell AAPL $240 Call 9/26
+Sell AAPL $240 Call 9/26
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.53
+1 contract at $2.53
 Filled
-
 9/9, 11:29 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Call Credit Spread
 Sep 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Sep 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Call Credit Spread
 Sep 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Sep 8
 $230.00
 Time in force
-
 Good for day
 Submitted
-
 9/8, 12:18 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.30
 Est credit
-
 $229.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $335 Put 10/24
+Buy TSLA $335 Put 10/24
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $19.90
+1 contract at $19.90
 Filled
-
 9/8, 12:18 PM PDT
 Quantity
-
 1
-Sell TSLA $340 Put 10/24
+Sell TSLA $340 Put 10/24
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $22.20
+1 contract at $22.20
 Filled
-
 9/8, 12:18 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AAPL Call Credit Spread
 Sep 8
 $119.00
 Time in force
-
 Good for day
 Submitted
-
 9/8, 12:16 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.19
 Est credit
-
 $118.92
 Est regulatory fees
-
 $0.08
-Sell AAPL $237.5 Call 9/26
+Sell AAPL $237.5 Call 9/26
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.66
+1 contract at $4.66
 Filled
-
 9/8, 12:16 PM PDT
 Quantity
-
 1
-Buy AAPL $240 Call 9/26
+Buy AAPL $240 Call 9/26
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.47
+1 contract at $3.47
 Filled
-
 9/8, 12:16 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Call Credit Spread
 Sep 8
 $113.00
 Time in force
-
 Good for day
 Submitted
-
 9/8, 12:14 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.12
 Est credit
-
 $112.92
 Est regulatory fees
-
 $0.08
-Sell AMD $152.5 Call 10/10
+Sell AMD $152.5 Call 10/10
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $7.09
+1 contract at $7.09
 Filled
-
 9/8, 12:14 PM PDT
 Quantity
-
 1
-Buy AMD $155 Call 10/10
+Buy AMD $155 Call 10/10
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.96
+1 contract at $5.96
 Filled
-
 9/8, 12:14 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Sep 8
 $91.00
 Time in force
-
 Good for day
 Submitted
-
 9/8, 12:12 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.91
 Est credit
-
 $90.92
 Est regulatory fees
-
 $0.08
-Sell JPM $297.5 Call 9/26
+Sell JPM $297.5 Call 9/26
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.68
+1 contract at $3.68
 Filled
-
 9/8, 12:12 PM PDT
 Quantity
-
 1
-Buy JPM $300 Call 9/26
+Buy JPM $300 Call 9/26
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.77
+1 contract at $2.77
 Filled
-
 9/8, 12:12 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 5
 $225.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/5, 10:32 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.25
 Est cost
-
 $225.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $340 Put 10/17
+Sell TSLA $340 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $16.17
+1 contract at $16.17
 Filled
-
 9/5, 10:33 AM PDT
 Quantity
-
 1
-Buy TSLA $345 Put 10/17
+Buy TSLA $345 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $18.42
+1 contract at $18.42
 Filled
-
 9/5, 10:33 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Sep 5
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Sep 5
 $198.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/5, 8:52 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.98
 Est cost
-
 $198.08
 Est regulatory fees
-
 $0.08
-Buy JPM $300 Call 10/3
+Buy JPM $300 Call 10/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $5.34
+1 contract at $5.34
 Filled
-
 9/5, 8:54 AM PDT
 Quantity
-
 1
-Sell JPM $305 Call 10/3
+Sell JPM $305 Call 10/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.36
+1 contract at $3.36
 Filled
-
 9/5, 8:54 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 MSFT Call Credit Spread
 Sep 2
 $230.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/2, 12:08 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.30
 Est cost
-
 $230.08
 Est regulatory fees
-
 $0.08
-Buy MSFT $505 Call 10/10
+Buy MSFT $505 Call 10/10
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $10.48
+1 contract at $10.48
 Filled
-
 9/5, 7:23 AM PDT
 Quantity
-
 1
-Sell MSFT $510 Call 10/10
+Sell MSFT $510 Call 10/10
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $8.18
+1 contract at $8.18
 Filled
-
 9/5, 7:23 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 MSFT Call Credit Spread
 Sep 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 MSFT Call Credit Spread
 Sep 2
 $255.00
 Time in force
-
 Good for day
 Submitted
-
 9/2, 12:07 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.55
 Est credit
-
 $254.92
 Est regulatory fees
-
 $0.08
-Sell MSFT $505 Call 10/10
+Sell MSFT $505 Call 10/10
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $13.27
+1 contract at $13.27
 Filled
-
 9/2, 12:07 PM PDT
 Quantity
-
 1
-Buy MSFT $510 Call 10/10
+Buy MSFT $510 Call 10/10
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $10.72
+1 contract at $10.72
 Filled
-
 9/2, 12:07 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 UNH Put Credit Spread
 Sep 2
 $190.00
 Time in force
-
 Good till canceled
 Submitted
-
 9/2, 11:52 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.90
 Est cost
-
 $190.08
 Est regulatory fees
-
 $0.08
-Sell UNH $300 Put 10/10
+Sell UNH $300 Put 10/10
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.60
+1 contract at $7.60
 Filled
-
 9/5, 6:45 AM PDT
 Quantity
-
 1
-Buy UNH $305 Put 10/10
+Buy UNH $305 Put 10/10
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $9.50
+1 contract at $9.50
 Filled
-
 9/5, 6:45 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 UNH Put Credit Spread
 Sep 2
 $210.00
 Time in force
-
 Good for day
 Submitted
-
 9/2, 11:51 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.10
 Est credit
-
 $209.92
 Est regulatory fees
-
 $0.08
-Buy UNH $300 Put 10/10
+Buy UNH $300 Put 10/10
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $9.75
+1 contract at $9.75
 Filled
-
 9/2, 11:51 AM PDT
 Quantity
-
 1
-Sell UNH $305 Put 10/10
+Sell UNH $305 Put 10/10
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $11.85
+1 contract at $11.85
 Filled
-
 9/2, 11:51 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Aug 29
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 29
 $209.00
 Time in force
-
 Good till canceled
 Submitted
-
 8/29, 12:31 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.15
 Est cost
-
 $209.08
 Est regulatory fees
-
 $0.08
-Buy AMZN $230 Call 10/17
+Buy AMZN $230 Call 10/17
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $6.00
+1 contract at $6.00
 Filled
-
 9/2, 6:30 AM PDT
 Quantity
-
 1
-Sell AMZN $235 Call 10/17
+Sell AMZN $235 Call 10/17
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.91
+1 contract at $3.91
 Filled
-
 9/2, 6:30 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 29
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 UNH Put Credit Spread
 Aug 29
 $100.00
 Time in force
-
 Good till canceled
 Submitted
-
 8/29, 12:28 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.00
 Est cost
-
 $100.08
 Est regulatory fees
-
 $0.08
-Sell UNH $302.5 Put 9/19
+Sell UNH $302.5 Put 9/19
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $6.27
+1 contract at $6.27
 Filled
-
 9/2, 6:31 AM PDT
 Quantity
-
 1
-Buy UNH $305 Put 9/19
+Buy UNH $305 Put 9/19
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.27
+1 contract at $7.27
 Filled
-
 9/2, 6:31 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 UNH Put Credit Spread
 Aug 29
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 WMT Call Credit Spread
 Aug 29
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Aug 28
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 27
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 27
 $235.00
 Time in force
-
 Good for day
 Submitted
-
 8/27, 10:06 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.35
 Est credit
-
 $234.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $230 Call 10/17
+Sell AMZN $230 Call 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $8.42
+1 contract at $8.42
 Filled
-
 8/27, 10:06 AM PDT
 Quantity
-
 1
-Buy AMZN $235 Call 10/17
+Buy AMZN $235 Call 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.07
+1 contract at $6.07
 Filled
-
 8/27, 10:06 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Aug 27
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Aug 27
 $232.00
 Time in force
-
 Good for day
 Submitted
-
 8/27, 10:01 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.30
 Est credit
-
 $231.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $340 Put 10/17
+Buy TSLA $340 Put 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $19.12
+1 contract at $19.12
 Filled
-
 8/27, 10:01 AM PDT
 Quantity
-
 1
-Sell TSLA $345 Put 10/17
+Sell TSLA $345 Put 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $21.44
+1 contract at $21.44
 Filled
-
 8/27, 10:01 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 UNH Put Credit Spread
 Aug 27
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 WMT Call Credit Spread
 Aug 27
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 WMT Call Credit Spread
 Aug 27
 $88.00
 Time in force
-
 Good for day
 Submitted
-
 8/27, 9:57 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.88
 Est credit
-
 $87.92
 Est regulatory fees
-
 $0.08
-Sell WMT $97.5 Call 10/17
+Sell WMT $97.5 Call 10/17
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.14
+1 contract at $2.14
 Filled
-
 8/27, 9:57 AM PDT
 Quantity
-
 1
-Buy WMT $100 Call 10/17
+Buy WMT $100 Call 10/17
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.26
+1 contract at $1.26
 Filled
-
 8/27, 9:57 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 UNH Put Credit Spread
 Aug 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 UNH Put Credit Spread
 Aug 26
 $110.00
 Time in force
-
 Good for day
 Submitted
-
 8/26, 12:09 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.10
 Est credit
-
 $109.92
 Est regulatory fees
-
 $0.08
-Buy UNH $302.5 Put 9/19
+Buy UNH $302.5 Put 9/19
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $8.68
+1 contract at $8.68
 Filled
-
 8/26, 12:09 PM PDT
 Quantity
-
 1
-Sell UNH $305 Put 9/19
+Sell UNH $305 Put 9/19
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $9.78
+1 contract at $9.78
 Filled
-
 8/26, 12:09 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 26
 $110.00
 Time in force
-
 Good for day
 Submitted
-
 8/26, 9:47 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.10
 Est cost
-
 $110.08
 Est regulatory fees
-
 $0.08
-Buy AMZN $230 Call 9/19
+Buy AMZN $230 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.82
+1 contract at $4.82
 Filled
-
 8/26, 10:10 AM PDT
 Quantity
-
 1
-Sell AMZN $232.5 Call 9/19
+Sell AMZN $232.5 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.72
+1 contract at $3.72
 Filled
-
 8/26, 10:10 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 26
 $210.00
 Time in force
-
 Good for day
 Submitted
-
 8/26, 9:44 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.10
 Est credit
-
 $209.92
 Est regulatory fees
-
 $0.08
-Sell JPM $300 Call 10/3
+Sell JPM $300 Call 10/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.75
+1 contract at $6.75
 Filled
-
 8/26, 9:44 AM PDT
 Quantity
-
 1
-Buy JPM $305 Call 10/3
+Buy JPM $305 Call 10/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.65
+1 contract at $4.65
 Filled
-
 8/26, 9:44 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Aug 26
 $224.00
 Time in force
-
 Good for day
 Submitted
-
 8/26, 7:54 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.12
 Est cost
-
 $224.16
 Est regulatory fees
-
 $0.16
-Sell TSLA $342.5 Put 9/12
+Sell TSLA $342.5 Put 9/12
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $9.99
+2 contracts at $9.99
 Filled
-
 8/26, 12:22 PM PDT
 Quantity
-
 2
-Buy TSLA $345 Put 9/12
+Buy TSLA $345 Put 9/12
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $11.11
+2 contracts at $11.11
 Filled
-
 8/26, 12:22 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMZN Call Credit Spread
 Aug 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Aug 26
 $93.00
 Time in force
-
 Good for day
 Submitted
-
 8/26, 7:53 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.93
 Est cost
-
 $93.08
 Est regulatory fees
-
 $0.08
-Buy JPM $300 Call 9/19
+Buy JPM $300 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.03
+1 contract at $4.03
 Filled
-
 8/26, 7:53 AM PDT
 Quantity
-
 1
-Sell JPM $302.5 Call 9/19
+Sell JPM $302.5 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.10
+1 contract at $3.10
 Filled
-
 8/26, 7:53 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Aug 25
 $100.00
 Time in force
-
 Good for day
 Submitted
-
 8/25, 12:12 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.00
 Est credit
-
 $99.92
 Est regulatory fees
-
 $0.08
-Sell JPM $300 Call 9/19
+Sell JPM $300 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.60
+1 contract at $4.60
 Filled
-
 8/25, 12:12 PM PDT
 Quantity
-
 1
-Buy JPM $302.5 Call 9/19
+Buy JPM $302.5 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.60
+1 contract at $3.60
 Filled
-
 8/25, 12:12 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Put Credit Spread
 Aug 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Aug 25
 $230.00
 Time in force
-
 Good for day
 Submitted
-
 8/25, 10:49 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.15
 Est credit
-
 $229.84
 Est regulatory fees
-
 $0.16
-Buy TSLA $342.5 Put 9/12
+Buy TSLA $342.5 Put 9/12
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $11.35
+2 contracts at $11.35
 Filled
-
 8/25, 10:49 AM PDT
 Quantity
-
 2
-Sell TSLA $345 Put 9/12
+Sell TSLA $345 Put 9/12
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $12.50
+2 contracts at $12.50
 Filled
-
 8/25, 10:49 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMZN Call Credit Spread
 Aug 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GOOGL Put Credit Spread
 Aug 25
 $75.00
 Time in force
-
 Good for day
 Submitted
-
 8/25, 7:29 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.75
 Est cost
-
 $75.08
 Est regulatory fees
-
 $0.08
-Sell GOOGL $202.5 Put 8/29
+Sell GOOGL $202.5 Put 8/29
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.50
+1 contract at $1.50
 Filled
-
 8/25, 7:29 AM PDT
 Quantity
-
 1
-Buy GOOGL $205 Put 8/29
+Buy GOOGL $205 Put 8/29
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.25
+1 contract at $2.25
 Filled
-
 8/25, 7:29 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GOOGL Put Credit Spread
 Aug 22
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 22
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMZN Call Credit Spread
 Aug 22
 $115.00
 Time in force
-
 Good for day
 Submitted
-
 8/22, 12:22 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.15
 Est credit
-
 $114.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $230 Call 9/19
+Sell AMZN $230 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.75
+1 contract at $5.75
 Filled
-
 8/22, 12:22 PM PDT
 Quantity
-
 1
-Buy AMZN $232.5 Call 9/19
+Buy AMZN $232.5 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.60
+1 contract at $4.60
 Filled
-
 8/22, 12:22 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GOOGL Put Credit Spread
 Aug 22
 $95.00
 Time in force
-
 Good for day
 Submitted
-
 8/22, 12:20 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.95
 Est credit
-
 $94.92
 Est regulatory fees
-
 $0.08
-Buy GOOGL $202.5 Put 8/29
+Buy GOOGL $202.5 Put 8/29
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.43
+1 contract at $2.43
 Filled
-
 8/22, 12:20 PM PDT
 Quantity
-
 1
-Sell GOOGL $205 Put 8/29
+Sell GOOGL $205 Put 8/29
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.38
+1 contract at $3.38
 Filled
-
 8/22, 12:20 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GE Call Credit Spread
 Aug 22
 $168.00
 Time in force
-
 Good for day
 Submitted
-
 8/22, 10:42 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.68
 Est cost
-
 $168.08
 Est regulatory fees
-
 $0.08
-Buy GE $275 Call 9/26
+Buy GE $275 Call 9/26
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $5.60
+1 contract at $5.60
 Filled
-
 8/22, 10:42 AM PDT
 Quantity
-
 1
-Sell GE $280 Call 9/26
+Sell GE $280 Call 9/26
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.92
+1 contract at $3.92
 Filled
-
 8/22, 10:42 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GE Call Credit Spread
 Aug 22
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GOOGL Put Credit Spread
 Aug 22
 $152.00
 Time in force
-
 Good for day
 Submitted
-
 8/22, 7:45 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.53
 Est cost
-
 $152.08
 Est regulatory fees
-
 $0.08
-Sell GOOGL $195 Put 9/12
+Sell GOOGL $195 Put 9/12
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.43
+1 contract at $2.43
 Filled
-
 8/22, 7:45 AM PDT
 Quantity
-
 1
-Buy GOOGL $200 Put 9/12
+Buy GOOGL $200 Put 9/12
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.95
+1 contract at $3.95
 Filled
-
 8/22, 7:45 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GOOGL Put Credit Spread
 Aug 21
 $204.00
 Time in force
-
 Good for day
 Submitted
-
 8/21, 12:57 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.00
 Est credit
-
 $203.92
 Est regulatory fees
-
 $0.08
-Buy GOOGL $195 Put 9/12
+Buy GOOGL $195 Put 9/12
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.96
+1 contract at $3.96
 Filled
-
 8/21, 12:57 PM PDT
 Quantity
-
 1
-Sell GOOGL $200 Put 9/12
+Sell GOOGL $200 Put 9/12
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.00
+1 contract at $6.00
 Filled
-
 8/21, 12:57 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GOOGL Put Credit Spread
 Aug 21
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GE Call Credit Spread
 Aug 21
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JPM Call Credit Spread
 Aug 21
 $80.00
 Time in force
-
 Good for day
 Submitted
-
 8/21, 9:01 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.80
 Est cost
-
 $80.08
 Est regulatory fees
-
 $0.08
-Buy JPM $297.5 Call 9/5
+Buy JPM $297.5 Call 9/5
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.68
+1 contract at $2.68
 Filled
-
 8/21, 9:04 AM PDT
 Quantity
-
 1
-Sell JPM $300 Call 9/5
+Sell JPM $300 Call 9/5
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.88
+1 contract at $1.88
 Filled
-
 8/21, 9:04 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GE Call Credit Spread
 Aug 20
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GE Call Credit Spread
 Aug 20
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GE Call Credit Spread
 Aug 20
 $170.00
 Time in force
-
 Good for day
 Submitted
-
 8/20, 11:15 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.70
 Est credit
-
 $169.92
 Est regulatory fees
-
 $0.08
-Sell GE $275 Call 9/26
+Sell GE $275 Call 9/26
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.05
+1 contract at $6.05
 Filled
-
 8/20, 11:16 AM PDT
 Quantity
-
 1
-Buy GE $280 Call 9/26
+Buy GE $280 Call 9/26
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.35
+1 contract at $4.35
 Filled
-
 8/20, 11:16 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 20
 $85.00
 Time in force
-
 Good for day
 Submitted
-
 8/20, 10:50 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.85
 Est credit
-
 $84.92
 Est regulatory fees
-
 $0.08
-Sell JPM $297.5 Call 9/5
+Sell JPM $297.5 Call 9/5
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.09
+1 contract at $3.09
 Filled
-
 8/20, 10:50 AM PDT
 Quantity
-
 1
-Buy JPM $300 Call 9/5
+Buy JPM $300 Call 9/5
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.24
+1 contract at $2.24
 Filled
-
 8/20, 10:50 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JPM Call Credit Spread
 Aug 20
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Call Credit Spread
 Aug 20
 $30.00
 Time in force
-
 Good for day
 Submitted
-
 8/20, 9:08 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.30
 Est cost
-
 $30.08
 Est regulatory fees
-
 $0.08
-Buy TSLA $385 Call 9/19
+Buy TSLA $385 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.13
+1 contract at $2.13
 Filled
-
 8/20, 9:08 AM PDT
 Quantity
-
 1
-Sell TSLA $390 Call 9/19
+Sell TSLA $390 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.83
+1 contract at $1.83
 Filled
-
 8/20, 9:08 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 XOM Call Credit Spread
 Aug 19
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Call Credit Spread
 Aug 19
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Call Credit Spread
 Aug 19
 $45.00
 Time in force
-
 Good for day
 Submitted
-
 8/19, 10:17 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.45
 Est credit
-
 $44.92
 Est regulatory fees
-
 $0.08
-Sell TSLA $385 Call 9/19
+Sell TSLA $385 Call 9/19
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.45
+1 contract at $3.45
 Filled
-
 8/19, 10:18 AM PDT
 Quantity
-
 1
-Buy TSLA $390 Call 9/19
+Buy TSLA $390 Call 9/19
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.00
+1 contract at $3.00
 Filled
-
 8/19, 10:18 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Aug 19
 $22.00
 Time in force
-
 Good for day
 Submitted
-
 8/19, 8:10 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.22
 Est cost
-
 $22.08
 Est regulatory fees
-
 $0.08
-Buy AMZN $240 Call 8/29
+Buy AMZN $240 Call 8/29
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.56
+1 contract at $0.56
 Filled
-
 8/19, 8:10 AM PDT
 Quantity
-
 1
-Sell AMZN $242.5 Call 8/29
+Sell AMZN $242.5 Call 8/29
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.34
+1 contract at $0.34
 Filled
-
 8/19, 8:10 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Call Credit Spread
 Aug 19
 $13.00
 Time in force
-
 Good for day
 Submitted
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.13
 Est cost
-
 $13.08
 Est regulatory fees
-
 $0.08
-Buy NVDA $187.5 Call 8/22
+Buy NVDA $187.5 Call 8/22
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.23
+1 contract at $0.23
 Filled
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
-Sell NVDA $190 Call 8/22
+Sell NVDA $190 Call 8/22
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.10
+1 contract at $0.10
 Filled
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 19
 $6.00
 Time in force
-
 Good for day
 Submitted
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.06
 Est cost
-
 $6.08
 Est regulatory fees
-
 $0.08
-Buy PLTR $182.5 Call 8/22
+Buy PLTR $182.5 Call 8/22
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.18
+1 contract at $0.18
 Filled
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
-Sell PLTR $185 Call 8/22
+Sell PLTR $185 Call 8/22
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.12
+1 contract at $0.12
 Filled
-
 8/19, 8:09 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Aug 18
 $37.00
 Time in force
-
 Good for day
 Submitted
-
 8/18, 12:38 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.37
 Est credit
-
 $36.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $240 Call 8/29
+Sell AMZN $240 Call 8/29
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.01
+1 contract at $1.01
 Filled
-
 8/18, 12:38 PM PDT
 Quantity
-
 1
-Buy AMZN $242.5 Call 8/29
+Buy AMZN $242.5 Call 8/29
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.64
+1 contract at $0.64
 Filled
-
 8/18, 12:38 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 18
 $31.00
 Time in force
-
 Good for day
 Submitted
-
 8/18, 12:36 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.30
 Est credit
-
 $30.92
 Est regulatory fees
-
 $0.08
-Sell PLTR $182.5 Call 8/22
+Sell PLTR $182.5 Call 8/22
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.81
+1 contract at $0.81
 Filled
-
 8/18, 12:36 PM PDT
 Quantity
-
 1
-Buy PLTR $185 Call 8/22
+Buy PLTR $185 Call 8/22
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.50
+1 contract at $0.50
 Filled
-
 8/18, 12:36 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 XOM Call Credit Spread
 Aug 18
 $45.00
 Time in force
-
 Good for day
 Submitted
-
 8/18, 12:34 PM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $0.15
 Est credit
-
 $44.76
 Est regulatory fees
-
 $0.24
-Sell XOM $110 Call 8/29
+Sell XOM $110 Call 8/29
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.44
+3 contracts at $0.44
 Filled
-
 8/18, 12:34 PM PDT
 Quantity
-
 3
-Buy XOM $111 Call 8/29
+Buy XOM $111 Call 8/29
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.29
+3 contracts at $0.29
 Filled
-
 8/18, 12:34 PM PDT
 Quantity
-
 3
 Download Trade Confirmation
 NVDA Call Credit Spread
 Aug 18
 $38.00
 Time in force
-
 Good for day
 Submitted
-
 8/18, 12:30 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.38
 Est credit
-
 $37.92
 Est regulatory fees
-
 $0.08
-Sell NVDA $187.5 Call 8/22
+Sell NVDA $187.5 Call 8/22
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.73
+1 contract at $0.73
 Filled
-
 8/18, 12:30 PM PDT
 Quantity
-
 1
-Buy NVDA $190 Call 8/22
+Buy NVDA $190 Call 8/22
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.35
+1 contract at $0.35
 Filled
-
 8/18, 12:30 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 ENPH Put Credit Spread
 Aug 15
 $47.00
 Time in force
-
 Good for day
 Submitted
-
 8/15, 10:17 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.47
 Est cost
-
 $47.08
 Est regulatory fees
-
 $0.08
-Sell ENPH $30 Put 9/5
+Sell ENPH $30 Put 9/5
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.59
+1 contract at $0.59
 Filled
-
 8/15, 10:17 AM PDT
 Quantity
-
 1
-Buy ENPH $32 Put 9/5
+Buy ENPH $32 Put 9/5
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.06
+1 contract at $1.06
 Filled
-
 8/15, 10:17 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 ENPH Put Credit Spread
 Aug 15
 $47.00
 Time in force
-
 Good for day
 Submitted
-
 8/15, 9:43 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.47
 Est cost
-
 $47.08
 Est regulatory fees
-
 $0.08
-Sell ENPH $30 Put 9/5
+Sell ENPH $30 Put 9/5
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.79
+1 contract at $0.79
 Filled
-
 8/15, 10:14 AM PDT
 Quantity
-
 1
-Buy ENPH $32 Put 9/5
+Buy ENPH $32 Put 9/5
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.26
+1 contract at $1.26
 Filled
-
 8/15, 10:14 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Call Credit Spread
 Aug 15
 $79.00
 Time in force
-
 Good for day
 Submitted
-
 8/15, 9:05 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.79
 Est cost
-
 $79.08
 Est regulatory fees
-
 $0.08
-Buy TSLA $330 Call 8/15
+Buy TSLA $330 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.98
+1 contract at $0.98
 Filled
-
 8/15, 9:05 AM PDT
 Quantity
-
 1
-Sell TSLA $335 Call 8/15
+Sell TSLA $335 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.19
+1 contract at $0.19
 Filled
-
 8/15, 9:05 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 15
 $49.00
 Time in force
-
 Good for day
 Submitted
-
 8/15, 7:15 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.51
 Est cost
-
 $49.08
 Est regulatory fees
-
 $0.08
-Buy PLTR $180 Call 8/15
+Buy PLTR $180 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.54
+1 contract at $0.54
 Filled
-
 8/15, 7:15 AM PDT
 Quantity
-
 1
-Sell PLTR $185 Call 8/15
+Sell PLTR $185 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.05
+1 contract at $0.05
 Filled
-
 8/15, 7:15 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 XOM Call Credit Spread
 Aug 7
 $12.00
 Time in force
-
 Good for day
 Submitted
-
 8/7, 11:47 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.12
 Est cost
-
 $12.08
 Est regulatory fees
-
 $0.08
-Buy XOM $112 Call 8/29
+Buy XOM $112 Call 8/29
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.40
+1 contract at $0.40
 Filled
-
 8/7, 12:08 PM PDT
 Quantity
-
 1
-Sell XOM $113 Call 8/29
+Sell XOM $113 Call 8/29
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.28
+1 contract at $0.28
 Filled
-
 8/7, 12:08 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 5
 $117.00
 Time in force
-
 Good for day
 Submitted
-
 8/5, 11:16 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.17
 Est credit
-
 $116.92
 Est regulatory fees
-
 $0.08
-Sell PLTR $180 Call 8/15
+Sell PLTR $180 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.83
+1 contract at $2.83
 Filled
-
 8/5, 11:16 AM PDT
 Quantity
-
 1
-Buy PLTR $185 Call 8/15
+Buy PLTR $185 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.66
+1 contract at $1.66
 Filled
-
 8/5, 11:16 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Call Credit Spread
 Aug 5
 $85.00
 Time in force
-
 Good for day
 Submitted
-
 8/5, 11:14 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.85
 Est credit
-
 $84.92
 Est regulatory fees
-
 $0.08
-Sell TSLA $330 Call 8/15
+Sell TSLA $330 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.08
+1 contract at $3.08
 Filled
-
 8/5, 11:14 AM PDT
 Quantity
-
 1
-Buy TSLA $335 Call 8/15
+Buy TSLA $335 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.23
+1 contract at $2.23
 Filled
-
 8/5, 11:14 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 XOM Call Credit Spread
 Aug 5
 $13.00
 Time in force
-
 Good for day
 Submitted
-
 8/5, 11:13 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.13
 Est credit
-
 $12.92
 Est regulatory fees
-
 $0.08
-Sell XOM $112 Call 8/29
+Sell XOM $112 Call 8/29
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.54
+1 contract at $0.54
 Filled
-
 8/5, 11:16 AM PDT
 Quantity
-
 1
-Buy XOM $113 Call 8/29
+Buy XOM $113 Call 8/29
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.41
+1 contract at $0.41
 Filled
-
 8/5, 11:16 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 ENPH Call Credit Spread
 Aug 5
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Call Credit Spread
 Aug 5
 $16.00
 Time in force
-
 Good for day
 Submitted
-
 8/5, 7:49 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.16
 Est cost
-
 $16.08
 Est regulatory fees
-
 $0.08
-Buy TSLA $327.5 Call 8/8
+Buy TSLA $327.5 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.63
+1 contract at $0.63
 Filled
-
 8/5, 7:49 AM PDT
 Quantity
-
 1
-Sell TSLA $330 Call 8/8
+Sell TSLA $330 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.47
+1 contract at $0.47
 Filled
-
 8/5, 7:49 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 5
 $14.00
 Time in force
-
 Good for day
 Submitted
-
 8/5, 7:48 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.14
 Est cost
-
 $14.08
 Est regulatory fees
-
 $0.08
-Buy PLTR $187.5 Call 8/8
+Buy PLTR $187.5 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.40
+1 contract at $0.40
 Filled
-
 8/5, 7:48 AM PDT
 Quantity
-
 1
-Sell PLTR $190 Call 8/8
+Sell PLTR $190 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.26
+1 contract at $0.26
 Filled
-
 8/5, 7:48 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 4
 $23.00
 Time in force
-
 Good for day
 Submitted
-
 8/4, 9:39 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.23
 Est credit
-
 $22.92
 Est regulatory fees
-
 $0.08
-Sell PLTR $187.5 Call 8/8
+Sell PLTR $187.5 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.38
+1 contract at $1.38
 Filled
-
 8/4, 9:39 AM PDT
 Quantity
-
 1
-Buy PLTR $190 Call 8/8
+Buy PLTR $190 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.15
+1 contract at $1.15
 Filled
-
 8/4, 9:39 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 TSLA Call Credit Spread
 Aug 4
 $22.00
 Time in force
-
 Good for day
 Submitted
-
 8/4, 9:38 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.22
 Est credit
-
 $21.92
 Est regulatory fees
-
 $0.08
-Sell TSLA $327.5 Call 8/8
+Sell TSLA $327.5 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.01
+1 contract at $1.01
 Filled
-
 8/4, 9:38 AM PDT
 Quantity
-
 1
-Buy TSLA $330 Call 8/8
+Buy TSLA $330 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.79
+1 contract at $0.79
 Filled
-
 8/4, 9:38 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Aug 1
 $40.00
 Time in force
-
 Good for day
 Submitted
-
 8/1, 7:58 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.40
 Est cost
-
 $40.08
 Est regulatory fees
-
 $0.08
-Buy PLTR $185 Call 8/8
+Buy PLTR $185 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.26
+1 contract at $1.26
 Filled
-
 8/1, 7:58 AM PDT
 Quantity
-
 1
-Sell PLTR $190 Call 8/8
+Sell PLTR $190 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.86
+1 contract at $0.86
 Filled
-
 8/1, 7:58 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 30
 $28.00
 Time in force
-
 Good for day
 Submitted
-
 7/30, 9:40 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.28
 Est credit
-
 $27.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $247.5 Call 8/1
+Sell AMZN $247.5 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.82
+1 contract at $0.82
 Filled
-
 7/30, 9:40 AM PDT
 Quantity
-
 1
-Buy AMZN $250 Call 8/1
+Buy AMZN $250 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.54
+1 contract at $0.54
 Filled
-
 7/30, 9:40 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Call Credit Spread
 Jul 30
 $50.00
 Time in force
-
 Good for day
 Submitted
-
 7/30, 8:50 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.50
 Est credit
-
 $49.92
 Est regulatory fees
-
 $0.08
-Sell PLTR $185 Call 8/8
+Sell PLTR $185 Call 8/8
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.54
+1 contract at $1.54
 Filled
-
 7/30, 8:50 AM PDT
 Quantity
-
 1
-Buy PLTR $190 Call 8/8
+Buy PLTR $190 Call 8/8
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.04
+1 contract at $1.04
 Filled
-
 7/30, 8:50 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 30
 $29.00
 Time in force
-
 Good for day
 Submitted
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.30
 Est cost
-
 $29.08
 Est regulatory fees
-
 $0.08
-Buy AMZN $247.5 Call 8/1
+Buy AMZN $247.5 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.79
+1 contract at $0.79
 Filled
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
-Sell AMZN $250 Call 8/1
+Sell AMZN $250 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.50
+1 contract at $0.50
 Filled
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 30
 $88.00
 Time in force
-
 Good for day
 Submitted
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.88
 Est cost
-
 $88.08
 Est regulatory fees
-
 $0.08
-Buy AMZN $245 Call 8/1
+Buy AMZN $245 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.20
+1 contract at $1.20
 Filled
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
-Sell AMZN $252.5 Call 8/1
+Sell AMZN $252.5 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.32
+1 contract at $0.32
 Filled
-
 7/30, 8:01 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 29
 $33.00
 Time in force
-
 Good for day
 Submitted
-
 7/29, 9:30 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.32
 Est credit
-
 $32.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $247.5 Call 8/1
+Sell AMZN $247.5 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.99
+1 contract at $0.99
 Filled
-
 7/29, 9:30 AM PDT
 Quantity
-
 1
-Buy AMZN $250 Call 8/1
+Buy AMZN $250 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.66
+1 contract at $0.66
 Filled
-
 7/29, 9:30 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN 2-Option Order
 Jul 29
 $45.00
 Time in force
-
 Good for day
 Submitted
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.45
 Est credit
-
 $44.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $245 Call 8/1
+Sell AMZN $245 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.48
+1 contract at $1.48
 Filled
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
-Buy AMZN $247.5 Call 8/1
+Buy AMZN $247.5 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.03
+1 contract at $1.03
 Filled
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN 2-Option Order
 Jul 29
 $33.00
 Time in force
-
 Good for day
 Submitted
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.32
 Est credit
-
 $32.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $247.5 Call 8/1
+Sell AMZN $247.5 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.00
+1 contract at $1.00
 Filled
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
-Buy AMZN $250 Call 8/1
+Buy AMZN $250 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.67
+1 contract at $0.67
 Filled
-
 7/29, 9:26 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 29
 $23.00
 Time in force
-
 Good for day
 Submitted
-
 7/29, 9:25 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.23
 Est credit
-
 $22.92
 Est regulatory fees
-
 $0.08
-Sell AMZN $250 Call 8/1
+Sell AMZN $250 Call 8/1
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.66
+1 contract at $0.66
 Filled
-
 7/29, 9:25 AM PDT
 Quantity
-
 1
-Buy AMZN $252.5 Call 8/1
+Buy AMZN $252.5 Call 8/1
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.43
+1 contract at $0.43
 Filled
-
 7/29, 9:25 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMZN Call Credit Spread
 Jul 29
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ENPH Put Credit Spread
 Jul 28
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ENPH Put Credit Spread
 Jul 28
 $100.00
 Time in force
-
 Good for day
 Submitted
-
 7/28, 12:39 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.50
 Est credit
-
 $99.84
 Est regulatory fees
-
 $0.16
-Buy ENPH $30 Put 9/5
+Buy ENPH $30 Put 9/5
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $0.85
+2 contracts at $0.85
 Filled
-
 7/28, 12:39 PM PDT
 Quantity
-
 2
-Sell ENPH $32 Put 9/5
+Sell ENPH $32 Put 9/5
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.35
+2 contracts at $1.35
 Filled
-
 7/28, 12:39 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 GOOGL Call Credit Spread
 Jul 28
 $159.00
 Time in force
-
 Good till canceled
 Submitted
-
 7/28, 7:39 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.59
 Est cost
-
 $159.08
 Est regulatory fees
-
 $0.08
-Buy GOOGL $195 Call 8/15
+Buy GOOGL $195 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.40
+1 contract at $3.40
 Filled
-
 7/28, 7:44 AM PDT
 Quantity
-
 1
-Sell GOOGL $200 Call 8/15
+Sell GOOGL $200 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.81
+1 contract at $1.81
 Filled
-
 7/28, 7:44 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
-Sell NVDA $175 Call 7/25
+Sell NVDA $175 Call 7/25
 Jul 25
 $1.00
-
-1 contract at $0.01
+1 contract at $0.01
 Type
-
 Limit Sell
 Position effect
-
 Close
 Time in force
-
 Good for day
 Submitted
-
 7/25, 12:31 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Filled quantity
-
-1 contract at $0.01
+1 contract at $0.01
 Filled
-
 7/25, 12:31 PM PDT
 Limit price
-
 $0.01
 Est credit
-
 $0.96
 Est regulatory fees
-
 $0.04
 Download Trade Confirmation
-Sell NVDA $175 Call 7/25
+Sell NVDA $175 Call 7/25
 Jul 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Short Iron Condor
 Jul 25
 $149.00
 Time in force
-
 Good for day
 Submitted
-
 7/25, 8:11 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.49
 Est cost
-
 $149.16
 Est regulatory fees
-
 $0.16
-Buy NVDA $180 Call 8/15
+Buy NVDA $180 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.58
+1 contract at $2.58
 Filled
-
 7/25, 8:42 AM PDT
 Quantity
-
 1
-Sell NVDA $185 Call 8/15
+Sell NVDA $185 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.33
+1 contract at $1.33
 Filled
-
 7/25, 8:42 AM PDT
 Quantity
-
 1
-Sell NVDA $150 Put 8/15
+Sell NVDA $150 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.47
+1 contract at $0.47
 Filled
-
 7/25, 8:42 AM PDT
 Quantity
-
 1
-Buy NVDA $155 Put 8/15
+Buy NVDA $155 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.71
+1 contract at $0.71
 Filled
-
 7/25, 8:42 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 RBLX Put Credit Spread
 Jul 25
 $137.00
 Time in force
-
 Good for day
 Submitted
-
 7/25, 8:04 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.37
 Est cost
-
 $137.08
 Est regulatory fees
-
 $0.08
-Sell RBLX $105 Put 8/15
+Sell RBLX $105 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.74
+1 contract at $2.74
 Filled
-
 7/25, 8:04 AM PDT
 Quantity
-
 1
-Buy RBLX $110 Put 8/15
+Buy RBLX $110 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.11
+1 contract at $4.11
 Filled
-
 7/25, 8:04 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 RBLX Put Credit Spread
 Jul 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Sell NVDA $175 Call 7/25
+Sell NVDA $175 Call 7/25
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Sell NVDA $175 Call 7/25
+Sell NVDA $175 Call 7/25
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Buy NVDA $175 Call 7/25
+Buy NVDA $175 Call 7/25
 Jul 24
 $59.00
-
-1 contract at $0.59
+1 contract at $0.59
 Type
-
 Limit Buy
 Position effect
-
 Open
 Time in force
-
 Good for day
 Submitted
-
 7/24, 10:47 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Filled quantity
-
-1 contract at $0.59
+1 contract at $0.59
 Filled
-
 7/24, 10:47 AM PDT
 Limit price
-
 $0.59
 Est cost
-
 $59.04
 Est regulatory fees
-
 $0.04
 Download Trade Confirmation
 NVDA Short Iron Condor
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 RBLX Put Credit Spread
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 PLTR Call Credit Spread
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 PLTR Call Credit Spread
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GOOGL Call Credit Spread
 Jul 24
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 PLTR Call Credit Spread
 Jul 24
 $144.00
 Time in force
-
 Good for day
 Submitted
-
 7/24, 9:57 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.44
 Est credit
-
 $143.92
 Est regulatory fees
-
 $0.08
-Sell PLTR $165 Call 8/15
+Sell PLTR $165 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.60
+1 contract at $6.60
 Filled
-
 7/24, 9:57 AM PDT
 Quantity
-
 1
-Buy PLTR $170 Call 8/15
+Buy PLTR $170 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.16
+1 contract at $5.16
 Filled
-
 7/24, 9:57 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Short Iron Condor
 Jul 24
 $151.00
 Time in force
-
 Good for day
 Submitted
-
 7/24, 9:54 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.50
 Est credit
-
 $150.84
 Est regulatory fees
-
 $0.16
-Sell NVDA $180 Call 8/15
+Sell NVDA $180 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.66
+1 contract at $2.66
 Filled
-
 7/24, 9:54 AM PDT
 Quantity
-
 1
-Buy NVDA $185 Call 8/15
+Buy NVDA $185 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $1.44
+1 contract at $1.44
 Filled
-
 7/24, 9:54 AM PDT
 Quantity
-
 1
-Buy NVDA $150 Put 8/15
+Buy NVDA $150 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.59
+1 contract at $0.59
 Filled
-
 7/24, 9:54 AM PDT
 Quantity
-
 1
-Sell NVDA $155 Put 8/15
+Sell NVDA $155 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.88
+1 contract at $0.88
 Filled
-
 7/24, 9:54 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 23
 $150.00
 Time in force
-
 Good for day
 Submitted
-
 7/23, 8:25 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.50
 Est cost
-
 $150.08
 Est regulatory fees
-
 $0.08
-Sell NVDA $160 Put 8/22
+Sell NVDA $160 Put 8/22
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.85
+1 contract at $2.85
 Filled
-
 7/23, 8:25 AM PDT
 Quantity
-
 1
-Buy NVDA $165 Put 8/22
+Buy NVDA $165 Put 8/22
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.35
+1 contract at $4.35
 Filled
-
 7/23, 8:25 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 23
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Credit Spread
 Jul 22
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Credit Spread
 Jul 22
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Put Credit Spread
 Jul 22
 $170.00
 Time in force
-
 Good for day
 Submitted
-
 7/22, 12:53 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.70
 Est credit
-
 $169.92
 Est regulatory fees
-
 $0.08
-Buy NVDA $160 Put 8/22
+Buy NVDA $160 Put 8/22
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.58
+1 contract at $3.58
 Filled
-
 7/22, 12:53 PM PDT
 Quantity
-
 1
-Sell NVDA $165 Put 8/22
+Sell NVDA $165 Put 8/22
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.28
+1 contract at $5.28
 Filled
-
 7/22, 12:53 PM PDT
 Quantity
-
 1
 Download Trade Confirmation
 RBLX Put Credit Spread
 Jul 22
 $147.00
 Time in force
-
 Good for day
 Submitted
-
 7/22, 11:03 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.47
 Est credit
-
 $146.92
 Est regulatory fees
-
 $0.08
-Buy RBLX $105 Put 8/15
+Buy RBLX $105 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.38
+1 contract at $3.38
 Filled
-
 7/22, 11:03 AM PDT
 Quantity
-
 1
-Sell RBLX $110 Put 8/15
+Sell RBLX $110 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.85
+1 contract at $4.85
 Filled
-
 7/22, 11:03 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 22
 $320.00
 Time in force
-
 Good for day
 Submitted
-
 7/22, 8:12 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.60
 Est cost
-
 $320.16
 Est regulatory fees
-
 $0.16
-Buy AMD $160 Call 8/15
+Buy AMD $160 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $5.71
+2 contracts at $5.71
 Filled
-
 7/22, 8:12 AM PDT
 Quantity
-
 2
-Sell AMD $165 Call 8/15
+Sell AMD $165 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $4.11
+2 contracts at $4.11
 Filled
-
 7/22, 8:12 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 COIN Short Iron Condor
 Jul 22
 $590.00
 Time in force
-
 Good for day
 Submitted
-
 7/22, 8:11 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $6.05
 Est cost
-
 $590.16
 Est regulatory fees
-
 $0.16
-Buy COIN $420 Call 8/15
+Buy COIN $420 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $24.35
+1 contract at $24.35
 Filled
-
 7/22, 8:11 AM PDT
 Quantity
-
 1
-Sell COIN $430 Call 8/15
+Sell COIN $430 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $20.70
+1 contract at $20.70
 Filled
-
 7/22, 8:11 AM PDT
 Quantity
-
 1
-Sell COIN $350 Put 8/15
+Sell COIN $350 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.25
+1 contract at $7.25
 Filled
-
 7/22, 8:11 AM PDT
 Quantity
-
 1
-Buy COIN $360 Put 8/15
+Buy COIN $360 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $9.50
+1 contract at $9.50
 Filled
-
 7/22, 8:11 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 GOOGL Call Credit Spread
 Jul 21
 $163.00
 Time in force
-
 Good for day
 Submitted
-
 7/21, 7:23 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.63
 Est credit
-
 $162.92
 Est regulatory fees
-
 $0.08
-Sell GOOGL $195 Call 8/15
+Sell GOOGL $195 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.22
+1 contract at $5.22
 Filled
-
 7/21, 7:23 AM PDT
 Quantity
-
 1
-Buy GOOGL $200 Call 8/15
+Buy GOOGL $200 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.59
+1 contract at $3.59
 Filled
-
 7/21, 7:23 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 COIN Short Iron Condor
 Jul 21
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 COIN Short Iron Condor
 Jul 21
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Put Credit Spread
 Jul 21
 $150.00
 Time in force
-
 Good for day
 Submitted
-
 7/21, 6:34 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.50
 Est cost
-
 $150.08
 Est regulatory fees
-
 $0.08
-Sell AMD $145 Put 8/15
+Sell AMD $145 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.20
+1 contract at $3.20
 Filled
-
 7/21, 6:34 AM PDT
 Quantity
-
 1
-Buy AMD $150 Put 8/15
+Buy AMD $150 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $4.70
+1 contract at $4.70
 Filled
-
 7/21, 6:34 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 COIN Short Iron Condor
 Jul 21
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 COIN Short Iron Condor
 Jul 18
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Put Credit Spread
 Jul 18
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Put Credit Spread
 Jul 18
 $160.00
 Time in force
-
 Good for day
 Submitted
-
 7/18, 11:25 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.60
 Est credit
-
 $159.92
 Est regulatory fees
-
 $0.08
-Buy AMD $145 Put 8/15
+Buy AMD $145 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $3.63
+1 contract at $3.63
 Filled
-
 7/18, 11:25 AM PDT
 Quantity
-
 1
-Sell AMD $150 Put 8/15
+Sell AMD $150 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.23
+1 contract at $5.23
 Filled
-
 7/18, 11:25 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 18
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 PLTR Put Credit Spread
 Jul 17
 $138.00
 Time in force
-
 Good for day
 Submitted
-
 7/17, 11:07 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.38
 Est cost
-
 $138.08
 Est regulatory fees
-
 $0.08
-Sell PLTR $135 Put 8/15
+Sell PLTR $135 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.97
+1 contract at $3.97
 Filled
-
 7/17, 11:07 AM PDT
 Quantity
-
 1
-Buy PLTR $140 Put 8/15
+Buy PLTR $140 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $5.35
+1 contract at $5.35
 Filled
-
 7/17, 11:07 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Put Credit Spread
 Jul 17
 $148.00
 Time in force
-
 Good for day
 Submitted
-
 7/17, 8:33 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.48
 Est credit
-
 $147.92
 Est regulatory fees
-
 $0.08
-Buy PLTR $135 Put 8/15
+Buy PLTR $135 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.34
+1 contract at $4.34
 Filled
-
 7/17, 8:33 AM PDT
 Quantity
-
 1
-Sell PLTR $140 Put 8/15
+Sell PLTR $140 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.82
+1 contract at $5.82
 Filled
-
 7/17, 8:33 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 COIN Short Iron Condor
 Jul 17
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 17
 $218.00
 Time in force
-
 Good for day
 Submitted
-
 7/17, 7:10 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.18
 Est cost
-
 $218.08
 Est regulatory fees
-
 $0.08
-Sell TSLA $310 Put 8/15
+Sell TSLA $310 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $12.96
+1 contract at $12.96
 Filled
-
 7/17, 7:10 AM PDT
 Quantity
-
 1
-Buy TSLA $315 Put 8/15
+Buy TSLA $315 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $15.14
+1 contract at $15.14
 Filled
-
 7/17, 7:10 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 16
 $340.00
 Time in force
-
 Good for day
 Submitted
-
 7/16, 8:47 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.65
 Est credit
-
 $339.84
 Est regulatory fees
-
 $0.16
-Sell AMD $160 Call 8/15
+Sell AMD $160 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $7.05
+2 contracts at $7.05
 Filled
-
 7/16, 8:47 AM PDT
 Quantity
-
 2
-Buy AMD $165 Call 8/15
+Buy AMD $165 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $5.35
+2 contracts at $5.35
 Filled
-
 7/16, 8:47 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 16
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 16
 $233.00
 Time in force
-
 Good for day
 Submitted
-
 7/16, 8:45 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.30
 Est credit
-
 $232.92
 Est regulatory fees
-
 $0.08
-Buy TSLA $310 Put 8/15
+Buy TSLA $310 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $15.40
+1 contract at $15.40
 Filled
-
 7/16, 8:45 AM PDT
 Quantity
-
 1
-Sell TSLA $315 Put 8/15
+Sell TSLA $315 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $17.73
+1 contract at $17.73
 Filled
-
 7/16, 8:45 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 COIN Short Iron Condor
 Jul 16
 $604.00
 Time in force
-
 Good for day
 Submitted
-
 7/16, 8:35 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $6.03
 Est credit
-
 $603.84
 Est regulatory fees
-
 $0.16
-Sell COIN $420 Call 8/15
+Sell COIN $420 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $22.61
+1 contract at $22.61
 Filled
-
 7/16, 8:35 AM PDT
 Quantity
-
 1
-Buy COIN $430 Call 8/15
+Buy COIN $430 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $19.72
+1 contract at $19.72
 Filled
-
 7/16, 8:35 AM PDT
 Quantity
-
 1
-Buy COIN $350 Put 8/15
+Buy COIN $350 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $10.50
+1 contract at $10.50
 Filled
-
 7/16, 8:35 AM PDT
 Quantity
-
 1
-Sell COIN $360 Put 8/15
+Sell COIN $360 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $13.65
+1 contract at $13.65
 Filled
-
 7/16, 8:35 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 16
 $280.00
 Time in force
-
 Good for day
 Submitted
-
 7/16, 7:14 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.40
 Est cost
-
 $280.16
 Est regulatory fees
-
 $0.16
-Sell AMD $140 Put 8/15
+Sell AMD $140 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $2.95
+2 contracts at $2.95
 Filled
-
 7/16, 7:18 AM PDT
 Quantity
-
 2
-Buy AMD $145 Put 8/15
+Buy AMD $145 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $4.35
+2 contracts at $4.35
 Filled
-
 7/16, 7:18 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 16
 $236.00
 Time in force
-
 Good for day
 Submitted
-
 7/16, 6:40 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.18
 Est cost
-
 $236.16
 Est regulatory fees
-
 $0.16
-Sell TSLA $280 Put 8/15
+Sell TSLA $280 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $5.89
+2 contracts at $5.89
 Filled
-
 7/16, 6:46 AM PDT
 Quantity
-
 2
-Buy TSLA $285 Put 8/15
+Buy TSLA $285 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $7.07
+2 contracts at $7.07
 Filled
-
 7/16, 6:46 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 15
 $290.00
 Time in force
-
 Good for day
 Submitted
-
 7/15, 10:29 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.45
 Est credit
-
 $289.84
 Est regulatory fees
-
 $0.16
-Buy AMD $140 Put 8/15
+Buy AMD $140 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $3.12
+2 contracts at $3.12
 Filled
-
 7/15, 10:29 AM PDT
 Quantity
-
 2
-Sell AMD $145 Put 8/15
+Sell AMD $145 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $4.57
+2 contracts at $4.57
 Filled
-
 7/15, 10:29 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 15
 $253.00
 Time in force
-
 Good for day
 Submitted
-
 7/15, 10:28 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.25
 Est credit
-
 $252.84
 Est regulatory fees
-
 $0.16
-Buy TSLA $280 Put 8/15
+Buy TSLA $280 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $6.60
+2 contracts at $6.60
 Filled
-
 7/15, 10:28 AM PDT
 Quantity
-
 2
-Sell TSLA $285 Put 8/15
+Sell TSLA $285 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $7.86
+2 contracts at $7.86
 Filled
-
 7/15, 10:28 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 15
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 COIN Put Credit Spread
 Jul 15
 $318.00
 Time in force
-
 Good for day
 Submitted
-
 7/15, 7:24 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $3.18
 Est cost
-
 $318.08
 Est regulatory fees
-
 $0.08
-Sell COIN $350 Put 8/15
+Sell COIN $350 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $10.27
+1 contract at $10.27
 Filled
-
 7/15, 7:24 AM PDT
 Quantity
-
 1
-Buy COIN $360 Put 8/15
+Buy COIN $360 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $13.45
+1 contract at $13.45
 Filled
-
 7/15, 7:24 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Put Credit Spread
 Jul 15
 $356.00
 Time in force
-
 Good for day
 Submitted
-
 7/15, 7:23 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.78
 Est cost
-
 $356.16
 Est regulatory fees
-
 $0.16
-Sell PLTR $135 Put 8/15
+Sell PLTR $135 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $5.28
+2 contracts at $5.28
 Filled
-
 7/15, 7:23 AM PDT
 Quantity
-
 2
-Buy PLTR $140 Put 8/15
+Buy PLTR $140 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $7.06
+2 contracts at $7.06
 Filled
-
 7/15, 7:23 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 COIN Put Credit Spread
 Jul 14
 $325.00
 Time in force
-
 Good for day
 Submitted
-
 7/14, 8:22 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $3.25
 Est credit
-
 $324.92
 Est regulatory fees
-
 $0.08
-Buy COIN $350 Put 8/15
+Buy COIN $350 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $11.35
+1 contract at $11.35
 Filled
-
 7/14, 8:22 AM PDT
 Quantity
-
 1
-Sell COIN $360 Put 8/15
+Sell COIN $360 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $14.60
+1 contract at $14.60
 Filled
-
 7/14, 8:22 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 PLTR Put Credit Spread
 Jul 14
 $394.00
 Time in force
-
 Good for day
 Submitted
-
 7/14, 8:19 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.97
 Est credit
-
 $393.84
 Est regulatory fees
-
 $0.16
-Buy PLTR $135 Put 8/15
+Buy PLTR $135 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $6.52
+2 contracts at $6.52
 Filled
-
 7/14, 8:19 AM PDT
 Quantity
-
 2
-Sell PLTR $140 Put 8/15
+Sell PLTR $140 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $8.49
+2 contracts at $8.49
 Filled
-
 7/14, 8:19 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 14
 $192.00
 Time in force
-
 Good for day
 Submitted
-
 7/14, 7:22 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.96
 Est cost
-
 $192.16
 Est regulatory fees
-
 $0.16
-Buy AMD $160 Call 8/15
+Buy AMD $160 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $3.55
+2 contracts at $3.55
 Filled
-
 7/14, 7:22 AM PDT
 Quantity
-
 2
-Sell AMD $165 Call 8/15
+Sell AMD $165 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $2.59
+2 contracts at $2.59
 Filled
-
 7/14, 7:22 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 14
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Call Credit Spread
 Jul 14
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 11
 $400.00
 Time in force
-
 Good for day
 Submitted
-
 7/11, 12:19 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $2.00
 Est cost
-
 $400.16
 Est regulatory fees
-
 $0.16
-Sell TSLA $295 Put 8/15
+Sell TSLA $295 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $12.05
+2 contracts at $12.05
 Filled
-
 7/11, 12:37 PM PDT
 Quantity
-
 2
-Buy TSLA $300 Put 8/15
+Buy TSLA $300 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $14.05
+2 contracts at $14.05
 Filled
-
 7/11, 12:37 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 11
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 11
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 11
 $434.00
 Time in force
-
 Good for day
 Submitted
-
 7/11, 9:12 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $2.17
 Est credit
-
 $433.84
 Est regulatory fees
-
 $0.16
-Buy TSLA $295 Put 8/15
+Buy TSLA $295 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $13.57
+2 contracts at $13.57
 Filled
-
 7/11, 9:12 AM PDT
 Quantity
-
 2
-Sell TSLA $300 Put 8/15
+Sell TSLA $300 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $15.74
+2 contracts at $15.74
 Filled
-
 7/11, 9:12 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 11
 $198.00
 Time in force
-
 Good for day
 Submitted
-
 7/11, 8:59 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.99
 Est credit
-
 $197.84
 Est regulatory fees
-
 $0.16
-Sell AMD $160 Call 8/15
+Sell AMD $160 Call 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $3.85
+2 contracts at $3.85
 Filled
-
 7/11, 8:59 AM PDT
 Quantity
-
 2
-Buy AMD $165 Call 8/15
+Buy AMD $165 Call 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $2.86
+2 contracts at $2.86
 Filled
-
 7/11, 8:59 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Call Credit Spread
 Jul 11
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Put Credit Spread
 Jul 11
 $282.00
 Time in force
-
 Good for day
 Submitted
-
 7/11, 7:14 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.41
 Est cost
-
 $282.16
 Est regulatory fees
-
 $0.16
-Sell NVDA $155 Put 8/15
+Sell NVDA $155 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $3.17
+2 contracts at $3.17
 Filled
-
 7/11, 7:14 AM PDT
 Quantity
-
 2
-Buy NVDA $160 Put 8/15
+Buy NVDA $160 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $4.58
+2 contracts at $4.58
 Filled
-
 7/11, 7:14 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 10
 $270.00
 Time in force
-
 Good for day
 Submitted
-
 7/10, 12:09 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.35
 Est cost
-
 $270.16
 Est regulatory fees
-
 $0.16
-Sell TSLA $275 Put 8/15
+Sell TSLA $275 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $7.15
+2 contracts at $7.15
 Filled
-
 7/10, 12:10 PM PDT
 Quantity
-
 2
-Buy TSLA $280 Put 8/15
+Buy TSLA $280 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $8.50
+2 contracts at $8.50
 Filled
-
 7/10, 12:10 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 10
 $314.00
 Time in force
-
 Good for day
 Submitted
-
 7/10, 10:52 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.57
 Est credit
-
 $313.84
 Est regulatory fees
-
 $0.16
-Buy NVDA $155 Put 8/15
+Buy NVDA $155 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $3.75
+2 contracts at $3.75
 Filled
-
 7/10, 10:52 AM PDT
 Quantity
-
 2
-Sell NVDA $160 Put 8/15
+Sell NVDA $160 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $5.32
+2 contracts at $5.32
 Filled
-
 7/10, 10:52 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 10
 $312.00
 Time in force
-
 Good for day
 Submitted
-
 7/10, 10:25 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.56
 Est credit
-
 $311.84
 Est regulatory fees
-
 $0.16
-Buy TSLA $275 Put 8/15
+Buy TSLA $275 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $8.59
+2 contracts at $8.59
 Filled
-
 7/10, 10:25 AM PDT
 Quantity
-
 2
-Sell TSLA $280 Put 8/15
+Sell TSLA $280 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $10.15
+2 contracts at $10.15
 Filled
-
 7/10, 10:25 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 TSLA Put Credit Spread
 Jul 10
 $300.00
 Time in force
-
 Good for day
 Submitted
-
 7/10, 7:16 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.50
 Est cost
-
 $300.16
 Est regulatory fees
-
 $0.16
-Sell TSLA $275 Put 8/15
+Sell TSLA $275 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $8.20
+2 contracts at $8.20
 Filled
-
 7/10, 7:16 AM PDT
 Quantity
-
 2
-Buy TSLA $280 Put 8/15
+Buy TSLA $280 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $9.70
+2 contracts at $9.70
 Filled
-
 7/10, 7:16 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 10
 $111.00
 Time in force
-
 Good for day
 Submitted
-
 7/10, 7:15 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.12
 Est cost
-
 $111.08
 Est regulatory fees
-
 $0.08
-Sell AMD $125 Put 8/15
+Sell AMD $125 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.05
+1 contract at $2.05
 Filled
-
 7/10, 7:15 AM PDT
 Quantity
-
 1
-Buy AMD $130 Put 8/15
+Buy AMD $130 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.16
+1 contract at $3.16
 Filled
-
 7/10, 7:15 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 10
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Put Credit Spread
 Jul 9
 $162.00
 Time in force
-
 Good for day
 Submitted
-
 7/9, 11:28 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.62
 Est cost
-
 $162.08
 Est regulatory fees
-
 $0.08
-Sell AAPL $200 Put 8/15
+Sell AAPL $200 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $3.73
+1 contract at $3.73
 Filled
-
 7/9, 11:52 AM PDT
 Quantity
-
 1
-Buy AAPL $205 Put 8/15
+Buy AAPL $205 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $5.35
+1 contract at $5.35
 Filled
-
 7/9, 11:52 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AAPL Put Credit Spread
 Jul 9
 $180.00
 Time in force
-
 Good for day
 Submitted
-
 7/9, 9:26 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.80
 Est credit
-
 $179.92
 Est regulatory fees
-
 $0.08
-Buy AAPL $200 Put 8/15
+Buy AAPL $200 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.42
+1 contract at $4.42
 Filled
-
 7/9, 9:26 AM PDT
 Quantity
-
 1
-Sell AAPL $205 Put 8/15
+Sell AAPL $205 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $6.22
+1 contract at $6.22
 Filled
-
 7/9, 9:26 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 8
 $147.00
 Time in force
-
 Good for day
 Submitted
-
 7/8, 10:53 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.47
 Est credit
-
 $146.92
 Est regulatory fees
-
 $0.08
-Buy AMD $125 Put 8/15
+Buy AMD $125 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.95
+1 contract at $2.95
 Filled
-
 7/8, 10:53 AM PDT
 Quantity
-
 1
-Sell AMD $130 Put 8/15
+Sell AMD $130 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $4.42
+1 contract at $4.42
 Filled
-
 7/8, 10:53 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Put Credit Spread
 Jul 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TSLA Put Credit Spread
 Jul 8
 $336.00
 Time in force
-
 Good for day
 Submitted
-
 7/8, 10:40 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.68
 Est credit
-
 $335.84
 Est regulatory fees
-
 $0.16
-Buy TSLA $275 Put 8/15
+Buy TSLA $275 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $10.51
+2 contracts at $10.51
 Filled
-
 7/8, 10:40 AM PDT
 Quantity
-
 2
-Sell TSLA $280 Put 8/15
+Sell TSLA $280 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $12.19
+2 contracts at $12.19
 Filled
-
 7/8, 10:40 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 8
 $226.00
 Time in force
-
 Good for day
 Submitted
-
 7/8, 9:47 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.13
 Est cost
-
 $226.16
 Est regulatory fees
-
 $0.16
-Sell NVDA $145 Put 8/15
+Sell NVDA $145 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $2.43
+2 contracts at $2.43
 Filled
-
 7/8, 9:47 AM PDT
 Quantity
-
 2
-Buy NVDA $150 Put 8/15
+Buy NVDA $150 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $3.56
+2 contracts at $3.56
 Filled
-
 7/8, 9:47 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Put Credit Spread
 Jul 8
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JNJ Put Credit Spread
 Jul 8
 $47.00
 Time in force
-
 Good for day
 Submitted
-
 7/8, 8:04 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.47
 Est cost
-
 $47.08
 Est regulatory fees
-
 $0.08
-Sell JNJ $145 Put 7/25
+Sell JNJ $145 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.33
+1 contract at $0.33
 Filled
-
 7/8, 8:04 AM PDT
 Quantity
-
 1
-Buy JNJ $150 Put 7/25
+Buy JNJ $150 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.80
+1 contract at $0.80
 Filled
-
 7/8, 8:04 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 7
 $246.00
 Time in force
-
 Good for day
 Submitted
-
 7/7, 12:32 PM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.23
 Est credit
-
 $245.84
 Est regulatory fees
-
 $0.16
-Buy NVDA $145 Put 8/15
+Buy NVDA $145 Put 8/15
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $2.88
+2 contracts at $2.88
 Filled
-
 7/7, 12:32 PM PDT
 Quantity
-
 2
-Sell NVDA $150 Put 8/15
+Sell NVDA $150 Put 8/15
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $4.11
+2 contracts at $4.11
 Filled
-
 7/7, 12:32 PM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jul 7
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 7
 $284.00
 Time in force
-
 Good for day
 Submitted
-
 7/7, 8:41 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.42
 Est cost
-
 $284.32
 Est regulatory fees
-
 $0.32
-Buy AAPL $220 Call 7/25
+Buy AAPL $220 Call 7/25
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $1.74
+2 contracts at $1.74
 Filled
-
 7/7, 8:41 AM PDT
 Quantity
-
 2
-Sell AAPL $225 Call 7/25
+Sell AAPL $225 Call 7/25
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.80
+2 contracts at $0.80
 Filled
-
 7/7, 8:41 AM PDT
 Quantity
-
 2
-Sell AAPL $195 Put 7/25
+Sell AAPL $195 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.60
+2 contracts at $0.60
 Filled
-
 7/7, 8:41 AM PDT
 Quantity
-
 2
-Buy AAPL $200 Put 7/25
+Buy AAPL $200 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $1.08
+2 contracts at $1.08
 Filled
-
 7/7, 8:41 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 2
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 JNJ Put Credit Spread
 Jul 1
 $48.00
 Time in force
-
 Good for day
 Submitted
-
 7/1, 9:27 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $0.45
 Est credit
-
 $47.92
 Est regulatory fees
-
 $0.08
-Buy JNJ $145 Put 7/25
+Buy JNJ $145 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.41
+1 contract at $0.41
 Filled
-
 7/1, 9:27 AM PDT
 Quantity
-
 1
-Sell JNJ $150 Put 7/25
+Sell JNJ $150 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.89
+1 contract at $0.89
 Filled
-
 7/1, 9:27 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 JNJ Put Credit Spread
 Jul 1
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Short Iron Condor
 Jul 1
 $324.00
 Time in force
-
 Good for day
 Submitted
-
 7/1, 8:53 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.62
 Est credit
-
 $323.68
 Est regulatory fees
-
 $0.32
-Sell AAPL $220 Call 7/25
+Sell AAPL $220 Call 7/25
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.32
+2 contracts at $1.32
 Filled
-
 7/1, 8:53 AM PDT
 Quantity
-
 2
-Buy AAPL $225 Call 7/25
+Buy AAPL $225 Call 7/25
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $0.69
+2 contracts at $0.69
 Filled
-
 7/1, 8:53 AM PDT
 Quantity
-
 2
-Buy AAPL $195 Put 7/25
+Buy AAPL $195 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.37
+2 contracts at $1.37
 Filled
-
 7/1, 8:53 AM PDT
 Quantity
-
 2
-Sell AAPL $200 Put 7/25
+Sell AAPL $200 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $2.36
+2 contracts at $2.36
 Filled
-
 7/1, 8:53 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 XOM Put Credit Spread
 Jul 1
 $180.00
 Time in force
-
 Good for day
 Submitted
-
 7/1, 8:05 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $1.80
 Est cost
-
 $180.08
 Est regulatory fees
-
 $0.08
-Sell XOM $105 Put 7/3
+Sell XOM $105 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.04
+1 contract at $0.04
 Filled
-
 7/1, 8:05 AM PDT
 Quantity
-
 1
-Buy XOM $110 Put 7/3
+Buy XOM $110 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $1.84
+1 contract at $1.84
 Filled
-
 7/1, 8:05 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 XOM Put Credit Spread
 Jul 1
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AAPL Put Credit Spread
 Jun 30
 $200.00
 Time in force
-
 Good for day
 Submitted
-
 6/30, 11:55 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.02
 Est cost
-
 $200.16
 Est regulatory fees
-
 $0.16
-Sell AAPL $195 Put 7/3
+Sell AAPL $195 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.31
+2 contracts at $0.31
 Filled
-
 6/30, 11:55 AM PDT
 Quantity
-
 2
-Buy AAPL $200 Put 7/3
+Buy AAPL $200 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $1.31
+2 contracts at $1.31
 Filled
-
 6/30, 11:55 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 XOM Put Credit Spread
 Jun 30
 $202.00
 Time in force
-
 Good for day
 Submitted
-
 6/30, 10:40 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.02
 Est credit
-
 $201.92
 Est regulatory fees
-
 $0.08
-Buy XOM $105 Put 7/3
+Buy XOM $105 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.08
+1 contract at $0.08
 Filled
-
 6/30, 10:40 AM PDT
 Quantity
-
 1
-Sell XOM $110 Put 7/3
+Sell XOM $110 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.10
+1 contract at $2.10
 Filled
-
 6/30, 10:40 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AAPL Put Credit Spread
 Jun 30
 $282.00
 Time in force
-
 Good for day
 Submitted
-
 6/30, 10:24 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $1.41
 Est credit
-
 $281.84
 Est regulatory fees
-
 $0.16
-Buy AAPL $195 Put 7/3
+Buy AAPL $195 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $0.45
+2 contracts at $0.45
 Filled
-
 6/30, 10:24 AM PDT
 Quantity
-
 2
-Sell AAPL $200 Put 7/3
+Sell AAPL $200 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.86
+2 contracts at $1.86
 Filled
-
 6/30, 10:24 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jun 30
 $345.00
 Time in force
-
 Good for day
 Submitted
-
 6/30, 9:49 AM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $1.15
 Est cost
-
 $345.26
 Est regulatory fees
-
 $0.26
-Sell NVDA $148 Put 7/25
+Sell NVDA $148 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $2.22
+3 contracts at $2.22
 Filled
-
 6/30, 9:49 AM PDT
 Quantity
-
 3
-Buy NVDA $152.5 Put 7/25
+Buy NVDA $152.5 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-3 contracts at $3.37
+3 contracts at $3.37
 Filled
-
 6/30, 9:49 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jun 30
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Put Credit Spread
 Jun 27
 $375.00
 Time in force
-
 Good for day
 Submitted
-
 6/27, 7:27 AM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $1.25
 Est credit
-
 $374.74
 Est regulatory fees
-
 $0.26
-Buy NVDA $148 Put 7/25
+Buy NVDA $148 Put 7/25
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $2.56
+3 contracts at $2.56
 Filled
-
 6/27, 7:27 AM PDT
 Quantity
-
 3
-Sell NVDA $152.5 Put 7/25
+Sell NVDA $152.5 Put 7/25
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $3.81
+3 contracts at $3.81
 Filled
-
 6/27, 7:27 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 NVDA Put Credit Spread
 Jun 27
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Sell TQQQ $82 Call 7/3
+Sell TQQQ $82 Call 7/3
 Jun 27
 $164.00
-
-1 contract at $1.64
+1 contract at $1.64
 Type
-
 Limit Sell
 Position effect
-
 Close
 Time in force
-
 Good for day
 Submitted
-
 6/27, 6:57 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Filled quantity
-
-1 contract at $1.64
+1 contract at $1.64
 Filled
-
 6/27, 6:57 AM PDT
 Limit price
-
 $1.63
 Est credit
-
 $163.96
 Est regulatory fees
-
 $0.04
 Download Trade Confirmation
 AMD Put Credit Spread
 Jun 27
 $110.00
 Time in force
-
 Good for day
 Submitted
-
 6/27, 6:48 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.55
 Est cost
-
 $110.16
 Est regulatory fees
-
 $0.16
-Sell AMD $135 Put 7/3
+Sell AMD $135 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.28
+2 contracts at $0.28
 Filled
-
 6/27, 6:48 AM PDT
 Quantity
-
 2
-Buy AMD $140 Put 7/3
+Buy AMD $140 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.83
+2 contracts at $0.83
 Filled
-
 6/27, 6:48 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
-Buy TQQQ $82 Call 7/3
+Buy TQQQ $82 Call 7/3
 Jun 26
 $129.00
-
-1 contract at $1.29
+1 contract at $1.29
 Type
-
 Limit Buy
 Position effect
-
 Open
 Time in force
-
 Good for day
 Submitted
-
 6/26, 12:38 PM PDT
 Quantity
-
 1
 Status
-
 Filled
 Filled quantity
-
-1 contract at $1.29
+1 contract at $1.29
 Filled
-
 6/26, 12:38 PM PDT
 Limit price
-
 $1.29
 Est cost
-
 $129.04
 Est regulatory fees
-
 $0.04
 Download Trade Confirmation
 AMD Put Credit Spread
 Jun 26
 $196.00
 Time in force
-
 Good for day
 Submitted
-
 6/26, 10:39 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $0.98
 Est credit
-
 $195.84
 Est regulatory fees
-
 $0.16
-Buy AMD $135 Put 7/3
+Buy AMD $135 Put 7/3
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $0.57
+2 contracts at $0.57
 Filled
-
 6/26, 10:39 AM PDT
 Quantity
-
 2
-Sell AMD $140 Put 7/3
+Sell AMD $140 Put 7/3
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-2 contracts at $1.55
+2 contracts at $1.55
 Filled
-
 6/26, 10:39 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 AMD Put Credit Spread
 Jun 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Debit Spread
 Jun 26
 $903.00
 Time in force
-
 Good for day
 Submitted
-
 6/26, 7:47 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $9.00
 Est credit
-
 $902.92
 Est regulatory fees
-
 $0.08
-Sell NVDA $150 Call 7/25
+Sell NVDA $150 Call 7/25
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $10.00
+1 contract at $10.00
 Filled
-
 6/26, 7:47 AM PDT
 Quantity
-
 1
-Buy NVDA $175 Call 7/25
+Buy NVDA $175 Call 7/25
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.97
+1 contract at $0.97
 Filled
-
 6/26, 7:47 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Call Debit Spread
 Jun 26
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Debit Spread
 Jun 25
 $674.00
 Time in force
-
 Good for day
 Submitted
-
 6/25, 9:19 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $6.74
 Est cost
-
 $674.08
 Est regulatory fees
-
 $0.08
-Buy NVDA $150 Call 7/25
+Buy NVDA $150 Call 7/25
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $7.30
+1 contract at $7.30
 Filled
-
 6/25, 9:19 AM PDT
 Quantity
-
 1
-Sell NVDA $175 Call 7/25
+Sell NVDA $175 Call 7/25
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $0.56
+1 contract at $0.56
 Filled
-
 6/25, 9:19 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Call Debit Spread
 Jun 25
 $526.00
 Time in force
-
 Good for day
 Submitted
-
 6/25, 9:15 AM PDT
 Quantity
-
 2
 Status
-
 Filled
 Limit price
-
 $2.59
 Est credit
-
 $525.84
 Est regulatory fees
-
 $0.16
-Sell NVDA $150 Call 6/27
+Sell NVDA $150 Call 6/27
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $2.74
+2 contracts at $2.74
 Filled
-
 6/25, 9:15 AM PDT
 Quantity
-
 2
-Buy NVDA $160 Call 6/27
+Buy NVDA $160 Call 6/27
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-2 contracts at $0.11
+2 contracts at $0.11
 Filled
-
 6/25, 9:15 AM PDT
 Quantity
-
 2
 Download Trade Confirmation
 NVDA Call Debit Spread
 Jun 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Debit Spread
 Jun 25
 $257.00
 Time in force
-
 Good for day
 Submitted
-
 6/25, 9:14 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $2.57
 Est credit
-
 $256.92
 Est regulatory fees
-
 $0.08
-Sell NVDA $150 Call 6/27
+Sell NVDA $150 Call 6/27
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $2.68
+1 contract at $2.68
 Filled
-
 6/25, 9:14 AM PDT
 Quantity
-
 1
-Buy NVDA $160 Call 6/27
+Buy NVDA $160 Call 6/27
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $0.11
+1 contract at $0.11
 Filled
-
 6/25, 9:14 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 NVDA Call Debit Spread
 Jun 25
 $726.00
 Time in force
-
 Good for day
 Submitted
-
 6/25, 9:12 AM PDT
 Quantity
-
 3
 Status
-
 Filled
 Limit price
-
 $2.42
 Est cost
-
 $726.26
 Est regulatory fees
-
 $0.26
-Buy NVDA $150 Call 6/27
+Buy NVDA $150 Call 6/27
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $2.52
+3 contracts at $2.52
 Filled
-
 6/25, 9:12 AM PDT
 Quantity
-
 3
-Sell NVDA $160 Call 6/27
+Sell NVDA $160 Call 6/27
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-3 contracts at $0.10
+3 contracts at $0.10
 Filled
-
 6/25, 9:12 AM PDT
 Quantity
-
 3
 Download Trade Confirmation
 NVDA Call Debit Spread
 Jun 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 NVDA Call Debit Spread
 Jun 25
 Canceled
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 AMD Call Debit Spread
 Jun 25
 $700.00
 Time in force
-
 Good for day
 Submitted
-
 6/25, 8:03 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $7.00
 Est credit
-
 $699.92
 Est regulatory fees
-
 $0.08
-Sell AMD $130 Call 7/18
+Sell AMD $130 Call 7/18
 Type
-
 Limit Sell
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $14.90
+1 contract at $14.90
 Filled
-
 6/25, 8:03 AM PDT
 Quantity
-
 1
-Buy AMD $140 Call 7/18
+Buy AMD $140 Call 7/18
 Type
-
 Limit Buy
 Position effect
-
 Close
 Filled quantity
-
-1 contract at $7.90
+1 contract at $7.90
 Filled
-
 6/25, 8:03 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 AMD Call Debit Spread
 Jun 20
 $346.00
 Time in force
-
 Good for day
 Submitted
-
 6/20, 10:12 AM PDT
 Quantity
-
 1
 Status
-
 Filled
 Limit price
-
 $3.46
 Est cost
-
 $346.08
 Est regulatory fees
-
 $0.08
-Buy AMD $130 Call 7/18
+Buy AMD $130 Call 7/18
 Type
-
 Limit Buy
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $5.67
+1 contract at $5.67
 Filled
-
 6/20, 10:12 AM PDT
 Quantity
-
 1
-Sell AMD $140 Call 7/18
+Sell AMD $140 Call 7/18
 Type
-
 Limit Sell
 Position effect
-
 Open
 Filled quantity
-
-1 contract at $2.21
+1 contract at $2.21
 Filled
-
 6/20, 10:12 AM PDT
 Quantity
-
 1
 Download Trade Confirmation
 
 
-WMT $97.5 Call Assignment
+CAT $445 Call Assignment
+Oct 31
+$44,499.98
+Contracts
+1
+Price at Expiration
+$577.26
+Date
+10/31/2025
+Status
+Completed
+Credit
+$44,499.98
+CAT $450 Call Exercise
+Oct 31
+-$45,000.00
+Contracts
+1
+Price at Expiration
+$577.26
+Date
+10/31/2025
+Status
+Completed
+Cost
+$45,000.00
+WMT $97.5 Call Assignment
 Oct 17
 $9,749.98
 Contracts
-
 1
 Price at Expiration
-
 $107.73
 Date
-
 10/17/2025
 Status
-
 Completed
 Credit
-
 $9,749.98
-
-WMT $100 Call Exercise
+WMT $100 Call Exercise
 Oct 17
 -$10,000.00
 Contracts
-
 1
 Price at Expiration
-
 $107.73
 Date
-
 10/17/2025
 Status
-
 Completed
 Cost
-
 $10,000.00
-
-AMD $152.5 Call Assignment
+AMD $152.5 Call Assignment
 Oct 10
 $15,249.98
 Contracts
-
 1
 Price at Expiration
-
 $214.90
 Date
-
 10/10/2025
 Status
-
 Completed
 Credit
-
 $15,249.98
-
-AMD $155 Call Exercise
+AMD $155 Call Exercise
 Oct 10
 -$15,500.00
 Contracts
-
 1
 Price at Expiration
-
 $214.90
 Date
-
 10/10/2025
 Status
-
 Completed
 Cost
-
 $15,500.00
-
 Older
-JPM $297.5 Call Assignment
+JPM $297.5 Call Assignment
 Sep 26
 $29,749.98
 Contracts
-
 1
 Price at Expiration
-
 $316.06
 Date
-
 9/26/2025
 Status
-
 Completed
 Credit
-
 $29,749.98
-
-JPM $300 Call Exercise
+JPM $300 Call Exercise
 Sep 26
 -$30,000.00
 Contracts
-
 1
 Price at Expiration
-
 $316.06
 Date
-
 9/26/2025
 Status
-
 Completed
 Cost
-
 $30,000.00
-
-XOM $110 Call Assignment
+XOM $110 Call Assignment
 Aug 29
 $32,999.95
 Contracts
-
 3
 Price at Expiration
-
 $114.29
 Date
-
 8/29/2025
 Status
-
 Completed
 Credit
-
 $32,999.95
-
-XOM $111 Call Exercise
+XOM $111 Call Exercise
 Aug 29
 -$33,300.00
 Contracts
-
 3
 Price at Expiration
-
 $114.29
 Date
-
 8/29/2025
 Status
-
 Completed
 Cost
-
 $33,300.00
-
-PLTR $165 Call Assignment
+PLTR $165 Call Assignment
 Aug 15
 $16,499.98
 Contracts
-
 1
 Price at Expiration
-
 $177.17
 Date
-
 8/15/2025
 Status
-
 Completed
 Credit
-
 $16,499.98
-
-PLTR $170 Call Exercise
+PLTR $170 Call Exercise
 Aug 15
 -$17,000.00
 Contracts
-
 1
 Price at Expiration
-
 $177.17
 Date
-
 8/15/2025
 Status
-
 Completed
 Cost
-
 $17,000.00
-
-AMZN $247.5 Call Expiration
+AMZN $247.5 Call Expiration
 Aug 1
 $0.00
 Contracts
-
 1
 Price at Expiration
-
 $214.75
 Date
-
 8/1/2025
 Status
-
 Completed
-
-AMZN $250 Call Expiration
+AMZN $250 Call Expiration
 Aug 1
 $0.00
 Contracts
-
 1
 Price at Expiration
-
 $214.75
 Date
-
 8/1/2025
 Status
-
 Completed
+
 
