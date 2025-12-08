@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Script from 'next/script';
 import SpendingTab from './SpendingTab';
 import InvestmentsTab from './InvestmentsTab';
+import ThreeStatementSection from './ThreeStatementSection';
 
 declare global {
   interface Window {
@@ -61,6 +62,29 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       ));
     } catch (error) {
       console.error('Error updating entity type:', error);
+    }
+  };
+
+  const handleReassign = async (transactionIds: string[], newCoaCode: string, newSubAccount: string | null) => {
+    try {
+      const res = await fetch('/api/transactions/commit-to-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds,
+          accountCode: newCoaCode,
+          subAccount: newSubAccount
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        await loadData();
+      } else {
+        throw new Error(result.error || 'Failed to reassign');
+      }
+    } catch (error) {
+      console.error('Reassign error:', error);
+      throw error;
     }
   };
 
@@ -203,7 +227,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     handler.open();
   }, [linkToken]);
 
-  const totalTransactions = transactions.length + committedTransactions.length + investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length + committedInvestments.length;
+  const totalTransactions = transactions.length + committedTransactions.length + investmentTransactions.length + committedInvestments.length;
   const progressPercent = totalTransactions > 0 ? (committedTransactions.length / totalTransactions * 100) : 0;
 
   return (
@@ -286,7 +310,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
               onClick={() => setActiveTab('investments')} 
               className={`px-6 py-3 font-medium ${activeTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237]' : 'text-gray-600'}`}
             >
-              Investments ({investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length} uncommitted, {committedInvestments.length} committed)
+              Investments ({investmentTransactions.length} uncommitted, {committedInvestments.length} committed)
             </button>
           </div>
 
@@ -307,6 +331,12 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             />
           )}
         </div>
+
+          <ThreeStatementSection
+            committedTransactions={committedTransactions}
+            coaOptions={coaOptions}
+            onReassign={handleReassign}
+          />
       </div>
     </>
   );

@@ -69,9 +69,9 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
       setAutoMapStatus({ loading: true, message: `Found ${spreads.length} spreads. Matching to transactions...` });
       
       const filteredTransactions = investmentTransactions.filter(txn => {
-        const cutoffDate = new Date("2025-06-10");
-        const transactionDate = new Date(txn.date);
-        return transactionDate >= cutoffDate;
+        
+        
+        return true;
       });
       
       console.log('Filtered transactions:', filteredTransactions.length);
@@ -502,7 +502,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
         
         <div className="p-4 bg-gray-50 flex justify-between items-center">
           <span className="text-sm">
-            Investment Transactions: {investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length} uncommitted, {committedInvestments.length} committed
+            Investment Transactions: {investmentTransactions.length} uncommitted, {committedInvestments.length} committed
             {Object.keys(investmentRowChanges).length > 0 && (
               <span className="ml-2 text-green-600 font-medium">
                 ({Object.keys(investmentRowChanges).length} mapped)
@@ -553,12 +553,12 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
               const symbol = txn.name?.split(' ').find((part: string) => part.match(/^[A-Z]+$/)) || '';
               const position = txn.name?.toLowerCase().includes('close') ? 'close' : 'open';
               
-              const cutoffDate = new Date("2025-06-10");
-              const transactionDate = new Date(txn.date);
-              return transactionDate >= cutoffDate &&
+              
+              
+              return (
                      (!dateFilter || txnDate === dateFilter) &&
                      (!symbolFilter || symbol.includes(symbolFilter)) &&
-                     (!positionFilter || position === positionFilter);
+                     (!positionFilter || position === positionFilter));
             }).map((txn: any) => {
               const txnId = txn.id || txn.investment_transaction_id;
               let symbol = '-';
@@ -723,7 +723,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
           </tbody>
         </table>
         <div className="p-4 bg-gray-50 text-sm">
-          Total Investment Transactions: {investmentTransactions.filter((txn: any) => new Date(txn.date) >= new Date("2025-06-10")).length}
+          Total Investment Transactions: {investmentTransactions.length}
         </div>
       </div>
 

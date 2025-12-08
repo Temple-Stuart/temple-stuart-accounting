@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
                 last_used_at: new Date()
               }
             });
-          } else if (!existing || existing.coa_code !== accountCode) {
+          } else if (!existing) {
             await prisma.merchant_coa_mappings.create({
               data: {
                 id: randomUUID(),
