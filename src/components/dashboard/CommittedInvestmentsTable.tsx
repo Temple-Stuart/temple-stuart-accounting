@@ -12,7 +12,7 @@ export default function CommittedInvestmentsTable({
   massUncommitInvestments
 }: CommittedInvestmentsTableProps) {
   const filteredInvestments = committedInvestments.filter(
-    (txn: any) => new Date(txn.date) >= new Date('2025-06-10')
+    (txn: any) => true
   );
 
   if (filteredInvestments.length === 0) return null;
