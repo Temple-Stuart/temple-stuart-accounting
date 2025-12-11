@@ -26,7 +26,6 @@ interface SpendingTabProps {
 
 export default function SpendingTab({ transactions, committedTransactions, coaOptions, onReload }: SpendingTabProps) {
   if (transactions === undefined || committedTransactions === undefined || coaOptions === undefined) {
-    console.log("Guard check:", { transactions, committedTransactions, coaOptions });
     return <div className="p-4">Loading...</div>;
   }
 
@@ -63,7 +62,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       const params = new URLSearchParams();
       if (merchantName) params.append('merchantName', merchantName);
       if (categoryPrimary) params.append('categoryPrimary', categoryPrimary);
-      
       const res = await fetch(`/api/merchant-mappings?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -96,6 +94,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     const institutionName = account?.plaidItem?.institutionName?.toLowerCase() || '';
     if (name.includes('robinhood') || institutionName.includes('robinhood')) return 'RH';
     if (name.includes('wells') || institutionName.includes('wells')) return 'WF';
+    if (name.includes('relay') || institutionName.includes('relay')) return 'Relay';
+    if (name.includes('tasty') || institutionName.includes('tasty')) return 'Tasty';
     return 'Bank';
   };
 
@@ -119,16 +119,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     return Array.from(categories.entries()).sort((a, b) => b[1] - a[1]);
   };
 
-  const getDetailedCategories = () => {
-    if (!transactions || transactions.length === 0) return [];
-    const categories = new Map<string, number>();
-    transactions.forEach((t: any) => {
-      const cat = t.personal_finance_category?.detailed;
-      if (cat) categories.set(cat, (categories.get(cat) || 0) + 1);
-    });
-    return Array.from(categories.entries()).sort((a, b) => b[1] - a[1]);
-  };
-
   const getFilteredTransactions = () => {
     if (!selectedFilter) return transactions;
     return transactions.filter((t: any) => {
@@ -137,9 +127,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       }
       if (selectedFilter.type === 'primary') {
         return (t.personal_finance_category?.primary || 'Uncategorized') === selectedFilter.value;
-      }
-      if (selectedFilter.type === 'detailed') {
-        return t.personal_finance_category?.detailed === selectedFilter.value;
       }
       return true;
     });
@@ -172,12 +159,10 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           subAccount: selectedSubAccount || null
         })
       });
-      
       const result = await res.json();
-      
       if (result.success) {
         await onReload();
-        alert(`✅ Committed ${result.committed} transactions with journal entries`);
+        alert(`✅ Committed ${result.committed} transactions`);
         setSelectedFilter(null);
         setShowCOAAssignment(false);
         setSelectedAccount('');
@@ -200,7 +185,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       alert('Please select transactions to assign');
       return;
     }
-
     try {
       const res = await fetch('/api/transactions/commit-to-ledger', {
         method: 'POST',
@@ -211,9 +195,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           subAccount: selectedSubAccount || null
         })
       });
-      
       const result = await res.json();
-      
       if (result.success) {
         await onReload();
         alert(`✅ Committed ${result.committed} selected transactions`);
@@ -235,10 +217,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       alert('No rows with COA assigned');
       return;
     }
-
     try {
       for (const [txnId, change] of rowsToCommit) {
-        const res = await fetch('/api/transactions/commit-to-ledger', {
+        await fetch('/api/transactions/commit-to-ledger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -286,278 +267,215 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const coaGrouped = groupCoaByType();
 
   return (
-    <>
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Top Merchants</h3>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
-            {getMerchants().slice(0, 10).map(([merchant, count]) => (
-              <button key={merchant} onClick={() => {
-                setSelectedFilter({type: 'merchant', value: merchant});
-                setShowCOAAssignment(true);
-              }} className="w-full text-left text-xs px-2 py-1 hover:bg-blue-50 rounded flex justify-between">
-                <span>{merchant}</span>
-                <span className="text-gray-500">({count})</span>
+    <div className="space-y-4">
+      {/* Filters Row - Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-lg">
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Top Merchants</h4>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {getMerchants().slice(0, 8).map(([merchant, count]) => (
+              <button key={merchant} onClick={() => { setSelectedFilter({type: 'merchant', value: merchant}); setShowCOAAssignment(true); }}
+                className="w-full text-left text-xs px-2 py-1.5 hover:bg-[#b4b237]/10 rounded flex justify-between items-center group">
+                <span className="truncate">{merchant}</span>
+                <span className="text-gray-400 group-hover:text-[#b4b237]">{count}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Primary Categories</h3>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
-            {getPrimaryCategories().slice(0, 10).map(([category, count]) => (
-              <button key={category} onClick={() => {
-                setSelectedFilter({type: 'primary', value: category});
-                setShowCOAAssignment(true);
-              }} className="w-full text-left text-xs px-2 py-1 hover:bg-blue-50 rounded flex justify-between">
-                <span>{category}</span>
-                <span className="text-gray-500">({count})</span>
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Categories</h4>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {getPrimaryCategories().slice(0, 8).map(([category, count]) => (
+              <button key={category} onClick={() => { setSelectedFilter({type: 'primary', value: category}); setShowCOAAssignment(true); }}
+                className="w-full text-left text-xs px-2 py-1.5 hover:bg-[#b4b237]/10 rounded flex justify-between items-center group">
+                <span className="truncate">{category}</span>
+                <span className="text-gray-400 group-hover:text-[#b4b237]">{count}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Detailed Categories</h3>
-          <div className="space-y-1 max-h-40 overflow-y-auto">
-            {getDetailedCategories().slice(0, 10).map(([category, count]) => (
-              <button key={category} onClick={() => {
-                setSelectedFilter({type: 'detailed', value: category});
-                setShowCOAAssignment(true);
-              }} className="w-full text-left text-xs px-2 py-1 hover:bg-blue-50 rounded flex justify-between">
-                <span>{category}</span>
-                <span className="text-gray-500">({count})</span>
-              </button>
-            ))}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Sub-Accounts</h4>
+          <div className="flex gap-1 mb-2">
+            <input type="text" placeholder="New sub-account" value={newSubAccount} onChange={(e) => setNewSubAccount(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addSubAccount()}
+              className="flex-1 px-2 py-1.5 border rounded text-xs" />
+            <button onClick={addSubAccount} className="px-2 py-1.5 bg-gray-600 text-white rounded text-xs">+</button>
           </div>
+          <div className="text-xs text-gray-500">{subAccountsList.length > 0 ? subAccountsList.join(', ') : 'None defined'}</div>
         </div>
 
-        <div className="flex-1">
-          <h3 className="text-sm font-medium mb-2">Sub-Accounts</h3>
-          <input type="text" placeholder="Enter new sub-account name"
-            value={newSubAccount} onChange={(e) => setNewSubAccount(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addSubAccount()}
-            className="flex-1 px-3 py-1 border rounded text-sm w-full mb-2" />
-          <button onClick={addSubAccount} className="px-4 py-1 bg-gray-600 text-white rounded text-sm w-full mb-2">Add</button>
-          <div className="text-xs text-gray-600">
-            Current: {subAccountsList.length > 0 ? subAccountsList.join(', ') : 'None'}
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Quick Stats</h4>
+          <div className="text-xs space-y-1">
+            <div className="flex justify-between"><span>Uncommitted:</span><span className="font-semibold">{transactions.length}</span></div>
+            <div className="flex justify-between"><span>Committed:</span><span className="font-semibold text-green-600">{committedTransactions.length}</span></div>
+            <div className="flex justify-between"><span>Selected:</span><span className="font-semibold text-[#b4b237]">{selectedUncommitted.length}</span></div>
           </div>
         </div>
       </div>
 
+      {/* Bulk Assignment Bar */}
       {showCOAAssignment && selectedFilter && (
-        <div className="p-4 bg-blue-50 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-medium">Assign to: {selectedFilter.value}</h4>
-              <p className="text-xs text-gray-600">{getFilteredTransactions().length} transactions</p>
-            </div>
-            <div className="flex gap-2">
-              <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)}
-                className="text-sm border rounded px-3 py-1">
-                <option value="">Select COA</option>
-                {Object.keys(coaGrouped).map(type => (
-                  <optgroup key={type} label={type}>
-                    {coaGrouped[type].map(opt => (
-                      <option key={opt.id} value={opt.code}>{opt.code} - {opt.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <select value={selectedSubAccount} onChange={(e) => setSelectedSubAccount(e.target.value)}
-                className="text-sm border rounded px-3 py-1">
-                <option value="">No Sub-Account</option>
-                {subAccountsList.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
-                ))}
-              </select>
-              <button onClick={applyBulkCOA} className="px-4 py-1 bg-green-600 text-white rounded text-sm">
-                Apply & Commit
-              </button>
-              <button onClick={() => {setSelectedFilter(null); setShowCOAAssignment(false);}}
-                className="px-3 py-1 border rounded text-sm">Clear</button>
-            </div>
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[150px]">
+            <span className="text-sm font-medium">{selectedFilter.value}</span>
+            <span className="text-xs text-gray-500 ml-2">({getFilteredTransactions().length} txns)</span>
           </div>
+          <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+            <option value="">Select COA</option>
+            {Object.keys(coaGrouped).map(type => (
+              <optgroup key={type} label={type}>
+                {coaGrouped[type].map(opt => <option key={opt.id} value={opt.code}>{opt.code} - {opt.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <select value={selectedSubAccount} onChange={(e) => setSelectedSubAccount(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+            <option value="">No Sub</option>
+            {subAccountsList.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+          </select>
+          <button onClick={applyBulkCOA} className="px-3 py-1.5 bg-[#b4b237] text-white rounded text-sm font-medium">Apply & Commit</button>
+          <button onClick={() => { setSelectedFilter(null); setShowCOAAssignment(false); }} className="px-3 py-1.5 border rounded text-sm">Clear</button>
         </div>
       )}
 
+      {/* Selection Bar */}
       {selectedUncommitted.length > 0 && (
-        <div className="p-4 bg-purple-50 border-b">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-medium">Mass Assignment: {selectedUncommitted.length} selected</h4>
-            </div>
-            <div className="flex gap-2">
-              <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)}
-                className="text-sm border rounded px-3 py-1">
-                <option value="">Select COA</option>
-                {Object.keys(coaGrouped).map(type => (
-                  <optgroup key={type} label={type}>
-                    {coaGrouped[type].map(opt => (
-                      <option key={opt.id} value={opt.code}>{opt.code} - {opt.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <select value={selectedSubAccount} onChange={(e) => setSelectedSubAccount(e.target.value)}
-                className="text-sm border rounded px-3 py-1">
-                <option value="">No Sub-Account</option>
-                {subAccountsList.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
-                ))}
-              </select>
-              <button onClick={applyToSelectedTransactions} className="px-4 py-1 bg-purple-600 text-white rounded text-sm font-medium">
-                Apply to Selected & Commit
-              </button>
-              <button onClick={() => setSelectedUncommitted([])}
-                className="px-3 py-1 border rounded text-sm">Clear Selection</button>
-            </div>
-          </div>
+        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-purple-700">{selectedUncommitted.length} selected</span>
+          <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+            <option value="">Select COA</option>
+            {Object.keys(coaGrouped).map(type => (
+              <optgroup key={type} label={type}>
+                {coaGrouped[type].map(opt => <option key={opt.id} value={opt.code}>{opt.code} - {opt.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <select value={selectedSubAccount} onChange={(e) => setSelectedSubAccount(e.target.value)} className="text-sm border rounded px-2 py-1.5">
+            <option value="">No Sub</option>
+            {subAccountsList.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+          </select>
+          <button onClick={applyToSelectedTransactions} className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm font-medium">Commit Selected</button>
+          <button onClick={() => setSelectedUncommitted([])} className="px-3 py-1.5 border rounded text-sm">Clear</button>
         </div>
       )}
 
-      <div className="p-2 bg-gray-100 border-b flex justify-between">
-        <button onClick={commitSelectedRows} className="px-4 py-2 bg-blue-600 text-white rounded text-sm">
-          Commit Rows with COA Assigned
+      {/* Action Bar */}
+      <div className="flex justify-between items-center px-1">
+        <button onClick={commitSelectedRows} className="px-4 py-2 bg-[#b4b237] text-white rounded text-sm font-medium">
+          Commit Rows with COA
         </button>
-        <span className="text-sm text-gray-600">
-          Showing all {transactions.length} uncommitted transactions
-        </span>
+        <span className="text-sm text-gray-500">{transactions.length} uncommitted</span>
       </div>
 
-      <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '400px'}}>
-        <table className="w-full text-xs">
-          <thead className="bg-gray-50 sticky top-0">
-            <tr>
-              <th className="px-2 py-2">
-                <input type="checkbox" onChange={(e) => {
-                  if (e.target.checked) {
-                    const displayedTxns = selectedFilter ? getFilteredTransactions() : transactions;
-                    setSelectedUncommitted(displayedTxns.map((t: any) => t.id));
-                  } else {
-                    setSelectedUncommitted([]);
-                  }
-                }} checked={selectedUncommitted.length > 0 && selectedUncommitted.length === (selectedFilter ? getFilteredTransactions() : transactions).length} />
-              </th>
-              <th className="px-2 py-2 text-left">Inst</th>
-              <th className="px-2 py-2 text-left">Date</th>
-              <th className="px-2 py-2 text-left">Name</th>
-              <th className="px-2 py-2 text-left">Merchant</th>
-              <th className="px-2 py-2 text-right">Amount</th>
-              <th className="px-2 py-2 text-left">Primary</th>
-              <th className="px-2 py-2 text-left">Detailed</th>
-              <th className="px-2 py-2 text-left bg-yellow-50 min-w-[200px]">COA</th>
-              <th className="px-2 py-2 text-center bg-blue-50 min-w-[80px]">Sub-Acct</th>
-              <th className="px-2 py-2 text-center bg-green-50 min-w-[60px]">Conf%</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {(selectedFilter ? getFilteredTransactions() : transactions).map((txn: any) => {
-              const suggestion = merchantSuggestions[txn.id];
-              return (
-              <tr key={txn.id} className={selectedFilter && getFilteredTransactions().includes(txn) ? 'bg-yellow-50' : ''}>
-                <td className="px-2 py-2">
-                  <input type="checkbox" 
-                    checked={selectedUncommitted.includes(txn.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedUncommitted([...selectedUncommitted, txn.id]);
-                      } else {
-                        setSelectedUncommitted(selectedUncommitted.filter(id => id !== txn.id));
-                      }
-                    }}
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <span className={`px-1 py-0.5 rounded text-xs font-medium ${
-                    getInstitution(txn.account) === 'WF' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                  }`}>{getInstitution(txn.account)}</span>
-                </td>
-                <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
-                <td className="px-2 py-2">{txn.name}</td>
-                <td className="px-2 py-2">{txn.merchantName || '-'}</td>
-                <td className="px-2 py-2 text-right">${Math.abs(txn.amount).toFixed(2)}</td>
-                <td className="px-2 py-2">{txn.personal_finance_category?.primary || '-'}</td>
-                <td className="px-2 py-2">{txn.personal_finance_category?.detailed || '-'}</td>
-                <td className="px-2 py-1 bg-yellow-50">
-                  <select value={rowChanges[txn.id]?.coa || (txn.predictedCoaCode || '')}
-                    onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), coa: e.target.value}})}
-                    className="text-xs border rounded px-1 py-0.5 w-full">
-                    <option value="">-</option>
-                    {Object.keys(coaGrouped).map(type => (
-                      <optgroup key={type} label={type}>
-                        {coaGrouped[type].map(opt => (
-                          <option key={opt.id} value={opt.code}>{opt.code} - {opt.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-2 py-1 bg-blue-50">
-                  <select value={rowChanges[txn.id]?.sub || (txn.subAccount || '')}
-                    onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), sub: e.target.value}})}
-                    className="text-xs border rounded px-1 py-0.5 w-full">
-                    <option value="">-</option>
-                    {subAccountsList.map((sub: string) => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-2 py-2 text-center bg-green-50">
-                  {txn.predictionConfidence ? (
-                    <span className="text-xs font-semibold text-green-700">
-                      {(parseFloat(txn.predictionConfidence) * 100).toFixed(0)}%
-                    </span>
-                  ) : '-'}
-                </td>
+      {/* Transactions Table - Cleaner */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '400px'}}>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100 sticky top-0">
+              <tr>
+                <th className="px-3 py-2 w-8">
+                  <input type="checkbox" onChange={(e) => {
+                    const txns = selectedFilter ? getFilteredTransactions() : transactions;
+                    setSelectedUncommitted(e.target.checked ? txns.map((t: any) => t.id) : []);
+                  }} checked={selectedUncommitted.length > 0 && selectedUncommitted.length === (selectedFilter ? getFilteredTransactions() : transactions).length} />
+                </th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Inst</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Date</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 min-w-[180px]">Description</th>
+                <th className="px-2 py-2 text-right text-xs font-semibold text-gray-600">Amount</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Category</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 bg-yellow-50 min-w-[160px]">COA</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600 bg-blue-50 w-24">Sub</th>
               </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {(selectedFilter ? getFilteredTransactions() : transactions).map((txn: any) => (
+                <tr key={txn.id} className={`hover:bg-gray-50 ${selectedUncommitted.includes(txn.id) ? 'bg-purple-50' : ''}`}>
+                  <td className="px-3 py-2">
+                    <input type="checkbox" checked={selectedUncommitted.includes(txn.id)}
+                      onChange={(e) => setSelectedUncommitted(e.target.checked ? [...selectedUncommitted, txn.id] : selectedUncommitted.filter(id => id !== txn.id))} />
+                  </td>
+                  <td className="px-2 py-2">
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                      getInstitution(txn.account) === 'WF' ? 'bg-red-100 text-red-700' : 
+                      getInstitution(txn.account) === 'RH' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    }`}>{getInstitution(txn.account)}</span>
+                  </td>
+                  <td className="px-2 py-2 text-xs text-gray-600 whitespace-nowrap">{new Date(txn.date).toLocaleDateString()}</td>
+                  <td className="px-2 py-2">
+                    <div className="text-sm font-medium text-gray-900 whitespace-normal">{txn.name}</div>
+                    {txn.merchantName && txn.merchantName !== txn.name && (
+                      <div className="text-xs text-gray-500 truncate">{txn.merchantName}</div>
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-right font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
+                  <td className="px-2 py-2 text-xs text-gray-600">{txn.personal_finance_category?.primary || '-'}</td>
+                  <td className="px-2 py-1 bg-yellow-50">
+                    <select value={rowChanges[txn.id]?.coa || ''}
+                      onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), coa: e.target.value}})}
+                      className="text-xs border rounded px-1.5 py-1 w-full bg-white">
+                      <option value="">-</option>
+                      {Object.keys(coaGrouped).map(type => (
+                        <optgroup key={type} label={type}>
+                          {coaGrouped[type].map(opt => <option key={opt.id} value={opt.code}>{opt.code}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-2 py-1 bg-blue-50">
+                    <select value={rowChanges[txn.id]?.sub || ''}
+                      onChange={(e) => setRowChanges({...rowChanges, [txn.id]: {...(rowChanges[txn.id] || {}), sub: e.target.value}})}
+                      className="text-xs border rounded px-1.5 py-1 w-full bg-white">
+                      <option value="">-</option>
+                      {subAccountsList.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      {/* Committed Section */}
       {committedTransactions.length > 0 && (
-        <div className="border-t bg-green-50">
-          <div className="p-3 bg-green-100 flex justify-between items-center">
-            <h4 className="text-sm font-medium text-green-800">Committed ({committedTransactions.length})</h4>
-            <button onClick={massUncommit} className="px-3 py-1 bg-red-600 text-white rounded text-xs">
+        <div className="border rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-green-50 border-b flex justify-between items-center">
+            <h4 className="text-sm font-semibold text-green-800">Committed ({committedTransactions.length})</h4>
+            <button onClick={massUncommit} disabled={selectedCommitted.length === 0}
+              className="px-3 py-1.5 bg-red-600 text-white rounded text-xs disabled:opacity-50">
               Uncommit Selected
             </button>
           </div>
-          <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '250px'}}>
+            <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="px-2 py-2"><input type="checkbox" onChange={(e) => {
-                    if (e.target.checked) setSelectedCommitted(committedTransactions.map(t => t.id));
-                    else setSelectedCommitted([]);
-                  }} /></th>
-                  <th className="px-2 py-2 text-left">Date</th>
-                  <th className="px-2 py-2 text-left">Name</th>
-                  <th className="px-2 py-2 text-right">Amount</th>
-                  <th className="px-2 py-2 text-left">COA</th>
-                  <th className="px-2 py-2 text-left">Sub-Account</th>
+                  <th className="px-3 py-2 w-8">
+                    <input type="checkbox" onChange={(e) => setSelectedCommitted(e.target.checked ? committedTransactions.map(t => t.id) : [])} />
+                  </th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Date</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Description</th>
+                  <th className="px-2 py-2 text-right text-xs font-semibold text-gray-600">Amount</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">COA</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-600">Sub</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-100">
                 {committedTransactions.map((txn: any) => (
-                  <tr key={txn.id}>
-                    <td className="px-2 py-2">
-                      <input type="checkbox" 
-                        checked={selectedCommitted.includes(txn.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedCommitted([...selectedCommitted, txn.id]);
-                          else setSelectedCommitted(selectedCommitted.filter(id => id !== txn.id));
-                        }}
-                      />
+                  <tr key={txn.id} className={`hover:bg-gray-50 ${selectedCommitted.includes(txn.id) ? 'bg-red-50' : ''}`}>
+                    <td className="px-3 py-2">
+                      <input type="checkbox" checked={selectedCommitted.includes(txn.id)}
+                        onChange={(e) => setSelectedCommitted(e.target.checked ? [...selectedCommitted, txn.id] : selectedCommitted.filter(id => id !== txn.id))} />
                     </td>
-                    <td className="px-2 py-2">{new Date(txn.date).toLocaleDateString()}</td>
-                    <td className="px-2 py-2">{txn.name}</td>
-                    <td className="px-2 py-2 text-right">${Math.abs(txn.amount).toFixed(2)}</td>
-                    <td className="px-2 py-2">{txn.accountCode}</td>
-                    <td className="px-2 py-2">{txn.subAccount || '-'}</td>
+                    <td className="px-2 py-2 text-xs text-gray-600">{new Date(txn.date).toLocaleDateString()}</td>
+                    <td className="px-2 py-2 whitespace-normal">{txn.name}</td>
+                    <td className="px-2 py-2 text-right font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
+                    <td className="px-2 py-2 font-mono text-xs">{txn.accountCode}</td>
+                    <td className="px-2 py-2 text-xs text-gray-600">{txn.subAccount || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -565,6 +483,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

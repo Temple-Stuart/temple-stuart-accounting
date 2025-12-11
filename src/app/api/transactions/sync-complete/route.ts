@@ -105,6 +105,24 @@ export async function POST() {
               }
             });
             totalTransactions++;
+
+            // If this is a posted transaction, delete any matching pending duplicates
+            if (!txn.pending) {
+              const twoDaysAgo = new Date(txn.date);
+              twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+              const twoDaysAfter = new Date(txn.date);
+              twoDaysAfter.setDate(twoDaysAfter.getDate() + 2);
+              
+              await prisma.transactions.deleteMany({
+                where: {
+                  accountId: account.id,
+                  amount: txn.amount,
+                  pending: true,
+                  date: { gte: twoDaysAgo, lte: twoDaysAfter },
+                  transactionId: { not: txn.transaction_id }
+                }
+              });
+            }
           }
 
           offset += response.data.transactions.length;
