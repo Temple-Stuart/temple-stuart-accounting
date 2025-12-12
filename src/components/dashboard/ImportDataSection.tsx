@@ -242,49 +242,24 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
     return inst || 'Bank';
   };
 
-  const steps = [
-    { num: 1, label: 'Connect', done: accounts.length > 0 },
-    { num: 2, label: 'Sync', done: totalTransactions > 0 },
-    { num: 3, label: 'Categorize', done: progressPercent > 50 },
-    { num: 4, label: 'Review', done: progressPercent === 100 },
-  ];
 
   return (
     <>
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
       
       <div className="space-y-4">
-        {/* Step Tabs */}
-        <div className="flex items-center justify-center gap-2 py-4">
-          {steps.map((step, i) => (
-            <div key={step.num} className="flex items-center">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${
-                step.done ? 'bg-[#b4b237] text-white' : 'bg-gray-200 text-gray-500'
-              }`}>
-                {step.done ? '✓' : step.num}
-              </div>
-              <span className={`ml-2 text-sm ${step.done ? 'text-[#b4b237] font-medium' : 'text-gray-500'}`}>
-                {step.label}
-              </span>
-              {i < steps.length - 1 && <div className="w-8 h-0.5 bg-gray-200 mx-3" />}
-            </div>
-          ))}
-          <div className="ml-4 text-sm text-gray-500">
-            {committedCount}/{totalTransactions} ({progressPercent.toFixed(0)}%)
-          </div>
-        </div>
 
-        {/* Connected Accounts - Compact Table */}
+        {/* Connected Accounts */}
         <div className="bg-white border rounded-lg overflow-hidden">
           <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
             <h3 className="text-sm font-semibold">Connected Accounts</h3>
             <div className="flex gap-2">
               {syncStatus && <span className="text-xs text-gray-500 mr-2">{syncStatus}</span>}
-              <button onClick={syncCompleteData} disabled={loading} 
+              <button onClick={syncCompleteData} disabled={loading}
                 className="px-3 py-1.5 bg-[#b4b237] text-white rounded text-xs font-medium disabled:opacity-50">
                 {loading ? 'Syncing...' : 'Sync'}
               </button>
-              <button onClick={openPlaidLink} disabled={!linkToken} 
+              <button onClick={openPlaidLink} disabled={!linkToken}
                 className="px-3 py-1.5 bg-[#b4b237] text-white rounded text-xs font-medium disabled:opacity-50">
                 + Add
               </button>
