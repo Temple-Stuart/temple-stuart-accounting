@@ -136,7 +136,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
     const tradeGroups: { [tradeNum: string]: Array<[string, any]> } = {};
     
     for (const update of updates) {
-      const tradeNum = update[1].tradeNum;
+      const tradeNum = update[1].tradeNum ?? "unknown";
       if (!tradeGroups[tradeNum]) {
         tradeGroups[tradeNum] = [];
       }
