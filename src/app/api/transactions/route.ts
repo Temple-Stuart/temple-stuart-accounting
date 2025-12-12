@@ -1,30 +1,9 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     const transactions = await prisma.transactions.findMany({
-      where: {
-        accounts: {
-          userId: user.id
-        }
-      },
       include: {
         accounts: {
           select: {
@@ -43,24 +22,25 @@ export async function GET() {
       }
     });
 
-    // Transform to match component expectations
     const transformedTransactions = transactions.map(txn => ({
-      ...txn,
+      id: txn.id,
+      date: txn.date,
+      name: txn.name,
+      merchantName: txn.merchantName,
+      amount: txn.amount,
+      accountCode: txn.accountCode,
+      subAccount: txn.subAccount,
+      plaidAccountId: txn.plaidAccountId,
       account: txn.accounts ? {
         name: txn.accounts.name,
         type: txn.accounts.type,
         plaidItem: txn.accounts.plaid_items ? {
           institutionName: txn.accounts.plaid_items.institutionName
         } : null
-      } : null,
-      predictedCoaCode: txn.predicted_coa_code,
-      predictionConfidence: txn.prediction_confidence,
-      accounts: undefined,
-      predicted_coa_code: undefined,
-      prediction_confidence: undefined
+      } : null
     }));
 
-    return NextResponse.json(transformedTransactions);
+    return NextResponse.json({ transactions: transformedTransactions });
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
