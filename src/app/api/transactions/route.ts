@@ -30,7 +30,7 @@ export async function GET() {
       amount: txn.amount,
       accountCode: txn.accountCode,
       subAccount: txn.subAccount,
-      plaidAccountId: txn.plaidAccountId,
+      plaidAccountId: txn.accountId,
       account: txn.accounts ? {
         name: txn.accounts.name,
         type: txn.accounts.type,
