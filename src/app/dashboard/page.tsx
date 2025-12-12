@@ -28,7 +28,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'transactions' | 'statements'>('transactions');
   
-  // Filters - multi-select
+  // Filters
   const [filterCoas, setFilterCoas] = useState<string[]>([]);
   const [filterSubs, setFilterSubs] = useState<string[]>([]);
   const [filterSearch, setFilterSearch] = useState('');
@@ -67,10 +67,15 @@ export default function Dashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Reset visible count when filters change
+  // Reset visible count and clear sub filters when COA filter changes
   useEffect(() => {
     setVisibleCount(100);
   }, [filterCoas, filterSubs, filterSearch, filterVendorStatus]);
+
+  // Clear sub filters when COA changes (they may not apply)
+  useEffect(() => {
+    setFilterSubs([]);
+  }, [filterCoas]);
 
   const getCoaName = (code: string | null) => {
     if (!code) return null;
@@ -94,10 +99,20 @@ export default function Dashboard() {
       .sort((a, b) => b.count - a.count);
   }, [transactions, coaOptions]);
 
-  // Get unique sub-accounts with counts
+  // Get transactions filtered by COA only (for contextual vendor list)
+  const coaFilteredTransactions = useMemo(() => {
+    if (filterCoas.length === 0) return transactions;
+    return transactions.filter(t => {
+      if (filterCoas.includes('__unassigned__') && !t.accountCode) return true;
+      if (t.accountCode && filterCoas.includes(t.accountCode)) return true;
+      return false;
+    });
+  }, [transactions, filterCoas]);
+
+  // Get unique sub-accounts with counts — CONTEXTUAL to selected COA(s)
   const usedSubs = useMemo(() => {
     const counts: Record<string, number> = {};
-    transactions.forEach(t => {
+    coaFilteredTransactions.forEach(t => {
       if (t.subAccount) {
         counts[t.subAccount] = (counts[t.subAccount] || 0) + 1;
       }
@@ -105,12 +120,22 @@ export default function Dashboard() {
     return Object.entries(counts)
       .map(([sub, count]) => ({ sub, count }))
       .sort((a, b) => b.count - a.count);
-  }, [transactions]);
+  }, [coaFilteredTransactions]);
 
-  // Filter transactions
+  // Stats for contextual data
+  const contextStats = useMemo(() => {
+    const txns = coaFilteredTransactions;
+    return {
+      total: txns.length,
+      hasVendor: txns.filter(t => t.subAccount).length,
+      missingVendor: txns.filter(t => !t.subAccount).length,
+    };
+  }, [coaFilteredTransactions]);
+
+  // Filter transactions (full filter chain)
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      // COA filter (multi-select)
+      // COA filter
       if (filterCoas.length > 0) {
         if (filterCoas.includes('__unassigned__')) {
           if (t.accountCode && !filterCoas.includes(t.accountCode)) return false;
@@ -119,7 +144,7 @@ export default function Dashboard() {
         }
       }
       
-      // Sub-account filter (multi-select)
+      // Sub-account filter
       if (filterSubs.length > 0) {
         if (filterSubs.includes('__none__')) {
           if (t.subAccount && !filterSubs.includes(t.subAccount)) return false;
@@ -225,7 +250,6 @@ export default function Dashboard() {
     missingVendor: transactions.filter(t => !t.subAccount).length,
   };
 
-  // Load more handler
   const loadMore = () => {
     setVisibleCount(prev => Math.min(prev + 100, filtered.length));
   };
@@ -324,7 +348,7 @@ export default function Dashboard() {
               
               {/* Category chips */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Categories</p>
+                <p className="text-xs text-gray-500 mb-1">Step 1: Select Category</p>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={() => toggleCoaFilter('__unassigned__')}
@@ -336,7 +360,7 @@ export default function Dashboard() {
                   >
                     ⚠️ Uncategorized ({stats.unassigned})
                   </button>
-                  {usedCoas.slice(0, 12).map(({ code, name, count }) => (
+                  {usedCoas.slice(0, 15).map(({ code, name, count }) => (
                     <button
                       key={code}
                       onClick={() => toggleCoaFilter(code)}
@@ -352,9 +376,18 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              {/* Vendor chips */}
+              {/* Vendor chips - CONTEXTUAL */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Vendors (select multiple to consolidate)</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-gray-500">
+                    Step 2: Select Vendors {filterCoas.length > 0 && <span className="text-[#b4b237]">(showing only for selected category)</span>}
+                  </p>
+                  {filterCoas.length > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {contextStats.hasVendor} with vendor, {contextStats.missingVendor} without
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                   <button
                     onClick={() => toggleSubFilter('__none__')}
@@ -364,7 +397,7 @@ export default function Dashboard() {
                         : 'bg-red-100 text-red-700'
                     }`}
                   >
-                    ❌ No Vendor ({stats.missingVendor})
+                    ❌ No Vendor ({contextStats.missingVendor})
                   </button>
                   {usedSubs.map(({ sub, count }) => (
                     <button
@@ -379,6 +412,9 @@ export default function Dashboard() {
                       {sub} ({count})
                     </button>
                   ))}
+                  {usedSubs.length === 0 && filterCoas.length > 0 && (
+                    <span className="text-xs text-gray-400 py-1">No vendors in this category</span>
+                  )}
                 </div>
               </div>
               
@@ -457,7 +493,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Transaction List - ALL DATA with load more */}
+            {/* Transaction List */}
             <div className="bg-white rounded-lg border overflow-hidden">
               <div className="max-h-[70vh] overflow-y-auto">
                 {filtered.slice(0, visibleCount).map(txn => (
@@ -512,7 +548,6 @@ export default function Dashboard() {
                   </div>
                 ))}
                 
-                {/* Load more button */}
                 {visibleCount < filtered.length && (
                   <button
                     onClick={loadMore}
