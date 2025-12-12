@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ImportDataSection } from '@/components/dashboard/ImportDataSection';
-import ThreeStatementSection from '@/components/dashboard/ThreeStatementSection';
+import Script from 'next/script';
+import SpendingTab from '@/components/dashboard/SpendingTab';
+import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 
 interface Transaction {
   id: string;
@@ -15,6 +16,15 @@ interface Transaction {
   plaidAccountId: string;
 }
 
+interface Account {
+  id: string;
+  name: string;
+  mask: string | null;
+  type: string;
+  balance: number;
+  institutionName: string;
+}
+
 interface CoaOption {
   id: string;
   code: string;
@@ -22,44 +32,89 @@ interface CoaOption {
   accountType: string;
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
+  const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'transactions' | 'statements'>('transactions');
+  const [syncing, setSyncing] = useState(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
   
-  // Filters
-  const [filterCoas, setFilterCoas] = useState<string[]>([]);
-  const [filterSubs, setFilterSubs] = useState<string[]>([]);
+  // Map to COA tab
+  const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
+  
+  // Statement controls
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [activeStatement, setActiveStatement] = useState<'income' | 'balance' | 'cashflow'>('income');
+  const [drilldownCell, setDrilldownCell] = useState<{ coaCode: string; month: number } | null>(null);
+  const [selectedDrilldownTxns, setSelectedDrilldownTxns] = useState<string[]>([]);
+  const [reassignCoa, setReassignCoa] = useState('');
+  
+  // Transaction filters
+  const [filterCoa, setFilterCoa] = useState<string>('all');
+  const [filterVendor, setFilterVendor] = useState<string>('all');
   const [filterSearch, setFilterSearch] = useState('');
-  const [filterVendorStatus, setFilterVendorStatus] = useState<'all' | 'has' | 'missing'>('all');
+  const [visibleTxns, setVisibleTxns] = useState(50);
   
-  // Pagination
-  const [visibleCount, setVisibleCount] = useState(100);
-  
-  // Selection & assignment
+  // Bulk assignment
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assignCoa, setAssignCoa] = useState('');
   const [assignSub, setAssignSub] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   
-  // Metrics expand state
-  const [expandedMetricsCoa, setExpandedMetricsCoa] = useState<string | null>(null);
+  // Category breakdown
+  const [expandedCoa, setExpandedCoa] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [txnRes, coaRes] = await Promise.all([
+      const [txnRes, coaRes, accRes, invRes] = await Promise.all([
         fetch('/api/transactions'),
-        fetch('/api/chart-of-accounts')
+        fetch('/api/chart-of-accounts'),
+        fetch('/api/accounts'),
+        fetch('/api/investment-transactions')
       ]);
       
       if (txnRes.ok) {
         const data = await txnRes.json();
-        setTransactions(data.transactions || data || []);
+        setTransactions(data.transactions || []);
       }
       if (coaRes.ok) {
         const data = await coaRes.json();
         setCoaOptions(data.accounts || []);
+      }
+      if (accRes.ok) {
+        const data = await accRes.json();
+        const allAccounts: Account[] = [];
+        (data.items || []).forEach((item: any) => {
+          (item.accounts || []).forEach((acc: any) => {
+            allAccounts.push({
+              id: acc.id,
+              name: acc.name,
+              mask: acc.mask,
+              type: acc.type,
+              balance: acc.balance || 0,
+              institutionName: item.institutionName || 'Unknown'
+            });
+          });
+        });
+        setAccounts(allAccounts);
+      }
+      if (invRes.ok) {
+        const data = await invRes.json();
+        setInvestmentTransactions(data.transactions || data.investments || data || []);
+      }
+      
+      const linkRes = await fetch('/api/plaid/link-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entityId: 'personal' })
+      });
+      if (linkRes.ok) {
+        const linkData = await linkRes.json();
+        setLinkToken(linkData.link_token);
       }
     } catch (err) {
       console.error('Load error:', err);
@@ -70,508 +125,531 @@ export default function Dashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  useEffect(() => {
-    setVisibleCount(100);
-  }, [filterCoas, filterSubs, filterSearch, filterVendorStatus]);
-
-  useEffect(() => {
-    setFilterSubs([]);
-  }, [filterCoas]);
-
-  const getCoaName = (code: string | null) => {
-    if (!code) return null;
-    return coaOptions.find(c => c.code === code)?.name || code;
+  // Helpers
+  const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
+  const getCoaType = (code: string) => coaOptions.find(c => c.code === code)?.accountType || '';
+  const formatMoney = (n: number, showSign = false) => {
+    const abs = Math.abs(n);
+    const formatted = abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    if (showSign) return n < 0 ? `-$${formatted}` : `$${formatted}`;
+    return `$${formatted}`;
   };
 
-  // Get unique COAs with counts
-  const usedCoas = useMemo(() => {
-    const counts: Record<string, number> = {};
-    transactions.forEach(t => {
-      if (t.accountCode) {
-        counts[t.accountCode] = (counts[t.accountCode] || 0) + 1;
-      }
-    });
-    return Object.entries(counts)
-      .map(([code, count]) => ({
-        code,
-        name: getCoaName(code) || code,
-        count
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [transactions, coaOptions]);
+  // Spending/Investment splits
+  const uncommittedSpending = transactions.filter(t => !t.accountCode);
+  const committedSpending = transactions.filter(t => t.accountCode);
+  const uncommittedInvestments = investmentTransactions.filter((t: any) => !t.accountCode);
+  const committedInvestments = investmentTransactions.filter((t: any) => t.accountCode);
 
-  // COA Metrics - amount by sub-account for each COA
-  const coaMetrics = useMemo(() => {
-    const metrics: Record<string, { 
-      code: string;
-      name: string;
-      total: number;
-      txnCount: number;
-      subs: { sub: string; amount: number; count: number }[] 
-    }> = {};
-    
-    transactions.forEach(t => {
+  // Available years
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    transactions.forEach(t => years.add(new Date(t.date).getFullYear()));
+    if (years.size === 0) years.add(new Date().getFullYear());
+    return Array.from(years).sort((a, b) => b - a);
+  }, [transactions]);
+
+  // Grid data for statements
+  const yearTransactions = useMemo(() => {
+    return committedSpending.filter(t => new Date(t.date).getFullYear() === selectedYear);
+  }, [committedSpending, selectedYear]);
+
+  const gridData = useMemo(() => {
+    const data: Record<string, Record<number, number>> = {};
+    yearTransactions.forEach(t => {
       if (!t.accountCode) return;
-      
-      if (!metrics[t.accountCode]) {
-        metrics[t.accountCode] = {
-          code: t.accountCode,
-          name: getCoaName(t.accountCode) || t.accountCode,
-          total: 0,
-          txnCount: 0,
-          subs: []
-        };
-      }
-      
-      metrics[t.accountCode].total += t.amount;
-      metrics[t.accountCode].txnCount += 1;
+      const month = new Date(t.date).getMonth();
+      if (!data[t.accountCode]) data[t.accountCode] = {};
+      if (!data[t.accountCode][month]) data[t.accountCode][month] = 0;
+      data[t.accountCode][month] += t.amount;
     });
-    
-    // Now group by sub-account within each COA
-    Object.keys(metrics).forEach(code => {
-      const coaTxns = transactions.filter(t => t.accountCode === code);
-      const subTotals: Record<string, { amount: number; count: number }> = {};
-      
-      coaTxns.forEach(t => {
-        const sub = t.subAccount || '(No Vendor)';
-        if (!subTotals[sub]) subTotals[sub] = { amount: 0, count: 0 };
-        subTotals[sub].amount += t.amount;
-        subTotals[sub].count += 1;
-      });
-      
-      metrics[code].subs = Object.entries(subTotals)
-        .map(([sub, data]) => ({ sub, amount: data.amount, count: data.count }))
-        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
-    });
-    
-    return Object.values(metrics).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    return data;
+  }, [yearTransactions]);
+
+  // Statement codes
+  const revenueCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'revenue').sort(), [gridData, coaOptions]);
+  const expenseCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'expense').sort(), [gridData, coaOptions]);
+  const assetCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'asset').sort(), [gridData, coaOptions]);
+  const liabilityCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'liability').sort(), [gridData, coaOptions]);
+  const equityCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'equity').sort(), [gridData, coaOptions]);
+
+  const getMonthTotal = (codes: string[], month: number) => codes.reduce((sum, code) => sum + (gridData[code]?.[month] || 0), 0);
+  const getRowTotal = (coaCode: string) => Object.values(gridData[coaCode] || {}).reduce((sum, val) => sum + val, 0);
+  const getSectionTotal = (codes: string[]) => codes.reduce((sum, code) => sum + getRowTotal(code), 0);
+
+  // Drilldown transactions
+  const drilldownTransactions = useMemo(() => {
+    if (!drilldownCell) return [];
+    return yearTransactions.filter(t => {
+      const month = new Date(t.date).getMonth();
+      return t.accountCode === drilldownCell.coaCode && (drilldownCell.month === -1 || month === drilldownCell.month);
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [yearTransactions, drilldownCell]);
+
+  // Transaction filters
+  const vendors = useMemo(() => {
+    const v: Record<string, number> = {};
+    transactions.forEach(t => { if (t.subAccount) v[t.subAccount] = (v[t.subAccount] || 0) + 1; });
+    return Object.entries(v).sort((a, b) => b[1] - a[1]);
+  }, [transactions]);
+
+  const usedCoas = useMemo(() => {
+    const c: Record<string, number> = {};
+    transactions.forEach(t => { if (t.accountCode) c[t.accountCode] = (c[t.accountCode] || 0) + 1; });
+    return Object.entries(c).map(([code, count]) => ({ code, name: getCoaName(code) || code, count })).sort((a, b) => b.count - a.count);
   }, [transactions, coaOptions]);
 
-  // Get transactions filtered by COA only
-  const coaFilteredTransactions = useMemo(() => {
-    if (filterCoas.length === 0) return transactions;
-    return transactions.filter(t => {
-      if (filterCoas.includes('__unassigned__') && !t.accountCode) return true;
-      if (t.accountCode && filterCoas.includes(t.accountCode)) return true;
-      return false;
-    });
-  }, [transactions, filterCoas]);
-
-  // Get unique sub-accounts - CONTEXTUAL
-  const usedSubs = useMemo(() => {
-    const counts: Record<string, number> = {};
-    coaFilteredTransactions.forEach(t => {
-      if (t.subAccount) {
-        counts[t.subAccount] = (counts[t.subAccount] || 0) + 1;
-      }
-    });
-    return Object.entries(counts)
-      .map(([sub, count]) => ({ sub, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [coaFilteredTransactions]);
-
-  const contextStats = useMemo(() => {
-    const txns = coaFilteredTransactions;
-    return {
-      total: txns.length,
-      hasVendor: txns.filter(t => t.subAccount).length,
-      missingVendor: txns.filter(t => !t.subAccount).length,
-    };
-  }, [coaFilteredTransactions]);
-
-  // Filter transactions
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      if (filterCoas.length > 0) {
-        if (filterCoas.includes('__unassigned__')) {
-          if (t.accountCode && !filterCoas.includes(t.accountCode)) return false;
-        } else {
-          if (!t.accountCode || !filterCoas.includes(t.accountCode)) return false;
-        }
-      }
-      
-      if (filterSubs.length > 0) {
-        if (filterSubs.includes('__none__')) {
-          if (t.subAccount && !filterSubs.includes(t.subAccount)) return false;
-        } else {
-          if (!t.subAccount || !filterSubs.includes(t.subAccount)) return false;
-        }
-      }
-      
-      if (filterVendorStatus === 'has' && !t.subAccount) return false;
-      if (filterVendorStatus === 'missing' && t.subAccount) return false;
-      
+      if (filterCoa === 'uncategorized' && t.accountCode) return false;
+      if (filterCoa !== 'all' && filterCoa !== 'uncategorized' && t.accountCode !== filterCoa) return false;
+      if (filterVendor === 'none' && t.subAccount) return false;
+      if (filterVendor !== 'all' && filterVendor !== 'none' && t.subAccount !== filterVendor) return false;
       if (filterSearch) {
-        const search = filterSearch.toLowerCase();
-        if (!t.name.toLowerCase().includes(search) && 
-            !(t.merchantName?.toLowerCase().includes(search)) &&
-            !(t.subAccount?.toLowerCase().includes(search))) return false;
+        const s = filterSearch.toLowerCase();
+        if (!t.name.toLowerCase().includes(s) && !t.merchantName?.toLowerCase().includes(s) && !t.subAccount?.toLowerCase().includes(s)) return false;
       }
-      
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, filterCoas, filterSubs, filterSearch, filterVendorStatus]);
+  }, [transactions, filterCoa, filterVendor, filterSearch]);
 
-  const committed = transactions.filter(t => t.accountCode);
+  // Category metrics
+  const categoryMetrics = useMemo(() => {
+    const m: Record<string, { code: string; name: string; total: number; count: number; vendors: Record<string, { amount: number; count: number }> }> = {};
+    transactions.forEach(t => {
+      if (!t.accountCode) return;
+      if (!m[t.accountCode]) m[t.accountCode] = { code: t.accountCode, name: getCoaName(t.accountCode) || t.accountCode, total: 0, count: 0, vendors: {} };
+      m[t.accountCode].total += t.amount;
+      m[t.accountCode].count += 1;
+      const vendor = t.subAccount || '(No Vendor)';
+      if (!m[t.accountCode].vendors[vendor]) m[t.accountCode].vendors[vendor] = { amount: 0, count: 0 };
+      m[t.accountCode].vendors[vendor].amount += t.amount;
+      m[t.accountCode].vendors[vendor].count += 1;
+    });
+    return Object.values(m).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  }, [transactions, coaOptions]);
 
-  const clearFilters = () => {
-    setFilterCoas([]);
-    setFilterSubs([]);
-    setFilterSearch('');
-    setFilterVendorStatus('all');
-  };
+  // COA grouped for selects
+  const coaGrouped = useMemo(() => {
+    const g: Record<string, CoaOption[]> = {};
+    coaOptions.forEach(o => { if (!g[o.accountType]) g[o.accountType] = []; g[o.accountType].push(o); });
+    return g;
+  }, [coaOptions]);
 
-  const hasActiveFilters = filterCoas.length > 0 || filterSubs.length > 0 || filterSearch || filterVendorStatus !== 'all';
+  // Stats
+  const stats = useMemo(() => ({
+    total: transactions.length,
+    categorized: committedSpending.length,
+    uncategorized: uncommittedSpending.length,
+    hasVendor: transactions.filter(t => t.subAccount).length,
+    noVendor: transactions.filter(t => !t.subAccount).length,
+  }), [transactions, committedSpending, uncommittedSpending]);
 
-  const toggleCoaFilter = (code: string) => {
-    setFilterCoas(prev => 
-      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
-    );
-  };
+  // Actions
+  const openPlaidLink = useCallback(() => {
+    if (!linkToken || !window.Plaid) return;
+    window.Plaid.create({
+      token: linkToken,
+      onSuccess: async (publicToken: string, metadata: any) => {
+        await fetch('/api/plaid/exchange-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicToken, institutionId: metadata.institution?.institution_id, institutionName: metadata.institution?.name, entityId: 'personal' })
+        });
+        loadData();
+      },
+      onExit: () => {}
+    }).open();
+  }, [linkToken, loadData]);
 
-  const toggleSubFilter = (sub: string) => {
-    setFilterSubs(prev => 
-      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
-    );
+  const syncAccounts = async () => {
+    setSyncing(true);
+    const itemsRes = await fetch('/api/plaid/items');
+    const items = await itemsRes.json();
+    for (const item of items) {
+      await fetch('/api/plaid/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: item.id }) });
+    }
+    await loadData();
+    setSyncing(false);
   };
 
   const handleBulkAssign = async () => {
-    if (selectedIds.length === 0 || (!assignCoa && !assignSub)) return;
-    
+    if (!selectedIds.length || (!assignCoa && !assignSub)) return;
     setIsAssigning(true);
-    try {
-      if (assignCoa) {
-        await fetch('/api/transactions/assign-coa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            transactionIds: selectedIds, 
-            accountCode: assignCoa, 
-            subAccount: assignSub.trim() || null 
-          })
-        });
-      } else {
-        await fetch('/api/transactions/update-sub-account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            transactionIds: selectedIds, 
-            subAccount: assignSub.trim() || null 
-          })
-        });
-      }
-      setSelectedIds([]);
-      setAssignCoa('');
-      setAssignSub('');
-      await loadData();
-    } catch (err) {
-      console.error('Assign error:', err);
-    }
-    setIsAssigning(false);
-  };
-
-  const handleReassign = async (ids: string[], code: string, sub: string | null) => {
     await fetch('/api/transactions/assign-coa', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactionIds: ids, accountCode: code, subAccount: sub })
+      body: JSON.stringify({ transactionIds: selectedIds, accountCode: assignCoa || undefined, subAccount: assignSub || undefined })
     });
+    setSelectedIds([]);
+    setAssignCoa('');
+    setAssignSub('');
+    await loadData();
+    setIsAssigning(false);
+  };
+
+  const handleDrilldownReassign = async () => {
+    if (!reassignCoa || !selectedDrilldownTxns.length) return;
+    await fetch('/api/transactions/assign-coa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionIds: selectedDrilldownTxns, accountCode: reassignCoa })
+    });
+    setSelectedDrilldownTxns([]);
+    setReassignCoa('');
+    setDrilldownCell(null);
     await loadData();
   };
 
-  const coaGrouped = coaOptions.reduce((acc, opt) => {
-    if (!acc[opt.accountType]) acc[opt.accountType] = [];
-    acc[opt.accountType].push(opt);
-    return acc;
-  }, {} as Record<string, CoaOption[]>);
+  // Statement table row renderer
+  const renderStatementRow = (code: string) => (
+    <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+      <td className="px-3 py-2 sticky left-0 bg-white z-10 min-w-[180px]">
+        <div className="text-sm font-medium truncate">{getCoaName(code)}</div>
+        <div className="text-xs text-gray-400 font-mono">{code}</div>
+      </td>
+      {MONTHS.map((_, m) => {
+        const val = gridData[code]?.[m] || 0;
+        return (
+          <td 
+            key={m} 
+            onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
+            className={`px-2 py-2 text-right text-sm tabular-nums ${val !== 0 ? 'cursor-pointer hover:bg-blue-50 text-gray-900' : 'text-gray-300'}`}
+          >
+            {val === 0 ? '-' : formatMoney(val)}
+          </td>
+        );
+      })}
+      <td 
+        onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
+        className="px-2 py-2 text-right text-sm font-semibold bg-gray-50 sticky right-0 cursor-pointer hover:bg-blue-50 tabular-nums"
+      >
+        {formatMoney(getRowTotal(code))}
+      </td>
+    </tr>
+  );
 
-  const stats = {
-    total: transactions.length,
-    assigned: committed.length,
-    unassigned: transactions.length - committed.length,
-    hasVendor: transactions.filter(t => t.subAccount).length,
-    missingVendor: transactions.filter(t => !t.subAccount).length,
-  };
+  const renderSectionHeader = (title: string, bgColor: string, textColor: string) => (
+    <tr className={bgColor}>
+      <td colSpan={14} className={`px-3 py-2 font-bold text-sm sticky left-0 ${textColor} ${bgColor}`}>{title}</td>
+    </tr>
+  );
 
-  const loadMore = () => {
-    setVisibleCount(prev => Math.min(prev + 100, filtered.length));
-  };
-
-  const formatMoney = (amount: number) => {
-    const abs = Math.abs(amount);
-    return `${amount < 0 ? '+' : '-'}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const renderSectionTotal = (title: string, codes: string[], bgColor: string, textColor: string) => (
+    <tr className={`${bgColor} border-b-2`}>
+      <td className={`px-3 py-2 font-semibold text-sm sticky left-0 ${bgColor} ${textColor}`}>Total {title}</td>
+      {MONTHS.map((_, m) => (
+        <td key={m} className={`px-2 py-2 text-right font-semibold text-sm tabular-nums ${textColor}`}>
+          {formatMoney(getMonthTotal(codes, m))}
+        </td>
+      ))}
+      <td className={`px-2 py-2 text-right font-bold text-sm bg-gray-100 sticky right-0 tabular-nums ${textColor}`}>
+        {formatMoney(getSectionTotal(codes))}
+      </td>
+    </tr>
+  );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f7f4] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f4]">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#b4b237] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">TS</span>
+    <>
+      <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
+      
+      <div className="min-h-screen bg-gray-50">
+        {/* ═══════════════════════════════════════════════════════════════════
+            HEADER
+        ═══════════════════════════════════════════════════════════════════ */}
+        <header className="bg-white border-b sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">TS</span>
+              </div>
+              <div className="hidden sm:block">
+                <div className="font-semibold text-gray-900">Temple Stuart</div>
+                <div className="text-xs text-gray-400">Financial OS</div>
+              </div>
             </div>
-            <span className="font-semibold text-gray-900 text-sm">Temple Stuart</span>
+            <div className="flex items-center gap-2">
+              <button onClick={syncAccounts} disabled={syncing} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                {syncing ? '⟳ Syncing...' : '🔄 Sync'}
+              </button>
+              <button onClick={openPlaidLink} disabled={!linkToken} className="px-3 py-1.5 text-sm bg-[#b4b237] text-white rounded-lg font-medium">
+                + Add Account
+              </button>
+            </div>
           </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 py-6 space-y-8">
           
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
-            <button
-              onClick={() => setView('transactions')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                view === 'transactions' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
-              }`}
-            >
-              Txns
-            </button>
-            <button
-              onClick={() => setView('statements')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                view === 'statements' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
-              }`}
-            >
-              Reports
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-3 py-4">
-        
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          <div className="bg-white rounded-lg border p-2 text-center">
-            <p className="text-lg font-bold text-gray-900">{stats.total.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Total</p>
-          </div>
-          <div className="bg-white rounded-lg border p-2 text-center">
-            <p className="text-lg font-bold text-green-600">{stats.assigned.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Categorized</p>
-          </div>
-          <div 
-            onClick={() => setFilterVendorStatus(filterVendorStatus === 'has' ? 'all' : 'has')}
-            className={`bg-white rounded-lg border p-2 text-center cursor-pointer transition ${filterVendorStatus === 'has' ? 'ring-2 ring-[#b4b237]' : ''}`}
-          >
-            <p className="text-lg font-bold text-blue-600">{stats.hasVendor.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Has Vendor</p>
-          </div>
-          <div 
-            onClick={() => setFilterVendorStatus(filterVendorStatus === 'missing' ? 'all' : 'missing')}
-            className={`bg-white rounded-lg border p-2 text-center cursor-pointer transition ${filterVendorStatus === 'missing' ? 'ring-2 ring-[#b4b237]' : ''}`}
-          >
-            <p className="text-lg font-bold text-red-500">{stats.missingVendor.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">No Vendor</p>
-          </div>
-        </div>
-
-        {view === 'transactions' && (
-          <>
-            {/* Connected Accounts */}
-            <details className="bg-white rounded-lg border mb-4">
-              <summary className="px-3 py-2 font-semibold text-sm cursor-pointer">
-                Connected Accounts
-              </summary>
-              <ImportDataSection entityId="personal" />
-            </details>
-
-            {/* Filters */}
-            <div className="bg-white rounded-lg border mb-4 p-3 space-y-3">
-              <input
-                type="text"
-                placeholder="🔍 Search name, merchant, vendor..."
-                value={filterSearch}
-                onChange={(e) => setFilterSearch(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-              
-              {/* Category chips */}
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Step 1: Select Category</p>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={() => toggleCoaFilter('__unassigned__')}
-                    className={`px-2 py-1 rounded-full text-xs transition ${
-                      filterCoas.includes('__unassigned__') 
-                        ? 'bg-amber-500 text-white' 
-                        : 'bg-amber-100 text-amber-700'
-                    }`}
-                  >
-                    ⚠️ Uncategorized ({stats.unassigned})
-                  </button>
-                  {usedCoas.slice(0, 15).map(({ code, name, count }) => (
-                    <button
-                      key={code}
-                      onClick={() => toggleCoaFilter(code)}
-                      className={`px-2 py-1 rounded-full text-xs transition ${
-                        filterCoas.includes(code) 
-                          ? 'bg-[#b4b237] text-white' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {name} ({count})
-                    </button>
-                  ))}
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 1: CONNECTED ACCOUNTS
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Connected Accounts</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {accounts.map(acc => (
+                <div key={acc.id} className="bg-white rounded-xl border p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold text-gray-900">{acc.institutionName}</div>
+                      <div className="text-xs text-gray-400">•••• {acc.mask || '----'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900">${acc.balance.toLocaleString()}</div>
+                      <div className="text-xs text-gray-400 capitalize">{acc.type}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              {/* Vendor chips */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-gray-500">
-                    Step 2: Select Vendors {filterCoas.length > 0 && <span className="text-[#b4b237]">(filtered by category)</span>}
-                  </p>
-                  {filterCoas.length > 0 && (
-                    <span className="text-xs text-gray-400">
-                      {contextStats.hasVendor} with, {contextStats.missingVendor} without
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                  <button
-                    onClick={() => toggleSubFilter('__none__')}
-                    className={`px-2 py-1 rounded-full text-xs transition ${
-                      filterSubs.includes('__none__') 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    ❌ No Vendor ({contextStats.missingVendor})
-                  </button>
-                  {usedSubs.map(({ sub, count }) => (
-                    <button
-                      key={sub}
-                      onClick={() => toggleSubFilter(sub)}
-                      className={`px-2 py-1 rounded-full text-xs transition ${
-                        filterSubs.includes(sub) 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-blue-50 text-blue-700'
-                      }`}
-                    >
-                      {sub} ({count})
-                    </button>
-                  ))}
-                  {usedSubs.length === 0 && filterCoas.length > 0 && (
-                    <span className="text-xs text-gray-400 py-1">No vendors in this category</span>
-                  )}
-                </div>
-              </div>
-              
-              {hasActiveFilters && (
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-sm font-medium">{filtered.length} transactions</span>
-                  <button onClick={clearFilters} className="text-sm text-[#b4b237] font-medium">
-                    Clear all
-                  </button>
+              ))}
+              {accounts.length === 0 && (
+                <div className="col-span-full bg-white rounded-xl border p-8 text-center text-gray-400">
+                  No accounts connected. Click "+ Add Account" to link your bank.
                 </div>
               )}
             </div>
+          </section>
 
-            {/* Select controls */}
-            {filtered.length > 0 && (
-              <div className="flex items-center gap-2 mb-2">
-                <button
-                  onClick={() => setSelectedIds(
-                    selectedIds.length === filtered.length ? [] : filtered.map(t => t.id)
-                  )}
-                  className="text-xs text-[#b4b237] font-medium"
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 2: MAP TO COA
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              Map Transactions to COA
+              <span className="ml-2 text-xs font-normal text-amber-600">
+                {uncommittedSpending.length + uncommittedInvestments.length} pending
+              </span>
+            </h2>
+            <div className="bg-white rounded-xl border overflow-hidden">
+              <div className="flex border-b">
+                <button 
+                  onClick={() => setMappingTab('spending')}
+                  className={`flex-1 px-4 py-3 text-sm font-medium ${mappingTab === 'spending' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}
                 >
-                  {selectedIds.length === filtered.length ? 'Deselect all' : `Select all ${filtered.length}`}
+                  Spending <span className="text-xs text-gray-400 ml-1">{uncommittedSpending.length} / {transactions.length}</span>
                 </button>
-                {selectedIds.length > 0 && (
-                  <span className="text-xs text-gray-500">({selectedIds.length} selected)</span>
+                <button 
+                  onClick={() => setMappingTab('investments')}
+                  className={`flex-1 px-4 py-3 text-sm font-medium ${mappingTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}
+                >
+                  Investments <span className="text-xs text-gray-400 ml-1">{uncommittedInvestments.length} / {investmentTransactions.length}</span>
+                </button>
+              </div>
+              <div className="p-4">
+                {mappingTab === 'spending' && (
+                  <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />
+                )}
+                {mappingTab === 'investments' && (
+                  <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={loadData} />
                 )}
               </div>
-            )}
+            </div>
+          </section>
 
-            {/* Bulk Actions */}
-            {selectedIds.length > 0 && (
-              <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40 md:relative md:shadow-none md:border md:rounded-lg md:mb-4">
-                <div className="max-w-7xl mx-auto">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-bold text-[#b4b237]">{selectedIds.length} selected</span>
-                    <button onClick={() => setSelectedIds([])} className="text-xs text-gray-400 ml-auto">
-                      ✕ Clear
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={assignCoa}
-                      onChange={(e) => setAssignCoa(e.target.value)}
-                      className="flex-1 border rounded-lg px-2 py-2 text-sm"
-                    >
-                      <option value="">Category...</option>
-                      {Object.entries(coaGrouped).map(([type, opts]) => (
-                        <optgroup key={type} label={type.charAt(0).toUpperCase() + type.slice(1)}>
-                          {opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                    
-                    <input
-                      type="text"
-                      value={assignSub}
-                      onChange={(e) => setAssignSub(e.target.value)}
-                      placeholder="Vendor name..."
-                      list="sub-list"
-                      className="flex-1 border rounded-lg px-2 py-2 text-sm"
-                    />
-                    <datalist id="sub-list">
-                      {usedSubs.slice(0, 50).map(({ sub }) => <option key={sub} value={sub} />)}
-                    </datalist>
-                    
-                    <button
-                      onClick={handleBulkAssign}
-                      disabled={(!assignCoa && !assignSub) || isAssigning}
-                      className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
-                    >
-                      {isAssigning ? '...' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Transaction List */}
-            <div className="bg-white rounded-lg border overflow-hidden">
-              <div className="max-h-[50vh] overflow-y-auto">
-                {filtered.slice(0, visibleCount).map(txn => (
-                  <div 
-                    key={txn.id}
-                    onClick={() => setSelectedIds(
-                      selectedIds.includes(txn.id)
-                        ? selectedIds.filter(id => id !== txn.id)
-                        : [...selectedIds, txn.id]
-                    )}
-                    className={`px-3 py-2 border-b flex items-start gap-3 cursor-pointer active:bg-gray-100 ${
-                      selectedIds.includes(txn.id) ? 'bg-blue-50' : ''
-                    } ${!txn.accountCode ? 'bg-amber-50/30' : ''}`}
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 3: FINANCIAL STATEMENTS (12-MONTH TABLES)
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Financial Statements</h2>
+              <select 
+                value={selectedYear} 
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="border rounded-lg px-3 py-1.5 text-sm"
+              >
+                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            
+            <div className="bg-white rounded-xl border overflow-hidden">
+              {/* Statement Tabs */}
+              <div className="flex border-b overflow-x-auto">
+                {[
+                  { key: 'income', label: 'Income Statement' },
+                  { key: 'balance', label: 'Balance Sheet' },
+                  { key: 'cashflow', label: 'Cash Flow' },
+                ].map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveStatement(tab.key as any)}
+                    className={`px-4 py-3 text-sm font-medium whitespace-nowrap ${activeStatement === tab.key ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(txn.id)}
-                      onChange={() => {}}
-                      className="w-5 h-5 rounded mt-0.5"
-                    />
-                    
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Income Statement */}
+              {activeStatement === 'income' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[900px]">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-3 py-3 text-left font-semibold sticky left-0 bg-gray-100 z-10 min-w-[180px]">Account</th>
+                        {MONTHS.map((m, i) => <th key={i} className="px-2 py-3 text-right font-semibold w-20">{m}</th>)}
+                        <th className="px-2 py-3 text-right font-semibold w-24 bg-gray-200 sticky right-0">YTD</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {revenueCodes.length > 0 && (
+                        <>
+                          {renderSectionHeader('Revenue', 'bg-green-50', 'text-green-800')}
+                          {revenueCodes.map(renderStatementRow)}
+                          {renderSectionTotal('Revenue', revenueCodes, 'bg-green-100', 'text-green-800')}
+                        </>
+                      )}
+                      {expenseCodes.length > 0 && (
+                        <>
+                          {renderSectionHeader('Expenses', 'bg-red-50', 'text-red-800')}
+                          {expenseCodes.map(renderStatementRow)}
+                          {renderSectionTotal('Expenses', expenseCodes, 'bg-red-100', 'text-red-800')}
+                        </>
+                      )}
+                      {/* Net Income */}
+                      <tr className="bg-yellow-100 font-bold border-t-2 border-yellow-400">
+                        <td className="px-3 py-3 sticky left-0 bg-yellow-100 z-10">Net Income</td>
+                        {MONTHS.map((_, m) => {
+                          const rev = Math.abs(getMonthTotal(revenueCodes, m));
+                          const exp = Math.abs(getMonthTotal(expenseCodes, m));
+                          const ni = rev - exp;
+                          return (
+                            <td key={m} className={`px-2 py-3 text-right tabular-nums ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                              {ni === 0 ? '-' : formatMoney(ni, true)}
+                            </td>
+                          );
+                        })}
+                        <td className={`px-2 py-3 text-right bg-yellow-200 sticky right-0 tabular-nums ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {formatMoney(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)), true)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {revenueCodes.length === 0 && expenseCodes.length === 0 && (
+                    <div className="p-8 text-center text-gray-400">No income/expense data for {selectedYear}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Balance Sheet */}
+              {activeStatement === 'balance' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[900px]">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-3 py-3 text-left font-semibold sticky left-0 bg-gray-100 z-10 min-w-[180px]">Account</th>
+                        {MONTHS.map((m, i) => <th key={i} className="px-2 py-3 text-right font-semibold w-20">{m}</th>)}
+                        <th className="px-2 py-3 text-right font-semibold w-24 bg-gray-200 sticky right-0">YTD</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assetCodes.length > 0 && (
+                        <>
+                          {renderSectionHeader('Assets', 'bg-blue-50', 'text-blue-800')}
+                          {assetCodes.map(renderStatementRow)}
+                          {renderSectionTotal('Assets', assetCodes, 'bg-blue-100', 'text-blue-800')}
+                        </>
+                      )}
+                      {liabilityCodes.length > 0 && (
+                        <>
+                          {renderSectionHeader('Liabilities', 'bg-orange-50', 'text-orange-800')}
+                          {liabilityCodes.map(renderStatementRow)}
+                          {renderSectionTotal('Liabilities', liabilityCodes, 'bg-orange-100', 'text-orange-800')}
+                        </>
+                      )}
+                      {equityCodes.length > 0 && (
+                        <>
+                          {renderSectionHeader('Equity', 'bg-purple-50', 'text-purple-800')}
+                          {equityCodes.map(renderStatementRow)}
+                          {renderSectionTotal('Equity', equityCodes, 'bg-purple-100', 'text-purple-800')}
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                  {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && (
+                    <div className="p-8 text-center text-gray-400">No balance sheet data for {selectedYear}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Cash Flow */}
+              {activeStatement === 'cashflow' && (
+                <div className="p-12 text-center text-gray-400">
+                  <p className="text-lg font-medium">Cash Flow Statement</p>
+                  <p className="text-sm mt-1">Coming soon — derived from I/S and B/S changes</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 4: ALL TRANSACTIONS
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              All Transactions
+              <span className="ml-2 text-xs font-normal text-gray-400">{stats.total.toLocaleString()} total</span>
+            </h2>
+            
+            <div className="bg-white rounded-xl border overflow-hidden">
+              {/* Filters */}
+              <div className="p-3 border-b bg-gray-50 flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="flex-1 min-w-[150px] px-3 py-2 border rounded-lg text-sm"
+                />
+                <select value={filterCoa} onChange={(e) => setFilterCoa(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                  <option value="all">All Categories</option>
+                  <option value="uncategorized">⚠️ Uncategorized ({stats.uncategorized})</option>
+                  {usedCoas.map(c => <option key={c.code} value={c.code}>{c.name} ({c.count})</option>)}
+                </select>
+                <select value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+                  <option value="all">All Vendors</option>
+                  <option value="none">❌ No Vendor ({stats.noVendor})</option>
+                  {vendors.slice(0, 50).map(([v, c]) => <option key={v} value={v}>{v} ({c})</option>)}
+                </select>
+              </div>
+
+              {/* Select All */}
+              <div className="px-4 py-2 border-b bg-gray-50 flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === filtered.length && filtered.length > 0}
+                    onChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(t => t.id))}
+                    className="rounded"
+                  />
+                  Select all {filtered.length !== transactions.length && `(${filtered.length} filtered)`}
+                </label>
+                {selectedIds.length > 0 && <span className="text-xs text-[#b4b237] font-medium">{selectedIds.length} selected</span>}
+              </div>
+
+              {/* Transaction rows */}
+              <div className="divide-y max-h-[500px] overflow-y-auto">
+                {filtered.slice(0, visibleTxns).map(txn => (
+                  <div
+                    key={txn.id}
+                    onClick={() => setSelectedIds(prev => prev.includes(txn.id) ? prev.filter(id => id !== txn.id) : [...prev, txn.id])}
+                    className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 ${selectedIds.includes(txn.id) ? 'bg-blue-50' : ''} ${!txn.accountCode ? 'bg-amber-50/50' : ''}`}
+                  >
+                    <input type="checkbox" checked={selectedIds.includes(txn.id)} onChange={() => {}} className="rounded" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-sm truncate">{txn.name}</span>
-                        <span className={`text-sm font-mono whitespace-nowrap ${txn.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        <span className={`text-sm font-mono tabular-nums ${txn.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
                           {txn.amount < 0 ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
                         </span>
                       </div>
-                      
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 flex-wrap">
                         <span>{new Date(txn.date).toLocaleDateString()}</span>
                         <span>•</span>
                         {txn.accountCode ? (
@@ -579,131 +657,216 @@ export default function Dashboard() {
                         ) : (
                           <span className="text-amber-500 font-medium">Uncategorized</span>
                         )}
-                      </div>
-                      
-                      <div className="mt-1">
+                        <span>•</span>
                         {txn.subAccount ? (
-                          <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                            🏪 {txn.subAccount}
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{txn.subAccount}</span>
                         ) : (
-                          <span className="inline-block px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs">
-                            ❌ No vendor
-                          </span>
+                          <span className="px-1.5 py-0.5 bg-red-100 text-red-500 rounded text-xs">No vendor</span>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
-                
-                {visibleCount < filtered.length && (
-                  <button
-                    onClick={loadMore}
-                    className="w-full py-4 text-center text-sm text-[#b4b237] font-medium hover:bg-gray-50"
-                  >
-                    Load more ({filtered.length - visibleCount} remaining)
-                  </button>
-                )}
-                
-                {filtered.length === 0 && (
-                  <div className="px-3 py-8 text-center text-gray-500">
-                    No transactions found
-                  </div>
-                )}
               </div>
-            </div>
 
-            {/* Category Metrics Section */}
-            <div className="mt-6">
-              <h2 className="text-lg font-semibold mb-3">📊 Category Breakdown by Vendor</h2>
-              <div className="space-y-2">
-                {coaMetrics.map(coa => (
-                  <div key={coa.code} className="bg-white rounded-lg border overflow-hidden">
-                    {/* COA Header */}
-                    <button
-                      onClick={() => setExpandedMetricsCoa(expandedMetricsCoa === coa.code ? null : coa.code)}
-                      className="w-full px-3 py-3 flex items-center justify-between hover:bg-gray-50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`text-xs transition ${expandedMetricsCoa === coa.code ? 'rotate-90' : ''}`}>▶</span>
-                        <span className="font-medium">{coa.name}</span>
-                        <span className="text-xs text-gray-400">{coa.txnCount} txns • {coa.subs.length} vendors</span>
-                      </div>
-                      <span className={`font-mono font-semibold ${coa.total < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatMoney(coa.total)}
-                      </span>
-                    </button>
-                    
-                    {/* Expanded Sub-account Table */}
-                    {expandedMetricsCoa === coa.code && (
-                      <div className="border-t bg-gray-50">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-3 py-2 text-left font-medium">Vendor</th>
-                              <th className="px-3 py-2 text-right font-medium">Count</th>
-                              <th className="px-3 py-2 text-right font-medium">Amount</th>
-                              <th className="px-3 py-2 text-right font-medium">%</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {coa.subs.map(({ sub, amount, count }) => {
-                              const pct = Math.abs(coa.total) > 0 ? (Math.abs(amount) / Math.abs(coa.total) * 100) : 0;
+              {visibleTxns < filtered.length && (
+                <button onClick={() => setVisibleTxns(v => v + 50)} className="w-full py-3 text-sm text-[#b4b237] hover:bg-gray-50 border-t">
+                  Load more ({filtered.length - visibleTxns} remaining)
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 5: CATEGORY BREAKDOWN BY VENDOR
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Category Breakdown by Vendor</h2>
+            <div className="bg-white rounded-xl border overflow-hidden divide-y">
+              {categoryMetrics.map(cat => (
+                <div key={cat.code}>
+                  <button
+                    onClick={() => setExpandedCoa(expandedCoa === cat.code ? null : cat.code)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs transition-transform ${expandedCoa === cat.code ? 'rotate-90' : ''}`}>▶</span>
+                      <span className="font-medium">{cat.name}</span>
+                      <span className="text-xs text-gray-400">{cat.count} txns</span>
+                    </div>
+                    <span className={`font-mono font-semibold tabular-nums ${cat.total > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {cat.total < 0 ? '+' : '-'}${Math.abs(cat.total).toLocaleString()}
+                    </span>
+                  </button>
+                  
+                  {expandedCoa === cat.code && (
+                    <div className="bg-gray-50 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-medium">Vendor</th>
+                            <th className="px-4 py-2 text-right font-medium">Count</th>
+                            <th className="px-4 py-2 text-right font-medium">Amount</th>
+                            <th className="px-4 py-2 text-right font-medium">%</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {Object.entries(cat.vendors)
+                            .sort((a, b) => Math.abs(b[1].amount) - Math.abs(a[1].amount))
+                            .map(([vendor, data]) => {
+                              const pct = Math.abs(cat.total) > 0 ? (Math.abs(data.amount) / Math.abs(cat.total) * 100) : 0;
                               return (
-                                <tr 
-                                  key={sub} 
+                                <tr
+                                  key={vendor}
+                                  onClick={() => { setFilterCoa(cat.code); setFilterVendor(vendor === '(No Vendor)' ? 'none' : vendor); }}
                                   className="hover:bg-white cursor-pointer"
-                                  onClick={() => {
-                                    setFilterCoas([coa.code]);
-                                    setFilterSubs(sub === '(No Vendor)' ? ['__none__'] : [sub]);
-                                  }}
                                 >
-                                  <td className="px-3 py-2">
-                                    {sub === '(No Vendor)' ? (
-                                      <span className="text-red-500">❌ {sub}</span>
-                                    ) : (
-                                      <span>🏪 {sub}</span>
-                                    )}
+                                  <td className="px-4 py-2">
+                                    {vendor === '(No Vendor)' ? <span className="text-red-500">❌ No Vendor</span> : vendor}
                                   </td>
-                                  <td className="px-3 py-2 text-right text-gray-500">{count}</td>
-                                  <td className={`px-3 py-2 text-right font-mono ${amount < 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {formatMoney(amount)}
+                                  <td className="px-4 py-2 text-right text-gray-500">{data.count}</td>
+                                  <td className={`px-4 py-2 text-right font-mono tabular-nums ${data.amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    {data.amount < 0 ? '+' : '-'}${Math.abs(data.amount).toLocaleString()}
                                   </td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-4 py-2 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
-                                          className="h-full bg-[#b4b237] rounded-full" 
-                                          style={{ width: `${Math.min(pct, 100)}%` }}
-                                        />
+                                      <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#b4b237] rounded-full" style={{ width: `${pct}%` }} />
                                       </div>
-                                      <span className="text-xs text-gray-500 w-10 text-right">{pct.toFixed(1)}%</span>
+                                      <span className="text-xs text-gray-400 w-10 text-right">{pct.toFixed(0)}%</span>
                                     </div>
                                   </td>
                                 </tr>
                               );
                             })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {categoryMetrics.length === 0 && (
+                <div className="p-8 text-center text-gray-400">No categorized transactions yet</div>
+              )}
             </div>
-            
-            {selectedIds.length > 0 && <div className="h-28 md:hidden" />}
-          </>
+          </section>
+
+          {/* Spacer for bulk actions */}
+          {selectedIds.length > 0 && <div className="h-24" />}
+        </main>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            BULK ASSIGN BAR (Fixed Bottom)
+        ═══════════════════════════════════════════════════════════════════ */}
+        {selectedIds.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-40">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold text-[#b4b237]">{selectedIds.length} selected</span>
+              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 min-w-[150px] px-3 py-2 border rounded-lg text-sm">
+                <option value="">Category...</option>
+                {Object.entries(coaGrouped).map(([type, opts]) => (
+                  <optgroup key={type} label={type}>
+                    {opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={assignSub}
+                onChange={(e) => setAssignSub(e.target.value)}
+                placeholder="Vendor..."
+                className="flex-1 min-w-[120px] px-3 py-2 border rounded-lg text-sm"
+                list="vendors-list"
+              />
+              <datalist id="vendors-list">
+                {vendors.slice(0, 30).map(([v]) => <option key={v} value={v} />)}
+              </datalist>
+              <button
+                onClick={handleBulkAssign}
+                disabled={(!assignCoa && !assignSub) || isAssigning}
+                className="px-5 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {isAssigning ? '...' : 'Apply'}
+              </button>
+              <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+          </div>
         )}
 
-        {view === 'statements' && (
-          <ThreeStatementSection
-            committedTransactions={committed}
-            coaOptions={coaOptions}
-            onReassign={handleReassign}
-          />
+        {/* ═══════════════════════════════════════════════════════════════════
+            DRILLDOWN MODAL
+        ═══════════════════════════════════════════════════════════════════ */}
+        {drilldownCell && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              <div className="px-4 py-3 border-b flex justify-between items-center">
+                <div>
+                  <h4 className="font-semibold">{getCoaName(drilldownCell.coaCode)}</h4>
+                  <p className="text-sm text-gray-500">
+                    {drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} transactions
+                  </p>
+                </div>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+              </div>
+
+              {selectedDrilldownTxns.length > 0 && (
+                <div className="px-4 py-2 bg-yellow-50 border-b flex items-center gap-2">
+                  <span className="text-sm">{selectedDrilldownTxns.length} selected</span>
+                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 text-sm border rounded px-2 py-1">
+                    <option value="">Move to...</option>
+                    {Object.entries(coaGrouped).map(([type, opts]) => (
+                      <optgroup key={type} label={type}>
+                        {opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button onClick={handleDrilldownReassign} disabled={!reassignCoa} className="px-3 py-1 bg-[#b4b237] text-white rounded text-sm disabled:opacity-50">Move</button>
+                </div>
+              )}
+
+              <div className="flex-1 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selectedDrilldownTxns.length === drilldownTransactions.length && drilldownTransactions.length > 0}
+                          onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? drilldownTransactions.map(t => t.id) : [])}
+                        />
+                      </th>
+                      <th className="px-3 py-2 text-left">Date</th>
+                      <th className="px-3 py-2 text-left">Description</th>
+                      <th className="px-3 py-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {drilldownTransactions.map(txn => (
+                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-blue-50' : ''}`}>
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedDrilldownTxns.includes(txn.id)}
+                            onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? [...selectedDrilldownTxns, txn.id] : selectedDrilldownTxns.filter(id => id !== txn.id))}
+                          />
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">{new Date(txn.date).toLocaleDateString()}</td>
+                        <td className="px-3 py-2 truncate max-w-[200px]">{txn.name}</td>
+                        <td className="px-3 py-2 text-right font-mono">${Math.abs(txn.amount).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="px-4 py-3 border-t bg-gray-50 flex justify-between">
+                <span className="text-sm text-gray-600">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-gray-200 rounded text-sm">Close</button>
+              </div>
+            </div>
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+    </>
   );
 }
