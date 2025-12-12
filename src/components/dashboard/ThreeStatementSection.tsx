@@ -8,7 +8,7 @@ interface Transaction {
   name: string;
   merchantName: string | null;
   amount: number;
-  accountCode: string;
+  accountCode: string | null;
   subAccount: string | null;
 }
 
