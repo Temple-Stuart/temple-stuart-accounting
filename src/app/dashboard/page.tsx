@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ImportDataSection } from '@/components/dashboard/ImportDataSection';
 import ThreeStatementSection from '@/components/dashboard/ThreeStatementSection';
 
@@ -28,11 +28,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'transactions' | 'statements'>('transactions');
   
-  // Filters
-  const [filterCoa, setFilterCoa] = useState<string>('all');
+  // Filters - multi-select
+  const [filterCoas, setFilterCoas] = useState<string[]>([]);
+  const [filterSubs, setFilterSubs] = useState<string[]>([]);
   const [filterSearch, setFilterSearch] = useState('');
+  const [filterVendorStatus, setFilterVendorStatus] = useState<'all' | 'has' | 'missing'>('all');
+  
+  // Pagination
+  const [visibleCount, setVisibleCount] = useState(100);
+  
+  // Selection & assignment
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assignCoa, setAssignCoa] = useState('');
+  const [assignSub, setAssignSub] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -59,30 +67,134 @@ export default function Dashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(100);
+  }, [filterCoas, filterSubs, filterSearch, filterVendorStatus]);
+
+  const getCoaName = (code: string | null) => {
+    if (!code) return null;
+    return coaOptions.find(c => c.code === code)?.name || code;
+  };
+
+  // Get unique COAs with counts
+  const usedCoas = useMemo(() => {
+    const counts: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.accountCode) {
+        counts[t.accountCode] = (counts[t.accountCode] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .map(([code, count]) => ({
+        code,
+        name: getCoaName(code) || code,
+        count
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [transactions, coaOptions]);
+
+  // Get unique sub-accounts with counts
+  const usedSubs = useMemo(() => {
+    const counts: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.subAccount) {
+        counts[t.subAccount] = (counts[t.subAccount] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .map(([sub, count]) => ({ sub, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [transactions]);
+
   // Filter transactions
-  const filtered = transactions.filter(t => {
-    if (filterCoa === 'unassigned' && t.accountCode) return false;
-    if (filterCoa === 'assigned' && !t.accountCode) return false;
-    if (filterCoa !== 'all' && filterCoa !== 'unassigned' && filterCoa !== 'assigned' && t.accountCode !== filterCoa) return false;
-    if (filterSearch && !t.name.toLowerCase().includes(filterSearch.toLowerCase()) && 
-        !(t.merchantName?.toLowerCase().includes(filterSearch.toLowerCase()))) return false;
-    return true;
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filtered = useMemo(() => {
+    return transactions.filter(t => {
+      // COA filter (multi-select)
+      if (filterCoas.length > 0) {
+        if (filterCoas.includes('__unassigned__')) {
+          if (t.accountCode && !filterCoas.includes(t.accountCode)) return false;
+        } else {
+          if (!t.accountCode || !filterCoas.includes(t.accountCode)) return false;
+        }
+      }
+      
+      // Sub-account filter (multi-select)
+      if (filterSubs.length > 0) {
+        if (filterSubs.includes('__none__')) {
+          if (t.subAccount && !filterSubs.includes(t.subAccount)) return false;
+        } else {
+          if (!t.subAccount || !filterSubs.includes(t.subAccount)) return false;
+        }
+      }
+      
+      // Vendor status filter
+      if (filterVendorStatus === 'has' && !t.subAccount) return false;
+      if (filterVendorStatus === 'missing' && t.subAccount) return false;
+      
+      // Search filter
+      if (filterSearch) {
+        const search = filterSearch.toLowerCase();
+        if (!t.name.toLowerCase().includes(search) && 
+            !(t.merchantName?.toLowerCase().includes(search)) &&
+            !(t.subAccount?.toLowerCase().includes(search))) return false;
+      }
+      
+      return true;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, filterCoas, filterSubs, filterSearch, filterVendorStatus]);
 
   const committed = transactions.filter(t => t.accountCode);
 
-  // Bulk assign
+  const clearFilters = () => {
+    setFilterCoas([]);
+    setFilterSubs([]);
+    setFilterSearch('');
+    setFilterVendorStatus('all');
+  };
+
+  const hasActiveFilters = filterCoas.length > 0 || filterSubs.length > 0 || filterSearch || filterVendorStatus !== 'all';
+
+  const toggleCoaFilter = (code: string) => {
+    setFilterCoas(prev => 
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    );
+  };
+
+  const toggleSubFilter = (sub: string) => {
+    setFilterSubs(prev => 
+      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+    );
+  };
+
   const handleBulkAssign = async () => {
-    if (!assignCoa || selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || (!assignCoa && !assignSub)) return;
+    
     setIsAssigning(true);
     try {
-      await fetch('/api/transactions/assign-coa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionIds: selectedIds, accountCode: assignCoa, subAccount: null })
-      });
+      if (assignCoa) {
+        await fetch('/api/transactions/assign-coa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            transactionIds: selectedIds, 
+            accountCode: assignCoa, 
+            subAccount: assignSub.trim() || null 
+          })
+        });
+      } else {
+        await fetch('/api/transactions/update-sub-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            transactionIds: selectedIds, 
+            subAccount: assignSub.trim() || null 
+          })
+        });
+      }
       setSelectedIds([]);
       setAssignCoa('');
+      setAssignSub('');
       await loadData();
     } catch (err) {
       console.error('Assign error:', err);
@@ -90,7 +202,6 @@ export default function Dashboard() {
     setIsAssigning(false);
   };
 
-  // Reassign from 3-statement drilldown
   const handleReassign = async (ids: string[], code: string, sub: string | null) => {
     await fetch('/api/transactions/assign-coa', {
       method: 'POST',
@@ -106,15 +217,17 @@ export default function Dashboard() {
     return acc;
   }, {} as Record<string, CoaOption[]>);
 
-  const getCoaName = (code: string | null) => {
-    if (!code) return null;
-    return coaOptions.find(c => c.code === code)?.name || code;
-  };
-
   const stats = {
     total: transactions.length,
-    assigned: transactions.filter(t => t.accountCode).length,
-    unassigned: transactions.filter(t => !t.accountCode).length,
+    assigned: committed.length,
+    unassigned: transactions.length - committed.length,
+    hasVendor: transactions.filter(t => t.subAccount).length,
+    missingVendor: transactions.filter(t => !t.subAccount).length,
+  };
+
+  // Load more handler
+  const loadMore = () => {
+    setVisibleCount(prev => Math.min(prev + 100, filtered.length));
   };
 
   if (loading) {
@@ -122,7 +235,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-[#f8f7f4] flex items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-500">Loading transactions...</p>
+          <p className="text-gray-500">Loading...</p>
         </div>
       </div>
     );
@@ -132,198 +245,296 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#f8f7f4]">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TS</span>
+        <div className="max-w-7xl mx-auto px-3 h-12 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-[#b4b237] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xs">TS</span>
             </div>
-            <span className="font-semibold text-gray-900">Temple Stuart</span>
+            <span className="font-semibold text-gray-900 text-sm">Temple Stuart</span>
           </div>
           
-          {/* View Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => setView('transactions')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${
+              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
                 view === 'transactions' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
               }`}
             >
-              Transactions
+              Txns
             </button>
             <button
               onClick={() => setView('statements')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${
+              className={`px-3 py-1 text-xs font-medium rounded-md transition ${
                 view === 'statements' ? 'bg-white shadow text-gray-900' : 'text-gray-500'
               }`}
             >
-              3-Statement
+              Reports
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 py-4">
         
-        {/* Stats Bar */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">Total Transactions</p>
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="bg-white rounded-lg border p-2 text-center">
+            <p className="text-lg font-bold text-gray-900">{stats.total.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Total</p>
           </div>
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-2xl font-bold text-green-600">{stats.assigned.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">Assigned to COA</p>
+          <div className="bg-white rounded-lg border p-2 text-center">
+            <p className="text-lg font-bold text-green-600">{stats.assigned.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Categorized</p>
           </div>
-          <div className="bg-white rounded-lg border p-4">
-            <p className="text-2xl font-bold text-amber-600">{stats.unassigned.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">Needs Review</p>
+          <div 
+            onClick={() => setFilterVendorStatus(filterVendorStatus === 'has' ? 'all' : 'has')}
+            className={`bg-white rounded-lg border p-2 text-center cursor-pointer transition ${filterVendorStatus === 'has' ? 'ring-2 ring-[#b4b237]' : ''}`}
+          >
+            <p className="text-lg font-bold text-blue-600">{stats.hasVendor.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Has Vendor</p>
+          </div>
+          <div 
+            onClick={() => setFilterVendorStatus(filterVendorStatus === 'missing' ? 'all' : 'missing')}
+            className={`bg-white rounded-lg border p-2 text-center cursor-pointer transition ${filterVendorStatus === 'missing' ? 'ring-2 ring-[#b4b237]' : ''}`}
+          >
+            <p className="text-lg font-bold text-red-500">{stats.missingVendor.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">No Vendor</p>
           </div>
         </div>
 
-        {view === 'transactions' ? (
+        {view === 'transactions' && (
           <>
             {/* Connected Accounts */}
-            <div className="bg-white rounded-lg border mb-6">
-              <div className="px-4 py-3 border-b">
-                <h2 className="font-semibold">Connected Accounts</h2>
-              </div>
+            <details className="bg-white rounded-lg border mb-4">
+              <summary className="px-3 py-2 font-semibold text-sm cursor-pointer">
+                Connected Accounts
+              </summary>
               <ImportDataSection entityId="personal" />
-            </div>
+            </details>
 
-            {/* Transaction List */}
-            <div className="bg-white rounded-lg border">
-              <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
-                <h2 className="font-semibold">Transactions</h2>
-                
-                {/* Search */}
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={filterSearch}
-                  onChange={(e) => setFilterSearch(e.target.value)}
-                  className="ml-auto border rounded-lg px-3 py-1.5 text-sm w-48"
-                />
-                
-                {/* Filter */}
-                <select
-                  value={filterCoa}
-                  onChange={(e) => setFilterCoa(e.target.value)}
-                  className="border rounded-lg px-3 py-1.5 text-sm"
-                >
-                  <option value="all">All ({stats.total})</option>
-                  <option value="unassigned">⚠️ Unassigned ({stats.unassigned})</option>
-                  <option value="assigned">✓ Assigned ({stats.assigned})</option>
-                  <optgroup label="By COA">
-                    {coaOptions.filter(c => transactions.some(t => t.accountCode === c.code)).map(c => (
-                      <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              {/* Bulk Actions */}
-              {selectedIds.length > 0 && (
-                <div className="px-4 py-2 bg-[#b4b237]/10 border-b flex items-center gap-3">
-                  <span className="text-sm font-medium">{selectedIds.length} selected</span>
-                  <select
-                    value={assignCoa}
-                    onChange={(e) => setAssignCoa(e.target.value)}
-                    className="border rounded px-2 py-1 text-sm flex-1 max-w-xs"
-                  >
-                    <option value="">Assign to COA...</option>
-                    {Object.entries(coaGrouped).map(([type, opts]) => (
-                      <optgroup key={type} label={type.toUpperCase()}>
-                        {opts.map(o => <option key={o.id} value={o.code}>{o.code} - {o.name}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
+            {/* Filters */}
+            <div className="bg-white rounded-lg border mb-4 p-3 space-y-3">
+              <input
+                type="text"
+                placeholder="🔍 Search name, merchant, vendor..."
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+              
+              {/* Category chips */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Categories</p>
+                <div className="flex flex-wrap gap-1">
                   <button
-                    onClick={handleBulkAssign}
-                    disabled={!assignCoa || isAssigning}
-                    className="px-4 py-1 bg-[#b4b237] text-white rounded text-sm font-medium disabled:opacity-50"
+                    onClick={() => toggleCoaFilter('__unassigned__')}
+                    className={`px-2 py-1 rounded-full text-xs transition ${
+                      filterCoas.includes('__unassigned__') 
+                        ? 'bg-amber-500 text-white' 
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
                   >
-                    {isAssigning ? 'Assigning...' : 'Assign'}
+                    ⚠️ Uncategorized ({stats.unassigned})
                   </button>
+                  {usedCoas.slice(0, 12).map(({ code, name, count }) => (
+                    <button
+                      key={code}
+                      onClick={() => toggleCoaFilter(code)}
+                      className={`px-2 py-1 rounded-full text-xs transition ${
+                        filterCoas.includes(code) 
+                          ? 'bg-[#b4b237] text-white' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {name} ({count})
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Vendor chips */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Vendors (select multiple to consolidate)</p>
+                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
                   <button
-                    onClick={() => setSelectedIds([])}
-                    className="px-3 py-1 text-gray-500 text-sm"
+                    onClick={() => toggleSubFilter('__none__')}
+                    className={`px-2 py-1 rounded-full text-xs transition ${
+                      filterSubs.includes('__none__') 
+                        ? 'bg-red-500 text-white' 
+                        : 'bg-red-100 text-red-700'
+                    }`}
                   >
-                    Clear
+                    ❌ No Vendor ({stats.missingVendor})
+                  </button>
+                  {usedSubs.map(({ sub, count }) => (
+                    <button
+                      key={sub}
+                      onClick={() => toggleSubFilter(sub)}
+                      className={`px-2 py-1 rounded-full text-xs transition ${
+                        filterSubs.includes(sub) 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-blue-50 text-blue-700'
+                      }`}
+                    >
+                      {sub} ({count})
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {hasActiveFilters && (
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm font-medium">{filtered.length} transactions</span>
+                  <button onClick={clearFilters} className="text-sm text-[#b4b237] font-medium">
+                    Clear all
                   </button>
                 </div>
               )}
+            </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 w-10">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.length === filtered.length && filtered.length > 0}
-                          onChange={(e) => setSelectedIds(e.target.checked ? filtered.map(t => t.id) : [])}
-                        />
-                      </th>
-                      <th className="px-3 py-2 text-left">Date</th>
-                      <th className="px-3 py-2 text-left">Description</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
-                      <th className="px-3 py-2 text-left">COA</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filtered.slice(0, 500).map(txn => (
-                      <tr 
-                        key={txn.id} 
-                        className={`hover:bg-gray-50 ${selectedIds.includes(txn.id) ? 'bg-blue-50' : ''} ${!txn.accountCode ? 'bg-amber-50/50' : ''}`}
-                      >
-                        <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(txn.id)}
-                            onChange={(e) => setSelectedIds(
-                              e.target.checked 
-                                ? [...selectedIds, txn.id] 
-                                : selectedIds.filter(id => id !== txn.id)
-                            )}
-                          />
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-gray-600">
-                          {new Date(txn.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="truncate max-w-[300px] font-medium">{txn.name}</div>
-                          {txn.merchantName && txn.merchantName !== txn.name && (
-                            <div className="text-xs text-gray-400 truncate">{txn.merchantName}</div>
-                          )}
-                        </td>
-                        <td className={`px-3 py-2 text-right font-mono ${txn.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                          {txn.amount < 0 ? '+' : ''}{Math.abs(txn.amount).toFixed(2)}
-                        </td>
-                        <td className="px-3 py-2">
-                          {txn.accountCode ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-xs">
-                              <span className="font-mono text-gray-500">{txn.accountCode}</span>
-                              <span className="text-gray-700">{getCoaName(txn.accountCode)}</span>
-                            </span>
-                          ) : (
-                            <span className="text-amber-500 text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {filtered.length > 500 && (
-                  <div className="px-4 py-3 text-center text-sm text-gray-500 border-t">
-                    Showing 500 of {filtered.length} transactions
+            {/* Select controls */}
+            {filtered.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  onClick={() => setSelectedIds(
+                    selectedIds.length === filtered.length ? [] : filtered.map(t => t.id)
+                  )}
+                  className="text-xs text-[#b4b237] font-medium"
+                >
+                  {selectedIds.length === filtered.length ? 'Deselect all' : `Select all ${filtered.length}`}
+                </button>
+                {selectedIds.length > 0 && (
+                  <span className="text-xs text-gray-500">({selectedIds.length} selected)</span>
+                )}
+              </div>
+            )}
+
+            {/* Bulk Actions */}
+            {selectedIds.length > 0 && (
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-40 md:relative md:shadow-none md:border md:rounded-lg md:mb-4">
+                <div className="max-w-7xl mx-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-bold text-[#b4b237]">{selectedIds.length} selected</span>
+                    <button onClick={() => setSelectedIds([])} className="text-xs text-gray-400 ml-auto">
+                      ✕ Clear
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={assignCoa}
+                      onChange={(e) => setAssignCoa(e.target.value)}
+                      className="flex-1 border rounded-lg px-2 py-2 text-sm"
+                    >
+                      <option value="">Category...</option>
+                      {Object.entries(coaGrouped).map(([type, opts]) => (
+                        <optgroup key={type} label={type.charAt(0).toUpperCase() + type.slice(1)}>
+                          {opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                    
+                    <input
+                      type="text"
+                      value={assignSub}
+                      onChange={(e) => setAssignSub(e.target.value)}
+                      placeholder="Vendor name..."
+                      list="sub-list"
+                      className="flex-1 border rounded-lg px-2 py-2 text-sm"
+                    />
+                    <datalist id="sub-list">
+                      {usedSubs.slice(0, 50).map(({ sub }) => <option key={sub} value={sub} />)}
+                    </datalist>
+                    
+                    <button
+                      onClick={handleBulkAssign}
+                      disabled={(!assignCoa && !assignSub) || isAssigning}
+                      className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                    >
+                      {isAssigning ? '...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transaction List - ALL DATA with load more */}
+            <div className="bg-white rounded-lg border overflow-hidden">
+              <div className="max-h-[70vh] overflow-y-auto">
+                {filtered.slice(0, visibleCount).map(txn => (
+                  <div 
+                    key={txn.id}
+                    onClick={() => setSelectedIds(
+                      selectedIds.includes(txn.id)
+                        ? selectedIds.filter(id => id !== txn.id)
+                        : [...selectedIds, txn.id]
+                    )}
+                    className={`px-3 py-2 border-b flex items-start gap-3 cursor-pointer active:bg-gray-100 ${
+                      selectedIds.includes(txn.id) ? 'bg-blue-50' : ''
+                    } ${!txn.accountCode ? 'bg-amber-50/30' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(txn.id)}
+                      onChange={() => {}}
+                      className="w-5 h-5 rounded mt-0.5"
+                    />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm truncate">{txn.name}</span>
+                        <span className={`text-sm font-mono whitespace-nowrap ${txn.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                          {txn.amount < 0 ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        <span>{new Date(txn.date).toLocaleDateString()}</span>
+                        <span>•</span>
+                        {txn.accountCode ? (
+                          <span className="text-gray-600">{getCoaName(txn.accountCode)}</span>
+                        ) : (
+                          <span className="text-amber-500 font-medium">Uncategorized</span>
+                        )}
+                      </div>
+                      
+                      <div className="mt-1">
+                        {txn.subAccount ? (
+                          <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                            🏪 {txn.subAccount}
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 bg-red-100 text-red-600 rounded text-xs">
+                            ❌ No vendor
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Load more button */}
+                {visibleCount < filtered.length && (
+                  <button
+                    onClick={loadMore}
+                    className="w-full py-4 text-center text-sm text-[#b4b237] font-medium hover:bg-gray-50"
+                  >
+                    Load more ({filtered.length - visibleCount} remaining)
+                  </button>
+                )}
+                
+                {filtered.length === 0 && (
+                  <div className="px-3 py-8 text-center text-gray-500">
+                    No transactions found
                   </div>
                 )}
               </div>
             </div>
+            
+            {selectedIds.length > 0 && <div className="h-28 md:hidden" />}
           </>
-        ) : (
-          /* 3-Statement View */
+        )}
+
+        {view === 'statements' && (
           <ThreeStatementSection
             committedTransactions={committed}
             coaOptions={coaOptions}

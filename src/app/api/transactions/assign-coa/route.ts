@@ -1,29 +1,40 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { transactionIds, accountCode, subAccount } = body;
 
-    console.log('Transaction IDs received:', transactionIds);
-    console.log('First ID:', transactionIds[0], 'Type:', typeof transactionIds[0]);
+    if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return NextResponse.json({ error: 'transactionIds required' }, { status: 400 });
+    }
 
-    // Update transactions using raw SQL since columns might not be in Prisma schema
     let updateCount = 0;
+
     for (const id of transactionIds) {
+      // If subAccount not provided, fetch merchantName to auto-populate
+      let finalSubAccount = subAccount;
+      
+      if (finalSubAccount === undefined || finalSubAccount === null) {
+        const txn = await prisma.transactions.findUnique({
+          where: { id },
+          select: { merchantName: true, subAccount: true }
+        });
+        
+        // Use merchantName if no subAccount provided and transaction doesn't already have one
+        if (txn && !txn.subAccount && txn.merchantName) {
+          finalSubAccount = txn.merchantName;
+        } else if (txn?.subAccount) {
+          // Keep existing subAccount if it exists
+          finalSubAccount = txn.subAccount;
+        }
+      }
+
       await prisma.$executeRawUnsafe(
         `UPDATE transactions SET "accountCode" = $1, "subAccount" = $2 WHERE id = $3`,
         accountCode,
-        subAccount || null,
+        finalSubAccount || null,
         id
       );
       updateCount++;
@@ -35,10 +46,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error:', error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    console.error('Assign COA error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
