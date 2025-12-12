@@ -1,5 +1,5 @@
 /**
- * Temple Stuart Accounting - Robinhood History Parser v11.0
+ * Temple Stuart, LLC - Robinhood History Parser v11.0
  * PHASE 1: Opening positions → Trade #1-N
  * PHASE 2: Closing positions → Match to opens, inherit trade numbers
  */

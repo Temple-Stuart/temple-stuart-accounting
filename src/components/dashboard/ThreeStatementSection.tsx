@@ -25,6 +25,7 @@ interface ThreeStatementSectionProps {
   onReassign: (transactionIds: string[], newCoaCode: string, newSubAccount: string | null) => Promise<void>;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const QUARTERS = [
   { label: 'Q1', months: [0, 1, 2], names: ['Jan', 'Feb', 'Mar'] },
   { label: 'Q2', months: [3, 4, 5], names: ['Apr', 'May', 'Jun'] },
@@ -41,15 +42,12 @@ export default function ThreeStatementSection({
   onReassign 
 }: ThreeStatementSectionProps) {
   const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedQuarter, setSelectedQuarter] = useState(3); // Q4 default (index 3)
   const [activeStatement, setActiveStatement] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [drilldownCell, setDrilldownCell] = useState<{ coaCode: string; month: number } | null>(null);
   const [selectedTxns, setSelectedTxns] = useState<string[]>([]);
   const [reassignCoa, setReassignCoa] = useState('');
   const [reassignSub, setReassignSub] = useState('');
   const [isReassigning, setIsReassigning] = useState(false);
-
-  const quarter = QUARTERS[selectedQuarter];
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -92,7 +90,7 @@ export default function ThreeStatementSection({
   const equityCodes = useMemo(() => balanceSheetCodes.filter(c => getCoaType(c) === 'equity'), [balanceSheetCodes]);
 
   const getRowTotal = (coaCode: string) => {
-    return quarter.months.reduce((sum, m) => sum + (gridData[coaCode]?.[m] || 0), 0);
+    return Object.values(gridData[coaCode] || {}).reduce((sum, val) => sum + val, 0);
   };
 
   const getYTDTotal = (coaCode: string) => {
@@ -154,7 +152,7 @@ export default function ThreeStatementSection({
     return (
       <>
         <tr className={bgClass}>
-          <td colSpan={6} className={`px-3 py-2 font-bold text-sm ${textClass}`}>{title}</td>
+          <td colSpan={14} className={`px-3 py-2 font-bold text-sm ${textClass}`}>{title}</td>
         </tr>
         {codes.map(code => (
           <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
@@ -162,7 +160,7 @@ export default function ThreeStatementSection({
               <span className="font-mono text-xs text-gray-400">{code}</span>
               <span className="ml-2 text-sm">{getCoaName(code)}</span>
             </td>
-            {quarter.months.map((m, i) => {
+            {MONTHS.map((_, m) => {
               const val = gridData[code]?.[m] || 0;
               return (
                 <td 
@@ -174,22 +172,20 @@ export default function ThreeStatementSection({
                 </td>
               );
             })}
-            <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}><span className="text-blue-600 hover:underline">{formatAmount(getRowTotal(code))}</span></td>
-            <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-100">{formatAmount(getYTDTotal(code))}</td>
+            <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}>
+              <span className="text-blue-600 hover:underline">{formatAmount(getRowTotal(code))}</span>
+            </td>
           </tr>
         ))}
         <tr className={`${bgClass} border-b-2`}>
           <td className={`px-3 py-2 font-semibold text-sm ${textClass}`}>Total {title}</td>
-          {quarter.months.map(m => (
+          {MONTHS.map((_, m) => (
             <td key={m} className={`px-3 py-2 text-right font-semibold text-sm ${textClass}`}>
               {formatAmount(getMonthTotal(codes, m))}
             </td>
           ))}
           <td className={`px-3 py-2 text-right font-bold text-sm bg-gray-50 ${textClass}`}>
             {formatAmount(getSectionQtrTotal(codes))}
-          </td>
-          <td className={`px-3 py-2 text-right font-bold text-sm bg-gray-100 ${textClass}`}>
-            {formatAmount(getSectionYTD(codes))}
           </td>
         </tr>
       </>
@@ -211,23 +207,6 @@ export default function ThreeStatementSection({
           >
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          
-          {/* Quarter Tabs */}
-          <div className="flex border rounded overflow-hidden">
-            {QUARTERS.map((q, i) => (
-              <button
-                key={q.label}
-                onClick={() => setSelectedQuarter(i)}
-                className={`px-4 py-1.5 text-sm font-medium transition-colors ${
-                  selectedQuarter === i 
-                    ? 'bg-[#b4b237] text-white' 
-                    : 'bg-white hover:bg-gray-100'
-                }`}
-              >
-                {q.label}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -259,11 +238,10 @@ export default function ThreeStatementSection({
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold min-w-[200px]">Account</th>
-                {quarter.names.map((name, i) => (
+                {MONTHS.map((name, i) => (
                   <th key={i} className="px-3 py-2 text-right font-semibold w-24">{name}</th>
                 ))}
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-200">{quarter.label}</th>
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-300">YTD</th>
+                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-100">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -273,7 +251,7 @@ export default function ThreeStatementSection({
               {/* Net Income */}
               <tr className="bg-yellow-100 font-bold border-t-2 border-yellow-400">
                 <td className="px-3 py-2">Net Income</td>
-                {quarter.months.map(m => {
+                {MONTHS.map((_, m) => {
                   const rev = getMonthTotal(revenueCodes, m);
                   const exp = getMonthTotal(expenseCodes, m);
                   const ni = Math.abs(rev) - Math.abs(exp);
@@ -285,9 +263,6 @@ export default function ThreeStatementSection({
                 })}
                 <td className={`px-3 py-2 text-right bg-yellow-200 ${getNetIncomeQtr() >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                   {getNetIncomeQtr() < 0 && '('}{formatAmount(Math.abs(getNetIncomeQtr()))}{getNetIncomeQtr() < 0 && ')'}
-                </td>
-                <td className={`px-3 py-2 text-right bg-yellow-300 ${getNetIncomeYTD() >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                  {getNetIncomeYTD() < 0 && '('}{formatAmount(Math.abs(getNetIncomeYTD()))}{getNetIncomeYTD() < 0 && ')'}
                 </td>
               </tr>
             </tbody>
@@ -305,11 +280,10 @@ export default function ThreeStatementSection({
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold min-w-[200px]">Account</th>
-                {quarter.names.map((name, i) => (
+                {MONTHS.map((name, i) => (
                   <th key={i} className="px-3 py-2 text-right font-semibold w-24">{name}</th>
                 ))}
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-200">{quarter.label}</th>
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-300">YTD</th>
+                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-100">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -341,7 +315,7 @@ export default function ThreeStatementSection({
                 <p className="font-mono text-xs text-gray-500">{drilldownCell.coaCode}</p>
                 <h4 className="font-semibold">{getCoaName(drilldownCell.coaCode)}</h4>
                 <p className="text-sm text-gray-500">
-                  {drilldownCell.month === -1 ? "YTD" : QUARTERS.find(q => q.months.includes(drilldownCell.month))?.names[drilldownCell.month % 3]} {selectedYear} • {drilldownTransactions.length} txns
+                  {drilldownCell.month === -1 ? "YTD" : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} txns
                 </p>
               </div>
               <button onClick={() => { setDrilldownCell(null); setSelectedTxns([]); }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>

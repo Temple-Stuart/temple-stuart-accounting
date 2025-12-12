@@ -20,7 +20,7 @@ export default function Header() {
           <Link href="/" className="flex items-center">
             <Image
               src="/temple-stuart-logo.png"
-              alt="Temple Stuart Accounting"
+              alt="Temple Stuart, LLC"
               width={400}
               height={120}
               className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto"

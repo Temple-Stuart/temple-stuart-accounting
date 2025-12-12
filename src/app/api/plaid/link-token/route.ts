@@ -25,7 +25,7 @@ export async function POST() {
       user: {
         client_user_id: user.id,
       },
-      client_name: 'Temple Stuart Accounting',
+      client_name: 'Temple Stuart, LLC',
       products: [Products.Transactions, Products.Investments],
       country_codes: [CountryCode.Us],
       language: 'en',
