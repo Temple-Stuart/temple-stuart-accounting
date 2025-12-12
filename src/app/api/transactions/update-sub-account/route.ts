@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'transactionIds required' }, { status: 400 });
     }
 
-    await prisma.transaction.updateMany({
+    await prisma.transactions.updateMany({
       where: { id: { in: transactionIds } },
       data: { subAccount: subAccount || null }
     });
