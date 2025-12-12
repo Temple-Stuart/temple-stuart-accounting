@@ -42,6 +42,9 @@ export default function Dashboard() {
   const [assignCoa, setAssignCoa] = useState('');
   const [assignSub, setAssignSub] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  
+  // Metrics expand state
+  const [expandedMetricsCoa, setExpandedMetricsCoa] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -67,12 +70,10 @@ export default function Dashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Reset visible count and clear sub filters when COA filter changes
   useEffect(() => {
     setVisibleCount(100);
   }, [filterCoas, filterSubs, filterSearch, filterVendorStatus]);
 
-  // Clear sub filters when COA changes (they may not apply)
   useEffect(() => {
     setFilterSubs([]);
   }, [filterCoas]);
@@ -99,7 +100,54 @@ export default function Dashboard() {
       .sort((a, b) => b.count - a.count);
   }, [transactions, coaOptions]);
 
-  // Get transactions filtered by COA only (for contextual vendor list)
+  // COA Metrics - amount by sub-account for each COA
+  const coaMetrics = useMemo(() => {
+    const metrics: Record<string, { 
+      code: string;
+      name: string;
+      total: number;
+      txnCount: number;
+      subs: { sub: string; amount: number; count: number }[] 
+    }> = {};
+    
+    transactions.forEach(t => {
+      if (!t.accountCode) return;
+      
+      if (!metrics[t.accountCode]) {
+        metrics[t.accountCode] = {
+          code: t.accountCode,
+          name: getCoaName(t.accountCode) || t.accountCode,
+          total: 0,
+          txnCount: 0,
+          subs: []
+        };
+      }
+      
+      metrics[t.accountCode].total += t.amount;
+      metrics[t.accountCode].txnCount += 1;
+    });
+    
+    // Now group by sub-account within each COA
+    Object.keys(metrics).forEach(code => {
+      const coaTxns = transactions.filter(t => t.accountCode === code);
+      const subTotals: Record<string, { amount: number; count: number }> = {};
+      
+      coaTxns.forEach(t => {
+        const sub = t.subAccount || '(No Vendor)';
+        if (!subTotals[sub]) subTotals[sub] = { amount: 0, count: 0 };
+        subTotals[sub].amount += t.amount;
+        subTotals[sub].count += 1;
+      });
+      
+      metrics[code].subs = Object.entries(subTotals)
+        .map(([sub, data]) => ({ sub, amount: data.amount, count: data.count }))
+        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    });
+    
+    return Object.values(metrics).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  }, [transactions, coaOptions]);
+
+  // Get transactions filtered by COA only
   const coaFilteredTransactions = useMemo(() => {
     if (filterCoas.length === 0) return transactions;
     return transactions.filter(t => {
@@ -109,7 +157,7 @@ export default function Dashboard() {
     });
   }, [transactions, filterCoas]);
 
-  // Get unique sub-accounts with counts — CONTEXTUAL to selected COA(s)
+  // Get unique sub-accounts - CONTEXTUAL
   const usedSubs = useMemo(() => {
     const counts: Record<string, number> = {};
     coaFilteredTransactions.forEach(t => {
@@ -122,7 +170,6 @@ export default function Dashboard() {
       .sort((a, b) => b.count - a.count);
   }, [coaFilteredTransactions]);
 
-  // Stats for contextual data
   const contextStats = useMemo(() => {
     const txns = coaFilteredTransactions;
     return {
@@ -132,10 +179,9 @@ export default function Dashboard() {
     };
   }, [coaFilteredTransactions]);
 
-  // Filter transactions (full filter chain)
+  // Filter transactions
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      // COA filter
       if (filterCoas.length > 0) {
         if (filterCoas.includes('__unassigned__')) {
           if (t.accountCode && !filterCoas.includes(t.accountCode)) return false;
@@ -144,7 +190,6 @@ export default function Dashboard() {
         }
       }
       
-      // Sub-account filter
       if (filterSubs.length > 0) {
         if (filterSubs.includes('__none__')) {
           if (t.subAccount && !filterSubs.includes(t.subAccount)) return false;
@@ -153,11 +198,9 @@ export default function Dashboard() {
         }
       }
       
-      // Vendor status filter
       if (filterVendorStatus === 'has' && !t.subAccount) return false;
       if (filterVendorStatus === 'missing' && t.subAccount) return false;
       
-      // Search filter
       if (filterSearch) {
         const search = filterSearch.toLowerCase();
         if (!t.name.toLowerCase().includes(search) && 
@@ -252,6 +295,11 @@ export default function Dashboard() {
 
   const loadMore = () => {
     setVisibleCount(prev => Math.min(prev + 100, filtered.length));
+  };
+
+  const formatMoney = (amount: number) => {
+    const abs = Math.abs(amount);
+    return `${amount < 0 ? '+' : '-'}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   if (loading) {
@@ -376,15 +424,15 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              {/* Vendor chips - CONTEXTUAL */}
+              {/* Vendor chips */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs text-gray-500">
-                    Step 2: Select Vendors {filterCoas.length > 0 && <span className="text-[#b4b237]">(showing only for selected category)</span>}
+                    Step 2: Select Vendors {filterCoas.length > 0 && <span className="text-[#b4b237]">(filtered by category)</span>}
                   </p>
                   {filterCoas.length > 0 && (
                     <span className="text-xs text-gray-400">
-                      {contextStats.hasVendor} with vendor, {contextStats.missingVendor} without
+                      {contextStats.hasVendor} with, {contextStats.missingVendor} without
                     </span>
                   )}
                 </div>
@@ -495,7 +543,7 @@ export default function Dashboard() {
 
             {/* Transaction List */}
             <div className="bg-white rounded-lg border overflow-hidden">
-              <div className="max-h-[70vh] overflow-y-auto">
+              <div className="max-h-[50vh] overflow-y-auto">
                 {filtered.slice(0, visibleCount).map(txn => (
                   <div 
                     key={txn.id}
@@ -562,6 +610,85 @@ export default function Dashboard() {
                     No transactions found
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Category Metrics Section */}
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold mb-3">📊 Category Breakdown by Vendor</h2>
+              <div className="space-y-2">
+                {coaMetrics.map(coa => (
+                  <div key={coa.code} className="bg-white rounded-lg border overflow-hidden">
+                    {/* COA Header */}
+                    <button
+                      onClick={() => setExpandedMetricsCoa(expandedMetricsCoa === coa.code ? null : coa.code)}
+                      className="w-full px-3 py-3 flex items-center justify-between hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs transition ${expandedMetricsCoa === coa.code ? 'rotate-90' : ''}`}>▶</span>
+                        <span className="font-medium">{coa.name}</span>
+                        <span className="text-xs text-gray-400">{coa.txnCount} txns • {coa.subs.length} vendors</span>
+                      </div>
+                      <span className={`font-mono font-semibold ${coa.total < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatMoney(coa.total)}
+                      </span>
+                    </button>
+                    
+                    {/* Expanded Sub-account Table */}
+                    {expandedMetricsCoa === coa.code && (
+                      <div className="border-t bg-gray-50">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">Vendor</th>
+                              <th className="px-3 py-2 text-right font-medium">Count</th>
+                              <th className="px-3 py-2 text-right font-medium">Amount</th>
+                              <th className="px-3 py-2 text-right font-medium">%</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {coa.subs.map(({ sub, amount, count }) => {
+                              const pct = Math.abs(coa.total) > 0 ? (Math.abs(amount) / Math.abs(coa.total) * 100) : 0;
+                              return (
+                                <tr 
+                                  key={sub} 
+                                  className="hover:bg-white cursor-pointer"
+                                  onClick={() => {
+                                    setFilterCoas([coa.code]);
+                                    setFilterSubs(sub === '(No Vendor)' ? ['__none__'] : [sub]);
+                                  }}
+                                >
+                                  <td className="px-3 py-2">
+                                    {sub === '(No Vendor)' ? (
+                                      <span className="text-red-500">❌ {sub}</span>
+                                    ) : (
+                                      <span>🏪 {sub}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-gray-500">{count}</td>
+                                  <td className={`px-3 py-2 text-right font-mono ${amount < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {formatMoney(amount)}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-[#b4b237] rounded-full" 
+                                          style={{ width: `${Math.min(pct, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-gray-500 w-10 text-right">{pct.toFixed(1)}%</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
             
