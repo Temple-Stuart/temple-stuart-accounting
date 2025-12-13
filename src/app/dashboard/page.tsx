@@ -5,6 +5,7 @@ import Script from 'next/script';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import BudgetBuilder from '@/components/dashboard/BudgetBuilder';
+import GeneralLedger from '@/components/dashboard/GeneralLedger';
 
 interface Transaction {
   id: string;
@@ -303,6 +304,15 @@ export default function Dashboard() {
     });
   };
 
+
+  const handleLedgerUpdate = async (id: string, field: "accountCode" | "subAccount", value: string) => {
+    await fetch("/api/transactions/assign-coa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactionIds: [id], [field]: value || null })
+    });
+    await loadData();
+  };
   // Statement table row renderer
   const renderStatementRow = (code: string) => (
     <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
@@ -681,7 +691,20 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 5: BUDGET BUILDER
+              SECTION 5: GENERAL LEDGER
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
+            <GeneralLedger
+              transactions={transactions}
+              coaOptions={coaOptions}
+              onUpdate={handleLedgerUpdate}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 6: BUDGET BUILDER
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Budget Builder</h2>
