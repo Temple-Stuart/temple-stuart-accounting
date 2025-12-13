@@ -339,4 +339,29 @@ model users {
   subAccount  String?
   accounts    accounts[]
   plaid_items plaid_items[]
+  budgets   budgets[]
+}
+
+model budgets {
+  id          String   @id @default(cuid())
+  userId      String
+  accountCode String
+  year        Int
+  jan         Decimal? @db.Decimal(12, 2)
+  feb         Decimal? @db.Decimal(12, 2)
+  mar         Decimal? @db.Decimal(12, 2)
+  apr         Decimal? @db.Decimal(12, 2)
+  may         Decimal? @db.Decimal(12, 2)
+  jun         Decimal? @db.Decimal(12, 2)
+  jul         Decimal? @db.Decimal(12, 2)
+  aug         Decimal? @db.Decimal(12, 2)
+  sep         Decimal? @db.Decimal(12, 2)
+  oct         Decimal? @db.Decimal(12, 2)
+  nov         Decimal? @db.Decimal(12, 2)
+  dec         Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountCode, year])
 }
