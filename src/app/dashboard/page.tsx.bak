@@ -31,7 +31,6 @@ interface CoaOption {
   code: string;
   name: string;
   accountType: string;
-  balanceType: string;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -293,14 +292,6 @@ export default function Dashboard() {
     setReassignCoa('');
     setDrilldownCell(null);
     await loadData();
-  };
-
-  const saveBudget = async (accountCode: string, year: number, months: Record<string, number | null>) => {
-    await fetch("/api/budgets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountCode, year, months })
-    });
   };
 
   // Statement table row renderer
@@ -679,20 +670,6 @@ export default function Dashboard() {
             </div>
           </section>
 
-
-          {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 5: BUDGET BUILDER
-          ═══════════════════════════════════════════════════════════════════ */}
-          <section>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Budget Builder</h2>
-            <BudgetBuilder
-              transactions={transactions}
-              coaOptions={coaOptions}
-              budgets={budgets}
-              selectedYear={selectedYear}
-              onSaveBudget={saveBudget}
-            />
-          </section>
           {/* Spacer for bulk actions */}
           {selectedIds.length > 0 && <div className="h-24" />}
         </main>
