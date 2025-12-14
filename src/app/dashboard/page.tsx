@@ -660,7 +660,20 @@ export default function Dashboard() {
           </section>
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 4: JOURNAL ENTRIES
+              SECTION 4: GENERAL LEDGER
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
+            <GeneralLedger
+              transactions={transactions}
+              coaOptions={coaOptions}
+              onUpdate={handleLedgerUpdate}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 5: JOURNAL ENTRIES
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Journal Entries</h2>
@@ -674,7 +687,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 5: BANK RECONCILIATION
+              SECTION 6: BANK RECONCILIATION
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Bank Reconciliation</h2>
@@ -689,7 +702,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 6: PERIOD CLOSE
+              SECTION 7: PERIOD CLOSE
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Period Close</h2>
@@ -706,7 +719,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 7: CPA EXPORT
+              SECTION 8: CPA EXPORT
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">CPA Export</h2>
@@ -716,20 +729,6 @@ export default function Dashboard() {
               selectedYear={selectedYear}
             />
           </section>
-
-
-          {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 8: GENERAL LEDGER
-          ═══════════════════════════════════════════════════════════════════ */}
-          <section>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
-            <GeneralLedger
-              transactions={transactions}
-              coaOptions={coaOptions}
-              onUpdate={handleLedgerUpdate}
-            />
-          </section>
-
 
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION 9: BUDGET BUILDER
