@@ -9,6 +9,7 @@ import GeneralLedger from '@/components/dashboard/GeneralLedger';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import PeriodClose from '@/components/dashboard/PeriodClose';
+import CPAExport from '@/components/dashboard/CPAExport';
 
 interface Transaction {
   id: string;
@@ -659,97 +660,7 @@ export default function Dashboard() {
           </section>
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 4: ALL TRANSACTIONS
-          ═══════════════════════════════════════════════════════════════════ */}
-          <section>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-              All Transactions
-              <span className="ml-2 text-xs font-normal text-gray-400">{stats.total.toLocaleString()} total</span>
-            </h2>
-            
-            <div className="bg-white rounded-xl border overflow-hidden">
-              {/* Filters */}
-              <div className="p-3 border-b bg-gray-50 flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={filterSearch}
-                  onChange={(e) => setFilterSearch(e.target.value)}
-                  className="flex-1 min-w-[150px] px-3 py-2 border rounded-lg text-sm"
-                />
-                <select value={filterCoa} onChange={(e) => setFilterCoa(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="all">All Categories</option>
-                  <option value="uncategorized">⚠️ Uncategorized ({stats.uncategorized})</option>
-                  {usedCoas.map(c => <option key={c.code} value={c.code}>{c.name} ({c.count})</option>)}
-                </select>
-                <select value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-                  <option value="all">All Vendors</option>
-                  <option value="none">❌ No Vendor ({stats.noVendor})</option>
-                  {vendors.slice(0, 50).map(([v, c]) => <option key={v} value={v}>{v} ({c})</option>)}
-                </select>
-              </div>
-
-              {/* Select All */}
-              <div className="px-4 py-2 border-b bg-gray-50 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.length === filtered.length && filtered.length > 0}
-                    onChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(t => t.id))}
-                    className="rounded"
-                  />
-                  Select all {filtered.length !== transactions.length && `(${filtered.length} filtered)`}
-                </label>
-                {selectedIds.length > 0 && <span className="text-xs text-[#b4b237] font-medium">{selectedIds.length} selected</span>}
-              </div>
-
-              {/* Transaction rows */}
-              <div className="divide-y max-h-[500px] overflow-y-auto">
-                {filtered.slice(0, visibleTxns).map(txn => (
-                  <div
-                    key={txn.id}
-                    onClick={() => setSelectedIds(prev => prev.includes(txn.id) ? prev.filter(id => id !== txn.id) : [...prev, txn.id])}
-                    className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 ${selectedIds.includes(txn.id) ? 'bg-blue-50' : ''} ${!txn.accountCode ? 'bg-amber-50/50' : ''}`}
-                  >
-                    <input type="checkbox" checked={selectedIds.includes(txn.id)} onChange={() => {}} className="rounded" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{txn.name}</span>
-                        <span className={`text-sm font-mono tabular-nums ${txn.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                          {txn.amount < 0 ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 flex-wrap">
-                        <span>{new Date(txn.date).toLocaleDateString()}</span>
-                        <span>•</span>
-                        {txn.accountCode ? (
-                          <span className="text-gray-600">{getCoaName(txn.accountCode)}</span>
-                        ) : (
-                          <span className="text-amber-500 font-medium">Uncategorized</span>
-                        )}
-                        <span>•</span>
-                        {txn.subAccount ? (
-                          <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{txn.subAccount}</span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 bg-red-100 text-red-500 rounded text-xs">No vendor</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {visibleTxns < filtered.length && (
-                <button onClick={() => setVisibleTxns(v => v + 50)} className="w-full py-3 text-sm text-[#b4b237] hover:bg-gray-50 border-t">
-                  Load more ({filtered.length - visibleTxns} remaining)
-                </button>
-              )}
-            </div>
-          </section>
-
-
-          {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 5: JOURNAL ENTRIES
+              SECTION 4: JOURNAL ENTRIES
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Journal Entries</h2>
@@ -763,7 +674,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 6: BANK RECONCILIATION
+              SECTION 5: BANK RECONCILIATION
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Bank Reconciliation</h2>
@@ -778,7 +689,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 7: PERIOD CLOSE
+              SECTION 6: PERIOD CLOSE
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Period Close</h2>
@@ -790,6 +701,19 @@ export default function Dashboard() {
               onClose={closePeriod}
               onReopen={reopenPeriod}
               onReload={loadData}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 7: CPA EXPORT
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">CPA Export</h2>
+            <CPAExport
+              transactions={transactions}
+              coaOptions={coaOptions}
+              selectedYear={selectedYear}
             />
           </section>
 
