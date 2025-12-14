@@ -8,6 +8,7 @@ import BudgetBuilder from '@/components/dashboard/BudgetBuilder';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
+import PeriodClose from '@/components/dashboard/PeriodClose';
 
 interface Transaction {
   id: string;
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const [budgets, setBudgets] = useState<any[]>([]);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
   const [reconciliations, setReconciliations] = useState<any[]>([]);
+  const [periodCloses, setPeriodCloses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -130,6 +132,12 @@ export default function Dashboard() {
       if (reconRes.ok) {
         const reconData = await reconRes.json();
         setReconciliations(reconData.reconciliations || []);
+      }
+
+      const pcRes = await fetch(`/api/period-closes?year=${new Date().getFullYear()}`);
+      if (pcRes.ok) {
+        const pcData = await pcRes.json();
+        setPeriodCloses(pcData.periods || []);
       }
       
       const linkRes = await fetch("/api/plaid/link-token", {
@@ -347,6 +355,22 @@ export default function Dashboard() {
     });
   };
 
+
+  const closePeriod = async (year: number, month: number, notes?: string) => {
+    await fetch("/api/period-closes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ year, month, action: "close", notes })
+    });
+  };
+
+  const reopenPeriod = async (year: number, month: number) => {
+    await fetch("/api/period-closes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ year, month, action: "reopen" })
+    });
+  };
   // Statement table row renderer
   const renderStatementRow = (code: string) => (
     <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
@@ -754,7 +778,24 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 7: GENERAL LEDGER
+              SECTION 7: PERIOD CLOSE
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Period Close</h2>
+            <PeriodClose
+              transactions={transactions}
+              reconciliations={reconciliations}
+              periodCloses={periodCloses}
+              selectedYear={selectedYear}
+              onClose={closePeriod}
+              onReopen={reopenPeriod}
+              onReload={loadData}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 8: GENERAL LEDGER
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
@@ -767,7 +808,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 8: BUDGET BUILDER
+              SECTION 9: BUDGET BUILDER
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Budget Builder</h2>
