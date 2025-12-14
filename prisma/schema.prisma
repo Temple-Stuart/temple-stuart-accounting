@@ -343,6 +343,7 @@ model users {
   budgets   budgets[]
   journal_entries journal_entries[]
   bank_reconciliations bank_reconciliations[]
+  period_closes period_closes[]
 }
 
 model budgets {
@@ -426,4 +427,22 @@ model reconciliation_items {
   amount           Decimal  @db.Decimal(12, 2)
   cleared          Boolean  @default(false)
   reconciliation   bank_reconciliations @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+}
+
+model period_closes {
+  id          String    @id @default(cuid())
+  userId      String
+  year        Int
+  month       Int       // 1-12
+  status      String    @default("open") // open, closed
+  closedAt    DateTime?
+  closedBy    String?
+  reopenedAt  DateTime?
+  reopenedBy  String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
 }
