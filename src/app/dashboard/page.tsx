@@ -6,6 +6,8 @@ import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import BudgetBuilder from '@/components/dashboard/BudgetBuilder';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
+import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
+import BankReconciliation from '@/components/dashboard/BankReconciliation';
 
 interface Transaction {
   id: string;
@@ -43,6 +45,8 @@ export default function Dashboard() {
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
+  const [journalEntries, setJournalEntries] = useState<any[]>([]);
+  const [reconciliations, setReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -116,8 +120,20 @@ export default function Dashboard() {
         setBudgets(budgetData.budgets || []);
       }
       
-      const linkRes = await fetch('/api/plaid/link-token', {
-        method: 'POST',
+      const jeRes = await fetch('/api/journal-entries');
+      if (jeRes.ok) {
+        const jeData = await jeRes.json();
+        setJournalEntries(jeData.entries || []);
+      }
+
+      const reconRes = await fetch("/api/bank-reconciliations");
+      if (reconRes.ok) {
+        const reconData = await reconRes.json();
+        setReconciliations(reconData.reconciliations || []);
+      }
+      
+      const linkRes = await fetch("/api/plaid/link-token", {
+        method: "POST",
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entityId: 'personal' })
       });
@@ -313,6 +329,24 @@ export default function Dashboard() {
     });
     await loadData();
   };
+  // Statement table row renderer
+
+  const saveJournalEntry = async (entry: any) => {
+    await fetch("/api/journal-entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry)
+    });
+  };
+
+  const saveReconciliation = async (data: any) => {
+    await fetch("/api/bank-reconciliations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+  };
+
   // Statement table row renderer
   const renderStatementRow = (code: string) => (
     <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
@@ -691,7 +725,36 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 5: GENERAL LEDGER
+              SECTION 5: JOURNAL ENTRIES
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Journal Entries</h2>
+            <JournalEntryEngine
+              entries={journalEntries}
+              coaOptions={coaOptions}
+              onSave={saveJournalEntry}
+              onReload={loadData}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 6: BANK RECONCILIATION
+          ═══════════════════════════════════════════════════════════════════ */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Bank Reconciliation</h2>
+            <BankReconciliation
+              accounts={accounts}
+              transactions={transactions}
+              reconciliations={reconciliations}
+              onSave={saveReconciliation}
+              onReload={loadData}
+            />
+          </section>
+
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 7: GENERAL LEDGER
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
@@ -704,7 +767,7 @@ export default function Dashboard() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 6: BUDGET BUILDER
+              SECTION 8: BUDGET BUILDER
           ═══════════════════════════════════════════════════════════════════ */}
           <section>
             <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Budget Builder</h2>
