@@ -1,8 +1,7 @@
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import HeroSection from '@/components/sections/HeroSection';
-import AsSeenInSection from '@/components/sections/AsSeenInSection';
-import OpenSourceSection from '@/components/sections/OpenSourceSection';
+import ModulesSection from '@/components/sections/ModulesSection';
 
 export default function Home() {
   return (
@@ -10,8 +9,7 @@ export default function Home() {
       <Header />
       <main>
         <HeroSection />
-        <AsSeenInSection />
-        <OpenSourceSection />
+        <ModulesSection />
       </main>
       <Footer />
     </>
