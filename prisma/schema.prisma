@@ -50,8 +50,8 @@ model accounts {
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
 
-  transactions            transactions[]
-  bank_reconciliations    bank_reconciliations[]
+  transactions         transactions[]
+  bank_reconciliations bank_reconciliations[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -94,8 +94,8 @@ model closing_periods {
 }
 
 model investment_transactions {
-  id                        String   @id
-  investment_transaction_id String   @unique
+  id                        String      @id
+  investment_transaction_id String      @unique
   accountId                 String
   amount                    Float?
   cancel_transaction_id     String?
@@ -109,27 +109,27 @@ model investment_transactions {
   subtype                   String?
   type                      String?
   unofficial_currency_code  String?
-  createdAt                 DateTime @default(now())
+  createdAt                 DateTime    @default(now())
   updatedAt                 DateTime
   accountCode               String?
   subAccount                String?
   strategy                  String?
   tradeNum                  String?
   // Robinhood reconciliation fields
-  rhQuantity           Float?    @map("rh_quantity")
-  rhPrice              Float?    @map("rh_price")
-  rhPrincipal          Float?    @map("rh_principal")
-  rhFees               Float?    @map("rh_fees")
-  rhTranFee            Float?    @map("rh_tran_fee")
-  rhContrFee           Float?    @map("rh_contr_fee")
-  rhNetAmount          Float?    @map("rh_net_amount")
-  rhAction             String?   @map("rh_action") @db.VarChar(10)
-  reconciliationStatus String?   @map("reconciliation_status") @db.VarChar(30)
-  isReconciled         Boolean   @default(false) @map("is_reconciled")
-  reconciledAt         DateTime? @map("reconciled_at")
-  reconciledBy         String?   @map("reconciled_by") @db.VarChar(255)
-  security             securities? @relation(fields: [security_id], references: [securityId])
-  accounts                  accounts @relation(fields: [accountId], references: [id])
+  rhQuantity                Float?      @map("rh_quantity")
+  rhPrice                   Float?      @map("rh_price")
+  rhPrincipal               Float?      @map("rh_principal")
+  rhFees                    Float?      @map("rh_fees")
+  rhTranFee                 Float?      @map("rh_tran_fee")
+  rhContrFee                Float?      @map("rh_contr_fee")
+  rhNetAmount               Float?      @map("rh_net_amount")
+  rhAction                  String?     @map("rh_action") @db.VarChar(10)
+  reconciliationStatus      String?     @map("reconciliation_status") @db.VarChar(30)
+  isReconciled              Boolean     @default(false) @map("is_reconciled")
+  reconciledAt              DateTime?   @map("reconciled_at")
+  reconciledBy              String?     @map("reconciled_by") @db.VarChar(255)
+  security                  securities? @relation(fields: [security_id], references: [securityId])
+  accounts                  accounts    @relation(fields: [accountId], references: [id])
 }
 
 model journal_transactions {
@@ -240,8 +240,8 @@ model prospects {
 }
 
 model securities {
-  id                       String    @id
-  securityId               String    @unique
+  id                       String                    @id
+  securityId               String                    @unique
   isin                     String?
   cusip                    String?
   sedol                    String?
@@ -254,35 +254,36 @@ model securities {
   option_strike_price      Float?
   option_expiration_date   DateTime?
   option_underlying_ticker String?
-  createdAt                DateTime  @default(now())
+  createdAt                DateTime                  @default(now())
   updatedAt                DateTime
   investment_transactions  investment_transactions[]
 }
+
 /// IRS-compliant position tracking for options trading
 model trading_positions {
-  id                        String    @id @default(uuid()) @db.Uuid
-  open_investment_txn_id    String    @db.VarChar(255)
-  symbol                    String    @db.VarChar(20)
-  option_type               String?   @db.VarChar(10)
-  strike_price              Float?
-  expiration_date           DateTime?
-  position_type             String    @db.VarChar(10)
-  quantity                  Float
-  open_price                Float
-  open_fees                 Float     @default(0)
-  open_date                 DateTime
-  cost_basis                Float
-  status                    String    @default("OPEN") @db.VarChar(10)
-  close_investment_txn_id   String?   @db.VarChar(255)
-  close_price               Float?
-  close_fees                Float?
-  close_date                DateTime?
-  proceeds                  Float?
-  realized_pl               Float?
-  trade_num                 String?   @db.VarChar(20)
-  strategy                  String?   @db.VarChar(50)
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
+  id                      String    @id @default(uuid()) @db.Uuid
+  open_investment_txn_id  String    @db.VarChar(255)
+  symbol                  String    @db.VarChar(20)
+  option_type             String?   @db.VarChar(10)
+  strike_price            Float?
+  expiration_date         DateTime?
+  position_type           String    @db.VarChar(10)
+  quantity                Float
+  open_price              Float
+  open_fees               Float     @default(0)
+  open_date               DateTime
+  cost_basis              Float
+  status                  String    @default("OPEN") @db.VarChar(10)
+  close_investment_txn_id String?   @db.VarChar(255)
+  close_price             Float?
+  close_fees              Float?
+  close_date              DateTime?
+  proceeds                Float?
+  realized_pl             Float?
+  trade_num               String?   @db.VarChar(20)
+  strategy                String?   @db.VarChar(50)
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
 
   @@index([open_investment_txn_id])
   @@index([close_investment_txn_id])
@@ -290,8 +291,6 @@ model trading_positions {
   @@index([status])
   @@index([trade_num])
 }
-
-
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model transactions {
@@ -330,20 +329,21 @@ model transactions {
 }
 
 model users {
-  id          String        @id
-  email       String        @unique
-  password    String
-  name        String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime
-  accountCode String?
-  subAccount  String?
-  accounts    accounts[]
-  plaid_items plaid_items[]
-  budgets   budgets[]
-  journal_entries journal_entries[]
+  id                   String                 @id
+  email                String                 @unique
+  password             String
+  name                 String
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  accountCode          String?
+  subAccount           String?
+  accounts             accounts[]
+  plaid_items          plaid_items[]
+  budgets              budgets[]
+  journal_entries      journal_entries[]
   bank_reconciliations bank_reconciliations[]
-  period_closes period_closes[]
+  period_closes        period_closes[]
+  trips                trips[]
 }
 
 model budgets {
@@ -371,78 +371,237 @@ model budgets {
 }
 
 model journal_entries {
-  id          String   @id @default(cuid())
+  id          String                @id @default(cuid())
   userId      String
   entryNumber Int
   date        DateTime
-  type        String   // adjusting, reclassify, correction, accrual, closing
+  type        String // adjusting, reclassify, correction, accrual, closing
   memo        String?
-  status      String   @default("draft") // draft, posted, voided
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String                @default("draft") // draft, posted, voided
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
   postedAt    DateTime?
-  user        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        users                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   lines       journal_entry_lines[]
 
   @@unique([userId, entryNumber])
 }
 
 model journal_entry_lines {
-  id             String   @id @default(cuid())
+  id             String          @id @default(cuid())
   journalEntryId String
   accountCode    String
   description    String?
-  debit          Decimal? @db.Decimal(12, 2)
-  credit         Decimal? @db.Decimal(12, 2)
+  debit          Decimal?        @db.Decimal(12, 2)
+  credit         Decimal?        @db.Decimal(12, 2)
   journalEntry   journal_entries @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
 }
 
 model bank_reconciliations {
-  id              String   @id @default(cuid())
-  userId          String
-  accountId       String
-  periodEnd       DateTime
-  statementBalance Decimal @db.Decimal(12, 2)
-  bookBalance     Decimal  @db.Decimal(12, 2)
-  adjustedBankBalance Decimal? @db.Decimal(12, 2)
-  adjustedBookBalance Decimal? @db.Decimal(12, 2)
-  difference      Decimal? @db.Decimal(12, 2)
-  status          String   @default("draft") // draft, reconciled
-  reconciledAt    DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account         accounts @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  items           reconciliation_items[]
+  id                  String                 @id @default(cuid())
+  userId              String
+  accountId           String
+  periodEnd           DateTime
+  statementBalance    Decimal                @db.Decimal(12, 2)
+  bookBalance         Decimal                @db.Decimal(12, 2)
+  adjustedBankBalance Decimal?               @db.Decimal(12, 2)
+  adjustedBookBalance Decimal?               @db.Decimal(12, 2)
+  difference          Decimal?               @db.Decimal(12, 2)
+  status              String                 @default("draft") // draft, reconciled
+  reconciledAt        DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  user                users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account             accounts               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  items               reconciliation_items[]
 
   @@unique([userId, accountId, periodEnd])
 }
 
 model reconciliation_items {
-  id               String   @id @default(cuid())
+  id               String               @id @default(cuid())
   reconciliationId String
   transactionId    String?
-  type             String   // deposit_in_transit, outstanding_check, bank_fee, interest, other
+  type             String // deposit_in_transit, outstanding_check, bank_fee, interest, other
   description      String
-  amount           Decimal  @db.Decimal(12, 2)
-  cleared          Boolean  @default(false)
+  amount           Decimal              @db.Decimal(12, 2)
+  cleared          Boolean              @default(false)
   reconciliation   bank_reconciliations @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
 }
 
 model period_closes {
-  id          String    @id @default(cuid())
-  userId      String
-  year        Int
-  month       Int       // 1-12
-  status      String    @default("open") // open, closed
-  closedAt    DateTime?
-  closedBy    String?
-  reopenedAt  DateTime?
-  reopenedBy  String?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  userId     String
+  year       Int
+  month      Int // 1-12
+  status     String    @default("open") // open, closed
+  closedAt   DateTime?
+  closedBy   String?
+  reopenedAt DateTime?
+  reopenedBy String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       users     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, year, month])
+}
+
+model trips {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String    @db.VarChar(255)
+  destination  String?   @db.VarChar(255)
+  month        Int
+  year         Int
+  daysTravel   Int
+  daysRiding   Int
+  rsvpDeadline DateTime?
+  status       String    @default("planning") @db.VarChar(20)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  owner        users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants trip_participants[]
+  expenses     trip_expenses[]
+  itinerary    trip_itinerary[]
+  destinations trip_destinations[]
+
+  @@index([userId])
+  @@index([year, month])
+}
+
+model trip_participants {
+  id              String    @id @default(cuid())
+  tripId          String
+  email           String    @db.VarChar(255)
+  firstName       String    @db.VarChar(100)
+  lastName        String    @db.VarChar(100)
+  phone           String?   @db.VarChar(20)
+  paymentMethod   String?   @db.VarChar(20)
+  paymentHandle   String?   @db.VarChar(255)
+  inviteToken     String    @unique @db.VarChar(64)
+  passwordHash    String?
+  unavailableDays Json?
+  rsvpStatus      String    @default("pending") @db.VarChar(20)
+  rsvpAt          DateTime?
+  isOwner         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  homeAirport     String?   @db.VarChar(10)
+  homeAddress     String?   @db.VarChar(500)
+
+  trip          trips            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  expenseSplits expense_splits[]
+  paidExpenses  trip_expenses[]  @relation("PaidBy")
+
+  @@unique([tripId, email])
+  @@index([inviteToken])
+}
+
+model trip_expenses {
+  id          String   @id @default(cuid())
+  tripId      String
+  paidById    String
+  plaidTxnId  String?  @db.VarChar(255)
+  day         Int?
+  category    String   @db.VarChar(50)
+  vendor      String   @db.VarChar(255)
+  description String?
+  amount      Decimal  @db.Decimal(12, 2)
+  date        DateTime
+  isShared    Boolean  @default(false)
+  splitCount  Int      @default(1)
+  perPerson   Decimal? @db.Decimal(12, 2)
+  location    String?  @db.VarChar(255)
+  status      String   @default("pending") @db.VarChar(20)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trip   trips             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidBy trip_participants @relation("PaidBy", fields: [paidById], references: [id], onDelete: Cascade)
+  splits expense_splits[]
+
+  @@index([tripId])
+  @@index([paidById])
+  @@index([category])
+}
+
+model expense_splits {
+  id            String    @id @default(cuid())
+  expenseId     String
+  participantId String
+  amount        Decimal   @db.Decimal(12, 2)
+  settled       Boolean   @default(false)
+  settledAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  expense     trip_expenses     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  participant trip_participants @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, participantId])
+}
+
+model trip_itinerary {
+  id           String   @id @default(cuid())
+  tripId       String
+  day          Int
+  homeDate     DateTime
+  homeTime     String?  @db.VarChar(10)
+  destDate     DateTime
+  destTime     String?  @db.VarChar(10)
+  category     String   @db.VarChar(50)
+  vendor       String   @db.VarChar(255)
+  cost         Decimal  @db.Decimal(12, 2)
+  note         String?
+  splitNames   String?
+  splitBy      Int      @default(1)
+  perPerson    Decimal? @db.Decimal(12, 2)
+  location     String?  @db.VarChar(255)
+  verticalDrop Int?
+  avgSnow      Int?
+  createdAt    DateTime @default(now())
+
+  trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, day])
+}
+
+model ikon_resorts {
+  id              String   @id @default(cuid())
+  name            String   @unique @db.VarChar(255)
+  region          String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  state           String?  @db.VarChar(100)
+  nearestAirport  String?  @db.VarChar(10)
+  timezone        String?  @db.VarChar(50)
+  verticalDrop    Int?
+  avgSnowfall     Int?
+  liftTicketDay   Decimal? @db.Decimal(10, 2)
+  liftTicketMulti Decimal? @db.Decimal(10, 2)
+  multiDayCount   Int?     @default(5)
+  rentalBoardDay  Decimal? @db.Decimal(10, 2)
+  rentalBootsDay  Decimal? @db.Decimal(10, 2)
+  websiteUrl      String?  @db.VarChar(255)
+  latitude        Decimal? @db.Decimal(10, 6)
+  longitude       Decimal? @db.Decimal(10, 6)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([region])
+  @@index([country])
+}
+
+model trip_destinations {
+  id              String   @id @default(cuid())
+  tripId          String
+  resortId        String
+  isSelected      Boolean  @default(true)
+  estimatedTotal  Decimal? @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+
+  trip            trips    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, resortId])
+  @@index([tripId])
 }

@@ -1,0 +1,15 @@
+// Test script - run with: node src/lib/amadeus.ts.test
+const testTransfer = async () => {
+  const body = {
+    startLocationCode: "CDG",
+    endAddressLine: "Avenue Anatole France, 5",
+    endCityName: "Paris",
+    endZipCode: "75007", 
+    endCountryCode: "FR",
+    transferType: "PRIVATE",
+    startDateTime: "2026-03-01T10:30:00",
+    passengers: 2
+  };
+  console.log("Request body:", JSON.stringify(body, null, 2));
+};
+testTransfer();
