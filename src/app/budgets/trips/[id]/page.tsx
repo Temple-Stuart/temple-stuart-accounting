@@ -268,11 +268,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const copyInviteLink = (url: string) => {
-    navigator.clipboard.writeText(url);
-    alert('Invite link copied!');
-  };
-
   const toggleSplitWith = (participantId: string) => {
     setExpenseForm(prev => ({
       ...prev,
@@ -360,14 +355,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                   </div>
                 </div>
-                {!p.isOwner && p.inviteUrl && (
-                  <button
-                    onClick={() => copyInviteLink(p.inviteUrl!)}
-                    className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
-                  >
-                    Copy Link
-                  </button>
-                )}
               </div>
             ))}
           </div>
