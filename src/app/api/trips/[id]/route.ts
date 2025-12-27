@@ -60,7 +60,6 @@ export async function GET(
     const confirmedParticipants = trip.participants.filter(p => p.rsvpStatus === 'confirmed');
     const settlementMatrix: Record<string, Record<string, number>> = {};
 
-    // Initialize matrix
     confirmedParticipants.forEach(p => {
       settlementMatrix[p.id] = {};
       confirmedParticipants.forEach(other => {
@@ -68,7 +67,6 @@ export async function GET(
       });
     });
 
-    // Calculate debts from expense splits
     trip.expenses.forEach(expense => {
       if (expense.isShared && expense.splits.length > 0) {
         const paidById = expense.paidById;
@@ -113,7 +111,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Verify ownership
     const trip = await prisma.trips.findFirst({
       where: { id, userId: user.id }
     });
@@ -122,8 +119,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Trip not found or not authorized' }, { status: 404 });
     }
 
-    // Delete related records first (cascading delete)
-    await prisma.trip_expense_splits.deleteMany({
+    // Delete related records first (correct model names)
+    await prisma.expense_splits.deleteMany({
       where: { expense: { tripId: id } }
     });
     await prisma.trip_expenses.deleteMany({

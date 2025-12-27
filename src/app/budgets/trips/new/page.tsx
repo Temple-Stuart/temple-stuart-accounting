@@ -65,7 +65,7 @@ export default function NewTripPage() {
         throw new Error(data.error || 'Failed to create trip');
       }
 
-      const { trip, inviteUrl } = await res.json();
+      const { trip } = await res.json(); const inviteUrl = `${window.location.origin}/trips/rsvp?token=${trip.inviteToken}`;
       setCreated({ id: trip.id, inviteUrl });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trip');
