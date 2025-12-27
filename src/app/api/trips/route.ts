@@ -72,12 +72,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, destination, month, year, daysTravel, daysRiding, rsvpDeadline, participants } = body;
+    const { name, destination, activity, month, year, daysTravel, daysRiding } = body;
 
     // Validate required fields
     if (!name || !month || !year || !daysTravel || !daysRiding) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Generate invite token for the trip
+    const tripInviteToken = randomBytes(16).toString('hex');
 
     // Create trip with owner as first participant
     const trip = await prisma.trips.create({
@@ -85,16 +88,17 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         name,
         destination: destination || null,
+        activity: activity || null,
         month: parseInt(month),
         year: parseInt(year),
         daysTravel: parseInt(daysTravel),
         daysRiding: parseInt(daysRiding),
-        rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline) : null,
+        inviteToken: tripInviteToken,
         participants: {
           create: {
             email: user.email,
-            firstName: user.name.split(' ')[0] || user.name,
-            lastName: user.name.split(' ').slice(1).join(' ') || '',
+            firstName: user.name?.split(' ')[0] || 'Owner',
+            lastName: user.name?.split(' ').slice(1).join(' ') || '',
             inviteToken: randomBytes(32).toString('hex'),
             isOwner: true,
             rsvpStatus: 'confirmed',
@@ -107,34 +111,11 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Add additional participants if provided
-    if (participants && Array.isArray(participants) && participants.length > 0) {
-      const participantData = participants.map((p: { firstName: string; lastName: string; email: string; phone?: string }) => ({
-        tripId: trip.id,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        email: p.email,
-        phone: p.phone || null,
-        inviteToken: randomBytes(32).toString('hex'),
-        isOwner: false,
-        rsvpStatus: 'pending'
-      }));
+    // Build invite URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.templestuart.com';
+    const inviteUrl = `${baseUrl}/trips/rsvp?token=${tripInviteToken}`;
 
-      await prisma.trip_participants.createMany({
-        data: participantData,
-        skipDuplicates: true
-      });
-    }
-
-    // Fetch complete trip with all participants
-    const completeTrip = await prisma.trips.findUnique({
-      where: { id: trip.id },
-      include: {
-        participants: true
-      }
-    });
-
-    return NextResponse.json({ trip: completeTrip }, { status: 201 });
+    return NextResponse.json({ trip, inviteUrl }, { status: 201 });
   } catch (error) {
     console.error('Create trip error:', error);
     return NextResponse.json({ error: 'Failed to create trip' }, { status: 500 });

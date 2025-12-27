@@ -452,6 +452,8 @@ model trips {
   userId       String
   name         String    @db.VarChar(255)
   destination  String?   @db.VarChar(255)
+  activity     String?   @db.VarChar(50)
+  inviteToken  String?   @unique @db.VarChar(64)
   month        Int
   year         Int
   daysTravel   Int
