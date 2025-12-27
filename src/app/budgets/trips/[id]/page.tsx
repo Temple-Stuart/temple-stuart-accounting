@@ -186,7 +186,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     }
-  };    }
+
   };
 
   // Calculate valid date windows based on everyone's availability
