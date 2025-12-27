@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 const ACTIVITY_TABLE_MAP: Record<string, string> = {
-  snowboard: 'resorts',
-  mtb: 'resorts',
-  hike: 'resorts',
-  climb: 'resorts',
+  snowboard: 'ikon_resorts',
+  mtb: 'ikon_resorts',
+  hike: 'ikon_resorts',
+  climb: 'ikon_resorts',
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
   sail: 'surf_spots',
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest) {
     let destinations: any[] = [];
 
     switch (table) {
-      case 'resorts':
-        destinations = await prisma.resorts.findMany({ orderBy: { name: 'asc' } });
+      case 'ikon_resorts':
+        destinations = await prisma.ikon_resorts.findMany({ orderBy: { name: 'asc' } });
         break;
       case 'surf_spots':
         destinations = await prisma.surf_spots.findMany({ orderBy: { nomadScore: 'desc' } });
