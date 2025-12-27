@@ -94,7 +94,7 @@ export default function ItineraryBuilderPage() {
               <span className="text-white font-bold">TS</span>
             </div>
             <div className="hidden sm:block">
-              <div className="font-semibold text-gray-900">Itinerary Builder</div>
+              <div className="font-semibold text-gray-900">Budget</div>
               <div className="text-xs text-gray-400">Budget by category</div>
             </div>
           </div>

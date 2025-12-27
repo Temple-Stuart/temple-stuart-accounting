@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 
 const modules = [
   { name: 'Bookkeeping', description: 'Double-entry ledger & financial statements', href: '/dashboard', icon: '📒' },
-  { name: 'Trip Budget', description: 'Plan trips, split expenses, track costs', href: '/budgets/trips', icon: '✈️' },
-  { name: 'Itinerary Builder', description: 'Budget by category, plan your year', href: '/hub/itinerary', icon: '📅' },
+  { name: 'Group Travel', description: 'Plan trips, split expenses, track costs', href: '/budgets/trips', icon: '✈️' },
+  { name: 'Budget', description: 'Budget by category, plan your year', href: '/hub/itinerary', icon: '📅' },
 ];
 
 export default function HubPage() {

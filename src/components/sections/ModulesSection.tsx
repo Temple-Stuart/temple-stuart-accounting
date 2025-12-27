@@ -116,7 +116,7 @@ export default function ModulesSection() {
               MODULE 2: TRIP BUDGET
           ═══════════════════════════════════════════════════════════════════ */}
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            {/* Trip Budget Mockup */}
+            {/* Group Travel Mockup */}
             <div>
               <div className="bg-gray-900 rounded-2xl p-2 shadow-2xl">
                 <div className="bg-gray-800 rounded-xl overflow-hidden">
@@ -187,7 +187,7 @@ export default function ModulesSection() {
                 MODULE 02
               </div>
               <h3 className="text-3xl sm:text-4xl font-light text-gray-900 mb-4">
-                Trip Budget
+                Group Travel
               </h3>
               <p className="text-lg text-gray-500 mb-8 leading-relaxed">
                 Plan solo adventures or coordinate group trips. Track shared expenses, 
@@ -217,7 +217,7 @@ export default function ModulesSection() {
                 MODULE 03
               </div>
               <h3 className="text-3xl sm:text-4xl font-light text-gray-900 mb-4">
-                Itinerary Builder
+                Budget
               </h3>
               <p className="text-lg text-gray-500 mb-8 leading-relaxed">
                 Set monthly budgets by category. Track spend vs. budget in real-time. 
@@ -237,7 +237,7 @@ export default function ModulesSection() {
               </ul>
             </div>
 
-            {/* Itinerary Builder Mockup */}
+            {/* Budget Mockup */}
             <div className="order-1 lg:order-2">
               <div className="bg-gray-900 rounded-2xl p-2 shadow-2xl">
                 <div className="bg-gray-800 rounded-xl overflow-hidden">
