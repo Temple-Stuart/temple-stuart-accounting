@@ -607,3 +607,181 @@ model trip_destinations {
   @@unique([tripId, resortId])
   @@index([tripId])
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTIVITY DESTINATION TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model surf_spots {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  country         String   @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  waveConsistency Int?     // 1-10 rating
+  waveType        String?  @db.VarChar(50) // beach break, reef, point
+  waterTempLow    Int?     // Fahrenheit
+  waterTempHigh   Int?
+  bestMonths      String?  @db.VarChar(100) // "May-Oct"
+  wifiSpeed       Int?     // Mbps avg
+  coworkingCount  Int?
+  monthlyRent     Int?     // USD avg 1BR
+  costIndex       Int?     // 1-10 (10=cheapest)
+  nomadScore      Int?     // 1-10 community rating
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50) // "visa-free", "VOA", "e-visa"
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model golf_courses {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  courseRating    Decimal? @db.Decimal(4,1)
+  slopeRating     Int?
+  greenFee        Int?     // USD typical
+  holeCount       Int?     @default(18)
+  sceneryRating   Int?     // 1-10
+  monthlyRent     Int?     // USD avg 1BR nearby
+  costIndex       Int?     // 1-10
+  nomadScore      Int?     // 1-10
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model cycling_destinations {
+  id              String   @id @default(cuid())
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  routeVariety    Int?     // 1-10
+  terrainType     String?  @db.VarChar(100) // "flat", "hilly", "mountain"
+  roadQuality     Int?     // 1-10
+  bikeCulture     Int?     // 1-10
+  rentalAvail     Boolean? @default(true)
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model race_destinations {
+  id              String   @id @default(cuid())
+  raceName        String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  raceType        String   @db.VarChar(50) // "marathon", "half", "10k", "ultra"
+  typicalMonth    String?  @db.VarChar(20)
+  entryFee        Int?     // USD
+  fieldSize       Int?
+  courseType      String?  @db.VarChar(50) // "flat", "hilly", "trail"
+  sceneryRating   Int?     // 1-10
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model triathlon_destinations {
+  id              String   @id @default(cuid())
+  eventName       String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  distance        String   @db.VarChar(20) // "olympic", "70.3", "140.6"
+  typicalMonth    String?  @db.VarChar(20)
+  entryFee        Int?
+  swimVenue       String?  @db.VarChar(100) // "ocean", "lake", "river"
+  courseRating    Int?     // 1-10
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model festival_destinations {
+  id              String   @id @default(cuid())
+  festivalName    String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  genre           String?  @db.VarChar(100) // "electronic", "rock", "multi-genre"
+  typicalMonth    String?  @db.VarChar(20)
+  durationDays    Int?
+  ticketCost      Int?     // USD GA
+  attendeeCount   Int?
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model skatepark_destinations {
+  id              String   @id @default(cuid())
+  parkName        String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  parkRating      Int?     // 1-10
+  parkSize        String?  @db.VarChar(50) // "small", "medium", "large", "mega"
+  features        String?  @db.VarChar(255) // "bowl, street, vert, flow"
+  streetSpots     Int?     // 1-10 nearby street skating
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model conference_destinations {
+  id              String   @id @default(cuid())
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  majorConferences String? @db.Text // JSON array of conference names
+  startupScene    Int?     // 1-10
+  fintechFocus    Int?     // 1-10
+  vcPresence      Int?     // 1-10
+  networkingScore Int?     // 1-10
+  coworkingCount  Int?
+  monthlyRent     Int?
+  costIndex       Int?
+  nomadScore      Int?
+  nearestAirport  String?  @db.VarChar(10)
+  visaEase        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model nomad_cities {
+  id              String   @id @default(cuid())
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  wifiSpeed       Int?     // Mbps avg
+  coworkingCount  Int?
+  monthlyRent     Int?     // USD 1BR
+  costIndex       Int?     // 1-10 (10=cheapest)
+  safetyRating    Int?     // 1-10
+  weatherRating   Int?     // 1-10
+  foodScene       Int?     // 1-10
+  nightlife       Int?     // 1-10
+  nomadCommunity  Int?     // 1-10
+  visaEase        String?  @db.VarChar(50)
+  nearestAirport  String?  @db.VarChar(10)
+  timezone        String?  @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
