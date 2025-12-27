@@ -4,25 +4,53 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const MONTHS = [
-  { value: 1, label: 'January' },
-  { value: 2, label: 'February' },
-  { value: 3, label: 'March' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'May' },
-  { value: 6, label: 'June' },
-  { value: 7, label: 'July' },
-  { value: 8, label: 'August' },
-  { value: 9, label: 'September' },
-  { value: 10, label: 'October' },
-  { value: 11, label: 'November' },
-  { value: 12, label: 'December' }
+  { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+  { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+  { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+  { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
 ];
 
-const ACTIVITIES = [
-  { value: 'surf', label: 'Surf', icon: '🏄' },
-  { value: 'kitesurf', label: 'Kite Surf', icon: '🪁' },
-  { value: 'sail', label: 'Sail', icon: '⛵' },
-  { value: 'snowboard', label: 'Snowboard', icon: '🏂' }
+const ACTIVITY_GROUPS = [
+  {
+    label: 'Mountain',
+    activities: [
+      { value: 'snowboard', label: 'Snowboard', icon: '🏂' },
+      { value: 'mtb', label: 'Mountain Bike', icon: '🚵' },
+      { value: 'hike', label: 'Camp & Hike', icon: '🏕️' },
+      { value: 'climb', label: 'Rock Climb', icon: '🧗' },
+    ]
+  },
+  {
+    label: 'Water',
+    activities: [
+      { value: 'surf', label: 'Surf', icon: '🏄' },
+      { value: 'kitesurf', label: 'Kite Surf', icon: '🪁' },
+      { value: 'sail', label: 'Sail', icon: '⛵' },
+    ]
+  },
+  {
+    label: 'Endurance',
+    activities: [
+      { value: 'bike', label: 'Bike', icon: '🚴' },
+      { value: 'run', label: 'Run', icon: '🏃' },
+      { value: 'triathlon', label: 'Triathlon', icon: '🏊' },
+    ]
+  },
+  {
+    label: 'Lifestyle',
+    activities: [
+      { value: 'golf', label: 'Golf', icon: '⛳' },
+      { value: 'skate', label: 'Skateboard', icon: '🛹' },
+      { value: 'festival', label: 'Concert & Festival', icon: '🎪' },
+    ]
+  },
+  {
+    label: 'Business',
+    activities: [
+      { value: 'conference', label: 'Conference', icon: '🎤' },
+      { value: 'nomad', label: 'Meeting / Study', icon: '💼' },
+    ]
+  },
 ];
 
 export default function NewTripPage() {
@@ -31,7 +59,6 @@ export default function NewTripPage() {
   const [error, setError] = useState('');
   const [created, setCreated] = useState<{ id: string; inviteUrl: string } | null>(null);
 
-  // Trip details
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
   const [activity, setActivity] = useState('');
@@ -65,7 +92,8 @@ export default function NewTripPage() {
         throw new Error(data.error || 'Failed to create trip');
       }
 
-      const { trip } = await res.json(); const inviteUrl = `${window.location.origin}/trips/rsvp?token=${trip.inviteToken}`;
+      const { trip } = await res.json();
+      const inviteUrl = `${window.location.origin}/trips/rsvp?token=${trip.inviteToken}`;
       setCreated({ id: trip.id, inviteUrl });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trip');
@@ -77,14 +105,14 @@ export default function NewTripPage() {
   const copyInviteLink = () => {
     if (created?.inviteUrl) {
       navigator.clipboard.writeText(created.inviteUrl);
-      alert('Invite link copied! Share it with your travelers.');
+      alert('Invite link copied!');
     }
   };
 
   const currentYear = new Date().getFullYear();
   const years = [currentYear, currentYear + 1, currentYear + 2];
 
-  // Success screen after trip creation
+  // Success screen
   if (created) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -188,38 +216,46 @@ export default function NewTripPage() {
             />
           </div>
 
-          {/* Activity */}
+          {/* Activity Selection */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Activity *</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {ACTIVITIES.map(a => (
-                <button
-                  key={a.value}
-                  type="button"
-                  onClick={() => setActivity(a.value)}
-                  className={`p-4 rounded-xl border-2 text-center transition-all ${
-                    activity === a.value
-                      ? 'border-[#b4b237] bg-[#b4b237]/5'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-3xl mb-1">{a.icon}</div>
-                  <div className="text-sm font-medium text-gray-900">{a.label}</div>
-                </button>
+            <label className="block text-sm font-medium text-gray-700 mb-4">Activity *</label>
+            <div className="space-y-4">
+              {ACTIVITY_GROUPS.map(group => (
+                <div key={group.label}>
+                  <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">{group.label}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {group.activities.map(a => (
+                      <button
+                        key={a.value}
+                        type="button"
+                        onClick={() => setActivity(a.value)}
+                        className={`p-3 rounded-lg border-2 text-center transition-all ${
+                          activity === a.value
+                            ? 'border-[#b4b237] bg-[#b4b237]/10'
+                            : 'border-gray-100 hover:border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{a.icon}</div>
+                        <div className="text-xs font-medium text-gray-700">{a.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
           {/* Destination */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Destination (optional)</label>
             <input
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder="e.g., Canggu, Indonesia (or leave blank for TBD)"
+              placeholder="e.g., Canggu, Indonesia (or leave blank to compare)"
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
             />
+            <p className="text-xs text-gray-400 mt-2">Leave blank to compare destinations in the trip planner</p>
           </div>
 
           {/* When */}
@@ -282,13 +318,13 @@ export default function NewTripPage() {
             </div>
           </div>
 
-          {/* Info Box */}
+          {/* Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex gap-3">
               <div className="text-blue-500 text-xl">💡</div>
               <div className="text-sm text-blue-800">
                 <strong>How it works:</strong> After creating the trip, you'll get a shareable invite link. 
-                Send it to your travelers — they'll add their names and mark their blackout dates.
+                Send it to your crew — they'll add their names and mark blackout dates.
               </div>
             </div>
           </div>
