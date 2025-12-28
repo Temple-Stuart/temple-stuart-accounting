@@ -23,7 +23,7 @@ const handler = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user }) {
       if (user.email) {
         const existingUser = await prisma.users.findUnique({
           where: { email: user.email }
@@ -41,12 +41,6 @@ const handler = NextAuth({
         }
       }
       return true;
-    },
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-      }
-      return session;
     },
   },
   pages: {
