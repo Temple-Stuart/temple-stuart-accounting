@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 
-const prisma = new PrismaClient();
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments.production,
   baseOptions: {
@@ -16,79 +16,109 @@ const plaidClient = new PlaidApi(plaidConfig);
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify user
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { itemId } = await request.json();
-    const item = await prisma.plaid_items.findUnique({
-      where: { id: itemId }
+    
+    // Verify user owns this item
+    const item = await prisma.plaid_items.findFirst({
+      where: { 
+        id: itemId,
+        userId: user.id 
+      }
     });
 
     if (!item?.accessToken) {
-      return NextResponse.json({ error: 'No access token' }, { status: 400 });
+      return NextResponse.json({ error: 'Item not found or unauthorized' }, { status: 400 });
     }
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const txResponse = await plaidClient.transactionsSync({
+    // Sync transactions
+    const transactionsResponse = await plaidClient.transactionsGet({
       access_token: item.accessToken,
+      start_date: thirtyDaysAgo.toISOString().split('T')[0],
+      end_date: now.toISOString().split('T')[0],
     });
 
-    let addedCount = 0;
+    const transactions = transactionsResponse.data.transactions;
+    const accounts = transactionsResponse.data.accounts;
 
-    for (const tx of txResponse.data.added) {
-      const account = await prisma.accounts.findFirst({
-        where: { accountId: tx.account_id }
+    // Update accounts
+    for (const account of accounts) {
+      await prisma.accounts.upsert({
+        where: { plaidAccountId: account.account_id },
+        update: {
+          currentBalance: account.balances.current,
+          availableBalance: account.balances.available,
+        },
+        create: {
+          plaidAccountId: account.account_id,
+          plaidItemId: item.id,
+          userId: user.id,
+          name: account.name,
+          officialName: account.official_name,
+          type: account.type,
+          subtype: account.subtype || '',
+          mask: account.mask,
+          currentBalance: account.balances.current,
+          availableBalance: account.balances.available,
+        },
+      });
+    }
+
+    // Upsert transactions
+    for (const txn of transactions) {
+      const account = await prisma.accounts.findUnique({
+        where: { plaidAccountId: txn.account_id }
       });
       
       if (account) {
         await prisma.transactions.upsert({
-          where: { transactionId: tx.transaction_id },
-          create: {
-            id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            accountId: account.id,
-            transactionId: tx.transaction_id,
-            amount: tx.amount,
-            date: new Date(tx.date),
-            name: tx.name,
-            merchantName: tx.merchant_name,
-            category: tx.category?.join(', '),
-            pending: tx.pending,
-            updatedAt: new Date()
-          },
+          where: { plaidTransactionId: txn.transaction_id },
           update: {
-            amount: tx.amount,
-            pending: tx.pending,
-            updatedAt: new Date()
-          }
+            amount: txn.amount,
+            date: new Date(txn.date),
+            name: txn.name,
+            merchantName: txn.merchant_name,
+            category: txn.category?.[0] || null,
+            pending: txn.pending,
+          },
+          create: {
+            plaidTransactionId: txn.transaction_id,
+            accountId: account.id,
+            amount: txn.amount,
+            date: new Date(txn.date),
+            name: txn.name,
+            merchantName: txn.merchant_name,
+            category: txn.category?.[0] || null,
+            pending: txn.pending,
+          },
         });
-        addedCount++;
       }
-    }
-
-    const balances = await plaidClient.accountsBalanceGet({
-      access_token: item.accessToken
-    });
-
-    for (const acc of balances.data.accounts) {
-      await prisma.accounts.updateMany({
-        where: { accountId: acc.account_id },
-        data: {
-          currentBalance: acc.balances.current || 0,
-          availableBalance: acc.balances.available || 0
-        }
-      });
     }
 
     return NextResponse.json({ 
       success: true, 
-      addedCount,
-      updatedBalances: balances.data.accounts.length
+      synced: transactions.length 
     });
   } catch (error: any) {
     console.error('Sync error:', error);
-    return NextResponse.json({
-      error: error.message
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
