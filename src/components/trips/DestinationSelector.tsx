@@ -2,137 +2,61 @@
 
 import { useState, useEffect } from 'react';
 
-interface Destination {
+interface Resort {
   id: string;
-  name?: string;
-  city?: string;
-  country?: string;
-  region?: string;
-  nearestAirport?: string;
-  // Activity-specific fields
-  waveConsistency?: number;
-  nomadScore?: number;
-  monthlyRent?: number;
-  greenFee?: number;
-  routeVariety?: number;
-  raceName?: string;
-  eventName?: string;
-  parkName?: string;
-  festivalName?: string;
+  name: string;
+  region: string;
+  country: string;
+  state: string | null;
+  nearestAirport: string | null;
+  verticalDrop: number | null;
+  avgSnowfall: number | null;
 }
 
 interface SelectedDestination {
   id: string;
   resortId: string;
-  resort: Destination;
+  resort: Resort;
 }
 
 interface Props {
   tripId: string;
-  activity: string | null;
   selectedDestinations: SelectedDestination[];
   onDestinationsChange: () => void;
 }
 
-const ACTIVITY_CONFIG: Record<string, { label: string; nameField: string; columns: { key: string; label: string; format?: (v: any) => string }[] }> = {
-  snowboard: { label: '🏂 Ski Resorts', nameField: 'name', columns: [
-    { key: 'region', label: 'Region' },
-    { key: 'nearestAirport', label: 'Airport' },
-  ]},
-  mtb: { label: '🚵 Mountain Bike', nameField: 'name', columns: [
-    { key: 'region', label: 'Region' },
-  ]},
-  surf: { label: '🏄 Surf Spots', nameField: 'name', columns: [
-    { key: 'country', label: 'Country' },
-    { key: 'waveConsistency', label: 'Waves', format: v => v ? `${v}/10` : '-' },
-    { key: 'monthlyRent', label: 'Rent', format: v => v ? `$${v}` : '-' },
-    { key: 'nomadScore', label: 'Nomad', format: v => v ? `${v}/10` : '-' },
-  ]},
-  kitesurf: { label: '🪁 Kite Spots', nameField: 'name', columns: [
-    { key: 'country', label: 'Country' },
-    { key: 'nomadScore', label: 'Nomad', format: v => v ? `${v}/10` : '-' },
-  ]},
-  sail: { label: '⛵ Sailing', nameField: 'name', columns: [
-    { key: 'country', label: 'Country' },
-  ]},
-  golf: { label: '⛳ Golf Courses', nameField: 'name', columns: [
-    { key: 'city', label: 'City' },
-    { key: 'greenFee', label: 'Green Fee', format: v => v ? `$${v}` : '-' },
-    { key: 'nomadScore', label: 'Nomad', format: v => v ? `${v}/10` : '-' },
-  ]},
-  bike: { label: '🚴 Cycling', nameField: 'city', columns: [
-    { key: 'country', label: 'Country' },
-    { key: 'terrainType', label: 'Terrain' },
-    { key: 'nomadScore', label: 'Nomad', format: v => v ? `${v}/10` : '-' },
-  ]},
-  run: { label: '🏃 Races', nameField: 'raceName', columns: [
-    { key: 'city', label: 'City' },
-    { key: 'raceType', label: 'Type' },
-    { key: 'typicalMonth', label: 'Month' },
-  ]},
-  triathlon: { label: '🏊 Triathlons', nameField: 'eventName', columns: [
-    { key: 'city', label: 'City' },
-    { key: 'distance', label: 'Distance' },
-    { key: 'typicalMonth', label: 'Month' },
-  ]},
-  skate: { label: '🛹 Skateparks', nameField: 'parkName', columns: [
-    { key: 'city', label: 'City' },
-    { key: 'parkRating', label: 'Rating', format: v => v ? `${v}/10` : '-' },
-  ]},
-  festival: { label: '🎪 Festivals', nameField: 'festivalName', columns: [
-    { key: 'city', label: 'City' },
-    { key: 'genre', label: 'Genre' },
-    { key: 'typicalMonth', label: 'Month' },
-  ]},
-  conference: { label: '🎤 Conferences', nameField: 'city', columns: [
-    { key: 'country', label: 'Country' },
-    { key: 'startupScene', label: 'Startup', format: v => v ? `${v}/10` : '-' },
-  ]},
-  nomad: { label: '💼 Nomad Cities', nameField: 'city', columns: [
-    { key: 'country', label: 'Country' },
-    { key: 'nomadCommunity', label: 'Community', format: v => v ? `${v}/10` : '-' },
-    { key: 'monthlyRent', label: 'Rent', format: v => v ? `$${v}` : '-' },
-  ]},
-};
-
-export default function DestinationSelector({ tripId, activity, selectedDestinations, onDestinationsChange }: Props) {
-  const [destinations, setDestinations] = useState<Destination[]>([]);
+export default function DestinationSelector({ tripId, selectedDestinations, onDestinationsChange }: Props) {
+  const [resorts, setResorts] = useState<Resort[]>([]);
+  const [grouped, setGrouped] = useState<Record<string, Record<string, Resort[]>>>({});
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const config = ACTIVITY_CONFIG[activity || 'snowboard'] || ACTIVITY_CONFIG.snowboard;
-
   useEffect(() => {
-    loadDestinations();
-  }, [activity]);
+    loadResorts();
+  }, []);
 
-  const loadDestinations = async () => {
-    if (!activity) return;
+  const loadResorts = async () => {
     try {
-      const res = await fetch(`/api/destinations?activity=${activity}`);
+      const res = await fetch('/api/resorts');
       if (res.ok) {
         const data = await res.json();
-        setDestinations(data.destinations || []);
+        setResorts(data.resorts || []);
+        setGrouped(data.grouped || {});
       }
     } catch (err) {
-      console.error('Failed to load destinations:', err);
+      console.error('Failed to load resorts:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getDisplayName = (dest: Destination): string => {
-    const field = config.nameField as keyof Destination;
-    return (dest[field] as string) || dest.name || dest.city || 'Unknown';
-  };
-
-  const addDestination = async (destinationId: string) => {
+  const addDestination = async (resortId: string) => {
     try {
       const res = await fetch(`/api/trips/${tripId}/destinations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resortId: destinationId })
+        body: JSON.stringify({ resortId })
       });
       if (res.ok) {
         onDestinationsChange();
@@ -142,12 +66,12 @@ export default function DestinationSelector({ tripId, activity, selectedDestinat
     }
   };
 
-  const removeDestination = async (destinationId: string) => {
+  const removeDestination = async (resortId: string) => {
     try {
       const res = await fetch(`/api/trips/${tripId}/destinations`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resortId: destinationId })
+        body: JSON.stringify({ resortId })
       });
       if (res.ok) {
         onDestinationsChange();
@@ -157,119 +81,172 @@ export default function DestinationSelector({ tripId, activity, selectedDestinat
     }
   };
 
+  const isSelected = (resortId: string) => 
+    selectedDestinations.some(d => d.resortId === resortId);
+
+  const filteredResorts = searchQuery
+    ? resorts.filter(r => 
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.region.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
+
   const selectedIds = new Set(selectedDestinations.map(d => d.resortId));
-
-  const filteredDestinations = destinations.filter(dest => {
-    const name = getDisplayName(dest).toLowerCase();
-    const country = (dest.country || '').toLowerCase();
-    const city = (dest.city || '').toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return name.includes(query) || country.includes(query) || city.includes(query);
-  });
-
-  if (!activity) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No activity selected for this trip
-      </div>
-    );
-  }
 
   return (
     <div>
-      {/* Selected Destinations */}
-      {selectedDestinations.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-500 mb-2">Selected for comparison:</h4>
-          <div className="flex flex-wrap gap-2">
-            {selectedDestinations.map(dest => (
-              <div key={dest.id} className="flex items-center gap-2 bg-[#b4b237]/20 border border-[#b4b237]/40 rounded-lg px-3 py-1.5">
-                <span className="text-sm font-medium text-gray-900">{getDisplayName(dest.resort)}</span>
-                <button
-                  onClick={() => removeDestination(dest.resortId)}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+      {/* Selected Destinations Pills */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {selectedDestinations.map(d => (
+          <div
+            key={d.id}
+            className="flex items-center gap-2 bg-blue-600/20 border border-blue-600/40 rounded-full px-3 py-1"
+          >
+            <span className="text-sm text-blue-300">{d.resort.name}</span>
+            <button
+              onClick={() => removeDestination(d.resortId)}
+              className="text-blue-400 hover:text-red-400 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={() => setShowPicker(!showPicker)}
+          className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200"
+        >
+          + Add Destination
+        </button>
+      </div>
+
+      {/* Destination Picker */}
+      {showPicker && (
+        <div className="bg-gray-100 rounded-lg p-4 border border-gray-200 mb-4">
+          <input
+            type="text"
+            placeholder="Search resorts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm mb-4"
+            autoFocus
+          />
+
+          {searchQuery ? (
+            // Search Results
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {filteredResorts.length > 0 ? (
+                filteredResorts.map(resort => (
+                  <button
+                    key={resort.id}
+                    onClick={() => {
+                      if (!isSelected(resort.id)) {
+                        addDestination(resort.id);
+                      }
+                      setSearchQuery('');
+                    }}
+                    disabled={isSelected(resort.id)}
+                    className={`w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center ${
+                      isSelected(resort.id)
+                        ? 'bg-blue-600/20 text-blue-300'
+                        : 'hover:bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <span>
+                      {resort.name}
+                      <span className="text-gray-400 ml-2 text-xs">
+                        {resort.state ? `${resort.state}, ` : ''}{resort.country}
+                      </span>
+                    </span>
+                    {resort.verticalDrop && (
+                      <span className="text-xs text-gray-400">
+                        {resort.verticalDrop}ft • {resort.avgSnowfall}"
+                      </span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <p className="text-gray-400 text-sm">No resorts found</p>
+              )}
+            </div>
+          ) : (
+            // Grouped List
+            <div className="max-h-80 overflow-y-auto">
+              {Object.entries(grouped).map(([country, regions]) => (
+                <div key={country} className="mb-4">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{country}</h4>
+                  {Object.entries(regions).map(([region, regionResorts]) => (
+                    <div key={region} className="mb-2">
+                      <h5 className="text-xs text-gray-400 mb-1 ml-2">{region}</h5>
+                      <div className="space-y-1">
+                        {regionResorts.map(resort => (
+                          <button
+                            key={resort.id}
+                            onClick={() => {
+                              if (!isSelected(resort.id)) {
+                                addDestination(resort.id);
+                              }
+                            }}
+                            disabled={isSelected(resort.id)}
+                            className={`w-full text-left px-3 py-1.5 rounded text-sm flex justify-between items-center ${
+                              isSelected(resort.id)
+                                ? 'bg-blue-600/20 text-blue-300'
+                                : 'hover:bg-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>{resort.name}</span>
+                            {isSelected(resort.id) && <span className="text-xs">✓</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={() => {
+                setShowPicker(false);
+                setSearchQuery('');
+              }}
+              className="px-4 py-1 text-sm bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
 
-      {/* Add Destination Button */}
-      <button
-        onClick={() => setShowPicker(!showPicker)}
-        className="px-4 py-2 bg-[#b4b237] text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium"
-      >
-        {showPicker ? 'Close' : `+ Add ${config.label}`}
-      </button>
-
-      {/* Destination Picker */}
-      {showPicker && (
-        <div className="mt-4 bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-gray-200">
-            <input
-              type="text"
-              placeholder="Search destinations..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#b4b237]"
-            />
-          </div>
-
-          {loading ? (
-            <div className="p-4 text-center text-gray-500">Loading...</div>
-          ) : (
-            <div className="max-h-80 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="text-left py-2 px-3 font-medium text-gray-500">Name</th>
-                    {config.columns.map(col => (
-                      <th key={col.key} className="text-left py-2 px-3 font-medium text-gray-500">{col.label}</th>
-                    ))}
-                    <th className="w-20"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDestinations.map(dest => {
-                    const isSelected = selectedIds.has(dest.id);
-                    return (
-                      <tr 
-                        key={dest.id} 
-                        className={`border-t border-gray-100 ${isSelected ? 'bg-[#b4b237]/10' : 'hover:bg-gray-50'}`}
-                      >
-                        <td className="py-2 px-3 font-medium text-gray-900">{getDisplayName(dest)}</td>
-                        {config.columns.map(col => (
-                          <td key={col.key} className="py-2 px-3 text-gray-600">
-                            {col.format ? col.format((dest as any)[col.key]) : ((dest as any)[col.key] || '-')}
-                          </td>
-                        ))}
-                        <td className="py-2 px-3">
-                          {isSelected ? (
-                            <button
-                              onClick={() => removeDestination(dest.id)}
-                              className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
-                            >
-                              Remove
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => addDestination(dest.id)}
-                              className="px-2 py-1 text-xs bg-[#b4b237] text-white rounded hover:shadow"
-                            >
-                              Add
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* Comparison Table */}
+      {selectedDestinations.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 px-3 text-gray-500">Resort</th>
+                <th className="text-left py-2 px-3 text-gray-500">Location</th>
+                <th className="text-right py-2 px-3 text-gray-500">Vertical</th>
+                <th className="text-right py-2 px-3 text-gray-500">Snowfall</th>
+                <th className="text-center py-2 px-3 text-gray-500">Airport</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedDestinations.map(d => (
+                <tr key={d.id} className="border-b border-gray-200">
+                  <td className="py-2 px-3 font-medium">{d.resort.name}</td>
+                  <td className="py-2 px-3 text-gray-500">
+                    {d.resort.state ? `${d.resort.state}, ` : ''}{d.resort.country}
+                  </td>
+                  <td className="py-2 px-3 text-right">{d.resort.verticalDrop?.toLocaleString() || '-'} ft</td>
+                  <td className="py-2 px-3 text-right">{d.resort.avgSnowfall || '-'}"</td>
+                  <td className="py-2 px-3 text-center font-mono text-xs">{d.resort.nearestAirport || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
