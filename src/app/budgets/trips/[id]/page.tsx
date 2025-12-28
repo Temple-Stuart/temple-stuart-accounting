@@ -180,6 +180,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const selectDestination = async (resortId: string, resortName: string) => {
+    try {
+      const res = await fetch(`/api/trips/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: resortName })
+      });
+      if (res.ok) {
+        setTrip(prev => prev ? { ...prev, destination: resortName } : null);
+      }
+    } catch (err) {
+      console.error("Failed to select destination:", err);
+    }
+  };
+
   const copyInviteLink = () => {
     if (trip?.inviteToken) {
       const url = `${window.location.origin}/trips/rsvp?token=${trip.inviteToken}`;
@@ -500,6 +515,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             tripId={id}
             selectedDestinations={destinations}
             onDestinationsChange={loadDestinations}
+            selectedDestinationId={destinations.find(d => d.resort.name === trip.destination)?.resortId}
+            onSelectDestination={selectDestination}
           />
         </section>
         {/* ═══════════════════════════════════════════════════════════════════ */}

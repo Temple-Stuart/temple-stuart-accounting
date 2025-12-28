@@ -145,3 +145,49 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete trip' }, { status: 500 });
   }
 }
+
+// PATCH - Update trip (e.g., destination)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail },
+      select: { id: true }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id }
+    });
+
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found or not authorized' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { destination } = body;
+
+    const updatedTrip = await prisma.trips.update({
+      where: { id },
+      data: { destination }
+    });
+
+    return NextResponse.json({ trip: updatedTrip });
+  } catch (error) {
+    console.error('Update trip error:', error);
+    return NextResponse.json({ error: 'Failed to update trip' }, { status: 500 });
+  }
+}

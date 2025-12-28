@@ -9,33 +9,25 @@ interface Resort {
   country: string;
   state: string | null;
   nearestAirport: string | null;
-  // Snowboard
   verticalDrop: number | null;
   avgSnowfall: number | null;
-  // Surf
   waveConsistency?: number | null;
   waveType?: string | null;
   waterTempLow?: number | null;
   waterTempHigh?: number | null;
   bestMonths?: string | null;
-  // Golf
   greenFee?: number | null;
   sceneryRating?: number | null;
   courseRating?: number | null;
-  // Cycling
   routeVariety?: number | null;
   terrainType?: string | null;
-  // Race/Triathlon
   raceType?: string | null;
   distance?: string | null;
   typicalMonth?: string | null;
-  // Festival
   genre?: string | null;
   durationDays?: number | null;
-  // Skate
   parkRating?: number | null;
   parkSize?: string | null;
-  // Conference/Nomad
   startupScene?: number | null;
   nomadCommunity?: number | null;
   wifiSpeed?: number | null;
@@ -53,9 +45,10 @@ interface Props {
   tripId: string;
   selectedDestinations: SelectedDestination[];
   onDestinationsChange: () => void;
+  selectedDestinationId?: string | null;
+  onSelectDestination?: (resortId: string, resortName: string) => void;
 }
 
-// Activity-specific column configurations
 const ACTIVITY_COLUMNS: Record<string, { key: string; label: string; align: string; format: (r: Resort) => string }[]> = {
   snowboard: [
     { key: 'verticalDrop', label: 'Vertical', align: 'right', format: r => r.verticalDrop ? `${r.verticalDrop.toLocaleString()} ft` : '-' },
@@ -113,7 +106,14 @@ const ACTIVITY_COLUMNS: Record<string, { key: string; label: string; align: stri
   ],
 };
 
-export default function DestinationSelector({ tripId, activity, selectedDestinations, onDestinationsChange }: Props) {
+export default function DestinationSelector({ 
+  tripId, 
+  activity, 
+  selectedDestinations, 
+  onDestinationsChange,
+  selectedDestinationId,
+  onSelectDestination 
+}: Props) {
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [grouped, setGrouped] = useState<Record<string, Record<string, Resort[]>>>({});
   const [loading, setLoading] = useState(true);
@@ -189,12 +189,19 @@ export default function DestinationSelector({ tripId, activity, selectedDestinat
         {selectedDestinations.map(d => (
           <div
             key={d.id}
-            className="flex items-center gap-2 bg-[#b4b237]/20 border border-[#b4b237]/40 rounded-full px-3 py-1"
+            className={`flex items-center gap-2 rounded-full px-3 py-1 ${
+              selectedDestinationId === d.resortId 
+                ? 'bg-[#b4b237] text-white' 
+                : 'bg-[#b4b237]/20 border border-[#b4b237]/40'
+            }`}
           >
-            <span className="text-sm text-gray-700">{d.resort.name}</span>
+            <span className={`text-sm ${selectedDestinationId === d.resortId ? 'text-white' : 'text-gray-700'}`}>
+              {d.resort.name}
+              {selectedDestinationId === d.resortId && ' ✓'}
+            </span>
             <button
               onClick={() => removeDestination(d.resortId)}
-              className="text-gray-400 hover:text-red-500 text-xs"
+              className={`text-xs ${selectedDestinationId === d.resortId ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'}`}
             >
               ✕
             </button>
@@ -307,6 +314,9 @@ export default function DestinationSelector({ tripId, activity, selectedDestinat
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
+                {onSelectDestination && (
+                  <th className="text-center py-2 px-2 text-gray-500 w-16">Select</th>
+                )}
                 <th className="text-left py-2 px-3 text-gray-500">Destination</th>
                 <th className="text-left py-2 px-3 text-gray-500">Location</th>
                 {columns.map(col => (
@@ -317,7 +327,24 @@ export default function DestinationSelector({ tripId, activity, selectedDestinat
             </thead>
             <tbody>
               {selectedDestinations.map(d => (
-                <tr key={d.id} className="border-b border-gray-200">
+                <tr 
+                  key={d.id} 
+                  className={`border-b border-gray-200 ${selectedDestinationId === d.resortId ? 'bg-[#b4b237]/10' : ''}`}
+                >
+                  {onSelectDestination && (
+                    <td className="py-2 px-2 text-center">
+                      {selectedDestinationId === d.resortId ? (
+                        <span className="text-[#b4b237] font-bold">✓</span>
+                      ) : (
+                        <button
+                          onClick={() => onSelectDestination(d.resortId, d.resort.name)}
+                          className="px-2 py-1 text-xs bg-[#b4b237] text-white rounded hover:bg-[#9a9630] transition-all"
+                        >
+                          Select
+                        </button>
+                      )}
+                    </td>
+                  )}
                   <td className="py-2 px-3 font-medium">{d.resort.name}</td>
                   <td className="py-2 px-3 text-gray-500">
                     {d.resort.state ? `${d.resort.state}, ` : ''}{d.resort.country}
