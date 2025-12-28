@@ -3,6 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import GitHubProvider from 'next-auth/providers/github';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
+import { cookies } from 'next/headers';
 
 const prisma = new PrismaClient();
 
@@ -25,10 +26,12 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user }) {
       if (user.email) {
+        // Check if user exists in our users table
         const existingUser = await prisma.users.findUnique({
           where: { email: user.email }
         });
         if (!existingUser) {
+          // Create user in our users table
           await prisma.users.create({
             data: {
               id: generateId(),
@@ -39,6 +42,15 @@ const handler = NextAuth({
             }
           });
         }
+        
+        // Set the userEmail cookie for API routes
+        const cookieStore = await cookies();
+        cookieStore.set('userEmail', user.email, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+        });
       }
       return true;
     },
