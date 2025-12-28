@@ -496,7 +496,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         <section className="bg-white rounded-lg p-6 border border-gray-200">
           <h2 className="text-xl font-semibold mb-4">🏔️ Destinations to Compare</h2>
           <DestinationSelector
-            activity={trip.activity}
             tripId={id}
             selectedDestinations={destinations}
             onDestinationsChange={loadDestinations}
