@@ -25,17 +25,20 @@ export default function Header() {
               />
             </Link>
 
-            {/* Two Buttons - Temple Stuart OS and Email */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Two Buttons */}
+            <div className="flex items-center space-x-3 sm:space-x-4">
               <button 
                 onClick={() => setShowLogin(true)}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white rounded-lg hover:shadow-xl font-medium transition-all text-sm sm:text-base"
+                className="group inline-flex items-center px-6 sm:px-8 py-3 bg-gray-900 text-white font-medium rounded-full hover:bg-[#b4b237] transition-all text-sm sm:text-base shadow-lg hover:shadow-[#b4b237]/25"
               >
-                Temple Stuart OS
+                Enter OS
+                <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
               <a 
                 href="mailto:astuart@templestuart.com?subject=Project%20Inquiry"
-                className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-[#b4b237] hover:text-[#b4b237] font-medium transition-all text-sm sm:text-base"
+                className="inline-flex items-center px-6 sm:px-8 py-3 bg-white border-2 border-gray-900 text-gray-900 font-medium rounded-full hover:border-[#b4b237] hover:text-[#b4b237] transition-all text-sm sm:text-base"
               >
                 Email
               </a>
@@ -47,12 +50,10 @@ export default function Header() {
       {/* Login Modal */}
       {showLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowLogin(false)}
           />
-          {/* Modal */}
           <div className="relative z-10">
             <LoginBox onClose={() => setShowLogin(false)} />
           </div>
