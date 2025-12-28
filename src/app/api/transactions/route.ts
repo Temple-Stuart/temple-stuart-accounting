@@ -57,8 +57,8 @@ export async function GET() {
       accountName: txn.accounts?.name,
       accountType: txn.accounts?.type,
       institutionName: txn.accounts?.plaid_items?.institutionName,
-      coaId: txn.coaId,
-      subAccountId: txn.subAccountId,
+      accountCode: txn.accountCode,
+      subAccount: txn.subAccount,
     }));
 
     return NextResponse.json(transformedTransactions);
