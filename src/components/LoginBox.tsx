@@ -10,6 +10,7 @@ interface LoginBoxProps {
 
 export default function LoginBox({ onClose }: LoginBoxProps) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (res.ok) {
@@ -96,6 +97,13 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
           placeholder="Email address"
           className="w-full px-4 py-3 border border-gray-200 rounded-full text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#b4b237] mb-3"
           required
+        />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          className="w-full px-4 py-3 border border-gray-200 rounded-full text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#b4b237] mb-3"
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <button
