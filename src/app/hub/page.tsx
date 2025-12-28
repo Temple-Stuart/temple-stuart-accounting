@@ -1,15 +1,40 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 
 const modules = [
   { name: 'Bookkeeping', description: 'Double-entry ledger & financial statements', href: '/dashboard', icon: '📒' },
-  { name: 'Group Travel', description: 'Plan trips, split expenses, track costs', href: '/budgets/trips', icon: '✈️' },
-  { name: 'Budget', description: 'Budget by category, plan your year', href: '/hub/itinerary', icon: '📅' },
+  { name: 'Agenda & Budget', description: 'Plan trips, split expenses, track costs', href: '/budgets/trips', icon: '✈️' },
+  { name: 'Budget Review', description: 'Budget by category, plan your year', href: '/hub/itinerary', icon: '📅' },
 ];
 
 export default function HubPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    // Set cookie when session is available
+    if (session?.user?.email) {
+      document.cookie = `userEmail=${session.user.email}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+    }
+  }, [session]);
+
+  // Redirect to home if not logged in
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/');
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -21,41 +46,44 @@ export default function HubPage() {
             </div>
             <div className="hidden sm:block">
               <div className="font-semibold text-gray-900">Temple Stuart OS</div>
-              <div className="text-xs text-gray-400">Command Hub</div>
+              <div className="text-xs text-gray-400">Welcome, {session?.user?.name || session?.user?.email}</div>
             </div>
           </div>
           <button 
             onClick={() => router.push('/')}
             className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
-            ← Home
+            ← Back
           </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <div className="space-y-3">
-          {modules.map((mod) => (
+      <main className="max-w-3xl mx-auto px-4 py-12">
+        <h1 className="text-3xl font-light text-gray-900 mb-8 text-center">
+          What would you like to do?
+        </h1>
+
+        <div className="grid gap-4">
+          {modules.map((module) => (
             <button
-              key={mod.name}
-              onClick={() => router.push(mod.href)}
-              className="w-full text-left px-6 py-5 rounded-xl border bg-white border-gray-200 hover:border-[#b4b237] hover:shadow-md cursor-pointer transition-all group"
+              key={module.name}
+              onClick={() => router.push(module.href)}
+              className="bg-white rounded-xl border border-gray-200 p-6 text-left hover:border-[#b4b237] hover:shadow-lg transition-all group"
             >
               <div className="flex items-center gap-4">
-                <span className="text-3xl">{mod.icon}</span>
-                <div className="flex-1">
-                  <span className="font-semibold text-gray-900 group-hover:text-[#b4b237] text-lg">
-                    {mod.name}
-                  </span>
-                  <p className="text-sm text-gray-500">{mod.description}</p>
+                <div className="text-4xl">{module.icon}</div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 group-hover:text-[#b4b237] transition-colors">
+                    {module.name}
+                  </h2>
+                  <p className="text-gray-500">{module.description}</p>
                 </div>
-                <span className="text-gray-400 group-hover:text-[#b4b237] transition-colors text-xl">→</span>
+                <div className="ml-auto text-gray-300 group-hover:text-[#b4b237] transition-colors">
+                  →
+                </div>
               </div>
             </button>
           ))}
-        </div>
-        <div className="mt-12 text-center">
-          <p className="text-xs text-gray-400">More modules coming soon</p>
         </div>
       </main>
     </div>
