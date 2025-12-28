@@ -12,11 +12,6 @@ const ACTIVITIES: Record<string, string> = {
   festival: '🎪 Festival Trip', conference: '🎤 Conference Trip', nomad: '💼 Workation',
 };
 
-type Props = {
-  children: React.ReactNode;
-  searchParams: Promise<{ token?: string }>;
-};
-
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ token?: string }> }): Promise<Metadata> {
   const params = await searchParams;
   const token = params.token;
@@ -49,13 +44,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       };
     }
 
-    const activityLabel = trip.activity ? ACTIVITIES[trip.activity] || 'Trip' : 'Trip';
     const monthName = MONTHS[trip.month];
     const description = `${trip.owner.name} invited you to ${trip.name}${trip.destination ? ` in ${trip.destination}` : ''} - ${monthName} ${trip.year}`;
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://temple-stuart-accounting.vercel.app';
     
-    // Build OG image URL with trip details
     const ogParams = new URLSearchParams({
       name: trip.name,
       destination: trip.destination || '',
@@ -92,6 +85,6 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   }
 }
 
-export default function RSVPLayout({ children }: Props) {
+export default function RSVPLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
