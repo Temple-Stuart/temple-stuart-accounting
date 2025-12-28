@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const items = await prisma.plaid_items.findMany({
+      where: { userId: user.id },
       include: {
         accounts: {
           include: {
@@ -25,28 +40,22 @@ export async function GET(request: NextRequest) {
     const transformedItems = items.map(item => ({
       id: item.id,
       institutionName: item.institutionName,
-      accessToken: item.accessToken,
       accounts: item.accounts.map(account => ({
         id: account.id,
-        accountId: account.accountId,
         name: account.name,
         type: account.type,
         subtype: account.subtype,
-        // CRITICAL FIX: Use currentBalance and map to balance
-        balance: account.currentBalance || 0,
-        available_balance: account.availableBalance || 0,
+        mask: account.mask,
+        currentBalance: account.currentBalance,
+        availableBalance: account.availableBalance,
         transactions: account.transactions,
-        investment_transactions: account.investment_transactions
+        investment_transactions: account.investment_transactions,
       }))
     }));
 
-    return NextResponse.json({ items: transformedItems });
-
+    return NextResponse.json(transformedItems);
   } catch (error) {
-    console.error('Error fetching accounts:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch accounts' },
-      { status: 500 }
-    );
+    console.error('Accounts error:', error);
+    return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
   }
 }

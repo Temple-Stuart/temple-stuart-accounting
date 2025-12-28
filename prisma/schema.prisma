@@ -66,6 +66,7 @@ model category_coa_defaults {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model chart_of_accounts {
+  userId          String?
   id              String           @id @db.Uuid
   code            String           @unique @db.VarChar(50)
   name            String           @db.VarChar(255)
@@ -78,6 +79,7 @@ model chart_of_accounts {
   entity_type     String?          @db.VarChar(10)
   created_at      DateTime         @default(now())
   updated_at      DateTime         @default(now())
+  user            users?           @relation(fields: [userId], references: [id])
   ledger_entries  ledger_entries[]
 }
 
@@ -344,6 +346,7 @@ model users {
   bank_reconciliations bank_reconciliations[]
   period_closes        period_closes[]
   trips                trips[]
+  chart_of_accounts    chart_of_accounts[]
 }
 
 model budgets {
