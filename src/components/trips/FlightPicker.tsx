@@ -101,15 +101,15 @@ export default function FlightPicker({
   };
 
   return (
-    <div className="bg-zinc-800 rounded-lg border border-zinc-700 overflow-hidden">
+    <div className="bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
       {/* Header */}
       <div 
-        className="p-4 cursor-pointer hover:bg-zinc-750 flex justify-between items-center"
+        className="p-4 cursor-pointer hover:bg-gray-100 flex justify-between items-center"
         onClick={() => flights.length > 0 ? setExpanded(!expanded) : fetchFlights()}
       >
         <div>
           <div className="font-medium">{destinationName}</div>
-          <div className="text-sm text-zinc-400">
+          <div className="text-sm text-gray-500">
             {originAirport} → {destinationAirport} • {departureDate} to {returnDate}
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function FlightPicker({
         {selectedFlight ? (
           <div className="text-right">
             <div className="text-green-400 font-bold">${selectedFlight.price}</div>
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-gray-500">
               {selectedFlight.outbound?.carriers?.map((c: string) => getAirlineName(c)).join(', ')}
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function FlightPicker({
           <button
             onClick={(e) => { e.stopPropagation(); fetchFlights(); }}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500 disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-gray-900 rounded text-sm hover:bg-blue-500 disabled:opacity-50"
           >
             {loading ? '⏳ Loading...' : '🔍 Search Flights'}
           </button>
@@ -134,14 +134,14 @@ export default function FlightPicker({
 
       {/* Selected Flight Summary */}
       {selectedFlight && !expanded && (
-        <div className="px-4 pb-3 border-t border-zinc-700">
+        <div className="px-4 pb-3 border-t border-gray-200">
           <div className="flex justify-between items-center text-sm pt-2">
             <div>
-              <span className="text-zinc-300">Depart:</span>
-              <span className="ml-2 text-white">{formatTime(selectedFlight.outbound?.departure?.localTime || '')}</span>
-              <span className="mx-2 text-zinc-500">→</span>
-              <span className="text-white">{formatTime(selectedFlight.outbound?.arrival?.localTime || '')}</span>
-              <span className="ml-2 text-zinc-500">
+              <span className="text-gray-600">Depart:</span>
+              <span className="ml-2 text-gray-900">{formatTime(selectedFlight.outbound?.departure?.localTime || '')}</span>
+              <span className="mx-2 text-gray-400">→</span>
+              <span className="text-gray-900">{formatTime(selectedFlight.outbound?.arrival?.localTime || '')}</span>
+              <span className="ml-2 text-gray-400">
                 ({selectedFlight.outbound?.stops === 0 ? 'Direct' : `${selectedFlight.outbound?.stops} stop`})
               </span>
             </div>
@@ -157,13 +157,13 @@ export default function FlightPicker({
 
       {/* Flight Options List */}
       {expanded && (
-        <div className="border-t border-zinc-700">
+        <div className="border-t border-gray-200">
           {error && (
             <div className="p-4 text-red-400 text-sm">{error}</div>
           )}
           
           {flights.length === 0 && !loading && !error && (
-            <div className="p-4 text-zinc-500 text-sm">No flights found for these dates.</div>
+            <div className="p-4 text-gray-400 text-sm">No flights found for these dates.</div>
           )}
 
           {flights.map((flight, idx) => (
@@ -173,23 +173,23 @@ export default function FlightPicker({
                 onSelectFlight(flight);
                 setExpanded(false);
               }}
-              className={`p-4 border-b border-zinc-700 last:border-b-0 cursor-pointer transition-colors ${
+              className={`p-4 border-b border-gray-200 last:border-b-0 cursor-pointer transition-colors ${
                 selectedFlight?.id === flight.id 
                   ? 'bg-blue-600/20 border-l-2 border-l-blue-500' 
-                  : 'hover:bg-zinc-700/50'
+                  : 'hover:bg-gray-200/50'
               }`}
             >
               <div className="flex justify-between items-start">
                 {/* Outbound */}
                 <div className="flex-1">
-                  <div className="text-xs text-zinc-500 mb-1">OUTBOUND • {flight.outbound?.departure?.date}</div>
+                  <div className="text-xs text-gray-400 mb-1">OUTBOUND • {flight.outbound?.departure?.date}</div>
                   <div className="flex items-center gap-3">
-                    <div className="text-lg font-bold text-white">
+                    <div className="text-lg font-bold text-gray-900">
                       {formatTime(flight.outbound?.departure?.localTime || '')}
                     </div>
                     <div className="flex-1 flex items-center">
-                      <div className="h-px bg-zinc-600 flex-1"></div>
-                      <div className="px-2 text-xs text-zinc-400">
+                      <div className="h-px bg-gray-300 flex-1"></div>
+                      <div className="px-2 text-xs text-gray-500">
                         {formatDuration(flight.outbound?.duration || '')}
                         {flight.outbound?.stops === 0 ? (
                           <span className="ml-1 text-green-400">Direct</span>
@@ -197,13 +197,13 @@ export default function FlightPicker({
                           <span className="ml-1 text-yellow-400">{flight.outbound?.stops} stop</span>
                         )}
                       </div>
-                      <div className="h-px bg-zinc-600 flex-1"></div>
+                      <div className="h-px bg-gray-300 flex-1"></div>
                     </div>
-                    <div className="text-lg font-bold text-white">
+                    <div className="text-lg font-bold text-gray-900">
                       {formatTime(flight.outbound?.arrival?.localTime || '')}
                     </div>
                   </div>
-                  <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
                     <span>{flight.outbound?.departure?.airport}</span>
                     <span>{flight.outbound?.arrival?.airport}</span>
                   </div>
@@ -212,27 +212,27 @@ export default function FlightPicker({
                 {/* Price */}
                 <div className="ml-6 text-right">
                   <div className="text-xl font-bold text-green-400">${flight.price}</div>
-                  <div className="text-xs text-zinc-400">round trip</div>
+                  <div className="text-xs text-gray-500">round trip</div>
                 </div>
               </div>
 
               {/* Return Flight */}
               {flight.return && (
-                <div className="mt-3 pt-3 border-t border-zinc-700/50">
-                  <div className="text-xs text-zinc-500 mb-1">RETURN • {flight.return.departure?.date}</div>
+                <div className="mt-3 pt-3 border-t border-gray-200/50">
+                  <div className="text-xs text-gray-400 mb-1">RETURN • {flight.return.departure?.date}</div>
                   <div className="flex items-center gap-3">
-                    <div className="text-sm text-zinc-300">
+                    <div className="text-sm text-gray-600">
                       {formatTime(flight.return.departure?.localTime || '')}
                     </div>
                     <div className="flex-1 flex items-center">
-                      <div className="h-px bg-zinc-700 flex-1"></div>
-                      <div className="px-2 text-xs text-zinc-500">
+                      <div className="h-px bg-gray-200 flex-1"></div>
+                      <div className="px-2 text-xs text-gray-400">
                         {formatDuration(flight.return.duration || '')}
                         {flight.return.stops === 0 ? ' Direct' : ` ${flight.return.stops} stop`}
                       </div>
-                      <div className="h-px bg-zinc-700 flex-1"></div>
+                      <div className="h-px bg-gray-200 flex-1"></div>
                     </div>
-                    <div className="text-sm text-zinc-300">
+                    <div className="text-sm text-gray-600">
                       {formatTime(flight.return.arrival?.localTime || '')}
                     </div>
                   </div>
@@ -240,14 +240,14 @@ export default function FlightPicker({
               )}
 
               {/* Airline */}
-              <div className="mt-2 text-xs text-zinc-400">
+              <div className="mt-2 text-xs text-gray-500">
                 {flight.outbound?.carriers?.map((c: string) => getAirlineName(c)).join(', ')}
               </div>
             </div>
           ))}
 
           {flights.length > 0 && (
-            <div className="p-3 bg-zinc-900 text-xs text-zinc-500 text-center">
+            <div className="p-3 bg-white text-xs text-gray-400 text-center">
               ⚠️ Test data from Amadeus API — prices may not reflect actual fares
             </div>
           )}

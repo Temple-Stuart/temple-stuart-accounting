@@ -114,7 +114,7 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
         ))}
         <button
           onClick={() => setShowPicker(!showPicker)}
-          className="px-3 py-1 bg-zinc-800 text-zinc-300 rounded-full text-sm hover:bg-zinc-700"
+          className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200"
         >
           + Add Destination
         </button>
@@ -122,13 +122,13 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
 
       {/* Destination Picker */}
       {showPicker && (
-        <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700 mb-4">
+        <div className="bg-gray-100 rounded-lg p-4 border border-gray-200 mb-4">
           <input
             type="text"
             placeholder="Search resorts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-white text-sm mb-4"
+            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm mb-4"
             autoFocus
           />
 
@@ -149,24 +149,24 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
                     className={`w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center ${
                       isSelected(resort.id)
                         ? 'bg-blue-600/20 text-blue-300'
-                        : 'hover:bg-zinc-700 text-zinc-300'
+                        : 'hover:bg-gray-200 text-gray-600'
                     }`}
                   >
                     <span>
                       {resort.name}
-                      <span className="text-zinc-500 ml-2 text-xs">
+                      <span className="text-gray-400 ml-2 text-xs">
                         {resort.state ? `${resort.state}, ` : ''}{resort.country}
                       </span>
                     </span>
                     {resort.verticalDrop && (
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-gray-400">
                         {resort.verticalDrop}ft • {resort.avgSnowfall}"
                       </span>
                     )}
                   </button>
                 ))
               ) : (
-                <p className="text-zinc-500 text-sm">No resorts found</p>
+                <p className="text-gray-400 text-sm">No resorts found</p>
               )}
             </div>
           ) : (
@@ -174,10 +174,10 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
             <div className="max-h-80 overflow-y-auto">
               {Object.entries(grouped).map(([country, regions]) => (
                 <div key={country} className="mb-4">
-                  <h4 className="text-xs font-semibold text-zinc-400 uppercase mb-2">{country}</h4>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">{country}</h4>
                   {Object.entries(regions).map(([region, regionResorts]) => (
                     <div key={region} className="mb-2">
-                      <h5 className="text-xs text-zinc-500 mb-1 ml-2">{region}</h5>
+                      <h5 className="text-xs text-gray-400 mb-1 ml-2">{region}</h5>
                       <div className="space-y-1">
                         {regionResorts.map(resort => (
                           <button
@@ -191,7 +191,7 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
                             className={`w-full text-left px-3 py-1.5 rounded text-sm flex justify-between items-center ${
                               isSelected(resort.id)
                                 ? 'bg-blue-600/20 text-blue-300'
-                                : 'hover:bg-zinc-700 text-zinc-300'
+                                : 'hover:bg-gray-200 text-gray-600'
                             }`}
                           >
                             <span>{resort.name}</span>
@@ -212,7 +212,7 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
                 setShowPicker(false);
                 setSearchQuery('');
               }}
-              className="px-4 py-1 text-sm bg-zinc-700 text-white rounded hover:bg-zinc-600"
+              className="px-4 py-1 text-sm bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
             >
               Done
             </button>
@@ -225,19 +225,19 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-700">
-                <th className="text-left py-2 px-3 text-zinc-400">Resort</th>
-                <th className="text-left py-2 px-3 text-zinc-400">Location</th>
-                <th className="text-right py-2 px-3 text-zinc-400">Vertical</th>
-                <th className="text-right py-2 px-3 text-zinc-400">Snowfall</th>
-                <th className="text-center py-2 px-3 text-zinc-400">Airport</th>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 px-3 text-gray-500">Resort</th>
+                <th className="text-left py-2 px-3 text-gray-500">Location</th>
+                <th className="text-right py-2 px-3 text-gray-500">Vertical</th>
+                <th className="text-right py-2 px-3 text-gray-500">Snowfall</th>
+                <th className="text-center py-2 px-3 text-gray-500">Airport</th>
               </tr>
             </thead>
             <tbody>
               {selectedDestinations.map(d => (
-                <tr key={d.id} className="border-b border-zinc-800">
+                <tr key={d.id} className="border-b border-gray-200">
                   <td className="py-2 px-3 font-medium">{d.resort.name}</td>
-                  <td className="py-2 px-3 text-zinc-400">
+                  <td className="py-2 px-3 text-gray-500">
                     {d.resort.state ? `${d.resort.state}, ` : ''}{d.resort.country}
                   </td>
                   <td className="py-2 px-3 text-right">{d.resort.verticalDrop?.toLocaleString() || '-'} ft</td>

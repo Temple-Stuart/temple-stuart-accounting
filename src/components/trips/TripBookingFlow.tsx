@@ -172,7 +172,7 @@ export default function TripBookingFlow({
 
   if (destinations.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-500">
+      <div className="text-center py-8 text-gray-400">
         Select destinations in the section above to start planning
       </div>
     );
@@ -188,7 +188,7 @@ export default function TripBookingFlow({
           <span className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-sm">1</span>
           ✈️ Select Flights
         </h3>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="text-sm text-gray-500 mb-4">
           Showing top 5 shortest flights (non-stop preferred) from {homeAirport}
         </p>
         <div className="space-y-3">
@@ -215,7 +215,7 @@ export default function TripBookingFlow({
           <span className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-sm">2</span>
           🏨 Select Lodging
         </h3>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="text-sm text-gray-500 mb-4">
           Hotels within 20 miles of resort • {daysTravel - 1} nights • {travelerCount} guests (cost split)
         </p>
         <div className="space-y-3">
@@ -243,7 +243,7 @@ export default function TripBookingFlow({
           <span className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-sm">3</span>
           🚐 Select Rental Car
         </h3>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="text-sm text-gray-500 mb-4">
           Van/SUV for {travelerCount} travelers + snowboards, {daysTravel} days (cost split)
         </p>
         <div className="space-y-3">
@@ -271,7 +271,7 @@ export default function TripBookingFlow({
           <span className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-sm">4</span>
           🚕 Rideshare (Airport ↔ Resort)
         </h3>
-        <p className="text-sm text-zinc-400 mb-4">
+        <p className="text-sm text-gray-500 mb-4">
           Estimate round-trip rideshare costs (Uber/Lyft) from airport to resort
         </p>
         <div className="space-y-3">
@@ -303,20 +303,20 @@ export default function TripBookingFlow({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-700">
-                <th className="text-left py-2 px-3 text-zinc-400">Expense</th>
-                <th className="text-left py-2 px-3 text-zinc-400">Type</th>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 px-3 text-gray-500">Expense</th>
+                <th className="text-left py-2 px-3 text-gray-500">Type</th>
                 {destinations.map(dest => (
-                  <th key={dest.id} className="text-center py-2 px-3 text-zinc-300 min-w-[120px]">
+                  <th key={dest.id} className="text-center py-2 px-3 text-gray-600 min-w-[120px]">
                     {dest.resort.name.split(' ').slice(0, 2).join(' ')}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-zinc-800">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">Lift Tickets</td>
-                <td className="py-2 px-3 text-zinc-500 text-xs">{daysRiding}-day pass (per person)</td>
+                <td className="py-2 px-3 text-gray-400 text-xs">{daysRiding}-day pass (per person)</td>
                 {destinations.map(dest => (
                   <td key={dest.id} className="py-2 px-3">
                     <input
@@ -324,14 +324,14 @@ export default function TripBookingFlow({
                       placeholder="$0"
                       value={manualCosts[dest.resortId]?.liftTicket || ''}
                       onChange={(e) => handleManualCost(dest.resortId, 'liftTicket', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-center"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-gray-900 text-center"
                     />
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-zinc-800">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">Equipment Rental</td>
-                <td className="py-2 px-3 text-zinc-500 text-xs">Board + boots {daysRiding} days (per person)</td>
+                <td className="py-2 px-3 text-gray-400 text-xs">Board + boots {daysRiding} days (per person)</td>
                 {destinations.map(dest => (
                   <td key={dest.id} className="py-2 px-3">
                     <input
@@ -339,14 +339,14 @@ export default function TripBookingFlow({
                       placeholder="$0"
                       value={manualCosts[dest.resortId]?.equipment || ''}
                       onChange={(e) => handleManualCost(dest.resortId, 'equipment', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-center"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-gray-900 text-center"
                     />
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-zinc-800">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">Meals</td>
-                <td className="py-2 px-3 text-zinc-500 text-xs">Est. ${75}/day × {daysTravel} days (per person)</td>
+                <td className="py-2 px-3 text-gray-400 text-xs">Est. ${75}/day × {daysTravel} days (per person)</td>
                 {destinations.map(dest => (
                   <td key={dest.id} className="py-2 px-3">
                     <input
@@ -354,14 +354,14 @@ export default function TripBookingFlow({
                       placeholder={`$${daysTravel * 75}`}
                       value={manualCosts[dest.resortId]?.meals || ''}
                       onChange={(e) => handleManualCost(dest.resortId, 'meals', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-center"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-gray-900 text-center"
                     />
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-zinc-800">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">Rideshare</td>
-                <td className="py-2 px-3 text-zinc-500 text-xs">To/from airport (per person)</td>
+                <td className="py-2 px-3 text-gray-400 text-xs">To/from airport (per person)</td>
                 {destinations.map(dest => (
                   <td key={dest.id} className="py-2 px-3">
                     <input
@@ -369,14 +369,14 @@ export default function TripBookingFlow({
                       placeholder="$150"
                       value={manualCosts[dest.resortId]?.rideshare || ''}
                       onChange={(e) => handleManualCost(dest.resortId, 'rideshare', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-center"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-gray-900 text-center"
                     />
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-zinc-800">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">Gas</td>
-                <td className="py-2 px-3 text-zinc-500 text-xs">Rental car fuel (split)</td>
+                <td className="py-2 px-3 text-gray-400 text-xs">Rental car fuel (split)</td>
                 {destinations.map(dest => (
                   <td key={dest.id} className="py-2 px-3">
                     <input
@@ -384,7 +384,7 @@ export default function TripBookingFlow({
                       placeholder="$50"
                       value={manualCosts[dest.resortId]?.gas || ''}
                       onChange={(e) => handleManualCost(dest.resortId, 'gas', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-center"
+                      className="w-full bg-gray-100 border border-gray-300 rounded px-2 py-1 text-gray-900 text-center"
                     />
                   </td>
                 ))}
@@ -397,77 +397,77 @@ export default function TripBookingFlow({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* CONSOLIDATED BUDGET */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
+      <div className="bg-gray-100 rounded-lg p-6 border border-gray-200">
         <h3 className="text-lg font-semibold mb-4">📊 Budget Comparison</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-600">
-                <th className="text-left py-2 px-3 text-zinc-400">Category</th>
+              <tr className="border-b border-gray-300">
+                <th className="text-left py-2 px-3 text-gray-500">Category</th>
                 {destinations.map(dest => (
-                  <th key={dest.id} className="text-right py-2 px-3 text-zinc-300 min-w-[120px]">
+                  <th key={dest.id} className="text-right py-2 px-3 text-gray-600 min-w-[120px]">
                     {dest.resort.name.split(' ').slice(0, 2).join(' ')}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">✈️ Flight</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.flight > 0 ? <span className="text-green-400">${t.flight}</span> : <span className="text-zinc-500">—</span>}
+                      {t.flight > 0 ? <span className="text-green-400">${t.flight}</span> : <span className="text-gray-400">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🏨 Lodging <span className="text-xs text-blue-400">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.hotel > 0 ? <span className="text-green-400">${(t.hotel / travelerCount).toFixed(0)}</span> : <span className="text-zinc-500">—</span>}
+                      {t.hotel > 0 ? <span className="text-green-400">${(t.hotel / travelerCount).toFixed(0)}</span> : <span className="text-gray-400">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🚐 Rental Car <span className="text-xs text-blue-400">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.car > 0 ? <span className="text-green-400">${(t.car / travelerCount).toFixed(0)}</span> : <span className="text-zinc-500">—</span>}
+                      {t.car > 0 ? <span className="text-green-400">${(t.car / travelerCount).toFixed(0)}</span> : <span className="text-gray-400">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🎿 Lift Tickets</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.liftTicket > 0 ? <span className="text-green-400">${t.liftTicket}</span> : <span className="text-zinc-500">—</span>}
+                      {t.liftTicket > 0 ? <span className="text-green-400">${t.liftTicket}</span> : <span className="text-gray-400">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🏂 Equipment</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.equipment > 0 ? <span className="text-green-400">${t.equipment}</span> : <span className="text-zinc-500">—</span>}
+                      {t.equipment > 0 ? <span className="text-green-400">${t.equipment}</span> : <span className="text-gray-400">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🍽️ Meals</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
@@ -476,7 +476,7 @@ export default function TripBookingFlow({
                   );
                 })}
               </tr>
-              <tr className="border-b border-zinc-700">
+              <tr className="border-b border-gray-200">
                 <td className="py-2 px-3">🚗 Rideshare + Gas</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
@@ -489,7 +489,7 @@ export default function TripBookingFlow({
               </tr>
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-zinc-500 font-bold">
+              <tr className="border-t-2 border-gray-300 font-bold">
                 <td className="py-3 px-3 text-lg">Per Person Total</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
