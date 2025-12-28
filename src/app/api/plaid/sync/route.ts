@@ -62,13 +62,15 @@ export async function POST(request: NextRequest) {
     // Update accounts
     for (const account of accounts) {
       await prisma.accounts.upsert({
-        where: { plaidAccountId: account.account_id },
+        where: { accountId: account.account_id },
         update: {
           currentBalance: account.balances.current,
           availableBalance: account.balances.available,
         },
         create: {
-          plaidAccountId: account.account_id,
+          id: `acct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          updatedAt: new Date(),
+          accountId: account.account_id,
           plaidItemId: item.id,
           userId: user.id,
           name: account.name,
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
     // Upsert transactions
     for (const txn of transactions) {
       const account = await prisma.accounts.findUnique({
-        where: { plaidAccountId: txn.account_id }
+        where: { accountId: txn.account_id }
       });
       
       if (account) {
@@ -100,6 +102,8 @@ export async function POST(request: NextRequest) {
             pending: txn.pending,
           },
           create: {
+          id: `acct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          updatedAt: new Date(),
             plaidTransactionId: txn.transaction_id,
             accountId: account.id,
             amount: txn.amount,
