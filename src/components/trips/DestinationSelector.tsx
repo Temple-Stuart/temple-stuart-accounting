@@ -20,12 +20,13 @@ interface SelectedDestination {
 }
 
 interface Props {
+  activity?: string | null;
   tripId: string;
   selectedDestinations: SelectedDestination[];
   onDestinationsChange: () => void;
 }
 
-export default function DestinationSelector({ tripId, selectedDestinations, onDestinationsChange }: Props) {
+export default function DestinationSelector({ tripId, activity, selectedDestinations, onDestinationsChange }: Props) {
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [grouped, setGrouped] = useState<Record<string, Record<string, Resort[]>>>({});
   const [loading, setLoading] = useState(true);
@@ -34,11 +35,11 @@ export default function DestinationSelector({ tripId, selectedDestinations, onDe
 
   useEffect(() => {
     loadResorts();
-  }, []);
+  }, [activity]);
 
   const loadResorts = async () => {
     try {
-      const res = await fetch('/api/resorts');
+      const res = await fetch('/api/resorts?activity=' + (activity || 'snowboard'));
       if (res.ok) {
         const data = await res.json();
         setResorts(data.resorts || []);
