@@ -10,11 +10,13 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.15.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "next": "15.5.9",
+    "next-auth": "^4.24.13",
     "openai": "^6.7.0",
     "pdf-parse": "^2.4.5",
     "plaid": "^11.0.0",

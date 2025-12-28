@@ -1,0 +1,58 @@
+import NextAuth from 'next-auth';
+import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+function generateId() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+const handler = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
+  ],
+  callbacks: {
+    async signIn({ user, account }) {
+      if (user.email) {
+        const existingUser = await prisma.users.findUnique({
+          where: { email: user.email }
+        });
+        if (!existingUser) {
+          await prisma.users.create({
+            data: {
+              id: generateId(),
+              email: user.email,
+              name: user.name || user.email.split('@')[0],
+              password: '',
+              updatedAt: new Date(),
+            }
+          });
+        }
+      }
+      return true;
+    },
+    async session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id;
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: '/',
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+});
+
+export { handler as GET, handler as POST };
