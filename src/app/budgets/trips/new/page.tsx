@@ -60,7 +60,6 @@ export default function NewTripPage() {
   const [created, setCreated] = useState<{ id: string; inviteUrl: string } | null>(null);
 
   const [name, setName] = useState('');
-  const [destination, setDestination] = useState('');
   const [activity, setActivity] = useState('');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -78,7 +77,6 @@ export default function NewTripPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          destination: destination || null,
           activity: activity || null,
           month,
           year,
@@ -243,19 +241,6 @@ export default function NewTripPage() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Destination */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Destination (optional)</label>
-            <input
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="e.g., Canggu, Indonesia (or leave blank to compare)"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
-            />
-            <p className="text-xs text-gray-400 mt-2">Leave blank to compare destinations in the trip planner</p>
           </div>
 
           {/* When */}
