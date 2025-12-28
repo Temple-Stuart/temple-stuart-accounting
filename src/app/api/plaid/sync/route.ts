@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       
       if (account) {
         await prisma.transactions.upsert({
-          where: { plaidTransactionId: txn.transaction_id },
+          where: { transactionId: txn.transaction_id },
           update: {
             amount: txn.amount,
             date: new Date(txn.date),
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
           create: {
           id: `acct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           updatedAt: new Date(),
-            plaidTransactionId: txn.transaction_id,
+            transactionId: txn.transaction_id,
             accountId: account.id,
             amount: txn.amount,
             date: new Date(txn.date),
