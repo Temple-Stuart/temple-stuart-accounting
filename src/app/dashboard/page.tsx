@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Script from 'next/script';
-import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
+import { AppLayout, Card, Button, Badge, PageHeader, ResponsiveTable } from '@/components/ui';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -104,7 +104,6 @@ export default function Dashboard() {
 
   useEffect(() => { if (session?.user?.email) loadData(); }, [session, loadData]);
 
-  // Helpers
   const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
   const getCoaType = (code: string) => coaOptions.find(c => c.code === code)?.accountType || '';
   const formatMoney = (n: number, showSign = false) => {
@@ -169,7 +168,6 @@ export default function Dashboard() {
     return g;
   }, [coaOptions]);
 
-  // Actions
   const openPlaidLink = useCallback(() => {
     if (!linkToken || !(window as any).Plaid) return;
     (window as any).Plaid.create({
@@ -228,24 +226,23 @@ export default function Dashboard() {
   const closePeriod = async (year: number, month: number, notes?: string) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "close", notes }) }); };
   const reopenPeriod = async (year: number, month: number) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "reopen" }) }); };
 
-  // Statement renderers
   const renderStatementRow = (code: string) => (
     <tr key={code} className="border-b border-gray-100 hover:bg-gray-50/50">
-      <td className="px-4 py-3 sticky left-0 bg-white z-10 min-w-[200px] border-r border-gray-100">
-        <div className="font-medium text-gray-900 text-sm">{getCoaName(code)}</div>
-        <div className="text-xs text-gray-400 font-mono">{code}</div>
+      <td className="px-3 py-2.5 sticky left-0 bg-white z-10 min-w-[140px] sm:min-w-[180px] border-r border-gray-100 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
+        <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">{getCoaName(code)}</div>
+        <div className="text-[10px] sm:text-xs text-gray-400 font-mono">{code}</div>
       </td>
       {MONTHS.map((_, m) => {
         const val = gridData[code]?.[m] || 0;
         return (
           <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
-            className={`px-2 py-3 text-right text-sm tabular-nums ${val !== 0 ? 'cursor-pointer hover:bg-blue-50 text-gray-900' : 'text-gray-300'}`}>
+            className={`px-1.5 sm:px-2 py-2.5 text-right text-xs sm:text-sm tabular-nums whitespace-nowrap ${val !== 0 ? 'cursor-pointer hover:bg-blue-50 text-gray-900' : 'text-gray-300'}`}>
             {val === 0 ? '-' : formatMoney(val)}
           </td>
         );
       })}
       <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
-        className="px-3 py-3 text-right text-sm font-bold bg-gray-50 sticky right-0 cursor-pointer hover:bg-blue-50 tabular-nums border-l border-gray-200">
+        className="px-2 sm:px-3 py-2.5 text-right text-xs sm:text-sm font-bold bg-gray-50 sticky right-0 cursor-pointer hover:bg-blue-50 tabular-nums whitespace-nowrap border-l border-gray-200 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]">
         {formatMoney(getRowTotal(code))}
       </td>
     </tr>
@@ -253,19 +250,19 @@ export default function Dashboard() {
 
   const renderSectionHeader = (title: string, isRevenue: boolean) => (
     <tr className={isRevenue ? 'bg-green-50' : 'bg-red-50'}>
-      <td colSpan={14} className={`px-4 py-2 font-bold text-sm sticky left-0 ${isRevenue ? 'text-green-800 bg-green-50' : 'text-red-800 bg-red-50'}`}>{title}</td>
+      <td colSpan={14} className={`px-3 py-2 font-bold text-xs sm:text-sm sticky left-0 ${isRevenue ? 'text-green-800 bg-green-50' : 'text-red-800 bg-red-50'}`}>{title}</td>
     </tr>
   );
 
   const renderSectionTotal = (title: string, codes: string[], isRevenue: boolean) => (
     <tr className={isRevenue ? 'bg-green-100' : 'bg-red-100'}>
-      <td className={`px-4 py-3 font-bold text-sm sticky left-0 ${isRevenue ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Total {title}</td>
+      <td className={`px-3 py-2.5 font-bold text-xs sm:text-sm sticky left-0 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] ${isRevenue ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Total {title}</td>
       {MONTHS.map((_, m) => (
-        <td key={m} className={`px-2 py-3 text-right font-bold text-sm tabular-nums ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
+        <td key={m} className={`px-1.5 sm:px-2 py-2.5 text-right font-bold text-xs sm:text-sm tabular-nums whitespace-nowrap ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
           {formatMoney(getMonthTotal(codes, m))}
         </td>
       ))}
-      <td className={`px-3 py-3 text-right font-bold text-sm bg-gray-100 sticky right-0 tabular-nums ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
+      <td className={`px-2 sm:px-3 py-2.5 text-right font-bold text-xs sm:text-sm bg-gray-100 sticky right-0 tabular-nums whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
         {formatMoney(getSectionTotal(codes))}
       </td>
     </tr>
@@ -283,34 +280,34 @@ export default function Dashboard() {
           backHref="/hub"
           actions={
             <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={syncAccounts} loading={syncing}>{syncing ? 'Syncing...' : '🔄 Sync'}</Button>
-              <Button onClick={openPlaidLink} disabled={!linkToken}>+ Add Account</Button>
+              <Button variant="ghost" size="sm" onClick={syncAccounts} loading={syncing}>{syncing ? '...' : '🔄'}</Button>
+              <Button size="sm" onClick={openPlaidLink} disabled={!linkToken}>+ Account</Button>
             </div>
           }
         />
 
-        <div className="px-4 lg:px-8 py-8 space-y-8">
+        <div className="px-3 sm:px-4 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
           {/* Section 1: Connected Accounts */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Connected Accounts</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Connected Accounts</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
               {accounts.map(acc => (
-                <Card key={acc.id} className="hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="font-semibold text-gray-900">{acc.institutionName}</div>
-                      <div className="text-xs text-gray-400">•••• {acc.mask || '----'}</div>
+                <Card key={acc.id} className="hover:shadow-md transition-shadow !p-3 sm:!p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-gray-900 text-sm truncate">{acc.institutionName}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-400">•••• {acc.mask || '----'}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-gray-900">${acc.balance.toLocaleString()}</div>
+                    <div className="sm:text-right">
+                      <div className="text-base sm:text-xl font-bold text-gray-900">${acc.balance.toLocaleString()}</div>
                       <Badge variant="default" size="sm">{acc.type}</Badge>
                     </div>
                   </div>
                 </Card>
               ))}
               {accounts.length === 0 && (
-                <Card className="col-span-full text-center py-8 text-gray-400">
-                  No accounts connected. Click "+ Add Account" to link your bank.
+                <Card className="col-span-full text-center py-6 sm:py-8 text-gray-400 text-sm">
+                  No accounts connected. Tap "+ Account" to link your bank.
                 </Card>
               )}
             </div>
@@ -318,24 +315,24 @@ export default function Dashboard() {
 
           {/* Section 2: Map to COA */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">
-              Map Transactions to COA
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4 flex items-center flex-wrap gap-2">
+              Map to COA
               {(uncommittedSpending.length + uncommittedInvestments.length) > 0 && (
-                <Badge variant="warning" size="sm" className="ml-2">{uncommittedSpending.length + uncommittedInvestments.length} pending</Badge>
+                <Badge variant="warning" size="sm">{uncommittedSpending.length + uncommittedInvestments.length} pending</Badge>
               )}
             </h2>
             <Card noPadding>
               <div className="flex border-b">
                 <button onClick={() => setMappingTab('spending')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${mappingTab === 'spending' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}>
-                  Spending <span className="text-xs text-gray-400 ml-1">{uncommittedSpending.length} / {transactions.length}</span>
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'spending' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
+                  Spending <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedSpending.length}</span>
                 </button>
                 <button onClick={() => setMappingTab('investments')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${mappingTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}>
-                  Investments <span className="text-xs text-gray-400 ml-1">{uncommittedInvestments.length} / {investmentTransactions.length}</span>
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
+                  Invest <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedInvestments.length}</span>
                 </button>
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
                 {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={loadData} />}
               </div>
@@ -344,60 +341,60 @@ export default function Dashboard() {
 
           {/* Section 3: Financial Statements */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Financial Statements</h2>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider">Financial Statements</h2>
               <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-[#b4b237] focus:ring-1 focus:ring-[#b4b237]">
+                className="border border-gray-200 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm">
                 {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <Card noPadding>
               <div className="flex border-b overflow-x-auto">
-                {[{ key: 'income', label: 'Income Statement' }, { key: 'balance', label: 'Balance Sheet' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
+                {[{ key: 'income', label: 'Income' }, { key: 'balance', label: 'Balance' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
                   <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
-                    className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeStatement === tab.key ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}>
+                    className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${activeStatement === tab.key ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
                     {tab.label}
                   </button>
                 ))}
               </div>
 
               {activeStatement === 'income' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
+                <ResponsiveTable minWidth="900px">
+                  <table className="w-full text-sm border-collapse">
                     <thead className="bg-gray-900 text-white">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
-                        {MONTHS.map((m, i) => <th key={i} className="px-2 py-3 text-right font-semibold">{m}</th>)}
-                        <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">YTD</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
+                        {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
+                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-gray-800 sticky right-0">YTD</th>
                       </tr>
                     </thead>
                     <tbody>
                       {revenueCodes.length > 0 && <>{renderSectionHeader('Revenue', true)}{revenueCodes.map(renderStatementRow)}{renderSectionTotal('Revenue', revenueCodes, true)}</>}
                       {expenseCodes.length > 0 && <>{renderSectionHeader('Expenses', false)}{expenseCodes.map(renderStatementRow)}{renderSectionTotal('Expenses', expenseCodes, false)}</>}
                       <tr className="bg-[#b4b237]/10 font-bold border-t-2 border-[#b4b237]">
-                        <td className="px-4 py-3 sticky left-0 bg-[#b4b237]/10 z-10 text-gray-900">Net Income</td>
+                        <td className="px-3 py-2.5 sticky left-0 bg-[#b4b237]/10 z-10 text-gray-900 text-xs sm:text-sm shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Net Income</td>
                         {MONTHS.map((_, m) => {
                           const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
-                          return <td key={m} className={`px-2 py-3 text-right tabular-nums ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>{ni === 0 ? '-' : formatMoney(ni, true)}</td>;
+                          return <td key={m} className={`px-1.5 sm:px-2 py-2.5 text-right tabular-nums text-xs sm:text-sm whitespace-nowrap ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>{ni === 0 ? '-' : formatMoney(ni, true)}</td>;
                         })}
-                        <td className={`px-3 py-3 text-right bg-[#b4b237]/20 sticky right-0 tabular-nums font-bold ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        <td className={`px-2 sm:px-3 py-2.5 text-right bg-[#b4b237]/20 sticky right-0 tabular-nums font-bold text-xs sm:text-sm whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                           {formatMoney(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)), true)}
                         </td>
                       </tr>
                     </tbody>
                   </table>
-                  {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-12 text-center text-gray-400">No income/expense data for {selectedYear}</div>}
-                </div>
+                  {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-8 sm:p-12 text-center text-gray-400 text-sm">No data for {selectedYear}</div>}
+                </ResponsiveTable>
               )}
 
               {activeStatement === 'balance' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
+                <ResponsiveTable minWidth="900px">
+                  <table className="w-full text-sm border-collapse">
                     <thead className="bg-gray-900 text-white">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
-                        {MONTHS.map((m, i) => <th key={i} className="px-2 py-3 text-right font-semibold">{m}</th>)}
-                        <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">YTD</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
+                        {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
+                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-gray-800 sticky right-0">YTD</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -406,15 +403,15 @@ export default function Dashboard() {
                       {equityCodes.length > 0 && <>{renderSectionHeader('Equity', true)}{equityCodes.map(renderStatementRow)}{renderSectionTotal('Equity', equityCodes, true)}</>}
                     </tbody>
                   </table>
-                  {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-12 text-center text-gray-400">No balance sheet data for {selectedYear}</div>}
-                </div>
+                  {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-8 sm:p-12 text-center text-gray-400 text-sm">No data for {selectedYear}</div>}
+                </ResponsiveTable>
               )}
 
               {activeStatement === 'cashflow' && (
-                <div className="p-12 text-center text-gray-400">
-                  <div className="text-4xl mb-3">📊</div>
-                  <p className="text-lg font-medium">Cash Flow Statement</p>
-                  <p className="text-sm mt-1">Coming soon — derived from I/S and B/S changes</p>
+                <div className="p-8 sm:p-12 text-center text-gray-400">
+                  <div className="text-3xl sm:text-4xl mb-3">📊</div>
+                  <p className="text-sm sm:text-base font-medium">Cash Flow Statement</p>
+                  <p className="text-xs sm:text-sm mt-1">Coming soon</p>
                 </div>
               )}
             </Card>
@@ -422,72 +419,71 @@ export default function Dashboard() {
 
           {/* Section 4: General Ledger */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">General Ledger</h2>
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">General Ledger</h2>
             <GeneralLedger transactions={transactions} coaOptions={coaOptions} onUpdate={handleLedgerUpdate} />
           </section>
 
           {/* Section 5: Journal Entries */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Journal Entries</h2>
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Journal Entries</h2>
             <JournalEntryEngine entries={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={loadData} />
           </section>
 
           {/* Section 6: Bank Reconciliation */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Bank Reconciliation</h2>
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Bank Reconciliation</h2>
             <BankReconciliation accounts={accounts} transactions={transactions} reconciliations={reconciliations} onSave={saveReconciliation} onReload={loadData} />
           </section>
 
           {/* Section 7: Period Close */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Period Close</h2>
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Period Close</h2>
             <PeriodClose transactions={transactions} reconciliations={reconciliations} periodCloses={periodCloses} selectedYear={selectedYear} onClose={closePeriod} onReopen={reopenPeriod} onReload={loadData} />
           </section>
 
           {/* Section 8: CPA Export */}
           <section>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">CPA Export</h2>
+            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">CPA Export</h2>
             <CPAExport transactions={transactions} coaOptions={coaOptions} selectedYear={selectedYear} />
           </section>
 
-          {selectedIds.length > 0 && <div className="h-24" />}
+          {selectedIds.length > 0 && <div className="h-20" />}
         </div>
 
         {/* Bulk Assign Bar */}
         {selectedIds.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-40">
-            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
-              <Badge variant="gold">{selectedIds.length} selected</Badge>
-              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 min-w-[150px] px-3 py-2 border rounded-lg text-sm">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 sm:p-4 z-40">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+              <Badge variant="gold">{selectedIds.length}</Badge>
+              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 min-w-[100px] px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg text-xs sm:text-sm">
                 <option value="">Category...</option>
                 {Object.entries(coaGrouped).map(([type, opts]) => (
                   <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                 ))}
               </select>
-              <input type="text" value={assignSub} onChange={(e) => setAssignSub(e.target.value)} placeholder="Vendor..." className="flex-1 min-w-[120px] px-3 py-2 border rounded-lg text-sm" list="vendors-list" />
-              <datalist id="vendors-list">{vendors.slice(0, 30).map(([v]) => <option key={v} value={v} />)}</datalist>
-              <Button onClick={handleBulkAssign} disabled={(!assignCoa && !assignSub) || isAssigning} loading={isAssigning}>Apply</Button>
-              <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+              <input type="text" value={assignSub} onChange={(e) => setAssignSub(e.target.value)} placeholder="Vendor" className="flex-1 min-w-[80px] px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg text-xs sm:text-sm" />
+              <Button size="sm" onClick={handleBulkAssign} disabled={(!assignCoa && !assignSub) || isAssigning} loading={isAssigning}>Go</Button>
+              <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
             </div>
           </div>
         )}
 
         {/* Drilldown Modal */}
         {drilldownCell && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="px-6 py-4 border-b flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-gray-900">{getCoaName(drilldownCell.coaCode)}</h4>
-                  <p className="text-sm text-gray-500">{drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} transactions</p>
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>
+            <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex justify-between items-center">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-gray-900 text-sm sm:text-base truncate">{getCoaName(drilldownCell.coaCode)}</h4>
+                  <p className="text-xs sm:text-sm text-gray-500">{drilldownCell.month === -1 ? 'Year' : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} txns</p>
                 </div>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xl">×</button>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 text-xl ml-2">×</button>
               </div>
 
               {selectedDrilldownTxns.length > 0 && (
-                <div className="px-6 py-3 bg-[#b4b237]/10 border-b flex items-center gap-2">
-                  <Badge variant="gold">{selectedDrilldownTxns.length} selected</Badge>
-                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 text-sm border rounded-lg px-3 py-1.5">
+                <div className="px-4 sm:px-6 py-2 sm:py-3 bg-[#b4b237]/10 border-b flex items-center gap-2">
+                  <Badge variant="gold" size="sm">{selectedDrilldownTxns.length}</Badge>
+                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 text-xs sm:text-sm border rounded-lg px-2 py-1">
                     <option value="">Move to...</option>
                     {Object.entries(coaGrouped).map(([type, opts]) => (
                       <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
@@ -498,39 +494,39 @@ export default function Dashboard() {
               )}
 
               <div className="flex-1 overflow-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs sm:text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-4 py-3 w-10">
+                      <th className="px-3 sm:px-4 py-2 sm:py-3 w-8 sm:w-10">
                         <input type="checkbox" checked={selectedDrilldownTxns.length === drilldownTransactions.length && drilldownTransactions.length > 0}
                           onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? drilldownTransactions.map(t => t.id) : [])}
-                          className="w-4 h-4 rounded border-gray-300 text-[#b4b237] focus:ring-[#b4b237]" />
+                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded" />
                       </th>
-                      <th className="px-4 py-3 text-left font-semibold">Date</th>
-                      <th className="px-4 py-3 text-left font-semibold">Description</th>
-                      <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold">Date</th>
+                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold">Description</th>
+                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {drilldownTransactions.map(txn => (
                       <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-[#b4b237]/5' : ''}`}>
-                        <td className="px-4 py-3">
+                        <td className="px-3 sm:px-4 py-2 sm:py-3">
                           <input type="checkbox" checked={selectedDrilldownTxns.includes(txn.id)}
                             onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? [...selectedDrilldownTxns, txn.id] : selectedDrilldownTxns.filter(id => id !== txn.id))}
-                            className="w-4 h-4 rounded border-gray-300 text-[#b4b237] focus:ring-[#b4b237]" />
+                            className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded" />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">{new Date(txn.date).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 truncate max-w-[250px] text-gray-900">{txn.name}</td>
-                        <td className="px-4 py-3 text-right font-mono font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-gray-600">{new Date(txn.date).toLocaleDateString()}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 truncate max-w-[120px] sm:max-w-[250px] text-gray-900">{txn.name}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono font-medium whitespace-nowrap">${Math.abs(txn.amount).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
-                <Button variant="ghost" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>Close</Button>
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-gray-50 flex justify-between items-center">
+                <span className="font-semibold text-gray-900 text-xs sm:text-sm">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
+                <Button variant="ghost" size="sm" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>Close</Button>
               </div>
             </div>
           </div>
