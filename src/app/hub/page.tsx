@@ -16,11 +16,11 @@ const modules = [
   },
   { 
     name: 'Trips & Agenda', 
-    description: 'Plan trips, compare destinations, coordinate with your crew', 
+    description: 'Plan trips, compare trips, coordinate with your crew', 
     href: '/budgets/trips', 
     icon: '✈️',
     badge: { text: '02', variant: 'info' as const },
-    statKey: 'destinations'
+    statKey: 'trips'
   },
   { 
     name: 'Budget Review', 
@@ -36,7 +36,7 @@ interface Stats {
   accounts: number;
   transactions: number;
   chartOfAccounts: number;
-  destinations: number;
+  trips: number;
 }
 
 export default function HubPage() {
@@ -65,7 +65,7 @@ export default function HubPage() {
   const getStatLabel = (key: string) => {
     switch (key) {
       case 'transactions': return 'transactions';
-      case 'destinations': return 'destinations';
+      case 'trips': return 'trips';
       case 'chartOfAccounts': return 'accounts';
       default: return '';
     }
@@ -136,8 +136,8 @@ export default function HubPage() {
               <div className="text-sm text-gray-500 mt-1">Chart of Accounts</div>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-              <div className="text-3xl font-bold text-purple-600">{formatStat('destinations')}</div>
-              <div className="text-sm text-gray-500 mt-1">Destinations</div>
+              <div className="text-3xl font-bold text-purple-600">{formatStat('trips')}</div>
+              <div className="text-sm text-gray-500 mt-1">Trips</div>
             </div>
           </div>
         </div>
