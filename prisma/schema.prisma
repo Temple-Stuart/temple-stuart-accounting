@@ -849,3 +849,76 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW ACTIVITY DESTINATION TABLES
+// ═══════════════════════════════════════════════════════════════════
+
+model dining_destinations {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  cuisineType     String?  @db.VarChar(100)
+  priceLevel      Int?     // 1-4 ($-$$$$)
+  michelinStars   Int?     // 0-3
+  nomadScore      Int?     // 1-10
+  wifiSpeed       Int?
+  coworkingCount  Int?
+  latitude        Decimal? @db.Decimal(10,6)
+  longitude       Decimal? @db.Decimal(10,6)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model museum_destinations {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  city            String   @db.VarChar(100)
+  country         String   @db.VarChar(100)
+  museumType      String?  @db.VarChar(100)  // contemporary, classical, mixed
+  collectionSize  String?  @db.VarChar(50)   // small, medium, large, world-class
+  nomadScore      Int?     // 1-10
+  monthlyRent     Int?
+  wifiSpeed       Int?
+  latitude        Decimal? @db.Decimal(10,6)
+  longitude       Decimal? @db.Decimal(10,6)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model swim_destinations {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  country         String   @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  cliffHeight     Int?     // meters
+  waterDepth      Int?     // meters
+  difficulty      String?  @db.VarChar(50)   // beginner, intermediate, expert
+  bestMonths      String?  @db.VarChar(100)
+  nomadScore      Int?     // 1-10
+  monthlyRent     Int?
+  wifiSpeed       Int?
+  latitude        Decimal? @db.Decimal(10,6)
+  longitude       Decimal? @db.Decimal(10,6)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model rafting_destinations {
+  id              String   @id @default(cuid())
+  name            String   @db.VarChar(255)
+  river           String?  @db.VarChar(255)
+  country         String   @db.VarChar(100)
+  region          String?  @db.VarChar(100)
+  classRating     String?  @db.VarChar(20)   // I-VI
+  seasonMonths    String?  @db.VarChar(100)
+  tripLength      String?  @db.VarChar(50)   // half-day, full-day, multi-day
+  nomadScore      Int?     // 1-10
+  monthlyRent     Int?
+  wifiSpeed       Int?
+  latitude        Decimal? @db.Decimal(10,6)
+  longitude       Decimal? @db.Decimal(10,6)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+}

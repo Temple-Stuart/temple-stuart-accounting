@@ -26,6 +26,7 @@ const ACTIVITY_GROUPS = [
       { value: 'surf', label: 'Surf', icon: '🏄' },
       { value: 'kitesurf', label: 'Kite Surf', icon: '🪁' },
       { value: 'sail', label: 'Sail', icon: '⛵' },
+      { value: 'rafting', label: 'Rafting', icon: '🚣' },
     ]
   },
   {
@@ -34,6 +35,7 @@ const ACTIVITY_GROUPS = [
       { value: 'bike', label: 'Bike', icon: '🚴' },
       { value: 'run', label: 'Run', icon: '🏃' },
       { value: 'triathlon', label: 'Triathlon', icon: '🏊' },
+      { value: 'swim', label: 'Swim & Cliff Jump', icon: '🏊‍♂️' },
     ]
   },
   {
@@ -42,6 +44,7 @@ const ACTIVITY_GROUPS = [
       { value: 'golf', label: 'Golf', icon: '⛳' },
       { value: 'skate', label: 'Skateboard', icon: '🛹' },
       { value: 'festival', label: 'Concert & Festival', icon: '🎪' },
+      { value: 'art', label: 'Art Museums', icon: '🎨' },
     ]
   },
   {
@@ -49,6 +52,8 @@ const ACTIVITY_GROUPS = [
     activities: [
       { value: 'conference', label: 'Conference', icon: '🎤' },
       { value: 'nomad', label: 'Meeting / Study', icon: '💼' },
+      { value: 'dinner', label: 'Dinner', icon: '🍽️' },
+      { value: 'lunch', label: 'Lunch', icon: '🥗' },
     ]
   },
 ];
