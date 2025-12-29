@@ -27,7 +27,89 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   nomad: 'nomad_cities',
   dinner: 'dining_destinations',
   lunch: 'dining_destinations',
+  // Work (consolidated - all locations)
+  bizdev: 'all',
+  content: 'all',
+  education: 'all',
+  party: 'all',
 };
+
+// Helper to normalize destinations from different tables
+function normalizeDestination(dest: any, source: string) {
+  return {
+    id: dest.id,
+    name: dest.name,
+    city: dest.city || dest.region || null,
+    country: dest.country,
+    latitude: dest.latitude,
+    longitude: dest.longitude,
+    nomadScore: dest.nomadScore || dest.nomadCommunity || dest.startupScene || 5,
+    source,
+  };
+}
+
+async function getAllDestinations() {
+  const [
+    resorts,
+    surfSpots,
+    golfCourses,
+    cycling,
+    races,
+    triathlon,
+    festivals,
+    skateparks,
+    conferences,
+    nomadCities,
+    rafting,
+    swim,
+    museums,
+    dining,
+  ] = await Promise.all([
+    prisma.ikon_resorts.findMany(),
+    prisma.surf_spots.findMany(),
+    prisma.golf_courses.findMany(),
+    prisma.cycling_destinations.findMany(),
+    prisma.race_destinations.findMany(),
+    prisma.triathlon_destinations.findMany(),
+    prisma.festival_destinations.findMany(),
+    prisma.skatepark_destinations.findMany(),
+    prisma.conference_destinations.findMany(),
+    prisma.nomad_cities.findMany(),
+    prisma.rafting_destinations.findMany(),
+    prisma.swim_destinations.findMany(),
+    prisma.museum_destinations.findMany(),
+    prisma.dining_destinations.findMany(),
+  ]);
+
+  const all = [
+    ...resorts.map(d => normalizeDestination(d, 'ikon_resorts')),
+    ...surfSpots.map(d => normalizeDestination(d, 'surf_spots')),
+    ...golfCourses.map(d => normalizeDestination(d, 'golf_courses')),
+    ...cycling.map(d => normalizeDestination(d, 'cycling_destinations')),
+    ...races.map(d => normalizeDestination(d, 'race_destinations')),
+    ...triathlon.map(d => normalizeDestination(d, 'triathlon_destinations')),
+    ...festivals.map(d => normalizeDestination(d, 'festival_destinations')),
+    ...skateparks.map(d => normalizeDestination(d, 'skatepark_destinations')),
+    ...conferences.map(d => normalizeDestination(d, 'conference_destinations')),
+    ...nomadCities.map(d => normalizeDestination(d, 'nomad_cities')),
+    ...rafting.map(d => normalizeDestination(d, 'rafting_destinations')),
+    ...swim.map(d => normalizeDestination(d, 'swim_destinations')),
+    ...museums.map(d => normalizeDestination(d, 'museum_destinations')),
+    ...dining.map(d => normalizeDestination(d, 'dining_destinations')),
+  ];
+
+  // Remove duplicates by name (keep first occurrence)
+  const seen = new Set<string>();
+  const unique = all.filter(d => {
+    const key = d.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Sort by nomadScore descending
+  return unique.sort((a, b) => (b.nomadScore || 0) - (a.nomadScore || 0));
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +122,12 @@ export async function GET(request: NextRequest) {
     const table = ACTIVITY_TABLE_MAP[activity];
     if (!table) {
       return NextResponse.json({ error: 'Unknown activity', activity }, { status: 400 });
+    }
+
+    // Handle consolidated "all" destinations for Work activities
+    if (table === 'all') {
+      const destinations = await getAllDestinations();
+      return NextResponse.json({ destinations, table: 'all', activity, count: destinations.length });
     }
 
     let destinations: any[] = [];

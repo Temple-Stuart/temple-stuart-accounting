@@ -29,11 +29,72 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   nomad: 'nomad_cities',
   dinner: 'dining_destinations',
   lunch: 'dining_destinations',
+  // Work (consolidated - all locations)
+  bizdev: 'all',
+  content: 'all',
+  education: 'all',
+  party: 'all',
 };
 
 // Helper to get destination data from the correct table
+// Get name from various field names across tables
+function getNameField(d: any): string {
+  return d.name || d.parkName || d.raceName || d.eventName || d.festivalName || d.city || 'Unknown';
+}
+
+// Normalize destination to common format
+function normalizeDestination(d: any) {
+  return {
+    ...d,
+    name: getNameField(d),
+  };
+}
+
 async function getDestinationData(table: string, ids: string[]) {
   if (ids.length === 0) return [];
+  
+  // For 'all' table, we need to search across all tables
+  if (table === 'all') {
+    const results: any[] = [];
+    
+    // Try each table and collect results
+    const [
+      resorts, surfSpots, golfCourses, cycling, races, triathlon,
+      festivals, skateparks, conferences, nomadCities, rafting, swim, museums, dining
+    ] = await Promise.all([
+      prisma.ikon_resorts.findMany({ where: { id: { in: ids } } }),
+      prisma.surf_spots.findMany({ where: { id: { in: ids } } }),
+      prisma.golf_courses.findMany({ where: { id: { in: ids } } }),
+      prisma.cycling_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.race_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.triathlon_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.festival_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.skatepark_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.conference_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.nomad_cities.findMany({ where: { id: { in: ids } } }),
+      prisma.rafting_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.swim_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.museum_destinations.findMany({ where: { id: { in: ids } } }),
+      prisma.dining_destinations.findMany({ where: { id: { in: ids } } }),
+    ]);
+    
+    return [
+      ...resorts.map(normalizeDestination),
+      ...surfSpots.map(normalizeDestination),
+      ...golfCourses.map(normalizeDestination),
+      ...cycling.map(normalizeDestination),
+      ...races.map(normalizeDestination),
+      ...triathlon.map(normalizeDestination),
+      ...festivals.map(normalizeDestination),
+      ...skateparks.map(normalizeDestination),
+      ...conferences.map(normalizeDestination),
+      ...nomadCities.map(normalizeDestination),
+      ...rafting.map(normalizeDestination),
+      ...swim.map(normalizeDestination),
+      ...museums.map(normalizeDestination),
+      ...dining.map(normalizeDestination),
+    ];
+  }
   
   switch (table) {
     case 'ikon_resorts':
@@ -43,19 +104,19 @@ async function getDestinationData(table: string, ids: string[]) {
     case 'golf_courses':
       return prisma.golf_courses.findMany({ where: { id: { in: ids } } });
     case 'cycling_destinations':
-      return prisma.cycling_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.cycling_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'race_destinations':
-      return prisma.race_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.race_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'triathlon_destinations':
-      return prisma.triathlon_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.triathlon_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'festival_destinations':
-      return prisma.festival_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.festival_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'skatepark_destinations':
-      return prisma.skatepark_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.skatepark_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'conference_destinations':
-      return prisma.conference_destinations.findMany({ where: { id: { in: ids } } });
+      return (await prisma.conference_destinations.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'nomad_cities':
-      return prisma.nomad_cities.findMany({ where: { id: { in: ids } } });
+      return (await prisma.nomad_cities.findMany({ where: { id: { in: ids } } })).map(normalizeDestination);
     case 'rafting_destinations':
       return prisma.rafting_destinations.findMany({ where: { id: { in: ids } } });
     case 'swim_destinations':
@@ -70,6 +131,32 @@ async function getDestinationData(table: string, ids: string[]) {
 }
 
 async function getSingleDestination(table: string, id: string) {
+  // For 'all', try each table until we find the destination
+  if (table === 'all') {
+    const tables = [
+      () => prisma.ikon_resorts.findUnique({ where: { id } }),
+      () => prisma.surf_spots.findUnique({ where: { id } }),
+      () => prisma.golf_courses.findUnique({ where: { id } }),
+      () => prisma.cycling_destinations.findUnique({ where: { id } }),
+      () => prisma.race_destinations.findUnique({ where: { id } }),
+      () => prisma.triathlon_destinations.findUnique({ where: { id } }),
+      () => prisma.festival_destinations.findUnique({ where: { id } }),
+      () => prisma.skatepark_destinations.findUnique({ where: { id } }),
+      () => prisma.conference_destinations.findUnique({ where: { id } }),
+      () => prisma.nomad_cities.findUnique({ where: { id } }),
+      () => prisma.rafting_destinations.findUnique({ where: { id } }),
+      () => prisma.swim_destinations.findUnique({ where: { id } }),
+      () => prisma.museum_destinations.findUnique({ where: { id } }),
+      () => prisma.dining_destinations.findUnique({ where: { id } }),
+    ];
+    
+    for (const query of tables) {
+      const result = await query();
+      if (result) return normalizeDestination(result);
+    }
+    return null;
+  }
+  
   switch (table) {
     case 'ikon_resorts':
       return prisma.ikon_resorts.findUnique({ where: { id } });
@@ -78,19 +165,19 @@ async function getSingleDestination(table: string, id: string) {
     case 'golf_courses':
       return prisma.golf_courses.findUnique({ where: { id } });
     case 'cycling_destinations':
-      return prisma.cycling_destinations.findUnique({ where: { id } });
+      return prisma.cycling_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'race_destinations':
-      return prisma.race_destinations.findUnique({ where: { id } });
+      return prisma.race_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'triathlon_destinations':
-      return prisma.triathlon_destinations.findUnique({ where: { id } });
+      return prisma.triathlon_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'festival_destinations':
-      return prisma.festival_destinations.findUnique({ where: { id } });
+      return prisma.festival_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'skatepark_destinations':
-      return prisma.skatepark_destinations.findUnique({ where: { id } });
+      return prisma.skatepark_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'conference_destinations':
-      return prisma.conference_destinations.findUnique({ where: { id } });
+      return prisma.conference_destinations.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'nomad_cities':
-      return prisma.nomad_cities.findUnique({ where: { id } });
+      return prisma.nomad_cities.findUnique({ where: { id } }).then(r => r ? normalizeDestination(r) : null);
     case 'rafting_destinations':
       return prisma.rafting_destinations.findUnique({ where: { id } });
     case 'swim_destinations':
