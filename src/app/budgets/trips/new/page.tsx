@@ -56,6 +56,15 @@ const ACTIVITY_GROUPS = [
       { value: 'lunch', label: 'Lunch', icon: '🥗' },
     ]
   },
+  {
+    label: 'Work',
+    activities: [
+      { value: 'bizdev', label: 'Business Development', icon: '🤝' },
+      { value: 'content', label: 'Content Creation', icon: '📸' },
+      { value: 'education', label: 'Education', icon: '📚' },
+      { value: 'party', label: 'Parties & Events', icon: '🎉' },
+    ]
+  },
 ];
 
 export default function NewTripPage() {

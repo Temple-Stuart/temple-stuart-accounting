@@ -389,7 +389,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             tripId={id}
             selectedDestinations={destinations}
             onDestinationsChange={loadDestinations}
-            selectedDestinationId={destinations.find(d => d.resort.name === trip.destination)?.resortId}
+            selectedDestinationId={destinations.find(d => d.resort?.name === trip.destination)?.resortId}
             onSelectDestination={selectDestination}
           />
           
