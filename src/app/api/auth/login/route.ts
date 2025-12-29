@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
@@ -16,7 +15,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user in Azure database (case-insensitive)
     const user = await prisma.users.findFirst({
       where: { 
         email: { equals: email, mode: 'insensitive' }
@@ -33,7 +31,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify password with bcrypt
     const isValid = await bcrypt.compare(password, user.password);
     console.log('[LOGIN] Password valid:', isValid);
     
@@ -45,20 +42,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Set secure cookie
-    const cookieStore = await cookies();
-    cookieStore.set('userEmail', user.email, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    });
-    console.log('[LOGIN] Cookie set for:', user.email);
-
-    return NextResponse.json({ 
+    // Create response with cookie set via headers (more reliable on Vercel)
+    const response = NextResponse.json({ 
       success: true,
       user: { email: user.email, name: user.name }
     });
+
+    response.cookies.set('userEmail', user.email, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    console.log('[LOGIN] Cookie set for:', user.email);
+    return response;
   } catch (error) {
     console.error('[LOGIN] Error:', error);
     return NextResponse.json(
