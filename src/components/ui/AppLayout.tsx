@@ -9,6 +9,11 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+interface CookieUser {
+  email: string;
+  name: string;
+}
+
 const navigation = [
   { name: 'Hub', href: '/hub', icon: '⬡' },
   { name: 'Bookkeeping', href: '/dashboard', icon: '📒' },
@@ -21,20 +26,49 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
+  // Check for cookie-based auth (email/password login)
+  useEffect(() => {
+    const checkCookieAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setCookieUser(data.user);
+          }
+        }
+      } catch (e) {
+        // No cookie auth
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    checkCookieAuth();
+  }, []);
+
+  // Sync NextAuth session to cookie for API routes
   useEffect(() => {
     if (session?.user?.email) {
       document.cookie = `userEmail=${session.user.email}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
     }
   }, [session]);
 
+  // Determine if user is authenticated via either method
+  const isAuthenticated = session?.user || cookieUser;
+  const currentUser = session?.user || cookieUser;
+
+  // Redirect if not authenticated (after both checks complete)
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!checkingAuth && status !== 'loading' && !isAuthenticated) {
       router.push('/');
     }
-  }, [status, router]);
+  }, [checkingAuth, status, isAuthenticated, router]);
 
-  if (status === 'loading') {
+  // Show loading while checking auth
+  if (status === 'loading' || checkingAuth) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
@@ -44,6 +78,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </div>
     );
   }
+
+  // Don't render if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  const handleSignOut = async () => {
+    // Clear cookie
+    document.cookie = 'userEmail=; path=/; max-age=0';
+    // Sign out of NextAuth if applicable
+    if (session) {
+      await signOut({ callbackUrl: '/' });
+    } else {
+      // Just redirect for cookie-based auth
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -74,10 +126,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             <div className="flex items-center gap-4">
               <div className="hidden sm:block text-right">
-                <div className="text-sm font-medium text-gray-900">{session?.user?.name || session?.user?.email?.split('@')[0]}</div>
-                <div className="text-xs text-gray-500">{session?.user?.email}</div>
+                <div className="text-sm font-medium text-gray-900">{currentUser?.name || currentUser?.email?.split('@')[0]}</div>
+                <div className="text-xs text-gray-500">{currentUser?.email}</div>
               </div>
-              <button onClick={() => signOut({ callbackUrl: '/' })} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={handleSignOut} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                 Sign out
               </button>
               <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100">

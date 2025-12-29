@@ -14,8 +14,11 @@ export async function GET() {
       );
     }
 
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail },
+    // Case-insensitive lookup to match login behavior
+    const user = await prisma.users.findFirst({
+      where: { 
+        email: { equals: userEmail, mode: 'insensitive' }
+      },
       select: { 
         id: true,
         email: true, 
