@@ -467,6 +467,13 @@ model trips {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  // Committed trip details (set when trip is finalized)
+  startDate    DateTime?
+  endDate      DateTime?
+  committedAt  DateTime?
+  latitude     Decimal?  @db.Decimal(10, 6)
+  longitude    Decimal?  @db.Decimal(10, 6)
+
   owner        users               @relation(fields: [userId], references: [id], onDelete: Cascade)
   participants trip_participants[]
   expenses     trip_expenses[]
@@ -475,6 +482,7 @@ model trips {
 
   @@index([userId])
   @@index([year, month])
+  @@index([startDate, endDate])
 }
 
 model trip_participants {
@@ -838,3 +846,4 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+

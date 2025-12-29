@@ -55,6 +55,9 @@ interface Trip {
   daysRiding: number;
   rsvpDeadline: string | null;
   status: string;
+  startDate: string | null;
+  endDate: string | null;
+  committedAt: string | null;
   participants: Participant[];
   expenses: Expense[];
   itinerary: any[];
@@ -93,6 +96,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [destinations, setDestinations] = useState<any[]>([]);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [committing, setCommitting] = useState(false);
 
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -147,6 +151,44 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       navigator.clipboard.writeText(`${window.location.origin}/trips/rsvp?token=${trip.inviteToken}`);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const commitTrip = async () => {
+    if (!confirmedStartDay || !trip?.destination) {
+      alert('Please select a date window and destination first');
+      return;
+    }
+    setCommitting(true);
+    try {
+      const res = await fetch(`/api/trips/${id}/commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDay: confirmedStartDay })
+      });
+      if (!res.ok) throw new Error('Failed to commit trip');
+      const data = await res.json();
+      setTrip(prev => prev ? { ...prev, ...data.trip } : null);
+      alert('Trip committed to calendar!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to commit');
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  const uncommitTrip = async () => {
+    if (!confirm('Remove this trip from the calendar?')) return;
+    setCommitting(true);
+    try {
+      const res = await fetch(`/api/trips/${id}/commit`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to uncommit');
+      setTrip(prev => prev ? { ...prev, startDate: null, endDate: null, committedAt: null, status: 'planning' } : null);
+      setConfirmedStartDay(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -482,6 +524,64 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
         )}
+
+        {/* Row 6: Commit Trip */}
+        <Card title="🚀 Commit Trip to Calendar" className="border-2 border-dashed border-gray-300">
+          <div className="space-y-4">
+            {trip.committedAt ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <div className="text-4xl mb-3">✅</div>
+                <h3 className="text-lg font-bold text-green-800 mb-2">Trip Committed!</h3>
+                <p className="text-green-700 mb-4">
+                  {trip.destination} • {new Date(trip.startDate!).toLocaleDateString()} - {new Date(trip.endDate!).toLocaleDateString()}
+                </p>
+                <Button variant="secondary" onClick={uncommitTrip} loading={committing}>
+                  Remove from Calendar
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="grid md:grid-cols-3 gap-4 text-center">
+                  <div className={`p-4 rounded-xl border-2 ${confirmedStartDay ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="text-2xl mb-2">{confirmedStartDay ? '✅' : '📅'}</div>
+                    <div className="text-sm font-medium text-gray-700">Dates</div>
+                    <div className="text-xs text-gray-500">
+                      {confirmedStartDay
+                        ? `${MONTHS[trip.month]} ${confirmedStartDay}-${confirmedStartDay + trip.daysTravel - 1}`
+                        : 'Select above'}
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-xl border-2 ${trip.destination ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="text-2xl mb-2">{trip.destination ? '✅' : '📍'}</div>
+                    <div className="text-sm font-medium text-gray-700">Destination</div>
+                    <div className="text-xs text-gray-500">{trip.destination || 'Select above'}</div>
+                  </div>
+                  <div className={`p-4 rounded-xl border-2 ${trip.expenses.length > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="text-2xl mb-2">{trip.expenses.length > 0 ? '✅' : '💰'}</div>
+                    <div className="text-sm font-medium text-gray-700">Budget</div>
+                    <div className="text-xs text-gray-500">
+                      {trip.expenses.length > 0 ? `$${totalExpenses.toFixed(0)} planned` : 'Add expenses'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-center pt-4">
+                  <Button
+                    onClick={commitTrip}
+                    loading={committing}
+                    disabled={!confirmedStartDay || !trip.destination}
+                    className="px-8 py-3 text-lg"
+                  >
+                    🗓️ Commit Trip to Calendar
+                  </Button>
+                  {(!confirmedStartDay || !trip.destination) && (
+                    <p className="text-xs text-gray-400 mt-2">Select dates and destination to commit</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+
       </div>
     </AppLayout>
   );
