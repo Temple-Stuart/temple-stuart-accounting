@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Get user from cookie
     const cookieStore = await cookies();
     const userEmail = cookieStore.get('userEmail')?.value;
     
@@ -12,16 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user ID
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
+    // Case-insensitive user lookup
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Only get transactions for accounts owned by this user
+    // Get transactions for accounts owned by this user
     const transactions = await prisma.transactions.findMany({
       where: {
         accounts: {
@@ -53,6 +52,7 @@ export async function GET() {
       merchantName: txn.merchantName,
       amount: txn.amount,
       category: txn.category,
+      personal_finance_category: txn.personal_finance_category,
       accountId: txn.accountId,
       accountName: txn.accounts?.name,
       accountType: txn.accounts?.type,
