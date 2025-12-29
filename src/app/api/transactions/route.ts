@@ -61,7 +61,7 @@ export async function GET() {
       subAccount: txn.subAccount,
     }));
 
-    return NextResponse.json(transformedTransactions);
+    return NextResponse.json({ transactions: transformedTransactions });
   } catch (error) {
     console.error('Transactions error:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
