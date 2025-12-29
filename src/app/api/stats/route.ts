@@ -20,20 +20,20 @@ export async function GET() {
     }
 
     // Fetch counts filtered by this user
-    const [accountsCount, transactionsCount, coaCount, destinationsCount] = await Promise.all([
+    const [accountsCount, transactionsCount, coaCount, tripsCount] = await Promise.all([
       prisma.accounts.count({ where: { userId: user.id } }),
       prisma.transactions.count({ 
         where: { accounts: { userId: user.id } } 
       }),
       prisma.chart_of_accounts.count({ where: { userId: user.id } }),
-      prisma.destinations.count().catch(() => 0), // Global table, or 0 if doesn't exist
+      prisma.trips.count({ where: { createdBy: user.id } }).catch(() => 0),
     ]);
 
     return NextResponse.json({
       accounts: accountsCount,
       transactions: transactionsCount,
       chartOfAccounts: coaCount,
-      destinations: destinationsCount,
+      trips: tripsCount,
     });
   } catch (error) {
     console.error('Stats error:', error);
