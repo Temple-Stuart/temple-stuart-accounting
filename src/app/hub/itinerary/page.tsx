@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { AppLayout, Card, PageHeader } from '@/components/ui';
 import BudgetBuilder from '@/components/dashboard/BudgetBuilder';
 
 interface Transaction {
@@ -38,7 +38,6 @@ interface Budget {
 }
 
 export default function ItineraryBuilderPage() {
-  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -52,29 +51,14 @@ export default function ItineraryBuilderPage() {
         fetch('/api/chart-of-accounts'),
         fetch(`/api/budgets?year=${selectedYear}`)
       ]);
-
-      if (txnRes.ok) {
-        const data = await txnRes.json();
-        setTransactions(data.transactions || []);
-      }
-      if (coaRes.ok) {
-        const data = await coaRes.json();
-        setCoaOptions(data.accounts || []);
-      }
-      if (budgetRes.ok) {
-        const data = await budgetRes.json();
-        setBudgets(data.budgets || []);
-      }
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
-    }
+      if (txnRes.ok) { const data = await txnRes.json(); setTransactions(data.transactions || []); }
+      if (coaRes.ok) { const data = await coaRes.json(); setCoaOptions(data.accounts || []); }
+      if (budgetRes.ok) { const data = await budgetRes.json(); setBudgets(data.budgets || []); }
+    } catch (err) { console.error('Failed to load data:', err); }
+    finally { setLoading(false); }
   }, [selectedYear]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const saveBudget = async (accountCode: string, year: number, months: Record<string, number | null>) => {
     await fetch('/api/budgets', {
@@ -86,33 +70,19 @@ export default function ItineraryBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">TS</span>
-            </div>
-            <div className="hidden sm:block">
-              <div className="font-semibold text-gray-900">Budget</div>
-              <div className="text-xs text-gray-400">Budget by category</div>
-            </div>
-          </div>
-          <button 
-            onClick={() => router.push('/hub')}
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            ← Hub
-          </button>
-        </div>
-      </header>
+    <AppLayout>
+      <PageHeader
+        title="Budget Review"
+        subtitle={`Track spending vs targets for ${selectedYear}`}
+        backHref="/hub"
+      />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <div className="px-4 lg:px-8 py-8 space-y-6">
         {loading ? (
-          <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
-            <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            Loading...
-          </div>
+          <Card className="py-12 text-center">
+            <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-500">Loading budget data...</p>
+          </Card>
         ) : (
           <BudgetBuilder
             transactions={transactions}
@@ -123,16 +93,16 @@ export default function ItineraryBuilderPage() {
           />
         )}
 
-        {/* Future: Calendar integration */}
-        <div className="mt-8 bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center">
+        {/* Future Calendar */}
+        <Card className="text-center py-8">
           <div className="text-4xl mb-3">📅</div>
           <h3 className="font-semibold text-gray-900 mb-2">Calendar Coming Soon</h3>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
             Link your budgets to a calendar. Schedule flights, hotel check-ins, events — 
             and see your financial plan come to life.
           </p>
-        </div>
-      </main>
-    </div>
+        </Card>
+      </div>
+    </AppLayout>
   );
 }
