@@ -26,7 +26,7 @@ export async function GET() {
         where: { accounts: { userId: user.id } } 
       }),
       prisma.chart_of_accounts.count({ where: { userId: user.id } }),
-      prisma.trips.count({ where: { createdBy: user.id } }).catch(() => 0),
+      prisma.trips.count({ where: { userId: user.id } }).catch(() => 0),
     ]);
 
     return NextResponse.json({
