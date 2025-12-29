@@ -14,9 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user in Azure database
-    const user = await prisma.users.findUnique({
-      where: { email }
+    // Find user in Azure database (case-insensitive)
+    const user = await prisma.users.findFirst({
+      where: { 
+        email: { equals: email, mode: 'insensitive' }
+      }
     });
 
     if (!user) {
