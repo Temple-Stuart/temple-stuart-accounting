@@ -14,6 +14,7 @@
     "@prisma/client": "^6.15.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
     "next": "15.5.9",
     "next-auth": "^4.24.13",
@@ -22,12 +23,14 @@
     "plaid": "^11.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-leaflet": "^5.0.0",
     "react-plaid-link": "^3.6.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

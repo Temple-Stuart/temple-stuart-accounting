@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
+import TripMap from '@/components/trips/TripMap';
+import 'leaflet/dist/leaflet.css';
 
 interface Participant {
   id: string;
@@ -25,6 +27,8 @@ interface Trip {
   startDate: string | null;
   endDate: string | null;
   committedAt: string | null;
+  latitude: string | null;
+  longitude: string | null;
   participants: Participant[];
   _count: {
     expenses: number;
@@ -147,6 +151,26 @@ export default function TripsPage() {
           </div>
         ) : (
           <>
+            {/* Trip Map */}
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">🗺️ Trip Locations</h2>
+              </div>
+              <TripMap 
+                trips={committedTrips.map(t => ({
+                  id: t.id,
+                  name: t.name,
+                  destination: t.destination,
+                  activity: t.activity,
+                  latitude: t.latitude,
+                  longitude: t.longitude,
+                  startDate: t.startDate,
+                  endDate: t.endDate,
+                }))}
+                onTripClick={(id) => router.push(`/budgets/trips/${id}`)}
+              />
+            </Card>
+
             {/* Year Calendar */}
             <Card>
               <div className="flex items-center justify-between mb-6">
