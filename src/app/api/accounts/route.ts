@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
     });
 
     if (!user) {
@@ -22,18 +22,7 @@ export async function GET(request: NextRequest) {
     const items = await prisma.plaid_items.findMany({
       where: { userId: user.id },
       include: {
-        accounts: {
-          include: {
-            transactions: {
-              orderBy: { date: 'desc' },
-              take: 100
-            },
-            investment_transactions: {
-              orderBy: { date: 'desc' },
-              take: 100
-            }
-          }
-        }
+        accounts: true
       }
     });
 
@@ -46,14 +35,12 @@ export async function GET(request: NextRequest) {
         type: account.type,
         subtype: account.subtype,
         mask: account.mask,
-        currentBalance: account.currentBalance,
-        availableBalance: account.availableBalance,
-        transactions: account.transactions,
-        investment_transactions: account.investment_transactions,
+        balance: account.currentBalance || 0,
       }))
     }));
 
-    return NextResponse.json(transformedItems);
+    // Dashboard expects { items: [...] }
+    return NextResponse.json({ items: transformedItems });
   } catch (error) {
     console.error('Accounts error:', error);
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });
