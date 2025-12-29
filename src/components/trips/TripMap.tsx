@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 
 interface Trip {
   id: string;
@@ -44,15 +43,16 @@ const ACTIVITY_COLORS: Record<string, string> = {
   nomad: '#f59e0b',
 };
 
-function TripMapInner({ trips, onTripClick }: TripMapProps) {
+export default function TripMap({ trips, onTripClick }: TripMapProps) {
   const [MapContainer, setMapContainer] = useState<any>(null);
   const [TileLayer, setTileLayer] = useState<any>(null);
   const [Marker, setMarker] = useState<any>(null);
   const [Popup, setPopup] = useState<any>(null);
   const [L, setL] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Dynamic import of Leaflet components
+    setMounted(true);
     import('react-leaflet').then((mod) => {
       setMapContainer(() => mod.MapContainer);
       setTileLayer(() => mod.TileLayer);
@@ -64,7 +64,7 @@ function TripMapInner({ trips, onTripClick }: TripMapProps) {
     });
   }, []);
 
-  if (!MapContainer || !TileLayer || !Marker || !Popup || !L) {
+  if (!mounted || !MapContainer || !TileLayer || !Marker || !Popup || !L) {
     return (
       <div className="h-64 bg-gray-100 rounded-xl flex items-center justify-center">
         <div className="text-gray-400">Loading map...</div>
@@ -86,13 +86,18 @@ function TripMapInner({ trips, onTripClick }: TripMapProps) {
     );
   }
 
-  // Calculate center and bounds
+  // Calculate center
   const lats = tripsWithCoords.map(t => parseFloat(t.latitude!));
   const lngs = tripsWithCoords.map(t => parseFloat(t.longitude!));
   const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
   const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
 
-  // Create custom icon
+  // Bounds for fitBounds
+  const bounds: [number, number][] = tripsWithCoords.map(t => [
+    parseFloat(t.latitude!), 
+    parseFloat(t.longitude!)
+  ]);
+
   const createIcon = (color: string) => {
     return L.divIcon({
       className: 'custom-marker',
@@ -113,9 +118,16 @@ function TripMapInner({ trips, onTripClick }: TripMapProps) {
   return (
     <MapContainer
       center={[centerLat, centerLng]}
-      zoom={tripsWithCoords.length === 1 ? 6 : 3}
+      zoom={4}
       className="h-64 rounded-xl z-0"
       style={{ height: '256px' }}
+      whenReady={(e: any) => {
+        const mapInstance = e.target;
+        if (bounds.length > 0) {
+          const leafletBounds = L.latLngBounds(bounds);
+          mapInstance.fitBounds(leafletBounds, { padding: [40, 40], maxZoom: 8 });
+        }
+      }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -145,23 +157,4 @@ function TripMapInner({ trips, onTripClick }: TripMapProps) {
       ))}
     </MapContainer>
   );
-}
-
-// Export with no SSR
-export default function TripMap(props: TripMapProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="h-64 bg-gray-100 rounded-xl flex items-center justify-center">
-        <div className="text-gray-400">Loading map...</div>
-      </div>
-    );
-  }
-
-  return <TripMapInner {...props} />;
 }
