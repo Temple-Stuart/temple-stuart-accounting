@@ -642,6 +642,8 @@ model surf_spots {
   nearestAirport  String?  @db.VarChar(10)
   visaEase        String?  @db.VarChar(50) // "visa-free", "VOA", "e-visa"
   notes           String?  @db.Text
+  latitude        Decimal?  @db.Decimal(10,6)
+  longitude       Decimal?  @db.Decimal(10,6)
   createdAt       DateTime @default(now())
 }
 

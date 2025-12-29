@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import TripBookingFlow from '@/components/trips/TripBookingFlow';
+import DestinationMap from '@/components/trips/DestinationMap';
+import 'leaflet/dist/leaflet.css';
 
 interface Participant {
   id: string;
@@ -390,6 +392,18 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             selectedDestinationId={destinations.find(d => d.resort.name === trip.destination)?.resortId}
             onSelectDestination={selectDestination}
           />
+          
+          {/* Destination Map */}
+          {destinations.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-medium text-gray-500 mb-3">📍 Compare Locations</h4>
+              <DestinationMap
+                destinations={destinations}
+                selectedName={trip.destination}
+                onDestinationClick={(resortId, name) => selectDestination(resortId, name)}
+              />
+            </div>
+          )}
         </Card>
 
         {/* Row 4: Itinerary & Budget */}
