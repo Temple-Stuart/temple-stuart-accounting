@@ -25,7 +25,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         // Force full page navigation to ensure cookie is picked up
-        window.location.href = '/dashboard';
+        window.location.href = '/hub';
       } else {
         setError(data.error || 'Login failed');
       }
