@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: "Temple Stuart",
     images: [
       {
-        url: "https://templestuart.com/api/og/home",
+        url: "https://templestuart.com/og-image.png",
         width: 1200,
         height: 630,
         alt: "Temple Stuart OS - Financial infrastructure for independent professionals",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Temple Stuart OS",
     description: "Track your money. Plan your trips. Find your people.",
-    images: ["https://templestuart.com/api/og/home"],
+    images: ["https://templestuart.com/og-image.png"],
   },
 };
 
