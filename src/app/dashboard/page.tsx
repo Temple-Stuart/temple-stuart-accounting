@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import Script from 'next/script';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
