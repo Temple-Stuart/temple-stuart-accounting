@@ -2,107 +2,107 @@
 
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useEffect } from 'react';
-import AppLayout from '@/components/AppLayout';
-import AppFrame from '@/components/AppFrame';
+import { AppLayout, Card, Badge } from '@/components/ui';
 
 const modules = [
   { 
     name: 'Bookkeeping', 
-    description: 'Double-entry ledger & financial statements', 
+    description: 'Double-entry ledger, financial statements, CPA-ready exports', 
     href: '/dashboard', 
     icon: '📒',
-    color: 'green',
-    number: '01',
-    features: ['Bank sync via Plaid', 'Double-entry ledger', 'Income statement & balance sheet']
+    badge: { text: '01', variant: 'success' as const },
+    stats: '3,768 transactions'
   },
   { 
-    name: 'Agenda & Budget', 
-    description: 'Plan trips, split expenses, track costs', 
+    name: 'Trips & Agenda', 
+    description: 'Plan trips, compare destinations, coordinate with your crew', 
     href: '/budgets/trips', 
     icon: '✈️',
-    color: 'blue',
-    number: '02',
-    features: ['Activity-based destination search', 'Group RSVP & availability', 'Shared expense tracking']
+    badge: { text: '02', variant: 'info' as const },
+    stats: 'Activity-based search'
   },
   { 
     name: 'Budget Review', 
-    description: 'Budget by category, plan your year', 
+    description: 'Track spending vs targets, visualize your financial health', 
     href: '/hub/itinerary', 
-    icon: '📅',
-    color: 'purple',
-    number: '03',
-    features: ['Monthly targets by category', 'YTD actuals vs budget', 'Visual progress bars']
+    icon: '📊',
+    badge: { text: '03', variant: 'purple' as const },
+    stats: 'YTD tracking'
   },
 ];
-
-const colorClasses: Record<string, string> = {
-  green: 'bg-green-100 text-green-700',
-  blue: 'bg-blue-100 text-blue-700',
-  purple: 'bg-purple-100 text-purple-700',
-};
 
 export default function HubPage() {
   const router = useRouter();
   const { data: session } = useSession();
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      document.cookie = `userEmail=${session.user.email}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
-    }
-  }, [session]);
-
   return (
-    <AppLayout showBack={false}>
-      <div className="text-center mb-12">
-        <h1 className="text-4xl sm:text-5xl font-extralight text-gray-900 tracking-tight mb-4">
-          What would you like to do?
-        </h1>
-        <p className="text-lg text-gray-500 font-light">
-          Welcome back, {session?.user?.name || session?.user?.email?.split('@')[0]}
-        </p>
-      </div>
+    <AppLayout>
+      <div className="px-4 lg:px-8 py-12">
+        {/* Welcome Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 tracking-tight mb-3">
+            Welcome back, {session?.user?.name?.split(' ')[0] || 'there'}
+          </h1>
+          <p className="text-lg text-gray-500">
+            What would you like to work on today?
+          </p>
+        </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {modules.map((module) => (
-          <AppFrame key={module.name} title={module.name}>
+        {/* Module Cards */}
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {modules.map((module) => (
             <button
+              key={module.name}
               onClick={() => router.push(module.href)}
-              className="w-full text-left group"
+              className="group text-left"
             >
-              <div className="bg-white rounded-xl border border-gray-200 p-6 hover:border-[#b4b237] hover:shadow-lg transition-all">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-4xl">{module.icon}</div>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${colorClasses[module.color]}`}>
-                    {module.number}
-                  </span>
+              <Card className="h-full hover:border-[#b4b237] hover:shadow-lg transition-all duration-200">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="text-4xl">{module.icon}</span>
+                    <Badge variant={module.badge.variant}>{module.badge.text}</Badge>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 group-hover:text-[#b4b237] transition-colors mb-2">
+                    {module.name}
+                  </h2>
+                  <p className="text-gray-500 text-sm flex-grow mb-4">
+                    {module.description}
+                  </p>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span className="text-xs text-gray-400 font-medium">{module.stats}</span>
+                    <span className="text-[#b4b237] group-hover:translate-x-1 transition-transform">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </div>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-[#b4b237] transition-colors mb-2">
-                  {module.name}
-                </h2>
-                <p className="text-gray-500 text-sm mb-4">{module.description}</p>
-                <ul className="space-y-2">
-                  {module.features.map((feature, i) => (
-                    <li key={i} className="flex items-center text-sm text-gray-600">
-                      <div className="w-4 h-4 rounded-full bg-[#b4b237]/10 flex items-center justify-center mr-2">
-                        <svg className="w-2.5 h-2.5 text-[#b4b237]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6 flex items-center text-[#b4b237] font-medium text-sm group-hover:translate-x-1 transition-transform">
-                  Open
-                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </div>
-              </div>
+              </Card>
             </button>
-          </AppFrame>
-        ))}
+          ))}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="mt-16 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-gray-900">6</div>
+              <div className="text-sm text-gray-500 mt-1">Connected Accounts</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-[#b4b237]">3,768</div>
+              <div className="text-sm text-gray-500 mt-1">Transactions</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-gray-900">138</div>
+              <div className="text-sm text-gray-500 mt-1">Chart of Accounts</div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
+              <div className="text-3xl font-bold text-purple-600">297</div>
+              <div className="text-sm text-gray-500 mt-1">Destinations</div>
+            </div>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
