@@ -2,21 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 const ACTIVITY_TABLE_MAP: Record<string, string> = {
+  // Mountain
   snowboard: 'ikon_resorts',
   mtb: 'ikon_resorts',
   hike: 'ikon_resorts',
   climb: 'ikon_resorts',
+  // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
   sail: 'surf_spots',
+  rafting: 'rafting_destinations',
+  // Endurance
   bike: 'cycling_destinations',
   run: 'race_destinations',
   triathlon: 'triathlon_destinations',
+  swim: 'swim_destinations',
+  // Lifestyle
   golf: 'golf_courses',
   skate: 'skatepark_destinations',
   festival: 'festival_destinations',
+  art: 'museum_destinations',
+  // Business
   conference: 'conference_destinations',
   nomad: 'nomad_cities',
+  dinner: 'dining_destinations',
+  lunch: 'dining_destinations',
 };
 
 export async function GET(request: NextRequest) {
@@ -29,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const table = ACTIVITY_TABLE_MAP[activity];
     if (!table) {
-      return NextResponse.json({ error: 'Unknown activity' }, { status: 400 });
+      return NextResponse.json({ error: 'Unknown activity', activity }, { status: 400 });
     }
 
     let destinations: any[] = [];
@@ -64,6 +74,18 @@ export async function GET(request: NextRequest) {
         break;
       case 'nomad_cities':
         destinations = await prisma.nomad_cities.findMany({ orderBy: { nomadCommunity: 'desc' } });
+        break;
+      case 'rafting_destinations':
+        destinations = await prisma.rafting_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
+        break;
+      case 'swim_destinations':
+        destinations = await prisma.swim_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
+        break;
+      case 'museum_destinations':
+        destinations = await prisma.museum_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
+        break;
+      case 'dining_destinations':
+        destinations = await prisma.dining_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
         break;
     }
 

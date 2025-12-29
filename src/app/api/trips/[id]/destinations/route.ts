@@ -4,21 +4,31 @@ import { prisma } from '@/lib/prisma';
 
 // Map activity to table name
 const ACTIVITY_TABLE_MAP: Record<string, string> = {
+  // Mountain
   snowboard: 'ikon_resorts',
   mtb: 'ikon_resorts',
   hike: 'ikon_resorts',
   climb: 'ikon_resorts',
+  // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
   sail: 'surf_spots',
+  rafting: 'rafting_destinations',
+  // Endurance
   bike: 'cycling_destinations',
   run: 'race_destinations',
   triathlon: 'triathlon_destinations',
+  swim: 'swim_destinations',
+  // Lifestyle
   golf: 'golf_courses',
   skate: 'skatepark_destinations',
   festival: 'festival_destinations',
+  art: 'museum_destinations',
+  // Business
   conference: 'conference_destinations',
   nomad: 'nomad_cities',
+  dinner: 'dining_destinations',
+  lunch: 'dining_destinations',
 };
 
 // Helper to get destination data from the correct table
@@ -46,6 +56,14 @@ async function getDestinationData(table: string, ids: string[]) {
       return prisma.conference_destinations.findMany({ where: { id: { in: ids } } });
     case 'nomad_cities':
       return prisma.nomad_cities.findMany({ where: { id: { in: ids } } });
+    case 'rafting_destinations':
+      return prisma.rafting_destinations.findMany({ where: { id: { in: ids } } });
+    case 'swim_destinations':
+      return prisma.swim_destinations.findMany({ where: { id: { in: ids } } });
+    case 'museum_destinations':
+      return prisma.museum_destinations.findMany({ where: { id: { in: ids } } });
+    case 'dining_destinations':
+      return prisma.dining_destinations.findMany({ where: { id: { in: ids } } });
     default:
       return prisma.ikon_resorts.findMany({ where: { id: { in: ids } } });
   }
@@ -73,6 +91,14 @@ async function getSingleDestination(table: string, id: string) {
       return prisma.conference_destinations.findUnique({ where: { id } });
     case 'nomad_cities':
       return prisma.nomad_cities.findUnique({ where: { id } });
+    case 'rafting_destinations':
+      return prisma.rafting_destinations.findUnique({ where: { id } });
+    case 'swim_destinations':
+      return prisma.swim_destinations.findUnique({ where: { id } });
+    case 'museum_destinations':
+      return prisma.museum_destinations.findUnique({ where: { id } });
+    case 'dining_destinations':
+      return prisma.dining_destinations.findUnique({ where: { id } });
     default:
       return prisma.ikon_resorts.findUnique({ where: { id } });
   }

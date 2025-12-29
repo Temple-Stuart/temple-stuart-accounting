@@ -63,7 +63,7 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
 
   // Filter destinations that have coordinates
   const locationsWithCoords = destinations.filter(d => 
-    d.resort?.latitude && d.resort?.longitude
+    d.resort?.latitude != null && d.resort?.longitude != null
   ).map(d => ({
     id: d.resortId,
     name: d.resort!.name,
