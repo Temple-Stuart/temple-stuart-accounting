@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import Script from 'next/script';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
@@ -43,6 +45,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { data: session } = useSession();
+
+  // Set userEmail cookie from session
+  useEffect(() => {
+    if (session?.user?.email) {
+      document.cookie = `userEmail=${session.user.email}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+    }
+  }, [session]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
@@ -157,7 +167,11 @@ export default function Dashboard() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (session?.user?.email) {
+      loadData();
+    }
+  }, [session, loadData]);
 
   // Helpers
   const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
