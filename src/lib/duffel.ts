@@ -1,12 +1,6 @@
 const DUFFEL_API_URL = 'https://api.duffel.com';
 const DUFFEL_TOKEN = process.env.DUFFEL_API_TOKEN;
 
-// Headers for Duffel API
-
-
-
-}
-
 function getHeaders(): Record<string, string> {
   if (!DUFFEL_TOKEN) {
     throw new Error('DUFFEL_API_TOKEN not configured');
@@ -22,39 +16,27 @@ function getHeaders(): Record<string, string> {
 // OFFER REQUESTS - Search for flights
 // ═══════════════════════════════════════════════════════════════════
 export interface SearchParams {
-  origin: string;           // IATA code (LAX)
-  destination: string;      // IATA code (DEN)
-  departureDate: string;    // YYYY-MM-DD
-  returnDate?: string;      // YYYY-MM-DD (optional for one-way)
-  passengers: number;       // Number of adult passengers
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate?: string;
+  passengers: number;
   cabinClass?: 'economy' | 'premium_economy' | 'business' | 'first';
 }
 
 export async function searchFlights(params: SearchParams) {
   const { origin, destination, departureDate, returnDate, passengers, cabinClass = 'economy' } = params;
 
-  // Build slices (legs of the journey)
   const slices = [
-    {
-      origin,
-      destination,
-      departure_date: departureDate,
-    },
+    { origin, destination, departure_date: departureDate },
   ];
 
-  // Add return slice if round-trip
   if (returnDate) {
-    slices.push({
-      origin: destination,
-      destination: origin,
-      departure_date: returnDate,
-    });
+    slices.push({ origin: destination, destination: origin, departure_date: returnDate });
   }
 
-  // Build passengers array
   const passengersArray = Array(passengers).fill({ type: 'adult' });
 
-  // Create offer request
   const response = await fetch(`${DUFFEL_API_URL}/air/offer_requests`, {
     method: 'POST',
     headers: getHeaders(),
@@ -63,8 +45,8 @@ export async function searchFlights(params: SearchParams) {
         slices,
         passengers: passengersArray,
         cabin_class: cabinClass,
-        return_offers: true, // Return offers immediately (sync)
-        max_connections: 1,  // Limit to 1 stop max
+        return_offers: true,
+        max_connections: 1,
       },
     }),
   });
@@ -80,15 +62,12 @@ export async function searchFlights(params: SearchParams) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GET OFFERS - Retrieve offers from an offer request
+// GET OFFERS
 // ═══════════════════════════════════════════════════════════════════
 export async function getOffers(offerRequestId: string) {
   const response = await fetch(
     `${DUFFEL_API_URL}/air/offers?offer_request_id=${offerRequestId}&sort=total_amount&limit=10`,
-    {
-      method: 'GET',
-      headers: getHeaders(),
-    }
+    { method: 'GET', headers: getHeaders() }
   );
 
   if (!response.ok) {
@@ -101,7 +80,7 @@ export async function getOffers(offerRequestId: string) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// GET SINGLE OFFER - Get details for a specific offer
+// GET SINGLE OFFER
 // ═══════════════════════════════════════════════════════════════════
 export async function getOffer(offerId: string) {
   const response = await fetch(`${DUFFEL_API_URL}/air/offers/${offerId}`, {
@@ -122,18 +101,18 @@ export async function getOffer(offerId: string) {
 // CREATE ORDER - Book the flight
 // ═══════════════════════════════════════════════════════════════════
 export interface PassengerDetails {
-  id: string;              // From the offer
+  id: string;
   title: 'mr' | 'ms' | 'mrs' | 'miss' | 'dr';
   given_name: string;
   family_name: string;
-  born_on: string;         // YYYY-MM-DD
+  born_on: string;
   email: string;
-  phone_number: string;    // E.164 format (+1234567890)
+  phone_number: string;
   gender: 'm' | 'f';
 }
 
 export interface PaymentDetails {
-  type: 'balance';         // Use Duffel balance (test mode)
+  type: 'balance';
   amount: string;
   currency: string;
 }
@@ -151,7 +130,6 @@ export async function createOrder(
     },
   };
 
-  // In test mode, we can use balance payment
   if (payment) {
     body.data.payments = [payment];
   }
@@ -182,15 +160,13 @@ export function parseOffer(offer: any) {
 
   const parseSlice = (slice: any) => {
     if (!slice) return null;
-    
+
     const segments = slice.segments || [];
     const firstSeg = segments[0];
     const lastSeg = segments[segments.length - 1];
-    
-    // Get unique carriers
+
     const carriers = [...new Set(segments.map((s: any) => s.marketing_carrier?.name || s.operating_carrier?.name))];
-    
-    // Parse duration (ISO 8601 duration to readable)
+
     const duration = slice.duration || '';
     const durationMatch = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
     const hours = parseInt(durationMatch?.[1] || '0');
