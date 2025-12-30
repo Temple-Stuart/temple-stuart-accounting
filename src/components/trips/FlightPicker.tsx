@@ -262,7 +262,7 @@ export default function FlightPicker({
                 <div className="ml-4 text-right">
                   <div className="text-xl font-bold text-green-600">${offer.price}</div>
                   <div className="text-xs text-gray-500">per person</div>
-                  {offer.conditions.refundable && (
+                  {offer.conditions?.refundable && (
                     <div className="text-xs text-green-500">✓ Refundable</div>
                   )}
                 </div>
