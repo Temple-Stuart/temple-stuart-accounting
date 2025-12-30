@@ -22,6 +22,10 @@ interface Destination {
 }
 
 interface FlightSelection {
+  conditions?: {
+    refundable: boolean;
+    changeable: boolean;
+  };
   id: string;
   price: number;
   currency: string;
