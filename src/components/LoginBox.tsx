@@ -49,7 +49,7 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
     <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-light text-gray-900 mb-2">Welcome</h2>
-        <p className="text-gray-500 text-sm">Sign in to Temple Stuart OS</p>
+        <p className="text-gray-500 text-sm">Sign in to Temple Stuart</p>
       </div>
 
       {/* OAuth Buttons */}
