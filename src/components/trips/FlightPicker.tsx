@@ -7,17 +7,17 @@ interface FlightOffer {
   price: number;
   currency: string;
   outbound: {
-    departure: { airport: string; airportName: string; localTime: string; date: string };
-    arrival: { airport: string; airportName: string; localTime: string; date: string };
+    departure: { airport: string; airportName?: string; localTime: string; date: string };
+    arrival: { airport: string; airportName?: string; localTime: string; date: string };
     duration: string;
-    durationMinutes: number;
+    durationMinutes?: number;
     stops: number;
     carriers: string[];
-    segments: any[];
+    segments?: any[];
   } | null;
   return: {
-    departure: { airport: string; airportName: string; localTime: string; date: string };
-    arrival: { airport: string; airportName: string; localTime: string; date: string };
+    departure: { airport: string; airportName?: string; localTime: string; date: string };
+    arrival: { airport: string; airportName?: string; localTime: string; date: string };
     duration: string;
     stops: number;
     carriers: string[];
