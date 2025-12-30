@@ -31,7 +31,7 @@ export default function Header() {
                 onClick={() => setShowLogin(true)}
                 className="group inline-flex items-center px-6 sm:px-8 py-3 bg-gray-900 text-white font-medium rounded-full hover:bg-[#b4b237] transition-all text-sm sm:text-base shadow-lg hover:shadow-[#b4b237]/25"
               >
-                Enter OS
+                Enter
                 <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
