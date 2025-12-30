@@ -57,7 +57,7 @@ export default function AppLayout({
                 <span className="text-white font-bold text-lg">TS</span>
               </div>
               <div className="hidden sm:block">
-                <div className="font-semibold text-gray-900">Temple Stuart</div>
+                <div className="font-semibold text-gray-900">Temple Stuart</div><div className="text-xs text-gray-500">Personal Back Office</div>
                 <div className="text-xs text-gray-400 font-light">OS</div>
               </div>
             </Link>
@@ -136,7 +136,7 @@ export default function AppLayout({
       <footer className="bg-white border-t border-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-400 font-light">
-            Temple Stuart OS • Track your money. Plan your trips. Find your people.
+            Temple Stuart • Personal Back Office
           </p>
         </div>
       </footer>

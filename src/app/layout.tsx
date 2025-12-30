@@ -6,10 +6,10 @@ import Providers from "@/components/Providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Temple Stuart OS",
+  title: "Temple Stuart | Personal Back Office",
   description: "Track your money. Plan your trips. Find your people.",
   openGraph: {
-    title: "Temple Stuart OS",
+    title: "Temple Stuart | Personal Back Office",
     description: "Track your money. Plan your trips. Find your people.",
     url: "https://templestuart.com",
     siteName: "Temple Stuart",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
         url: "https://templestuart.com/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Temple Stuart OS - Financial infrastructure for independent professionals",
+        alt: "Temple Stuart - Personal Back Office",
       },
     ],
     locale: "en_US",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Temple Stuart OS",
+    title: "Temple Stuart | Personal Back Office",
     description: "Track your money. Plan your trips. Find your people.",
     images: ["https://templestuart.com/og-image.png"],
   },
