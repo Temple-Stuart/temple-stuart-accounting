@@ -22,7 +22,7 @@ interface FlightOffer {
     stops: number;
     carriers: string[];
   } | null;
-  conditions: {
+  conditions?: {
     refundable: boolean;
     changeable: boolean;
   };
