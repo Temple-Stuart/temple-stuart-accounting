@@ -55,7 +55,7 @@ export async function seedDefaultCOA(userId: string): Promise<boolean> {
       
       if (!existing) {
         await prisma.chart_of_accounts.create({
-          data: {
+          data: { id: crypto.randomUUID(),
             code: account.code,
             name: account.name,
             account_type: account.account_type,
