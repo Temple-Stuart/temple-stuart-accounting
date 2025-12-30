@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Card, Badge, Button } from '@/components/ui';
+import { useMemo, useState } from 'react';
+import { Card, Button } from '@/components/ui';
 
 interface Transaction {
   id: string;
@@ -37,23 +37,10 @@ interface BudgetBuilderProps {
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function BudgetBuilder({ transactions, coaOptions, budgets, selectedYear, onSaveBudget }: BudgetBuilderProps) {
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [editingCell, setEditingCell] = useState<{ code: string; field: string } | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [applyMode, setApplyMode] = useState<Record<string, string>>({});
-  const [drilldown, setDrilldown] = useState<{ code: string; type: 'ytd' | 'avg' } | null>(null);
-  const [localBudgets, setLocalBudgets] = useState<Record<string, Record<string, number | null>>>({});
+export default function BudgetBuilder({ transactions, coaOptions, budgets, selectedYear }: BudgetBuilderProps) {
+  const [drilldown, setDrilldown] = useState<{ code: string } | null>(null);
 
-  useMemo(() => {
-    const initial: Record<string, Record<string, number | null>> = {};
-    budgets.forEach(b => {
-      initial[b.accountCode] = { jan: b.jan, feb: b.feb, mar: b.mar, apr: b.apr, may: b.may, jun: b.jun, jul: b.jul, aug: b.aug, sep: b.sep, oct: b.oct, nov: b.nov, dec: b.dec };
-    });
-    setLocalBudgets(initial);
-  }, [budgets]);
-
-  // YTD actuals from transactions (for comparison)
+  // YTD actuals from transactions
   const ytdByAccount = useMemo(() => {
     const result: Record<string, number> = {};
     transactions.filter(t => new Date(t.date).getFullYear() === selectedYear).forEach(t => {
@@ -68,7 +55,20 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
     return Math.max(months.size, 1);
   }, [transactions, selectedYear]);
 
-  // ONLY show accounts with committed budgets (from trips or fixed expenses)
+  // Budget values by account
+  const budgetsByAccount = useMemo(() => {
+    const result: Record<string, Record<string, number | null>> = {};
+    budgets.forEach(b => {
+      result[b.accountCode] = {
+        jan: b.jan, feb: b.feb, mar: b.mar, apr: b.apr,
+        may: b.may, jun: b.jun, jul: b.jul, aug: b.aug,
+        sep: b.sep, oct: b.oct, nov: b.nov, dec: b.dec
+      };
+    });
+    return result;
+  }, [budgets]);
+
+  // Only show accounts with committed budgets
   const usedAccounts = useMemo(() => {
     const codes = new Set<string>();
     budgets.forEach(b => { if (b.accountCode) codes.add(b.accountCode); });
@@ -78,29 +78,9 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
   const revenueCodes = usedAccounts.filter(a => a.accountType === 'revenue');
   const expenseCodes = usedAccounts.filter(a => a.accountType === 'expense');
 
-  const getBudgetValue = (code: string, month: string): number | null => localBudgets[code]?.[month] ?? null;
-  const getAnnualBudget = (code: string): number => MONTHS.reduce((sum, m) => sum + (Number(localBudgets[code]?.[m]) || 0), 0);
+  const getBudgetValue = (code: string, month: string): number | null => budgetsByAccount[code]?.[month] ?? null;
+  const getAnnualBudget = (code: string): number => MONTHS.reduce((sum, m) => sum + (Number(budgetsByAccount[code]?.[m]) || 0), 0);
   const formatMoney = (n: number | null) => n === null || n === 0 ? '-' : `$${Math.abs(n).toLocaleString()}`;
-  const getProgress = (code: string) => { const annual = getAnnualBudget(code); return annual === 0 ? 0 : Math.min(((ytdByAccount[code] || 0) / annual) * 100, 100); };
-
-  const handleBudgetInput = (code: string) => {
-    const value = parseFloat(editValue) || 0;
-    const mode = applyMode[code] || 'all';
-    const newMonths: Record<string, number | null> = { ...localBudgets[code] };
-    if (mode === 'all') MONTHS.forEach(m => { newMonths[m] = value; });
-    else newMonths[mode] = value;
-    setLocalBudgets(prev => ({ ...prev, [code]: newMonths }));
-    onSaveBudget(code, selectedYear, newMonths);
-    setEditingCell(null);
-    setEditValue('');
-  };
-
-  const handleMonthEdit = (code: string, month: string, value: string) => {
-    const numValue = value === '' ? null : parseFloat(value) || 0;
-    const newMonths = { ...localBudgets[code], [month]: numValue };
-    setLocalBudgets(prev => ({ ...prev, [code]: newMonths }));
-    onSaveBudget(code, selectedYear, newMonths);
-  };
 
   const drilldownTxns = useMemo(() => {
     if (!drilldown) return [];
@@ -108,82 +88,46 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [drilldown, transactions, selectedYear]);
 
-  // Mobile Card
-  const renderCard = (account: CoaOption, isRevenue: boolean) => {
+  // Mobile Card - Read Only
+  const renderCard = (account: CoaOption) => {
     const ytd = ytdByAccount[account.code] || 0;
     const avg = Math.round(ytd / monthsWithData);
     const annual = getAnnualBudget(account.code);
-    const progress = getProgress(account.code);
-    const isExpanded = expandedCard === account.code;
-    const isEditing = editingCell?.code === account.code;
 
     return (
-      <div key={account.code} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <button onClick={() => setExpandedCard(isExpanded ? null : account.code)} className="w-full px-4 py-4 text-left">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <div className="font-semibold text-gray-900">{account.name}</div>
-              <div className="text-xs text-gray-400 font-mono">{account.code}</div>
-            </div>
-            <Badge variant={isRevenue ? 'success' : 'danger'} size="sm">{account.accountType}</Badge>
+      <div key={account.code} className="bg-white rounded-xl border border-gray-200 overflow-hidden p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <div className="font-semibold text-gray-900">{account.name}</div>
+            <div className="text-xs text-gray-400 font-mono">{account.code}</div>
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-3">
-            <div><div className="text-xs text-gray-400">YTD</div><div className="font-semibold text-gray-900">{formatMoney(ytd)}</div></div>
-            <div><div className="text-xs text-gray-400">Budget</div><div className="font-semibold text-gray-900">{formatMoney(annual)}</div></div>
-            <div><div className="text-xs text-gray-400">Avg/Mo</div><div className="font-semibold text-gray-900">{formatMoney(avg)}</div></div>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full transition-all ${progress > 90 ? 'bg-red-500' : progress > 70 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${progress}%` }} />
-          </div>
-          <div className="text-xs text-gray-400 mt-1">{Math.round(progress)}% of budget used</div>
-        </button>
-
-        {isExpanded && (
-          <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-4">
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} placeholder="Amount"
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" autoFocus />
-                  <select value={applyMode[account.code] || 'all'} onChange={(e) => setApplyMode(prev => ({ ...prev, [account.code]: e.target.value }))}
-                    className="px-2 py-2 border border-gray-200 rounded-lg text-sm">
-                    <option value="all">All</option>
-                    {MONTH_LABELS.map((m, i) => <option key={m} value={MONTHS[i]}>{m}</option>)}
-                  </select>
-                  <Button size="sm" onClick={() => handleBudgetInput(account.code)}>Set</Button>
-                </>
-              ) : (
-                <button onClick={() => setEditingCell({ code: account.code, field: 'budget' })}
-                  className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[#b4b237] hover:text-[#b4b237]">
-                  + Adjust Budget
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {MONTHS.map((month, i) => (
-                <div key={month} className="text-center">
-                  <div className="text-xs text-gray-400 mb-1">{MONTH_LABELS[i]}</div>
-                  <input type="number" value={getBudgetValue(account.code, month) ?? ''} onChange={(e) => handleMonthEdit(account.code, month, e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-200 rounded text-center text-sm" placeholder="-" />
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setDrilldown({ code: account.code, type: 'ytd' })}
-              className="w-full py-2 text-sm text-[#b4b237] hover:bg-[#b4b237]/5 rounded-lg font-medium">
-              View transactions →
+        </div>
+        <div className="grid grid-cols-3 gap-4 mb-3">
+          <div>
+            <div className="text-xs text-gray-400">YTD</div>
+            <button onClick={() => setDrilldown({ code: account.code })} className="font-semibold text-blue-600 hover:underline">
+              {formatMoney(ytd)}
             </button>
           </div>
-        )}
+          <div><div className="text-xs text-gray-400">Avg/Mo</div><div className="font-semibold text-gray-900">{formatMoney(avg)}</div></div>
+          <div><div className="text-xs text-gray-400">Budget</div><div className="font-semibold text-gray-900">{formatMoney(annual)}</div></div>
+        </div>
+        <div className="grid grid-cols-6 gap-1 text-center text-xs">
+          {MONTH_LABELS.map((label, i) => (
+            <div key={label}>
+              <div className="text-gray-400">{label}</div>
+              <div className="font-medium text-gray-700">{formatMoney(getBudgetValue(account.code, MONTHS[i]))}</div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
 
-  // Desktop Table Row
+  // Desktop Table Row - Read Only
   const renderRow = (account: CoaOption) => {
     const ytd = ytdByAccount[account.code] || 0;
     const avg = Math.round(ytd / monthsWithData);
-    const progress = getProgress(account.code);
-    const isEditing = editingCell?.code === account.code && editingCell?.field === 'budget';
 
     return (
       <tr key={account.code} className="border-b border-gray-100 hover:bg-gray-50/50">
@@ -191,43 +135,13 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
           <div className="font-medium text-gray-900 text-sm">{account.name}</div>
           <div className="text-xs text-gray-400 font-mono">{account.code}</div>
         </td>
-        <td className="px-3 py-3 text-right cursor-pointer hover:bg-blue-50" onClick={() => setDrilldown({ code: account.code, type: 'ytd' })}>
+        <td className="px-3 py-3 text-right cursor-pointer hover:bg-blue-50" onClick={() => setDrilldown({ code: account.code })}>
           <span className="text-blue-600 font-medium text-sm">{formatMoney(ytd)}</span>
         </td>
         <td className="px-3 py-3 text-right text-sm text-gray-600">{formatMoney(avg)}</td>
-        <td className="px-3 py-3">
-          <div className="w-24">
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full ${progress > 90 ? 'bg-red-500' : progress > 70 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${progress}%` }} />
-            </div>
-            <div className="text-xs text-gray-400 text-center mt-0.5">{Math.round(progress)}%</div>
-          </div>
-        </td>
-        <td className="px-2 py-3">
-          {isEditing ? (
-            <div className="flex gap-1">
-              <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                onBlur={() => handleBudgetInput(account.code)} onKeyDown={(e) => e.key === 'Enter' && handleBudgetInput(account.code)}
-                className="w-16 px-2 py-1 border rounded text-right text-sm" autoFocus />
-            </div>
-          ) : (
-            <button onClick={() => { setEditingCell({ code: account.code, field: 'budget' }); setEditValue(''); }}
-              className="w-16 px-2 py-1 border border-dashed border-gray-300 rounded text-sm text-gray-400 hover:border-[#b4b237] hover:text-[#b4b237]">
-              {localBudgets[account.code] ? formatMoney(getBudgetValue(account.code, 'jan')) : 'Set'}
-            </button>
-          )}
-        </td>
-        <td className="px-2 py-3">
-          <select value={applyMode[account.code] || 'all'} onChange={(e) => setApplyMode(prev => ({ ...prev, [account.code]: e.target.value }))}
-            className="text-xs border border-gray-200 rounded px-1 py-1 w-16">
-            <option value="all">All</option>
-            {MONTH_LABELS.map((m, i) => <option key={m} value={MONTHS[i]}>{m}</option>)}
-          </select>
-        </td>
         {MONTHS.map(month => (
-          <td key={month} className="px-1 py-3 text-center">
-            <input type="number" value={getBudgetValue(account.code, month) ?? ''} onChange={(e) => handleMonthEdit(account.code, month, e.target.value)}
-              className="w-14 px-1 py-1 border border-gray-200 rounded text-right text-xs focus:border-[#b4b237] focus:ring-1 focus:ring-[#b4b237]" placeholder="-" />
+          <td key={month} className="px-2 py-3 text-center text-sm text-gray-700">
+            {formatMoney(getBudgetValue(account.code, month))}
           </td>
         ))}
         <td className="px-3 py-3 text-right font-bold text-sm bg-gray-50 sticky right-0 border-l border-gray-200">
@@ -239,19 +153,19 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
 
   const renderSectionHeader = (title: string, isRevenue: boolean) => (
     <tr className={isRevenue ? 'bg-green-50' : 'bg-red-50'}>
-      <td colSpan={18} className={`px-4 py-2 font-bold text-sm sticky left-0 ${isRevenue ? 'text-green-800 bg-green-50' : 'text-red-800 bg-red-50'}`}>{title}</td>
+      <td colSpan={16} className={`px-4 py-2 font-bold text-sm sticky left-0 ${isRevenue ? 'text-green-800 bg-green-50' : 'text-red-800 bg-red-50'}`}>{title}</td>
     </tr>
   );
 
-  const getSectionTotal = (accounts: CoaOption[], month: string): number => accounts.reduce((sum, a) => sum + (Number(getBudgetValue(a.code, month)) || 0), 0);
+  const getSectionTotal = (accounts: CoaOption[], month: string): number => 
+    accounts.reduce((sum, a) => sum + (Number(getBudgetValue(a.code, month)) || 0), 0);
 
   const renderSectionTotal = (title: string, accounts: CoaOption[], isRevenue: boolean) => (
     <tr className={isRevenue ? 'bg-green-100' : 'bg-red-100'}>
       <td className={`px-4 py-3 font-bold text-sm sticky left-0 ${isRevenue ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Total {title}</td>
       <td className="px-3 py-3 text-right font-bold text-sm">{formatMoney(accounts.reduce((sum, a) => sum + (ytdByAccount[a.code] || 0), 0))}</td>
       <td className="px-3 py-3 text-right font-bold text-sm">{formatMoney(Math.round(accounts.reduce((sum, a) => sum + (ytdByAccount[a.code] || 0), 0) / monthsWithData))}</td>
-      <td></td><td></td><td></td>
-      {MONTHS.map(month => <td key={month} className="px-1 py-3 text-right text-xs font-bold">{formatMoney(getSectionTotal(accounts, month))}</td>)}
+      {MONTHS.map(month => <td key={month} className="px-2 py-3 text-center text-sm font-bold">{formatMoney(getSectionTotal(accounts, month))}</td>)}
       <td className="px-3 py-3 text-right font-bold text-sm bg-gray-100 sticky right-0">{formatMoney(accounts.reduce((sum, a) => sum + getAnnualBudget(a.code), 0))}</td>
     </tr>
   );
@@ -263,13 +177,13 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
         {revenueCodes.length > 0 && (
           <div>
             <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-3">Revenue</h3>
-            <div className="space-y-3">{revenueCodes.map(a => renderCard(a, true))}</div>
+            <div className="space-y-3">{revenueCodes.map(a => renderCard(a))}</div>
           </div>
         )}
         {expenseCodes.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-3">Expenses</h3>
-            <div className="space-y-3">{expenseCodes.map(a => renderCard(a, false))}</div>
+            <div className="space-y-3">{expenseCodes.map(a => renderCard(a))}</div>
           </div>
         )}
         {usedAccounts.length === 0 && (
@@ -285,20 +199,17 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
       <Card noPadding className="hidden lg:block">
         <div className="px-6 py-4 border-b border-gray-100">
           <h3 className="font-bold text-gray-900">Budget Review</h3>
-          <p className="text-sm text-gray-500">Track committed budgets vs actual spending</p>
+          <p className="text-sm text-gray-500">Committed budgets vs actual spending • Use Trips to add budget</p>
         </div>
         {usedAccounts.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+            <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
               <thead className="bg-gray-900 text-white">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
                   <th className="px-3 py-3 text-right font-semibold">YTD</th>
                   <th className="px-3 py-3 text-right font-semibold">Avg</th>
-                  <th className="px-3 py-3 text-center font-semibold">Progress</th>
-                  <th className="px-2 py-3 text-right font-semibold">Adjust</th>
-                  <th className="px-2 py-3 text-center font-semibold">Apply</th>
-                  {MONTH_LABELS.map(m => <th key={m} className="px-1 py-3 text-center font-semibold">{m}</th>)}
+                  {MONTH_LABELS.map(m => <th key={m} className="px-2 py-3 text-center font-semibold">{m}</th>)}
                   <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">Annual</th>
                 </tr>
               </thead>
