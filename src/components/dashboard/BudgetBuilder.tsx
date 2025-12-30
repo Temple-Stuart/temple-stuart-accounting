@@ -53,6 +53,7 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
     setLocalBudgets(initial);
   }, [budgets]);
 
+  // YTD actuals from transactions (for comparison)
   const ytdByAccount = useMemo(() => {
     const result: Record<string, number> = {};
     transactions.filter(t => new Date(t.date).getFullYear() === selectedYear).forEach(t => {
@@ -67,15 +68,13 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
     return Math.max(months.size, 1);
   }, [transactions, selectedYear]);
 
+  // ONLY show accounts with committed budgets (from trips or fixed expenses)
   const usedAccounts = useMemo(() => {
-    // Include accounts with transactions OR budgets
     const codes = new Set<string>();
-    transactions.forEach(t => { if (t.accountCode) codes.add(t.accountCode); });
     budgets.forEach(b => { if (b.accountCode) codes.add(b.accountCode); });
     return Array.from(codes).map(code => coaOptions.find(c => c.code === code)).filter(Boolean) as CoaOption[];
-  }, [transactions, coaOptions, budgets]);
+  }, [coaOptions, budgets]);
 
-  console.log("BudgetBuilder debug:", { budgetsCount: budgets.length, coaCount: coaOptions.length, usedAccountsCount: usedAccounts.length, budgets, usedAccounts });
   const revenueCodes = usedAccounts.filter(a => a.accountType === 'revenue');
   const expenseCodes = usedAccounts.filter(a => a.accountType === 'expense');
 
@@ -156,7 +155,7 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
               ) : (
                 <button onClick={() => setEditingCell({ code: account.code, field: 'budget' })}
                   className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[#b4b237] hover:text-[#b4b237]">
-                  + Set Monthly Budget
+                  + Adjust Budget
                 </button>
               )}
             </div>
@@ -274,37 +273,48 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
           </div>
         )}
         {usedAccounts.length === 0 && (
-          <Card className="text-center py-8 text-gray-400">No categorized transactions yet</Card>
+          <Card className="text-center py-8">
+            <div className="text-4xl mb-3">📊</div>
+            <p className="text-gray-600 font-medium">No budgets committed yet</p>
+            <p className="text-sm text-gray-400 mt-1">Commit a trip to start building your budget</p>
+          </Card>
         )}
       </div>
 
       {/* Desktop View - Table */}
       <Card noPadding className="hidden lg:block">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900">Budget Builder</h3>
-          <p className="text-sm text-gray-500">Set monthly budgets and track spending vs targets</p>
+          <h3 className="font-bold text-gray-900">Budget Review</h3>
+          <p className="text-sm text-gray-500">Track committed budgets vs actual spending</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
-            <thead className="bg-gray-900 text-white">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
-                <th className="px-3 py-3 text-right font-semibold">YTD</th>
-                <th className="px-3 py-3 text-right font-semibold">Avg</th>
-                <th className="px-3 py-3 text-center font-semibold">Progress</th>
-                <th className="px-2 py-3 text-right font-semibold">Budget</th>
-                <th className="px-2 py-3 text-center font-semibold">Apply</th>
-                {MONTH_LABELS.map(m => <th key={m} className="px-1 py-3 text-center font-semibold">{m}</th>)}
-                <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">Annual</th>
-              </tr>
-            </thead>
-            <tbody>
-              {revenueCodes.length > 0 && <>{renderSectionHeader('Revenue', true)}{revenueCodes.map(renderRow)}{renderSectionTotal('Revenue', revenueCodes, true)}</>}
-              {expenseCodes.length > 0 && <>{renderSectionHeader('Expenses', false)}{expenseCodes.map(renderRow)}{renderSectionTotal('Expenses', expenseCodes, false)}</>}
-            </tbody>
-          </table>
-          {usedAccounts.length === 0 && <div className="text-center text-gray-400 py-12">No categorized transactions yet</div>}
-        </div>
+        {usedAccounts.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+              <thead className="bg-gray-900 text-white">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
+                  <th className="px-3 py-3 text-right font-semibold">YTD</th>
+                  <th className="px-3 py-3 text-right font-semibold">Avg</th>
+                  <th className="px-3 py-3 text-center font-semibold">Progress</th>
+                  <th className="px-2 py-3 text-right font-semibold">Adjust</th>
+                  <th className="px-2 py-3 text-center font-semibold">Apply</th>
+                  {MONTH_LABELS.map(m => <th key={m} className="px-1 py-3 text-center font-semibold">{m}</th>)}
+                  <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">Annual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenueCodes.length > 0 && <>{renderSectionHeader('Revenue', true)}{revenueCodes.map(renderRow)}{renderSectionTotal('Revenue', revenueCodes, true)}</>}
+                {expenseCodes.length > 0 && <>{renderSectionHeader('Expenses', false)}{expenseCodes.map(renderRow)}{renderSectionTotal('Expenses', expenseCodes, false)}</>}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">📊</div>
+            <p className="text-gray-600 font-medium">No budgets committed yet</p>
+            <p className="text-sm text-gray-400 mt-1">Commit a trip to start building your budget</p>
+          </div>
+        )}
       </Card>
 
       {/* Drilldown Modal */}
@@ -335,6 +345,9 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
                       <td className="px-4 py-3 text-right font-mono font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
                     </tr>
                   ))}
+                  {drilldownTxns.length === 0 && (
+                    <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">No transactions yet</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
