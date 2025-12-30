@@ -1,13 +1,13 @@
 const DUFFEL_API_URL = 'https://api.duffel.com';
 const DUFFEL_TOKEN = process.env.DUFFEL_API_TOKEN;
 
-interface DuffelHeaders {
-  'Authorization': string;
-  'Duffel-Version': string;
-  'Content-Type': string;
+// Headers for Duffel API
+
+
+
 }
 
-function getHeaders(): DuffelHeaders {
+function getHeaders(): Record<string, string> {
   if (!DUFFEL_TOKEN) {
     throw new Error('DUFFEL_API_TOKEN not configured');
   }
