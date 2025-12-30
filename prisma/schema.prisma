@@ -347,6 +347,7 @@ model users {
   period_closes        period_closes[]
   trips                trips[]
   chart_of_accounts    chart_of_accounts[]
+  budget_line_items    budget_line_items[]
 }
 
 model budgets {
@@ -479,6 +480,7 @@ model trips {
   expenses     trip_expenses[]
   itinerary    trip_itinerary[]
   destinations trip_destinations[]
+  budget_line_items budget_line_items[]
 
   @@index([userId])
   @@index([year, month])
@@ -921,4 +923,30 @@ model rafting_destinations {
   longitude       Decimal? @db.Decimal(10,6)
   notes           String?  @db.Text
   createdAt       DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BUDGET LINE ITEMS - Track trip expenses by COA code
+// ═══════════════════════════════════════════════════════════════════
+
+model budget_line_items {
+  id            String   @id @default(cuid())
+  userId        String
+  tripId        String?
+  itineraryId   String?
+  coaCode       String   @db.VarChar(20)
+  year          Int
+  month         Int
+  amount        Decimal  @db.Decimal(12, 2)
+  description   String?
+  source        String   @db.VarChar(20)  // 'trip', 'manual', 'recurring'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trip          trips?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  user          users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, year, month])
+  @@index([tripId])
+  @@index([coaCode])
 }

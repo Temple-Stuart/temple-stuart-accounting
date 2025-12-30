@@ -26,6 +26,8 @@ interface FlightOffer {
     refundable: boolean;
     changeable: boolean;
   };
+  bookingStatus?: 'watching' | 'booked_internal' | 'booked_external';
+  isManual?: boolean;
 }
 
 interface Props {
@@ -53,6 +55,12 @@ export default function FlightPicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
+  
+  // Manual entry state
+  const [showManual, setShowManual] = useState(false);
+  const [manualAirline, setManualAirline] = useState('');
+  const [manualPrice, setManualPrice] = useState('');
+  const [manualConfirmation, setManualConfirmation] = useState('');
 
   const fetchFlights = async () => {
     if (!destinationAirport) {
@@ -84,9 +92,40 @@ export default function FlightPicker({
       setExpanded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
+      setShowManual(true); // Show manual entry if API fails
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualPrice) return;
+    
+    const manualFlight: FlightOffer = {
+      id: `manual-${Date.now()}`,
+      price: parseFloat(manualPrice),
+      currency: 'USD',
+      outbound: {
+        departure: { airport: originAirport, localTime: '', date: departureDate },
+        arrival: { airport: destinationAirport, localTime: '', date: departureDate },
+        duration: '',
+        stops: 0,
+        carriers: [manualAirline || 'Manual Entry'],
+      },
+      return: {
+        departure: { airport: destinationAirport, localTime: '', date: returnDate },
+        arrival: { airport: originAirport, localTime: '', date: returnDate },
+        duration: '',
+        stops: 0,
+        carriers: [manualAirline || 'Manual Entry'],
+      },
+      bookingStatus: 'booked_external',
+      isManual: true,
+    };
+    
+    onSelectFlight(manualFlight);
+    setExpanded(false);
+    setShowManual(false);
   };
 
   const formatStops = (stops: number) => {
@@ -115,7 +154,11 @@ export default function FlightPicker({
                 <div className="text-right">
                   <div className="text-lg font-bold text-green-600">${selectedFlight.price}</div>
                   <div className="text-xs text-gray-500">
-                    {selectedFlight.outbound?.carriers[0]} • {formatStops(selectedFlight.outbound?.stops || 0)}
+                    {selectedFlight.isManual ? (
+                      <span className="text-orange-500">Manual entry</span>
+                    ) : (
+                      <>{selectedFlight.outbound?.carriers[0]} • {formatStops(selectedFlight.outbound?.stops || 0)}</>
+                    )}
                   </div>
                 </div>
                 <button
@@ -176,23 +219,77 @@ export default function FlightPicker({
         </div>
       )}
 
+      {/* Manual Entry Section - Always visible */}
+      <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm text-gray-600 font-medium">
+            {offers.length === 0 && !loading ? "Enter flight details manually:" : "Or enter manually (booked elsewhere):"}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-gray-400">Search on:</span>
+            <a href="https://www.google.com/flights" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700">Google Flights ↗</a>
+            <a href="https://www.kayak.com/flights" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700">Kayak ↗</a>
+            <a href="https://www.expedia.com/Flights" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:text-blue-700">Expedia ↗</a>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input
+            type="text"
+            value={manualAirline}
+            onChange={(e) => setManualAirline(e.target.value)}
+            placeholder="Airline (e.g. United)"
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm"
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">$</span>
+            <input
+              type="number"
+              value={manualPrice}
+              onChange={(e) => setManualPrice(e.target.value)}
+              placeholder="Total price"
+              className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm"
+            />
+          </div>
+          <input
+            type="text"
+            value={manualConfirmation}
+            onChange={(e) => setManualConfirmation(e.target.value)}
+            placeholder="Confirmation # (optional)"
+            className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm"
+          />
+          <button
+            onClick={handleManualSubmit}
+            disabled={!manualPrice}
+            className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Use This
+          </button>
+        </div>
+        {manualPrice && (
+          <div className="text-xs text-gray-500 mt-2">
+            ${(parseFloat(manualPrice) / passengers).toFixed(0)}/person for {passengers} traveler{passengers > 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="py-8 text-center">
           <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
           <div className="text-gray-500">Searching 300+ airlines via Duffel...</div>
         </div>
       ) : offers.length === 0 ? (
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-4 text-center text-gray-500">
           <div className="text-3xl mb-2">🔍</div>
-          <p>Click "Search Flights" to find options</p>
+          <p>No flights found. Use manual entry above or try different dates.</p>
         </div>
       ) : (
         <div className="space-y-2">
+          <div className="text-xs text-gray-500 mb-2">{offers.length} flights found — click to select:</div>
           {offers.map((offer) => (
             <div
               key={offer.id}
               onClick={() => {
-                onSelectFlight(offer);
+                onSelectFlight({ ...offer, bookingStatus: 'watching' });
                 setExpanded(false);
               }}
               className={`p-3 border rounded-lg cursor-pointer transition-all ${
@@ -271,7 +368,7 @@ export default function FlightPicker({
           ))}
           
           <div className="text-xs text-gray-400 text-center pt-2">
-            Powered by Duffel • Prices include all taxes & fees
+            Powered by Duffel • Prices include all taxes & fees • Click to select
           </div>
         </div>
       )}

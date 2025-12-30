@@ -38,6 +38,7 @@ export async function GET() {
         _count: {
           select: {
             expenses: true,
+            budget_line_items: true,
             itinerary: true
           }
         }

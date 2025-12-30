@@ -65,6 +65,10 @@ export default function TransferPicker({
   const [transferType, setTransferType] = useState('PRIVATE');
   const [activeTab, setActiveTab] = useState<'arrival' | 'departure'>('arrival');
 
+  // Manual entry state
+  const [manualArrivalPrice, setManualArrivalPrice] = useState<string>('');
+  const [manualDeparturePrice, setManualDeparturePrice] = useState<string>('');
+
   const fetchTransfers = async (type: string = transferType) => {
     setLoading(true);
     setError('');
@@ -117,6 +121,30 @@ export default function TransferPicker({
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleManualSubmit = (direction: 'arrival' | 'departure') => {
+    const price = direction === 'arrival' ? manualArrivalPrice : manualDeparturePrice;
+    if (!price) return;
+    const manualTransfer = {
+      id: `manual-${direction}-${Date.now()}`,
+      type: 'MANUAL',
+      direction,
+      vehicle: { code: 'MANUAL', category: 'Manual Entry', description: 'Uber/Lyft (manual)', seats: passengers, bags: passengers },
+      provider: { code: 'MANUAL', name: 'Manual Entry' },
+      price: parseFloat(price),
+      currency: 'USD',
+      distance: null,
+      pickupTime: direction === 'arrival' ? arrivalDateTime : departureDateTime,
+      dropoffTime: null,
+    };
+    if (direction === 'arrival') {
+      onSelectArrival(manualTransfer);
+      setManualArrivalPrice('');
+    } else {
+      onSelectDeparture(manualTransfer);
+      setManualDeparturePrice('');
+    }
   };
 
   const totalPrice = (selectedArrival?.price || 0) + (selectedDeparture?.price || 0);
@@ -247,6 +275,35 @@ export default function TransferPicker({
             <div className="p-4 text-red-400 text-sm">{error}</div>
           )}
           
+
+          {/* Manual Entry Section */}
+          <div className="p-4 bg-gray-50 border-b border-gray-200">
+            <div className="text-sm text-gray-600 font-medium mb-2">
+              {activeTab === 'arrival' ? '🛬 Arrival' : '🛫 Departure'} - Enter manually:
+            </div>
+            <div className="flex gap-2 items-center">
+              <span className="text-gray-500">$</span>
+              <input
+                type="number"
+                value={activeTab === 'arrival' ? manualArrivalPrice : manualDeparturePrice}
+                onChange={(e) => activeTab === 'arrival' ? setManualArrivalPrice(e.target.value) : setManualDeparturePrice(e.target.value)}
+                placeholder="Total cost"
+                className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm"
+              />
+              <button
+                onClick={() => handleManualSubmit(activeTab)}
+                disabled={!(activeTab === 'arrival' ? manualArrivalPrice : manualDeparturePrice)}
+                className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+              >
+                Use This
+              </button>
+            </div>
+            <div className="mt-2 flex gap-2 text-xs">
+              <span className="text-gray-400">Check prices:</span>
+              <a href="https://www.uber.com/us/en/price-estimate/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">Uber ↗</a>
+              <a href="https://www.lyft.com/rider/fare-estimate" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">Lyft ↗</a>
+            </div>
+          </div>
           {loading && (
             <div className="p-4 text-gray-500 text-sm text-center">Loading transfers...</div>
           )}

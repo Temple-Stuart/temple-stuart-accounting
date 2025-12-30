@@ -46,14 +46,19 @@ export default function ItineraryBuilderPage() {
 
   const loadData = useCallback(async () => {
     try {
+      console.log("Loading budget data for year:", selectedYear);
       const [txnRes, coaRes, budgetRes] = await Promise.all([
         fetch('/api/transactions'),
         fetch('/api/chart-of-accounts'),
-        fetch(`/api/budgets?year=${selectedYear}`)
+        fetch('/api/budgets?year=' + selectedYear)
       ]);
       if (txnRes.ok) { const data = await txnRes.json(); setTransactions(data.transactions || []); }
       if (coaRes.ok) { const data = await coaRes.json(); setCoaOptions(data.accounts || []); }
-      if (budgetRes.ok) { const data = await budgetRes.json(); setBudgets(data.budgets || []); }
+      if (budgetRes.ok) { 
+        const data = await budgetRes.json(); 
+        console.log("Budgets loaded:", data.budgets);
+        setBudgets(data.budgets || []); 
+      }
     } catch (err) { console.error('Failed to load data:', err); }
     finally { setLoading(false); }
   }, [selectedYear]);
@@ -73,7 +78,7 @@ export default function ItineraryBuilderPage() {
     <AppLayout>
       <PageHeader
         title="Budget Review"
-        subtitle={`Track spending vs targets for ${selectedYear}`}
+        subtitle={'Track spending vs targets for ' + selectedYear}
         backHref="/hub"
       />
 

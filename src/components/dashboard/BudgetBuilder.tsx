@@ -68,11 +68,14 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
   }, [transactions, selectedYear]);
 
   const usedAccounts = useMemo(() => {
+    // Include accounts with transactions OR budgets
     const codes = new Set<string>();
     transactions.forEach(t => { if (t.accountCode) codes.add(t.accountCode); });
+    budgets.forEach(b => { if (b.accountCode) codes.add(b.accountCode); });
     return Array.from(codes).map(code => coaOptions.find(c => c.code === code)).filter(Boolean) as CoaOption[];
-  }, [transactions, coaOptions]);
+  }, [transactions, coaOptions, budgets]);
 
+  console.log("BudgetBuilder debug:", { budgetsCount: budgets.length, coaCount: coaOptions.length, usedAccountsCount: usedAccounts.length, budgets, usedAccounts });
   const revenueCodes = usedAccounts.filter(a => a.accountType === 'revenue');
   const expenseCodes = usedAccounts.filter(a => a.accountType === 'expense');
 
