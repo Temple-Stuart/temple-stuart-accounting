@@ -12,10 +12,10 @@ export default function HeroSection() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extralight text-gray-900 leading-tight mb-6 tracking-tight">
             Temple Stuart
-            <span className="block text-[#b4b237]">OS</span>
+            <span className="block text-[#b4b237] text-3xl sm:text-4xl lg:text-5xl">Personal Back Office</span>
           </h1>
           <p className="text-xl sm:text-2xl text-gray-500 font-light max-w-2xl mx-auto mb-10 leading-relaxed">
-            Track your money. Plan your trips. Find your people.
+            Your finances. Your trips. Your way.
           </p>
           <button 
             onClick={() => setShowLogin(true)}
