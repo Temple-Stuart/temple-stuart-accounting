@@ -100,6 +100,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
 
+  // Budget data from TripBookingFlow
+  const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string}[]>([]);
+  // Loaded budget items from DB
+  const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
+
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -108,7 +113,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   });
   const [savingExpense, setSavingExpense] = useState(false);
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); }, [id]);
 
   const loadTrip = async () => {
     try {
@@ -116,6 +121,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       if (!res.ok) throw new Error('Failed to load trip');
       const data = await res.json();
       setTrip(data.trip);
+      // Initialize confirmedStartDay from saved startDate
+      if (data.trip.startDate) {
+        const savedDate = new Date(data.trip.startDate);
+        setConfirmedStartDay(savedDate.getDate());
+      }
       setSettlementMatrix(data.settlementMatrix || {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load trip');
@@ -136,6 +146,59 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const res = await fetch(`/api/trips/${id}/destinations`);
       if (res.ok) { const data = await res.json(); setDestinations(data.destinations || []); }
     } catch (err) { console.error('Failed to load destinations:', err); }
+  };
+
+  const loadBudgetItems = async () => {
+    try {
+      const res = await fetch(`/api/trips/${id}/budget`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = data.items || [];
+      
+      if (items.length === 0) return;
+      
+      // Reverse map COA codes to category keys
+      const COA_TO_CATEGORY: Record<string, string> = {
+        'P-7100': 'flight',
+        'P-7200': 'hotel',
+        'P-7300': 'car',
+        'P-7400': 'activities',
+        'P-7500': 'equipment',
+        'P-7600': 'groundTransport',
+        'P-7700': 'meals',
+        'P-7800': 'tips',
+      };
+      
+      // We'll apply loaded costs to the selected destination
+      // Need to wait for destinations to load first
+      const destRes = await fetch(`/api/trips/${id}/destinations`);
+      if (!destRes.ok) return;
+      const destData = await destRes.json();
+      const dests = destData.destinations || [];
+      
+      // Find the selected destination (matches trip.destination name)
+      const tripRes = await fetch(`/api/trips/${id}`);
+      const tripData = await tripRes.json();
+      const selectedDest = dests.find((d: any) => d.resort?.name === tripData.trip?.destination);
+      
+      if (!selectedDest) return;
+      
+      // Build manualCosts structure
+      const costs: Record<string, Record<string, number>> = {};
+      costs[selectedDest.resortId] = {};
+      
+      for (const item of items) {
+        const category = COA_TO_CATEGORY[item.coaCode];
+        if (category && !['flight', 'hotel', 'car'].includes(category)) {
+          // Only restore manual cost categories (not flight/hotel/car which come from pickers)
+          costs[selectedDest.resortId][category] = Number(item.amount);
+        }
+      }
+      
+      setInitialCosts(costs);
+    } catch (err) {
+      console.error('Failed to load budget items:', err);
+    }
   };
 
   const selectDestination = async (resortId: string, resortName: string) => {
@@ -162,11 +225,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
     setCommitting(true);
+    console.log("tripBudget being sent:", tripBudget);
     try {
       const res = await fetch(`/api/trips/${id}/commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startDay: confirmedStartDay })
+        body: JSON.stringify({ startDay: confirmedStartDay, budgetItems: tripBudget })
       });
       if (!res.ok) throw new Error('Failed to commit trip');
       const data = await res.json();
@@ -182,6 +246,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const uncommitTrip = async () => {
     if (!confirm('Remove this trip from the calendar?')) return;
     setCommitting(true);
+    console.log("tripBudget being sent:", tripBudget);
     try {
       const res = await fetch(`/api/trips/${id}/commit`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to uncommit');
@@ -416,8 +481,18 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           {destinations.length > 0 && (
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-sm font-medium text-gray-500 mb-3">Compare Costs by Destination</h3>
-              <TripBookingFlow tripId={id} destinations={destinations} daysTravel={trip.daysTravel} daysRiding={trip.daysRiding}
-                month={trip.month} year={trip.year} startDay={confirmedStartDay} travelerCount={confirmedParticipants.length || 4} />
+              <TripBookingFlow 
+                tripId={id} 
+                destinations={destinations} 
+                daysTravel={trip.daysTravel} 
+                daysRiding={trip.daysRiding}
+                month={trip.month} 
+                year={trip.year} 
+                startDay={confirmedStartDay} 
+                travelerCount={confirmedParticipants.length || 4} 
+                onBudgetChange={setTripBudget} 
+                initialCosts={initialCosts}
+              />
             </div>
           )}
 

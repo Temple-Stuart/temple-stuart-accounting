@@ -33,6 +33,7 @@ interface Trip {
   _count: {
     expenses: number;
     itinerary: number;
+    budget_line_items: number;
   };
 }
 
@@ -344,7 +345,7 @@ export default function TripsPage() {
                         <span>•</span>
                         <span>{trip._count.expenses} expenses</span>
                         <span>•</span>
-                        <span>{trip._count.itinerary} items</span>
+                        <span>{trip._count.budget_line_items || trip._count.itinerary} budget items</span>
                       </div>
                     </div>
 

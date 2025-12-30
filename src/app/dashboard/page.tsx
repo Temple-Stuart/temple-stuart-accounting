@@ -102,7 +102,10 @@ export default function Dashboard() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { if (session?.user?.email) loadData(); }, [session, loadData]);
+  // Load data on mount - don't gate on session since APIs use cookie auth
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
   const getCoaType = (code: string) => coaOptions.find(c => c.code === code)?.accountType || '';
@@ -155,12 +158,6 @@ export default function Dashboard() {
       return t.accountCode === drilldownCell.coaCode && (drilldownCell.month === -1 || month === drilldownCell.month);
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [yearTransactions, drilldownCell]);
-
-  const vendors = useMemo(() => {
-    const v: Record<string, number> = {};
-    transactions.forEach(t => { if (t.subAccount) v[t.subAccount] = (v[t.subAccount] || 0) + 1; });
-    return Object.entries(v).sort((a, b) => b[1] - a[1]);
-  }, [transactions]);
 
   const coaGrouped = useMemo(() => {
     const g: Record<string, CoaOption[]> = {};
@@ -268,7 +265,15 @@ export default function Dashboard() {
     </tr>
   );
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <>
