@@ -264,7 +264,7 @@ export default function AgendaDetailPage({ params }: { params: Promise<{ id: str
                 <Button
                   onClick={handleDelete}
                   disabled={deleting}
-                  variant="outline"
+                  variant="secondary"
                   className="w-full border-red-200 text-red-600 hover:bg-red-50"
                 >
                   {deleting ? 'Deleting...' : 'Delete Item'}
