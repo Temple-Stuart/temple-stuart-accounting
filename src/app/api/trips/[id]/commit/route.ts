@@ -47,8 +47,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ${user.id}, 'trip', ${id}::uuid, ${trip.name}, ${trip.destination || null},
         'trip', '✈️', 'cyan',
         ${trip.startDate}, ${trip.endDate}, false,
-        ${trip.destination || null}, ${trip.latitude ? parseFloat(trip.latitude) : null}, 
-        ${trip.longitude ? parseFloat(trip.longitude) : null}, ${totalBudget}
+        ${trip.destination || null}, ${trip.latitude ? parseFloat(String(trip.latitude)) : null}, 
+        ${trip.longitude ? parseFloat(String(trip.longitude)) : null}, ${totalBudget}
       )
     `;
 
