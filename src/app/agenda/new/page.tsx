@@ -257,7 +257,7 @@ export default function NewAgendaPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Category</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {CATEGORY_GROUPS.map(group => (
-                <Card
+                <div
                   key={group.category}
                   className={`p-4 cursor-pointer transition-all hover:shadow-lg ${
                     selectedCategory === group.category 
@@ -280,7 +280,7 @@ export default function NewAgendaPage() {
                       <div className="text-sm text-gray-500">{group.subcategories.length} types</div>
                     </div>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
 
@@ -524,7 +524,7 @@ export default function NewAgendaPage() {
                     />
                   </div>
                 </div>
-              </Card>
+              </div>
 
               {/* How it works */}
               <Card className="p-4 bg-blue-50 border-blue-200">
@@ -536,7 +536,7 @@ export default function NewAgendaPage() {
                     and track streaks, time spent, and outcomes.
                   </div>
                 </div>
-              </Card>
+              </div>
 
               {/* Summary */}
               <Card className="p-6">
@@ -567,7 +567,7 @@ export default function NewAgendaPage() {
                     </div>
                   )}
                 </div>
-              </Card>
+              </div>
 
               <Button
                 onClick={handleSubmit}
