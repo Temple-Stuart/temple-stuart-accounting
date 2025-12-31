@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppLayout, Card, PageHeader } from '@/components/ui';
 import BudgetBuilder from '@/components/dashboard/BudgetBuilder';
 
@@ -38,13 +39,19 @@ interface Budget {
 }
 
 export default function ItineraryBuilderPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [selectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+  
+  // Year selector - current year + 2 forward years
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
       console.log("Loading budget data for year:", selectedYear);
       const [txnRes, coaRes, budgetRes] = await Promise.all([
@@ -78,18 +85,45 @@ export default function ItineraryBuilderPage() {
     <AppLayout>
       <PageHeader
         title="Budget Review"
-        subtitle={'Track spending vs targets for ' + selectedYear}
+        subtitle={`Track spending vs targets for ${selectedYear}`}
         backHref="/hub"
       />
 
-      <div className="px-4 lg:px-8 py-8 space-y-6">
+      {/* Year Selector */}
+      <div className="px-8 pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {years.map(year => (
+              <button
+                key={year}
+                onClick={() => setSelectedYear(year)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedYear === year 
+                    ? 'bg-gray-900 text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {year}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={() => router.push('/hub')}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+          >
+            <span>📅</span> View Calendar
+          </button>
+        </div>
+      </div>
+
+      <div className="p-8 pt-0">
         {loading ? (
-          <Card className="py-12 text-center">
-            <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-500">Loading budget data...</p>
-          </Card>
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : (
-          <BudgetBuilder
+          <BudgetBuilder 
             transactions={transactions}
             coaOptions={coaOptions}
             budgets={budgets}
@@ -98,14 +132,19 @@ export default function ItineraryBuilderPage() {
           />
         )}
 
-        {/* Future Calendar */}
-        <Card className="text-center py-8">
-          <div className="text-4xl mb-3">📅</div>
-          <h3 className="font-semibold text-gray-900 mb-2">Calendar Coming Soon</h3>
-          <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Link your budgets to a calendar. Schedule flights, hotel check-ins, events — 
-            and see your financial plan come to life.
+        {/* Calendar Coming Soon - Now Active! */}
+        <Card className="p-8 mt-8 text-center bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5">
+          <div className="text-4xl mb-4">📅</div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Calendar View Available</h3>
+          <p className="text-gray-500 mb-4">
+            View your committed budgets from Home, Agenda, and Trips on the calendar.
           </p>
+          <button
+            onClick={() => router.push('/hub')}
+            className="px-6 py-3 bg-[#b4b237] hover:bg-[#9a982f] text-white rounded-lg font-medium transition-all"
+          >
+            Open Hub Calendar →
+          </button>
         </Card>
       </div>
     </AppLayout>

@@ -19,43 +19,37 @@ export async function GET(request: Request) {
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
     const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null;
 
-    // Get all calendar events for user
     let events: any[];
     
     if (month) {
-      // Specific month
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0);
+      // Filter to specific month only
+      const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endOfMonth = month === 12 
+        ? `${year + 1}-01-01` 
+        : `${year}-${String(month + 1).padStart(2, '0')}-01`;
       
       events = await prisma.$queryRaw`
         SELECT * FROM calendar_events 
         WHERE user_id = ${user.id}
-        AND (
-          (start_date >= ${startDate} AND start_date <= ${endDate})
-          OR (end_date >= ${startDate} AND end_date <= ${endDate})
-          OR (start_date <= ${startDate} AND end_date >= ${endDate})
-          OR (is_recurring = true AND start_date <= ${endDate})
-        )
+        AND start_date >= ${startOfMonth}::date
+        AND start_date < ${endOfMonth}::date
         ORDER BY start_date ASC
       `;
     } else {
       // Full year
-      const startDate = new Date(year, 0, 1);
-      const endDate = new Date(year, 11, 31);
+      const startOfYear = `${year}-01-01`;
+      const endOfYear = `${year + 1}-01-01`;
       
       events = await prisma.$queryRaw`
         SELECT * FROM calendar_events 
         WHERE user_id = ${user.id}
-        AND (
-          (start_date >= ${startDate} AND start_date <= ${endDate})
-          OR (end_date >= ${startDate} AND end_date <= ${endDate})
-          OR (is_recurring = true AND start_date <= ${endDate})
-        )
+        AND start_date >= ${startOfYear}::date
+        AND start_date < ${endOfYear}::date
         ORDER BY start_date ASC
       `;
     }
 
-    // Calculate totals by source
+    // Calculate totals by source (for THIS month/year only)
     const homeTotal = events
       .filter(e => e.source === 'home')
       .reduce((sum, e) => sum + (e.budget_amount || 0), 0);
@@ -68,17 +62,8 @@ export async function GET(request: Request) {
       .filter(e => e.source === 'trip')
       .reduce((sum, e) => sum + (e.budget_amount || 0), 0);
 
-    // Group by month for calendar view
-    const byMonth: Record<string, any[]> = {};
-    events.forEach(e => {
-      const monthKey = e.start_date.toISOString().slice(0, 7);
-      if (!byMonth[monthKey]) byMonth[monthKey] = [];
-      byMonth[monthKey].push(e);
-    });
-
     return NextResponse.json({
       events,
-      byMonth,
       summary: {
         totalEvents: events.length,
         homeTotal,
