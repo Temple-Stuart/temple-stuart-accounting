@@ -18,9 +18,9 @@ export async function GET() {
     // Get user's accounts
     const userAccounts = await prisma.accounts.findMany({
       where: { userId: user.id },
-      select: { accountId: true }
+      select: { id: true }
     });
-    const accountIds = userAccounts.map(a => a.accountId);
+    const accountIds = userAccounts.map(a => a.id);
 
     if (accountIds.length === 0) {
       return NextResponse.json({
