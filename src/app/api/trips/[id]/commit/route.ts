@@ -52,34 +52,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       )
     `;
 
-    // Create budget entries for each line item
+    // Create budget entries for each line item (raw SQL)
     if (trip.startDate) {
       const year = trip.startDate.getFullYear();
-      const month = trip.startDate.getMonth() + 1;
+      const startMonth = trip.startDate.getMonth();
 
       for (const item of trip.budget_line_items) {
-        if (item.coaCode && item.amount > 0) {
-          await prisma.budgets.upsert({
-            where: {
-              userId_coaCode_year_month: {
-                userId: user.id,
-                coaCode: item.coaCode,
-                year,
-                month
-              }
-            },
-            update: {
-              amount: { increment: item.amount }
-            },
-            create: {
-              userId: user.id,
-              coaCode: item.coaCode,
-              year,
-              month,
-              amount: item.amount,
-              notes: `Trip: ${trip.name}`
-            }
-          });
+        if (item.coaCode && Number(item.amount) > 0) {
+          const amount = Number(item.amount);
+          
+          const jan = startMonth <= 0 ? amount : null;
+          const feb = startMonth <= 1 ? amount : null;
+          const mar = startMonth <= 2 ? amount : null;
+          const apr = startMonth <= 3 ? amount : null;
+          const may = startMonth <= 4 ? amount : null;
+          const jun = startMonth <= 5 ? amount : null;
+          const jul = startMonth <= 6 ? amount : null;
+          const aug = startMonth <= 7 ? amount : null;
+          const sep = startMonth <= 8 ? amount : null;
+          const oct = startMonth <= 9 ? amount : null;
+          const nov = startMonth <= 10 ? amount : null;
+          const dec = startMonth <= 11 ? amount : null;
+
+          await prisma.$queryRaw`
+            INSERT INTO budgets (id, "userId", "accountCode", year, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec, "createdAt", "updatedAt")
+            VALUES (
+              gen_random_uuid(), ${user.id}, ${item.coaCode}, ${year},
+              ${jan}, ${feb}, ${mar}, ${apr}, ${may}, ${jun}, ${jul}, ${aug}, ${sep}, ${oct}, ${nov}, ${dec},
+              NOW(), NOW()
+            )
+            ON CONFLICT ("userId", "accountCode", year) DO UPDATE SET
+              jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN EXCLUDED.jan ELSE budgets.jan END,
+              feb = CASE WHEN EXCLUDED.feb IS NOT NULL THEN EXCLUDED.feb ELSE budgets.feb END,
+              mar = CASE WHEN EXCLUDED.mar IS NOT NULL THEN EXCLUDED.mar ELSE budgets.mar END,
+              apr = CASE WHEN EXCLUDED.apr IS NOT NULL THEN EXCLUDED.apr ELSE budgets.apr END,
+              may = CASE WHEN EXCLUDED.may IS NOT NULL THEN EXCLUDED.may ELSE budgets.may END,
+              jun = CASE WHEN EXCLUDED.jun IS NOT NULL THEN EXCLUDED.jun ELSE budgets.jun END,
+              jul = CASE WHEN EXCLUDED.jul IS NOT NULL THEN EXCLUDED.jul ELSE budgets.jul END,
+              aug = CASE WHEN EXCLUDED.aug IS NOT NULL THEN EXCLUDED.aug ELSE budgets.aug END,
+              sep = CASE WHEN EXCLUDED.sep IS NOT NULL THEN EXCLUDED.sep ELSE budgets.sep END,
+              oct = CASE WHEN EXCLUDED.oct IS NOT NULL THEN EXCLUDED.oct ELSE budgets.oct END,
+              nov = CASE WHEN EXCLUDED.nov IS NOT NULL THEN EXCLUDED.nov ELSE budgets.nov END,
+              dec = CASE WHEN EXCLUDED.dec IS NOT NULL THEN EXCLUDED.dec ELSE budgets.dec END,
+              "updatedAt" = NOW()
+          `;
         }
       }
     }
