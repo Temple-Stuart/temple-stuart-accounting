@@ -21,7 +21,6 @@ export async function GET() {
       select: { accountId: true, id: true }
     });
     const accountIds = userAccounts.map(a => a.accountId);
-    const accountDbIds = userAccounts.map(a => a.id);
 
     if (accountIds.length === 0) {
       return NextResponse.json({
@@ -41,7 +40,7 @@ export async function GET() {
 
     const codes = tradingCodes.map(c => c.code);
 
-    // Get transactions filtered by user
+    // Get transactions filtered by user's accounts
     const transactions = await prisma.transactions.findMany({
       where: { 
         accountCode: { in: codes },
@@ -52,17 +51,20 @@ export async function GET() {
 
     // Get investment transactions filtered by user's accounts
     const investmentTxns = await prisma.investment_transactions.findMany({
-      where: { account_id: { in: accountDbIds } },
+      where: { accountId: { in: accountIds } },
       orderBy: { date: 'desc' },
       take: 100,
       include: { security: true }
     });
 
-    // Get positions filtered by user's accounts
+    // Get investment txn IDs for this user to filter positions
+    const userInvestmentTxnIds = investmentTxns.map(t => t.id);
+
+    // Get positions - filter by investment txns that belong to user
     const openPositions = await prisma.trading_positions.findMany({
       where: { 
         status: 'OPEN',
-        account_id: { in: accountDbIds }
+        open_investment_txn_id: { in: userInvestmentTxnIds }
       },
       orderBy: { open_date: 'desc' }
     });
@@ -70,7 +72,7 @@ export async function GET() {
     const closedPositions = await prisma.trading_positions.findMany({
       where: { 
         status: 'CLOSED',
-        account_id: { in: accountDbIds }
+        open_investment_txn_id: { in: userInvestmentTxnIds }
       },
       orderBy: { close_date: 'desc' }
     });
@@ -87,7 +89,7 @@ export async function GET() {
       byStrategy[strategy].count += 1;
     });
 
-    // Contributions/Withdrawals from T-3200/T-3300
+    // Contributions/Withdrawals
     const contributions = transactions
       .filter(t => t.accountCode === 'T-3200')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -109,7 +111,7 @@ export async function GET() {
         id: p.id,
         symbol: p.symbol,
         quantity: p.quantity,
-        avgCost: p.avg_cost,
+        avgCost: p.open_price,
         strategy: p.strategy,
         openDate: p.open_date
       })),
