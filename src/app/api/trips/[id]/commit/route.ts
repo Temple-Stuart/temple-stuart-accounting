@@ -106,3 +106,64 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Failed to commit trip' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get trip with budget items
+    const trip = await prisma.trips.findUnique({
+      where: { id },
+      include: { budget_line_items: true }
+    });
+
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+    }
+
+    // Remove calendar event
+    await prisma.$queryRaw`
+      DELETE FROM calendar_events 
+      WHERE source = 'trip' AND source_id = ${id}::uuid AND user_id = ${user.id}
+    `;
+
+    // Remove budget entries for this trip's COA codes
+    if (trip.startDate) {
+      const year = trip.startDate.getFullYear();
+      for (const item of trip.budget_line_items) {
+        if (item.coaCode) {
+          await prisma.$queryRaw`
+            DELETE FROM budgets 
+            WHERE "userId" = ${user.id} 
+            AND "accountCode" = ${item.coaCode} 
+            AND year = ${year}
+          `;
+        }
+      }
+    }
+
+    // Reset trip status
+    await prisma.trips.update({
+      where: { id },
+      data: { 
+        status: 'planning',
+        committedAt: null
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Uncommit trip error:', error);
+    return NextResponse.json({ error: 'Failed to uncommit trip' }, { status: 500 });
+  }
+}
