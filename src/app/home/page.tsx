@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge } from '@/components/ui';
 
 interface HomeExpense {
@@ -36,14 +35,13 @@ const CADENCES = [
 ];
 
 export default function HomePage() {
-  const router = useRouter();
   const [expenses, setExpenses] = useState<HomeExpense[]>([]);
   const [historical, setHistorical] = useState<HistoricalCode[]>([]);
   const [summary, setSummary] = useState({ totalMonthlyHistorical: 0, totalMonthlyCommitted: 0, draftCount: 0, committedCount: 0 });
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [committing, setCommitting] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -101,30 +99,37 @@ export default function HomePage() {
     }
   };
 
-  const handleCommit = async (id: string) => {
-    if (!confirm('Commit this expense to your budget and calendar?')) return;
-    setCommitting(id);
+  const handleAction = async (id: string, action: 'commit' | 'uncommit') => {
+    const msg = action === 'commit' 
+      ? 'Commit this expense to your budget and calendar?' 
+      : 'Uncommit this expense? This will remove it from the calendar and budget.';
+    if (!confirm(msg)) return;
+    
+    setActionLoading(id);
     try {
       await fetch(`/api/home/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'commit' }),
+        body: JSON.stringify({ action }),
       });
       loadData();
     } catch (err) {
-      console.error('Commit failed:', err);
+      console.error(`${action} failed:`, err);
     } finally {
-      setCommitting(null);
+      setActionLoading(null);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this expense?')) return;
+    setActionLoading(id);
     try {
       await fetch(`/api/home/${id}`, { method: 'DELETE' });
       loadData();
     } catch (err) {
       console.error('Delete failed:', err);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -291,20 +296,21 @@ export default function HomePage() {
                     <Badge variant="warning">Draft</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{expense.coa_code} • {expense.cadence}</span>
+                    <span className="text-gray-500">{expense.coa_code} • {expense.cadence} • Due day {expense.due_day}</span>
                     <span className="font-bold text-gray-900">{formatCurrency(expense.amount)}/mo</span>
                   </div>
                   <div className="flex gap-2 mt-3">
                     <Button
-                      onClick={() => handleCommit(expense.id)}
-                      disabled={committing === expense.id}
+                      onClick={() => handleAction(expense.id, 'commit')}
+                      disabled={actionLoading === expense.id}
                       size="sm"
                       className="bg-green-600 text-white text-xs"
                     >
-                      {committing === expense.id ? '...' : '✓ Commit'}
+                      {actionLoading === expense.id ? '...' : '✓ Commit'}
                     </Button>
                     <Button
                       onClick={() => handleDelete(expense.id)}
+                      disabled={actionLoading === expense.id}
                       size="sm"
                       variant="outline"
                       className="text-red-600 border-red-200 text-xs"
@@ -334,8 +340,19 @@ export default function HomePage() {
                     <Badge variant="success">Committed</Badge>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{expense.coa_code} • Due day {expense.due_day}</span>
+                    <span className="text-gray-500">{expense.coa_code} • {expense.cadence} • Due day {expense.due_day}</span>
                     <span className="font-bold text-green-700">{formatCurrency(expense.amount)}/mo</span>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      onClick={() => handleAction(expense.id, 'uncommit')}
+                      disabled={actionLoading === expense.id}
+                      size="sm"
+                      variant="outline"
+                      className="text-orange-600 border-orange-200 text-xs"
+                    >
+                      {actionLoading === expense.id ? '...' : '↩ Uncommit'}
+                    </Button>
                   </div>
                 </div>
               ))}
