@@ -120,22 +120,22 @@ export default function AgendaPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="p-4">
+          <div className="p-4">
             <div className="text-sm text-gray-500">Total Items</div>
             <div className="text-2xl font-bold text-gray-900">{summary.totalItems}</div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="p-4">
             <div className="text-sm text-gray-500">Draft</div>
             <div className="text-2xl font-bold text-yellow-600">{summary.draftCount}</div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="p-4">
             <div className="text-sm text-gray-500">Committed</div>
             <div className="text-2xl font-bold text-green-600">{summary.committedCount}</div>
-          </Card>
-          <Card className="p-4 bg-[#b4b237]/10">
+          </div>
+          <div className="p-4 bg-[#b4b237]/10">
             <div className="text-sm text-[#8f8c2a]">Monthly Budget</div>
             <div className="text-2xl font-bold text-[#8f8c2a]">{formatCurrency(summary.totalBudget)}</div>
-          </Card>
+          </div>
         </div>
 
         {/* Filter Tabs */}
@@ -174,7 +174,7 @@ export default function AgendaPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {draftItems.map(item => (
-                <Card
+                <div
                   key={item.id}
                   className="p-4 hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-yellow-400"
                   onClick={() => router.push(`/agenda/${item.id}`)}
@@ -206,7 +206,7 @@ export default function AgendaPage() {
                       {formatCurrency(item.budget_amount)}/mo
                     </div>
                   )}
-                </Card>
+                </div>
               ))}
             </div>
           </div>
@@ -221,7 +221,7 @@ export default function AgendaPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {committedItems.map(item => (
-                <Card
+                <div
                   key={item.id}
                   className="p-4 hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-green-500"
                   onClick={() => router.push(`/agenda/${item.id}`)}
@@ -246,7 +246,7 @@ export default function AgendaPage() {
                       {formatCurrency(item.budget_amount)}/mo
                     </div>
                   )}
-                </Card>
+                </div>
               ))}
             </div>
           </div>
@@ -254,14 +254,14 @@ export default function AgendaPage() {
 
         {/* Empty State */}
         {items.length === 0 && (
-          <Card className="p-12 text-center">
+          <div className="p-12 text-center">
             <div className="text-5xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No agenda items yet</h3>
             <p className="text-gray-500 mb-6">Plan your routine with Build, Fitness, Trading, and Community blocks</p>
             <Button onClick={() => router.push('/agenda/new')} className="bg-[#b4b237] hover:bg-[#9a982f] text-white">
               Create Your First Agenda Item
             </Button>
-          </Card>
+          </div>
         )}
       </div>
     </AppLayout>
