@@ -10,6 +10,27 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get user's accounts
+    const userAccounts = await prisma.accounts.findMany({
+      where: { userId: user.id },
+      select: { accountId: true }
+    });
+    const accountIds = userAccounts.map(a => a.accountId);
+
+    if (accountIds.length === 0) {
+      return NextResponse.json({
+        assets: [],
+        debt: [],
+        equity: [],
+        summary: { totalAssets: 0, totalDebt: 0, totalEquity: 0, netWorth: 0 }
+      });
+    }
+
     const accounts = await prisma.chart_of_accounts.findMany({
       where: { 
         module: { in: ['assets', 'debt', 'equity'] },
@@ -19,8 +40,13 @@ export async function GET() {
     });
 
     const codes = accounts.map(a => a.code);
+    
+    // Filter transactions by user's accounts
     const transactions = await prisma.transactions.findMany({
-      where: { accountCode: { in: codes } }
+      where: { 
+        accountCode: { in: codes },
+        accountId: { in: accountIds }
+      }
     });
 
     const balanceByCode: Record<string, number> = {};
@@ -35,6 +61,8 @@ export async function GET() {
 
     accounts.forEach(a => {
       const balance = Math.abs(balanceByCode[a.code] || 0);
+      if (balance === 0) return;
+      
       const item = { code: a.code, name: a.name, balance };
       
       if (a.module === 'assets') assets.push(item);
@@ -42,18 +70,20 @@ export async function GET() {
       else if (a.module === 'equity') equity.push(item);
     });
 
-    assets.sort((a, b) => b.balance - a.balance);
-    debt.sort((a, b) => b.balance - a.balance);
-    equity.sort((a, b) => b.balance - a.balance);
-
     const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
     const totalDebt = debt.reduce((sum, d) => sum + d.balance, 0);
     const totalEquity = equity.reduce((sum, e) => sum + e.balance, 0);
-    const netWorth = totalAssets - totalDebt;
 
     return NextResponse.json({
-      summary: { totalAssets, totalDebt, totalEquity, netWorth },
-      assets, debt, equity
+      assets: assets.sort((a, b) => b.balance - a.balance),
+      debt: debt.sort((a, b) => b.balance - a.balance),
+      equity: equity.sort((a, b) => b.balance - a.balance),
+      summary: {
+        totalAssets,
+        totalDebt,
+        totalEquity,
+        netWorth: totalAssets - totalDebt
+      }
     });
   } catch (error) {
     console.error('Net Worth API error:', error);
