@@ -255,7 +255,7 @@ export default function HomePage() {
                 <Button onClick={handleCreate} disabled={saving} className="bg-[#b4b237] text-white">
                   {saving ? 'Saving...' : 'Add'}
                 </Button>
-                <Button onClick={() => setShowForm(false)} variant="outline">Cancel</Button>
+                <Button onClick={() => setShowForm(false)} variant="secondary">Cancel</Button>
               </div>
             </div>
           </Card>
@@ -312,7 +312,7 @@ export default function HomePage() {
                       onClick={() => handleDelete(expense.id)}
                       disabled={actionLoading === expense.id}
                       size="sm"
-                      variant="outline"
+                      variant="secondary"
                       className="text-red-600 border-red-200 text-xs"
                     >
                       Delete
@@ -348,7 +348,7 @@ export default function HomePage() {
                       onClick={() => handleAction(expense.id, 'uncommit')}
                       disabled={actionLoading === expense.id}
                       size="sm"
-                      variant="outline"
+                      variant="secondary"
                       className="text-orange-600 border-orange-200 text-xs"
                     >
                       {actionLoading === expense.id ? '...' : '↩ Uncommit'}
