@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
 
     // Calculate total budget
-    const totalBudget = trip.budget_line_items.reduce((sum, item) => sum + item.amount, 0);
+    const totalBudget = trip.budget_line_items.reduce((sum, item) => sum + Number(item.amount), 0);
 
     // Create calendar event
     await prisma.$queryRaw`
