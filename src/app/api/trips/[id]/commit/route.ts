@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         user_id, source, source_id, title, description, category, icon, color,
         start_date, end_date, is_recurring, location, latitude, longitude, budget_amount
       ) VALUES (
-        ${user.id}, 'trip', ${id}::uuid, ${trip.name}, ${trip.destination || null},
+        ${user.id}, 'trip', ${id}, ${trip.name}, ${trip.destination || null},
         'trip', '✈️', 'cyan',
         ${trip.startDate}, ${trip.endDate}, false,
         ${trip.destination || null}, ${trip.latitude ? parseFloat(String(trip.latitude)) : null}, 
@@ -134,7 +134,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Remove calendar event
     await prisma.$queryRaw`
       DELETE FROM calendar_events 
-      WHERE source = 'trip' AND source_id = ${id}::uuid AND user_id = ${user.id}
+      WHERE source = 'trip' AND source_id = ${id} AND user_id = ${user.id}
     `;
 
     // Remove budget entries for this trip's COA codes
