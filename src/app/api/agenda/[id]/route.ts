@@ -19,7 +19,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Get checkins
     const checkins = await prisma.$queryRaw`
       SELECT * FROM agenda_checkins 
       WHERE agenda_item_id = ${id}::uuid
@@ -37,6 +36,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const body = await request.json();
 
     // Handle commit action
@@ -47,41 +57,65 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         WHERE id = ${id}::uuid
       `;
 
-      // Get the item to create budget entry
+      // Get the item
       const items = await prisma.$queryRaw`
         SELECT * FROM agenda_items WHERE id = ${id}::uuid
       ` as any[];
 
-      if (items.length && items[0].budget_amount > 0 && items[0].coa_code) {
+      if (items.length) {
         const item = items[0];
-        // Create monthly budget entries based on cadence
         const startDate = item.start_date ? new Date(item.start_date) : new Date();
         const endDate = item.end_date ? new Date(item.end_date) : new Date(startDate.getFullYear(), 11, 31);
-        
-        // For now, create a single budget entry for the year
         const year = startDate.getFullYear();
-        for (let month = startDate.getMonth() + 1; month <= 12; month++) {
-          await prisma.budgets.upsert({
-            where: {
-              userId_coaCode_year_month: {
-                userId: item.user_id,
+
+        // Category icons
+        const categoryIcons: Record<string, string> = {
+          build: '🧱', fitness: '💪', trading: '📊', 
+          community: '🤝', shopping: '🛒', vehicle: '🚗'
+        };
+        const categoryColors: Record<string, string> = {
+          build: 'blue', fitness: 'green', trading: 'purple',
+          community: 'orange', shopping: 'pink', vehicle: 'gray'
+        };
+
+        // Create calendar event
+        await prisma.$queryRaw`
+          INSERT INTO calendar_events (
+            user_id, source, source_id, title, description, category, icon, color,
+            start_date, end_date, is_recurring, recurrence_rule, coa_code, budget_amount
+          ) VALUES (
+            ${user.id}, 'agenda', ${id}::uuid, ${item.name}, ${item.goal || null},
+            ${item.category}, ${categoryIcons[item.category] || '📋'}, ${categoryColors[item.category] || 'gray'},
+            ${startDate}, ${endDate}, ${item.cadence !== 'once'}, ${item.cadence},
+            ${item.coa_code || null}, ${item.budget_amount || 0}
+          )
+        `;
+
+        // Create budget entries if budget amount set
+        if (item.budget_amount > 0 && item.coa_code) {
+          for (let month = startDate.getMonth() + 1; month <= 12; month++) {
+            await prisma.budgets.upsert({
+              where: {
+                userId_coaCode_year_month: {
+                  userId: user.id,
+                  coaCode: item.coa_code,
+                  year,
+                  month
+                }
+              },
+              update: {
+                amount: { increment: item.budget_amount }
+              },
+              create: {
+                userId: user.id,
                 coaCode: item.coa_code,
                 year,
-                month
+                month,
+                amount: item.budget_amount,
+                notes: `Agenda: ${item.name}`
               }
-            },
-            update: {
-              amount: { increment: item.budget_amount }
-            },
-            create: {
-              userId: item.user_id,
-              coaCode: item.coa_code,
-              year,
-              month,
-              amount: item.budget_amount,
-              notes: `Agenda: ${item.name}`
-            }
-          });
+            });
+          }
         }
       }
 
@@ -126,6 +160,13 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
 
+    // Delete calendar events
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'agenda' AND source_id = ${id}::uuid`;
+    
+    // Delete checkins
+    await prisma.$queryRaw`DELETE FROM agenda_checkins WHERE agenda_item_id = ${id}::uuid`;
+    
+    // Delete the item
     await prisma.$queryRaw`DELETE FROM agenda_items WHERE id = ${id}::uuid`;
 
     return NextResponse.json({ success: true });
