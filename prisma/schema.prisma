@@ -77,6 +77,7 @@ model chart_of_accounts {
   version         Int              @default(0)
   is_archived     Boolean          @default(false)
   entity_type     String?          @db.VarChar(10)
+  module          String?          @db.VarChar(20)
   created_at      DateTime         @default(now())
   updated_at      DateTime         @default(now())
   user            users?           @relation(fields: [userId], references: [id])
