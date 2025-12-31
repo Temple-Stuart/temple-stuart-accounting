@@ -10,6 +10,27 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get user's accounts
+    const userAccounts = await prisma.accounts.findMany({
+      where: { userId: user.id },
+      select: { accountId: true }
+    });
+    const accountIds = userAccounts.map(a => a.accountId);
+
+    if (accountIds.length === 0) {
+      return NextResponse.json({
+        byCode: [],
+        byMonth: [],
+        summary: { ytdTotal: 0, allTimeTotal: 0, monthlyAvg: 0, transactionCount: 0 },
+        recentTransactions: []
+      });
+    }
+
     const incomeCodes = await prisma.chart_of_accounts.findMany({
       where: { module: 'income' },
       select: { code: true, name: true }
@@ -17,8 +38,12 @@ export async function GET() {
 
     const codes = incomeCodes.map(c => c.code);
 
+    // Filter by user's accounts AND income codes
     const transactions = await prisma.transactions.findMany({
-      where: { accountCode: { in: codes } },
+      where: { 
+        accountCode: { in: codes },
+        accountId: { in: accountIds }
+      },
       orderBy: { date: 'desc' }
     });
 
@@ -28,6 +53,8 @@ export async function GET() {
     });
 
     const byMonth: Record<string, number> = {};
+    const currentYear = new Date().getFullYear();
+    let ytdTotal = 0;
     
     transactions.forEach(t => {
       const code = t.accountCode!;
@@ -40,23 +67,36 @@ export async function GET() {
 
       const monthKey = t.date.toISOString().slice(0, 7);
       byMonth[monthKey] = (byMonth[monthKey] || 0) + amount;
+
+      if (t.date.getFullYear() === currentYear) {
+        ytdTotal += amount;
+      }
     });
 
-    const currentYear = new Date().getFullYear();
-    const ytdTotal = transactions
-      .filter(t => t.date.getFullYear() === currentYear)
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-
     const allTimeTotal = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const months = Object.keys(byMonth).length || 1;
-    const monthlyAvg = allTimeTotal / months;
+    const monthCount = Object.keys(byMonth).length || 1;
 
     return NextResponse.json({
-      summary: { ytdTotal, allTimeTotal, monthlyAvg, transactionCount: transactions.length },
-      byCode: Object.entries(byCode).map(([code, data]) => ({ code, ...data })),
-      byMonth: Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).map(([month, total]) => ({ month, total })),
+      byCode: Object.entries(byCode)
+        .filter(([_, data]) => data.total > 0)
+        .map(([code, data]) => ({ code, ...data }))
+        .sort((a, b) => b.total - a.total),
+      byMonth: Object.entries(byMonth)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(-12)
+        .map(([month, total]) => ({ month, total })),
+      summary: {
+        ytdTotal,
+        allTimeTotal,
+        monthlyAvg: allTimeTotal / monthCount,
+        transactionCount: transactions.length
+      },
       recentTransactions: transactions.slice(0, 20).map(t => ({
-        id: t.id, date: t.date, name: t.name, amount: t.amount, accountCode: t.accountCode
+        id: t.id,
+        date: t.date,
+        name: t.name,
+        amount: t.amount,
+        accountCode: t.accountCode
       }))
     });
   } catch (error) {
