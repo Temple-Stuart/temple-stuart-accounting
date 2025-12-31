@@ -497,7 +497,7 @@ export default function NewAgendaPage() {
               )}
 
               {/* Budget */}
-              <Card className="p-6 bg-gray-50">
+              <div className="p-6 bg-gray-50">
                 <h3 className="font-semibold text-gray-900 mb-4">Budget (optional)</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -527,7 +527,7 @@ export default function NewAgendaPage() {
               </div>
 
               {/* How it works */}
-              <Card className="p-4 bg-blue-50 border-blue-200">
+              <div className="p-4 bg-blue-50 border-blue-200">
                 <div className="flex items-start gap-3">
                   <span className="text-xl">💡</span>
                   <div className="text-sm text-blue-800">
@@ -539,7 +539,7 @@ export default function NewAgendaPage() {
               </div>
 
               {/* Summary */}
-              <Card className="p-6">
+              <div className="p-6">
                 <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
