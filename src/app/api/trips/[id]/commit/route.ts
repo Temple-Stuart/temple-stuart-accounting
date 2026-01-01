@@ -16,27 +16,91 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Parse request body - THIS WAS MISSING!
+    const body = await request.json();
+    const { startDay, budgetItems } = body;
+    
+    console.log('Commit received:', { startDay, budgetItems });
+
     // Get the trip
     const trip = await prisma.trips.findUnique({
-      where: { id },
-      include: { budget_line_items: true }
+      where: { id }
     });
 
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    // Update trip status
+    // Calculate dates from startDay + trip.month/year
+    const startDate = new Date(trip.year, trip.month - 1, startDay);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + (trip.daysTravel || 7) - 1);
+
+    // Delete old budget items for this trip
+    await prisma.budget_line_items.deleteMany({
+      where: { tripId: id }
+    });
+
+    // COA code mapping
+    const coaMapping: Record<string, string> = {
+      'Flights': 'P-7100',
+      'Hotels': 'P-7200',
+      'Lodging': 'P-7200',
+      'Rental cars': 'P-7300',
+      'Rental Car': 'P-7300',
+      'Car Rental': 'P-7300',
+      'Transfers': 'P-7600',
+      'Airport transfers': 'P-7600',
+      'Ground transport': 'P-7600',
+      'Activities': 'P-7400',
+      'Lift tickets': 'P-7400',
+      'Equipment rental': 'P-7500',
+      'Equipment Rental': 'P-7500',
+      'Food & dining': 'P-7700',
+      'Travel Meals': 'P-7700',
+      'Tips & misc': 'P-7800',
+      'Tips': 'P-7800',
+    };
+
+    // Save new budget items from request
+    let totalBudget = 0;
+    if (budgetItems && budgetItems.length > 0) {
+      for (const item of budgetItems) {
+        const coaCode = coaMapping[item.category] || coaMapping[item.description] || 'P-7800';
+        totalBudget += Number(item.amount);
+        
+        await prisma.budget_line_items.create({
+          data: {
+            id: `bli_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userId: user.id,
+            tripId: id,
+            coaCode,
+            year: startDate.getFullYear(),
+            month: startDate.getMonth() + 1,
+            amount: item.amount,
+            description: item.description || item.category,
+            source: 'trip',
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+
+    // Update trip with dates and status
     await prisma.trips.update({
       where: { id },
       data: { 
         status: 'committed',
-        committedAt: new Date()
+        committedAt: new Date(),
+        startDate,
+        endDate
       }
     });
 
-    // Calculate total budget
-    const totalBudget = trip.budget_line_items.reduce((sum, item) => sum + Number(item.amount), 0);
+    // Delete existing calendar event if any
+    await prisma.$queryRaw`
+      DELETE FROM calendar_events WHERE source = 'trip' AND source_id::text = ${id}
+    `;
 
     // Create calendar event
     await prisma.$queryRaw`
@@ -46,61 +110,60 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ) VALUES (
         ${user.id}, 'trip', ${id}, ${trip.name}, ${trip.destination || null},
         'trip', '✈️', 'cyan',
-        ${trip.startDate}, ${trip.endDate}, false,
+        ${startDate}, ${endDate}, false,
         ${trip.destination || null}, ${trip.latitude ? parseFloat(String(trip.latitude)) : null}, 
         ${trip.longitude ? parseFloat(String(trip.longitude)) : null}, ${totalBudget}
       )
     `;
 
-    // Create budget entries for each line item (raw SQL)
-    if (trip.startDate) {
-      const year = trip.startDate.getFullYear();
-      const startMonth = trip.startDate.getMonth();
+    // Create budget table entries (for Budget Review page)
+    if (budgetItems && budgetItems.length > 0) {
+      const year = startDate.getFullYear();
+      const month = startDate.getMonth();
+      
+      for (const item of budgetItems) {
+        const coaCode = coaMapping[item.category] || coaMapping[item.description] || 'P-7800';
+        const amount = Number(item.amount);
+        
+        const jan = month === 0 ? amount : null;
+        const feb = month === 1 ? amount : null;
+        const mar = month === 2 ? amount : null;
+        const apr = month === 3 ? amount : null;
+        const may = month === 4 ? amount : null;
+        const jun = month === 5 ? amount : null;
+        const jul = month === 6 ? amount : null;
+        const aug = month === 7 ? amount : null;
+        const sep = month === 8 ? amount : null;
+        const oct = month === 9 ? amount : null;
+        const nov = month === 10 ? amount : null;
+        const dec = month === 11 ? amount : null;
 
-      for (const item of trip.budget_line_items) {
-        if (item.coaCode && Number(item.amount) > 0) {
-          const amount = Number(item.amount);
-          
-          const jan = startMonth <= 0 ? amount : null;
-          const feb = startMonth <= 1 ? amount : null;
-          const mar = startMonth <= 2 ? amount : null;
-          const apr = startMonth <= 3 ? amount : null;
-          const may = startMonth <= 4 ? amount : null;
-          const jun = startMonth <= 5 ? amount : null;
-          const jul = startMonth <= 6 ? amount : null;
-          const aug = startMonth <= 7 ? amount : null;
-          const sep = startMonth <= 8 ? amount : null;
-          const oct = startMonth <= 9 ? amount : null;
-          const nov = startMonth <= 10 ? amount : null;
-          const dec = startMonth <= 11 ? amount : null;
-
-          await prisma.$queryRaw`
-            INSERT INTO budgets (id, "userId", "accountCode", year, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec, "createdAt", "updatedAt")
-            VALUES (
-              gen_random_uuid(), ${user.id}, ${item.coaCode}, ${year},
-              ${jan}, ${feb}, ${mar}, ${apr}, ${may}, ${jun}, ${jul}, ${aug}, ${sep}, ${oct}, ${nov}, ${dec},
-              NOW(), NOW()
-            )
-            ON CONFLICT ("userId", "accountCode", year) DO UPDATE SET
-              jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN EXCLUDED.jan ELSE budgets.jan END,
-              feb = CASE WHEN EXCLUDED.feb IS NOT NULL THEN EXCLUDED.feb ELSE budgets.feb END,
-              mar = CASE WHEN EXCLUDED.mar IS NOT NULL THEN EXCLUDED.mar ELSE budgets.mar END,
-              apr = CASE WHEN EXCLUDED.apr IS NOT NULL THEN EXCLUDED.apr ELSE budgets.apr END,
-              may = CASE WHEN EXCLUDED.may IS NOT NULL THEN EXCLUDED.may ELSE budgets.may END,
-              jun = CASE WHEN EXCLUDED.jun IS NOT NULL THEN EXCLUDED.jun ELSE budgets.jun END,
-              jul = CASE WHEN EXCLUDED.jul IS NOT NULL THEN EXCLUDED.jul ELSE budgets.jul END,
-              aug = CASE WHEN EXCLUDED.aug IS NOT NULL THEN EXCLUDED.aug ELSE budgets.aug END,
-              sep = CASE WHEN EXCLUDED.sep IS NOT NULL THEN EXCLUDED.sep ELSE budgets.sep END,
-              oct = CASE WHEN EXCLUDED.oct IS NOT NULL THEN EXCLUDED.oct ELSE budgets.oct END,
-              nov = CASE WHEN EXCLUDED.nov IS NOT NULL THEN EXCLUDED.nov ELSE budgets.nov END,
-              dec = CASE WHEN EXCLUDED.dec IS NOT NULL THEN EXCLUDED.dec ELSE budgets.dec END,
-              "updatedAt" = NOW()
-          `;
-        }
+        await prisma.$queryRaw`
+          INSERT INTO budgets (id, "userId", "accountCode", year, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec, "createdAt", "updatedAt")
+          VALUES (
+            gen_random_uuid(), ${user.id}, ${coaCode}, ${year},
+            ${jan}, ${feb}, ${mar}, ${apr}, ${may}, ${jun}, ${jul}, ${aug}, ${sep}, ${oct}, ${nov}, ${dec},
+            NOW(), NOW()
+          )
+          ON CONFLICT ("userId", "accountCode", year) DO UPDATE SET
+            jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN COALESCE(budgets.jan, 0) + EXCLUDED.jan ELSE budgets.jan END,
+            feb = CASE WHEN EXCLUDED.feb IS NOT NULL THEN COALESCE(budgets.feb, 0) + EXCLUDED.feb ELSE budgets.feb END,
+            mar = CASE WHEN EXCLUDED.mar IS NOT NULL THEN COALESCE(budgets.mar, 0) + EXCLUDED.mar ELSE budgets.mar END,
+            apr = CASE WHEN EXCLUDED.apr IS NOT NULL THEN COALESCE(budgets.apr, 0) + EXCLUDED.apr ELSE budgets.apr END,
+            may = CASE WHEN EXCLUDED.may IS NOT NULL THEN COALESCE(budgets.may, 0) + EXCLUDED.may ELSE budgets.may END,
+            jun = CASE WHEN EXCLUDED.jun IS NOT NULL THEN COALESCE(budgets.jun, 0) + EXCLUDED.jun ELSE budgets.jun END,
+            jul = CASE WHEN EXCLUDED.jul IS NOT NULL THEN COALESCE(budgets.jul, 0) + EXCLUDED.jul ELSE budgets.jul END,
+            aug = CASE WHEN EXCLUDED.aug IS NOT NULL THEN COALESCE(budgets.aug, 0) + EXCLUDED.aug ELSE budgets.aug END,
+            sep = CASE WHEN EXCLUDED.sep IS NOT NULL THEN COALESCE(budgets.sep, 0) + EXCLUDED.sep ELSE budgets.sep END,
+            oct = CASE WHEN EXCLUDED.oct IS NOT NULL THEN COALESCE(budgets.oct, 0) + EXCLUDED.oct ELSE budgets.oct END,
+            nov = CASE WHEN EXCLUDED.nov IS NOT NULL THEN COALESCE(budgets.nov, 0) + EXCLUDED.nov ELSE budgets.nov END,
+            dec = CASE WHEN EXCLUDED.dec IS NOT NULL THEN COALESCE(budgets.dec, 0) + EXCLUDED.dec ELSE budgets.dec END,
+            "updatedAt" = NOW()
+        `;
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, totalBudget, startDate, endDate });
   } catch (error) {
     console.error('Commit trip error:', error);
     return NextResponse.json({ error: 'Failed to commit trip' }, { status: 500 });
@@ -134,7 +197,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     // Remove calendar event
     await prisma.$queryRaw`
       DELETE FROM calendar_events 
-      WHERE source = 'trip' AND source_id = ${id} AND user_id = ${user.id}
+      WHERE source = 'trip' AND source_id::text = ${id} AND user_id = ${user.id}
     `;
 
     // Remove budget entries for this trip's COA codes
@@ -152,12 +215,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       }
     }
 
+    // Delete budget line items
+    await prisma.budget_line_items.deleteMany({
+      where: { tripId: id }
+    });
+
     // Reset trip status
     await prisma.trips.update({
       where: { id },
       data: { 
         status: 'planning',
-        committedAt: null
+        committedAt: null,
+        startDate: null,
+        endDate: null
       }
     });
 
