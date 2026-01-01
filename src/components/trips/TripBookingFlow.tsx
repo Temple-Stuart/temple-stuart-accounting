@@ -193,14 +193,14 @@ export default function TripBookingFlow({
     const items: {category: string; amount: number; description: string}[] = [];
     destinations.forEach(dest => {
       const t = calculateTotal(dest.resortId);
-      if (t.flight > 0) items.push({ category: "flight", amount: t.flight * travelerCount, description: `Flight to ${dest.resort.name}` });
-      if (t.hotel > 0) items.push({ category: "hotel", amount: t.hotel, description: `Lodging at ${dest.resort.name}` });
-      if (t.car > 0) items.push({ category: "car", amount: t.car, description: `Rental car` });
-      if (t.activities > 0) items.push({ category: "activities", amount: t.activities * travelerCount, description: `Activities` });
-      if (t.equipment > 0) items.push({ category: "equipment", amount: t.equipment * travelerCount, description: `Equipment rental` });
-      if (t.meals > 0) items.push({ category: "meals", amount: t.meals * travelerCount, description: `Food & dining` });
-      if (t.groundTransport > 0) items.push({ category: "groundTransport", amount: t.groundTransport, description: `Ground transport` });
-      if (t.tips > 0) items.push({ category: "tips", amount: t.tips * travelerCount, description: `Tips & misc` });
+      if (t.flight > 0) items.push({ category: "flight", amount: t.flight, description: `Flight to ${dest.resort.name}` });
+      if (t.hotel > 0) items.push({ category: "hotel", amount: t.hotel / Math.max(travelerCount, 1), description: `Lodging at ${dest.resort.name}` });
+      if (t.car > 0) items.push({ category: "car", amount: t.car / Math.max(travelerCount, 1), description: `Rental car` });
+      if (t.activities > 0) items.push({ category: "activities", amount: t.activities, description: `Activities` });
+      if (t.equipment > 0) items.push({ category: "equipment", amount: t.equipment, description: `Equipment rental` });
+      if (t.meals > 0) items.push({ category: "meals", amount: t.meals, description: `Food & dining` });
+      if (t.groundTransport > 0) items.push({ category: "groundTransport", amount: t.groundTransport / Math.max(travelerCount, 1), description: `Ground transport` });
+      if (t.tips > 0) items.push({ category: "tips", amount: t.tips, description: `Tips & misc` });
     });
     onBudgetChange(items);
   }, [selectedFlights, selectedHotels, selectedCars, selectedArrivals, selectedDepartures, manualCosts, destinations, travelerCount]);
