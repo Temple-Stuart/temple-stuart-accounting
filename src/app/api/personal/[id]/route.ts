@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 
 const MODULE = 'personal';
+const ICON = '👤';
+const COLOR = 'purple';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,44 +30,79 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (!expenses.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const expense = expenses[0];
 
+      // Clear old events
       await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id}`;
 
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth();
-      const dueDay = expense.due_day || 1;
+      const targetDate = expense.target_date ? new Date(expense.target_date) : new Date();
+      const amount = Number(expense.amount);
+      const cadence = expense.cadence;
 
-      for (let y = currentYear; y <= currentYear + 1; y++) {
-        const startMonth = y === currentYear ? currentMonth : 0;
-        for (let m = startMonth; m < 12; m++) {
-          if (expense.cadence === 'quarterly' && m % 3 !== 0) continue;
-          if (expense.cadence === 'annual' && m !== 0) continue;
-          const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
-          await prisma.$queryRaw`
-            INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, is_recurring, recurrence_rule, coa_code, budget_amount)
-            VALUES (${user.id}, ${MODULE}, ${id}::uuid, ${expense.name}, ${MODULE}, '👤', 'purple', ${dateStr}::date, ${expense.cadence === 'monthly'}, ${expense.cadence}, ${expense.coa_code}, ${expense.amount})
-          `;
+      // Generate calendar events based on cadence
+      const events: Date[] = [];
+      const endDate = new Date(targetDate);
+      endDate.setFullYear(endDate.getFullYear() + 2); // 2 years out
+
+      if (cadence === 'once') {
+        events.push(new Date(targetDate));
+      } else if (cadence === 'weekly') {
+        let d = new Date(targetDate);
+        while (d <= endDate) {
+          events.push(new Date(d));
+          d.setDate(d.getDate() + 7);
+        }
+      } else if (cadence === 'monthly') {
+        let d = new Date(targetDate);
+        while (d <= endDate) {
+          events.push(new Date(d));
+          d.setMonth(d.getMonth() + 1);
+        }
+      } else if (cadence === 'quarterly') {
+        let d = new Date(targetDate);
+        while (d <= endDate) {
+          events.push(new Date(d));
+          d.setMonth(d.getMonth() + 3);
+        }
+      } else if (cadence === 'semi-annual') {
+        let d = new Date(targetDate);
+        while (d <= endDate) {
+          events.push(new Date(d));
+          d.setMonth(d.getMonth() + 6);
+        }
+      } else if (cadence === 'annual') {
+        let d = new Date(targetDate);
+        while (d <= endDate) {
+          events.push(new Date(d));
+          d.setFullYear(d.getFullYear() + 1);
         }
       }
 
-      const amount = Number(expense.amount);
-      for (let y = currentYear; y <= currentYear + 1; y++) {
-        const months: number[] = [];
-        const startMonth = y === currentYear ? currentMonth : 0;
-        for (let m = startMonth; m < 12; m++) {
-          if (expense.cadence === 'quarterly' && m % 3 !== 0) continue;
-          if (expense.cadence === 'annual' && m !== 0) continue;
-          months.push(m);
-        }
-        if (months.length === 0) continue;
-        
+      // Create calendar events
+      for (const eventDate of events) {
+        const dateStr = eventDate.toISOString().split('T')[0];
+        await prisma.$queryRaw`
+          INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, is_recurring, recurrence_rule, coa_code, budget_amount)
+          VALUES (${user.id}, ${MODULE}, ${id}::uuid, ${expense.name}, ${MODULE}, ${ICON}, ${COLOR}, ${dateStr}::date, ${cadence !== 'once'}, ${cadence}, ${expense.coa_code}, ${amount})
+        `;
+      }
+
+      // Create budget entries grouped by year/month
+      const budgetMap: Record<string, Record<number, number>> = {}; // year -> month -> amount
+      for (const eventDate of events) {
+        const year = eventDate.getFullYear().toString();
+        const month = eventDate.getMonth();
+        if (!budgetMap[year]) budgetMap[year] = {};
+        budgetMap[year][month] = (budgetMap[year][month] || 0) + amount;
+      }
+
+      for (const [yearStr, months] of Object.entries(budgetMap)) {
+        const year = parseInt(yearStr);
         await prisma.$queryRaw`
           INSERT INTO budgets (id, "userId", "accountCode", year, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec, "createdAt", "updatedAt")
-          VALUES (${randomUUID()}, ${user.id}, ${expense.coa_code}, ${y},
-            ${months.includes(0) ? amount : null}, ${months.includes(1) ? amount : null}, ${months.includes(2) ? amount : null},
-            ${months.includes(3) ? amount : null}, ${months.includes(4) ? amount : null}, ${months.includes(5) ? amount : null},
-            ${months.includes(6) ? amount : null}, ${months.includes(7) ? amount : null}, ${months.includes(8) ? amount : null},
-            ${months.includes(9) ? amount : null}, ${months.includes(10) ? amount : null}, ${months.includes(11) ? amount : null},
+          VALUES (${randomUUID()}, ${user.id}, ${expense.coa_code}, ${year},
+            ${months[0] || null}, ${months[1] || null}, ${months[2] || null},
+            ${months[3] || null}, ${months[4] || null}, ${months[5] || null},
+            ${months[6] || null}, ${months[7] || null}, ${months[8] || null},
+            ${months[9] || null}, ${months[10] || null}, ${months[11] || null},
             NOW(), NOW())
           ON CONFLICT ("userId", "accountCode", year) DO UPDATE SET
             jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN EXCLUDED.jan ELSE budgets.jan END,
@@ -85,13 +122,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
 
       await prisma.$queryRaw`UPDATE module_expenses SET status = 'committed', committed_at = NOW() WHERE id = ${id}::uuid`;
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, eventsCreated: events.length });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed: ' + (error as Error).message }, { status: 500 });
   }
 }
 
