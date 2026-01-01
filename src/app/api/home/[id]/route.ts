@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Handle UNCOMMIT
     if (body.action === 'uncommit') {
       // Delete calendar events for this expense
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id = ${id}::uuid`;
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
       
       // Reset status
       await prisma.$queryRaw`
@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const expense = expenses[0];
       
       // FIRST: Delete any existing calendar events for this expense (prevents duplicates)
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id = ${id}::uuid`;
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
       
       const now = new Date();
       const currentYear = now.getFullYear();
@@ -160,7 +160,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id = ${id}::uuid`;
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
     await prisma.$queryRaw`DELETE FROM home_expenses WHERE id = ${id}::uuid`;
     return NextResponse.json({ success: true });
   } catch (error) {
