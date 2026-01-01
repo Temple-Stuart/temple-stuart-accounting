@@ -153,7 +153,7 @@ export default function TripBookingFlow({
     total: number;
     perPerson: number;
   } => {
-    const flight = selectedFlights[resortId]?.price || 0;
+    const flight = selectedFlights[resortId]?.price || manualCosts[resortId]?.flight || 0;
     const hotel = selectedHotels[resortId]?.totalPrice || manualCosts[resortId]?.hotel || 0;
     const car = selectedCars[resortId]?.price || manualCosts[resortId]?.car || 0;
     const arrivalTransfer = selectedArrivals[resortId]?.price || 0;
