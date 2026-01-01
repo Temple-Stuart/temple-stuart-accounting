@@ -31,6 +31,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
+    // Prevent re-committing - must uncommit first
+    if (trip.status === 'committed') {
+      return NextResponse.json({ error: 'Trip already committed. Uncommit first.' }, { status: 400 });
+    }
+
     // Calculate dates from startDay + trip.month/year
     const startDate = new Date(trip.year, trip.month - 1, startDay);
     const endDate = new Date(startDate);
@@ -146,18 +151,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             NOW(), NOW()
           )
           ON CONFLICT ("userId", "accountCode", year) DO UPDATE SET
-            jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN COALESCE(budgets.jan, 0) + EXCLUDED.jan ELSE budgets.jan END,
-            feb = CASE WHEN EXCLUDED.feb IS NOT NULL THEN COALESCE(budgets.feb, 0) + EXCLUDED.feb ELSE budgets.feb END,
-            mar = CASE WHEN EXCLUDED.mar IS NOT NULL THEN COALESCE(budgets.mar, 0) + EXCLUDED.mar ELSE budgets.mar END,
-            apr = CASE WHEN EXCLUDED.apr IS NOT NULL THEN COALESCE(budgets.apr, 0) + EXCLUDED.apr ELSE budgets.apr END,
-            may = CASE WHEN EXCLUDED.may IS NOT NULL THEN COALESCE(budgets.may, 0) + EXCLUDED.may ELSE budgets.may END,
-            jun = CASE WHEN EXCLUDED.jun IS NOT NULL THEN COALESCE(budgets.jun, 0) + EXCLUDED.jun ELSE budgets.jun END,
-            jul = CASE WHEN EXCLUDED.jul IS NOT NULL THEN COALESCE(budgets.jul, 0) + EXCLUDED.jul ELSE budgets.jul END,
-            aug = CASE WHEN EXCLUDED.aug IS NOT NULL THEN COALESCE(budgets.aug, 0) + EXCLUDED.aug ELSE budgets.aug END,
-            sep = CASE WHEN EXCLUDED.sep IS NOT NULL THEN COALESCE(budgets.sep, 0) + EXCLUDED.sep ELSE budgets.sep END,
-            oct = CASE WHEN EXCLUDED.oct IS NOT NULL THEN COALESCE(budgets.oct, 0) + EXCLUDED.oct ELSE budgets.oct END,
-            nov = CASE WHEN EXCLUDED.nov IS NOT NULL THEN COALESCE(budgets.nov, 0) + EXCLUDED.nov ELSE budgets.nov END,
-            dec = CASE WHEN EXCLUDED.dec IS NOT NULL THEN COALESCE(budgets.dec, 0) + EXCLUDED.dec ELSE budgets.dec END,
+            jan = CASE WHEN EXCLUDED.jan IS NOT NULL THEN EXCLUDED.jan ELSE budgets.jan END,
+            feb = CASE WHEN EXCLUDED.feb IS NOT NULL THEN EXCLUDED.feb ELSE budgets.feb END,
+            mar = CASE WHEN EXCLUDED.mar IS NOT NULL THEN EXCLUDED.mar ELSE budgets.mar END,
+            apr = CASE WHEN EXCLUDED.apr IS NOT NULL THEN EXCLUDED.apr ELSE budgets.apr END,
+            may = CASE WHEN EXCLUDED.may IS NOT NULL THEN EXCLUDED.may ELSE budgets.may END,
+            jun = CASE WHEN EXCLUDED.jun IS NOT NULL THEN EXCLUDED.jun ELSE budgets.jun END,
+            jul = CASE WHEN EXCLUDED.jul IS NOT NULL THEN EXCLUDED.jul ELSE budgets.jul END,
+            aug = CASE WHEN EXCLUDED.aug IS NOT NULL THEN EXCLUDED.aug ELSE budgets.aug END,
+            sep = CASE WHEN EXCLUDED.sep IS NOT NULL THEN EXCLUDED.sep ELSE budgets.sep END,
+            oct = CASE WHEN EXCLUDED.oct IS NOT NULL THEN EXCLUDED.oct ELSE budgets.oct END,
+            nov = CASE WHEN EXCLUDED.nov IS NOT NULL THEN EXCLUDED.nov ELSE budgets.nov END,
+            dec = CASE WHEN EXCLUDED.dec IS NOT NULL THEN EXCLUDED.dec ELSE budgets.dec END,
             "updatedAt" = NOW()
         `;
       }
@@ -191,6 +196,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     });
 
     if (!trip) {
+    return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+  }
+
+  // Prevent re-committing - must uncommit first
+  if (trip.status === 'committed') {
+    return NextResponse.json({ error: 'Trip already committed. Uncommit first to make changes.' }, { status: 400 });
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
