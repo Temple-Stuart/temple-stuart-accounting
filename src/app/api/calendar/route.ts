@@ -22,7 +22,6 @@ export async function GET(request: Request) {
     let events: any[];
     
     if (month) {
-      // Filter to specific month only
       const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
       const endOfMonth = month === 12 
         ? `${year + 1}-01-01` 
@@ -36,7 +35,6 @@ export async function GET(request: Request) {
         ORDER BY start_date ASC
       `;
     } else {
-      // Full year
       const startOfYear = `${year}-01-01`;
       const endOfYear = `${year + 1}-01-01`;
       
@@ -49,30 +47,37 @@ export async function GET(request: Request) {
       `;
     }
 
-    // Calculate totals by source (for THIS month/year only)
-    const homeTotal = events
-      .filter(e => e.source === 'home')
-      .reduce((sum, e) => sum + (e.budget_amount || 0), 0);
-    
-    const agendaTotal = events
-      .filter(e => e.source === 'agenda')
-      .reduce((sum, e) => sum + (e.budget_amount || 0), 0);
-    
-    const tripTotal = events
-      .filter(e => e.source === 'trip')
-      .reduce((sum, e) => sum + (e.budget_amount || 0), 0);
+    // Calculate totals by source
+    const calcTotal = (source: string) => events.filter(e => e.source === source).reduce((sum, e) => sum + Number(e.budget_amount || 0), 0);
+    const calcCount = (source: string) => events.filter(e => e.source === source).length;
+
+    const homeTotal = calcTotal('home');
+    const autoTotal = calcTotal('auto');
+    const shoppingTotal = calcTotal('shopping');
+    const personalTotal = calcTotal('personal');
+    const healthTotal = calcTotal('health');
+    const growthTotal = calcTotal('growth');
+    const tripTotal = calcTotal('trip');
 
     return NextResponse.json({
       events,
       summary: {
         totalEvents: events.length,
         homeTotal,
-        agendaTotal,
+        autoTotal,
+        shoppingTotal,
+        personalTotal,
+        healthTotal,
+        growthTotal,
         tripTotal,
-        grandTotal: homeTotal + agendaTotal + tripTotal,
-        homeCount: events.filter(e => e.source === 'home').length,
-        agendaCount: events.filter(e => e.source === 'agenda').length,
-        tripCount: events.filter(e => e.source === 'trip').length,
+        grandTotal: homeTotal + autoTotal + shoppingTotal + personalTotal + healthTotal + growthTotal + tripTotal,
+        homeCount: calcCount('home'),
+        autoCount: calcCount('auto'),
+        shoppingCount: calcCount('shopping'),
+        personalCount: calcCount('personal'),
+        healthCount: calcCount('health'),
+        growthCount: calcCount('growth'),
+        tripCount: calcCount('trip'),
       }
     });
   } catch (error) {
