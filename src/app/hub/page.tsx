@@ -20,34 +20,51 @@ interface CalendarEvent {
 interface CalendarSummary {
   totalEvents: number;
   homeTotal: number;
-  agendaTotal: number;
+  autoTotal: number;
+  shoppingTotal: number;
+  personalTotal: number;
+  healthTotal: number;
+  growthTotal: number;
   tripTotal: number;
   grandTotal: number;
   homeCount: number;
-  agendaCount: number;
+  autoCount: number;
+  shoppingCount: number;
+  personalCount: number;
+  healthCount: number;
+  growthCount: number;
   tripCount: number;
 }
+
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string }> = {
   home: { icon: '🏠', color: 'text-orange-600', bgColor: 'bg-orange-100', dotColor: 'bg-orange-500' },
-  agenda: { icon: '📋', color: 'text-blue-600', bgColor: 'bg-blue-100', dotColor: 'bg-blue-500' },
+  auto: { icon: '🚗', color: 'text-gray-600', bgColor: 'bg-gray-100', dotColor: 'bg-gray-500' },
+  shopping: { icon: '🛒', color: 'text-pink-600', bgColor: 'bg-pink-100', dotColor: 'bg-pink-500' },
+  personal: { icon: '👤', color: 'text-purple-600', bgColor: 'bg-purple-100', dotColor: 'bg-purple-500' },
+  health: { icon: '💪', color: 'text-green-600', bgColor: 'bg-green-100', dotColor: 'bg-green-500' },
+  growth: { icon: '📚', color: 'text-blue-600', bgColor: 'bg-blue-100', dotColor: 'bg-blue-500' },
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-100', dotColor: 'bg-cyan-500' },
 };
+
 
 const modules = [
   { name: 'Bookkeeping', href: '/dashboard', icon: '📒' },
   { name: 'Income', href: '/income', icon: '💵' },
   { name: 'Trading', href: '/trading', icon: '📊' },
   { name: 'Home', href: '/home', icon: '🏠' },
-  { name: 'Agenda', href: '/agenda', icon: '📋' },
+  { name: 'Auto', href: '/auto', icon: '🚗' },
+  { name: 'Shopping', href: '/shopping', icon: '🛒' },
+  { name: 'Personal', href: '/personal', icon: '👤' },
+  { name: 'Health', href: '/health', icon: '💪' },
+  { name: 'Growth', href: '/growth', icon: '📚' },
   { name: 'Trips', href: '/budgets/trips', icon: '✈️' },
   { name: 'Net Worth', href: '/net-worth', icon: '💰' },
   { name: 'Budget', href: '/hub/itinerary', icon: '📈' },
 ];
-
 // Helper to parse date string without timezone issues
 const parseDate = (dateStr: string): Date => {
   // dateStr is "YYYY-MM-DD", parse as local date
@@ -160,6 +177,7 @@ export default function HubPage() {
         </div>
 
         {/* Summary Cards */}
+        {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
             <div className="flex items-center gap-2 mb-1">
@@ -168,12 +186,12 @@ export default function HubPage() {
             </div>
             <div className="text-xl font-bold text-orange-700">{formatCurrency(summary?.homeTotal || 0)}</div>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
             <div className="flex items-center gap-2 mb-1">
-              <span>📋</span>
-              <span className="text-sm text-blue-600">Agenda</span>
+              <span>🧬</span>
+              <span className="text-sm text-purple-600">Life</span>
             </div>
-            <div className="text-xl font-bold text-blue-700">{formatCurrency(summary?.agendaTotal || 0)}</div>
+            <div className="text-xl font-bold text-purple-700">{formatCurrency((summary?.autoTotal || 0) + (summary?.shoppingTotal || 0) + (summary?.personalTotal || 0) + (summary?.healthTotal || 0) + (summary?.growthTotal || 0))}</div>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 border-cyan-200">
             <div className="flex items-center gap-2 mb-1">
@@ -185,9 +203,9 @@ export default function HubPage() {
           <Card className="p-4 bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/20 border-[#b4b237]">
             <div className="flex items-center gap-2 mb-1">
               <span>💰</span>
-              <span className="text-sm text-[#8f8c2a]">This Month</span>
+              <span className="text-sm text-[#8f8c2a]">Total</span>
             </div>
-            <div className="text-xl font-bold text-[#8f8c2a]">{formatCurrency(monthlyTotal)}</div>
+            <div className="text-xl font-bold text-[#8f8c2a]">{formatCurrency(summary?.grandTotal || 0)}</div>
           </Card>
         </div>
 
@@ -374,28 +392,46 @@ export default function HubPage() {
               </div>
             </Card>
 
+
             {/* The Nomad Question */}
             <Card className="p-6 bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5 border-[#b4b237]/30">
               <h2 className="text-lg font-semibold text-[#8f8c2a] mb-4">🌍 The Nomad Question</h2>
-              <div className="space-y-3 text-sm">
+              <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Home costs/mo:</span>
+                  <span className="text-gray-600">🏠 Home:</span>
                   <span className="font-semibold text-orange-600">{formatCurrency(summary?.homeTotal || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Agenda costs/mo:</span>
-                  <span className="font-semibold text-blue-600">{formatCurrency(summary?.agendaTotal || 0)}</span>
+                  <span className="text-gray-600">🚗 Auto:</span>
+                  <span className="font-semibold text-gray-600">{formatCurrency(summary?.autoTotal || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Trip costs/mo:</span>
+                  <span className="text-gray-600">🛒 Shopping:</span>
+                  <span className="font-semibold text-pink-600">{formatCurrency(summary?.shoppingTotal || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">👤 Personal:</span>
+                  <span className="font-semibold text-purple-600">{formatCurrency(summary?.personalTotal || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">💪 Health:</span>
+                  <span className="font-semibold text-green-600">{formatCurrency(summary?.healthTotal || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">📚 Growth:</span>
+                  <span className="font-semibold text-blue-600">{formatCurrency(summary?.growthTotal || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">✈️ Trips:</span>
                   <span className="font-semibold text-cyan-600">{formatCurrency(summary?.tripTotal || 0)}</span>
                 </div>
                 <div className="border-t border-[#b4b237]/20 pt-3 mt-3">
-                  <p className="text-[#8f8c2a]">
-                    <strong>Baseline:</strong> {formatCurrency(summary?.homeTotal || 0)}/mo to stay home
-                  </p>
-                  <p className="text-[#8f8c2a]/70 mt-1 text-xs">
-                    Can you travel for less?
+                  <div className="flex justify-between font-bold">
+                    <span className="text-[#8f8c2a]">Total/mo:</span>
+                    <span className="text-[#8f8c2a]">{formatCurrency(summary?.grandTotal || 0)}</span>
+                  </div>
+                  <p className="text-[#8f8c2a]/70 mt-2 text-xs">
+                    Your baseline cost of living. Can you travel for less?
                   </p>
                 </div>
               </div>
