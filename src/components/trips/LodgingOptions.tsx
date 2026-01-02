@@ -282,7 +282,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                     href={option.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline"
+                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Open on {extractDomain(option.url)}
                   </a>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import FlightPicker from './FlightPicker';
-import HotelPicker from './HotelPicker';
+import LodgingOptions from './LodgingOptions';
 import CarPicker from './CarPicker';
 import TransferPicker from './TransferPicker';
 
@@ -262,22 +262,22 @@ export default function TripBookingFlow({
         <p className="text-sm text-gray-500 mb-4">
           {daysTravel - 1} nights • {travelerCount} guests • Cost split evenly
         </p>
-        <div className="space-y-3">
-          {destinations.map(dest => (
-            <HotelPicker
-              key={dest.id}
-              destinationName={dest.resort.name}
-              resortId={dest.resortId}
-              checkInDate={tripDates.departure}
-              checkOutDate={tripDates.return}
-              adults={travelerCount}
-              rooms={Math.ceil(travelerCount / 2)}
-              bedsNeeded={travelerCount}
-              selectedHotel={selectedHotels[dest.resortId] || null}
-              onSelectHotel={(hotel) => handleSelectHotel(dest.resortId, hotel)}
-            />
-          ))}
-        </div>
+        <LodgingOptions 
+          tripId={tripId} 
+          participantCount={travelerCount} 
+          nights={daysTravel - 1 || 1}
+          onSelect={(option) => {
+            if (option.total_price) {
+              setManualCosts(prev => ({
+                ...prev,
+                [destinations[0]?.resortId || 'default']: {
+                  ...prev[destinations[0]?.resortId || 'default'],
+                  hotel: Number(option.total_price)
+                }
+              }));
+            }
+          }}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
