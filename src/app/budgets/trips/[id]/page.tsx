@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import TripBookingFlow from '@/components/trips/TripBookingFlow';
+import LodgingOptions from '@/components/trips/LodgingOptions';
 import DestinationMap from '@/components/trips/DestinationMap';
 import 'leaflet/dist/leaflet.css';
 
@@ -494,7 +495,16 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 initialCosts={initialCosts}
               />
             </div>
+
           )}
+          {/* Lodging Options */}
+          <div className="p-6 border-b border-gray-100">
+            <LodgingOptions 
+              tripId={id} 
+              participantCount={confirmedParticipants.length || 1} 
+              nights={trip.daysTravel - 1 || 1}
+            />
+          </div>
 
           {/* Expense Form */}
           {showExpenseForm && (
