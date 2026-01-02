@@ -58,6 +58,7 @@ export default function FlightPicker({
   
   // Manual entry state
   const [showManual, setShowManual] = useState(false);
+  const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip');
   const [manualAirline, setManualAirline] = useState('');
   const [manualPrice, setManualPrice] = useState('');
   const [manualConfirmation, setManualConfirmation] = useState('');
@@ -76,7 +77,7 @@ export default function FlightPicker({
         origin: originAirport,
         destination: destinationAirport,
         departureDate,
-        returnDate,
+        ...(tripType === 'roundtrip' && returnDate ? { returnDate } : {}),
         passengers: passengers.toString(),
       });
 
@@ -192,9 +193,23 @@ export default function FlightPicker({
           <div>
             <div className="font-medium text-gray-900">{destinationName}</div>
             <div className="text-sm text-gray-500">
-              {originAirport} → {destinationAirport} • Round-trip
+              {originAirport} → {destinationAirport} • {tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
             </div>
           </div>
+        </div>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setTripType('roundtrip')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${tripType === 'roundtrip' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Round-trip
+          </button>
+          <button
+            onClick={() => setTripType('oneway')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${tripType === 'oneway' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            One-way
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -240,6 +255,20 @@ export default function FlightPicker({
             placeholder="Airline (e.g. United)"
             className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm"
           />
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setTripType('roundtrip')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${tripType === 'roundtrip' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Round-trip
+          </button>
+          <button
+            onClick={() => setTripType('oneway')}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${tripType === 'oneway' ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            One-way
+          </button>
+        </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-500">$</span>
             <input
