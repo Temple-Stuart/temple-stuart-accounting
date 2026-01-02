@@ -98,13 +98,13 @@ export default function CarPicker({
         
         {selectedCar ? (
           <div className="text-right">
-            <div className="text-green-400 font-bold">${selectedCar.price.toFixed(0)}</div>
+            <div className="text-green-600 font-bold">${selectedCar.price.toFixed(0)}</div>
             <div className="text-xs text-gray-500">{selectedCar.name}</div>
           </div>
         ) : (
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
-            className="px-4 py-2 bg-blue-600 text-gray-900 rounded text-sm hover:bg-blue-500"
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
           >
             🚐 Select Vehicle
           </button>
@@ -123,7 +123,7 @@ export default function CarPicker({
             </div>
             <button 
               onClick={() => setExpanded(true)}
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="text-xs text-blue-600 hover:text-blue-700"
             >
               Change
             </button>
@@ -173,7 +173,7 @@ export default function CarPicker({
                     </div>
                   </div>
                   {selectedType === vehicle.id && (
-                    <span className="text-blue-400">✓</span>
+                    <span className="text-blue-600">✓</span>
                   )}
                 </div>
               </div>
