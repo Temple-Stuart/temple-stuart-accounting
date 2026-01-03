@@ -12,6 +12,7 @@ const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), 
 const Marker = dynamic(() => import('react-leaflet').then(m => m.Marker), { ssr: false });
 const Popup = dynamic(() => import('react-leaflet').then(m => m.Popup), { ssr: false });
 
+import 'leaflet/dist/leaflet.css';
 interface CalendarEvent {
   id: string;
   source: string;
@@ -97,6 +98,7 @@ export default function HubPage() {
     startDate: string | null; endDate: string | null; totalBudget: number;
   }>>([]);
   const [yearCalendar, setYearCalendar] = useState<Record<number, Record<string, number>>>({});
+  const [nomadBudget, setNomadBudget] = useState<{ monthlyData: Record<string, Record<number, number>>; coaNames: Record<string, string>; grandTotal: number }>({ monthlyData: {}, coaNames: {}, grandTotal: 0 });
 
   useEffect(() => {
     loadCalendar();
@@ -139,9 +141,21 @@ export default function HubPage() {
     } catch (err) {
       console.error("Failed to load year calendar:", err);
     }
+
+  };
+  const loadNomadBudget = async () => {
+    try {
+      const res = await fetch(`/api/hub/nomad-budget?year=${selectedYear}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNomadBudget({ monthlyData: data.monthlyData || {}, coaNames: data.coaNames || {}, grandTotal: data.grandTotal || 0 });
+      }
+    } catch (err) {
+      console.error("Failed to load nomad budget:", err);
+    }
   };
 
-  useEffect(() => { loadCommittedTrips(); loadYearCalendar(); }, [selectedYear]);
+  useEffect(() => { loadCommittedTrips(); loadYearCalendar(); loadNomadBudget(); }, [selectedYear]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -561,7 +575,7 @@ export default function HubPage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(SOURCE_CONFIG).map(([source, config]) => (
+                {Object.entries(SOURCE_CONFIG).filter(([s]) => s !== 'trip').map(([source, config]) => (
                   <tr key={source} className="border-b border-gray-100">
                     <td className="py-2 px-2">{config.icon} {source.charAt(0).toUpperCase() + source.slice(1)}</td>
                     {MONTHS.map((_, i) => (
@@ -584,6 +598,48 @@ export default function HubPage() {
                   <td className="text-right py-2 px-2 text-green-600">
                     {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0))}
                   </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* Nomad Budget - Trip COA Breakdown */}
+        <Card className="p-6 mt-6">
+          <h2 className="text-lg font-semibold text-cyan-700 mb-4">🌍 {selectedYear} Nomad Budget</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-2">Account</th>
+                  {MONTHS.map(m => <th key={m} className="text-right py-2 px-2 min-w-[70px]">{m.slice(0,3)}</th>)}
+                  <th className="text-right py-2 px-2 font-bold">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(nomadBudget.coaNames).map(([code, name]) => {
+                  const rowData = nomadBudget.monthlyData[code] || {};
+                  const rowTotal = Object.values(rowData).reduce((s, v) => s + v, 0);
+                  if (rowTotal === 0) return null;
+                  return (
+                    <tr key={code} className="border-b border-gray-100">
+                      <td className="py-2 px-2 whitespace-nowrap">{name} <span className="text-xs text-gray-400">{code}</span></td>
+                      {MONTHS.map((_, i) => (
+                        <td key={i} className="text-right py-2 px-2 text-cyan-600">
+                          {rowData[i] ? formatCurrency(rowData[i]) : "—"}
+                        </td>
+                      ))}
+                      <td className="text-right py-2 px-2 font-bold text-cyan-600">{formatCurrency(rowTotal)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t-2 font-bold">
+                  <td className="py-2 px-2">Total Travel</td>
+                  {MONTHS.map((_, i) => {
+                    const monthTotal = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                    return <td key={i} className="text-right py-2 px-2">{monthTotal ? formatCurrency(monthTotal) : "—"}</td>;
+                  })}
+                  <td className="text-right py-2 px-2 text-cyan-600">{formatCurrency(nomadBudget.grandTotal)}</td>
                 </tr>
               </tbody>
             </table>
