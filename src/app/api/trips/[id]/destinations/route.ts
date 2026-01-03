@@ -12,7 +12,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
-  sail: 'surf_spots',
+  sail: 'sail_destinations',
   rafting: 'rafting_destinations',
   // Endurance
   bike: 'cycling_destinations',
@@ -123,6 +123,9 @@ async function getDestinationData(table: string, ids: string[]) {
       return prisma.swim_destinations.findMany({ where: { id: { in: ids } } });
     case 'museum_destinations':
       return prisma.museum_destinations.findMany({ where: { id: { in: ids } } });
+    case 'sail_destinations':
+      destinations = await prisma.sail_destinations.findMany({ orderBy: { name: 'asc' } });
+      break;
     case 'dining_destinations':
       return prisma.dining_destinations.findMany({ where: { id: { in: ids } } });
     default:
@@ -184,6 +187,9 @@ async function getSingleDestination(table: string, id: string) {
       return prisma.swim_destinations.findUnique({ where: { id } });
     case 'museum_destinations':
       return prisma.museum_destinations.findUnique({ where: { id } });
+    case 'sail_destinations':
+      destinations = await prisma.sail_destinations.findMany({ orderBy: { name: 'asc' } });
+      break;
     case 'dining_destinations':
       return prisma.dining_destinations.findUnique({ where: { id } });
     default:
