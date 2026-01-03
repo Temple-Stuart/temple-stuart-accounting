@@ -175,6 +175,9 @@ export async function GET(request: NextRequest) {
       case 'museum_destinations':
         destinations = await prisma.museum_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
         break;
+      case 'sail_destinations':
+        destinations = await prisma.sail_destinations.findMany({ orderBy: { name: 'asc' } });
+        break;
       case 'dining_destinations':
         destinations = await prisma.dining_destinations.findMany({ orderBy: { nomadScore: 'desc' } });
         break;
