@@ -5,6 +5,7 @@ import FlightPicker from './FlightPicker';
 import LodgingOptions from './LodgingOptions';
 import VehicleOptions from './VehicleOptions';
 import TransferOptions from './TransferOptions';
+import ActivityExpenses from './ActivityExpenses';
 
 interface Resort {
   id: string;
@@ -344,121 +345,26 @@ export default function TripBookingFlow({
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">5</span>
-          📋 Other Trip Expenses
+          📋 Trip Expenses
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          Enter your estimated costs per person (leave blank if not applicable)
+          Add activities, coworking, lessons, and other expenses for your trip
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-3 text-gray-500">Expense</th>
-                <th className="text-left py-2 px-3 text-gray-500">Description</th>
-                {destinations.map(dest => (
-                  <th key={dest.id} className="text-center py-2 px-3 text-gray-600 min-w-[120px]">
-                    {dest.resort.name.split(' ').slice(0, 2).join(' ')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-3 font-medium">🎟️ Activities</td>
-                <td className="py-3 px-3 text-gray-400 text-xs">Tickets, passes, admissions (per person)</td>
-                {destinations.map(dest => (
-                  <td key={dest.id} className="py-3 px-3">
-                    <div className="flex items-center">
-                      <span className="text-gray-400 text-sm mr-1">$</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={manualCosts[dest.resortId]?.activities || ''}
-                        onChange={(e) => handleManualCost(dest.resortId, 'activities', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900 text-center"
-                      />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-3 font-medium">🎿 Equipment Rental</td>
-                <td className="py-3 px-3 text-gray-400 text-xs">Gear rental for {daysRiding} days (per person)</td>
-                {destinations.map(dest => (
-                  <td key={dest.id} className="py-3 px-3">
-                    <div className="flex items-center">
-                      <span className="text-gray-400 text-sm mr-1">$</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={manualCosts[dest.resortId]?.equipment || ''}
-                        onChange={(e) => handleManualCost(dest.resortId, 'equipment', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900 text-center"
-                      />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-3 font-medium">🍽️ Food & Dining</td>
-                <td className="py-3 px-3 text-gray-400 text-xs">Est. for {daysTravel} days (per person)</td>
-                {destinations.map(dest => (
-                  <td key={dest.id} className="py-3 px-3">
-                    <div className="flex items-center">
-                      <span className="text-gray-400 text-sm mr-1">$</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={manualCosts[dest.resortId]?.meals || ''}
-                        onChange={(e) => handleManualCost(dest.resortId, 'meals', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900 text-center"
-                      />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-3 font-medium">⛽ Gas & Parking</td>
-                <td className="py-3 px-3 text-gray-400 text-xs">Fuel, tolls, parking (split)</td>
-                {destinations.map(dest => (
-                  <td key={dest.id} className="py-3 px-3">
-                    <div className="flex items-center">
-                      <span className="text-gray-400 text-sm mr-1">$</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={manualCosts[dest.resortId]?.groundTransport || ''}
-                        onChange={(e) => handleManualCost(dest.resortId, 'groundTransport', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900 text-center"
-                      />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-3 font-medium">💵 Tips & Misc</td>
-                <td className="py-3 px-3 text-gray-400 text-xs">Gratuities, souvenirs (per person)</td>
-                {destinations.map(dest => (
-                  <td key={dest.id} className="py-3 px-3">
-                    <div className="flex items-center">
-                      <span className="text-gray-400 text-sm mr-1">$</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={manualCosts[dest.resortId]?.tips || ''}
-                        onChange={(e) => handleManualCost(dest.resortId, 'tips', parseFloat(e.target.value) || 0)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900 text-center"
-                      />
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
+        <ActivityExpenses
+          tripId={tripId}
+          activity={null}
+          participantCount={travelerCount}
+          onTotalChange={(total) => {
+            setManualCosts(prev => ({
+              ...prev,
+              [destinations[0]?.resortId || 'default']: {
+                ...prev[destinations[0]?.resortId || 'default'],
+                activities: total / travelerCount
+              }
+            }));
+          }}
+        />
+      </div>      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* BUDGET COMPARISON */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
