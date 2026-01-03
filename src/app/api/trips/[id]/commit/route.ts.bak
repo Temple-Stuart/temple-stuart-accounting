@@ -46,50 +46,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { tripId: id }
     });
 
-    // COA code mapping - Personal travel + Business cross-entity
+    // COA code mapping
     const coaMapping: Record<string, string> = {
-      // Flight & Lodging
       'flight': 'P-7100',
       'hotel': 'P-7200',
       'lodging': 'P-7200',
-      // Vehicle rentals
       'car': 'P-7300',
       'rental_car': 'P-7300',
       'carRental': 'P-7300',
-      // Ground transport
       'transfers': 'P-7600',
       'airportTransfers': 'P-7600',
       'groundTransport': 'P-7600',
-      'transport': 'P-7600',
-      // Activities & Entertainment
       'activities': 'P-7400',
       'liftTickets': 'P-7400',
-      'lift_pass': 'P-7400',
-      'lessons': 'P-7400',
-      'apres': 'P-7400',
-      'yoga': 'P-7400',
-      'massage': 'P-7400',
-      'conference': 'P-7400',
-      'networking': 'P-7400',
-      'nightlife': 'P-7400',
-      'fitness': 'P-7400',
-      'wellness': 'P-7400',
-      // Equipment rentals
       'equipment': 'P-7500',
       'equipmentRental': 'P-7500',
-      'board_rental': 'P-7500',
-      'kite_rental': 'P-7500',
-      // Food & Meals
       'meals': 'P-7700',
       'travelMeals': 'P-7700',
-      'food': 'P-7700',
-      'coffee': 'P-7700',
-      // Tips & Misc
       'tips': 'P-7800',
       'tipsMisc': 'P-7800',
-      // Personal expense - coworking/bizdev
-      'coworking': 'P-8220',
-      'bizdev': 'P-8220',
     };
 
     // Save new budget items from request

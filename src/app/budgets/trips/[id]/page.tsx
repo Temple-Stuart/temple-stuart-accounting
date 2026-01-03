@@ -124,7 +124,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       // Initialize confirmedStartDay from saved startDate
       if (data.trip.startDate) {
         const savedDate = new Date(data.trip.startDate);
-        setConfirmedStartDay(savedDate.getDate());
+        setConfirmedStartDay(savedDate.getUTCDate());
       }
       setSettlementMatrix(data.settlementMatrix || {});
     } catch (err) {
@@ -167,6 +167,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         'P-7600': 'groundTransport',
         'P-7700': 'meals',
         'P-7800': 'tips',
+        'P-8220': 'bizdev',
       };
       
       // We'll apply loaded costs to the selected destination
