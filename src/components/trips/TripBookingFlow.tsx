@@ -92,8 +92,9 @@ export default function TripBookingFlow({
         // Merge initialCosts with any existing values (don't overwrite user edits)
         const merged = { ...prev };
         for (const [resortId, costs] of Object.entries(initialCosts)) {
-          if (!merged[resortId]) {
-            merged[resortId] = { ...costs };
+          merged[resortId] = {
+              ...merged[resortId],
+          ...costs
           }
         }
         return merged;
