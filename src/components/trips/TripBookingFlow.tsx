@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import FlightPicker from './FlightPicker';
 import LodgingOptions from './LodgingOptions';
-import CarPicker from './CarPicker';
+import VehicleOptions from './VehicleOptions';
 import TransferPicker from './TransferPicker';
 
 interface Resort {
@@ -286,26 +286,27 @@ export default function TripBookingFlow({
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">3</span>
-          🚐 Rental Car
+          🚗 Transportation
         </h3>
         <p className="text-sm text-gray-500 mb-4">
           {daysTravel} days • {travelerCount} travelers • Cost split evenly
         </p>
-        <div className="space-y-3">
-          {destinations.map(dest => (
-            <CarPicker
-              key={dest.id}
-              destinationName={dest.resort.name}
-              destinationAirport={dest.resort.nearestAirport || ''}
-              pickupDate={tripDates.departure}
-              dropoffDate={tripDates.return}
-              travelers={travelerCount}
-              days={daysTravel}
-              selectedCar={selectedCars[dest.resortId] || null}
-              onSelectCar={(car) => handleSelectCar(dest.resortId, car)}
-            />
-          ))}
-        </div>
+        <VehicleOptions 
+          tripId={tripId} 
+          participantCount={travelerCount} 
+          days={daysTravel}
+          onSelect={(option) => {
+            if (option.total_price) {
+              setManualCosts(prev => ({
+                ...prev,
+                [destinations[0]?.resortId || 'default']: {
+                  ...prev[destinations[0]?.resortId || 'default'],
+                  car: Number(option.total_price)
+                }
+              }));
+            }
+          }}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -499,7 +500,7 @@ export default function TripBookingFlow({
                 })}
               </tr>
               <tr className="border-b border-gray-100">
-                <td className="py-2 px-3">🚐 Rental Car <span className="text-xs text-blue-500">(÷{travelerCount})</span></td>
+                <td className="py-2 px-3">🚗 Transportation <span className="text-xs text-blue-500">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
