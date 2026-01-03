@@ -51,6 +51,12 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
 
   useEffect(() => { loadOptions(); }, [tripId]);
 
+  // Notify parent of pre-selected option on load
+  useEffect(() => {
+    const selected = options.find(o => o.is_selected);
+    if (selected && onSelect) onSelect(selected);
+  }, [options, onSelect]);
+
   const loadOptions = async () => {
     try {
       const res = await fetch(`/api/trips/${tripId}/vehicles`);

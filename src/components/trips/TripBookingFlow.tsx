@@ -330,14 +330,17 @@ export default function TripBookingFlow({
           participantCount={travelerCount}
           onSelect={(option) => {
             if (option.price) {
-              const key = option.direction === 'arrival' ? 'arrivalTransfer' : 'departureTransfer';
-              setManualCosts(prev => ({
-                ...prev,
-                [destinations[0]?.resortId || 'default']: {
-                  ...prev[destinations[0]?.resortId || 'default'],
-                  [key]: Number(option.price)
-                }
-              }));
+              if (option.direction === 'arrival') {
+                setSelectedArrivals(prev => ({
+                  ...prev,
+                  [destinations[0]?.resortId || 'default']: option
+                }));
+              } else {
+                setSelectedDepartures(prev => ({
+                  ...prev,
+                  [destinations[0]?.resortId || 'default']: option
+                }));
+              }
             }
           }}
         />

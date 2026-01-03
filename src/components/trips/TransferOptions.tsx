@@ -51,6 +51,12 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
 
   useEffect(() => { loadOptions(); }, [tripId]);
 
+  // Notify parent of pre-selected options on load
+  useEffect(() => {
+    const selected = options.filter(o => o.is_selected);
+    selected.forEach(opt => { if (onSelect) onSelect(opt); });
+  }, [options, onSelect]);
+
   const loadOptions = async () => {
     try {
       const res = await fetch(`/api/trips/${tripId}/transfers`);
