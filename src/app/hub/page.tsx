@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
 
+import dynamic from 'next/dynamic';
+
+const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(m => m.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(m => m.Popup), { ssr: false });
+
 interface CalendarEvent {
   id: string;
   source: string;
@@ -83,6 +90,14 @@ export default function HubPage() {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
+  // Committed trips for map and list
+  const [committedTrips, setCommittedTrips] = useState<Array<{
+    id: string; name: string; destination: string | null;
+    latitude: number | null; longitude: number | null;
+    startDate: string | null; endDate: string | null; totalBudget: number;
+  }>>([]);
+  const [yearCalendar, setYearCalendar] = useState<Record<number, Record<string, number>>>({});
+
   useEffect(() => {
     loadCalendar();
   }, [selectedYear, selectedMonth]);
@@ -101,6 +116,32 @@ export default function HubPage() {
       setLoading(false);
     }
   };
+
+  const loadCommittedTrips = async () => {
+    try {
+      const res = await fetch("/api/hub/trips");
+      if (res.ok) {
+        const data = await res.json();
+        setCommittedTrips(data.trips || []);
+      }
+    } catch (err) {
+      console.error("Failed to load trips:", err);
+    }
+  };
+
+  const loadYearCalendar = async () => {
+    try {
+      const res = await fetch(`/api/hub/year-calendar?year=${selectedYear}`);
+      if (res.ok) {
+        const data = await res.json();
+        setYearCalendar(data.monthlyData || {});
+      }
+    } catch (err) {
+      console.error("Failed to load year calendar:", err);
+    }
+  };
+
+  useEffect(() => { loadCommittedTrips(); loadYearCalendar(); }, [selectedYear]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -350,6 +391,39 @@ export default function HubPage() {
                 ))}
               </div>
             </Card>
+
+            {/* Trip Map */}
+            <Card className="p-6 mt-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">🗺️ Committed Trips</h2>
+              {committedTrips.filter(t => t.latitude && t.longitude).length > 0 ? (
+                <div className="h-[300px] rounded-lg overflow-hidden">
+                  <MapContainer
+                    center={[20, 0]}
+                    zoom={1}
+                    style={{ height: "100%", width: "100%" }}
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    {committedTrips.filter(t => t.latitude && t.longitude).map(trip => (
+                      <Marker key={trip.id} position={[trip.latitude!, trip.longitude!]}>
+                        <Popup>
+                          <div className="text-sm">
+                            <div className="font-bold">{trip.destination}</div>
+                            <div className="text-gray-500">{trip.name}</div>
+                            <div className="text-cyan-600 font-semibold">${trip.totalBudget.toLocaleString()}</div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <div className="text-3xl mb-2">🗺️</div>
+                  <p className="text-sm">No committed trips with locations</p>
+                </div>
+              )}
+            </Card>
           </div>
 
           {/* Right Sidebar */}
@@ -436,8 +510,85 @@ export default function HubPage() {
                 </div>
               </div>
             </Card>
+
+            {/* Committed Trips List */}
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">✈️ Upcoming Trips</h2>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                {committedTrips.length > 0 ? (
+                  committedTrips.map(trip => (
+                    <div key={trip.id} onClick={() => router.push(`/budgets/trips/${trip.id}`)} className="p-3 rounded-lg bg-cyan-50 hover:bg-cyan-100 cursor-pointer transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{trip.destination || trip.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "TBD"}
+                          </div>
+                        </div>
+                        <div className="font-semibold text-sm text-cyan-600">
+                          {formatCurrency(trip.totalBudget)}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-3xl mb-2">✈️</div>
+                    <p className="text-sm">No committed trips</p>
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
         </div>
+
+        {/* Year Calendar */}
+        <Card className="p-6 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">📅 {selectedYear} Annual Budget</h2>
+            <div className="flex gap-2">
+              <button onClick={() => setSelectedYear(y => y - 1)} className="px-3 py-1 text-sm border rounded hover:bg-gray-100">←</button>
+              <button onClick={() => setSelectedYear(y => y + 1)} className="px-3 py-1 text-sm border rounded hover:bg-gray-100">→</button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-2">Category</th>
+                  {MONTHS.map(m => <th key={m} className="text-right py-2 px-2 min-w-[70px]">{m.slice(0,3)}</th>)}
+                  <th className="text-right py-2 px-2 font-bold">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(SOURCE_CONFIG).map(([source, config]) => (
+                  <tr key={source} className="border-b border-gray-100">
+                    <td className="py-2 px-2">{config.icon} {source.charAt(0).toUpperCase() + source.slice(1)}</td>
+                    {MONTHS.map((_, i) => (
+                      <td key={i} className={`text-right py-2 px-2 ${config.color}`}>
+                        {yearCalendar[i]?.[source] ? formatCurrency(yearCalendar[i][source]) : "—"}
+                      </td>
+                    ))}
+                    <td className={`text-right py-2 px-2 font-bold ${config.color}`}>
+                      {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m[source] || 0), 0))}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 font-bold">
+                  <td className="py-2 px-2">Total</td>
+                  {MONTHS.map((_, i) => (
+                    <td key={i} className="text-right py-2 px-2">
+                      {yearCalendar[i]?.total ? formatCurrency(yearCalendar[i].total) : "—"}
+                    </td>
+                  ))}
+                  <td className="text-right py-2 px-2 text-green-600">
+                    {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0))}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     </AppLayout>
   );
