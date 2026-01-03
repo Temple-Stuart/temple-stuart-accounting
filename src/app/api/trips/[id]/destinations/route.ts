@@ -124,8 +124,7 @@ async function getDestinationData(table: string, ids: string[]) {
     case 'museum_destinations':
       return prisma.museum_destinations.findMany({ where: { id: { in: ids } } });
     case 'sail_destinations':
-      destinations = await prisma.sail_destinations.findMany({ orderBy: { name: 'asc' } });
-      break;
+      return prisma.sail_destinations.findMany({ where: { id: { in: ids } } });
     case 'dining_destinations':
       return prisma.dining_destinations.findMany({ where: { id: { in: ids } } });
     default:
@@ -188,8 +187,7 @@ async function getSingleDestination(table: string, id: string) {
     case 'museum_destinations':
       return prisma.museum_destinations.findUnique({ where: { id } });
     case 'sail_destinations':
-      destinations = await prisma.sail_destinations.findMany({ orderBy: { name: 'asc' } });
-      break;
+      return prisma.sail_destinations.findUnique({ where: { id } });
     case 'dining_destinations':
       return prisma.dining_destinations.findUnique({ where: { id } });
     default:
