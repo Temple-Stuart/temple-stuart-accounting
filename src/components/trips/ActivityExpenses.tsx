@@ -66,10 +66,10 @@ interface Props {
   tripId: string;
   activity: string | null;
   participantCount: number;
-  onTotalChange?: (total: number) => void;
+  onCategoryTotals?: (totals: Record<string, number>) => void;
 }
 
-export default function ActivityExpenses({ tripId, activity, participantCount, onTotalChange }: Props) {
+export default function ActivityExpenses({ tripId, activity, participantCount, onCategoryTotals }: Props) {
   const [expenses, setExpenses] = useState<ActivityExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -89,12 +89,13 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
   useEffect(() => { loadExpenses(); }, [tripId]);
 
   useEffect(() => {
-    const total = expenses
-      .filter(e => e.is_selected)
-      .reduce((sum, e) => sum + (e.is_per_person ? (e.price || 0) * participantCount : (e.price || 0)), 0);
-    if (onTotalChange) onTotalChange(total);
-  }, [expenses, participantCount, onTotalChange]);
-
+    const categoryTotals: Record<string, number> = {};
+    expenses.filter(e => e.is_selected).forEach(e => {
+      const perPerson = e.is_per_person ? (e.price || 0) : (e.per_person || 0);
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + perPerson;
+    });
+    if (onCategoryTotals) onCategoryTotals(categoryTotals);
+  }, [expenses, participantCount, onCategoryTotals]);
   const loadExpenses = async () => {
     try {
       const res = await fetch(`/api/trips/${tripId}/activities`);
