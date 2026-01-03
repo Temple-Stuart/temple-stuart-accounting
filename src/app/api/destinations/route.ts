@@ -10,7 +10,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
-  sail: 'surf_spots',
+  sail: 'sail_destinations',
   rafting: 'rafting_destinations',
   // Endurance
   bike: 'cycling_destinations',
@@ -63,6 +63,7 @@ async function getAllDestinations() {
     rafting,
     swim,
     museums,
+    sail,
     dining,
   ] = await Promise.all([
     prisma.ikon_resorts.findMany(),
@@ -79,6 +80,7 @@ async function getAllDestinations() {
     prisma.swim_destinations.findMany(),
     prisma.museum_destinations.findMany(),
     prisma.dining_destinations.findMany(),
+    prisma.sail_destinations.findMany(),
   ]);
 
   const all = [
@@ -96,6 +98,7 @@ async function getAllDestinations() {
     ...swim.map(d => normalizeDestination(d, 'swim_destinations')),
     ...museums.map(d => normalizeDestination(d, 'museum_destinations')),
     ...dining.map(d => normalizeDestination(d, 'dining_destinations')),
+    ...sail.map(d => normalizeDestination(d, 'sail_destinations')),
   ];
 
   // Remove duplicates by name (keep first occurrence)

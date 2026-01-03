@@ -951,3 +951,19 @@ model budget_line_items {
   @@index([tripId])
   @@index([coaCode])
 }
+
+model sail_destinations {
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(255)
+  region         String?  @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  nearestAirport String?  @db.VarChar(10)
+  timezone       String?  @db.VarChar(50)
+  marinaFee      Decimal? @db.Decimal(10, 2)
+  boatRentalDay  Decimal? @db.Decimal(10, 2)
+  bestMonths     String?  @db.VarChar(100)
+  websiteUrl     String?  @db.VarChar(255)
+  latitude       Decimal? @db.Decimal(10, 6)
+  longitude      Decimal? @db.Decimal(10, 6)
+  createdAt      DateTime @default(now()) @db.Timestamp(3)
+}
