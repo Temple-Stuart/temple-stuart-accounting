@@ -354,17 +354,22 @@ export default function TripBookingFlow({
           tripId={tripId}
           activity={null}
           participantCount={travelerCount}
-          onTotalChange={(total) => {
+          onCategoryTotals={(totals) => {
             setManualCosts(prev => ({
               ...prev,
               [destinations[0]?.resortId || 'default']: {
                 ...prev[destinations[0]?.resortId || 'default'],
-                activities: total / travelerCount
+                activities: totals.activities || 0,
+                equipment: totals.equipment || totals.board_rental || totals.kite_rental || 0,
+                meals: totals.food || 0,
+                tips: totals.tips || 0,
               }
             }));
           }}
         />
-      </div>      {/* ═══════════════════════════════════════════════════════════════════ */}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* BUDGET COMPARISON */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
