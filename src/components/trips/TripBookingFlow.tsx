@@ -151,6 +151,7 @@ export default function TripBookingFlow({
     meals: number;
     groundTransport: number;
     tips: number;
+    bizdev: number;
     total: number;
     perPerson: number;
   } => {
@@ -166,10 +167,11 @@ export default function TripBookingFlow({
     const meals = manualCosts[resortId]?.meals || 0;
     const groundTransport = manualCosts[resortId]?.groundTransport || arrivalTransfer + departureTransfer;
     const tips = manualCosts[resortId]?.tips || 0;
+    const bizdev = manualCosts[resortId]?.bizdev || 0;
 
     // Per-person calculation
     const sharedCosts = (hotel + car) / Math.max(travelerCount, 1);
-    const individualCosts = flight + activities + equipment + meals + (groundTransport / Math.max(travelerCount, 1)) + tips;
+    const individualCosts = flight + activities + equipment + meals + (groundTransport / Math.max(travelerCount, 1)) + tips + bizdev;
     const perPerson = sharedCosts + individualCosts;
 
     return {
@@ -181,7 +183,8 @@ export default function TripBookingFlow({
       meals,
       groundTransport,
       tips,
-      total: hotel + car + groundTransport + (flight + activities + equipment + meals + tips) * travelerCount,
+      bizdev,
+      total: hotel + car + groundTransport + (flight + activities + equipment + meals + tips + bizdev) * travelerCount,
       perPerson,
     };
   };
@@ -202,6 +205,7 @@ export default function TripBookingFlow({
       if (t.meals > 0) items.push({ category: "meals", amount: t.meals, description: `Food & dining` });
       if (t.groundTransport > 0) items.push({ category: "groundTransport", amount: t.groundTransport / Math.max(travelerCount, 1), description: `Ground transport` });
       if (t.tips > 0) items.push({ category: "tips", amount: t.tips, description: `Tips & misc` });
+      if (t.bizdev > 0) items.push({ category: "bizdev", amount: t.bizdev, description: `Business dev` });
     });
     onBudgetChange(items);
   }, [selectedFlights, selectedHotels, selectedCars, selectedArrivals, selectedDepartures, manualCosts, destinations, travelerCount]);
@@ -471,6 +475,17 @@ export default function TripBookingFlow({
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
                       {t.tips > 0 ? <span className="text-green-600 font-medium">${t.tips}</span> : <span className="text-gray-300">—</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr className="border-b border-gray-100">
+                <td className="py-2 px-3">💼 Business Dev</td>
+                {destinations.map(dest => {
+                  const t = calculateTotal(dest.resortId);
+                  return (
+                    <td key={dest.id} className="py-2 px-3 text-right">
+                      {t.bizdev > 0 ? <span className="text-green-600 font-medium">${t.bizdev}</span> : <span className="text-gray-300">—</span>}
                     </td>
                   );
                 })}
