@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import FlightPicker from './FlightPicker';
 import LodgingOptions from './LodgingOptions';
 import VehicleOptions from './VehicleOptions';
-import TransferPicker from './TransferPicker';
+import TransferOptions from './TransferOptions';
 
 interface Resort {
   id: string;
@@ -320,23 +320,22 @@ export default function TripBookingFlow({
         <p className="text-sm text-gray-500 mb-4">
           Rideshare/shuttle to and from the airport
         </p>
-        <div className="space-y-3">
-          {destinations.map(dest => (
-            <TransferPicker
-              key={dest.id}
-              destinationName={dest.resort.name}
-              resortId={dest.resortId}
-              airportCode={dest.resort.nearestAirport || ''}
-              arrivalDateTime={`${tripDates.departure}T12:00:00`}
-              departureDateTime={`${tripDates.return}T10:00:00`}
-              passengers={travelerCount}
-              selectedArrival={selectedArrivals[dest.resortId] || null}
-              selectedDeparture={selectedDepartures[dest.resortId] || null}
-              onSelectArrival={(transfer) => handleSelectArrival(dest.resortId, transfer)}
-              onSelectDeparture={(transfer) => handleSelectDeparture(dest.resortId, transfer)}
-            />
-          ))}
-        </div>
+        <TransferOptions 
+          tripId={tripId} 
+          participantCount={travelerCount}
+          onSelect={(option) => {
+            if (option.price) {
+              const key = option.direction === 'arrival' ? 'arrivalTransfer' : 'departureTransfer';
+              setManualCosts(prev => ({
+                ...prev,
+                [destinations[0]?.resortId || 'default']: {
+                  ...prev[destinations[0]?.resortId || 'default'],
+                  [key]: Number(option.price)
+                }
+              }));
+            }
+          }}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
