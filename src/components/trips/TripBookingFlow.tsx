@@ -363,10 +363,11 @@ export default function TripBookingFlow({
               ...prev,
               [destinations[0]?.resortId || 'default']: {
                 ...prev[destinations[0]?.resortId || 'default'],
-                activities: totals.activities || 0,
-                equipment: totals.equipment || totals.board_rental || totals.kite_rental || 0,
-                meals: totals.food || 0,
+                activities: (totals.activities || 0) + (totals.lift_pass || 0) + (totals.lessons || 0) + (totals.apres || 0) + (totals.yoga || 0) + (totals.massage || 0) + (totals.conference || 0) + (totals.networking || 0) + (totals.nightlife || 0) + (totals.fitness || 0) + (totals.wellness || 0),
+                equipment: (totals.equipment || 0) + (totals.board_rental || 0) + (totals.kite_rental || 0),
+                meals: (totals.food || 0) + (totals.coffee || 0) + (totals.meals || 0),
                 tips: totals.tips || 0,
+                bizdev: totals.coworking || 0,
               }
             }));
           }}

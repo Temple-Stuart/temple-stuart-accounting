@@ -91,7 +91,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
   useEffect(() => {
     const categoryTotals: Record<string, number> = {};
     expenses.filter(e => e.is_selected).forEach(e => {
-      const perPerson = e.is_per_person ? (e.price || 0) : (e.per_person || 0);
+      const perPerson = e.is_per_person ? Number(e.price || 0) : Number(e.per_person || 0);
       categoryTotals[e.category] = (categoryTotals[e.category] || 0) + perPerson;
     });
     if (onCategoryTotals) onCategoryTotals(categoryTotals);
@@ -260,7 +260,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
           {Object.entries(grouped).map(([category, items]) => {
             const catConfig = getCatConfig(category);
             const selectedTotal = items.filter(i => i.is_selected).reduce((sum, i) => 
-              sum + (i.is_per_person ? (i.price || 0) : (i.per_person || 0)), 0);
+              sum + (i.is_per_person ? Number(i.price || 0) : Number(i.per_person || 0)), 0);
             return (
               <div key={category}>
                 <div className="flex items-center justify-between mb-2">
@@ -289,7 +289,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-sm">{fmt(exp.price)}</div>
+                          <div className="font-bold text-sm">{fmt(Number(exp.price))}</div>
                           <div className="text-xs text-gray-400">
                             {exp.is_per_person ? '/person' : 'total'}
                           </div>
@@ -345,11 +345,11 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
             <div className="text-right">
               <div className="font-bold text-[#8f8c2a]">
                 {fmt(expenses.filter(e => e.is_selected).reduce((sum, e) => 
-                  sum + (e.is_per_person ? (e.price || 0) : (e.per_person || 0)), 0))}/person
+                  sum + (e.is_per_person ? Number(e.price || 0) : Number(e.per_person || 0)), 0))}/person
               </div>
               <div className="text-xs text-[#8f8c2a]/70">
                 × {participantCount} = {fmt(expenses.filter(e => e.is_selected).reduce((sum, e) => 
-                  sum + (e.is_per_person ? (e.price || 0) * participantCount : (e.price || 0)), 0))} total
+                  sum + (e.is_per_person ? Number(e.price || 0) * participantCount : Number(e.price || 0)), 0))} total
               </div>
             </div>
           </div>
