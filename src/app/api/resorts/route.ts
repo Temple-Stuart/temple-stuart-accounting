@@ -10,7 +10,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
-  sail: 'surf_spots',
+  sail: 'sail_destinations',
   rafting: 'rafting_destinations',
   // Endurance
   bike: 'cycling_destinations',
@@ -68,6 +68,7 @@ async function getAllDestinations() {
     swim,
     museums,
     dining,
+    sail,
   ] = await Promise.all([
     prisma.ikon_resorts.findMany(),
     prisma.surf_spots.findMany(),
@@ -82,6 +83,7 @@ async function getAllDestinations() {
     prisma.rafting_destinations.findMany(),
     prisma.swim_destinations.findMany(),
     prisma.museum_destinations.findMany(),
+    prisma.sail_destinations.findMany(),
     prisma.dining_destinations.findMany(),
   ]);
 
@@ -112,6 +114,7 @@ async function getAllDestinations() {
     ...swim.map(d => normalize(d, 'swim_destinations')),
     ...museums.map(d => normalize(d, 'museum_destinations')),
     ...dining.map(d => normalize(d, 'dining_destinations')),
+    ...sail.map(d => normalize(d, 'sail_destinations')),
   ];
 
   // Remove duplicates by name (filter out undefined names too)
@@ -246,6 +249,13 @@ export async function GET(request: NextRequest) {
           orderBy: [{ country: 'asc' }, { city: 'asc' }, { name: 'asc' }]
         });
         grouped = groupDestinations(resorts, 'country', 'city');
+        break;
+
+      case 'sail_destinations':
+        resorts = await prisma.sail_destinations.findMany({
+          orderBy: [{ country: 'asc' }, { region: 'asc' }, { name: 'asc' }]
+        });
+        grouped = groupDestinations(resorts);
         break;
 
       case 'dining_destinations':
