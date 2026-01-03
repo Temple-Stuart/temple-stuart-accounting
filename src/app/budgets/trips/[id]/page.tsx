@@ -190,7 +190,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       
       for (const item of items) {
         const category = COA_TO_CATEGORY[item.coaCode];
-        if (category && !['flight', 'hotel', 'car'].includes(category)) {
+        if (category) {
           // Only restore manual cost categories (not flight/hotel/car which come from pickers)
           costs[selectedDest.resortId][category] = Number(item.amount);
         }
@@ -235,7 +235,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       });
       if (!res.ok) throw new Error('Failed to commit trip');
       const data = await res.json();
-      setTrip(prev => prev ? { ...prev, ...data.trip } : null);
+      setTrip(prev => prev ? { ...prev, startDate: data.startDate, endDate: data.endDate, status: 'committed', committedAt: new Date().toISOString() } : null);
       alert('Trip committed to calendar!');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to commit');
