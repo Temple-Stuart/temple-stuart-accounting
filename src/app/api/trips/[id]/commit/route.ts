@@ -221,13 +221,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     });
 
     if (!trip) {
-    return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
-  }
+      return NextResponse.json({ error: "Trip not found" }, { status: 404 });
+    }
 
-  // Prevent re-committing - must uncommit first
-  if (trip.status === 'committed') {
-    return NextResponse.json({ error: 'Trip already committed. Uncommit first to make changes.' }, { status: 400 });
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+    if (trip.status !== "committed") {
+      return NextResponse.json({ error: "Trip is not committed" }, { status: 400 });
     }
 
     // Remove calendar event
