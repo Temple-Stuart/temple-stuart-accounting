@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[Duffel] Searching: ${origin} → ${destination}, ${departureDate}${returnDate ? ` - ${returnDate}` : ''}, ${passengers} pax`);
+    console.log(`[Duffel] Searching: ${origin} → ${destination}, ${departureDate}${returnDate ? ` - ${returnDate}` : ""}, ${passengers} pax`);
 
     const result = await searchFlights({
       origin,
