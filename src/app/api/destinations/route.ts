@@ -10,7 +10,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   // Water
   surf: 'surf_spots',
   kitesurf: 'surf_spots',
-  sail: 'sail_destinations',
+  sail: 'surf_spots',
   rafting: 'rafting_destinations',
   // Endurance
   bike: 'cycling_destinations',
