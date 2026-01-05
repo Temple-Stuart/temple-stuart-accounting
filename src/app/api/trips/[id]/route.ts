@@ -132,6 +132,11 @@ export async function DELETE(
     await prisma.trip_destinations.deleteMany({
       where: { tripId: id }
     });
+    // Clean up budget and calendar
+    await prisma.budget_line_items.deleteMany({
+      where: { tripId: id }
+    });
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'trip' AND source_id::text = ${id}`;
     await prisma.trip_participants.deleteMany({
       where: { tripId: id }
     });
