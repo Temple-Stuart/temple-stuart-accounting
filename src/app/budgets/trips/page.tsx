@@ -207,8 +207,8 @@ export default function TripsPage() {
                     
                     const monthTrips = committedTrips.filter(t => {
                       if (!t.startDate) return false;
-                      const start = new Date(t.startDate);
-                      const end = new Date(t.endDate!);
+                      const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
+                      const end = new Date(new Date(t.endDate!).getTime() + 12*60*60*1000);
                       const monthStart = new Date(selectedYear, monthIndex, 1);
                       const monthEnd = new Date(selectedYear, monthNum, 0);
                       return start <= monthEnd && end >= monthStart;
@@ -230,8 +230,8 @@ export default function TripsPage() {
                             const currentDate = new Date(selectedYear, monthIndex, day);
                             
                             const tripOnDay = monthTrips.find(t => {
-                              const start = new Date(t.startDate!);
-                              const end = new Date(t.endDate!);
+                              const start = new Date(new Date(t.startDate!).getTime() + 12*60*60*1000);
+                              const end = new Date(new Date(t.endDate!).getTime() + 12*60*60*1000);
                               start.setHours(0,0,0,0);
                               end.setHours(23,59,59,999);
                               currentDate.setHours(12,0,0,0);
@@ -311,7 +311,7 @@ export default function TripsPage() {
                       </h3>
                       <p className="text-gray-500 text-sm mb-4">
                         {trip.destination || 'Destination TBD'} • {trip.startDate 
-                          ? `${new Date(trip.startDate + 'T12:00:00').toLocaleDateString()} - ${new Date(trip.endDate + 'T12:00:00').toLocaleDateString()}`
+                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate).getTime() + 12*60*60*1000).toLocaleDateString()}`
                           : `${MONTHS[trip.month]} ${trip.year}`}
                       </p>
 
