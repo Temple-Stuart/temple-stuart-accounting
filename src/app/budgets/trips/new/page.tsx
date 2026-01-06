@@ -75,8 +75,8 @@ export default function NewTripPage() {
 
   const [name, setName] = useState('');
   const [activity, setActivity] = useState('');
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  // month/year derived from startDate
   const [daysTravel, setDaysTravel] = useState(7);
   const [daysRiding, setDaysRiding] = useState(5);
 
@@ -92,8 +92,9 @@ export default function NewTripPage() {
         body: JSON.stringify({
           name,
           activity: activity || null,
-          month,
-          year,
+          month: new Date(startDate).getMonth() + 1,
+          year: new Date(startDate).getFullYear(),
+          startDate,
           daysTravel,
           daysRiding
         })
@@ -259,33 +260,15 @@ export default function NewTripPage() {
 
           {/* When */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">When</label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Month</label>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
-                >
-                  {MONTHS.map(m => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Year</label>
-                <select
-                  value={year}
-                  onChange={(e) => setYear(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
-                >
-                  {years.map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+            />
+            <p className="text-xs text-gray-500 mt-2">Trip can span multiple months based on duration</p>
           </div>
 
           {/* Duration */}
