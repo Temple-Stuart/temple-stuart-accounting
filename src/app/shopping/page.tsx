@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout, Card, Button, Badge } from '@/components/ui';
+import MealPlanner from '@/components/shopping/MealPlanner';
 
 interface Expense { id: string; name: string; coa_code: string; amount: number; cadence: string; target_date: string | null; status: string; }
 
@@ -53,6 +54,7 @@ export default function ShoppingPage() {
           <Card className="p-4 text-center"><div className="text-sm text-gray-500">Committed</div><div className="text-2xl font-bold text-green-600">{committed.length}</div></Card>
           <Card className="p-4 text-center"><div className="text-sm text-gray-500">Items</div><div className="text-2xl font-bold text-blue-600">{expenses.length}</div></Card>
         </div>
+        <MealPlanner />
         {showForm && <Card className="p-4"><form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <input className="border rounded px-3 py-2" placeholder="Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
