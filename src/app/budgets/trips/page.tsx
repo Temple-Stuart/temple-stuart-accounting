@@ -106,7 +106,12 @@ export default function TripsPage() {
       const res = await fetch('/api/trips');
       if (res.ok) {
         const data = await res.json();
-        setTrips(data.trips || []);
+        const sortedTrips = (data.trips || []).sort((a: Trip, b: Trip) => {
+          const dateA = a.startDate ? new Date(a.startDate).getTime() : new Date(a.year, a.month - 1, 1).getTime();
+          const dateB = b.startDate ? new Date(b.startDate).getTime() : new Date(b.year, b.month - 1, 1).getTime();
+          return dateA - dateB;
+        });
+        setTrips(sortedTrips);
       }
     } catch (error) {
       console.error('Failed to load trips:', error);
@@ -310,9 +315,11 @@ export default function TripsPage() {
                         {trip.name}
                       </h3>
                       <p className="text-gray-500 text-sm mb-4">
-                        {trip.destination || 'Destination TBD'} • {trip.startDate 
-                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate!).getTime() + 12*60*60*1000).toLocaleDateString()}`
-                          : `${MONTHS[trip.month]} ${trip.year}`}
+                        {trip.destination || 'Destination TBD'} • {trip.startDate && trip.endDate
+                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate).getTime() + 12*60*60*1000).toLocaleDateString()}`
+                          : trip.startDate 
+                            ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000 + (trip.daysTravel - 1) * 24*60*60*1000).toLocaleDateString()}`
+                            : `${MONTHS[trip.month]} ${trip.year}`}
                       </p>
 
                       <div className="flex items-center gap-2 mb-4">
