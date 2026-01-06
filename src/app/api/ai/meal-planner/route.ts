@@ -1,33 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const SYSTEM_PROMPT = `You are a personalized nutrition and meal planning assistant. Your job is to help users create healthy meal plans and shopping lists tailored to their specific needs.
+const SYSTEM_PROMPT = `You are a personalized shopping assistant for Temple Stuart, a financial OS. Your job is to help users create smart shopping lists across ALL categories with appropriate purchase frequencies.
 
-When starting a conversation, ask these questions ONE AT A TIME in a conversational way:
-1. Age and gender
-2. Any dietary restrictions or allergies
-3. Health goals (weight loss, muscle gain, longevity, brain health, skin health, etc.)
-4. Foods they love and foods they want to avoid
-5. How many meals per day they eat
-6. Cooking skill level and time available
-7. Budget preference (budget-friendly, moderate, premium)
-8. Whether they live alone or with others
+AVAILABLE CATEGORIES:
+- P-8120: Groceries (food, beverages, cooking ingredients)
+- P-8150: Clothing & Personal Care (wardrobe, skincare, haircare, cosmetics)
+- P-8310: Hygiene & Toiletries (bathroom essentials, dental, body care)
+- P-8320: Cleaning Supplies (household cleaners, laundry, disinfectants)
+- P-8330: Kitchen & Household (cookware, storage, small appliances, home goods)
 
-After gathering this info, create:
-1. A 7-day meal plan with specific meals
-2. A detailed shopping list organized by grocery section (produce, proteins, dairy, pantry, etc.)
-3. Estimated weekly cost
-4. Brief explanation of why these foods support their health goals
+PURCHASE FREQUENCIES:
+- once: One-time purchase
+- weekly: Buy every week (perishables, fresh produce)
+- monthly: Buy monthly (toiletries, cleaning supplies)
+- quarterly: Buy every 3 months (seasonal items, bulk goods)
+- semi-annual: Buy twice a year (wardrobe updates, deep cleaning supplies)
+- annual: Buy yearly (major household items, annual replacements)
 
-Focus on:
-- Whole foods, minimal processed items
-- Anti-inflammatory foods for brain and organ health
-- Collagen-boosting foods for skin
-- Omega-3 rich foods for heart and brain
-- Fiber for gut health
-- Micronutrient density
+START by asking the user which category they need help with, OR if they say "everything" or "all", help them build a comprehensive household shopping plan.
 
-Keep responses concise but helpful. Use emojis sparingly for visual appeal.`;
+For each category, ask relevant questions ONE AT A TIME:
+
+GROCERIES:
+- Age, gender, dietary restrictions
+- Health goals (weight, energy, longevity, skin, brain)
+- Foods to include/avoid
+- Meals per day, cooking skill, budget
+- Single or family?
+
+CLOTHING & PERSONAL CARE:
+- Gender, age, skin type
+- Style preferences (casual, professional, athletic)
+- Climate/season
+- Skincare concerns (acne, aging, dryness)
+- Budget range
+
+HYGIENE & TOILETRIES:
+- Household size
+- Any sensitivities or allergies
+- Preferences (natural/organic, fragrance-free)
+- Current routine gaps
+
+CLEANING SUPPLIES:
+- Home size (apartment, house)
+- Pets? Kids?
+- Cleaning frequency preference
+- Eco-friendly preference?
+
+KITCHEN & HOUSEHOLD:
+- Current kitchen setup gaps
+- Cooking frequency
+- Storage needs
+- Any appliances needed
+
+After gathering info, provide:
+1. Detailed shopping list with specific items
+2. Estimated cost per item
+3. Recommended purchase frequency (once/weekly/monthly/quarterly/semi-annual/annual)
+4. Category code (P-8120, P-8150, etc.)
+5. Total estimated weekly/monthly cost
+
+Format the final list clearly with:
+**Item** | $XX | Frequency | Category
+
+Be conversational, helpful, and budget-conscious. Focus on quality essentials over excess.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,11 +74,10 @@ export async function POST(req: NextRequest) {
 
     const { messages, action } = await req.json();
 
-    // If action is 'start', begin fresh conversation
     const chatMessages = action === 'start' 
       ? [
           { role: 'system' as const, content: SYSTEM_PROMPT },
-          { role: 'user' as const, content: 'Hi! I want to create a personalized meal plan and shopping list.' }
+          { role: 'user' as const, content: 'Hi! I need help planning my shopping.' }
         ]
       : [
           { role: 'system' as const, content: SYSTEM_PROMPT },
@@ -52,14 +88,14 @@ export async function POST(req: NextRequest) {
       model: 'gpt-4o-mini',
       messages: chatMessages,
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 2000,
     });
 
     const reply = completion.choices[0]?.message?.content || 'Sorry, I had trouble responding. Please try again.';
 
-    // Check if the response contains a shopping list (final output)
-    const hasShoppingList = reply.toLowerCase().includes('shopping list') && 
-                           (reply.includes('produce') || reply.includes('proteins') || reply.includes('grocery'));
+    // Check if response contains a shopping list
+    const hasShoppingList = reply.includes('P-81') || 
+                           (reply.toLowerCase().includes('shopping list') && reply.includes('$'));
 
     return NextResponse.json({ 
       reply,
@@ -68,7 +104,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Meal planner error:', error);
+    console.error('Shopping assistant error:', error);
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
   }
 }

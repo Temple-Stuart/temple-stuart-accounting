@@ -75,9 +75,9 @@ export default function MealPlanner() {
       <Card className="p-6">
         <div className="text-center space-y-4">
           <div className="text-4xl">🥗</div>
-          <h3 className="text-xl font-semibold">AI Meal Planner</h3>
+          <h3 className="text-xl font-semibold">AI Shopping Assistant</h3>
           <p className="text-gray-600 max-w-md mx-auto">
-            Get a personalized meal plan and shopping list based on your health goals, dietary preferences, and lifestyle.
+            Get a personalized shopping lists for groceries, hygiene, cleaning supplies, and household items based on your needs and budget.
           </p>
           <Button onClick={startConversation} disabled={loading}>
             {loading ? 'Starting...' : 'Start Planning'}
@@ -90,7 +90,7 @@ export default function MealPlanner() {
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">🥗 AI Meal Planner</h3>
+        <h3 className="font-semibold">🛒 AI Shopping Assistant</h3>
         <button onClick={resetChat} className="text-sm text-gray-500 hover:text-gray-700">
           Reset
         </button>
