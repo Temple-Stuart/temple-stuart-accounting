@@ -311,7 +311,7 @@ export default function TripsPage() {
                       </h3>
                       <p className="text-gray-500 text-sm mb-4">
                         {trip.destination || 'Destination TBD'} • {trip.startDate 
-                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate).getTime() + 12*60*60*1000).toLocaleDateString()}`
+                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate!).getTime() + 12*60*60*1000).toLocaleDateString()}`
                           : `${MONTHS[trip.month]} ${trip.year}`}
                       </p>
 
