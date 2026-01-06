@@ -92,8 +92,8 @@ export default function NewTripPage() {
         body: JSON.stringify({
           name,
           activity: activity || null,
-          month: new Date(startDate).getMonth() + 1,
-          year: new Date(startDate).getFullYear(),
+          month: new Date(startDate + 'T12:00:00').getMonth() + 1,
+          year: new Date(startDate + 'T12:00:00').getFullYear(),
           startDate,
           daysTravel,
           daysRiding
