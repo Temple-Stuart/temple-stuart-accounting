@@ -36,8 +36,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Trip already committed. Uncommit first.' }, { status: 400 });
     }
 
-    // Calculate dates from startDay + trip.month/year
-    const startDate = new Date(trip.year, trip.month - 1, startDay);
+    // Use trip's stored startDate if available, otherwise calculate from startDay
+    const startDate = trip.startDate 
+      ? new Date(trip.startDate)
+      : new Date(trip.year, trip.month - 1, startDay);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + (trip.daysTravel || 7) - 1);
 

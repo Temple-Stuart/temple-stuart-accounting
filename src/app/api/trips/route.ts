@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, destination, activity, month, year, daysTravel, daysRiding } = body;
+    const { name, destination, activity, month, year, daysTravel, daysRiding, startDate } = body;
 
     // Validate required fields
     if (!name || !month || !year || !daysTravel || !daysRiding) {
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         year: parseInt(year),
         daysTravel: parseInt(daysTravel),
         daysRiding: parseInt(daysRiding),
+        startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
         inviteToken: tripInviteToken,
         participants: {
           create: {
