@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 const ACTIVITY_TABLE_MAP: Record<string, string> = {
   // Mountain
   snowboard: 'ikon_resorts',
-  mtb: 'ikon_resorts',
+  mtb: 'cycling_destinations',
   hike: 'ikon_resorts',
   climb: 'ikon_resorts',
   // Water
