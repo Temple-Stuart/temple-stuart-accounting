@@ -102,7 +102,7 @@ export default function TripBookingFlow({
     }
   }, [initialCosts]);
 
-  const homeAirport = 'LAX'; // TODO: Get from user profile
+  const [originAirport, setOriginAirport] = useState('LAX');
 
   // Calculate trip dates
   const tripDates = useMemo(() => {
@@ -240,13 +240,24 @@ export default function TripBookingFlow({
         <p className="text-sm text-gray-500 mb-4">
           Search live prices or enter manually if booking elsewhere
         </p>
+        <div className="flex items-center gap-2 mb-4">
+          <label className="text-sm text-gray-600">Flying from:</label>
+          <input
+            type="text"
+            value={originAirport}
+            onChange={(e) => setOriginAirport(e.target.value.toUpperCase())}
+            placeholder="LAX"
+            maxLength={3}
+            className="w-20 px-2 py-1 border rounded text-center uppercase font-mono"
+          />
+        </div>
         <div className="space-y-3">
           {destinations.map(dest => (
             <FlightPicker
               key={dest.id}
               destinationName={dest.resort.name}
               destinationAirport={dest.resort.nearestAirport || ''}
-              originAirport={homeAirport}
+              originAirport={originAirport}
               departureDate={tripDates.departure}
               returnDate={tripDates.return}
               passengers={travelerCount}
