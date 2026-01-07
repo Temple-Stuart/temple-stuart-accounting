@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import TripBookingFlow from '@/components/trips/TripBookingFlow';
+import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import 'leaflet/dist/leaflet.css';
@@ -100,6 +101,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
+
+  // Flight booking state
+  const [originAirport, setOriginAirport] = useState("LAX");
+  const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
   // Budget data from TripBookingFlow
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string}[]>([]);
@@ -261,6 +266,17 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
+
+  // Calculate trip dates for flight search
+  const tripDates = useMemo(() => {
+    if (!trip || !confirmedStartDay) return null;
+    const start = new Date(trip.year, trip.month - 1, confirmedStartDay);
+    const end = new Date(trip.year, trip.month - 1, confirmedStartDay + trip.daysTravel - 1);
+    return {
+      departure: start.toISOString().split("T")[0],
+      return: end.toISOString().split("T")[0],
+    };
+  }, [trip, confirmedStartDay]);
   const dateWindows = useMemo(() => {
     if (!trip) return [];
     const daysInMonth = new Date(trip.year, trip.month, 0).getDate();
@@ -471,6 +487,49 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               />
             </div>
           )}
+        </Card>
+
+
+        {/* Row 4: Flights */}
+        <Card title="✈️ Flights">
+          {(() => {
+            const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
+            const destAirport = selectedDest?.resort?.nearestAirport || "DPS";
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm text-gray-600">Flying from:</label>
+                  <input
+                    type="text"
+                    value={originAirport}
+                    onChange={(e) => setOriginAirport(e.target.value.toUpperCase())}
+                    placeholder="LAX"
+                    maxLength={3}
+                    className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase"
+                  />
+                  <span className="text-gray-400">→</span>
+                  <span className="text-sm font-medium">{destAirport}</span>
+                  {trip.destination && <span className="text-xs text-gray-500">({trip.destination})</span>}
+                </div>
+                {tripDates ? (
+                  <FlightPicker
+                    destinationName={trip.destination || "Destination"}
+                    destinationAirport={destAirport}
+                    originAirport={originAirport}
+                    departureDate={tripDates.departure}
+                    returnDate={tripDates.return}
+                    passengers={confirmedParticipants.length || 1}
+                    selectedFlight={selectedFlight}
+                    onSelectFlight={setSelectedFlight}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-yellow-600 bg-yellow-50 rounded-lg">
+                    ⚠️ Select trip dates above to search flights
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </Card>
 
         {/* Row 4: AI Trip Assistant */}
