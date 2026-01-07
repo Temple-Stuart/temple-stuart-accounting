@@ -21,19 +21,24 @@ interface Recommendation {
   address: string;
   website: string;
   price: string;
+  priceNumeric: number;
   whyViral: string;
   socialProof: string;
   viralScore: number;
 }
 
 interface AIResponse {
+  lodging: Recommendation[];
   coworking: Recommendation[];
-  hotels: Recommendation[];
+  motoRental: Recommendation[];
   equipmentRental: Recommendation[];
-  motorcycleRental: Recommendation[];
+  airportTransfers: Recommendation[];
   brunchCoffee: Recommendation[];
   dinner: Recommendation[];
   activities: Recommendation[];
+  nightlife: Recommendation[];
+  toiletries: Recommendation[];
+  wellness: Recommendation[];
 }
 
 export async function POST(
@@ -47,7 +52,8 @@ export async function POST(
       country, 
       activity, 
       month, 
-      year, 
+      year,
+      daysTravel,
       budgetLevel,
       budgetTiers,
       partySize 
@@ -60,122 +66,167 @@ export async function POST(
     const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long' });
     const equipmentType = EQUIPMENT_MAP[activity] || 'activity equipment';
     
-    // Get the right budget cap based on tier
-    const hotelBudget = budgetTiers 
-      ? budgetTiers[budgetLevel] 
-      : (budgetLevel === 'low' ? 1250 : budgetLevel === 'high' ? 2500 : 2000);
-    
+    const hotelBudget = budgetTiers?.[budgetLevel] || 2000;
     const dailyHotelMax = Math.floor(hotelBudget / 30);
 
     const systemPrompt = `You are a viral content trip-planning assistant for digital nomad content creators.
-Your goal is to recommend places RANKED BY SOCIAL MEDIA ATTENTION - prioritize locations with the most TikTok views, Instagram posts, YouTube features, and Google reviews.
-Return ONLY valid JSON with no markdown, no code fences, no explanation.`;
+Recommend places RANKED BY SOCIAL MEDIA PRESENCE - TikTok views, Instagram posts, YouTube features, Google reviews.
+Return ONLY valid JSON. No markdown, no code fences.
+Include priceNumeric as a number (extract from price string, e.g. "$50/day" -> 50).`;
 
     const userPrompt = `Trip context:
-- Traveler: 33-year-old male content creator, English speaker
+- Traveler: 33-year-old male content creator
 - Party size: ${partySize || 1} person(s)
 - Destination: ${city}, ${country}
+- Trip length: ${daysTravel || 7} days
 - Dates: ${monthName} ${year}
 - Primary activity: ${activity || 'general travel'}
-- Budget level: ${budgetLevel || 'mid'}
-- Hotel budget: MAX $${hotelBudget}/month ($${dailyHotelMax}/night)
+- Budget: ${budgetLevel || 'mid'} (lodging max $${dailyHotelMax}/night)
 - Equipment needed: ${equipmentType}
 
-CRITICAL RANKING CRITERIA - Rank ALL recommendations by COMBINED social attention:
-1. TikTok views/engagement on location
-2. Instagram hashtag count and engagement
-3. YouTube video features
-4. Google review count and rating
-5. Known influencer/creator visits
-
-Each recommendation MUST include a "viralScore" (1-100) based on combined social media presence.
-Rank results from highest to lowest viralScore.
-
-${partySize && partySize > 1 ? `PARTY SIZE NOTE: Recommend places suitable for groups of ${partySize}. For hotels, consider rooms/villas that accommodate ${partySize} people. For activities, ensure group bookings are available.` : ''}
-
-Return a JSON object with these 7 categories, each containing exactly 5 recommendations RANKED by viralScore:
+Return JSON with these 11 categories, each with exactly 5 recommendations RANKED by viralScore (highest first):
 
 {
-  "coworking": [
+  "lodging": [
     {
-      "name": "Business name",
-      "address": "Full street address",
+      "name": "Hotel/Airbnb name",
+      "address": "Full address",
       "website": "https://...",
-      "price": "Day pass / monthly price",
-      "whyViral": "Specific viral features (aesthetic, unique design, famous visitors)",
-      "socialProof": "TikTok: Xk views, Instagram: #hashtag Xk posts, Google: X.X stars (Xk reviews)",
+      "price": "$X/night",
+      "priceNumeric": X,
+      "whyViral": "Why photogenic/instagrammable",
+      "socialProof": "TikTok Xk views, IG #hashtag Xk, Google X.X stars",
       "viralScore": 85
     }
   ],
-  "hotels": [
+  "coworking": [
     {
-      "name": "Hotel/resort name (suitable for ${partySize || 1} guests)",
+      "name": "Space name",
       "address": "Full address",
       "website": "https://...",
-      "price": "Per night (MUST be under $${dailyHotelMax}/night)",
-      "whyViral": "Photogenic features, rooftop, pool, views, viral moments",
-      "socialProof": "TikTok: Xk views, Instagram: Xk posts, YouTube: X features",
+      "price": "$X/day or $X/month",
+      "priceNumeric": X,
+      "whyViral": "Aesthetic, famous visitors",
+      "socialProof": "Social media presence",
       "viralScore": 80
+    }
+  ],
+  "motoRental": [
+    {
+      "name": "Rental shop",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "$X/day or $X/month",
+      "priceNumeric": X,
+      "whyViral": "Photogenic bikes, scenic routes",
+      "socialProof": "Reviews, nomad recommendations",
+      "viralScore": 70
     }
   ],
   "equipmentRental": [
     {
-      "name": "Rental shop name (for ${equipmentType})",
+      "name": "Shop for ${equipmentType}",
       "address": "Full address",
       "website": "https://...",
-      "price": "Daily/weekly rate",
-      "whyViral": "Quality gear, photogenic shop, content opportunities",
-      "socialProof": "Google: X.X stars, known among creators",
-      "viralScore": 70
+      "price": "$X/day or $X/week",
+      "priceNumeric": X,
+      "whyViral": "Quality gear, content opportunities",
+      "socialProof": "Reviews",
+      "viralScore": 75
     }
   ],
-  "motorcycleRental": [
+  "airportTransfers": [
     {
-      "name": "Scooter/motorcycle rental",
-      "address": "Full address",
+      "name": "Transfer service",
+      "address": "Airport pickup",
       "website": "https://...",
-      "price": "Daily/monthly rate",
-      "whyViral": "Photogenic bikes, good for vlogs, scenic routes nearby",
-      "socialProof": "Google reviews, nomad community recommendations",
-      "viralScore": 65
+      "price": "$X one-way",
+      "priceNumeric": X,
+      "whyViral": "Reliable, good for arrival content",
+      "socialProof": "Reviews",
+      "viralScore": 60
     }
   ],
   "brunchCoffee": [
     {
-      "name": "Cafe/brunch spot",
+      "name": "Cafe name",
       "address": "Full address",
       "website": "https://...",
-      "price": "Average meal cost",
-      "whyViral": "Aesthetic interior, latte art, instagrammable food presentation",
-      "socialProof": "TikTok: Xk views, Instagram: #location Xk posts",
+      "price": "$X/meal",
+      "priceNumeric": X,
+      "whyViral": "Aesthetic interior, latte art, food presentation",
+      "socialProof": "TikTok features, IG tags",
       "viralScore": 90
     }
   ],
   "dinner": [
     {
-      "name": "Restaurant name",
+      "name": "Restaurant",
       "address": "Full address",
       "website": "https://...",
-      "price": "Average dinner cost per person",
-      "whyViral": "Ambiance, plating, views, unique concept, viral dishes",
-      "socialProof": "TikTok features, Google: X.X stars (Xk reviews)",
+      "price": "$X/person",
+      "priceNumeric": X,
+      "whyViral": "Ambiance, plating, views",
+      "socialProof": "Viral dishes, reviews",
       "viralScore": 85
     }
   ],
   "activities": [
     {
-      "name": "Activity/experience (within 1 hour of ${city})",
-      "address": "Location/meeting point",
+      "name": "Tour/experience",
+      "address": "Meeting point",
       "website": "https://...",
-      "price": "Cost per person",
-      "whyViral": "Why this films well, unique angle, scenic backdrop",
-      "socialProof": "Viral videos, TikTok Xk views, YouTube features",
+      "price": "$X/person",
+      "priceNumeric": X,
+      "whyViral": "Scenic, unique content angle",
+      "socialProof": "Viral videos",
       "viralScore": 95
+    }
+  ],
+  "nightlife": [
+    {
+      "name": "Bar/club",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "$X average spend",
+      "priceNumeric": X,
+      "whyViral": "Atmosphere, events, crowd",
+      "socialProof": "IG presence",
+      "viralScore": 80
+    }
+  ],
+  "toiletries": [
+    {
+      "name": "Store/pharmacy",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "$X-X for basics",
+      "priceNumeric": X,
+      "whyViral": "Convenient, near nomad areas",
+      "socialProof": "Nomad recommendations",
+      "viralScore": 50
+    }
+  ],
+  "wellness": [
+    {
+      "name": "Gym/spa/yoga",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "$X/session or $X/month",
+      "priceNumeric": X,
+      "whyViral": "Aesthetic, popular with creators",
+      "socialProof": "IG presence",
+      "viralScore": 75
     }
   ]
 }
 
-Return ONLY the JSON object. No markdown, no explanation. Rank each category by viralScore descending.`;
+IMPORTANT: 
+- All prices MUST stay under budget level
+- Lodging MUST be under $${dailyHotelMax}/night
+- Include real business names and addresses for ${city}
+- priceNumeric should be the main price as a number (for daily items use per-day price)
+- Rank by viralScore descending`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -184,7 +235,7 @@ Return ONLY the JSON object. No markdown, no explanation. Rank each category by 
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 4500,
+      max_tokens: 5000,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';
@@ -200,7 +251,7 @@ Return ONLY the JSON object. No markdown, no explanation. Rank each category by 
 
     return NextResponse.json({ 
       recommendations,
-      context: { city, country, activity, equipmentType, month: monthName, year, budgetLevel, partySize, hotelBudget }
+      context: { city, country, activity, equipmentType, month: monthName, year, daysTravel, budgetLevel, partySize, hotelBudget }
     });
 
   } catch (err) {

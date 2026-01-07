@@ -6,7 +6,7 @@ import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import TripBookingFlow from '@/components/trips/TripBookingFlow';
 import DestinationMap from '@/components/trips/DestinationMap';
-import TripAIAssistant from '@/components/trips/TripAIAssistant';
+import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -478,7 +478,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           {(() => {
             const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
             return (
-              <TripAIAssistant
+              <TripPlannerAI
                 tripId={id}
                 city={selectedDest?.resort?.name || trip.destination}
                 country={selectedDest?.resort?.country || null}

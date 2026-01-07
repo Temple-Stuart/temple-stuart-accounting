@@ -1,0 +1,398 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { Button } from '@/components/ui';
+
+interface Recommendation {
+  name: string;
+  address: string;
+  website: string;
+  price: string;
+  priceNumeric: number;
+  whyViral: string;
+  socialProof: string;
+  viralScore: number;
+}
+
+interface AIResponse {
+  lodging: Recommendation[];
+  coworking: Recommendation[];
+  motoRental: Recommendation[];
+  equipmentRental: Recommendation[];
+  airportTransfers: Recommendation[];
+  brunchCoffee: Recommendation[];
+  dinner: Recommendation[];
+  activities: Recommendation[];
+  nightlife: Recommendation[];
+  toiletries: Recommendation[];
+  wellness: Recommendation[];
+}
+
+type CategoryKey = keyof AIResponse;
+type BillingType = 'monthly' | 'weekly' | 'daily' | 'per-trip';
+
+interface ScheduledSelection {
+  category: CategoryKey;
+  item: Recommendation;
+  billing: BillingType;
+  quantity: number;
+  days: number[];
+  time: string;
+}
+
+interface Props {
+  tripId: string;
+  city: string | null;
+  country: string | null;
+  activity: string | null;
+  month: number;
+  year: number;
+  daysTravel: number;
+  onBudgetChange?: (total: number, items: ScheduledSelection[]) => void;
+}
+
+const CATEGORIES: { key: CategoryKey; label: string; icon: string; defaultBilling: BillingType }[] = [
+  { key: 'lodging', label: 'Lodging', icon: '🏨', defaultBilling: 'monthly' },
+  { key: 'coworking', label: 'Coworking', icon: '🏢', defaultBilling: 'monthly' },
+  { key: 'motoRental', label: 'Moto/Car Rental', icon: '🏍️', defaultBilling: 'monthly' },
+  { key: 'equipmentRental', label: 'Equipment Rental', icon: '🏄', defaultBilling: 'weekly' },
+  { key: 'airportTransfers', label: 'Airport Transfers', icon: '🚕', defaultBilling: 'per-trip' },
+  { key: 'brunchCoffee', label: 'Brunch & Coffee', icon: '☕', defaultBilling: 'daily' },
+  { key: 'dinner', label: 'Dinner', icon: '🍽️', defaultBilling: 'daily' },
+  { key: 'activities', label: 'Activities/Tours', icon: '🎯', defaultBilling: 'daily' },
+  { key: 'nightlife', label: 'Nightlife', icon: '🎉', defaultBilling: 'daily' },
+  { key: 'toiletries', label: 'Toiletries/Supplies', icon: '🛒', defaultBilling: 'per-trip' },
+  { key: 'wellness', label: 'Wellness/Gym', icon: '💆', defaultBilling: 'daily' },
+];
+
+const TIME_SLOTS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
+
+export default function TripPlannerAI({ tripId, city, country, activity, month, year, daysTravel, onBudgetChange }: Props) {
+  const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState<AIResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
+  
+  const [budgetLevel, setBudgetLevel] = useState<'low' | 'mid' | 'high'>('mid');
+  const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
+  const [partySize, setPartySize] = useState(1);
+  
+  const [selections, setSelections] = useState<ScheduledSelection[]>([]);
+  
+  const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
+  const [editForm, setEditForm] = useState<{ billing: BillingType; quantity: number; days: number[]; time: string }>({
+    billing: 'daily', quantity: 1, days: [1], time: '12:00'
+  });
+
+  const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
+
+  const analyzeDestination = async () => {
+    if (!city || !country) { setError('Please select a destination first'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize })
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      const data = await res.json();
+      setRecommendations(data.recommendations);
+      setSelections([]);
+      setExpandedCategory('lodging');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Request failed'); }
+    finally { setLoading(false); }
+  };
+
+  const getCatInfo = (key: CategoryKey) => CATEGORIES.find(c => c.key === key);
+
+  const handleSelectItem = (category: CategoryKey, item: Recommendation) => {
+    const catInfo = getCatInfo(category);
+    const newSel: ScheduledSelection = {
+      category, item,
+      billing: catInfo?.defaultBilling || 'daily',
+      quantity: 1,
+      days: catInfo?.defaultBilling === 'daily' ? [1] : [],
+      time: '12:00'
+    };
+    setEditingSelection(newSel);
+    setEditForm({ billing: newSel.billing, quantity: newSel.quantity, days: newSel.days, time: newSel.time });
+  };
+
+  const handleEditSelection = (sel: ScheduledSelection) => {
+    setEditingSelection(sel);
+    setEditForm({ billing: sel.billing, quantity: sel.quantity, days: sel.days, time: sel.time });
+  };
+
+  const confirmSelection = () => {
+    if (!editingSelection) return;
+    const updated: ScheduledSelection = { ...editingSelection, ...editForm };
+    setSelections(prev => {
+      const idx = prev.findIndex(s => s.category === updated.category && s.item.name === updated.item.name);
+      if (idx >= 0) { const n = [...prev]; n[idx] = updated; return n; }
+      return [...prev, updated];
+    });
+    setEditingSelection(null);
+  };
+
+  const removeSelection = (category: CategoryKey, name: string) => {
+    setSelections(prev => prev.filter(s => !(s.category === category && s.item.name === name)));
+  };
+
+  const isSelected = (category: CategoryKey, item: Recommendation) => selections.some(s => s.category === category && s.item.name === item.name);
+
+  const toggleDay = (day: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day].sort((a,b) => a-b)
+    }));
+  };
+
+  const calculateItemCost = (sel: ScheduledSelection): number => {
+    const price = sel.item.priceNumeric || 0;
+    switch (sel.billing) {
+      case 'monthly': return price;
+      case 'weekly': return price * Math.ceil(daysTravel / 7);
+      case 'daily': return price * sel.days.length * sel.quantity;
+      case 'per-trip': return price * sel.quantity;
+      default: return price;
+    }
+  };
+
+  const totalBudget = useMemo(() => {
+    return selections.reduce((sum, sel) => sum + calculateItemCost(sel), 0);
+  }, [selections, daysTravel]);
+
+  useEffect(() => {
+    if (onBudgetChange) onBudgetChange(totalBudget, selections);
+  }, [totalBudget, selections]);
+
+  const renderTable = (categoryKey: CategoryKey, items: Recommendation[]) => {
+    if (!items?.length) return <p className="text-gray-400 text-sm py-4 px-4">No recommendations</p>;
+    const catInfo = getCatInfo(categoryKey);
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-800 text-white">
+              <th className="py-2 px-3 text-center w-14">Add</th>
+              <th className="py-2 px-3 text-center w-14">Score</th>
+              <th className="py-2 px-3 text-left">Name</th>
+              <th className="py-2 px-3 text-left">Address</th>
+              <th className="py-2 px-3 text-right">Price</th>
+              <th className="py-2 px-3 text-left max-w-[200px]">Why Viral</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((rec, idx) => {
+              const selected = isSelected(categoryKey, rec);
+              return (
+                <tr key={idx} className={selected ? 'bg-green-50' : idx % 2 ? 'bg-gray-50' : ''}>
+                  <td className="py-2 px-3 text-center">
+                    <button onClick={() => handleSelectItem(categoryKey, rec)}
+                      className={`w-7 h-7 rounded-full font-bold text-sm ${selected ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}>
+                      {selected ? '✓' : '+'}
+                    </button>
+                  </td>
+                  <td className="py-2 px-3 text-center">
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${rec.viralScore >= 80 ? 'bg-green-100 text-green-700' : rec.viralScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100'}`}>
+                      {rec.viralScore || '—'}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3 font-medium">{rec.name}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[150px] truncate">{rec.address}</td>
+                  <td className="py-2 px-3 text-right text-green-600 font-medium whitespace-nowrap">{rec.price}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.whyViral}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Controls */}
+      <div className="grid md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Budget Level</label>
+          <select value={budgetLevel} onChange={e => setBudgetLevel(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="low">💰 ${budgetTiers.low}/mo</option>
+            <option value="mid">💰💰 ${budgetTiers.mid}/mo</option>
+            <option value="high">💰💰💰 ${budgetTiers.high}/mo</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Budget Tiers ($/mo)</label>
+          <div className="flex gap-1">
+            {(['low','mid','high'] as const).map(k => (
+              <input key={k} type="number" value={budgetTiers[k]} onChange={e => setBudgetTiers(p => ({...p, [k]: +e.target.value}))}
+                className="w-16 border rounded px-2 py-2 text-xs" />
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Party Size</label>
+          <select value={partySize} onChange={e => setPartySize(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div className="flex items-end">
+          <Button onClick={analyzeDestination} loading={loading} disabled={!city} className="w-full">
+            🤖 Analyze {city || 'Destination'}
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{error}</div>}
+
+      {loading && (
+        <div className="text-center py-12">
+          <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500">Finding viral spots in {city}...</p>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingSelection && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="font-bold text-lg mb-1">{getCatInfo(editingSelection.category)?.icon} {editingSelection.item.name}</h3>
+            <p className="text-sm text-gray-500 mb-4">{editingSelection.item.price}</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium block mb-2">Billing</label>
+                <div className="flex gap-2">
+                  {(['monthly','weekly','daily','per-trip'] as BillingType[]).map(b => (
+                    <button key={b} onClick={() => setEditForm(p => ({...p, billing: b}))}
+                      className={`px-3 py-1.5 rounded text-sm ${editForm.billing === b ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {editForm.billing === 'daily' && (
+                <div>
+                  <label className="text-sm font-medium block mb-2">Which days?</label>
+                  <div className="flex flex-wrap gap-2">
+                    {tripDays.map(d => (
+                      <button key={d} onClick={() => toggleDay(d)}
+                        className={`w-9 h-9 rounded text-sm font-medium ${editForm.days.includes(d) ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {editForm.billing === 'daily' && (
+                <div>
+                  <label className="text-sm font-medium block mb-2">Time</label>
+                  <select value={editForm.time} onChange={e => setEditForm(p => ({...p, time: e.target.value}))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm">
+                    {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {(editForm.billing === 'per-trip' || editForm.billing === 'daily') && (
+                <div>
+                  <label className="text-sm font-medium block mb-2">Quantity</label>
+                  <input type="number" min={1} value={editForm.quantity} onChange={e => setEditForm(p => ({...p, quantity: +e.target.value}))}
+                    className="w-20 border rounded-lg px-3 py-2 text-sm" />
+                </div>
+              )}
+
+              <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                <strong>Estimated:</strong> ${calculateItemCost({...editingSelection, ...editForm}).toLocaleString()}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" onClick={() => setEditingSelection(null)} className="flex-1">Cancel</Button>
+              <Button onClick={confirmSelection} className="flex-1">✓ Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Budget Summary */}
+      {selections.length > 0 && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-green-800">🗺️ Your Trip Plan ({selections.length} items)</h3>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-green-700">${totalBudget.toLocaleString()}</div>
+              <div className="text-xs text-gray-500">estimated total</div>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {selections.map((sel, idx) => {
+              const catInfo = getCatInfo(sel.category);
+              const cost = calculateItemCost(sel);
+              return (
+                <div key={idx} className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-lg">{catInfo?.icon}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEditSelection(sel)} className="text-blue-500 hover:text-blue-700 text-xs">✏️</button>
+                      <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">{catInfo?.label}</div>
+                  <div className="font-medium text-sm">{sel.item.name}</div>
+                  <div className="text-green-600 font-medium">${cost.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {sel.billing}{sel.billing === 'daily' && sel.days.length > 0 ? ` • Days: ${sel.days.join(',')}` : ''}
+                    {sel.quantity > 1 ? ` • x${sel.quantity}` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Categories */}
+      {recommendations && !loading && (
+        <div className="space-y-2">
+          {CATEGORIES.map(({ key, label, icon }) => {
+            const items = recommendations[key];
+            const isOpen = expandedCategory === key;
+            const hasSel = selections.some(s => s.category === key);
+            return (
+              <div key={key} className={`border rounded-lg ${hasSel ? 'border-green-300' : 'border-gray-200'}`}>
+                <button onClick={() => setExpandedCategory(isOpen ? null : key)}
+                  className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-gray-100">
+                  <span className="flex items-center gap-2">
+                    <span className="text-xl">{icon}</span>
+                    <span className="font-medium">{label}</span>
+                    {hasSel && <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">✓</span>}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">{items?.length || 0}</span>
+                    <span className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+                  </span>
+                </button>
+                {isOpen && renderTable(key, items)}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && !recommendations && !error && (
+        <div className="text-center py-12 text-gray-400">
+          <div className="text-5xl mb-3">🤖</div>
+          <p className="font-medium text-lg">AI Trip Planner</p>
+          <p className="text-sm">Select a destination and click Analyze to get recommendations</p>
+        </div>
+      )}
+    </div>
+  );
+}
