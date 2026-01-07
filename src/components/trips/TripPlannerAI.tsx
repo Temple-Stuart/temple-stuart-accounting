@@ -29,15 +29,14 @@ interface AIResponse {
 }
 
 type CategoryKey = keyof AIResponse;
-type BillingType = 'monthly' | 'weekly' | 'daily' | 'per-trip';
 
 interface ScheduledSelection {
   category: CategoryKey;
   item: Recommendation;
-  billing: BillingType;
-  quantity: number;
   days: number[];
-  time: string;
+  allDay: boolean;
+  startTime: string;
+  endTime: string;
 }
 
 interface Props {
@@ -51,21 +50,21 @@ interface Props {
   onBudgetChange?: (total: number, items: ScheduledSelection[]) => void;
 }
 
-const CATEGORIES: { key: CategoryKey; label: string; icon: string; defaultBilling: BillingType }[] = [
-  { key: 'lodging', label: 'Lodging', icon: '🏨', defaultBilling: 'monthly' },
-  { key: 'coworking', label: 'Coworking', icon: '🏢', defaultBilling: 'monthly' },
-  { key: 'motoRental', label: 'Moto/Car Rental', icon: '🏍️', defaultBilling: 'monthly' },
-  { key: 'equipmentRental', label: 'Equipment Rental', icon: '🏄', defaultBilling: 'weekly' },
-  { key: 'airportTransfers', label: 'Airport Transfers', icon: '🚕', defaultBilling: 'per-trip' },
-  { key: 'brunchCoffee', label: 'Brunch & Coffee', icon: '☕', defaultBilling: 'daily' },
-  { key: 'dinner', label: 'Dinner', icon: '🍽️', defaultBilling: 'daily' },
-  { key: 'activities', label: 'Activities/Tours', icon: '🎯', defaultBilling: 'daily' },
-  { key: 'nightlife', label: 'Nightlife', icon: '🎉', defaultBilling: 'daily' },
-  { key: 'toiletries', label: 'Toiletries/Supplies', icon: '🛒', defaultBilling: 'per-trip' },
-  { key: 'wellness', label: 'Wellness/Gym', icon: '💆', defaultBilling: 'daily' },
+const CATEGORIES: { key: CategoryKey; label: string; icon: string; defaultAllDay: boolean }[] = [
+  { key: 'lodging', label: 'Lodging', icon: '🏨', defaultAllDay: true },
+  { key: 'coworking', label: 'Coworking', icon: '🏢', defaultAllDay: false },
+  { key: 'motoRental', label: 'Moto/Car Rental', icon: '🏍️', defaultAllDay: true },
+  { key: 'equipmentRental', label: 'Equipment Rental', icon: '🏄', defaultAllDay: true },
+  { key: 'airportTransfers', label: 'Airport Transfers', icon: '🚕', defaultAllDay: false },
+  { key: 'brunchCoffee', label: 'Brunch & Coffee', icon: '☕', defaultAllDay: false },
+  { key: 'dinner', label: 'Dinner', icon: '🍽️', defaultAllDay: false },
+  { key: 'activities', label: 'Activities/Tours', icon: '🎯', defaultAllDay: false },
+  { key: 'nightlife', label: 'Nightlife', icon: '🎉', defaultAllDay: false },
+  { key: 'toiletries', label: 'Toiletries/Supplies', icon: '🛒', defaultAllDay: false },
+  { key: 'wellness', label: 'Wellness/Gym', icon: '💆', defaultAllDay: false },
 ];
 
-const TIME_SLOTS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
+const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
 
 export default function TripPlannerAI({ tripId, city, country, activity, month, year, daysTravel, onBudgetChange }: Props) {
   const [loading, setLoading] = useState(false);
@@ -80,9 +79,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
-  const [editForm, setEditForm] = useState<{ billing: BillingType; quantity: number; days: number[]; time: string }>({
-    billing: 'daily', quantity: 1, days: [1], time: '12:00'
+  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string }>({
+    days: [], allDay: true, startTime: '09:00', endTime: '17:00'
   });
+  
+  // Range selection mode
+  const [rangeMode, setRangeMode] = useState(false);
+  const [rangeStart, setRangeStart] = useState<number | null>(null);
 
   const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
 
@@ -96,7 +99,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize })
       });
-      if (!res.ok) { const d = await res.json(); console.error('AI Raw Response:', d.raw); throw new Error(d.error + (d.raw ? ' - Check console for raw response' : '')); }
+      if (!res.ok) { 
+        const d = await res.json(); 
+        if (d.raw) console.error('GPT Raw Response:', d.raw.substring(0, 500));
+        throw new Error(d.error || 'Failed'); 
+      }
       const data = await res.json();
       setRecommendations(data.recommendations);
       setSelections([]);
@@ -111,22 +118,26 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
     const catInfo = getCatInfo(category);
     const newSel: ScheduledSelection = {
       category, item,
-      billing: catInfo?.defaultBilling || 'daily',
-      quantity: 1,
-      days: catInfo?.defaultBilling === 'daily' ? [1] : [],
-      time: '12:00'
+      days: [1],
+      allDay: catInfo?.defaultAllDay || false,
+      startTime: '09:00',
+      endTime: '17:00'
     };
     setEditingSelection(newSel);
-    setEditForm({ billing: newSel.billing, quantity: newSel.quantity, days: newSel.days, time: newSel.time });
+    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00' });
+    setRangeMode(false);
+    setRangeStart(null);
   };
 
   const handleEditSelection = (sel: ScheduledSelection) => {
     setEditingSelection(sel);
-    setEditForm({ billing: sel.billing, quantity: sel.quantity, days: sel.days, time: sel.time });
+    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime });
+    setRangeMode(false);
+    setRangeStart(null);
   };
 
   const confirmSelection = () => {
-    if (!editingSelection) return;
+    if (!editingSelection || editForm.days.length === 0) return;
     const updated: ScheduledSelection = { ...editingSelection, ...editForm };
     setSelections(prev => {
       const idx = prev.findIndex(s => s.category === updated.category && s.item.name === updated.item.name);
@@ -142,27 +153,36 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
   const isSelected = (category: CategoryKey, item: Recommendation) => selections.some(s => s.category === category && s.item.name === item.name);
 
-  const toggleDay = (day: number) => {
-    setEditForm(prev => ({
-      ...prev,
-      days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day].sort((a,b) => a-b)
-    }));
+  const handleDayClick = (day: number) => {
+    if (rangeMode) {
+      if (rangeStart === null) {
+        setRangeStart(day);
+      } else {
+        const start = Math.min(rangeStart, day);
+        const end = Math.max(rangeStart, day);
+        const range = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+        setEditForm(prev => ({ ...prev, days: range }));
+        setRangeStart(null);
+      }
+    } else {
+      setEditForm(prev => ({
+        ...prev,
+        days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day].sort((a,b) => a-b)
+      }));
+    }
   };
+
+  const selectAllDays = () => setEditForm(prev => ({ ...prev, days: [...tripDays] }));
+  const clearDays = () => setEditForm(prev => ({ ...prev, days: [] }));
 
   const calculateItemCost = (sel: ScheduledSelection): number => {
     const price = sel.item.priceNumeric || 0;
-    switch (sel.billing) {
-      case 'monthly': return price;
-      case 'weekly': return price * Math.ceil(daysTravel / 7);
-      case 'daily': return price * sel.days.length * sel.quantity;
-      case 'per-trip': return price * sel.quantity;
-      default: return price;
-    }
+    return price * sel.days.length;
   };
 
   const totalBudget = useMemo(() => {
     return selections.reduce((sum, sel) => sum + calculateItemCost(sel), 0);
-  }, [selections, daysTravel]);
+  }, [selections]);
 
   useEffect(() => {
     if (onBudgetChange) onBudgetChange(totalBudget, selections);
@@ -170,7 +190,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
   const renderTable = (categoryKey: CategoryKey, items: Recommendation[]) => {
     if (!items?.length) return <p className="text-gray-400 text-sm py-4 px-4">No recommendations</p>;
-    const catInfo = getCatInfo(categoryKey);
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -263,63 +282,94 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       {/* Edit Modal */}
       {editingSelection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-lg mb-1">{getCatInfo(editingSelection.category)?.icon} {editingSelection.item.name}</h3>
             <p className="text-sm text-gray-500 mb-4">{editingSelection.item.price}</p>
             
             <div className="space-y-4">
+              {/* All Day Toggle */}
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={editForm.allDay} 
+                  onChange={e => setEditForm(p => ({ ...p, allDay: e.target.checked }))}
+                  className="w-5 h-5 rounded"
+                />
+                <div>
+                  <span className="font-medium">All Day</span>
+                  <p className="text-xs text-gray-500">No specific times (hotels, rentals, etc.)</p>
+                </div>
+              </label>
+
+              {/* Date Selection */}
               <div>
-                <label className="text-sm font-medium block mb-2">Billing</label>
-                <div className="flex gap-2">
-                  {(['monthly','weekly','daily','per-trip'] as BillingType[]).map(b => (
-                    <button key={b} onClick={() => setEditForm(p => ({...p, billing: b}))}
-                      className={`px-3 py-1.5 rounded text-sm ${editForm.billing === b ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>
-                      {b}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">Select Days</label>
+                  <div className="flex gap-2">
+                    <button onClick={() => setRangeMode(!rangeMode)} 
+                      className={`text-xs px-2 py-1 rounded ${rangeMode ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}>
+                      {rangeMode ? (rangeStart ? `Start: Day ${rangeStart}` : 'Pick start') : 'Range'}
+                    </button>
+                    <button onClick={selectAllDays} className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">All</button>
+                    <button onClick={clearDays} className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Clear</button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tripDays.map(d => (
+                    <button key={d} onClick={() => handleDayClick(d)}
+                      className={`w-10 h-10 rounded text-sm font-medium transition-colors ${
+                        editForm.days.includes(d) ? 'bg-green-500 text-white' : 
+                        rangeStart === d ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                      }`}>
+                      {d}
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">{editForm.days.length} day(s) selected</p>
               </div>
 
-              {editForm.billing === 'daily' && (
-                <div>
-                  <label className="text-sm font-medium block mb-2">Which days?</label>
-                  <div className="flex flex-wrap gap-2">
-                    {tripDays.map(d => (
-                      <button key={d} onClick={() => toggleDay(d)}
-                        className={`w-9 h-9 rounded text-sm font-medium ${editForm.days.includes(d) ? 'bg-green-500 text-white' : 'bg-gray-100'}`}>
-                        {d}
-                      </button>
-                    ))}
+              {/* Time Selection (if not all day) */}
+              {!editForm.allDay && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium block mb-2">Start Time</label>
+                    <select value={editForm.startTime} onChange={e => setEditForm(p => ({...p, startTime: e.target.value}))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm">
+                      {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-2">End Time</label>
+                    <select value={editForm.endTime} onChange={e => setEditForm(p => ({...p, endTime: e.target.value}))}
+                      className="w-full border rounded-lg px-3 py-2 text-sm">
+                      {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </div>
                 </div>
               )}
 
-              {editForm.billing === 'daily' && (
-                <div>
-                  <label className="text-sm font-medium block mb-2">Time</label>
-                  <select value={editForm.time} onChange={e => setEditForm(p => ({...p, time: e.target.value}))}
-                    className="w-full border rounded-lg px-3 py-2 text-sm">
-                    {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+              {/* Cost Estimate */}
+              <div className="bg-green-50 rounded-lg p-3 text-sm border border-green-200">
+                <div className="flex justify-between">
+                  <span>Per day:</span>
+                  <span className="font-medium">${editingSelection.item.priceNumeric || 0}</span>
                 </div>
-              )}
-
-              {(editForm.billing === 'per-trip' || editForm.billing === 'daily') && (
-                <div>
-                  <label className="text-sm font-medium block mb-2">Quantity</label>
-                  <input type="number" min={1} value={editForm.quantity} onChange={e => setEditForm(p => ({...p, quantity: +e.target.value}))}
-                    className="w-20 border rounded-lg px-3 py-2 text-sm" />
+                <div className="flex justify-between">
+                  <span>Days selected:</span>
+                  <span className="font-medium">{editForm.days.length}</span>
                 </div>
-              )}
-
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <strong>Estimated:</strong> ${calculateItemCost({...editingSelection, ...editForm}).toLocaleString()}
+                <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
+                  <span>Total:</span>
+                  <span>${((editingSelection.item.priceNumeric || 0) * editForm.days.length).toLocaleString()}</span>
+                </div>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" onClick={() => setEditingSelection(null)} className="flex-1">Cancel</Button>
-              <Button onClick={confirmSelection} className="flex-1">✓ Confirm</Button>
+              <Button onClick={confirmSelection} className="flex-1" disabled={editForm.days.length === 0}>
+                ✓ Add to Plan
+              </Button>
             </div>
           </div>
         </div>
@@ -352,8 +402,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                   <div className="font-medium text-sm">{sel.item.name}</div>
                   <div className="text-green-600 font-medium">${cost.toLocaleString()}</div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {sel.billing}{sel.billing === 'daily' && sel.days.length > 0 ? ` • Days: ${sel.days.join(',')}` : ''}
-                    {sel.quantity > 1 ? ` • x${sel.quantity}` : ''}
+                    Days: {sel.days.length > 5 ? `${sel.days[0]}-${sel.days[sel.days.length-1]}` : sel.days.join(', ')}
+                    {!sel.allDay && ` • ${sel.startTime}-${sel.endTime}`}
                   </div>
                 </div>
               );
