@@ -71,7 +71,8 @@ export async function POST(
 
     const systemPrompt = `You are a viral content trip-planning assistant for digital nomad content creators.
 Your goal is to recommend places RANKED BY SOCIAL MEDIA ATTENTION - prioritize locations with the most TikTok views, Instagram posts, YouTube features, and Google reviews.
-Return ONLY valid JSON with no markdown, no code fences, no explanation.`;
+Return ONLY valid JSON with no markdown, no code fences, no explanation.
+CRITICAL: Do NOT include any businesses that are permanently closed, out of business, or no longer operating. Only recommend places that are currently open and active.`;
 
     const userPrompt = `Trip context:
 - Traveler: 33-year-old male content creator, English speaker
@@ -236,13 +237,13 @@ Return a JSON object with these 11 categories. Item counts: lodging(5), coworkin
 Return ONLY the JSON object. Rank each category by viralScore descending.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-5.2',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 8000,
+      max_completion_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';
