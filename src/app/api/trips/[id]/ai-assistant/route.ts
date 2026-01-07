@@ -60,6 +60,7 @@ Return ONLY valid JSON with no markdown, no code fences, no explanation.`;
 - Dates: ${monthName} ${year}
 - Primary activity: ${activity || 'general travel'}
 - Budget level: ${budgetLevel || 'mid'}
+- Hotel budget (MAX per month): ${budgetLevel === 'low' ? '$1,250' : budgetLevel === 'high' ? '$2,500' : '$2,000'}
 - Equipment needed: ${equipmentType}
 
 CRITICAL: All recommendations must be REAL businesses with accurate addresses and websites. Focus on places that are:
@@ -86,7 +87,7 @@ Return a JSON object with these 7 categories, each containing exactly 5 recommen
       "name": "Hotel/resort name",
       "address": "Full address",
       "website": "https://...",
-      "price": "Per night range",
+      "price": "Per night (MUST be under monthly cap above when x30)",
       "whyViral": "Photogenic features, rooftop, pool, views",
       "socialProof": "Instagram presence, influencer stays, viral posts"
     }
