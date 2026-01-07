@@ -1,15 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/lib/openai';
 
-interface LodgingRecommendation {
+const EQUIPMENT_MAP: Record<string, string> = {
+  snowboard: 'snowboard and ski gear',
+  mtb: 'mountain bike',
+  surf: 'surfboard',
+  kitesurf: 'kitesurfing gear',
+  sail: 'sailing equipment',
+  golf: 'golf clubs',
+  bike: 'road/gravel bike',
+  run: 'running gear',
+  triathlon: 'triathlon gear (bike, wetsuit)',
+  skate: 'skateboard',
+  festival: 'festival gear',
+  conference: 'laptop/tech accessories',
+};
+
+interface Recommendation {
   name: string;
-  neighborhood: string;
-  whyGoodForNomads: string;
-  priceRange: string;
-  wifiNotes: string;
-  distanceToCoworking: string;
-  distanceToActivity: string;
-  socialProof: string[];
+  address: string;
+  website: string;
+  price: string;
+  whyViral: string;
+  socialProof: string;
+}
+
+interface AIResponse {
+  coworking: Recommendation[];
+  hotels: Recommendation[];
+  equipmentRental: Recommendation[];
+  motorcycleRental: Recommendation[];
+  brunchCoffee: Recommendation[];
+  dinner: Recommendation[];
+  activities: Recommendation[];
 }
 
 export async function POST(
@@ -18,62 +41,124 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { city, country, activity, month, year, budgetLevel, minPrice, maxPrice, currency } = body;
+    const { city, country, activity, month, year, budgetLevel } = body;
 
     if (!city || !country) {
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
     }
 
     const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long' });
+    const equipmentType = EQUIPMENT_MAP[activity] || 'activity equipment';
 
-    const systemPrompt = `You are a trip-planning and budgeting assistant for digital nomads.
-Return ONLY valid JSON with no markdown, no code fences, no explanation.
-Return an array of exactly 5 lodging recommendation objects.`;
+    const systemPrompt = `You are a viral content trip-planning assistant for digital nomad content creators.
+Your goal is to recommend places that are HIGHLY PHOTOGENIC and likely to perform well on TikTok/Instagram.
+Return ONLY valid JSON with no markdown, no code fences, no explanation.`;
 
     const userPrompt = `Trip context:
-- Traveler: 33-year-old male, English speaker
-- Destination city: ${city}, ${country}
+- Traveler: 33-year-old male content creator, English speaker
+- Destination: ${city}, ${country}
 - Dates: ${monthName} ${year}
-- Primary activity interest: ${activity || 'general travel'}
-- Budget level: ${budgetLevel || 'mid'} (target nightly range: ${minPrice || 80}-${maxPrice || 200} ${currency || 'USD'})
-- Must-haves: private room + private bathroom, reliable Wi-Fi, safe area, walkable to food/coffee
+- Primary activity: ${activity || 'general travel'}
+- Budget level: ${budgetLevel || 'mid'}
+- Equipment needed: ${equipmentType}
 
-Goal: Recommend the top 5 lodging options that maximize:
-- Strong digital nomad / expat presence
-- English-speaking community
-- Easy community-building (social spaces, events, coworking nearby, walkable neighborhood)
-- Proximity to ${activity || 'local attractions'} (or easy transport)
+CRITICAL: All recommendations must be REAL businesses with accurate addresses and websites. Focus on places that are:
+1. Highly aesthetic / Instagram-worthy
+2. Popular with influencers and content creators
+3. Likely to go viral when filmed
+4. Known in the digital nomad community
 
-For each lodging option, return this exact JSON structure:
+Return a JSON object with these 7 categories, each containing exactly 5 recommendations:
+
 {
-  "name": "string",
-  "neighborhood": "string", 
-  "whyGoodForNomads": "string (specific signals)",
-  "priceRange": "string (e.g. $80-120/night)",
-  "wifiNotes": "string (work suitability)",
-  "distanceToCoworking": "string (e.g. 5 min walk to WeWork)",
-  "distanceToActivity": "string (e.g. 15 min to ski lift)",
-  "socialProof": ["string array of 2-3 signals"]
+  "coworking": [
+    {
+      "name": "Business name",
+      "address": "Full street address",
+      "website": "https://...",
+      "price": "Day pass / monthly price",
+      "whyViral": "Why this is great for content (aesthetic, unique features, famous visitors)",
+      "socialProof": "TikTok views, Instagram tags, famous nomads who work here"
+    }
+  ],
+  "hotels": [
+    {
+      "name": "Hotel/resort name",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "Per night range",
+      "whyViral": "Photogenic features, rooftop, pool, views",
+      "socialProof": "Instagram presence, influencer stays, viral posts"
+    }
+  ],
+  "equipmentRental": [
+    {
+      "name": "Rental shop name (for ${equipmentType})",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "Daily/weekly rate",
+      "whyViral": "Quality gear, photogenic shop, good for content",
+      "socialProof": "Reviews, known among nomads"
+    }
+  ],
+  "motorcycleRental": [
+    {
+      "name": "Scooter/motorcycle rental",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "Daily/monthly rate",
+      "whyViral": "Reliable, photogenic bikes, good for vlogs",
+      "socialProof": "Nomad recommendations, Google reviews"
+    }
+  ],
+  "brunchCoffee": [
+    {
+      "name": "Cafe/brunch spot",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "Average meal cost",
+      "whyViral": "Aesthetic interior, latte art, brunch presentation",
+      "socialProof": "Instagram tags, TikTok features, influencer visits"
+    }
+  ],
+  "dinner": [
+    {
+      "name": "Restaurant name",
+      "address": "Full address",
+      "website": "https://...",
+      "price": "Average dinner cost",
+      "whyViral": "Ambiance, plating, views, unique concept",
+      "socialProof": "Reviews, viral dishes, celebrity visits"
+    }
+  ],
+  "activities": [
+    {
+      "name": "Activity/experience name (within 1 hour of ${city})",
+      "address": "Location/meeting point",
+      "website": "https://...",
+      "price": "Cost per person",
+      "whyViral": "Why this films well, unique angle, scenic",
+      "socialProof": "Viral videos, popular tours, view counts"
+    }
+  ]
 }
 
-Return ONLY a JSON array of 5 objects. No markdown, no explanation.`;
+Return ONLY the JSON object. No markdown, no explanation.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
-    const content = completion.choices[0]?.message?.content || '[]';
+    const content = completion.choices[0]?.message?.content || '{}';
     
-    // Parse JSON response
-    let recommendations: LodgingRecommendation[] = [];
+    let recommendations: AIResponse;
     try {
-      // Strip any markdown code fences if present
       const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
       recommendations = JSON.parse(cleaned);
     } catch (parseErr) {
@@ -83,7 +168,7 @@ Return ONLY a JSON array of 5 objects. No markdown, no explanation.`;
 
     return NextResponse.json({ 
       recommendations,
-      context: { city, country, activity, month: monthName, year, budgetLevel }
+      context: { city, country, activity, equipmentType, month: monthName, year, budgetLevel }
     });
 
   } catch (err) {
