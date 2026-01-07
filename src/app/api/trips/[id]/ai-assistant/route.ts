@@ -70,9 +70,9 @@ export async function POST(
     const dailyHotelMax = Math.floor(hotelBudget / 30);
 
     const systemPrompt = `You are a viral content trip-planning assistant for digital nomad content creators.
-Recommend places RANKED BY SOCIAL MEDIA PRESENCE - TikTok views, Instagram posts, YouTube features, Google reviews.
-Return ONLY valid JSON. No markdown, no code fences.
-Include priceNumeric as a number (extract from price string, e.g. "$50/day" -> 50).`;
+Return ONLY valid JSON. No markdown, no code fences, no explanation.
+Include priceNumeric as a number extracted from the price string.
+socialProof MUST include specific numbers: TikTok views, Instagram hashtag counts, YouTube features, Google review count and rating.`;
 
     const userPrompt = `Trip context:
 - Traveler: 33-year-old male content creator
@@ -84,149 +84,40 @@ Include priceNumeric as a number (extract from price string, e.g. "$50/day" -> 5
 - Budget: ${budgetLevel || 'mid'} (lodging max $${dailyHotelMax}/night)
 - Equipment needed: ${equipmentType}
 
-Return JSON with these 11 categories, each with exactly 3 recommendations RANKED by viralScore (highest first):
+Return JSON with these 11 categories. IMPORTANT: Follow the exact item count for each category.
 
 {
-  "lodging": [
-    {
-      "name": "Hotel/Airbnb name",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/night",
-      "priceNumeric": X,
-      "whyViral": "Why photogenic/instagrammable",
-      "socialProof": "TikTok Xk views, IG #hashtag Xk, Google X.X stars",
-      "viralScore": 85
-    }
-  ],
-  "coworking": [
-    {
-      "name": "Space name",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/day or $X/month",
-      "priceNumeric": X,
-      "whyViral": "Aesthetic, famous visitors",
-      "socialProof": "Social media presence",
-      "viralScore": 80
-    }
-  ],
-  "motoRental": [
-    {
-      "name": "Rental shop",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/day or $X/month",
-      "priceNumeric": X,
-      "whyViral": "Photogenic bikes, scenic routes",
-      "socialProof": "Reviews, nomad recommendations",
-      "viralScore": 70
-    }
-  ],
-  "equipmentRental": [
-    {
-      "name": "Shop for ${equipmentType}",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/day or $X/week",
-      "priceNumeric": X,
-      "whyViral": "Quality gear, content opportunities",
-      "socialProof": "Reviews",
-      "viralScore": 75
-    }
-  ],
-  "airportTransfers": [
-    {
-      "name": "Transfer service",
-      "address": "Airport pickup",
-      "website": "https://...",
-      "price": "$X one-way",
-      "priceNumeric": X,
-      "whyViral": "Reliable, good for arrival content",
-      "socialProof": "Reviews",
-      "viralScore": 60
-    }
-  ],
-  "brunchCoffee": [
-    {
-      "name": "Cafe name",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/meal",
-      "priceNumeric": X,
-      "whyViral": "Aesthetic interior, latte art, food presentation",
-      "socialProof": "TikTok features, IG tags",
-      "viralScore": 90
-    }
-  ],
-  "dinner": [
-    {
-      "name": "Restaurant",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/person",
-      "priceNumeric": X,
-      "whyViral": "Ambiance, plating, views",
-      "socialProof": "Viral dishes, reviews",
-      "viralScore": 85
-    }
-  ],
-  "activities": [
-    {
-      "name": "Tour/experience",
-      "address": "Meeting point",
-      "website": "https://...",
-      "price": "$X/person",
-      "priceNumeric": X,
-      "whyViral": "Scenic, unique content angle",
-      "socialProof": "Viral videos",
-      "viralScore": 95
-    }
-  ],
-  "nightlife": [
-    {
-      "name": "Bar/club",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X average spend",
-      "priceNumeric": X,
-      "whyViral": "Atmosphere, events, crowd",
-      "socialProof": "IG presence",
-      "viralScore": 80
-    }
-  ],
-  "toiletries": [
-    {
-      "name": "Store/pharmacy",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X-X for basics",
-      "priceNumeric": X,
-      "whyViral": "Convenient, near nomad areas",
-      "socialProof": "Nomad recommendations",
-      "viralScore": 50
-    }
-  ],
-  "wellness": [
-    {
-      "name": "Gym/spa/yoga",
-      "address": "Full address",
-      "website": "https://...",
-      "price": "$X/session or $X/month",
-      "priceNumeric": X,
-      "whyViral": "Aesthetic, popular with creators",
-      "socialProof": "IG presence",
-      "viralScore": 75
-    }
-  ]
+  "lodging": [ /* EXACTLY 5 items */ ],
+  "coworking": [ /* EXACTLY 5 items */ ],
+  "motoRental": [ /* EXACTLY 3 items */ ],
+  "equipmentRental": [ /* EXACTLY 3 items */ ],
+  "airportTransfers": [ /* EXACTLY 3 items */ ],
+  "brunchCoffee": [ /* EXACTLY 7 items */ ],
+  "dinner": [ /* EXACTLY 7 items */ ],
+  "activities": [ /* EXACTLY 5 items */ ],
+  "nightlife": [ /* EXACTLY 5 items */ ],
+  "toiletries": [ /* EXACTLY 3 items */ ],
+  "wellness": [ /* EXACTLY 3 items */ ]
 }
 
-IMPORTANT: 
-- All prices MUST stay under budget level
-- Lodging MUST be under $${dailyHotelMax}/night
-- Include real business names and addresses for ${city}
-- priceNumeric should be the main price as a number (for daily items use per-day price)
-- Rank by viralScore descending`;
+Each item must have this structure:
+{
+  "name": "Business name",
+  "address": "Full street address in ${city}",
+  "website": "https://actualwebsite.com",
+  "price": "$X/unit (night, day, visit, etc)",
+  "priceNumeric": 50,
+  "whyViral": "Specific visual/content appeal",
+  "socialProof": "TikTok: Xk views, IG: #hashtag Xk posts, Google: X.X stars (Xk reviews)",
+  "viralScore": 85
+}
+
+CRITICAL REQUIREMENTS:
+1. lodging MUST be under $${dailyHotelMax}/night
+2. socialProof MUST have specific numbers for TikTok, Instagram, Google
+3. viralScore 1-100 based on combined social media presence
+4. Rank each category by viralScore descending
+5. Use REAL businesses with accurate addresses for ${city}, ${country}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -235,7 +126,7 @@ IMPORTANT:
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 8000,
+      max_tokens: 10000,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';
