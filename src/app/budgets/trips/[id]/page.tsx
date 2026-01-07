@@ -485,6 +485,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 activity={trip.activity}
                 month={trip.month}
                 year={trip.year}
+                daysTravel={trip.daysTravel}
               />
             );
           })()}
@@ -506,7 +507,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 daysTravel={trip.daysTravel} 
                 daysRiding={trip.daysRiding}
                 month={trip.month} 
-                year={trip.year} 
+                year={trip.year}
                 startDay={confirmedStartDay} 
                 travelerCount={confirmedParticipants.length || 4} 
                 onBudgetChange={setTripBudget} 
