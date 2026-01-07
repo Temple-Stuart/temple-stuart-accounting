@@ -25,6 +25,7 @@ interface Recommendation {
   whyViral: string;
   socialProof: string;
   viralScore: number;
+  menuUrl?: string;
 }
 
 interface AIResponse {
@@ -56,7 +57,9 @@ export async function POST(
       daysTravel,
       budgetLevel,
       budgetTiers,
-      partySize 
+      partySize,
+      brunchMax = 5,
+      dinnerMax = 15 
     } = body;
 
     if (!city || !country) {
@@ -160,24 +163,24 @@ Return a JSON object with these 11 categories. Item counts: lodging(5), coworkin
       "viralScore": 60
     }
   ],
-  "brunchCoffee": [
+  "brunchCoffee": [ // Budget: Under ${brunchMax} per meal
     {
       "name": "Cafe/brunch spot",
       "address": "Full address",
       "website": "https://...",
-      "price": "$XX average meal",
+      "price": "Under ${brunchMax}/meal",
       "priceNumeric": 15,
       "whyViral": "Aesthetic interior, latte art, instagrammable food",
       "socialProof": "TikTok: Xk views, Instagram: #location Xk posts",
       "viralScore": 92
     }
   ],
-  "dinner": [
+  "dinner": [ // Budget: Under ${dinnerMax} per meal
     {
       "name": "Restaurant name",
       "address": "Full address",
       "website": "https://...",
-      "price": "$XX per person",
+      "price": "Under ${dinnerMax}/meal (app+drink+entree)",
       "priceNumeric": 35,
       "whyViral": "Sunset views, viral dishes, incredible plating",
       "socialProof": "TikTok: Xk views, Google: X.X stars (Xk reviews)",

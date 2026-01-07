@@ -74,6 +74,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   
   const [budgetLevel, setBudgetLevel] = useState<'low' | 'mid' | 'high'>('mid');
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
+  const [brunchBudget, setBrunchBudget] = useState<'low' | 'mid' | 'high'>('mid');
+  const [dinnerBudget, setDinnerBudget] = useState<'low' | 'mid' | 'high'>('mid');
+  const mealBudgets = { brunch: { low: 3, mid: 5, high: 10 }, dinner: { low: 10, mid: 15, high: 25 } };
   const [partySize, setPartySize] = useState(1);
   
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
@@ -97,7 +100,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize, brunchMax: mealBudgets.brunch[brunchBudget], dinnerMax: mealBudgets.dinner[dinnerBudget] })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -239,7 +242,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="grid md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Budget Level</label>
           <select value={budgetLevel} onChange={e => setBudgetLevel(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
@@ -256,6 +259,22 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                 className="w-16 border rounded px-2 py-2 text-xs" />
             ))}
           </div>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">☕ Brunch Max</label>
+          <select value={brunchBudget} onChange={e => setBrunchBudget(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="low">$ 3</option>
+            <option value="mid">$ 5</option>
+            <option value="high">$$ 10</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">🍽️ Dinner Max</label>
+          <select value={dinnerBudget} onChange={e => setDinnerBudget(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="low">$ 10</option>
+            <option value="mid">$ 15</option>
+            <option value="high">$$ 25</option>
+          </select>
         </div>
         <div>
           <label className="text-xs text-gray-500 block mb-1">Party Size</label>
