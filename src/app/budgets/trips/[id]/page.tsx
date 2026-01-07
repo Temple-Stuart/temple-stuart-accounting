@@ -4,7 +4,6 @@ import { useState, useEffect, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
-import TripBookingFlow from '@/components/trips/TripBookingFlow';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
@@ -106,7 +105,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [originAirport, setOriginAirport] = useState("LAX");
   const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
-  // Budget data from TripBookingFlow
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string}[]>([]);
   // Loaded budget items from DB
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
@@ -557,24 +555,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           noPadding
         >
           {/* Booking Flow */}
-          {destinations.length > 0 && (
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-sm font-medium text-gray-500 mb-3">Compare Costs by Destination</h3>
-              <TripBookingFlow 
-                tripId={id} 
-                destinations={destinations} 
-                daysTravel={trip.daysTravel} 
-                daysRiding={trip.daysRiding}
-                month={trip.month} 
-                year={trip.year}
-                startDay={confirmedStartDay} 
-                travelerCount={confirmedParticipants.length || 4} 
-                onBudgetChange={setTripBudget} 
-                initialCosts={initialCosts}
-              />
-            </div>
-
-          )}
           {/* Expense Form */}
           {showExpenseForm && (
             <form onSubmit={handleAddExpense} className="p-6 bg-gray-50 border-b border-gray-200">

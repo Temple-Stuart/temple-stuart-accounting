@@ -229,13 +229,13 @@ IMPORTANT:
 - Rank by viralScore descending`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5.2',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 6000,
+      max_tokens: 4000,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';
