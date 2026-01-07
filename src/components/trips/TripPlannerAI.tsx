@@ -96,7 +96,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize })
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      if (!res.ok) { const d = await res.json(); console.error('AI Raw Response:', d.raw); throw new Error(d.error + (d.raw ? ' - Check console for raw response' : '')); }
       const data = await res.json();
       setRecommendations(data.recommendations);
       setSelections([]);
