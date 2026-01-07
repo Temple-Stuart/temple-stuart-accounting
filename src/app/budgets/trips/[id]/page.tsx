@@ -6,6 +6,7 @@ import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
 import DestinationSelector from '@/components/trips/DestinationSelector';
 import TripBookingFlow from '@/components/trips/TripBookingFlow';
 import DestinationMap from '@/components/trips/DestinationMap';
+import TripAIAssistant from '@/components/trips/TripAIAssistant';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -472,7 +473,24 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           )}
         </Card>
 
-        {/* Row 4: Itinerary & Budget */}
+        {/* Row 4: AI Trip Assistant */}
+        <Card title="🤖 AI Trip Assistant">
+          {(() => {
+            const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
+            return (
+              <TripAIAssistant
+                tripId={id}
+                city={selectedDest?.resort?.name || trip.destination}
+                country={selectedDest?.resort?.country || null}
+                activity={trip.activity}
+                month={trip.month}
+                year={trip.year}
+              />
+            );
+          })()}
+        </Card>
+
+        {/* Row 5: Itinerary & Budget */}
         <Card
           title="🗓️ Itinerary & Budget"
           action={<Button size="sm" onClick={() => setShowExpenseForm(!showExpenseForm)}>{showExpenseForm ? 'Cancel' : '+ Add Expense'}</Button>}
