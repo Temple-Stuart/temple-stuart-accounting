@@ -84,7 +84,7 @@ Include priceNumeric as a number (extract from price string, e.g. "$50/day" -> 5
 - Budget: ${budgetLevel || 'mid'} (lodging max $${dailyHotelMax}/night)
 - Equipment needed: ${equipmentType}
 
-Return JSON with these 11 categories, each with exactly 5 recommendations RANKED by viralScore (highest first):
+Return JSON with these 11 categories, each with exactly 3 recommendations RANKED by viralScore (highest first):
 
 {
   "lodging": [
@@ -235,7 +235,7 @@ IMPORTANT:
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 4000,
+      max_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content || '{}';
