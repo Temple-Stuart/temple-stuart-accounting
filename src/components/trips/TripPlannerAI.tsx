@@ -180,6 +180,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
               <th className="py-2 px-3 text-center w-14">Score</th>
               <th className="py-2 px-3 text-left">Name</th>
               <th className="py-2 px-3 text-left">Address</th>
+              <th className="py-2 px-3 text-left">Website</th>
               <th className="py-2 px-3 text-right">Price</th>
               <th className="py-2 px-3 text-left max-w-[200px]">Why Viral</th>
               <th className="py-2 px-3 text-left max-w-[200px]">Social Proof</th>
@@ -203,6 +204,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                   </td>
                   <td className="py-2 px-3 font-medium">{rec.name}</td>
                   <td className="py-2 px-3 text-xs text-gray-500 max-w-[150px] truncate">{rec.address}</td>
+                  <td className="py-2 px-3">{rec.website && rec.website !== "N/A" ? <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">Visit →</a> : <span className="text-gray-400 text-xs">—</span>}</td>
                   <td className="py-2 px-3 text-right text-green-600 font-medium whitespace-nowrap">{rec.price}</td>
                   <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.whyViral}</td>
                   <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.socialProof}</td>
