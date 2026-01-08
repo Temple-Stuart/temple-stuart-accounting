@@ -1,4 +1,4 @@
-// Google Places Search → Pre-filter → GPT Rank
+// Google Places: Source of Truth for Facts
 
 interface PlaceResult {
   name: string;
@@ -6,34 +6,40 @@ interface PlaceResult {
   placeId: string;
   rating: number;
   reviewCount: number;
-  priceLevel?: number;
+  priceLevel?: number; // 1-4
+  priceLevelDisplay: string; // $-$$$$
   website?: string;
   isOpen: boolean;
   types: string[];
   photos?: string[];
-  lat: number;
-  lng: number;
+  popularityScore: number; // rating × log(reviewCount)
 }
 
 interface FilterCriteria {
   minRating?: number;
   minReviews?: number;
-  maxPriceLevel?: number;
+  maxPriceLevel?: number; // 1-4
   mustBeOpen?: boolean;
 }
 
 // Convert price_level (1-4) to display
 export function formatPriceLevel(level?: number): string {
-  if (!level) return 'Price N/A';
+  if (!level) return 'N/A';
   return '$'.repeat(level);
 }
 
-// Search Google Places for a category
+// Calculate popularity score from real data
+export function calculatePopularity(rating: number, reviewCount: number): number {
+  if (reviewCount < 1) return 0;
+  return Math.round(rating * Math.log10(reviewCount) * 10) / 10;
+}
+
+// Search Google Places - get top 33 per category
 export async function searchPlaces(
   query: string,
   city: string,
   country: string,
-  maxResults: number = 20
+  maxResults: number = 33
 ): Promise<PlaceResult[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -41,6 +47,7 @@ export async function searchPlaces(
     return [];
   }
 
+  // Geocode city
   const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', ' + country)}&key=${apiKey}`;
   
   try {
@@ -54,61 +61,77 @@ export async function searchPlaces(
     
     const { lat, lng } = geoData.results[0].geometry.location;
     
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city)}&location=${lat},${lng}&radius=15000&key=${apiKey}`;
+    // Search with pagination to get more results
+    let allPlaces: PlaceResult[] = [];
+    let nextPageToken: string | null = null;
     
-    const searchRes = await fetch(searchUrl);
-    const searchData = await searchRes.json();
-    
-    if (!searchData.results) {
-      console.error('[PLACES] No results for:', query);
-      return [];
+    for (let page = 0; page < 2 && allPlaces.length < maxResults; page++) {
+      const searchUrl: string = nextPageToken 
+        ? `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${apiKey}`
+        : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city + ' ' + country)}&location=${lat},${lng}&radius=20000&key=${apiKey}`;
+      
+      if (page > 0 && nextPageToken) {
+        // Google requires 2 second delay between page requests
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      
+      const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
+      
+      if (!searchData.results) break;
+      
+      const places: PlaceResult[] = searchData.results.map((p: any) => ({
+        name: p.name,
+        address: p.formatted_address,
+        placeId: p.place_id,
+        rating: p.rating || 0,
+        reviewCount: p.user_ratings_total || 0,
+        priceLevel: p.price_level,
+        priceLevelDisplay: formatPriceLevel(p.price_level),
+        isOpen: p.business_status === 'OPERATIONAL',
+        types: p.types || [],
+        photos: p.photos?.slice(0, 2).map((photo: any) => 
+          `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${apiKey}`
+        ),
+        popularityScore: calculatePopularity(p.rating || 0, p.user_ratings_total || 0)
+      }));
+      
+      allPlaces = [...allPlaces, ...places];
+      nextPageToken = searchData.next_page_token || null;
+      
+      if (!nextPageToken) break;
     }
     
-    console.log(`[PLACES] "${query}" in ${city}: ${searchData.results.length} results`);
+    console.log(`[PLACES] "${query}" in ${city}: ${allPlaces.length} results`);
     
-    const places: PlaceResult[] = searchData.results.slice(0, maxResults).map((p: any) => ({
-      name: p.name,
-      address: p.formatted_address,
-      placeId: p.place_id,
-      rating: p.rating || 0,
-      reviewCount: p.user_ratings_total || 0,
-      priceLevel: p.price_level,
-      isOpen: p.business_status === 'OPERATIONAL',
-      types: p.types || [],
-      lat: p.geometry?.location?.lat,
-      lng: p.geometry?.location?.lng,
-      photos: p.photos?.slice(0, 2).map((photo: any) => 
-        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photo.photo_reference}&key=${apiKey}`
-      )
-    }));
-    
-    return places;
+    // Sort by popularity score (rating × log(reviews))
+    return allPlaces
+      .sort((a, b) => b.popularityScore - a.popularityScore)
+      .slice(0, maxResults);
+      
   } catch (err) {
     console.error('[PLACES] Search error:', err);
     return [];
   }
 }
 
-// Get website and more details for a place
-export async function getPlaceDetails(placeId: string): Promise<{ website?: string; phone?: string } | null> {
+// Get website for a place
+export async function getPlaceDetails(placeId: string): Promise<{ website?: string } | null> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return null;
   
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website,formatted_phone_number&key=${apiKey}`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website&key=${apiKey}`;
   
   try {
     const res = await fetch(url);
     const data = await res.json();
-    return {
-      website: data.result?.website,
-      phone: data.result?.formatted_phone_number
-    };
+    return { website: data.result?.website };
   } catch {
     return null;
   }
 }
 
-// Pre-filter places before sending to GPT
+// Pre-filter places
 export function filterPlaces(
   places: PlaceResult[],
   criteria: FilterCriteria
@@ -122,50 +145,50 @@ export function filterPlaces(
   });
 }
 
-// Category-specific search queries
-export const CATEGORY_SEARCHES: Record<string, { query: string; filters: FilterCriteria }> = {
+// Category search configs
+export const CATEGORY_SEARCHES: Record<string, { query: string; defaultFilters: FilterCriteria }> = {
   lodging: {
-    query: 'boutique hotel hostel',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
+    query: 'boutique hotel hostel guesthouse',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   coworking: {
-    query: 'coworking space',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 10 }
+    query: 'coworking space shared office',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   motoRental: {
     query: 'motorbike scooter rental',
-    filters: { mustBeOpen: true, minRating: 3.5, minReviews: 5 }
+    defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 10 }
   },
   equipmentRental: {
-    query: 'surf rental shop sports equipment',
-    filters: { mustBeOpen: true, minRating: 3.5, minReviews: 5 }
+    query: 'surf rental sports equipment',
+    defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 10 }
   },
   airportTransfers: {
     query: 'airport transfer taxi service',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 10 }
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   brunchCoffee: {
-    query: 'cafe brunch coffee shop',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
+    query: 'cafe brunch coffee specialty',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   dinner: {
-    query: 'restaurant dinner',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
+    query: 'restaurant dinner dining',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   activities: {
-    query: 'tours activities adventures',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 10 }
+    query: 'tours activities adventures experiences',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   nightlife: {
     query: 'bar nightclub rooftop beach club',
-    filters: { mustBeOpen: true, minRating: 3.5, minReviews: 15 }
+    defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 30 }
   },
   toiletries: {
     query: 'pharmacy convenience store supermarket',
-    filters: { mustBeOpen: true, minRating: 3.0, minReviews: 5 }
+    defaultFilters: { mustBeOpen: true, minRating: 3.0, minReviews: 10 }
   },
   wellness: {
-    query: 'gym fitness yoga spa',
-    filters: { mustBeOpen: true, minRating: 4.0, minReviews: 10 }
+    query: 'gym fitness yoga spa ice bath',
+    defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   }
 };
