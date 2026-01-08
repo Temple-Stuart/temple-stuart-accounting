@@ -19,7 +19,8 @@ interface Recommendation {
 async function rankByViralPotential(
   places: any[],
   category: string,
-  city: string
+  city: string,
+  priceTier: string = '$'
 ): Promise<Recommendation[]> {
   if (places.length === 0) return [];
 
@@ -32,6 +33,7 @@ async function rankByViralPotential(
 
 CATEGORY: ${category}
 LOCATION: ${city}
+PRICE TIER: ${priceTier} (focus on places at this budget level)
 
 Here are ${places.length} REAL places from Google Maps:
 
@@ -144,6 +146,7 @@ export async function POST(
       year,
       daysTravel,
       partySize = 1,
+      priceTier = '$',
       equipmentType = 'surf',
       categories = Object.keys(CATEGORY_SEARCHES)
     } = body;
@@ -183,7 +186,7 @@ export async function POST(
         const enriched = await enrichWithWebsites(filtered);
 
         // 4. GPT: Pick TOP 10 most viral
-        const viral = await rankByViralPotential(enriched, cat, city);
+        const viral = await rankByViralPotential(enriched, cat, city, priceTier);
         console.log('[AI] ' + cat + ': ' + viral.length + ' viral picks');
 
         return [cat, viral];

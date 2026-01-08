@@ -80,6 +80,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
   
   const [partySize, setPartySize] = useState(1);
+  const [priceTier, setPriceTier] = useState<'$' | '$$' | '$$$'>('$$');
   const [beds, setBeds] = useState(1);
   const [lodgingBudget, setLodgingBudget] = useState(100);
   const [equipmentType, setEquipmentType] = useState('surf gear');
@@ -105,7 +106,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, equipmentType })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, priceTier, equipmentType })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -263,6 +264,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
         
         
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">💰 Price</label>
+          <select value={priceTier} onChange={e => setPriceTier(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value="$">$ Budget</option>
+            <option value="$">$ Mid-range</option>
+            <option value="$$">$$ Premium</option>
+          </select>
+        </div>
         <div>
           <label className="text-xs text-gray-500 block mb-1">👥 Party</label>
           <select value={partySize} onChange={e => setPartySize(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
