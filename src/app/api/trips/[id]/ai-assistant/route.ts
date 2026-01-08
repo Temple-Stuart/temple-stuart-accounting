@@ -275,26 +275,33 @@ Return JSON array of 10 wellness spots, ranked by viralScore:
 
 async function fetchCategory(category: string, ctx: any): Promise<Recommendation[]> {
   const promptFn = CATEGORY_PROMPTS[category];
-  if (!promptFn) return [];
+  if (!promptFn) {
+    console.error(`No prompt for category: ${category}`);
+    return [];
+  }
 
   const prompt = promptFn(ctx);
   
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-5.2',
-    messages: [
-      { role: 'system', content: 'You are a viral travel content strategist. Return ONLY valid JSON array. No markdown, no explanation. Only include CURRENTLY OPEN businesses.' },
-      { role: 'user', content: prompt }
-    ],
-    temperature: 0.5,
-    max_completion_tokens: 4000,
-  });
-
-  const content = completion.choices[0]?.message?.content || '[]';
   try {
-    const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-    return JSON.parse(cleaned);
-  } catch {
-    console.error(`Failed to parse ${category}:`, content.substring(0, 200));
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: 'You are a viral travel content strategist. Return ONLY a valid JSON array. No markdown, no code fences, no explanation. Only include CURRENTLY OPEN businesses.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.5,
+      max_tokens: 4000,
+    });
+
+    const content = completion.choices[0]?.message?.content || '[]';
+    console.log(`[AI] ${category}: ${content.length} chars`);
+    
+    const cleaned = content.replace(/\`\`\`json\n?|\n?\`\`\`/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    console.log(`[AI] ${category}: ${parsed.length} items`);
+    return parsed;
+  } catch (err) {
+    console.error(`[AI] ${category} FAILED:`, err);
     return [];
   }
 }
