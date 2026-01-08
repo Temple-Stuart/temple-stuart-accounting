@@ -10,11 +10,10 @@ interface Recommendation {
   rating: number;
   reviewCount: number;
   priceLevel: string;
-  popularityScore: number;
-  whyHyped: string;
+  viralRank: number;
+  whyViral: string;
   communityFit: string;
   contentAngle: string;
-  photos?: string[];
 }
 
 interface AIResponse {
@@ -79,8 +78,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   
   const [budgetLevel, setBudgetLevel] = useState<'low' | 'mid' | 'high'>('mid');
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
-  const [lodgingPriceMax, setLodgingPriceMax] = useState(4);
-  const [mealPriceMax, setMealPriceMax] = useState(4);
+  
   const [partySize, setPartySize] = useState(1);
   const [beds, setBeds] = useState(1);
   const [lodgingBudget, setLodgingBudget] = useState(100);
@@ -107,7 +105,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, lodgingPriceMax, mealPriceMax, equipmentType })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, equipmentType })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -240,16 +238,16 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                     </button>
                   </td>
                   <td className="py-2 px-3 text-center">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${rec.popularityScore >= 80 ? 'bg-green-100 text-green-700' : rec.popularityScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100'}`}>
-                      {rec.popularityScore || '—'}
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${rec.viralRank >= 80 ? 'bg-green-100 text-green-700' : rec.viralRank >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100'}`}>
+                      {rec.viralRank || '—'}
                     </span>
                   </td>
                   <td className="py-2 px-3 font-medium">{rec.name}</td>
-                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[150px] truncate">{rec.address}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] whitespace-normal">{rec.address}</td>
                   <td className="py-2 px-3">{rec.website && rec.website !== "N/A" ? <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">Visit →</a> : <span className="text-gray-400 text-xs">—</span>}</td>
                   <td className="py-2 px-3 text-right text-green-600 font-medium whitespace-nowrap">{rec.priceLevel}</td>
-                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.whyHyped}</td>
-                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.contentAngle}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[300px] whitespace-normal">{rec.whyViral}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[300px] whitespace-normal">{rec.contentAngle}</td>
                 </tr>
               );
             })}
@@ -264,24 +262,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       {/* Controls */}
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
         
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">🏨 Lodging Max</label>
-          <select value={lodgingPriceMax} onChange={e => setLodgingPriceMax(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value={1}>$</option>
-            <option value={2}>$</option>
-            <option value={3}>$$</option>
-            <option value={4}>$$</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">🍽️ Meals Max</label>
-          <select value={mealPriceMax} onChange={e => setMealPriceMax(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value={1}>$</option>
-            <option value={2}>$</option>
-            <option value={3}>$$</option>
-            <option value={4}>$$</option>
-          </select>
-        </div>
+        
         <div>
           <label className="text-xs text-gray-500 block mb-1">👥 Party</label>
           <select value={partySize} onChange={e => setPartySize(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">

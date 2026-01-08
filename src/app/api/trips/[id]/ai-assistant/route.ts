@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/lib/openai';
-import { searchPlaces, filterPlaces, getPlaceDetails, CATEGORY_SEARCHES } from '@/lib/placesSearch';
+import { searchPlaces, filterPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 
 interface Recommendation {
   name: string;
@@ -9,112 +9,122 @@ interface Recommendation {
   rating: number;
   reviewCount: number;
   priceLevel: string;
-  popularityScore: number;
-  whyHyped: string;
+  viralRank: number;
+  whyViral: string;
   communityFit: string;
   contentAngle: string;
-  photos?: string[];
 }
 
-// GPT adds context: hype, community fit, content angles
-async function addGPTContext(
+// GPT picks the TOP 10 most viral from Google's list
+async function rankByViralPotential(
   places: any[],
   category: string,
   city: string
 ): Promise<Recommendation[]> {
   if (places.length === 0) return [];
 
-  // Build place list for GPT
-  const placeList = places.slice(0, 15).map((p, i) => 
-    `${i + 1}. ${p.name} - ⭐${p.rating} (${p.reviewCount} reviews) ${p.priceLevelDisplay || ''}`
+  // Build place list for GPT with all details
+  const placeList = places.map((p, i) => 
+    `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${p.priceLevelDisplay || 'Price N/A'} | ${p.address}`
   ).join('\n');
 
-  const prompt = `You are a digital nomad and content creator expert. Here are REAL ${category} places in ${city} from Google Maps.
+  const prompt = `You are an expert on VIRAL travel destinations for digital nomads, entrepreneurs, founders, and content creators.
 
-PLACES:
+CATEGORY: ${category}
+LOCATION: ${city}
+
+Here are ${places.length} REAL places from Google Maps:
+
 ${placeList}
 
-YOUR TASK: Add context about each place's HYPE and COMMUNITY FIT.
+YOUR TASK: Pick the TOP 10 most likely to GO VIRAL among entrepreneurs, founders, and digital nomads.
 
-For each place, provide:
-- whyHyped: Is this place famous/hyped in the entrepreneur, startup, founder, digital nomad community? Why? (Be honest - say "Not particularly known" if true)
-- communityFit: Is this a spot where entrepreneurs, founders, content creators hang out? What's the vibe?
-- contentAngle: Best content idea for this spot (be specific: "sunrise laptop shot on rooftop" not just "good for photos")
+Consider places that:
+- Are FAMOUS in nomad/startup circles (you know this from your training data)
+- Have been featured in YouTube vlogs, TikToks, travel blogs
+- Are known influencer/content creator hotspots
+- Have strong founder/entrepreneur community presence
+- Are photogenic and content-worthy
 
-Return JSON array with index and your additions:
+For EACH of your top 10, provide:
+- index: The number from the list above
+- viralRank: 1-10 (1 = most viral)
+- priceLevel: $, $$, $$$, or $$$$ (estimate if not shown)
+- whyViral: 1-2 sentences on why this place is viral/hyped (be specific - mention if it's been in vlogs, known for X, etc.)
+- communityFit: 1 sentence on the entrepreneur/founder vibe
+- contentAngle: Specific content idea (e.g., "sunrise laptop shot at infinity pool")
+
+Return JSON array ranked by viral potential (most viral first):
 [{
-  "index": 1,
-  "whyHyped": "THE iconic nomad coworking spot in Bali - featured in hundreds of YouTube vlogs and nomad TikToks",
-  "communityFit": "Strong founder community, weekly networking events, attracts startup people and content creators",
-  "contentAngle": "Infinity pool laptop shot with rice field backdrop - the classic nomad flex"
+  "index": 5,
+  "viralRank": 1,
+  "priceLevel": "$$",
+  "whyViral": "THE iconic digital nomad coworking spot - featured in hundreds of nomad YouTube vlogs, the infinity pool shot is instantly recognizable",
+  "communityFit": "Strong founder community, weekly pitch nights, attracts serious entrepreneurs",
+  "contentAngle": "Golden hour laptop shot at infinity pool with rice field backdrop"
 }]
 
-BE HONEST. If a place isn't famous in nomad circles, say so. Don't invent hype.
-Return ONLY valid JSON array.`;
+BE HONEST. Only include places you genuinely believe have viral potential. If a place isn't famous, don't include it.
+Return ONLY valid JSON array, no markdown.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are an expert on digital nomad hotspots and entrepreneur communities. Be honest about what is and isnt hyped. Return only JSON.' },
+        { role: 'system', content: 'You are an expert on viral travel destinations. Return only valid JSON array.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 3000,
+      max_tokens: 4000,
     });
 
     const content = completion.choices[0]?.message?.content || '[]';
     const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-    const context = JSON.parse(cleaned);
+    const rankings = JSON.parse(cleaned);
 
-    // Merge GPT context with Google data
-    const results: Recommendation[] = places.slice(0, 15).map((place, i) => {
-      const gptData = context.find((c: any) => c.index === i + 1) || {};
-      
+    // Merge GPT rankings with Google data
+    const results: Recommendation[] = rankings.map((rank: any) => {
+      const place = places[rank.index - 1];
+      if (!place) return null;
+
       return {
         name: place.name,
         address: place.address,
         website: place.website || '',
         rating: place.rating,
         reviewCount: place.reviewCount,
-        priceLevel: place.priceLevelDisplay || 'N/A',
-        popularityScore: place.popularityScore,
-        whyHyped: gptData.whyHyped || 'No specific hype data',
-        communityFit: gptData.communityFit || 'General audience',
-        contentAngle: gptData.contentAngle || 'Standard travel content',
-        photos: place.photos
+        priceLevel: rank.priceLevel || place.priceLevelDisplay || 'N/A',
+        viralRank: rank.viralRank,
+        whyViral: rank.whyViral,
+        communityFit: rank.communityFit,
+        contentAngle: rank.contentAngle
       };
-    });
+    }).filter(Boolean);
 
-    // Sort by popularity (Google data), keep GPT context
-    return results.sort((a, b) => b.popularityScore - a.popularityScore).slice(0, 10);
+    return results.slice(0, 10);
 
   } catch (err) {
-    console.error('[GPT] Context failed:', err);
-    // Return Google data without GPT context
-    return places.slice(0, 10).map(place => ({
-      name: place.name,
-      address: place.address,
-      website: place.website || '',
-      rating: place.rating,
-      reviewCount: place.reviewCount,
-      priceLevel: place.priceLevelDisplay || 'N/A',
-      popularityScore: place.popularityScore,
-      whyHyped: 'Context unavailable',
-      communityFit: 'Context unavailable',
-      contentAngle: 'Context unavailable',
-      photos: place.photos
-    }));
+    console.error('[GPT] Viral ranking failed:', err);
+    return [];
   }
 }
 
-// Enrich with websites
+// Get website details
 async function enrichWithWebsites(places: any[]): Promise<any[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return places;
+
   const enriched = await Promise.all(
-    places.slice(0, 15).map(async (p) => {
+    places.slice(0, 33).map(async (p) => {
       if (p.website) return p;
-      const details = await getPlaceDetails(p.placeId);
-      return { ...p, website: details?.website || '' };
+      try {
+        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website&key=${apiKey}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return { ...p, website: data.result?.website || '' };
+      } catch {
+        return p;
+      }
     })
   );
   return enriched;
@@ -134,9 +144,6 @@ export async function POST(
       year,
       daysTravel,
       partySize = 1,
-      // Price level filters (1-4)
-      lodgingPriceMax = 4,
-      mealPriceMax = 4,
       equipmentType = 'surf',
       categories = Object.keys(CATEGORY_SEARCHES)
     } = body;
@@ -145,50 +152,41 @@ export async function POST(
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
     }
 
-    console.log(`[AI] Starting search for ${city}, ${country}`);
+    console.log('[AI] Starting viral search for ' + city + ', ' + country);
 
     // Process each category
     const results = await Promise.all(
       categories.map(async (cat: string) => {
         const config = CATEGORY_SEARCHES[cat];
         if (!config) {
-          console.log(`[AI] Unknown category: ${cat}`);
+          console.log('[AI] Unknown category: ' + cat);
           return [cat, []];
         }
 
         // Customize query
         let query = config.query;
         if (cat === 'equipmentRental' && equipmentType) {
-          query = `${equipmentType} rental shop`;
+          query = equipmentType + ' rental shop';
         }
 
-        // Apply price level filter
-        const filters = { ...config.defaultFilters };
-        if (['lodging'].includes(cat)) {
-          filters.maxPriceLevel = lodgingPriceMax;
-        }
-        if (['brunchCoffee', 'dinner'].includes(cat)) {
-          filters.maxPriceLevel = mealPriceMax;
-        }
-
-        // 1. Google: Get top 33
-        console.log(`[AI] ${cat}: Searching "${query}"`);
+        // 1. Google: Get top 33 real places
+        console.log('[AI] ' + cat + ': Searching "' + query + '"');
         const places = await searchPlaces(query, city, country, 33);
 
-        // 2. Filter by criteria
-        const filtered = filterPlaces(places, filters);
-        console.log(`[AI] ${cat}: ${places.length} found → ${filtered.length} after filter`);
+        // 2. Filter: open, rated
+        const filtered = filterPlaces(places, config.defaultFilters);
+        console.log('[AI] ' + cat + ': ' + places.length + ' found → ' + filtered.length + ' after filter');
 
         if (filtered.length === 0) return [cat, []];
 
         // 3. Enrich with websites
         const enriched = await enrichWithWebsites(filtered);
 
-        // 4. GPT: Add context (hype, community, content angles)
-        const withContext = await addGPTContext(enriched, cat, city);
-        console.log(`[AI] ${cat}: ${withContext.length} with context`);
+        // 4. GPT: Pick TOP 10 most viral
+        const viral = await rankByViralPotential(enriched, cat, city);
+        console.log('[AI] ' + cat + ': ' + viral.length + ' viral picks');
 
-        return [cat, withContext];
+        return [cat, viral];
       })
     );
 
