@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyTopItems } from '@/lib/verification';
 import openai from '@/lib/openai';
 
 interface Recommendation {
@@ -378,7 +379,10 @@ export async function POST(
         if (cat === 'lodging') catCtx.filters.maxBudget = lodgingBudget;
         
         const items = await fetchCategory(cat, catCtx);
-        return [cat, items];
+        
+        // Verify top 3 items per category
+        const verifiedItems = await verifyTopItems(items, city, country, cat, 3);
+        return [cat, verifiedItems];
       })
     );
 

@@ -77,9 +77,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   
   const [budgetLevel, setBudgetLevel] = useState<'low' | 'mid' | 'high'>('mid');
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
-  const [brunchBudget, setBrunchBudget] = useState<'low' | 'mid' | 'high'>('mid');
-  const [dinnerBudget, setDinnerBudget] = useState<'low' | 'mid' | 'high'>('mid');
-  const mealBudgets = { brunch: { low: 3, mid: 5, high: 10 }, dinner: { low: 10, mid: 15, high: 25 } };
+  const [brunchBudget, setBrunchBudget] = useState(5);
+  const [dinnerBudget, setDinnerBudget] = useState(15);
   const [partySize, setPartySize] = useState(1);
   const [beds, setBeds] = useState(1);
   const [lodgingBudget, setLodgingBudget] = useState(100);
@@ -106,7 +105,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, beds, lodgingBudget, brunchBudget: mealBudgets.brunch[brunchBudget], dinnerBudget: mealBudgets.dinner[dinnerBudget], equipmentType })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, beds, lodgingBudget, brunchBudget, dinnerBudget, equipmentType })
       });
       if (!res.ok) { 
         const d = await res.json(); 
