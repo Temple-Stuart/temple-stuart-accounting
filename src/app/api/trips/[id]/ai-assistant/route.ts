@@ -13,6 +13,9 @@ interface Recommendation {
   socialProof: string;
   viralScore: number;
   menuUrl?: string;
+  lastReviewDate?: string;
+  openConfidence?: 'High' | 'Medium' | 'Low';
+  verificationSource?: string;
 }
 
 interface CategoryRequest {
@@ -286,7 +289,20 @@ async function fetchCategory(category: string, ctx: any): Promise<Recommendation
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are a viral travel content strategist. Return ONLY a valid JSON array. No markdown, no code fences, no explanation. Only include CURRENTLY OPEN businesses.' },
+        { role: 'system', content: `You are a viral travel content strategist. Return ONLY a valid JSON array. No markdown, no code fences.
+
+CRITICAL EXCLUSION RULES:
+- EXCLUDE any business that is permanently closed
+- EXCLUDE any business marked "temporarily closed" 
+- EXCLUDE any business with no reviews in the last 90 days
+- EXCLUDE any business you are not confident is currently operating
+
+Each item MUST include these verification fields:
+- lastReviewDate: "Month Year" of most recent Google/TripAdvisor review
+- openConfidence: "High" | "Medium" | "Low" based on your confidence it's open
+- verificationSource: "Google Maps", "Official Website", "TripAdvisor", etc.
+
+Only include businesses with openConfidence of "High" or "Medium".` },
         { role: 'user', content: prompt }
       ],
       temperature: 0.5,
