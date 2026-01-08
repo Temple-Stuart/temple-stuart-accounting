@@ -78,6 +78,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [dinnerBudget, setDinnerBudget] = useState<'low' | 'mid' | 'high'>('mid');
   const mealBudgets = { brunch: { low: 3, mid: 5, high: 10 }, dinner: { low: 10, mid: 15, high: 25 } };
   const [partySize, setPartySize] = useState(1);
+  const [beds, setBeds] = useState(1);
+  const [lodgingBudget, setLodgingBudget] = useState(100);
+  const [equipmentType, setEquipmentType] = useState('surf gear');
   
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   
@@ -100,7 +103,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, budgetLevel, budgetTiers, partySize, brunchMax: mealBudgets.brunch[brunchBudget], dinnerMax: mealBudgets.dinner[dinnerBudget] })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, beds, lodgingBudget, brunchBudget: mealBudgets.brunch[brunchBudget], dinnerBudget: mealBudgets.dinner[dinnerBudget], equipmentType })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -277,9 +280,25 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 block mb-1">Party Size</label>
+          <label className="text-xs text-gray-500 block mb-1">👥 Party</label>
           <select value={partySize} onChange={e => setPartySize(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
             {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">🛏️ Beds</label>
+          <select value={beds} onChange={e => setBeds(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">🏨 Max/Night</label>
+          <select value={lodgingBudget} onChange={e => setLodgingBudget(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value={50}>$50</option>
+            <option value={75}>$75</option>
+            <option value={100}>$100</option>
+            <option value={150}>$150</option>
+            <option value={200}>$200</option>
           </select>
         </div>
         <div className="flex items-end">
