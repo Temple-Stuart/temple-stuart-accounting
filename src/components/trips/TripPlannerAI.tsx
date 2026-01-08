@@ -8,7 +8,9 @@ interface Recommendation {
   address: string;
   website: string;
   price: string;
-  priceNumeric: number;
+  priceDaily?: number;
+  priceWeekly?: number;
+  priceMonthly?: number;
   whyViral: string;
   socialProof: string;
   viralScore: number;
@@ -37,6 +39,7 @@ interface ScheduledSelection {
   allDay: boolean;
   startTime: string;
   endTime: string;
+  rateType: 'daily' | 'weekly' | 'monthly';
 }
 
 interface Props {
@@ -85,8 +88,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
-  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string }>({
-    days: [], allDay: true, startTime: '09:00', endTime: '17:00'
+  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string; rateType: 'daily' | 'weekly' | 'monthly' }>({
+    days: [], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily'
   });
   
   // Range selection mode
@@ -127,17 +130,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       days: [1],
       allDay: catInfo?.defaultAllDay || false,
       startTime: '09:00',
-      endTime: '17:00'
+      endTime: '17:00',
+      rateType: 'daily'
     };
     setEditingSelection(newSel);
-    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00' });
+    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily' });
     setRangeMode(false);
     setRangeStart(null);
   };
 
   const handleEditSelection = (sel: ScheduledSelection) => {
     setEditingSelection(sel);
-    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime });
+    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime, rateType: sel.rateType || 'daily' });
     setRangeMode(false);
     setRangeStart(null);
   };
@@ -182,8 +186,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const clearDays = () => setEditForm(prev => ({ ...prev, days: [] }));
 
   const calculateItemCost = (sel: ScheduledSelection): number => {
-    const price = sel.item.priceNumeric || 0;
-    return price * sel.days.length;
+    const item = sel.item;
+    const numDays = sel.days.length;
+    
+    switch (sel.rateType) {
+      case 'monthly':
+        return item.priceMonthly || (item.priceDaily || 0) * 30;
+      case 'weekly':
+        const weeks = Math.ceil(numDays / 7);
+        return (item.priceWeekly || (item.priceDaily || 0) * 7) * weeks;
+      case 'daily':
+      default:
+        return (item.priceDaily || 0) * numDays;
+    }
   };
 
   const totalBudget = useMemo(() => {
@@ -246,23 +261,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
     <div className="space-y-6">
       {/* Controls */}
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Budget Level</label>
-          <select value={budgetLevel} onChange={e => setBudgetLevel(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="low">💰 ${budgetTiers.low}/mo</option>
-            <option value="mid">💰💰 ${budgetTiers.mid}/mo</option>
-            <option value="high">💰💰💰 ${budgetTiers.high}/mo</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500 block mb-1">Budget Tiers ($/mo)</label>
-          <div className="flex gap-1">
-            {(['low','mid','high'] as const).map(k => (
-              <input key={k} type="number" value={budgetTiers[k]} onChange={e => setBudgetTiers(p => ({...p, [k]: +e.target.value}))}
-                className="w-16 border rounded px-2 py-2 text-xs" />
-            ))}
-          </div>
-        </div>
+        
         <div>
           <label className="text-xs text-gray-500 block mb-1">☕ Brunch Max</label>
           <select value={brunchBudget} onChange={e => setBrunchBudget(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
@@ -339,6 +338,24 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                 </div>
               </label>
 
+              {/* Rate Type */}
+              <div>
+                <label className="text-sm font-medium block mb-2">💰 Rate Type</label>
+                <div className="flex gap-2">
+                  {(['daily', 'weekly', 'monthly'] as const).map(rate => (
+                    <button key={rate} onClick={() => setEditForm(p => ({...p, rateType: rate}))}
+                      className={`px-4 py-2 rounded text-sm font-medium ${editForm.rateType === rate ? 'bg-green-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                      {rate === 'daily' ? '📅 Daily' : rate === 'weekly' ? '📆 Weekly' : '🗓️ Monthly'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {editForm.rateType === 'monthly' && editingSelection?.item.priceMonthly && `Monthly: ${editingSelection.item.priceMonthly}`}
+                  {editForm.rateType === 'weekly' && editingSelection?.item.priceWeekly && `Weekly: ${editingSelection.item.priceWeekly}`}
+                  {editForm.rateType === 'daily' && editingSelection?.item.priceDaily && `Daily: ${editingSelection.item.priceDaily}`}
+                </p>
+              </div>
+
               {/* Date Selection */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -390,7 +407,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
               <div className="bg-green-50 rounded-lg p-3 text-sm border border-green-200">
                 <div className="flex justify-between">
                   <span>Per day:</span>
-                  <span className="font-medium">${editingSelection.item.priceNumeric || 0}</span>
+                  <span className="font-medium">${editingSelection.item.priceDaily || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Days selected:</span>
@@ -398,7 +415,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                 </div>
                 <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
                   <span>Total:</span>
-                  <span>${((editingSelection.item.priceNumeric || 0) * editForm.days.length).toLocaleString()}</span>
+                  <span>${((editingSelection.item.priceDaily || 0) * editForm.days.length).toLocaleString()}</span>
                 </div>
               </div>
             </div>
