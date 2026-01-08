@@ -405,18 +405,48 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
               {/* Cost Estimate */}
               <div className="bg-green-50 rounded-lg p-3 text-sm border border-green-200">
-                <div className="flex justify-between">
-                  <span>Per day:</span>
-                  <span className="font-medium">${editingSelection.item.priceDaily || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Days selected:</span>
-                  <span className="font-medium">{editForm.days.length}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
-                  <span>Total:</span>
-                  <span>${((editingSelection.item.priceDaily || 0) * editForm.days.length).toLocaleString()}</span>
-                </div>
+                {editForm.rateType === 'monthly' ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Monthly rate:</span>
+                      <span className="font-medium">${editingSelection.item.priceMonthly || (editingSelection.item.priceDaily || 0) * 30}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
+                      <span>Total:</span>
+                      <span>${(editingSelection.item.priceMonthly || (editingSelection.item.priceDaily || 0) * 30).toLocaleString()}</span>
+                    </div>
+                  </>
+                ) : editForm.rateType === 'weekly' ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Weekly rate:</span>
+                      <span className="font-medium">${editingSelection.item.priceWeekly || (editingSelection.item.priceDaily || 0) * 7}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Weeks:</span>
+                      <span className="font-medium">{Math.ceil(editForm.days.length / 7)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
+                      <span>Total:</span>
+                      <span>${((editingSelection.item.priceWeekly || (editingSelection.item.priceDaily || 0) * 7) * Math.ceil(editForm.days.length / 7)).toLocaleString()}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Per day:</span>
+                      <span className="font-medium">${editingSelection.item.priceDaily || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Days selected:</span>
+                      <span className="font-medium">{editForm.days.length}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
+                      <span>Total:</span>
+                      <span>${((editingSelection.item.priceDaily || 0) * editForm.days.length).toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
