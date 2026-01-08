@@ -40,6 +40,7 @@ interface ScheduledSelection {
   startTime: string;
   endTime: string;
   rateType: 'daily' | 'weekly' | 'monthly';
+  customPrice: number;
 }
 
 interface Props {
@@ -87,8 +88,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
-  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string; rateType: 'daily' | 'weekly' | 'monthly' }>({
-    days: [], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily'
+  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string; rateType: 'daily' | 'weekly' | 'monthly'; customPrice: number }>({
+    days: [], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0
   });
   
   // Range selection mode
@@ -130,17 +131,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       allDay: catInfo?.defaultAllDay || false,
       startTime: '09:00',
       endTime: '17:00',
-      rateType: 'daily'
+      rateType: 'daily',
+      customPrice: item.priceDaily || 0
     };
     setEditingSelection(newSel);
-    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily' });
+    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0 });
     setRangeMode(false);
     setRangeStart(null);
   };
 
   const handleEditSelection = (sel: ScheduledSelection) => {
     setEditingSelection(sel);
-    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime, rateType: sel.rateType || 'daily' });
+    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime, rateType: sel.rateType || 'daily', customPrice: sel.customPrice || 0 });
     setRangeMode(false);
     setRangeStart(null);
   };
@@ -185,18 +187,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const clearDays = () => setEditForm(prev => ({ ...prev, days: [] }));
 
   const calculateItemCost = (sel: ScheduledSelection): number => {
-    const item = sel.item;
+    const price = sel.customPrice || 0;
     const numDays = sel.days.length;
     
     switch (sel.rateType) {
       case 'monthly':
-        return item.priceMonthly || (item.priceDaily || 0) * 30;
+        return price; // Monthly is flat rate
       case 'weekly':
         const weeks = Math.ceil(numDays / 7);
-        return (item.priceWeekly || (item.priceDaily || 0) * 7) * weeks;
+        return price * weeks;
       case 'daily':
       default:
-        return (item.priceDaily || 0) * numDays;
+        return price * numDays;
     }
   };
 

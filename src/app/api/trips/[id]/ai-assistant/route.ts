@@ -46,8 +46,7 @@ For each place, estimate:
 - viralScore (1-100): How likely to generate viral TikTok/Instagram content
 - whyViral: Specific reason (aesthetic design, influencer hotspot, unique experience, photogenic, community vibe)
 - socialProof: Your estimate of social presence (e.g., "Popular on IG, TikTok nomad favorite")
-- price: Estimated price (daily/weekly/monthly if applicable)
-- priceDaily: Numeric daily rate estimate
+- DO NOT estimate prices (user will enter real prices)
 
 ${filters.maxBudget ? `Budget constraint: Max $${filters.maxBudget}/night or /meal` : ''}
 
@@ -57,10 +56,7 @@ Return JSON array of top 10, ranked by viralScore (highest first):
   "viralScore": 92,
   "whyViral": "Iconic nomad spot, incredible design, constant influencer content",
   "socialProof": "TikTok favorite, 50k+ IG posts",
-  "price": "$70/night, $400/week, $1200/month",
-  "priceDaily": 70,
-  "priceWeekly": 400,
-  "priceMonthly": 1200
+  "price": "See listing for current rates"
 }]
 
 Return ONLY valid JSON array. No markdown, no explanation.`;
@@ -89,10 +85,11 @@ Return ONLY valid JSON array. No markdown, no explanation.`;
         name: place.name,
         address: place.address,
         website: place.website || '',
-        price: rank.price || 'Contact for pricing',
-        priceDaily: rank.priceDaily,
-        priceWeekly: rank.priceWeekly,
-        priceMonthly: rank.priceMonthly,
+        price: place.priceLevel ? '$'.repeat(place.priceLevel) : 'Check listing',
+        priceLevel: place.priceLevel,
+        priceDaily: 0,
+        priceWeekly: 0,
+        priceMonthly: 0,
         whyViral: rank.whyViral,
         socialProof: rank.socialProof,
         viralScore: rank.viralScore,
@@ -106,24 +103,8 @@ Return ONLY valid JSON array. No markdown, no explanation.`;
 
     return results;
   } catch (err) {
-    console.error(`[GPT] Ranking ${category} failed:`, err);
-    
-    // Fallback: return places without GPT ranking
-    return places.slice(0, 10).map(p => ({
-      name: p.name,
-      address: p.address,
-      website: p.website || '',
-      price: 'Contact for pricing',
-      priceDaily: 0,
-      whyViral: 'Popular local spot',
-      socialProof: `Google: ${p.rating}/5 (${p.reviewCount} reviews)`,
-      viralScore: Math.round(p.rating * 20),
-      googleRating: p.rating,
-      googleReviewCount: p.reviewCount,
-      openConfidence: 'High' as const,
-      verificationSource: 'Google Maps',
-      photos: p.photos
-    }));
+    console.error('[GPT] Ranking ' + category + ' failed:', err);
+    return []; // No data if GPT fails - 100% authentic only
   }
 }
 

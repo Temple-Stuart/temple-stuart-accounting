@@ -22,6 +22,12 @@ interface FilterCriteria {
   mustBeOpen?: boolean;
 }
 
+// Convert price_level (1-4) to display
+export function formatPriceLevel(level?: number): string {
+  if (!level) return 'Price N/A';
+  return '$'.repeat(level);
+}
+
 // Search Google Places for a category
 export async function searchPlaces(
   query: string,
@@ -35,7 +41,6 @@ export async function searchPlaces(
     return [];
   }
 
-  // First, get location coordinates for the city
   const geoUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city + ', ' + country)}&key=${apiKey}`;
   
   try {
@@ -49,7 +54,6 @@ export async function searchPlaces(
     
     const { lat, lng } = geoData.results[0].geometry.location;
     
-    // Text search for the category
     const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city)}&location=${lat},${lng}&radius=15000&key=${apiKey}`;
     
     const searchRes = await fetch(searchUrl);
@@ -62,7 +66,6 @@ export async function searchPlaces(
     
     console.log(`[PLACES] "${query}" in ${city}: ${searchData.results.length} results`);
     
-    // Map to our format
     const places: PlaceResult[] = searchData.results.slice(0, maxResults).map((p: any) => ({
       name: p.name,
       address: p.formatted_address,
@@ -111,18 +114,10 @@ export function filterPlaces(
   criteria: FilterCriteria
 ): PlaceResult[] {
   return places.filter(p => {
-    // Must be open
     if (criteria.mustBeOpen && !p.isOpen) return false;
-    
-    // Minimum rating
     if (criteria.minRating && p.rating < criteria.minRating) return false;
-    
-    // Minimum reviews
     if (criteria.minReviews && p.reviewCount < criteria.minReviews) return false;
-    
-    // Max price level (1-4)
     if (criteria.maxPriceLevel && p.priceLevel && p.priceLevel > criteria.maxPriceLevel) return false;
-    
     return true;
   });
 }
