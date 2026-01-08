@@ -7,13 +7,14 @@ interface Recommendation {
   name: string;
   address: string;
   website: string;
-  price: string;
-  priceDaily?: number;
-  priceWeekly?: number;
-  priceMonthly?: number;
-  whyViral: string;
-  socialProof: string;
-  viralScore: number;
+  rating: number;
+  reviewCount: number;
+  priceLevel: string;
+  popularityScore: number;
+  whyHyped: string;
+  communityFit: string;
+  contentAngle: string;
+  photos?: string[];
 }
 
 interface AIResponse {
@@ -78,8 +79,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   
   const [budgetLevel, setBudgetLevel] = useState<'low' | 'mid' | 'high'>('mid');
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
-  const [brunchBudget, setBrunchBudget] = useState(5);
-  const [dinnerBudget, setDinnerBudget] = useState(15);
+  const [lodgingPriceMax, setLodgingPriceMax] = useState(4);
+  const [mealPriceMax, setMealPriceMax] = useState(4);
   const [partySize, setPartySize] = useState(1);
   const [beds, setBeds] = useState(1);
   const [lodgingBudget, setLodgingBudget] = useState(100);
@@ -106,7 +107,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, beds, lodgingBudget, brunchBudget, dinnerBudget, equipmentType })
+        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, lodgingPriceMax, mealPriceMax, equipmentType })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -132,7 +133,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       startTime: '09:00',
       endTime: '17:00',
       rateType: 'daily',
-      customPrice: item.priceDaily || 0
+      customPrice: 0
     };
     setEditingSelection(newSel);
     setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0 });
@@ -239,16 +240,16 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                     </button>
                   </td>
                   <td className="py-2 px-3 text-center">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${rec.viralScore >= 80 ? 'bg-green-100 text-green-700' : rec.viralScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100'}`}>
-                      {rec.viralScore || '—'}
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${rec.popularityScore >= 80 ? 'bg-green-100 text-green-700' : rec.popularityScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100'}`}>
+                      {rec.popularityScore || '—'}
                     </span>
                   </td>
                   <td className="py-2 px-3 font-medium">{rec.name}</td>
                   <td className="py-2 px-3 text-xs text-gray-500 max-w-[150px] truncate">{rec.address}</td>
                   <td className="py-2 px-3">{rec.website && rec.website !== "N/A" ? <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">Visit →</a> : <span className="text-gray-400 text-xs">—</span>}</td>
-                  <td className="py-2 px-3 text-right text-green-600 font-medium whitespace-nowrap">{rec.price}</td>
-                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.whyViral}</td>
-                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.socialProof}</td>
+                  <td className="py-2 px-3 text-right text-green-600 font-medium whitespace-nowrap">{rec.priceLevel}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.whyHyped}</td>
+                  <td className="py-2 px-3 text-xs text-gray-500 max-w-[200px] truncate">{rec.contentAngle}</td>
                 </tr>
               );
             })}
@@ -264,19 +265,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
         
         <div>
-          <label className="text-xs text-gray-500 block mb-1">☕ Brunch Max</label>
-          <select value={brunchBudget} onChange={e => setBrunchBudget(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="low">$ 3</option>
-            <option value="mid">$ 5</option>
-            <option value="high">$$ 10</option>
+          <label className="text-xs text-gray-500 block mb-1">🏨 Lodging Max</label>
+          <select value={lodgingPriceMax} onChange={e => setLodgingPriceMax(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value={1}>$</option>
+            <option value={2}>$</option>
+            <option value={3}>$$</option>
+            <option value={4}>$$</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 block mb-1">🍽️ Dinner Max</label>
-          <select value={dinnerBudget} onChange={e => setDinnerBudget(e.target.value as any)} className="w-full border rounded-lg px-3 py-2 text-sm">
-            <option value="low">$ 10</option>
-            <option value="mid">$ 15</option>
-            <option value="high">$$ 25</option>
+          <label className="text-xs text-gray-500 block mb-1">🍽️ Meals Max</label>
+          <select value={mealPriceMax} onChange={e => setMealPriceMax(+e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm">
+            <option value={1}>$</option>
+            <option value={2}>$</option>
+            <option value={3}>$$</option>
+            <option value={4}>$$</option>
           </select>
         </div>
         <div>
@@ -322,7 +325,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="font-bold text-lg mb-1">{getCatInfo(editingSelection.category)?.icon} {editingSelection.item.name}</h3>
-            <p className="text-sm text-gray-500 mb-4">{editingSelection.item.price}</p>
+            <p className="text-sm text-gray-500 mb-4">{editingSelection.item.priceLevel}</p>
             
             <div className="space-y-4">
               {/* All Day Toggle */}
@@ -351,9 +354,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {editForm.rateType === 'monthly' && editingSelection?.item.priceMonthly && `Monthly: ${editingSelection.item.priceMonthly}`}
-                  {editForm.rateType === 'weekly' && editingSelection?.item.priceWeekly && `Weekly: ${editingSelection.item.priceWeekly}`}
-                  {editForm.rateType === 'daily' && editingSelection?.item.priceDaily && `Daily: ${editingSelection.item.priceDaily}`}
+                  {editForm.rateType === 'monthly' && 'Monthly rate'}
+                  {editForm.rateType === 'weekly' && 'Weekly rate'}
+                  {editForm.rateType === 'daily' && 'Daily rate'}
                 </p>
               </div>
 
@@ -406,48 +409,39 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
               {/* Cost Estimate */}
               <div className="bg-green-50 rounded-lg p-3 text-sm border border-green-200">
-                {editForm.rateType === 'monthly' ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Monthly rate:</span>
-                      <span className="font-medium">${editingSelection.item.priceMonthly || (editingSelection.item.priceDaily || 0) * 30}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
-                      <span>Total:</span>
-                      <span>${(editingSelection.item.priceMonthly || (editingSelection.item.priceDaily || 0) * 30).toLocaleString()}</span>
-                    </div>
-                  </>
-                ) : editForm.rateType === 'weekly' ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Weekly rate:</span>
-                      <span className="font-medium">${editingSelection.item.priceWeekly || (editingSelection.item.priceDaily || 0) * 7}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Weeks:</span>
-                      <span className="font-medium">{Math.ceil(editForm.days.length / 7)}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
-                      <span>Total:</span>
-                      <span>${((editingSelection.item.priceWeekly || (editingSelection.item.priceDaily || 0) * 7) * Math.ceil(editForm.days.length / 7)).toLocaleString()}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Per day:</span>
-                      <span className="font-medium">${editingSelection.item.priceDaily || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Days selected:</span>
-                      <span className="font-medium">{editForm.days.length}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
-                      <span>Total:</span>
-                      <span>${((editingSelection.item.priceDaily || 0) * editForm.days.length).toLocaleString()}</span>
-                    </div>
-                  </>
+                <div className="flex justify-between mb-2">
+                  <span>Your price ({editForm.rateType}):</span>
+                  <input 
+                    type="number" 
+                    value={editForm.customPrice} 
+                    onChange={e => setEditForm(f => ({ ...f, customPrice: +e.target.value }))}
+                    className="w-24 border rounded px-2 py-1 text-right font-medium"
+                    min={0}
+                    placeholder="0"
+                  />
+                </div>
+                {editForm.rateType === 'daily' && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Days selected:</span>
+                    <span>{editForm.days.length}</span>
+                  </div>
                 )}
+                {editForm.rateType === 'weekly' && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Weeks:</span>
+                    <span>{Math.ceil(editForm.days.length / 7)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-bold text-green-700 border-t border-green-200 mt-2 pt-2">
+                  <span>Total:</span>
+                  <span>
+                    ${editForm.rateType === 'monthly' 
+                      ? editForm.customPrice 
+                      : editForm.rateType === 'weekly' 
+                        ? editForm.customPrice * Math.ceil(editForm.days.length / 7)
+                        : editForm.customPrice * editForm.days.length}
+                  </span>
+                </div>
               </div>
             </div>
 
