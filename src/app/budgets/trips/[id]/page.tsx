@@ -543,6 +543,20 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 month={trip.month}
                 year={trip.year}
                 daysTravel={trip.daysTravel}
+                onBudgetChange={(total, selections) => {
+                  const catMap: Record<string, string> = {
+                    lodging: "lodging", coworking: "coworking", motoRental: "car",
+                    equipmentRental: "equipment", airportTransfers: "airportTransfers",
+                    brunchCoffee: "meals", dinner: "meals", activities: "activities",
+                    nightlife: "activities", toiletries: "tips", wellness: "wellness",
+                  };
+                  const items = selections.map(sel => ({
+                    category: catMap[sel.category] || sel.category,
+                    amount: sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1),
+                    description: sel.item.name,
+                  }));
+                  setTripBudget(items);
+                }}
               />
             );
           })()}
