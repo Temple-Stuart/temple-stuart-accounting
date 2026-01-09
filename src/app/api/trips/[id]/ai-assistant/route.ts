@@ -24,10 +24,11 @@ async function rankByViralPotential(
 ): Promise<Recommendation[]> {
   if (places.length === 0) return [];
 
-  // Build place list for GPT with all details
-  const placeList = places.map((p, i) => 
-    `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${p.priceLevelDisplay || 'Price N/A'} | ${p.address}`
-  ).join('\n');
+  // Build place list for GPT with all details - show [PRICE UNVERIFIED] for missing
+  const placeList = places.map((p, i) => {
+    const priceTag = p.priceLevelDisplay ? p.priceLevelDisplay : '[PRICE UNVERIFIED]';
+    return `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${priceTag} | ${p.address}`;
+  }).join('\n');
 
   const prompt = `You are an expert on VIRAL travel destinations for digital nomads, entrepreneurs, founders, and content creators.
 
@@ -51,7 +52,7 @@ Consider places that:
 For EACH of your top 10, provide:
 - index: The number from the list above
 - viralRank: 1-10 (1 = most viral)
-- priceLevel: $, $$, $$$, or $$$$ (estimate if not shown)
+- priceLevel: $, $$, $$$, or $$$$ (estimate if not shown, mark with ~ if unverified)
 - whyViral: 1-2 sentences on why this place is viral/hyped (be specific - mention if it's been in vlogs, known for X, etc.)
 - communityFit: 1 sentence on the entrepreneur/founder vibe
 - contentAngle: Specific content idea (e.g., "sunrise laptop shot at infinity pool")
@@ -111,19 +112,26 @@ Return ONLY valid JSON array, no markdown.`;
   }
 }
 
-// Get website details
-async function enrichWithWebsites(places: any[]): Promise<any[]> {
+// Enrich places with website AND price_level from Place Details API
+async function enrichPlaceDetails(places: any[]): Promise<any[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return places;
 
   const enriched = await Promise.all(
     places.slice(0, 60).map(async (p) => {
-      if (p.website) return p;
+      // Skip if already has both website and price
+      if (p.website && p.priceLevel != null) return p;
       try {
-        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website&key=${apiKey}`;
+        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website,price_level&key=${apiKey}`;
         const res = await fetch(url);
         const data = await res.json();
-        return { ...p, website: data.result?.website || '' };
+        const newPrice = p.priceLevel ?? data.result?.price_level ?? null;
+        return { 
+          ...p, 
+          website: p.website || data.result?.website || '',
+          priceLevel: newPrice,
+          priceLevelDisplay: newPrice != null ? '$'.repeat(newPrice) : null
+        };
       } catch {
         return p;
       }
@@ -174,25 +182,30 @@ export async function POST(
           query = equipmentType + ' rental shop';
         }
 
-        // 1. Google: Get top 33 real places
+        // 1. Google: Get top 60 real places
         console.log('[AI] ' + cat + ': Searching "' + query + '"');
         const places = await searchPlaces(query, city, country, 60);
 
-        // 2. Filter: open, rated
-        const filtered = filterPlaces(places, {
+        // 2. Enrich ALL places with price_level first (before filtering)
+        const enriched = await enrichPlaceDetails(places);
+
+        // 3. Filter: open, rated, price tier (returns verified + unverified)
+        const maxPrice = priceTier === '$' ? 1 : priceTier === '$$' ? 2 : priceTier === '$$$' ? 3 : 4;
+        const { verified, unverified } = filterPlaces(enriched, {
           ...config.defaultFilters,
           minRating,
           minReviews,
-          maxPriceLevel: priceTier === '$' ? 1 : priceTier === '$$' ? 2 : priceTier === '$$$' ? 3 : 4
+          maxPriceLevel: maxPrice
         });
+
+        // Combine: verified first (price filtered), then unverified (no price data)
+        const filtered = [...verified, ...unverified];
+        console.log('[AI] ' + cat + ': ' + verified.length + ' verified, ' + unverified.length + ' unverified price');
 
         if (filtered.length === 0) return [cat, []];
 
-        // 3. Enrich with websites
-        const enriched = await enrichWithWebsites(filtered);
-
-        // 4. GPT: Pick TOP 10 most viral
-        const viral = await rankByViralPotential(enriched, cat, city, priceTier);
+        // 4. GPT: Pick TOP 10 most viral from filtered list
+        const viral = await rankByViralPotential(filtered, cat, city, priceTier);
         console.log('[AI] ' + cat + ': ' + viral.length + ' viral picks');
 
         return [cat, viral];

@@ -7,7 +7,7 @@ interface PlaceResult {
   rating: number;
   reviewCount: number;
   priceLevel?: number; // 1-4
-  priceLevelDisplay: string; // $-$$$$
+  priceLevelDisplay: string | null; // $-$$$$ or null if unknown
   website?: string;
   isOpen: boolean;
   types: string[];
@@ -23,8 +23,8 @@ interface FilterCriteria {
 }
 
 // Convert price_level (1-4) to display
-export function formatPriceLevel(level?: number): string {
-  if (!level) return 'N/A';
+export function formatPriceLevel(level?: number): string | null {
+  if (level == null) return null;
   return '$'.repeat(level);
 }
 
@@ -34,7 +34,7 @@ export function calculatePopularity(rating: number, reviewCount: number): number
   return Math.round(rating * Math.log10(reviewCount) * 10) / 10;
 }
 
-// Search Google Places - get top 33 per category
+// Search Google Places - get top 60 per category
 export async function searchPlaces(
   query: string,
   city: string,
@@ -61,7 +61,7 @@ export async function searchPlaces(
     
     const { lat, lng } = geoData.results[0].geometry.location;
     
-    // Search with pagination to get more results
+    // Search with pagination to get more results (3 pages × 20 = 60 max)
     let allPlaces: PlaceResult[] = [];
     let nextPageToken: string | null = null;
     
@@ -86,7 +86,7 @@ export async function searchPlaces(
         placeId: p.place_id,
         rating: p.rating || 0,
         reviewCount: p.user_ratings_total || 0,
-        priceLevel: p.price_level,
+        priceLevel: p.price_level ?? null,
         priceLevelDisplay: formatPriceLevel(p.price_level),
         isOpen: p.business_status === 'OPERATIONAL',
         types: p.types || [],
@@ -116,33 +116,50 @@ export async function searchPlaces(
 }
 
 // Get website for a place
-export async function getPlaceDetails(placeId: string): Promise<{ website?: string } | null> {
+export async function getPlaceDetails(placeId: string): Promise<{ website?: string; priceLevel?: number } | null> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return null;
   
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website&key=${apiKey}`;
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=website,price_level&key=${apiKey}`;
   
   try {
     const res = await fetch(url);
     const data = await res.json();
-    return { website: data.result?.website };
+    return { 
+      website: data.result?.website,
+      priceLevel: data.result?.price_level
+    };
   } catch {
     return null;
   }
 }
 
-// Pre-filter places
+// Pre-filter places - returns verified (has price) and unverified (no price) buckets
 export function filterPlaces(
   places: PlaceResult[],
   criteria: FilterCriteria
-): PlaceResult[] {
-  return places.filter(p => {
-    if (criteria.mustBeOpen && !p.isOpen) return false;
-    if (criteria.minRating && p.rating < criteria.minRating) return false;
-    if (criteria.minReviews && p.reviewCount < criteria.minReviews) return false;
-    if (criteria.maxPriceLevel && p.priceLevel && p.priceLevel > criteria.maxPriceLevel) return false;
-    return true;
-  });
+): { verified: PlaceResult[]; unverified: PlaceResult[] } {
+  const verified: PlaceResult[] = [];
+  const unverified: PlaceResult[] = [];
+  
+  for (const p of places) {
+    // Basic filters
+    if (criteria.mustBeOpen && !p.isOpen) continue;
+    if (criteria.minRating && p.rating < criteria.minRating) continue;
+    if (criteria.minReviews && p.reviewCount < criteria.minReviews) continue;
+    
+    // Price filter with verified/unverified split
+    if (p.priceLevel != null) {
+      // Has price data - apply price filter
+      if (criteria.maxPriceLevel && p.priceLevel > criteria.maxPriceLevel) continue;
+      verified.push(p);
+    } else {
+      // No price data - put in unverified bucket (passes other filters)
+      unverified.push(p);
+    }
+  }
+  
+  return { verified, unverified };
 }
 
 // Category search configs
