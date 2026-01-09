@@ -117,7 +117,7 @@ async function enrichWithWebsites(places: any[]): Promise<any[]> {
   if (!apiKey) return places;
 
   const enriched = await Promise.all(
-    places.slice(0, 33).map(async (p) => {
+    places.slice(0, 60).map(async (p) => {
       if (p.website) return p;
       try {
         const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website&key=${apiKey}`;
@@ -176,7 +176,7 @@ export async function POST(
 
         // 1. Google: Get top 33 real places
         console.log('[AI] ' + cat + ': Searching "' + query + '"');
-        const places = await searchPlaces(query, city, country, 33);
+        const places = await searchPlaces(query, city, country, 60);
 
         // 2. Filter: open, rated
         const filtered = filterPlaces(places, {

@@ -39,7 +39,7 @@ export async function searchPlaces(
   query: string,
   city: string,
   country: string,
-  maxResults: number = 33
+  maxResults: number = 60
 ): Promise<PlaceResult[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -65,7 +65,7 @@ export async function searchPlaces(
     let allPlaces: PlaceResult[] = [];
     let nextPageToken: string | null = null;
     
-    for (let page = 0; page < 2 && allPlaces.length < maxResults; page++) {
+    for (let page = 0; page < 3 && allPlaces.length < maxResults; page++) {
       const searchUrl: string = nextPageToken 
         ? `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${apiKey}`
         : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city + ' ' + country)}&location=${lat},${lng}&radius=20000&key=${apiKey}`;
