@@ -559,7 +559,7 @@ export default function HubPage() {
         {/* Year Calendar */}
         <Card className="p-6 mt-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">📅 {selectedYear} Annual Budget</h2>
+            <h2 className="text-lg font-semibold text-gray-900">🏠 {selectedYear} Lease Apartment Budget</h2>
             <div className="flex gap-2">
               <button onClick={() => setSelectedYear(y => y - 1)} className="px-3 py-1 text-sm border rounded hover:bg-gray-100">←</button>
               <button onClick={() => setSelectedYear(y => y + 1)} className="px-3 py-1 text-sm border rounded hover:bg-gray-100">→</button>
@@ -604,9 +604,9 @@ export default function HubPage() {
           </div>
         </Card>
 
-        {/* Nomad Budget - Trip COA Breakdown */}
+        {/* Digital Nomad Budget - Trip COA Breakdown */}
         <Card className="p-6 mt-6">
-          <h2 className="text-lg font-semibold text-cyan-700 mb-4">🌍 {selectedYear} Nomad Budget</h2>
+          <h2 className="text-lg font-semibold text-cyan-700 mb-4">🌍 {selectedYear} Digital Nomad Budget</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
