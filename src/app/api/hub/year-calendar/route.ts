@@ -50,7 +50,10 @@ export async function GET(request: Request) {
       if (monthlyData[month][source] !== undefined) {
         monthlyData[month][source] += amount;
       }
-      monthlyData[month].total += amount;
+      // Exclude trips from lease apartment total
+      if (source !== 'trip') {
+        monthlyData[month].total += amount;
+      }
     }
 
     return NextResponse.json({ year, monthlyData });
