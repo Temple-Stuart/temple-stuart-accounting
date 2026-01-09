@@ -146,7 +146,9 @@ export async function POST(
       year,
       daysTravel,
       partySize = 1,
-      priceTier = '$',
+      priceTier = '$$',
+      minRating = 4.0,
+      minReviews = 50,
       equipmentType = 'surf',
       categories = Object.keys(CATEGORY_SEARCHES)
     } = body;
@@ -177,8 +179,12 @@ export async function POST(
         const places = await searchPlaces(query, city, country, 33);
 
         // 2. Filter: open, rated
-        const filtered = filterPlaces(places, config.defaultFilters);
-        console.log('[AI] ' + cat + ': ' + places.length + ' found → ' + filtered.length + ' after filter');
+        const filtered = filterPlaces(places, {
+          ...config.defaultFilters,
+          minRating,
+          minReviews,
+          maxPriceLevel: priceTier === '$' ? 1 : priceTier === '$$' ? 2 : priceTier === '$$$' ? 3 : 4
+        });
 
         if (filtered.length === 0) return [cat, []];
 
