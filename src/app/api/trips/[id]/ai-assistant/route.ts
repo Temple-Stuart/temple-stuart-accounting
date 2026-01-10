@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/lib/openai';
 import { searchPlaces, filterPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 
+// Traveler Profile for personalized recommendations
+interface TravelerProfile {
+  purpose: 'work' | 'leisure' | 'balance';
+  socialVibe: 'focus' | 'networking' | 'community';
+  accommodationNeeds: string[];
+  activities: string[];
+  contentCreator: 'yes' | 'maybe' | 'no';
+  dating: 'yes' | 'open' | 'no';
+  nightlife: 'active' | 'organic' | 'skip';
+}
+
 interface Recommendation {
   name: string;
   address: string;
@@ -20,7 +31,8 @@ async function rankByViralPotential(
   places: any[],
   category: string,
   city: string,
-  priceTier: string = '$'
+  priceTier: string = '$',
+  profile?: TravelerProfile
 ): Promise<Recommendation[]> {
   if (places.length === 0) return [];
 
@@ -30,20 +42,37 @@ async function rankByViralPotential(
     return `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${priceTag} | ${p.address}`;
   }).join('\n');
 
+  // Build profile context for GPT
+  const profileContext = profile ? `
+TRAVELER PROFILE:
+- Purpose: ${profile.purpose === 'work' ? 'Work-first digital nomad' : profile.purpose === 'leisure' ? 'Leisure/vacation' : 'Balance of work and play'}
+- Social Vibe: ${profile.socialVibe === 'focus' ? 'Deep focus, minimal distractions' : profile.socialVibe === 'networking' ? 'Networking with founders/creators' : 'Finding community and tribe'}
+- Accommodation Needs: ${profile.accommodationNeeds.join(', ') || 'Flexible'}
+- Activities: ${profile.activities.join(', ') || 'Open to suggestions'}
+- Content Creator: ${profile.contentCreator === 'yes' ? 'Yes, filming journey' : profile.contentCreator === 'maybe' ? 'Maybe' : 'No'}
+- Dating: ${profile.dating === 'yes' ? 'Actively interested' : profile.dating === 'open' ? 'Open to it' : 'Not interested'}
+- Nightlife: ${profile.nightlife === 'active' ? 'Active nightlife seeker' : profile.nightlife === 'organic' ? 'Only if meeting cool people' : 'Skip nightlife'}
+` : '';
+
   const prompt = `You are an expert on VIRAL travel destinations for digital nomads, entrepreneurs, founders, and content creators.
 
 CATEGORY: ${category}
 LOCATION: ${city}
 PRICE TIER: ${priceTier} (focus on places at this budget level)
-
+${profileContext}
 Here are ${places.length} REAL places from Google Maps:
 
 ${placeList}
 
-YOUR TASK: Pick the TOP 10 most likely to GO VIRAL among entrepreneurs, founders, and digital nomads.
+YOUR TASK: Pick the TOP 10 places BEST SUITED for this specific traveler's profile and most likely to GO VIRAL.
 
-Consider places that:
-- Are FAMOUS in nomad/startup circles (you know this from your training data)
+Consider:
+- Match the traveler's PURPOSE (work-first needs good wifi/quiet, leisure needs experiences)
+- Match the traveler's SOCIAL VIBE (networking spots vs quiet retreats)
+- Match the traveler's ACTIVITIES (surfing, yoga, mtb, etc.)
+- If content creator: prioritize photogenic, Instagram-worthy spots
+- If dating-interested: consider social atmosphere
+- Are FAMOUS in nomad/startup circles (from your training data)
 - Have been featured in YouTube vlogs, TikToks, travel blogs
 - Are known influencer/content creator hotspots
 - Have strong founder/entrepreneur community presence
@@ -158,7 +187,8 @@ export async function POST(
       minRating = 4.0,
       minReviews = 50,
       equipmentType = 'surf',
-      categories = Object.keys(CATEGORY_SEARCHES)
+      categories = Object.keys(CATEGORY_SEARCHES),
+      profile
     } = body;
 
     if (!city || !country) {
@@ -205,7 +235,7 @@ export async function POST(
         if (filtered.length === 0) return [cat, []];
 
         // 4. GPT: Pick TOP 10 most viral from filtered list
-        const viral = await rankByViralPotential(filtered, cat, city, priceTier);
+        const viral = await rankByViralPotential(filtered, cat, city, priceTier, profile);
         console.log('[AI] ' + cat + ': ' + viral.length + ' viral picks');
 
         return [cat, viral];
