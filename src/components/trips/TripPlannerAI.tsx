@@ -43,6 +43,27 @@ interface ScheduledSelection {
   customPrice: number;
 }
 
+// NEW: Traveler Profile for personalized recommendations
+interface TravelerProfile {
+  purpose: 'work' | 'leisure' | 'balance';
+  socialVibe: 'focus' | 'networking' | 'community';
+  accommodationNeeds: string[]; // queen, kitchen, pool, gym
+  activities: string[]; // surf, kite, mtb, yoga, ski
+  contentCreator: 'yes' | 'maybe' | 'no';
+  dating: 'yes' | 'open' | 'no';
+  nightlife: 'active' | 'organic' | 'skip';
+}
+
+const DEFAULT_PROFILE: TravelerProfile = {
+  purpose: 'work',
+  socialVibe: 'networking',
+  accommodationNeeds: ['queen'],
+  activities: ['surf'],
+  contentCreator: 'yes',
+  dating: 'open',
+  nightlife: 'organic'
+};
+
 interface Props {
   tripId: string;
   city: string | null;
@@ -70,6 +91,25 @@ const CATEGORIES: { key: CategoryKey; label: string; icon: string; defaultAllDay
 
 const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
 
+const ACCOMMODATION_OPTIONS = [
+  { value: 'queen', label: '🛏️ Queen+ Bed', desc: 'Comfortable sleeping' },
+  { value: 'kitchen', label: '🍳 Kitchen', desc: 'Cook your own meals' },
+  { value: 'pool', label: '🏊 Pool', desc: 'Relax & content shots' },
+  { value: 'gym', label: '🏋️ Gym', desc: 'Stay fit on the road' },
+  { value: 'workspace', label: '💻 Workspace', desc: 'Desk & good wifi' },
+];
+
+const ACTIVITY_OPTIONS = [
+  { value: 'surf', label: '🏄 Surfing' },
+  { value: 'kite', label: '🪁 Kitesurfing' },
+  { value: 'mtb', label: '🚴 Mountain Biking' },
+  { value: 'yoga', label: '🧘 Yoga' },
+  { value: 'ski', label: '⛷️ Skiing' },
+  { value: 'sail', label: '⛵ Sailing' },
+  { value: 'dive', label: '🤿 Diving' },
+  { value: 'hike', label: '🥾 Hiking' },
+];
+
 export default function TripPlannerAI({ tripId, city, country, activity, month, year, daysTravel, onBudgetChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<AIResponse | null>(null);
@@ -80,7 +120,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [budgetTiers, setBudgetTiers] = useState({ low: 1250, mid: 2000, high: 2500 });
   
   const [partySize, setPartySize] = useState(1);
-  const [priceTier, setPriceTier] = useState<'$' | '$$' | '$$$'>('$$');
+  const [priceTier, setPriceTier] = useState<'$' | '$$' | '$$$' | '$$$$'>('$$');
   const [minRating, setMinRating] = useState(4.0);
   const [minReviews, setMinReviews] = useState(50);
   const [equipmentType, setEquipmentType] = useState('surf gear');
@@ -96,6 +136,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [rangeMode, setRangeMode] = useState(false);
   const [rangeStart, setRangeStart] = useState<number | null>(null);
 
+  // NEW: Traveler profile state
+  const [profile, setProfile] = useState<TravelerProfile>(DEFAULT_PROFILE);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileStep, setProfileStep] = useState(1);
+
   const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
 
   const analyzeDestination = async () => {
@@ -106,7 +151,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       const res = await fetch(`/api/trips/${tripId}/ai-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activity, month, year, daysTravel, partySize, priceTier, minRating, minReviews, equipmentType })
+        body: JSON.stringify({ 
+          city, country, activity, month, year, daysTravel, 
+          partySize, priceTier, minRating, minReviews, equipmentType,
+          // NEW: Send profile to API
+          profile
+        })
       });
       if (!res.ok) { 
         const d = await res.json(); 
@@ -192,7 +242,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
     
     switch (sel.rateType) {
       case 'monthly':
-        return price; // Monthly is flat rate
+        return price;
       case 'weekly':
         const weeks = Math.ceil(numDays / 7);
         return price * weeks;
@@ -209,6 +259,24 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   useEffect(() => {
     if (onBudgetChange) onBudgetChange(totalBudget, selections);
   }, [totalBudget, selections]);
+
+  // Profile helpers
+  const toggleArrayItem = (arr: string[], item: string) => 
+    arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
+
+  const getProfileSummary = () => {
+    const parts = [];
+    if (profile.purpose === 'work') parts.push('💼 Work-first');
+    else if (profile.purpose === 'leisure') parts.push('🏖️ Leisure');
+    else parts.push('⚖️ Balance');
+    
+    if (profile.socialVibe === 'networking') parts.push('🤝 Networking');
+    else if (profile.socialVibe === 'community') parts.push('👥 Community');
+    
+    if (profile.contentCreator === 'yes') parts.push('📸 Creator');
+    
+    return parts.join(' • ');
+  };
 
   const renderTable = (categoryKey: CategoryKey, items: Recommendation[]) => {
     if (!items?.length) return <p className="text-gray-400 text-sm py-4 px-4">No recommendations</p>;
@@ -260,6 +328,20 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
   return (
     <div className="space-y-6">
+      {/* Profile Summary + Setup Button */}
+      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+        <div>
+          <div className="text-sm font-medium text-purple-800">🎯 Your Travel Profile</div>
+          <div className="text-xs text-purple-600 mt-1">{getProfileSummary()}</div>
+        </div>
+        <button 
+          onClick={() => { setShowProfileModal(true); setProfileStep(1); }}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+        >
+          ✏️ Edit Profile
+        </button>
+      </div>
+
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-gray-50 rounded-lg">
         <div>
@@ -295,9 +377,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
           </select>
         </div>
         <Button onClick={analyzeDestination} loading={loading} disabled={!city} className="w-full">
-            🤖 Analyze {city || 'Destination'}
-          </Button>
-        </div>
+          🤖 Analyze {city || 'Destination'}
+        </Button>
+      </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">{error}</div>}
 
@@ -305,6 +387,230 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         <div className="text-center py-12">
           <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-gray-500">Finding viral spots in {city}...</p>
+        </div>
+      )}
+
+      {/* Profile Questionnaire Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg">🎯 Setup Your Travel Profile</h3>
+              <span className="text-sm text-gray-400">Step {profileStep}/7</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+              <div 
+                className="bg-purple-600 h-2 rounded-full transition-all" 
+                style={{ width: `${(profileStep / 7) * 100}%` }}
+              />
+            </div>
+
+            {/* Step 1: Purpose */}
+            {profileStep === 1 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">What's your main purpose for this trip?</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'work', label: '💼 Work-first', desc: 'Productivity is priority' },
+                    { value: 'leisure', label: '🏖️ Leisure', desc: 'Vacation mode' },
+                    { value: 'balance', label: '⚖️ Balance', desc: 'Mix of both' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, purpose: opt.value as any }))}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        profile.purpose === opt.value 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{opt.label.split(' ')[0]}</div>
+                      <div className="text-sm font-medium">{opt.label.split(' ').slice(1).join(' ')}</div>
+                      <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Social Vibe */}
+            {profileStep === 2 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">What's your social vibe while traveling?</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'focus', label: '🎯 Deep Focus', desc: 'Minimal distractions' },
+                    { value: 'networking', label: '🤝 Networking', desc: 'Meet founders & creators' },
+                    { value: 'community', label: '👥 Community', desc: 'Find my tribe' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, socialVibe: opt.value as any }))}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        profile.socialVibe === opt.value 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{opt.label.split(' ')[0]}</div>
+                      <div className="text-sm font-medium">{opt.label.split(' ').slice(1).join(' ')}</div>
+                      <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Accommodation */}
+            {profileStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">What do you need in accommodation? (Select all)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {ACCOMMODATION_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, accommodationNeeds: toggleArrayItem(p.accommodationNeeds, opt.value) }))}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        profile.accommodationNeeds.includes(opt.value) 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-medium">{opt.label}</div>
+                      <div className="text-xs text-gray-500">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Activities */}
+            {profileStep === 4 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">What activities are you into? (Select all)</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {ACTIVITY_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, activities: toggleArrayItem(p.activities, opt.value) }))}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${
+                        profile.activities.includes(opt.value) 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-xl">{opt.label.split(' ')[0]}</div>
+                      <div className="text-xs mt-1">{opt.label.split(' ').slice(1).join(' ')}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Content Creator */}
+            {profileStep === 5 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">Are you creating content on this trip?</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'yes', label: '📸 Yes', desc: 'Filming my journey' },
+                    { value: 'maybe', label: '🤷 Maybe', desc: 'If inspiration hits' },
+                    { value: 'no', label: '❌ No', desc: 'Just living' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, contentCreator: opt.value as any }))}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        profile.contentCreator === opt.value 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{opt.label.split(' ')[0]}</div>
+                      <div className="text-sm font-medium">{opt.label.split(' ').slice(1).join(' ')}</div>
+                      <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 6: Dating */}
+            {profileStep === 6 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">Open to dating while traveling?</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'yes', label: '💕 Yes', desc: 'Actively looking' },
+                    { value: 'open', label: '🤷 Open', desc: 'If it happens' },
+                    { value: 'no', label: '❌ No', desc: 'Not interested' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, dating: opt.value as any }))}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        profile.dating === opt.value 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{opt.label.split(' ')[0]}</div>
+                      <div className="text-sm font-medium">{opt.label.split(' ').slice(1).join(' ')}</div>
+                      <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 7: Nightlife */}
+            {profileStep === 7 && (
+              <div className="space-y-4">
+                <p className="text-gray-600">What's your nightlife vibe?</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'active', label: '🎉 Active', desc: 'Love going out' },
+                    { value: 'organic', label: '🍷 Organic', desc: 'If I meet cool people' },
+                    { value: 'skip', label: '😴 Skip', desc: 'Early to bed' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setProfile(p => ({ ...p, nightlife: opt.value as any }))}
+                      className={`p-4 rounded-xl border-2 text-center transition-all ${
+                        profile.nightlife === opt.value 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{opt.label.split(' ')[0]}</div>
+                      <div className="text-sm font-medium">{opt.label.split(' ').slice(1).join(' ')}</div>
+                      <div className="text-xs text-gray-500 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex gap-3 mt-6">
+              {profileStep > 1 && (
+                <Button variant="secondary" onClick={() => setProfileStep(s => s - 1)} className="flex-1">
+                  ← Back
+                </Button>
+              )}
+              {profileStep < 7 ? (
+                <Button onClick={() => setProfileStep(s => s + 1)} className="flex-1">
+                  Next →
+                </Button>
+              ) : (
+                <Button onClick={() => setShowProfileModal(false)} className="flex-1">
+                  ✓ Save Profile
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -341,11 +647,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {editForm.rateType === 'monthly' && 'Monthly rate'}
-                  {editForm.rateType === 'weekly' && 'Weekly rate'}
-                  {editForm.rateType === 'daily' && 'Daily rate'}
-                </p>
               </div>
 
               {/* Date Selection */}
