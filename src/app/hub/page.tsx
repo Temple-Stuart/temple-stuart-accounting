@@ -98,6 +98,7 @@ export default function HubPage() {
     startDate: string | null; endDate: string | null; totalBudget: number;
   }>>([]);
   const [yearCalendar, setYearCalendar] = useState<Record<number, Record<string, number>>>({});
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([0,1,2,3,4,5,6,7,8,9,10,11]);
   const [nomadBudget, setNomadBudget] = useState<{ monthlyData: Record<string, Record<number, number>>; coaNames: Record<string, string>; grandTotal: number }>({ monthlyData: {}, coaNames: {}, grandTotal: 0 });
 
   useEffect(() => {
@@ -649,36 +650,78 @@ export default function HubPage() {
         {/* Savings Comparison - Lease vs Nomad */}
         <Card>
           <h2 className="text-lg font-semibold text-green-700 mb-4">💰 {selectedYear} Nomad Savings</h2>
-          <div className="grid grid-cols-3 gap-6">
+          
+          {/* Month Selection */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">Select months to compare:</span>
+              <div className="flex gap-2">
+                <button onClick={() => setSelectedMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">All</button>
+                <button onClick={() => setSelectedMonths([])} className="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">None</button>
+              </div>
+            </div>
+            <div className="flex gap-1 flex-wrap">
+              {MONTHS.map((m, i) => (
+                <button key={i} onClick={() => setSelectedMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
+                  className={`px-2 py-1 text-xs rounded ${selectedMonths.includes(i) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'}`}>{m}</button>
+              ))}
+            </div>
+            <div className="text-xs text-gray-400 mt-2">{selectedMonths.length} months selected</div>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-3 gap-6 mb-6">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-500 mb-1">🏠 Lease Apartment</div>
-              <div className="text-2xl font-bold text-gray-700">
-                {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0))}
-              </div>
-              <div className="text-xs text-gray-400">Annual cost staying home</div>
+              <div className="text-2xl font-bold text-gray-700">{formatCurrency(selectedMonths.reduce((sum, i) => sum + (yearCalendar[i]?.total || 0), 0))}</div>
+              <div className="text-xs text-gray-400">{selectedMonths.length} months staying home</div>
             </div>
             <div className="text-center p-4 bg-cyan-50 rounded-lg">
               <div className="text-sm text-gray-500 mb-1">🌍 Digital Nomad</div>
-              <div className="text-2xl font-bold text-cyan-600">
-                {formatCurrency(nomadBudget.grandTotal)}
-              </div>
-              <div className="text-xs text-gray-400">Total travel expenses</div>
+              <div className="text-2xl font-bold text-cyan-600">{formatCurrency(selectedMonths.reduce((sum, i) => sum + Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0), 0))}</div>
+              <div className="text-xs text-gray-400">{selectedMonths.length} months traveling</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
-              <div className="text-sm text-gray-500 mb-1">💵 Your Savings</div>
-              <div className={`text-2xl font-bold ${(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal)}
-              </div>
-              <div className="text-xs text-gray-400">
-                {(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal) >= 0 
-                  ? 'Saved by going nomad! 🎉' 
-                  : 'Travel costs more'}
-              </div>
+              <div className="text-sm text-gray-500 mb-1">💵 Total Savings</div>
+              {(() => {
+                const leaseTotal = selectedMonths.reduce((sum, i) => sum + (yearCalendar[i]?.total || 0), 0);
+                const nomadTotal = selectedMonths.reduce((sum, i) => sum + Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
+                const savings = leaseTotal - nomadTotal;
+                return (<><div className={`text-2xl font-bold ${savings >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(savings)}</div><div className="text-xs text-gray-400">{savings >= 0 ? 'Saved by going nomad! 🎉' : 'Travel costs more'}</div></>);
+              })()}
             </div>
           </div>
-          <div className="mt-4 text-center text-sm text-gray-500">
-            Comparison: What you would spend staying in your apartment vs traveling as a digital nomad
+
+          {/* Month-by-Month Breakdown */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-green-100">
+                  <th className="py-2 px-2 text-left">Category</th>
+                  {MONTHS.map((m, i) => (<th key={i} className={`text-right py-2 px-2 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`}>{m}</th>))}
+                  <th className="text-right py-2 px-2 font-bold">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-2 px-2">🏠 Lease Cost</td>
+                  {MONTHS.map((_, i) => (<td key={i} className={`text-right py-2 px-2 text-gray-600 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`}>{yearCalendar[i]?.total ? formatCurrency(yearCalendar[i].total) : '—'}</td>))}
+                  <td className="text-right py-2 px-2 font-bold">{formatCurrency(selectedMonths.reduce((sum, i) => sum + (yearCalendar[i]?.total || 0), 0))}</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="py-2 px-2">🌍 Travel Cost</td>
+                  {MONTHS.map((_, i) => { const mt = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0); return (<td key={i} className={`text-right py-2 px-2 text-cyan-600 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`}>{mt ? formatCurrency(mt) : '—'}</td>); })}
+                  <td className="text-right py-2 px-2 font-bold text-cyan-600">{formatCurrency(selectedMonths.reduce((sum, i) => sum + Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0), 0))}</td>
+                </tr>
+                <tr className="bg-green-50 font-bold">
+                  <td className="py-2 px-2">💵 Monthly Savings</td>
+                  {MONTHS.map((_, i) => { const lease = yearCalendar[i]?.total || 0; const travel = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0); const diff = lease - travel; return (<td key={i} className={`text-right py-2 px-2 ${diff >= 0 ? 'text-green-600' : 'text-red-600'} ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`}>{(lease || travel) ? formatCurrency(diff) : '—'}</td>); })}
+                  {(() => { const ts = selectedMonths.reduce((sum, i) => sum + ((yearCalendar[i]?.total || 0) - Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0)), 0); return (<td className={`text-right py-2 px-2 ${ts >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(ts)}</td>); })()}
+                </tr>
+              </tbody>
+            </table>
           </div>
+          <div className="mt-4 text-center text-sm text-gray-500">Select the months you plan to travel to see your projected savings</div>
         </Card>
       </div>
     </AppLayout>
