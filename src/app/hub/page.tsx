@@ -645,6 +645,41 @@ export default function HubPage() {
             </table>
           </div>
         </Card>
+
+        {/* Savings Comparison - Lease vs Nomad */}
+        <Card>
+          <h2 className="text-lg font-semibold text-green-700 mb-4">💰 {selectedYear} Nomad Savings</h2>
+          <div className="grid grid-cols-3 gap-6">
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-500 mb-1">🏠 Lease Apartment</div>
+              <div className="text-2xl font-bold text-gray-700">
+                {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0))}
+              </div>
+              <div className="text-xs text-gray-400">Annual cost staying home</div>
+            </div>
+            <div className="text-center p-4 bg-cyan-50 rounded-lg">
+              <div className="text-sm text-gray-500 mb-1">🌍 Digital Nomad</div>
+              <div className="text-2xl font-bold text-cyan-600">
+                {formatCurrency(nomadBudget.grandTotal)}
+              </div>
+              <div className="text-xs text-gray-400">Total travel expenses</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
+              <div className="text-sm text-gray-500 mb-1">💵 Your Savings</div>
+              <div className={`text-2xl font-bold ${(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal)}
+              </div>
+              <div className="text-xs text-gray-400">
+                {(Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0) - nomadBudget.grandTotal) >= 0 
+                  ? 'Saved by going nomad! 🎉' 
+                  : 'Travel costs more'}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 text-center text-sm text-gray-500">
+            Comparison: What you would spend staying in your apartment vs traveling as a digital nomad
+          </div>
+        </Card>
       </div>
     </AppLayout>
   );
