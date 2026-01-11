@@ -719,20 +719,23 @@ export default function HubPage() {
                   {(() => { const ts = selectedMonths.reduce((sum, i) => sum + ((yearCalendar[i]?.total || 0) - Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0)), 0); return (<td className={`text-right py-2 px-2 ${ts >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(ts)}</td>); })()}
                 </tr>
                 <tr className="bg-blue-50">
-                  <td className="py-2 px-2 text-blue-700">📍 Location</td>
+                  <td className="py-2 px-2 text-blue-700 text-center">📍 Trip</td>
                   {MONTHS.map((_, i) => {
                     const tripsInMonth = committedTrips.filter(t => {
                       if (!t.startDate) return false;
                       const start = new Date(t.startDate);
-                      return start.getMonth() === i && start.getFullYear() === selectedYear;
+                      const end = t.endDate ? new Date(t.endDate) : start;
+                      // Check if trip spans this month
+                      return (start.getMonth() <= i && end.getMonth() >= i && start.getFullYear() === selectedYear) ||
+                             (start.getMonth() === i && start.getFullYear() === selectedYear);
                     });
                     return (
-                      <td key={i} className={`py-2 px-2 text-xs text-blue-600 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`} style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
-                        {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.destination || t.name).join(', ') : '—'}
+                      <td key={i} className={`text-center py-2 px-2 text-xs text-blue-600 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`} style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
+                        {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.name).join(', ') : '—'}
                       </td>
                     );
                   })}
-                  <td className="py-2 px-2 text-xs text-blue-600">{committedTrips.filter(t => t.startDate && new Date(t.startDate).getFullYear() === selectedYear).length} trips</td>
+                  <td className="text-center py-2 px-2 text-xs text-blue-600">{committedTrips.filter(t => t.startDate && new Date(t.startDate).getFullYear() === selectedYear).length} trips</td>
                 </tr>
               </tbody>
             </table>
