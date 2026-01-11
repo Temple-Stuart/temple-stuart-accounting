@@ -723,11 +723,11 @@ export default function HubPage() {
                   {MONTHS.map((_, i) => {
                     const tripsInMonth = committedTrips.filter(t => {
                       if (!t.startDate) return false;
-                      const start = new Date(t.startDate);
-                      const end = t.endDate ? new Date(t.endDate) : start;
-                      // Check if trip spans this month
-                      return (start.getMonth() <= i && end.getMonth() >= i && start.getFullYear() === selectedYear) ||
-                             (start.getMonth() === i && start.getFullYear() === selectedYear);
+                      // Add 12 hours to avoid timezone day-shift issue
+                      const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
+                      const end = t.endDate ? new Date(new Date(t.endDate).getTime() + 12*60*60*1000) : start;
+                      // Check if trip is IN this month (start month matches)
+                      return start.getMonth() === i && start.getFullYear() === selectedYear;
                     });
                     return (
                       <td key={i} className={`text-center py-2 px-2 text-xs text-blue-600 ${!selectedMonths.includes(i) ? 'opacity-30' : ''}`} style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
@@ -735,7 +735,7 @@ export default function HubPage() {
                       </td>
                     );
                   })}
-                  <td className="text-center py-2 px-2 text-xs text-blue-600">{committedTrips.filter(t => t.startDate && new Date(t.startDate).getFullYear() === selectedYear).length} trips</td>
+                  <td className="text-center py-2 px-2 text-xs text-blue-600">{committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips</td>
                 </tr>
               </tbody>
             </table>
