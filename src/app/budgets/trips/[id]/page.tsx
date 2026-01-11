@@ -591,6 +591,29 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           })()}
         </Card>
 
+        {/* Committed Budget Summary */}
+        {trip?.status === 'committed' && tripBudget.length > 0 && (
+          <Card title="✅ Committed Budget">
+            <div className="space-y-2">
+              {tripBudget.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                  <div>
+                    <span className="font-medium">{item.description || item.category}</span>
+                    <span className="text-xs text-gray-500 ml-2">({item.category})</span>
+                  </div>
+                  <span className="font-bold text-green-600">${Number(item.amount).toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="flex justify-between items-center p-3 bg-green-100 rounded-lg mt-4 border-t-2 border-green-500">
+                <span className="font-bold">Total Committed</span>
+                <span className="font-bold text-green-700 text-lg">
+                  ${tripBudget.reduce((sum, item) => sum + Number(item.amount), 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Row 5: Itinerary & Budget */}
         <Card
           title="🗓️ Itinerary & Budget"
