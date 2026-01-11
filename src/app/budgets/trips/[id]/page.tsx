@@ -230,12 +230,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
     setCommitting(true);
-    console.log("tripBudget being sent:", tripBudget);
+    // Combine flight (if selected) + AI selections into budgetItems
+    const allBudgetItems = [...tripBudget];
+    if (selectedFlight?.price) {
+      allBudgetItems.push({
+        category: 'flight',
+        amount: selectedFlight.price,
+        description: selectedFlight.isManual ? 'Manual Flight' : `${selectedFlight.outbound?.carriers[0] || 'Flight'}`
+      });
+    }
+    console.log("budgetItems being sent:", allBudgetItems);
     try {
       const res = await fetch(`/api/trips/${id}/commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startDay: confirmedStartDay, budgetItems: tripBudget })
+        body: JSON.stringify({ startDay: confirmedStartDay, budgetItems: allBudgetItems })
       });
       if (!res.ok) throw new Error('Failed to commit trip');
       const data = await res.json();
@@ -251,7 +260,16 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const uncommitTrip = async () => {
     if (!confirm('Remove this trip from the calendar?')) return;
     setCommitting(true);
-    console.log("tripBudget being sent:", tripBudget);
+    // Combine flight (if selected) + AI selections into budgetItems
+    const allBudgetItems = [...tripBudget];
+    if (selectedFlight?.price) {
+      allBudgetItems.push({
+        category: 'flight',
+        amount: selectedFlight.price,
+        description: selectedFlight.isManual ? 'Manual Flight' : `${selectedFlight.outbound?.carriers[0] || 'Flight'}`
+      });
+    }
+    console.log("budgetItems being sent:", allBudgetItems);
     try {
       const res = await fetch(`/api/trips/${id}/commit`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to uncommit');
