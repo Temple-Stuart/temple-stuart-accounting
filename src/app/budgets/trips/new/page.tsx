@@ -280,7 +280,7 @@ export default function NewTripPage() {
                 <input
                   type="number"
                   min={1}
-                  max={30}
+                  max={31}
                   value={daysTravel}
                   onChange={(e) => setDaysTravel(parseInt(e.target.value) || 1)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
@@ -291,7 +291,7 @@ export default function NewTripPage() {
                 <input
                   type="number"
                   min={1}
-                  max={30}
+                  max={31}
                   value={daysRiding}
                   onChange={(e) => setDaysRiding(parseInt(e.target.value) || 1)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
