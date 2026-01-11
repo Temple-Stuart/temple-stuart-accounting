@@ -103,6 +103,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Flight booking state
   const [originAirport, setOriginAirport] = useState("LAX");
+  const [destinationAirport, setDestinationAirport] = useState("");
   const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string}[]>([]);
@@ -521,7 +522,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         <Card title="✈️ Flights">
           {(() => {
             const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
-            const destAirport = selectedDest?.resort?.nearestAirport || "DPS";
+            const defaultDestAirport = selectedDest?.resort?.nearestAirport || "DPS";
+            const effectiveDestAirport = destinationAirport || defaultDestAirport;
             return (
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
@@ -535,13 +537,20 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase"
                   />
                   <span className="text-gray-400">→</span>
-                  <span className="text-sm font-medium">{destAirport}</span>
+                  <input
+                    type="text"
+                    value={destinationAirport || defaultDestAirport}
+                    onChange={(e) => setDestinationAirport(e.target.value.toUpperCase())}
+                    placeholder={defaultDestAirport}
+                    maxLength={3}
+                    className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm uppercase"
+                  />
                   {trip.destination && <span className="text-xs text-gray-500">({trip.destination})</span>}
                 </div>
                 {tripDates ? (
                   <FlightPicker
                     destinationName={trip.destination || "Destination"}
-                    destinationAirport={destAirport}
+                    destinationAirport={effectiveDestAirport}
                     originAirport={originAirport}
                     departureDate={tripDates.departure}
                     returnDate={tripDates.return}
