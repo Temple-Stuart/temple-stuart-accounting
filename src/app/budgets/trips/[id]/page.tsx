@@ -153,11 +153,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   const loadBudgetItems = async () => {
+    console.log("[DEBUG] loadBudgetItems called for trip:", id);
     try {
       const res = await fetch(`/api/trips/${id}/budget`);
       if (!res.ok) return;
       const data = await res.json();
       const items = data.items || [];
+      console.log("[DEBUG] Budget items from API:", items);
       
       if (items.length === 0) return;
       
