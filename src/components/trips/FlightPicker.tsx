@@ -56,6 +56,10 @@ export default function FlightPicker({
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
   
+  // Editable airports
+  const [editOrigin, setEditOrigin] = useState(originAirport);
+  const [editDestination, setEditDestination] = useState(destinationAirport);
+  
   // Manual entry state
   const [showManual, setShowManual] = useState(false);
   const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip');
@@ -74,8 +78,8 @@ export default function FlightPicker({
 
     try {
       const params = new URLSearchParams({
-        origin: originAirport,
-        destination: destinationAirport,
+        origin: editOrigin || originAirport,
+        destination: editDestination || destinationAirport,
         departureDate,
         ...(tripType === 'roundtrip' && returnDate ? { returnDate } : {}),
         passengers: passengers.toString(),
@@ -107,15 +111,15 @@ export default function FlightPicker({
       price: parseFloat(manualPrice),
       currency: 'USD',
       outbound: {
-        departure: { airport: originAirport, localTime: '', date: departureDate },
-        arrival: { airport: destinationAirport, localTime: '', date: departureDate },
+        departure: { airport: editOrigin || originAirport, localTime: '', date: departureDate },
+        arrival: { airport: editDestination || destinationAirport, localTime: '', date: departureDate },
         duration: '',
         stops: 0,
         carriers: [manualAirline || 'Manual Entry'],
       },
       return: {
-        departure: { airport: destinationAirport, localTime: '', date: returnDate },
-        arrival: { airport: originAirport, localTime: '', date: returnDate },
+        departure: { airport: editDestination || destinationAirport, localTime: '', date: returnDate },
+        arrival: { airport: editOrigin || originAirport, localTime: '', date: returnDate },
         duration: '',
         stops: 0,
         carriers: [manualAirline || 'Manual Entry'],
@@ -144,8 +148,23 @@ export default function FlightPicker({
             <span className="text-2xl">✈️</span>
             <div>
               <div className="font-medium text-gray-900">{destinationName}</div>
-              <div className="text-sm text-gray-500">
-                {originAirport} → {destinationAirport} • {departureDate} - {returnDate}
+              <div className="text-sm text-gray-500 flex items-center gap-1">
+                <input 
+                  type="text" 
+                  value={editOrigin} 
+                  onChange={(e) => setEditOrigin(e.target.value.toUpperCase())}
+                  className="w-12 px-1 border rounded text-center font-mono"
+                  maxLength={3}
+                />
+                <span>→</span>
+                <input 
+                  type="text" 
+                  value={editDestination} 
+                  onChange={(e) => setEditDestination(e.target.value.toUpperCase())}
+                  className="w-12 px-1 border rounded text-center font-mono"
+                  maxLength={3}
+                />
+                <span>• {departureDate} - {returnDate}</span>
               </div>
             </div>
           </div>
