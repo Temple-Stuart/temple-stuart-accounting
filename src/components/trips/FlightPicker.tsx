@@ -164,6 +164,13 @@ export default function FlightPicker({
                   className="w-12 px-1 border rounded text-center font-mono"
                   maxLength={3}
                 />
+                <button
+                  onClick={fetchFlights}
+                  disabled={loading}
+                  className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                >
+                  {loading ? '...' : '🔍'}
+                </button>
                 <span>• {departureDate} - {returnDate}</span>
               </div>
             </div>
