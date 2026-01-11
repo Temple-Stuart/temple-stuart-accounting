@@ -201,6 +201,15 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       }
       
       setInitialCosts(costs);
+      
+      // Also restore tripBudget for committed trips
+      const restoredBudget = items.map((item: any) => ({
+        category: COA_TO_CATEGORY[item.coaCode] || item.coaCode,
+        amount: Number(item.amount),
+        description: item.description || ''
+      }));
+      setTripBudget(restoredBudget);
+      console.log('Restored tripBudget from DB:', restoredBudget);
     } catch (err) {
       console.error('Failed to load budget items:', err);
     }
