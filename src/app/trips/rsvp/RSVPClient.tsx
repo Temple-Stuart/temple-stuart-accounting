@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface Trip {
   id: string;
@@ -31,6 +31,7 @@ const ACTIVITIES: Record<string, string> = {
 
 function RSVPContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get('token');
 
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,12 @@ function RSVPContent() {
       setIsNewParticipant(data.isNewParticipant);
       
       if (!data.isNewParticipant && data.participant) {
+        // Returning user who already RSVP'd - redirect to dashboard
+        if (data.participant.rsvpStatus === 'confirmed') {
+          router.push('/budgets/trips/' + data.trip.id);
+          return;
+        }
+        // If declined or pending, pre-fill form for re-submission
         setFirstName(data.participant.firstName || '');
         setLastName(data.participant.lastName || '');
         setEmail(data.participant.email || '');
@@ -104,6 +111,12 @@ function RSVPContent() {
         throw new Error(data.error || 'Failed to submit');
       }
 
+      // Redirect to trip dashboard after successful RSVP
+      if (trip?.id) {
+        router.push('/budgets/trips/' + trip.id);
+        return;
+      }
+      
       setSubmitted(true);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to submit');
