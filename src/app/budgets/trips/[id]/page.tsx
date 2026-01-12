@@ -423,51 +423,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     )}
                   </div>
                 </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
-                      {p.rsvpStatus}
-                    </Badge>
-                    {!p.isOwner && (
-                      <button
-                        onClick={() => removeParticipant(p.id, p.firstName)}
-                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
-                        title="Remove participant"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
-                      {p.rsvpStatus}
-                    </Badge>
-                    {!p.isOwner && (
-                      <button
-                        onClick={() => removeParticipant(p.id, p.firstName)}
-                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
-                        title="Remove participant"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
-                      {p.rsvpStatus}
-                    </Badge>
-                    {!p.isOwner && (
-                      <button
-                        onClick={() => removeParticipant(p.id, p.firstName)}
-                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
-                        title="Remove participant"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
               ))}
               {participants.length === 0 && <p className="text-gray-400 text-center py-4">No travelers yet</p>}
             </div>
