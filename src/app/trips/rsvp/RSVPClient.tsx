@@ -54,7 +54,7 @@ function RSVPContent() {
 
   const loadInvite = async () => {
     try {
-      const res = await fetch(`/api/trips/rsvp?token=${token}`);
+      const res = await fetch('/api/trips/rsvp?token=' + token);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || 'Invalid invite link');
@@ -64,9 +64,12 @@ function RSVPContent() {
       setIsNewParticipant(data.isNewParticipant);
       
       if (!data.isNewParticipant && data.participant) {
-        // Returning user who already RSVP'd - redirect to dashboard
+        // Returning user with participant-level token
         if (data.participant.rsvpStatus === 'confirmed') {
-          router.push('/budgets/trips/' + data.trip.id);
+          // Already confirmed - redirect to trip view with their token
+          const participantToken = data.participant.inviteToken || token;
+          localStorage.setItem('trip_token_' + data.trip.id, participantToken);
+          router.push('/trips/' + data.trip.id + '?token=' + participantToken);
           return;
         }
         // If declined or pending, pre-fill form for re-submission
@@ -74,6 +77,20 @@ function RSVPContent() {
         setLastName(data.participant.lastName || '');
         setEmail(data.participant.email || '');
         setUnavailableDays(data.participant.unavailableDays || []);
+      } else {
+        // Trip-level token - check if we have saved participant token
+        const savedToken = localStorage.getItem('trip_token_' + data.trip.id);
+        if (savedToken && savedToken !== token) {
+          // Verify saved token is still valid
+          const verifyRes = await fetch('/api/trips/' + data.trip.id + '/participant?token=' + savedToken);
+          if (verifyRes.ok) {
+            router.push('/trips/' + data.trip.id + '?token=' + savedToken);
+            return;
+          } else {
+            // Invalid saved token, remove it
+            localStorage.removeItem('trip_token_' + data.trip.id);
+          }
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load invite');
@@ -111,9 +128,12 @@ function RSVPContent() {
         throw new Error(data.error || 'Failed to submit');
       }
 
-      // Redirect to trip dashboard after successful RSVP
-      if (trip?.id) {
-        router.push('/budgets/trips/' + trip.id);
+      const data = await res.json();
+      
+      // Redirect to trip view with participant's unique token
+      if (trip?.id && data.participant?.inviteToken) {
+        localStorage.setItem('trip_token_' + trip.id, data.participant.inviteToken);
+        router.push('/trips/' + trip.id + '?token=' + data.participant.inviteToken);
         return;
       }
       
@@ -136,7 +156,7 @@ function RSVPContent() {
         body: JSON.stringify({
           token,
           firstName: firstName || 'Declined',
-          email: email || `declined-${Date.now()}@temp.com`,
+          email: email || 'declined-' + Date.now() + '@temp.com',
           rsvpStatus: 'declined'
         })
       });
@@ -193,8 +213,8 @@ function RSVPContent() {
           </h1>
           <p className="text-gray-500">
             {declined
-              ? `We'll miss you on ${trip?.name}. Let ${trip?.owner.name} know if anything changes!`
-              : `Your spot on ${trip?.name} is confirmed. ${trip?.owner.name} will be in touch with more details.`}
+              ? 'We\'ll miss you on ' + trip?.name + '. Let ' + trip?.owner.name + ' know if anything changes!'
+              : 'Your spot on ' + trip?.name + ' is confirmed. ' + trip?.owner.name + ' will be in touch with more details.'}
           </p>
         </div>
       </div>
@@ -298,18 +318,18 @@ function RSVPContent() {
                 <div key={i} className="text-center text-xs text-gray-400 py-1">{d}</div>
               ))}
               {Array.from({ length: firstDayOffset }, (_, i) => (
-                <div key={`empty-${i}`} />
+                <div key={'empty-' + i} />
               ))}
               {calendarDays.map(day => (
                 <button
                   key={day}
                   type="button"
                   onClick={() => toggleDay(day)}
-                  className={`aspect-square rounded-lg text-sm font-medium transition-all ${
+                  className={'aspect-square rounded-lg text-sm font-medium transition-all ' + (
                     unavailableDays.includes(day)
                       ? 'bg-red-500 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  )}
                 >
                   {day}
                 </button>

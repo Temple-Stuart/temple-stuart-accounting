@@ -343,6 +343,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }));
   };
 
+  const removeParticipant = async (participantId: string, name: string) => {
+    if (!confirm("Remove " + name + " from this trip?")) return;
+    try {
+      const res = await fetch("/api/trips/" + id + "/participants", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId })
+      });
+      if (!res.ok) throw new Error("Failed to remove participant");
+      loadParticipants();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to remove");
+    }
+  };
+
   if (loading) return <AppLayout><div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
   if (error || !trip) return <AppLayout><div className="flex items-center justify-center py-20 text-red-500">{error || 'Trip not found'}</div></AppLayout>;
 
@@ -393,9 +408,65 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       <div className="text-xs text-gray-500">{p.email}</div>
                     </div>
                   </div>
-                  <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
-                    {p.rsvpStatus}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
+                      {p.rsvpStatus}
+                    </Badge>
+                    {!p.isOwner && (
+                      <button
+                        onClick={() => removeParticipant(p.id, p.firstName)}
+                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
+                        title="Remove participant"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
+                      {p.rsvpStatus}
+                    </Badge>
+                    {!p.isOwner && (
+                      <button
+                        onClick={() => removeParticipant(p.id, p.firstName)}
+                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
+                        title="Remove participant"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
+                      {p.rsvpStatus}
+                    </Badge>
+                    {!p.isOwner && (
+                      <button
+                        onClick={() => removeParticipant(p.id, p.firstName)}
+                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
+                        title="Remove participant"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={p.rsvpStatus === 'confirmed' ? 'success' : p.rsvpStatus === 'declined' ? 'danger' : 'warning'} size="sm">
+                      {p.rsvpStatus}
+                    </Badge>
+                    {!p.isOwner && (
+                      <button
+                        onClick={() => removeParticipant(p.id, p.firstName)}
+                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded"
+                        title="Remove participant"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {participants.length === 0 && <p className="text-gray-400 text-center py-4">No travelers yet</p>}
