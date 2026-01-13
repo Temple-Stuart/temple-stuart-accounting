@@ -106,7 +106,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [destinationAirport, setDestinationAirport] = useState("");
   const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
-  const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string}[]>([]);
+  const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
   // Loaded budget items from DB
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
 
@@ -615,6 +615,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     nightlife: "activities", toiletries: "tips", wellness: "wellness",
                   };
                   const items = selections.map(sel => ({
+                    splitType: sel.splitType || "personal",
                     category: catMap[sel.category] || sel.category,
                     amount: sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1),
                     description: sel.item.name,
@@ -627,14 +628,15 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         </Card>
 
         {/* Committed Budget Summary */}
-        {trip?.status === 'committed' && tripBudget.length > 0 && (
-          <Card title="✅ Committed Budget">
+        {tripBudget.length > 0 && (
+          <Card title={trip?.status === 'committed' ? "✅ Committed Budget" : "📋 Planned Budget (not committed)"}>
             <div className="space-y-2">
               {tripBudget.map((item, idx) => (
                 <div key={idx} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                   <div>
                     <span className="font-medium">{item.description || item.category}</span>
                     <span className="text-xs text-gray-500 ml-2">({item.category})</span>
+                    {item.splitType === "split" && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded ml-2">👥 Split</span>}
                   </div>
                   <span className="font-bold text-green-600">${Number(item.amount).toLocaleString()}</span>
                 </div>

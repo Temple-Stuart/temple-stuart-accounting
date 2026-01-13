@@ -43,6 +43,7 @@ interface ScheduledSelection {
   endTime: string;
   rateType: 'daily' | 'weekly' | 'monthly';
   customPrice: number;
+  splitType: "personal" | "split";
 }
 
 // NEW: Trip-type focused profile
@@ -139,8 +140,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
-  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string; rateType: 'daily' | 'weekly' | 'monthly'; customPrice: number }>({
-    days: [], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0
+  const [editForm, setEditForm] = useState<{ days: number[]; allDay: boolean; startTime: string; endTime: string; rateType: 'daily' | 'weekly' | 'monthly'; customPrice: number; splitType: 'personal' | 'split' }>({
+    days: [], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0, splitType: 'personal'
   });
   
   const [rangeMode, setRangeMode] = useState(false);
@@ -198,17 +199,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
       startTime: '09:00',
       endTime: '17:00',
       rateType: 'daily',
-      customPrice: 0
+      customPrice: 0,
+      splitType: "personal"
     };
     setEditingSelection(newSel);
-    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0 });
+    setEditForm({ days: [1], allDay: catInfo?.defaultAllDay || false, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0, splitType: 'personal' });
     setRangeMode(false);
     setRangeStart(null);
   };
 
   const handleEditSelection = (sel: ScheduledSelection) => {
     setEditingSelection(sel);
-    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime, rateType: sel.rateType || 'daily', customPrice: sel.customPrice || 0 });
+    setEditForm({ days: sel.days, allDay: sel.allDay, startTime: sel.startTime, endTime: sel.endTime, rateType: sel.rateType || 'daily', customPrice: sel.customPrice || 0, splitType: sel.splitType || 'personal' });
     setRangeMode(false);
     setRangeStart(null);
   };
@@ -574,6 +576,20 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                       {rate === 'daily' ? '📅 Daily' : rate === 'weekly' ? '📆 Weekly' : '🗓️ Monthly'}
                     </button>
                   ))}
+                </div>
+
+              {/* Split Type */}
+              <div>
+                <label className="text-sm font-medium block mb-2">👥 Expense Type</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditForm(p => ({...p, splitType: "personal"}))}
+                    className={"px-4 py-2 rounded text-sm font-medium " + (editForm.splitType === "personal" ? "bg-blue-500 text-white" : "bg-gray-100 hover:bg-gray-200")}>
+                    🙋 Personal
+                  </button>
+                  <button onClick={() => setEditForm(p => ({...p, splitType: "split"}))}
+                    className={"px-4 py-2 rounded text-sm font-medium " + (editForm.splitType === "split" ? "bg-purple-500 text-white" : "bg-gray-100 hover:bg-gray-200")}>
+                    👥 Split with Group
+                  </button>
                 </div>
               </div>
 
