@@ -18,6 +18,65 @@ export default function ModulesSection() {
 
         <div className="space-y-32">
 
+          {/* BOOKKEEPING, INCOME & TRADING - PAID */}
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 sm:p-12">
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center px-3 py-1 bg-[#b4b237] text-gray-900 rounded-full text-xs font-semibold mb-4">
+                PREMIUM
+              </span>
+              <h3 className="text-3xl sm:text-4xl font-light text-white mb-4">
+                Bookkeeping, Income & Trading
+              </h3>
+              <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+                The serious stuff. Bank sync via Plaid, real financial statements, and proper entity separation. These cost money because Plaid charges per connection.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
+                <div className="text-3xl mb-4">📚</div>
+                <h4 className="text-xl font-medium text-white mb-3">Bookkeeping</h4>
+                <p className="text-gray-400 mb-4">
+                  Real double-entry accounting. Separate entities for Personal, Business, and Trading — keeps the IRS happy and your CPA sane.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li>• Personal / Business / Trading entities</li>
+                  <li>• Bank sync via Plaid</li>
+                  <li>• Income statement & balance sheet</li>
+                  <li>• CPA-ready exports</li>
+                </ul>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
+                <div className="text-3xl mb-4">💰</div>
+                <h4 className="text-xl font-medium text-white mb-3">Income</h4>
+                <p className="text-gray-400 mb-4">
+                  Track money coming in. See revenue by source, trends over time, and stats that tell you something useful.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li>• Revenue by category</li>
+                  <li>• Monthly income trends</li>
+                  <li>• Client/source breakdown</li>
+                  <li>• Year-over-year comparison</li>
+                </ul>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
+                <div className="text-3xl mb-4">📈</div>
+                <h4 className="text-xl font-medium text-white mb-3">Trading</h4>
+                <p className="text-gray-400 mb-4">
+                  Stocks, options, crypto. Realized gains, losses, wash sales handled correctly. No tax surprises.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  <li>• P&L by position</li>
+                  <li>• Wash sale detection</li>
+                  <li>• Short-term vs long-term</li>
+                  <li>• Schedule D ready</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* THE HUB */}
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div className="order-2 lg:order-1">
@@ -28,15 +87,15 @@ export default function ModulesSection() {
                 Your command center
               </h3>
               <p className="text-lg text-gray-500 mb-8 leading-relaxed">
-                Connect your bank accounts through Plaid. All your transactions pull in automatically. See everything in one place — expenses by month, budget vs actual, net worth over time.
+                See everything in one place — expenses by month, budget vs actual, net worth over time. All your committed expenses show up on the calendar.
               </p>
               <ul className="space-y-3">
                 {[
-                  'Bank sync via Plaid — Chase, Wells Fargo, all of them',
                   'Every expense mapped to a category',
                   'Budget targets vs what you actually spent',
                   'Calendar view of committed expenses',
-                  'Net worth tracking across all accounts'
+                  'Net worth tracking across all accounts',
+                  'Monthly expense lists'
                 ].map((item, i) => (
                   <li key={i} className="flex items-center text-gray-700">
                     <div className="w-5 h-5 rounded-full bg-[#b4b237]/10 flex items-center justify-center mr-3">
@@ -322,49 +381,6 @@ export default function ModulesSection() {
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
-
-          {/* INCOME & TRADING - PAID */}
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 sm:p-12">
-            <div className="text-center mb-10">
-              <span className="inline-flex items-center px-3 py-1 bg-[#b4b237] text-gray-900 rounded-full text-xs font-semibold mb-4">
-                PREMIUM
-              </span>
-              <h3 className="text-3xl sm:text-4xl font-light text-white mb-4">
-                Income & Trading Modules
-              </h3>
-              <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                For folks who need to track business income or trading P&L. These cost money because Plaid charges us per connection.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
-                <div className="text-3xl mb-4">💰</div>
-                <h4 className="text-xl font-medium text-white mb-3">Income</h4>
-                <p className="text-gray-400 mb-4">
-                  Track money coming in. See revenue by source, month-over-month trends, and stats that actually tell you something useful.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li>• Revenue by category</li>
-                  <li>• Monthly income trends</li>
-                  <li>• Client/source breakdown</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
-                <div className="text-3xl mb-4">📈</div>
-                <h4 className="text-xl font-medium text-white mb-3">Trading</h4>
-                <p className="text-gray-400 mb-4">
-                  Stocks, options, crypto — all in one place. Realized gains, losses, and wash sales handled correctly so you don't get surprised at tax time.
-                </p>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li>• P&L by position</li>
-                  <li>• Wash sale tracking</li>
-                  <li>• Short-term vs long-term gains</li>
-                </ul>
-              </div>
             </div>
           </div>
 
