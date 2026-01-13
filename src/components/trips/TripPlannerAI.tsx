@@ -647,13 +647,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
             <div className="space-y-4">
               {/* URL Input */}
               <div>
-                <label className="text-sm font-medium block mb-2">Paste Airbnb/Booking URL (optional)</label>
+                <label className="text-sm font-medium block mb-2">Paste URL (optional)</label>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={customForm.url}
                     onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))}
-                    placeholder="https://airbnb.com/rooms/..."
+                    placeholder="https://..."
                     className="flex-1 border rounded-lg px-3 py-2 text-sm"
                   />
                   <button
