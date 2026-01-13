@@ -577,7 +577,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                     </button>
                   ))}
                 </div>
-
+              </div>
               {/* Split Type */}
               <div>
                 <label className="text-sm font-medium block mb-2">👥 Expense Type</label>
