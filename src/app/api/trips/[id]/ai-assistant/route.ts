@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/lib/openai';
 import { searchPlaces, filterPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 
-// Traveler Profile for personalized recommendations
+// Trip-type focused profile
 interface TravelerProfile {
-  purpose: 'work' | 'leisure' | 'balance';
-  socialVibe: 'focus' | 'networking' | 'community';
-  accommodationNeeds: string[];
-  activities: string[];
-  contentCreator: 'yes' | 'maybe' | 'no';
-  dating: 'yes' | 'open' | 'no';
-  nightlife: 'active' | 'organic' | 'skip';
+  tripType: 'remote_work' | 'romantic' | 'friends' | 'family' | 'solo' | 'relaxation';
+  budget: 'under50' | '50to100' | '100to200' | '200to400' | 'over400';
+  priorities: string[];
+  dealbreakers: string[];
+  groupSize: number;
 }
 
 interface Recommendation {
@@ -19,91 +17,115 @@ interface Recommendation {
   website: string;
   rating: number;
   reviewCount: number;
-  priceLevel: string;
-  viralRank: number;
-  whyViral: string;
-  communityFit: string;
-  contentAngle: string;
+  estimatedPrice: string;
+  valueRank: number;
+  fitScore: number;
+  whyThisTraveler: string;
+  warning: string | null;
+  photoWorthy: string;
 }
 
-// GPT picks the TOP 10 most viral from Google's list
-async function rankByViralPotential(
+const BUDGET_RANGES: Record<string, string> = {
+  'under50': 'Under $50/night',
+  '50to100': '$50-100/night',
+  '100to200': '$100-200/night', 
+  '200to400': '$200-400/night',
+  'over400': '$400+/night'
+};
+
+const TRIP_TYPE_DESCRIPTIONS: Record<string, string> = {
+  'remote_work': 'Digital nomad/remote worker needing reliable wifi, desk space, quiet environment for calls',
+  'romantic': 'Couple seeking intimate, romantic atmosphere for special getaway',
+  'friends': 'Friend group looking for social atmosphere, group activities, nightlife',
+  'family': 'Family with children needing safe, kid-friendly, spacious accommodations',
+  'solo': 'Solo traveler wanting to meet others, stay safe, good value hostels/hotels',
+  'relaxation': 'Vacationer seeking pure relaxation, spa, pool, no agenda'
+};
+
+const TRIP_TYPE_RULES: Record<string, string> = {
+  'remote_work': 'PRIORITIZE: Fast wifi (50+ mbps), desk/workspace, quiet for calls, cafes nearby. AVOID: Party hostels, noisy locations.',
+  'romantic': 'PRIORITIZE: Privacy, couples amenities (spa, rooftop), intimate dining, scenic views. AVOID: Hostels, party scenes, family resorts.',
+  'friends': 'PRIORITIZE: Group rooms/villas, common areas, proximity to nightlife, activities. Good for splitting costs.',
+  'family': 'PRIORITIZE: Safety, kid-friendly amenities, pool, space, family restaurants nearby. EXCLUDE: Adult-only venues, party hostels, bars.',
+  'solo': 'PRIORITIZE: Social hostels, safety ratings, common areas to meet people, central location. Consider female safety if relevant.',
+  'relaxation': 'PRIORITIZE: Spa, pool, beach access, peaceful setting, good service. AVOID: Party venues, noisy locations.'
+};
+
+// GPT ranks by VALUE for this specific traveler
+async function rankByValue(
   places: any[],
   category: string,
   city: string,
-  priceTier: string = '$',
-  profile?: TravelerProfile
+  profile: TravelerProfile
 ): Promise<Recommendation[]> {
   if (places.length === 0) return [];
 
-  // Build place list for GPT with all details - show [PRICE UNVERIFIED] for missing
   const placeList = places.map((p, i) => {
-    const priceTag = p.priceLevelDisplay ? p.priceLevelDisplay : '[PRICE UNVERIFIED]';
-    return `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${priceTag} | ${p.address}`;
+    return `${i + 1}. ${p.name} | ⭐${p.rating} (${p.reviewCount} reviews) | ${p.address}`;
   }).join('\n');
 
-  // Build profile context for GPT
-  const profileContext = profile ? `
-TRAVELER PROFILE:
-- Purpose: ${profile.purpose === 'work' ? 'Work-first digital nomad' : profile.purpose === 'leisure' ? 'Leisure/vacation' : 'Balance of work and play'}
-- Social Vibe: ${profile.socialVibe === 'focus' ? 'Deep focus, minimal distractions' : profile.socialVibe === 'networking' ? 'Networking with founders/creators' : 'Finding community and tribe'}
-- Accommodation Needs: ${profile.accommodationNeeds.join(', ') || 'Flexible'}
-- Activities: ${profile.activities.join(', ') || 'Open to suggestions'}
-- Content Creator: ${profile.contentCreator === 'yes' ? 'Yes, filming journey' : profile.contentCreator === 'maybe' ? 'Maybe' : 'No'}
-- Dating: ${profile.dating === 'yes' ? 'Actively interested' : profile.dating === 'open' ? 'Open to it' : 'Not interested'}
-- Nightlife: ${profile.nightlife === 'active' ? 'Active nightlife seeker' : profile.nightlife === 'organic' ? 'Only if meeting cool people' : 'Skip nightlife'}
-` : '';
+  const budgetRange = BUDGET_RANGES[profile.budget] || '$100-200/night';
+  const tripTypeDesc = TRIP_TYPE_DESCRIPTIONS[profile.tripType] || 'General traveler';
+  const tripTypeRules = TRIP_TYPE_RULES[profile.tripType] || '';
 
-  const prompt = `You are an expert on VIRAL travel destinations for digital nomads, entrepreneurs, founders, and content creators.
+  const prompt = `You are a travel expert helping find the BEST VALUE ${category} options.
 
-CATEGORY: ${category}
 LOCATION: ${city}
-PRICE TIER: ${priceTier} (focus on places at this budget level)
-${profileContext}
+CATEGORY: ${category}
+
+TRAVELER PROFILE:
+- Trip Type: ${tripTypeDesc}
+- Group Size: ${profile.groupSize} ${profile.groupSize === 1 ? 'person' : 'people'}
+- Budget: ${budgetRange}
+- Priorities: ${profile.priorities.length > 0 ? profile.priorities.join(', ') : 'Best overall value'}
+- Dealbreakers: ${profile.dealbreakers.length > 0 ? profile.dealbreakers.join(', ') : 'None specified'}
+
+TRIP-SPECIFIC RULES:
+${tripTypeRules}
+
 Here are ${places.length} REAL places from Google Maps:
 
 ${placeList}
 
-YOUR TASK: Pick the TOP 10 places BEST SUITED for this specific traveler's profile and most likely to GO VIRAL.
-
-Consider:
-- Match the traveler's PURPOSE (work-first needs good wifi/quiet, leisure needs experiences)
-- Match the traveler's SOCIAL VIBE (networking spots vs quiet retreats)
-- Match the traveler's ACTIVITIES (surfing, yoga, mtb, etc.)
-- If content creator: prioritize photogenic, Instagram-worthy spots
-- If dating-interested: consider social atmosphere
-- Are FAMOUS in nomad/startup circles (from your training data)
-- Have been featured in YouTube vlogs, TikToks, travel blogs
-- Are known influencer/content creator hotspots
-- Have strong founder/entrepreneur community presence
-- Are photogenic and content-worthy
+YOUR TASK:
+1. Using your training data (Booking.com, TripAdvisor, Google reviews, travel blogs), ESTIMATE the typical price for each place
+2. FILTER OUT places that violate the traveler's dealbreakers or trip-type rules
+3. FILTER OUT places clearly outside their budget range
+4. Calculate VALUE SCORE = (Quality × Fit for Trip Type) ÷ Price
+5. Return TOP 10 ranked by best value for THIS specific traveler
 
 For EACH of your top 10, provide:
-- index: The number from the list above
-- viralRank: 1-10 (1 = most viral)
-- priceLevel: $, $$, $$$, or $$$$ (estimate if not shown, mark with ~ if unverified)
-- whyViral: 1-2 sentences on why this place is viral/hyped (be specific - mention if it's been in vlogs, known for X, etc.)
-- communityFit: 1 sentence on the entrepreneur/founder vibe
-- contentAngle: Specific content idea (e.g., "sunrise laptop shot at infinity pool")
+- index: The number from the list above (1-indexed)
+- valueRank: 1-10 (1 = best value for this traveler)
+- estimatedPrice: Your best estimate like "$80-120/night" or "$15-25/meal" based on category
+- fitScore: 1-10 how well this matches their trip type and priorities
+- whyThisTraveler: 2 sentences explaining why this is great for THEIR specific situation
+- warning: Any potential concern for this traveler type, or null if none
+- photoWorthy: Best photo opportunity or memorable experience here
 
-Return JSON array ranked by viral potential (most viral first):
+CRITICAL: 
+- Be HONEST about pricing - use your knowledge of ${city} prices
+- A place can have high ratings but low fit score if it doesn't match the trip type
+- Family trips should NEVER include party hostels or adult venues
+- Romantic trips should prioritize intimacy over social scenes
+- Remote work trips need WIFI reliability above all else
+
+Return ONLY a valid JSON array, no markdown:
 [{
-  "index": 5,
-  "viralRank": 1,
-  "priceLevel": "$$",
-  "whyViral": "THE iconic digital nomad coworking spot - featured in hundreds of nomad YouTube vlogs, the infinity pool shot is instantly recognizable",
-  "communityFit": "Strong founder community, weekly pitch nights, attracts serious entrepreneurs",
-  "contentAngle": "Golden hour laptop shot at infinity pool with rice field backdrop"
-}]
-
-BE HONEST. Only include places you genuinely believe have viral potential. If a place isn't famous, don't include it.
-Return ONLY valid JSON array, no markdown.`;
+  "index": 3,
+  "valueRank": 1,
+  "estimatedPrice": "$85-110/night",
+  "fitScore": 9,
+  "whyThisTraveler": "Perfect for remote work with dedicated coworking space and 100mbps wifi. The rooftop cafe is ideal for taking calls with a view.",
+  "warning": "Can get busy during digital nomad high season (Jan-Mar)",
+  "photoWorthy": "Sunrise laptop shot from the rooftop workspace"
+}]`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'You are an expert on viral travel destinations. Return only valid JSON array.' },
+        { role: 'system', content: 'You are a travel value expert. Estimate real prices from your training data. Return only valid JSON array.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
@@ -114,7 +136,6 @@ Return ONLY valid JSON array, no markdown.`;
     const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
     const rankings = JSON.parse(cleaned);
 
-    // Merge GPT rankings with Google data
     const results: Recommendation[] = rankings.map((rank: any) => {
       const place = places[rank.index - 1];
       if (!place) return null;
@@ -125,42 +146,36 @@ Return ONLY valid JSON array, no markdown.`;
         website: place.website || '',
         rating: place.rating,
         reviewCount: place.reviewCount,
-        priceLevel: rank.priceLevel || place.priceLevelDisplay || 'N/A',
-        viralRank: rank.viralRank,
-        whyViral: rank.whyViral,
-        communityFit: rank.communityFit,
-        contentAngle: rank.contentAngle
+        estimatedPrice: rank.estimatedPrice || 'Price varies',
+        valueRank: rank.valueRank,
+        fitScore: rank.fitScore,
+        whyThisTraveler: rank.whyThisTraveler,
+        warning: rank.warning || null,
+        photoWorthy: rank.photoWorthy
       };
     }).filter(Boolean);
 
     return results.slice(0, 10);
 
   } catch (err) {
-    console.error('[GPT] Viral ranking failed:', err);
+    console.error('[GPT] Value ranking failed:', err);
     return [];
   }
 }
 
-// Enrich places with website AND price_level from Place Details API
+// Enrich places with website from Place Details API
 async function enrichPlaceDetails(places: any[]): Promise<any[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) return places;
 
   const enriched = await Promise.all(
     places.slice(0, 60).map(async (p) => {
-      // Skip if already has both website and price
-      if (p.website && p.priceLevel != null) return p;
+      if (p.website) return p;
       try {
-        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website,price_level&key=${apiKey}`;
+        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.placeId}&fields=website&key=${apiKey}`;
         const res = await fetch(url);
         const data = await res.json();
-        const newPrice = p.priceLevel ?? data.result?.price_level ?? null;
-        return { 
-          ...p, 
-          website: p.website || data.result?.website || '',
-          priceLevel: newPrice,
-          priceLevelDisplay: newPrice != null ? '$'.repeat(newPrice) : null
-        };
+        return { ...p, website: data.result?.website || '' };
       } catch {
         return p;
       }
@@ -182,11 +197,8 @@ export async function POST(
       month,
       year,
       daysTravel,
-      partySize = 1,
-      priceTier = '$$',
       minRating = 4.0,
       minReviews = 50,
-      equipmentType = 'surf',
       categories = Object.keys(CATEGORY_SEARCHES),
       profile
     } = body;
@@ -195,9 +207,18 @@ export async function POST(
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
     }
 
-    console.log('[AI] Starting viral search for ' + city + ', ' + country);
+    // Default profile if not provided
+    const travelerProfile: TravelerProfile = profile || {
+      tripType: 'relaxation',
+      budget: '100to200',
+      priorities: ['best_value'],
+      dealbreakers: [],
+      groupSize: 1
+    };
 
-    // Process each category
+    console.log('[AI] Starting value search for ' + city + ', ' + country);
+    console.log('[AI] Trip type: ' + travelerProfile.tripType + ', Budget: ' + travelerProfile.budget);
+
     const results = await Promise.all(
       categories.map(async (cat: string) => {
         const config = CATEGORY_SEARCHES[cat];
@@ -206,39 +227,46 @@ export async function POST(
           return [cat, []];
         }
 
-        // Customize query
-        let query = config.query;
-        if (cat === 'equipmentRental' && equipmentType) {
-          query = equipmentType + ' rental shop';
+        // Skip certain categories based on trip type
+        if (travelerProfile.tripType === 'family' && cat === 'nightlife') {
+          console.log('[AI] Skipping nightlife for family trip');
+          return [cat, []];
         }
 
-        // 1. Google: Get top 60 real places
+        let query = config.query;
+        
+        // Customize queries based on trip type
+        if (cat === 'lodging') {
+          if (travelerProfile.tripType === 'family') {
+            query = 'family hotel resort apartment';
+          } else if (travelerProfile.tripType === 'romantic') {
+            query = 'boutique hotel romantic resort';
+          } else if (travelerProfile.tripType === 'solo') {
+            query = 'hostel guesthouse budget hotel';
+          } else if (travelerProfile.tripType === 'friends') {
+            query = 'villa apartment hostel group accommodation';
+          }
+        }
+
         console.log('[AI] ' + cat + ': Searching "' + query + '"');
         const places = await searchPlaces(query, city, country, 60);
-
-        // 2. Enrich ALL places with price_level first (before filtering)
         const enriched = await enrichPlaceDetails(places);
 
-        // 3. Filter: open, rated, price tier (returns verified + unverified)
-        const maxPrice = priceTier === '$' ? 1 : priceTier === '$$' ? 2 : priceTier === '$$$' ? 3 : 4;
-        const { verified, unverified } = filterPlaces(enriched, {
-          ...config.defaultFilters,
-          minRating,
-          minReviews,
-          maxPriceLevel: maxPrice
+        // Filter by rating and reviews only (price filtering done by GPT)
+        const filtered = enriched.filter(p => {
+          if (p.rating < minRating) return false;
+          if (p.reviewCount < minReviews) return false;
+          return true;
         });
 
-        // Combine: verified first (price filtered), then unverified (no price data)
-        const filtered = [...verified, ...unverified];
-        console.log('[AI] ' + cat + ': ' + verified.length + ' verified, ' + unverified.length + ' unverified price');
+        console.log('[AI] ' + cat + ': ' + filtered.length + ' places after rating/review filter');
 
         if (filtered.length === 0) return [cat, []];
 
-        // 4. GPT: Pick TOP 10 most viral from filtered list
-        const viral = await rankByViralPotential(filtered, cat, city, priceTier, profile);
-        console.log('[AI] ' + cat + ': ' + viral.length + ' viral picks');
+        const ranked = await rankByValue(filtered, cat, city, travelerProfile);
+        console.log('[AI] ' + cat + ': ' + ranked.length + ' value picks');
 
-        return [cat, viral];
+        return [cat, ranked];
       })
     );
 
@@ -247,7 +275,16 @@ export async function POST(
 
     return NextResponse.json({ 
       recommendations,
-      context: { city, country, activity, month: monthName, year, daysTravel, partySize }
+      context: { 
+        city, 
+        country, 
+        activity, 
+        month: monthName, 
+        year, 
+        daysTravel,
+        tripType: travelerProfile.tripType,
+        budget: travelerProfile.budget
+      }
     });
 
   } catch (err) {
