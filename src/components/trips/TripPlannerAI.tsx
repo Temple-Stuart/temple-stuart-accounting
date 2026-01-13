@@ -71,7 +71,7 @@ interface Props {
   month: number;
   year: number;
   daysTravel: number;
-  onBudgetChange?: (total: number, items: ScheduledSelection[]) => void;
+  onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
 }
 
 const TRIP_TYPES = [
@@ -269,7 +269,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   }, [selections]);
 
   useEffect(() => {
-    if (onBudgetChange) onBudgetChange(totalBudget, selections);
+    if (onBudgetChange) onBudgetChange(totalBudget, selections, profile.groupSize);
   }, [totalBudget, selections]);
 
   const toggleArrayItem = (arr: string[], item: string) => 

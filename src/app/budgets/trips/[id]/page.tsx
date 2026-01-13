@@ -607,7 +607,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 month={trip.month}
                 year={trip.year}
                 daysTravel={trip.daysTravel}
-                onBudgetChange={(total, selections) => {
+                onBudgetChange={(total, selections, groupSize) => {
                   const catMap: Record<string, string> = {
                     lodging: "lodging", coworking: "coworking", motoRental: "car",
                     equipmentRental: "equipment", airportTransfers: "airportTransfers",
@@ -617,7 +617,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   const items = selections.map(sel => ({
                     splitType: sel.splitType || "personal",
                     category: catMap[sel.category] || sel.category,
-                    amount: sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1),
+                    amount: (sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1)) / (sel.splitType === "split" ? groupSize : 1),
                     description: sel.item.name,
                   }));
                   setTripBudget(items);
@@ -636,7 +636,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   <div>
                     <span className="font-medium">{item.description || item.category}</span>
                     <span className="text-xs text-gray-500 ml-2">({item.category})</span>
-                    {item.splitType === "split" && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded ml-2">👥 Split</span>}
+                    {item.splitType === "split" && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded ml-2">👥 Your share</span>}
                   </div>
                   <span className="font-bold text-green-600">${Number(item.amount).toLocaleString()}</span>
                 </div>
