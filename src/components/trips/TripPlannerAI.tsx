@@ -151,6 +151,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileStep, setProfileStep] = useState(1);
 
+
+  // Custom add state
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customCategory, setCustomCategory] = useState<CategoryKey | null>(null);
+  const [customForm, setCustomForm] = useState({ name: "", url: "", price: "", notes: "" });
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customPreview, setCustomPreview] = useState<{ title: string; image: string | null; price: string | null } | null>(null);
   const tripDays = Array.from({ length: daysTravel }, (_, i) => i + 1);
 
   const analyzeDestination = async () => {
@@ -265,6 +272,53 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
 
   const toggleArrayItem = (arr: string[], item: string) => 
     arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
+
+  // Custom URL preview fetch
+  const fetchUrlPreview = async (url: string) => {
+    if (!url) return;
+    setCustomLoading(true);
+    try {
+      const res = await fetch("/api/fetch-og", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCustomPreview({ title: data.title, image: data.image, price: data.price });
+        if (data.title && !customForm.name) setCustomForm(f => ({ ...f, name: data.title }));
+        if (data.price && !customForm.price) setCustomForm(f => ({ ...f, price: data.price }));
+      }
+    } catch (err) { console.error("URL fetch failed:", err); }
+    finally { setCustomLoading(false); }
+  };
+
+  const openCustomModal = (category: CategoryKey) => {
+    setCustomCategory(category);
+    setCustomForm({ name: "", url: "", price: "", notes: "" });
+    setCustomPreview(null);
+    setShowCustomModal(true);
+  };
+
+  const handleAddCustomItem = () => {
+    if (!customCategory || !customForm.name) return;
+    const customItem: Recommendation = {
+      name: customForm.name,
+      address: customForm.notes || "Custom addition",
+      website: customForm.url || "",
+      rating: 0,
+      reviewCount: 0,
+      estimatedPrice: customForm.price || "Price TBD",
+      valueRank: 0,
+      fitScore: 10,
+      whyThisTraveler: "Manually added by you",
+      warning: null,
+      photoWorthy: "",
+      photoUrl: customPreview?.image || undefined
+    };
+    handleSelectItem(customCategory, customItem);
+    setShowCustomModal(false);
+  };
 
   const getProfileSummary = () => {
     const tripType = TRIP_TYPES.find(t => t.value === profile.tripType);
@@ -582,6 +636,88 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         </div>
       )}
 
+      {/* Custom Add Modal */}
+      {showCustomModal && customCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 className="font-bold text-lg mb-4">
+              ➕ Add Custom {getCatInfo(customCategory)?.label}
+            </h3>
+            
+            <div className="space-y-4">
+              {/* URL Input */}
+              <div>
+                <label className="text-sm font-medium block mb-2">Paste Airbnb/Booking URL (optional)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={customForm.url}
+                    onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))}
+                    placeholder="https://airbnb.com/rooms/..."
+                    className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={() => fetchUrlPreview(customForm.url)}
+                    disabled={!customForm.url || customLoading}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  >
+                    {customLoading ? "..." : "Fetch"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview */}
+              {customPreview?.image && (
+                <div className="rounded-lg overflow-hidden border">
+                  <img src={customPreview.image} alt="Preview" className="w-full h-40 object-cover" />
+                </div>
+              )}
+
+              {/* Name */}
+              <div>
+                <label className="text-sm font-medium block mb-2">Name *</label>
+                <input
+                  type="text"
+                  value={customForm.name}
+                  onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Villa Sunset Paradise"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="text-sm font-medium block mb-2">Price</label>
+                <input
+                  type="text"
+                  value={customForm.price}
+                  onChange={e => setCustomForm(f => ({ ...f, price: e.target.value }))}
+                  placeholder="$150/night"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-sm font-medium block mb-2">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={customForm.notes}
+                  onChange={e => setCustomForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Great reviews, close to beach"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button variant="secondary" onClick={() => setShowCustomModal(false)} className="flex-1">Cancel</Button>
+              <Button onClick={handleAddCustomItem} className="flex-1" disabled={!customForm.name}>➕ Add to Plan</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Budget Summary */}
       {selections.length > 0 && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
@@ -639,7 +775,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                     <span className={'transition-transform ' + (isOpen ? 'rotate-180' : '')}>▼</span>
                   </span>
                 </button>
-                {isOpen && renderTable(key, items)}
+                {isOpen && (
+                  <div>
+                    {renderTable(key, items)}
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openCustomModal(key); }}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                      >
+                        ➕ Add Custom {label}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
