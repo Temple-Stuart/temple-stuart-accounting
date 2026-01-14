@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/lib/openai';
 import { searchPlaces, filterPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
+import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 
 // Trip-type focused profile
 interface TravelerProfile {
@@ -248,9 +249,21 @@ export async function POST(
           }
         }
 
-        console.log('[AI] ' + cat + ': Searching "' + query + '"');
-        const places = await searchPlaces(query, city, country, 60);
-        const enriched = await enrichPlaceDetails(places);
+        // CHECK CACHE FIRST - avoid expensive API calls ($500/day fix!)
+        let enriched: any[] = [];
+        const cacheIsFresh = await isCacheFresh(city, country, cat);
+        
+        if (cacheIsFresh) {
+          enriched = await getCachedPlaces(city, country, cat);
+          console.log('[AI] ' + cat + ': Using ' + enriched.length + ' CACHED places (no API call)');
+        } else {
+          console.log('[AI] ' + cat + ': Cache miss - calling Google API for "' + query + '"');
+          const places = await searchPlaces(query, city, country, 60);
+          enriched = await enrichPlaceDetails(places);
+          // Save to cache for future use
+          await cachePlaces(enriched, city, country, cat);
+          console.log('[AI] ' + cat + ': Cached ' + enriched.length + ' places (30-day TTL)');
+        }
 
         // Filter by rating and reviews only (price filtering done by GPT)
         const filtered = enriched.filter(p => {
