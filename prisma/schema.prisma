@@ -967,3 +967,25 @@ model sail_destinations {
   longitude      Decimal? @db.Decimal(10, 6)
   createdAt      DateTime @default(now()) @map("createdat") @db.Timestamp(3)
 }
+
+// Google Places API cache to avoid repeated expensive calls
+model places_cache {
+  id              String   @id @default(cuid())
+  placeId         String   @unique
+  name            String
+  address         String
+  rating          Float?
+  reviewCount     Int?
+  priceLevel      Int?
+  website         String?
+  types           String?  // JSON array as string
+  city            String
+  country         String
+  category        String   // coworking, lodging, etc.
+  latitude        Float?
+  longitude       Float?
+  cachedAt        DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([city, country, category])
+}
