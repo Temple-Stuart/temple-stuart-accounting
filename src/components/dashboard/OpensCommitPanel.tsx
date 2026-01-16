@@ -10,10 +10,13 @@ interface OpenTransaction {
   ticker: string;
   underlying: string;
   isOption: boolean;
+  isCrypto: boolean;
+  isStock: boolean;
   optionType: 'call' | 'put' | null;
   strike: number | null;
   expiration: string | null;
-  action: 'buy_to_open' | 'sell_to_open';
+  action: string; // buy_to_open, sell_to_open, buy, sell, unknown
+  positionType: 'open' | 'close' | 'unknown';
   quantity: number;
   price: number;
   amount: number;
@@ -31,21 +34,38 @@ interface SpreadGroup {
 function detectStrategy(legs: OpenTransaction[]): string {
   if (legs.length === 0) return 'unknown';
   
-  const allOptions = legs.every(l => l.isOption);
-  if (!allOptions) {
-    const buys = legs.filter(l => l.action === 'buy_to_open');
-    return buys.length > 0 ? 'buy' : 'sell';
+  // Check asset types
+  const hasOptions = legs.some(l => l.isOption);
+  const hasCrypto = legs.some(l => l.isCrypto);
+  const hasStock = legs.some(l => l.isStock);
+  
+  // Pure crypto
+  if (hasCrypto && !hasOptions && !hasStock) {
+    return 'crypto-buy';
   }
   
+  // Pure stock
+  if (hasStock && !hasOptions && !hasCrypto) {
+    return 'stock-buy';
+  }
+  
+  // Mixed or non-options - default to buy
+  if (!hasOptions) {
+    return 'buy';
+  }
+  
+  // Single option leg
   if (legs.length === 1) {
     const leg = legs[0];
-    if (leg.action === 'buy_to_open') {
+    const isBuy = leg.action === 'buy_to_open' || leg.action === 'buy';
+    if (isBuy) {
       return leg.optionType === 'call' ? 'long-call' : 'long-put';
     } else {
       return leg.optionType === 'call' ? 'short-call' : 'short-put';
     }
   }
   
+  // 2-leg spreads
   if (legs.length === 2) {
     const [a, b] = legs;
     const sameType = a.optionType === b.optionType;
@@ -70,6 +90,7 @@ function detectStrategy(legs: OpenTransaction[]): string {
     }
   }
   
+  // 4-leg iron condor
   if (legs.length === 4) {
     const puts = legs.filter(l => l.optionType === 'put');
     const calls = legs.filter(l => l.optionType === 'call');
@@ -103,8 +124,12 @@ const STRATEGY_OPTIONS = [
     { value: 'short-put', label: 'Short Put' },
   ]},
   { group: 'Stock', options: [
-    { value: 'buy', label: 'Buy Stock' },
-    { value: 'sell', label: 'Sell Stock' },
+    { value: 'stock-buy', label: 'Stock Buy' },
+    { value: 'stock-sell', label: 'Stock Sell' },
+  ]},
+  { group: 'Crypto', options: [
+    { value: 'crypto-buy', label: 'Crypto Buy' },
+    { value: 'crypto-sell', label: 'Crypto Sell' },
   ]},
 ];
 

@@ -13,8 +13,7 @@ export async function GET() {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Fetch all investment transactions that don't have a tradeNum assigned
-    // Include security relation for option details
+    // Fetch ALL investment transactions that don't have a tradeNum assigned
     const transactions = await prisma.investment_transactions.findMany({
       where: {
         tradeNum: null,
@@ -28,22 +27,22 @@ export async function GET() {
       },
     });
 
-    // Filter to only "to open" transactions
-    const opens = transactions.filter(t => 
-      t.name?.toLowerCase().includes('to open')
-    );
-
-    // Parse each transaction using security data
-    const parsedOpens = opens.map(t => {
+    // Parse each transaction
+    const parsed = transactions.map(t => {
       const name = t.name || '';
       const sec = t.security;
+      const nameLower = name.toLowerCase();
       
-      // Determine if option from security data
+      // Determine asset type
       const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
+      const isCrypto = ['btc', 'eth', 'doge', 'sol', 'ada', 'xrp'].some(c => 
+        sec?.ticker_symbol?.toLowerCase() === c || nameLower.includes(c)
+      );
+      const isStock = !isOption && !isCrypto;
       
       // Get option details from security relation
       const underlying = sec?.option_underlying_ticker || null;
-      const optionType = sec?.option_contract_type?.toLowerCase() || null; // 'put' or 'call'
+      const optionType = sec?.option_contract_type?.toLowerCase() || null;
       const strike = sec?.option_strike_price || null;
       const expiration = sec?.option_expiration_date 
         ? new Date(sec.option_expiration_date).toISOString().split('T')[0] 
@@ -51,8 +50,27 @@ export async function GET() {
       const ticker = sec?.ticker_symbol || null;
       
       // Detect action from name
-      const isSell = name.toLowerCase().startsWith('sell');
-      const action = isSell ? 'sell_to_open' : 'buy_to_open';
+      const isSell = nameLower.startsWith('sell');
+      const isBuy = nameLower.startsWith('buy');
+      const isToOpen = nameLower.includes('to open');
+      const isToClose = nameLower.includes('to close');
+      
+      let action = 'unknown';
+      if (isOption) {
+        if (isToOpen) action = isSell ? 'sell_to_open' : 'buy_to_open';
+        else if (isToClose) action = isSell ? 'sell_to_close' : 'buy_to_close';
+      } else {
+        action = isSell ? 'sell' : 'buy';
+      }
+      
+      // Determine position type
+      let positionType: 'open' | 'close' | 'unknown' = 'unknown';
+      if (isOption) {
+        positionType = isToOpen ? 'open' : isToClose ? 'close' : 'unknown';
+      } else {
+        // For stocks/crypto: buys open positions, sells close positions
+        positionType = isBuy ? 'open' : isSell ? 'close' : 'unknown';
+      }
 
       return {
         id: t.id,
@@ -60,29 +78,37 @@ export async function GET() {
         name: t.name,
         security_id: t.security_id,
         ticker,
-        underlying,
+        underlying: underlying || ticker, // Use ticker as underlying for stocks/crypto
         isOption,
+        isCrypto,
+        isStock,
         optionType,
         strike,
         expiration,
         action,
+        positionType,
         quantity: t.quantity,
         price: t.price,
         amount: t.amount,
       };
     });
 
-    // Group by date
-    const byDate: Record<string, typeof parsedOpens> = {};
-    parsedOpens.forEach(t => {
+    // Separate opens vs closes
+    const opens = parsed.filter(t => t.positionType === 'open');
+    const closes = parsed.filter(t => t.positionType === 'close');
+    const unknown = parsed.filter(t => t.positionType === 'unknown');
+
+    // Group opens by date
+    const byDate: Record<string, typeof opens> = {};
+    opens.forEach(t => {
       const dateKey = t.date ? new Date(t.date).toISOString().split('T')[0] : 'unknown';
       if (!byDate[dateKey]) byDate[dateKey] = [];
       byDate[dateKey].push(t);
     });
 
-    // Also group by date + underlying for spread detection
-    const byDateAndUnderlying: Record<string, Record<string, typeof parsedOpens>> = {};
-    parsedOpens.forEach(t => {
+    // Group opens by date + underlying for spread detection
+    const byDateAndUnderlying: Record<string, Record<string, typeof opens>> = {};
+    opens.forEach(t => {
       const dateKey = t.date ? new Date(t.date).toISOString().split('T')[0] : 'unknown';
       const symbol = t.underlying || t.ticker || 'unknown';
       
@@ -92,8 +118,13 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      totalOpens: parsedOpens.length,
-      opens: parsedOpens,
+      totalAll: parsed.length,
+      totalOpens: opens.length,
+      totalCloses: closes.length,
+      totalUnknown: unknown.length,
+      opens,
+      closes,
+      unknown,
       byDate,
       byDateAndUnderlying,
     });
