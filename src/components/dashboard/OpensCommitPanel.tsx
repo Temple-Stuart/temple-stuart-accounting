@@ -337,7 +337,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
                   {STRATEGY_OPTIONS.map((item, i) => 
                     'group' in item ? (
                       <optgroup key={item.group} label={item.group}>
-                        {item.options.map(opt => (
+                        {item.options && item.options.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </optgroup>
