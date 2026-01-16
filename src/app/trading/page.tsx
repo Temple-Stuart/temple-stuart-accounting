@@ -297,7 +297,7 @@ export default function TradingPage() {
                     {data?.recentTrades.map(t => (
                       <tr key={t.id} className="border-b border-gray-100">
                         <td className="py-2">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="py-2 font-medium">{t.ticker || t.name.slice(0, 20)}</td>
+                        <td className="py-2 font-medium">{t.ticker || (t.name?.slice(0, 20) || "—")}</td>
                         <td className="py-2">{t.subtype || t.type}</td>
                         <td className="py-2 text-right">{t.quantity}</td>
                         <td className="py-2 text-right">${t.price?.toFixed(2) || '—'}</td>
