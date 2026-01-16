@@ -14,10 +14,14 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Fetch all investment transactions that don't have a tradeNum assigned
+    // Include security relation for option details
     const transactions = await prisma.investment_transactions.findMany({
       where: {
         tradeNum: null,
         accounts: { userId: user.id }
+      },
+      include: {
+        security: true
       },
       orderBy: {
         date: 'asc',
@@ -29,37 +33,24 @@ export async function GET() {
       t.name?.toLowerCase().includes('to open')
     );
 
-    // Parse each transaction to extract useful fields
+    // Parse each transaction using security data
     const parsedOpens = opens.map(t => {
       const name = t.name || '';
+      const sec = t.security;
       
-      // Extract ticker from name (e.g., "TSLA250815P00280000" or "TSLA")
-      const tickerMatch = name.match(/\d+\.?\d*\s+(?:shares\s+of\s+)?([A-Z0-9]+)/i);
-      const ticker = tickerMatch ? tickerMatch[1] : null;
+      // Determine if option from security data
+      const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
       
-      // Detect if it's an option (has format like TSLA250815P00280000)
-      const isOption = ticker ? /^[A-Z]+\d{6}[PC]\d+$/.test(ticker) : false;
+      // Get option details from security relation
+      const underlying = sec?.option_underlying_ticker || null;
+      const optionType = sec?.option_contract_type?.toLowerCase() || null; // 'put' or 'call'
+      const strike = sec?.option_strike_price || null;
+      const expiration = sec?.option_expiration_date 
+        ? new Date(sec.option_expiration_date).toISOString().split('T')[0] 
+        : null;
+      const ticker = sec?.ticker_symbol || null;
       
-      // Parse option details if applicable
-      let underlying = null;
-      let optionType = null;
-      let strike = null;
-      let expiration = null;
-      
-      if (isOption && ticker) {
-        const optMatch = ticker.match(/^([A-Z]+)(\d{6})([PC])(\d{8})$/);
-        if (optMatch) {
-          underlying = optMatch[1];
-          const dateStr = optMatch[2];
-          optionType = optMatch[3] === 'P' ? 'put' : 'call';
-          strike = parseInt(optMatch[4]) / 1000;
-          const yy = dateStr.substring(0, 2);
-          const mm = dateStr.substring(2, 4);
-          const dd = dateStr.substring(4, 6);
-          expiration = `20${yy}-${mm}-${dd}`;
-        }
-      }
-      
+      // Detect action from name
       const isSell = name.toLowerCase().startsWith('sell');
       const action = isSell ? 'sell_to_open' : 'buy_to_open';
 
@@ -67,8 +58,9 @@ export async function GET() {
         id: t.id,
         date: t.date,
         name: t.name,
-        ticker: isOption ? ticker : (underlying || ticker),
-        underlying: underlying,
+        security_id: t.security_id,
+        ticker,
+        underlying,
         isOption,
         optionType,
         strike,
@@ -77,11 +69,10 @@ export async function GET() {
         quantity: t.quantity,
         price: t.price,
         amount: t.amount,
-        tradeNum: null,
-        closingTransactionIds: [],
       };
     });
 
+    // Group by date
     const byDate: Record<string, typeof parsedOpens> = {};
     parsedOpens.forEach(t => {
       const dateKey = t.date ? new Date(t.date).toISOString().split('T')[0] : 'unknown';
@@ -89,10 +80,22 @@ export async function GET() {
       byDate[dateKey].push(t);
     });
 
+    // Also group by date + underlying for spread detection
+    const byDateAndUnderlying: Record<string, Record<string, typeof parsedOpens>> = {};
+    parsedOpens.forEach(t => {
+      const dateKey = t.date ? new Date(t.date).toISOString().split('T')[0] : 'unknown';
+      const symbol = t.underlying || t.ticker || 'unknown';
+      
+      if (!byDateAndUnderlying[dateKey]) byDateAndUnderlying[dateKey] = {};
+      if (!byDateAndUnderlying[dateKey][symbol]) byDateAndUnderlying[dateKey][symbol] = [];
+      byDateAndUnderlying[dateKey][symbol].push(t);
+    });
+
     return NextResponse.json({
       totalOpens: parsedOpens.length,
       opens: parsedOpens,
       byDate,
+      byDateAndUnderlying,
     });
   } catch (error) {
     console.error('Opens endpoint error:', error);
