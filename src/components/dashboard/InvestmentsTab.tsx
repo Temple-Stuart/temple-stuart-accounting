@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import CommittedInvestmentsTable from "./CommittedInvestmentsTable";
+import OpensCommitPanel from "./OpensCommitPanel";
 import { robinhoodParser } from '@/lib/robinhood-parser';
 
 interface InvestmentsTabProps {
@@ -306,6 +307,8 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
 
   return (
     <>
+      <OpensCommitPanel onReload={onReload} />
+
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
