@@ -29,7 +29,7 @@ export default function HeroSection() {
           </button>
 
           {/* Social Links */}
-          <div className="flex justify-center gap-6">
+          <div className="flex flex-col items-center gap-4">
             <a href="https://instagram.com/templestuart" target="_blank" rel="noopener noreferrer" 
                className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
               <svg className="w-6 h-6 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
