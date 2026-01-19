@@ -72,7 +72,7 @@ interface Props {
   year: number;
   daysTravel: number;
   onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
-  committedBudget?: { category: string; amount: number; description: string }[];
+  committedBudget?: { category: string; amount: number; description: string; photoUrl?: string | null }[];
 }
 
 const TRIP_TYPES = [
@@ -286,7 +286,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
         .filter(b => b.category !== "flight")
         .map(b => ({
           category: catMap[b.category] || "activities" as CategoryKey,
-          item: { name: b.description, address: "", website: "", rating: 0, reviewCount: 0, estimatedPrice: String(b.amount), valueRank: 0, fitScore: 0, whyThisTraveler: "", warning: null, photoWorthy: "" },
+          item: { name: b.description, address: "", website: "", rating: 0, reviewCount: 0, estimatedPrice: String(b.amount), valueRank: 0, fitScore: 0, whyThisTraveler: "", warning: null, photoWorthy: "", photoUrl: b.photoUrl || undefined },
           days: Array.from({ length: daysTravel }, (_, i) => i + 1),
           allDay: true,
           startTime: "09:00",
@@ -776,7 +776,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
               const catInfo = getCatInfo(sel.category);
               const cost = calculateItemCost(sel);
               return (
-                <div key={idx} className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+                <div key={idx} className="bg-white rounded-lg shadow-sm border border-green-100 overflow-hidden">
+                  {sel.item.photoUrl && (
+                    <div className="h-32 w-full">
+                      <img src={sel.item.photoUrl} alt={sel.item.name} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="p-3">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-lg">{catInfo?.icon}</span>
                     <div className="flex gap-1">
@@ -789,6 +795,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
                   <div className="text-green-600 font-medium">${cost.toLocaleString()}</div>
                   <div className="text-xs text-gray-400 mt-1">
                     Days: {sel.days.length > 5 ? sel.days[0] + '-' + sel.days[sel.days.length-1] : sel.days.join(', ')}
+                  </div>
                   </div>
                 </div>
               );
