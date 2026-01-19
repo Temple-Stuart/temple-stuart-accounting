@@ -72,6 +72,7 @@ interface Props {
   year: number;
   daysTravel: number;
   onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
+  committedBudget?: { category: string; amount: number; description: string }[];
 }
 
 const TRIP_TYPES = [
@@ -128,7 +129,7 @@ const CATEGORIES: { key: CategoryKey; label: string; icon: string; defaultAllDay
 
 const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
 
-export default function TripPlannerAI({ tripId, city, country, activity, month, year, daysTravel, onBudgetChange }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, month, year, daysTravel, onBudgetChange, committedBudget }: Props) {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<AIResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +272,32 @@ export default function TripPlannerAI({ tripId, city, country, activity, month, 
   useEffect(() => {
     if (onBudgetChange) onBudgetChange(totalBudget, selections, profile.groupSize);
   }, [totalBudget, selections]);
+
+  // Restore selections from committed budget
+  useEffect(() => {
+    if (committedBudget && committedBudget.length > 0 && selections.length === 0) {
+      const catMap: Record<string, CategoryKey> = {
+        lodging: "lodging", coworking: "coworking", car: "motoRental",
+        equipment: "equipmentRental", airportTransfers: "airportTransfers",
+        groundTransport: "airportTransfers", meals: "dinner", activities: "activities",
+        tips: "toiletries", wellness: "wellness", hotel: "lodging", bizdev: "coworking",
+      };
+      const restored: ScheduledSelection[] = committedBudget
+        .filter(b => b.category !== "flight")
+        .map(b => ({
+          category: catMap[b.category] || "activities" as CategoryKey,
+          item: { name: b.description, address: "", website: "", rating: 0, reviewCount: 0, estimatedPrice: String(b.amount), valueRank: 0, fitScore: 0, whyThisTraveler: "", warning: null, photoWorthy: "" },
+          days: Array.from({ length: daysTravel }, (_, i) => i + 1),
+          allDay: true,
+          startTime: "09:00",
+          endTime: "17:00",
+          rateType: "monthly" as const,
+          customPrice: b.amount,
+          splitType: "personal" as const,
+        }));
+      if (restored.length > 0) setSelections(restored);
+    }
+  }, [committedBudget, daysTravel]);
 
   const toggleArrayItem = (arr: string[], item: string) => 
     arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];

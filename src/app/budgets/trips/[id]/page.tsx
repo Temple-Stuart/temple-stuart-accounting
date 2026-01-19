@@ -600,6 +600,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
             return (
               <TripPlannerAI
+                committedBudget={tripBudget}
                 tripId={id}
                 city={selectedDest?.resort?.name || trip.destination}
                 country={selectedDest?.resort?.country || null}
