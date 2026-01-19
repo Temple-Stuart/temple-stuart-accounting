@@ -940,6 +940,7 @@ model budget_line_items {
   month         Int
   amount        Decimal  @db.Decimal(12, 2)
   description   String?
+  photoUrl      String?
   source        String   @db.VarChar(20)  // 'trip', 'manual', 'recurring'
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

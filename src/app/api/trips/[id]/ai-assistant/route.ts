@@ -24,6 +24,7 @@ interface Recommendation {
   whyThisTraveler: string;
   warning: string | null;
   photoWorthy: string;
+  photoUrl?: string | null;
 }
 
 const BUDGET_RANGES: Record<string, string> = {
@@ -152,7 +153,8 @@ Return ONLY a valid JSON array, no markdown:
         fitScore: rank.fitScore,
         whyThisTraveler: rank.whyThisTraveler,
         warning: rank.warning || null,
-        photoWorthy: rank.photoWorthy
+        photoWorthy: rank.photoWorthy,
+        photoUrl: place.photos?.[0] || null
       };
     }).filter(Boolean);
 

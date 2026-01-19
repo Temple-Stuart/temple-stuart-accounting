@@ -111,6 +111,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             month: startDate.getMonth() + 1,
             amount: item.amount,
             description: item.description || item.category,
+            photoUrl: item.photoUrl || null,
             source: 'trip',
             updatedAt: new Date()
           }

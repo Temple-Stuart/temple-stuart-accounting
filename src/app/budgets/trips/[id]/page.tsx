@@ -209,7 +209,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const restoredBudget = items.map((item: any) => ({
         category: COA_TO_CATEGORY[item.coaCode] || item.coaCode,
         amount: Number(item.amount),
-        description: item.description || ''
+        description: item.description || '',
+        photoUrl: item.photoUrl || null
       }));
       setTripBudget(restoredBudget);
       console.log('Restored tripBudget from DB:', restoredBudget);
@@ -620,6 +621,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     category: catMap[sel.category] || sel.category,
                     amount: (sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1)) / (sel.splitType === "split" ? groupSize : 1),
                     description: sel.item.name,
+                    photoUrl: sel.item.photoUrl || null,
                   }));
                   setTripBudget(items);
                 }}
