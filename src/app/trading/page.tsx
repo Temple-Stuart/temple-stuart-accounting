@@ -368,36 +368,68 @@ export default function TradingPage() {
               </Card>
             </div>
 
-            {/* Recent Trades */}
+            {/* Committed Trades */}
             <Card className="p-6 mt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Trades</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Committed Trades
+                {tradesData?.trades && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({tradesData.trades.length} trades)
+                  </span>
+                )}
+              </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b">
-                      <th className="pb-2">Date</th>
-                      <th className="pb-2">Symbol</th>
-                      <th className="pb-2">Type</th>
-                      <th className="pb-2 text-right">Qty</th>
-                      <th className="pb-2 text-right">Price</th>
-                      <th className="pb-2 text-right">Amount</th>
+                      <th className="pb-2">Trade #</th>
+                      <th className="pb-2">Opened</th>
+                      <th className="pb-2">Ticker</th>
+                      <th className="pb-2">Strategy</th>
+                      <th className="pb-2">Legs</th>
+                      <th className="pb-2">Status</th>
+                      <th className="pb-2 text-right">P&L</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data?.recentTrades.map(t => (
-                      <tr key={t.id} className="border-b border-gray-100">
-                        <td className="py-2">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="py-2 font-medium">{t.ticker || (t.name?.slice(0, 20) || "—")}</td>
-                        <td className="py-2">{t.subtype || t.type}</td>
-                        <td className="py-2 text-right">{t.quantity}</td>
-                        <td className="py-2 text-right">${t.price?.toFixed(2) || '—'}</td>
-                        <td className="py-2 text-right font-medium">{formatCurrency(t.amount || 0)}</td>
+                    {tradesData?.trades
+                      ?.slice()
+                      .sort((a, b) => new Date(a.openDate).getTime() - new Date(b.openDate).getTime())
+                      .map(t => (
+                      <tr key={t.tradeNum} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-2 font-mono text-gray-600">#{t.tradeNum}</td>
+                        <td className="py-2">{new Date(t.openDate).toLocaleDateString()}</td>
+                        <td className="py-2 font-medium">{t.underlying}</td>
+                        <td className="py-2">
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                            {t.strategy}
+                          </span>
+                        </td>
+                        <td className="py-2 text-center">{t.legs}</td>
+                        <td className="py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            t.status === 'OPEN' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {t.status}
+                          </span>
+                        </td>
+                        <td className={`py-2 text-right font-medium ${
+                          t.status === 'CLOSED'
+                            ? t.realizedPL >= 0 ? 'text-green-600' : 'text-red-600'
+                            : 'text-gray-400'
+                        }`}>
+                          {t.status === 'CLOSED' ? formatPL(t.realizedPL) : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {(!data?.recentTrades || data.recentTrades.length === 0) && (
-                  <div className="text-gray-400 text-sm text-center py-4">No trades recorded yet</div>
+                {(!tradesData?.trades || tradesData.trades.length === 0) && (
+                  <div className="text-gray-400 text-sm text-center py-4">
+                    No committed trades yet. Use the Commit Trades tab to commit your first trade.
+                  </div>
                 )}
               </div>
             </Card>

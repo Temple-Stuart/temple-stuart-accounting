@@ -63,9 +63,25 @@ export async function GET() {
         action = isSell ? 'sell' : 'buy';
       }
       
+      // Detect exercise/assignment (these CLOSE option positions)
+      const isExercise = nameLower.includes('exercise');
+      const isAssignment = nameLower.includes('assignment');
+      const isExerciseOrAssignment = isExercise || isAssignment;
+      
       // Determine position type
       let positionType: 'open' | 'close' | 'unknown' = 'unknown';
-      if (isOption) {
+      
+      if (isExerciseOrAssignment) {
+        // Exercise/assignment transactions close option positions
+        // The "transfer" type ones are the option closing
+        // The "buy/sell" ones with "due to exercise/assignment" are stock opens
+        if (t.type === 'transfer' || nameLower.startsWith('transfer')) {
+          positionType = 'close'; // This closes the option
+        } else {
+          // Stock transaction from exercise - this OPENS a stock position
+          positionType = 'open';
+        }
+      } else if (isOption) {
         positionType = isToOpen ? 'open' : isToClose ? 'close' : 'unknown';
       } else {
         // For stocks/crypto: buys open positions, sells close positions
