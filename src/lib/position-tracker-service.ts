@@ -50,6 +50,19 @@ export class PositionTrackerService {
         const legName = (leg as any).name?.toLowerCase() || '';
         const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
         
+        // Skip $0 transfer legs - only process stock transactions with real amounts
+        if (isExerciseOrAssignment && (leg.amount === 0 || leg.price === 0)) {
+          console.log(`  [SKIP] $0 transfer leg for exercise/assignment: ${legName.slice(0, 50)}`);
+          // Still mark as committed but don't create journal entries
+          results.push({
+            legId: leg.id,
+            action: 'CLOSE',
+            skipped: true,
+            reason: 'ZERO_AMOUNT_TRANSFER'
+          });
+          continue;
+        }
+        
         let openPosition = null;
         
         if (isExerciseOrAssignment) {
