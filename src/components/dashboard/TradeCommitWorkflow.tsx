@@ -159,6 +159,11 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     if (!strategy) return alert('Select a strategy');
     if (!tradeNum) return alert('Enter a trade number');
 
+    // Stock lots use different workflow
+    if (strategy === 'stock-long' || strategy === 'stock-short') {
+      return commitStockLots();
+    }
+
     setCommitting(true);
     try {
       const res = await fetch('/api/investment-transactions/commit-to-ledger', {
@@ -178,6 +183,35 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         alert(`✅ Trade #${tradeNum} OPENED (${result.committed} legs)${skippedCount > 0 ? `\n⚠️ ${skippedCount} skipped` : ''}`);
         clearSelection();
         setTradeNum(String(Number(tradeNum) + 1));
+        await fetchData();
+        await onReload();
+      } else {
+        alert(`❌ Error: ${result.error}`);
+      }
+    } catch (err) {
+      alert(`❌ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  // Commit STOCK LOTS (each buy becomes a separate lot for FIFO/LIFO tracking)
+  const commitStockLots = async () => {
+    setCommitting(true);
+    try {
+      const res = await fetch('/api/stock-lots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds: Array.from(selectedIds)
+        })
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        alert(`✅ Created ${result.created} stock lot(s)${result.skipped > 0 ? `\n⚠️ ${result.skipped} skipped (already exist)` : ''}`);
+        clearSelection();
         await fetchData();
         await onReload();
       } else {
