@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       return {
         id: txn.id,
         date: txn.date,
+        name: txn.name, // Include name for exercise/assignment detection
         symbol,
         strike: txn.security?.option_strike_price || null,
         expiry: txn.security?.option_expiration_date || null,
