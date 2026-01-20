@@ -75,7 +75,50 @@ interface OpensData {
   byDate: Record<string, OpenTransaction[]>;
 }
 
-type TabType = 'overview' | 'commit';
+
+interface TradeRecord {
+  tradeNum: string;
+  underlying: string;
+  strategy: string;
+  status: 'OPEN' | 'CLOSED';
+  openDate: string;
+  closeDate: string | null;
+  legs: number;
+  openLegs: number;
+  closeLegs: number;
+  openAmount: number;
+  closeAmount: number;
+  realizedPL: number;
+  transactions: Array<{
+    id: string;
+    date: string;
+    name: string;
+    type: string;
+    quantity: number;
+    price: number;
+    amount: number;
+    isOpen: boolean;
+    isClose: boolean;
+  }>;
+}
+
+interface TradesData {
+  summary: {
+    totalTrades: number;
+    openTrades: number;
+    closedTrades: number;
+    totalRealizedPL: number;
+    winRate: number;
+    avgWin: number;
+    avgLoss: number;
+    profitFactor: number;
+  };
+  trades: TradeRecord[];
+  byTicker: Array<{ ticker: string; count: number; pl: number; wins: number; losses: number }>;
+  byStrategy: Array<{ strategy: string; count: number; pl: number; wins: number; losses: number }>;
+}
+
+type TabType = 'overview' | 'trades' | 'commit';
 
 export default function TradingPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -84,6 +127,8 @@ export default function TradingPage() {
   const [loading, setLoading] = useState(true);
   const [opensLoading, setOpensLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tradesData, setTradesData] = useState<TradesData | null>(null);
+  const [tradesLoading, setTradesLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/trading')
@@ -92,6 +137,17 @@ export default function TradingPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'trades' && !tradesData) {
+      setTradesLoading(true);
+      fetch('/api/trading/trades')
+        .then(res => res.json())
+        .then(setTradesData)
+        .catch(console.error)
+        .finally(() => setTradesLoading(false));
+    }
+  }, [activeTab, tradesData]);
 
   useEffect(() => {
     if (activeTab === 'commit' && !opensData) {
