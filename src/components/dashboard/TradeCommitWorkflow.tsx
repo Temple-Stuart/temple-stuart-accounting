@@ -36,6 +36,20 @@ interface OpenTrade {
   }>;
 }
 
+interface StockLotGroup {
+  symbol: string;
+  totalShares: number;
+  totalCostBasis: number;
+  avgCostPerShare: number;
+  lotCount: number;
+  lots: Array<{
+    id: string;
+    acquired_date: string;
+    remaining_quantity: number;
+    cost_per_share: number;
+  }>;
+}
+
 interface TradeCommitWorkflowProps {
   onReload: () => Promise<void>;
 }
@@ -67,6 +81,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   const [opens, setOpens] = useState<Transaction[]>([]);
   const [closes, setCloses] = useState<Transaction[]>([]);
   const [openTrades, setOpenTrades] = useState<OpenTrade[]>([]);
+  const [stockLots, setStockLots] = useState<StockLotGroup[]>([]);
   const [nextTradeNum, setNextTradeNum] = useState(1);
   
   // Selection state
@@ -85,21 +100,56 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     setLoading(true);
     setError(null);
     try {
-      const [opensRes, tradesRes, maxRes] = await Promise.all([
+      const [opensRes, tradesRes, maxRes, lotsRes] = await Promise.all([
         fetch('/api/investment-transactions/opens'),
         fetch('/api/trading-positions/open'),
-        fetch('/api/investment-transactions/max-trade-num')
+        fetch('/api/investment-transactions/max-trade-num'),
+        fetch('/api/stock-lots?status=OPEN')
       ]);
       
       const opensData = await opensRes.json();
       const tradesData = await tradesRes.json();
       const maxData = await maxRes.json();
+      const lotsData = await lotsRes.json();
       
       if (opensData.error) throw new Error(opensData.error);
       
       setOpens(opensData.opens || []);
       setCloses(opensData.closes || []);
       setOpenTrades(tradesData.trades || []);
+      
+      // Group stock lots by symbol for the dropdown
+      const lots = lotsData.lots || [];
+      const lotsBySymbol: Record<string, StockLotGroup> = {};
+      lots.forEach((lot: any) => {
+        if (!lotsBySymbol[lot.symbol]) {
+          lotsBySymbol[lot.symbol] = {
+            symbol: lot.symbol,
+            totalShares: 0,
+            totalCostBasis: 0,
+            avgCostPerShare: 0,
+            lotCount: 0,
+            lots: []
+          };
+        }
+        const group = lotsBySymbol[lot.symbol];
+        group.totalShares += lot.remaining_quantity;
+        group.totalCostBasis += (lot.remaining_quantity / lot.original_quantity) * lot.total_cost_basis;
+        group.lotCount++;
+        group.lots.push({
+          id: lot.id,
+          acquired_date: lot.acquired_date,
+          remaining_quantity: lot.remaining_quantity,
+          cost_per_share: lot.cost_per_share
+        });
+      });
+      // Calculate avg cost and convert to array
+      const stockLotGroups = Object.values(lotsBySymbol).map(g => ({
+        ...g,
+        avgCostPerShare: g.totalShares > 0 ? g.totalCostBasis / g.totalShares : 0
+      }));
+      setStockLots(stockLotGroups);
+      
       setNextTradeNum((maxData.maxTradeNum || 0) + 1);
       setTradeNum(String((maxData.maxTradeNum || 0) + 1));
       
@@ -227,12 +277,132 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     }
   };
 
-  // Commit CLOSES (links to open trade)
+  // Commit STOCK CLOSE - fetch tax scenarios and let user choose
+  const commitStockClose = async (symbol: string) => {
+    // Get the selected closing transactions to find sale details
+    const selectedTxns = closes.filter(c => selectedIds.has(c.id));
+    if (selectedTxns.length === 0) return alert('No closing transactions selected');
+    
+    // Calculate total sale quantity and average price from selected transactions
+    const totalQuantity = selectedTxns.reduce((sum, t) => sum + (t.quantity || 0), 0);
+    const totalProceeds = selectedTxns.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const avgPrice = totalQuantity > 0 ? totalProceeds / totalQuantity : 0;
+    const saleDate = selectedTxns[0]?.date || new Date().toISOString();
+
+    setCommitting(true);
+    try {
+      // Fetch tax scenarios from the match API
+      const res = await fetch('/api/stock-lots/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol,
+          saleQuantity: totalQuantity,
+          salePrice: avgPrice,
+          saleDate
+        })
+      });
+
+      const scenarios = await res.json();
+      
+      if (scenarios.error) {
+        alert(`❌ Error: ${scenarios.error}`);
+        setCommitting(false);
+        return;
+      }
+
+      // Format the scenarios for display
+      const formatPL = (val: number) => {
+        const sign = val >= 0 ? '+' : '';
+        return `${sign}$${val.toFixed(2)}`;
+      };
+      const formatTax = (val: number) => {
+        const sign = val >= 0 ? '' : '-';
+        return `${sign}$${Math.abs(val).toFixed(2)}`;
+      };
+
+      // Build comparison message
+      let message = `📊 TAX SCENARIO COMPARISON\n`;
+      message += `Selling ${totalQuantity.toFixed(2)} ${symbol} @ $${avgPrice.toFixed(2)}\n`;
+      message += `Total Proceeds: $${totalProceeds.toFixed(2)}\n\n`;
+      message += `Method       | P&L        | Est. Tax\n`;
+      message += `-------------|------------|----------\n`;
+      
+      const methods = ['fifo', 'lifo', 'hifo', 'minTax'];
+      const labels: Record<string, string> = { fifo: 'FIFO', lifo: 'LIFO', hifo: 'HIFO', minTax: 'MIN TAX' };
+      
+      methods.forEach(m => {
+        const s = scenarios.scenarios[m];
+        if (s) {
+          const isBest = m === scenarios.bestMethod;
+          message += `${labels[m].padEnd(12)} | ${formatPL(s.summary.totalGainLoss).padEnd(10)} | ${formatTax(s.summary.estimatedTax)}${isBest ? ' ⭐' : ''}\n`;
+        }
+      });
+      
+      message += `\nBest method: ${labels[scenarios.bestMethod] || scenarios.bestMethod}\n`;
+      message += `\nWhich method do you want to use?`;
+
+      // Ask user to choose (for now, use prompt - later we can make a modal)
+      const choice = prompt(message + '\n\nEnter: fifo, lifo, hifo, or mintax', scenarios.bestMethod);
+      
+      if (!choice) {
+        setCommitting(false);
+        return;
+      }
+
+      const methodMap: Record<string, string> = { 
+        fifo: 'FIFO', lifo: 'LIFO', hifo: 'HIFO', mintax: 'MIN_TAX', 'min tax': 'MIN_TAX' 
+      };
+      const selectedMethod = methodMap[choice.toLowerCase()] || 'FIFO';
+
+      // Commit with selected method
+      const commitRes = await fetch('/api/stock-lots/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          saleTxnId: selectedTxns[0]?.id,
+          symbol,
+          saleQuantity: totalQuantity,
+          salePrice: avgPrice,
+          saleDate,
+          matchingMethod: selectedMethod
+        })
+      });
+
+      const commitResult = await commitRes.json();
+
+      if (commitResult.success) {
+        const pl = commitResult.summary.totalGainLoss;
+        const plSign = pl >= 0 ? '+' : '';
+        alert(`✅ Stock position closed with ${selectedMethod}\nP&L: ${plSign}$${pl.toFixed(2)}\nST: $${commitResult.summary.shortTermGain.toFixed(2)}\nLT: $${commitResult.summary.longTermGain.toFixed(2)}`);
+        clearSelection();
+        await fetchData();
+        await onReload();
+      } else {
+        alert(`❌ Error: ${commitResult.error}`);
+      }
+    } catch (err) {
+      alert(`❌ Failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  // Commit CLOSES (links to open trade OR stock lots)
   const commitCloses = async () => {
     if (selectedIds.size === 0) return alert('Select closing transactions');
-    if (!linkedTradeId) return alert('Select an open trade to close');
+    if (!linkedTradeId) return alert('Select an open position to close');
 
-    const linkedTrade = openTrades.find(t => t.id === linkedTradeId);
+    // Parse the selection - could be "trade:uuid" or "stock:SYMBOL"
+    const [type, id] = linkedTradeId.split(':');
+    
+    if (type === 'stock') {
+      // Stock lot close - show tax scenario comparison
+      return commitStockClose(id);
+    }
+
+    // Option trade close (existing logic)
+    const linkedTrade = openTrades.find(t => t.id === id);
     if (!linkedTrade) return alert('Invalid trade selection');
 
     setCommitting(true);
@@ -464,12 +634,25 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                 </div>
                 <div className="flex gap-2 items-center">
                   <select value={linkedTradeId} onChange={e => setLinkedTradeId(e.target.value)} className="border rounded px-3 py-2 text-sm min-w-[250px]">
-                    <option value="">Link to open trade...</option>
-                    {openTrades.map(t => (
-                      <option key={t.id} value={t.id}>
-                        #{t.trade_num} - {t.symbol} {t.strategy} (${t.cost_basis.toFixed(2)})
-                      </option>
-                    ))}
+                    <option value="">Link to open position...</option>
+                    {openTrades.length > 0 && (
+                      <optgroup label="Option Trades">
+                        {openTrades.map(t => (
+                          <option key={t.id} value={`trade:${t.id}`}>
+                            #{t.trade_num} - {t.symbol} {t.strategy} (${t.cost_basis.toFixed(2)})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {stockLots.length > 0 && (
+                      <optgroup label="Stock Lots (FIFO/LIFO)">
+                        {stockLots.map(g => (
+                          <option key={g.symbol} value={`stock:${g.symbol}`}>
+                            {g.symbol} - {g.totalShares.toFixed(2)} shares ({g.lotCount} lots, avg ${g.avgCostPerShare.toFixed(2)})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <button
                     onClick={commitCloses}
