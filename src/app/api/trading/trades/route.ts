@@ -51,7 +51,15 @@ export async function GET() {
       });
       
       // Calculate totals
-      const openAmount = opens.reduce((sum, t) => sum + (t.amount || 0), 0);
+      // Option amounts are per-contract, multiply by 100 for total
+      // (Stock amounts from exercise/assignment are already total)
+      const openAmount = opens.reduce((sum, t) => {
+        const amount = t.amount || 0;
+        // Options have "call" or "put" in the name
+        const name = t.name.toLowerCase();
+        const isOption = name.includes('call') || name.includes('put');
+        return sum + (isOption ? amount * 100 : amount);
+      }, 0);
       
       // For closes, need to handle exercise/assignment specially
       // Exercise/assignment stock transactions have positive amounts regardless of buy/sell
@@ -69,8 +77,10 @@ export async function GET() {
           return sum + (isSellStock ? -amount : amount);
         }
         
-        // Normal option close: use amount as-is
-        return sum + (t.amount || 0);
+        // Normal option close: multiply by 100 for total
+        const amount = t.amount || 0;
+        const isOption = name.includes('call') || name.includes('put');
+        return sum + (isOption ? amount * 100 : amount);
       }, 0);
       
       let realizedPL = 0;
