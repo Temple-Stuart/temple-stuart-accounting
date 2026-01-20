@@ -13,20 +13,28 @@ export async function GET() {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const result = await prisma.investment_transactions.findFirst({
+    // Get all trade numbers and find the max numerically
+    // (tradeNum is stored as string, so we can't use orderBy for numeric sorting)
+    const results = await prisma.investment_transactions.findMany({
       where: {
         tradeNum: { not: null },
         accounts: { userId: user.id }
       },
-      orderBy: {
-        tradeNum: 'desc'
-      },
       select: {
         tradeNum: true
-      }
+      },
+      distinct: ['tradeNum']
     });
 
-    const maxTradeNum = result?.tradeNum ? parseInt(result.tradeNum, 10) : 0;
+    let maxTradeNum = 0;
+    for (const r of results) {
+      if (r.tradeNum) {
+        const num = parseInt(r.tradeNum, 10);
+        if (!isNaN(num) && num > maxTradeNum) {
+          maxTradeNum = num;
+        }
+      }
+    }
 
     return NextResponse.json({ maxTradeNum });
   } catch (error) {
