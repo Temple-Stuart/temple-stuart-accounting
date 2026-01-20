@@ -209,19 +209,41 @@ export class PositionTrackerService {
     }
     
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-    const multiplier = 100;
+    
+    // Check if this is an exercise/assignment (stock transaction closing an option)
+    const legName = (leg as any).name?.toLowerCase() || '';
+    const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
+    
     let proceeds: number;
-    if (leg.action === 'sell') {
-      proceeds = Math.round((leg.price * leg.quantity * multiplier - leg.fees) * 100);
-    } else {
-      proceeds = Math.round((leg.price * leg.quantity * multiplier + leg.fees) * 100);
-    }
-    const originalCost = Math.round(openPosition.cost_basis * 100);
     let realizedPL: number;
-    if (openPosition.position_type === 'LONG') {
-      realizedPL = proceeds - originalCost;
+    const originalCost = Math.round(openPosition.cost_basis * 100);
+    
+    if (isExerciseOrAssignment) {
+      // For exercise/assignment, we DON'T calculate P&L per-leg in the journal.
+      // Instead, we just close the position and let the trade summary calculate P&L
+      // from the sum of all transaction amounts.
+      //
+      // The stock transaction amount IS the proceeds for journal purposes.
+      // P&L will be calculated at the trade level, not per-leg.
+      proceeds = Math.round(Math.abs(leg.amount) * 100);
+      
+      // For journal entry purposes, just record the stock transaction
+      // Set realizedPL to 0 - the actual P&L is calculated in /api/trading/trades
+      realizedPL = 0;
     } else {
-      realizedPL = originalCost - proceeds;
+      // Normal option close: calculate from price * quantity * multiplier
+      const multiplier = 100;
+      if (leg.action === 'sell') {
+        proceeds = Math.round((leg.price * leg.quantity * multiplier - leg.fees) * 100);
+      } else {
+        proceeds = Math.round((leg.price * leg.quantity * multiplier + leg.fees) * 100);
+      }
+      
+      if (openPosition.position_type === 'LONG') {
+        realizedPL = proceeds - originalCost;
+      } else {
+        realizedPL = originalCost - proceeds;
+      }
     }
     const isGain = realizedPL > 0;
     const plAccount = isGain ? 'T-4100' : 'T-5100';
