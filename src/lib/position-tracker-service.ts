@@ -119,10 +119,16 @@ export class PositionTrackerService {
     // Update investment_transactions table with COA codes
     for (const leg of legs) {
       const result = results.find(r => r.legId === leg.id);
-      if (result) {
+      if (result && !('skipped' in result)) {
         await db.investment_transactions.update({
           where: { id: leg.id },
           data: { strategy, tradeNum, accountCode: result.coaCode }
+        });
+      } else if (result && 'skipped' in result) {
+        // Still mark skipped legs with trade number for tracking
+        await db.investment_transactions.update({
+          where: { id: leg.id },
+          data: { strategy, tradeNum }
         });
       }
     }
