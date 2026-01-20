@@ -219,17 +219,34 @@ export class PositionTrackerService {
     const originalCost = Math.round(openPosition.cost_basis * 100);
     
     if (isExerciseOrAssignment) {
-      // For exercise/assignment, we DON'T calculate P&L per-leg in the journal.
-      // Instead, we just close the position and let the trade summary calculate P&L
-      // from the sum of all transaction amounts.
-      //
-      // The stock transaction amount IS the proceeds for journal purposes.
-      // P&L will be calculated at the trade level, not per-leg.
-      proceeds = Math.round(Math.abs(leg.amount) * 100);
+      // For exercise/assignment, skip journal entry creation entirely.
+      // The stock transactions don't correspond to option positions in a way
+      // that makes sense for double-entry bookkeeping of the option trade.
+      // P&L is calculated at the trade level from transaction amounts.
       
-      // For journal entry purposes, just record the stock transaction
-      // Set realizedPL to 0 - the actual P&L is calculated in /api/trading/trades
-      realizedPL = 0;
+      // Just close the position without journal entry
+      await db.trading_positions.update({
+        where: { id: openPosition.id },
+        data: { 
+          status: 'CLOSED', 
+          close_investment_txn_id: leg.id, 
+          close_price: leg.price,
+          close_fees: leg.fees || 0, 
+          close_date: leg.date, 
+          proceeds: leg.amount, 
+          realized_pl: 0 // Will be calculated at trade level
+        }
+      });
+      
+      return { 
+        legId: leg.id, 
+        journalId: null, 
+        coaCode: null, 
+        realizedPL: 0, 
+        proceeds: Math.round(leg.amount * 100), 
+        originalCost, 
+        action: 'CLOSE_EXERCISE' 
+      };
     } else {
       // Normal option close: calculate from price * quantity * multiplier
       const multiplier = 100;
