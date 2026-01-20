@@ -349,6 +349,10 @@ model users {
   trips                trips[]
   chart_of_accounts    chart_of_accounts[]
   budget_line_items    budget_line_items[]
+  stock_lots           stock_lots[]
+  tax_scenarios        tax_scenarios[]
+  calendar_events      calendar_events[]
+  home_expenses        home_expenses[]
 }
 
 model budgets {
@@ -989,4 +993,183 @@ model places_cache {
   updatedAt       DateTime @updatedAt
   
   @@index([city, country, category])
+}
+
+// ============================================
+// LOT-BASED COST BASIS TRACKING
+// ============================================
+
+// Each stock purchase creates a lot with its own cost basis
+model stock_lots {
+  id                    String    @id @default(uuid()) @db.Uuid
+  user_id               String
+  investment_txn_id     String    @db.VarChar(255)  // Link to original buy transaction
+  symbol                String    @db.VarChar(20)
+  
+  // Acquisition details
+  acquired_date         DateTime
+  original_quantity     Float                        // Shares purchased
+  remaining_quantity    Float                        // Shares still held (decreases with sales)
+  cost_per_share        Float                        // Price paid per share
+  total_cost_basis      Float                        // Total cost including fees
+  fees                  Float     @default(0)
+  
+  // Status
+  status                String    @default("OPEN") @db.VarChar(20)  // OPEN, PARTIAL, CLOSED
+  
+  // Wash sale tracking
+  wash_sale_disallowed  Float     @default(0)       // Disallowed loss amount
+  wash_sale_adjustment  Float     @default(0)       // Cost basis adjustment from wash sale
+  wash_sale_source_id   String?   @db.Uuid          // If this lot caused a wash sale, link to affected lot
+  
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  
+  // Relations
+  user                  users     @relation(fields: [user_id], references: [id])
+  dispositions          lot_dispositions[]
+  
+  @@index([user_id])
+  @@index([symbol])
+  @@index([status])
+  @@index([acquired_date])
+  @@index([investment_txn_id])
+}
+
+// Each sale creates disposition records linking to the lots being sold
+model lot_dispositions {
+  id                    String    @id @default(uuid()) @db.Uuid
+  lot_id                String    @db.Uuid
+  sale_txn_id           String    @db.VarChar(255)  // Link to sell transaction
+  
+  // Disposition details
+  disposed_date         DateTime
+  quantity_disposed     Float                        // Shares sold from this lot
+  proceeds_per_share    Float                        // Sale price per share
+  total_proceeds        Float                        // Total proceeds for this portion
+  fees_allocated        Float     @default(0)       // Proportional fees
+  
+  // Calculated P&L
+  cost_basis_disposed   Float                        // Cost basis of shares sold
+  realized_gain_loss    Float                        // Proceeds - Cost Basis
+  
+  // Tax classification
+  holding_period_days   Int                          // Days held
+  is_long_term          Boolean                      // >= 365 days
+  is_wash_sale          Boolean   @default(false)   // Loss disallowed?
+  wash_sale_loss        Float     @default(0)       // Amount of loss disallowed
+  
+  // Method used
+  matching_method       String    @db.VarChar(20)   // FIFO, LIFO, HIFO, SPECIFIC
+  
+  created_at            DateTime  @default(now())
+  
+  // Relations
+  lot                   stock_lots @relation(fields: [lot_id], references: [id])
+  
+  @@index([lot_id])
+  @@index([sale_txn_id])
+  @@index([disposed_date])
+}
+
+// Store tax scenario comparisons for a potential sale
+model tax_scenarios {
+  id                    String    @id @default(uuid()) @db.Uuid
+  user_id               String
+  sale_txn_id           String?   @db.VarChar(255)  // Null if just simulating
+  symbol                String    @db.VarChar(20)
+  
+  // Sale details
+  sale_quantity         Float
+  sale_price            Float
+  sale_date             DateTime
+  
+  // Scenario results (JSON for flexibility)
+  fifo_result           Json?                        // { stGain, ltGain, totalPL, estimatedTax, lots: [...] }
+  lifo_result           Json?
+  hifo_result           Json?                        // Highest In, First Out (tax loss harvesting)
+  lofo_result           Json?                        // Lowest In, First Out
+  specific_result       Json?                        // User-selected lots
+  
+  // Selected method (once committed)
+  selected_method       String?   @db.VarChar(20)
+  is_committed          Boolean   @default(false)
+  
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+  
+  // Relations
+  user                  users     @relation(fields: [user_id], references: [id])
+  
+  @@index([user_id])
+  @@index([symbol])
+  @@index([sale_txn_id])
+}
+
+// ============================================
+// MISSING TABLES - RESTORED FROM DATABASE
+// ============================================
+
+model calendar_events {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String?
+  source          String    @db.VarChar(20)
+  source_id       String?
+  title           String    @db.VarChar(255)
+  description     String?
+  category        String?   @db.VarChar(50)
+  icon            String?   @db.VarChar(10)
+  color           String?   @db.VarChar(20)
+  start_date      DateTime  @db.Date
+  end_date        DateTime? @db.Date
+  is_recurring    Boolean?  @default(false)
+  recurrence_rule String?   @db.VarChar(50)
+  location        String?   @db.VarChar(255)
+  latitude        Decimal?  @db.Decimal(10, 7)
+  longitude       Decimal?  @db.Decimal(10, 7)
+  coa_code        String?   @db.VarChar(50)
+  budget_amount   Int?      @default(0)
+  status          String?   @default("committed") @db.VarChar(20)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+  users           users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([source, source_id], map: "idx_calendar_events_source")
+  @@index([user_id, start_date], map: "idx_calendar_events_user_date")
+}
+
+model home_expenses {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String?
+  name         String    @db.VarChar(255)
+  coa_code     String    @db.VarChar(50)
+  amount       Int
+  cadence      String?   @default("monthly") @db.VarChar(20)
+  due_day      Int?
+  start_date   DateTime? @db.Date
+  end_date     DateTime? @db.Date
+  is_active    Boolean?  @default(true)
+  status       String?   @default("draft") @db.VarChar(20)
+  committed_at DateTime? @db.Timestamp(6)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  users        users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model module_expenses {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.VarChar(255)
+  module       String    @db.VarChar(50)
+  name         String    @db.VarChar(255)
+  coa_code     String    @db.VarChar(20)
+  amount       Decimal   @db.Decimal(12, 2)
+  cadence      String?   @default("monthly") @db.VarChar(20)
+  due_day      Int?      @default(1)
+  status       String?   @default("draft") @db.VarChar(20)
+  committed_at DateTime? @db.Timestamp(6)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  target_date  DateTime? @db.Date
+
+  @@index([user_id, module], map: "idx_module_expenses_user_module")
 }
