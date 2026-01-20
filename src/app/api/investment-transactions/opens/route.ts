@@ -72,15 +72,10 @@ export async function GET() {
       let positionType: 'open' | 'close' | 'unknown' = 'unknown';
       
       if (isExerciseOrAssignment) {
-        // Exercise/assignment transactions close option positions
-        // The "transfer" type ones are the option closing
-        // The "buy/sell" ones with "due to exercise/assignment" are stock opens
-        if (t.type === 'transfer' || nameLower.startsWith('transfer')) {
-          positionType = 'close'; // This closes the option
-        } else {
-          // Stock transaction from exercise - this OPENS a stock position
-          positionType = 'open';
-        }
+        // ALL exercise/assignment transactions close option positions
+        // Both the $0 transfers AND the stock buy/sell transactions
+        // are closing legs for the original option trade
+        positionType = 'close';
       } else if (isOption) {
         positionType = isToOpen ? 'open' : isToClose ? 'close' : 'unknown';
       } else {
