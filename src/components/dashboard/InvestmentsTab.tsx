@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import CommittedInvestmentsTable from "./CommittedInvestmentsTable";
-import TradeCommitQueue from "./TradeCommitQueue";
+import TradeCommitWorkflow from "./TradeCommitWorkflow";
 import { robinhoodParser } from '@/lib/robinhood-parser';
 
 interface InvestmentsTabProps {
@@ -307,7 +307,7 @@ export default function InvestmentsTab({ investmentTransactions, committedInvest
 
   return (
     <>
-      <TradeCommitQueue onReload={onReload} />
+      <TradeCommitWorkflow onReload={onReload} />
 
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
