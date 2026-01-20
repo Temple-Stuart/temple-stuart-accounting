@@ -45,16 +45,42 @@ export async function GET() {
       
       // Separate opens and closes
       const opens = txns.filter(t => t.name.toLowerCase().includes('to open'));
-      const closes = txns.filter(t => t.name.toLowerCase().includes('to close'));
+      const closes = txns.filter(t => {
+        const name = t.name.toLowerCase();
+        return name.includes('to close') || name.includes('exercise') || name.includes('assignment');
+      });
       
       // Calculate totals
       const openAmount = opens.reduce((sum, t) => sum + (t.amount || 0), 0);
-      const closeAmount = closes.reduce((sum, t) => sum + (t.amount || 0), 0);
+      
+      // For closes, need to handle exercise/assignment specially
+      // Exercise/assignment stock transactions have positive amounts regardless of buy/sell
+      // We need to check the name to determine the actual cash flow direction
+      const closeAmount = closes.reduce((sum, t) => {
+        const name = t.name.toLowerCase();
+        const isExerciseOrAssignment = name.includes('exercise') || name.includes('assignment');
+        
+        if (isExerciseOrAssignment) {
+          // For stock transactions from exercise/assignment:
+          // - "sell X shares" in name = you receive money (negative amount for P&L calc)
+          // - "buy X shares" in name = you pay money (positive amount for P&L calc)
+          const isSellStock = name.includes('sell') && name.includes('shares');
+          const amount = t.amount || 0;
+          return sum + (isSellStock ? -amount : amount);
+        }
+        
+        // Normal option close: use amount as-is
+        return sum + (t.amount || 0);
+      }, 0);
       
       let realizedPL = 0;
       const isClosed = closes.length > 0;
       
       if (isClosed) {
+        // P&L = -(openAmount + closeAmount)
+        // For credit spread: openAmount is negative (received credit)
+        // For normal close: closeAmount reflects what you paid/received to close
+        // For exercise/assignment: closeAmount is now correctly signed
         realizedPL = -(openAmount + closeAmount);
       }
       
