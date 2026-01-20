@@ -174,7 +174,7 @@ export async function POST(request: Request) {
           fifo_result: { used: matchingMethod === 'FIFO' },
           lifo_result: { used: matchingMethod === 'LIFO' },
           hifo_result: { used: matchingMethod === 'HIFO' },
-          specific_result: matchingMethod === 'SPECIFIC' ? { lots: selectedLots } : null
+          specific_result: matchingMethod === 'SPECIFIC' ? { lots: selectedLots } : undefined
         }
       });
 
