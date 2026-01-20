@@ -397,7 +397,6 @@ export class PositionTrackerService {
     });
     return { type: isExercise ? 'EXERCISE' : 'ASSIGNMENT', symbol, strike, journalId: journalEntry.id, realizedPL };
   }
-}
 
   // Commit stock purchases as lots with journal entries
   async commitStockTrade(params: {
