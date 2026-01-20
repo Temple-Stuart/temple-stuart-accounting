@@ -297,7 +297,7 @@ export default function TradingPage() {
               </Card>
               <Card className="p-6">
                 <div className="text-sm text-gray-500 mb-1">Contributions</div>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(data?.summary.totalContributions || 0)}</div>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(data?.summary.contributions || 0)}</div>
               </Card>
             </div>
 
