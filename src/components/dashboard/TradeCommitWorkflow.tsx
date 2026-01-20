@@ -203,15 +203,18 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transactionIds: Array.from(selectedIds)
+          transactionIds: Array.from(selectedIds),
+          strategy,
+          tradeNum
         })
       });
 
       const result = await res.json();
       
       if (result.success) {
-        alert(`✅ Created ${result.created} stock lot(s)${result.skipped > 0 ? `\n⚠️ ${result.skipped} skipped (already exist)` : ''}`);
+        alert(`✅ Trade #${result.tradeNum}: Created ${result.committed} stock lot(s) with journal entries`);
         clearSelection();
+        setTradeNum(String(Number(result.tradeNum) + 1));
         await fetchData();
         await onReload();
       } else {

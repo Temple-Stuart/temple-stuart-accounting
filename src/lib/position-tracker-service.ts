@@ -399,4 +399,84 @@ export class PositionTrackerService {
   }
 }
 
+  // Commit stock purchases as lots with journal entries
+  async commitStockTrade(params: {
+    legs: Array<{
+      id: string;
+      date: Date;
+      symbol: string;
+      action: 'buy' | 'sell';
+      quantity: number;
+      price: number;
+      fees: number;
+      amount: number;
+    }>;
+    strategy: string;
+    tradeNum: string;
+    userId: string;
+    tx?: TransactionContext;
+  }) {
+    const { legs, strategy, tradeNum, userId, tx } = params;
+    const db = tx || prisma;
+    const results = [];
+    const TRADING_CASH = 'T-1010';
+    const STOCK_POSITION = 'T-1100';
+
+    for (const leg of legs) {
+      // Calculate cost basis (no multiplier for stocks)
+      const costBasis = Math.round((Math.abs(leg.amount) + leg.fees) * 100); // Store in cents
+
+      if (leg.action === 'buy') {
+        // Create stock lot
+        const lot = await db.stock_lots.create({
+          data: {
+            user_id: userId,
+            investment_txn_id: leg.id,
+            symbol: leg.symbol.toUpperCase(),
+            acquired_date: leg.date,
+            original_quantity: leg.quantity,
+            remaining_quantity: leg.quantity,
+            cost_per_share: leg.quantity > 0 ? Math.abs(leg.amount) / leg.quantity : 0,
+            total_cost_basis: Math.abs(leg.amount) + leg.fees,
+            fees: leg.fees,
+            status: 'OPEN'
+          }
+        });
+
+        // Create journal entry: DR Stock Position, CR Cash
+        const journalEntry = await this.createJournalEntry({
+          date: leg.date,
+          description: `BUY STOCK: ${leg.quantity} ${leg.symbol} @ $${leg.price.toFixed(2)}`,
+          lines: [
+            { accountCode: STOCK_POSITION, amount: costBasis, entryType: 'D' },
+            { accountCode: TRADING_CASH, amount: costBasis, entryType: 'C' }
+          ],
+          externalTransactionId: leg.id,
+          strategy,
+          tradeNum,
+          amount: costBasis,
+          db
+        });
+
+        // Update investment transaction
+        await db.investment_transactions.update({
+          where: { id: leg.id },
+          data: { strategy, tradeNum, accountCode: STOCK_POSITION }
+        });
+
+        results.push({
+          legId: leg.id,
+          lotId: lot.id,
+          journalId: journalEntry.id,
+          action: 'BUY',
+          costBasis: costBasis / 100
+        });
+      }
+      // Sells will be handled separately via the lot matching workflow
+    }
+
+    return { committed: results.length, results };
+  }
+}
+
 export const positionTrackerService = new PositionTrackerService();

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { positionTrackerService } from '@/lib/position-tracker-service';
 
 // GET: List open lots for a symbol (or all symbols)
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
-    const status = searchParams.get('status') || 'OPEN'; // OPEN, PARTIAL, CLOSED, ALL
+    const status = searchParams.get('status') || 'OPEN';
 
     const where: any = { user_id: user.id };
     if (symbol) where.symbol = symbol.toUpperCase();
@@ -24,9 +25,7 @@ export async function GET(request: Request) {
 
     const lots = await prisma.stock_lots.findMany({
       where,
-      include: {
-        dispositions: true
-      },
+      include: { dispositions: true },
       orderBy: { acquired_date: 'asc' }
     });
 
@@ -57,7 +56,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Create lots from investment transactions
+// POST: Create lots from investment transactions WITH journal entries
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -69,10 +68,24 @@ export async function POST(request: Request) {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { transactionIds } = await request.json();
+    const { transactionIds, strategy = 'stock-long', tradeNum } = await request.json();
 
     if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
       return NextResponse.json({ error: 'No transaction IDs provided' }, { status: 400 });
+    }
+
+    // Get next trade number if not provided
+    let actualTradeNum = tradeNum;
+    if (!actualTradeNum) {
+      const maxResult = await prisma.investment_transactions.findMany({
+        where: { tradeNum: { not: null } },
+        select: { tradeNum: true }
+      });
+      const maxNum = maxResult.reduce((max, t) => {
+        const num = parseInt(t.tradeNum || '0', 10);
+        return num > max ? num : max;
+      }, 0);
+      actualTradeNum = String(maxNum + 1);
     }
 
     // Fetch the investment transactions
@@ -100,61 +113,60 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Create lots
-    const createdLots: Array<any> = [];
-    for (const txn of transactions) {
-      // Check if lot already exists for this transaction
-      const existing = await prisma.stock_lots.findFirst({
-        where: { investment_txn_id: txn.id }
-      });
+    // Check for already committed transactions
+    const alreadyCommitted = transactions.filter(t => t.tradeNum);
+    if (alreadyCommitted.length > 0) {
+      return NextResponse.json({
+        error: `${alreadyCommitted.length} transaction(s) already committed`,
+        alreadyCommitted: alreadyCommitted.map(t => ({ id: t.id, tradeNum: t.tradeNum }))
+      }, { status: 400 });
+    }
 
-      if (existing) {
-        createdLots.push({ ...existing, skipped: true, reason: 'Already exists' });
-        continue;
-      }
-
+    // Transform to legs format
+    const legs = transactions.map(txn => {
       const symbol = txn.security?.ticker_symbol || 
                      txn.security?.option_underlying_ticker ||
                      extractSymbol(txn.name);
-      
-      const quantity = txn.quantity || 0;
-      const price = txn.price || 0;
-      const fees = txn.rhFees || txn.fees || 0;
-      const totalCost = Math.abs(txn.amount || (quantity * price)) + fees;
+      return {
+        id: txn.id,
+        date: txn.date,
+        symbol: symbol.toUpperCase(),
+        action: 'buy' as const,
+        quantity: txn.quantity || 0,
+        price: txn.price || 0,
+        fees: txn.rhFees || txn.fees || 0,
+        amount: txn.amount || 0
+      };
+    });
 
-      const lot = await prisma.stock_lots.create({
-        data: {
-          user_id: user.id,
-          investment_txn_id: txn.id,
-          symbol: symbol.toUpperCase(),
-          acquired_date: txn.date,
-          original_quantity: quantity,
-          remaining_quantity: quantity,
-          cost_per_share: quantity > 0 ? totalCost / quantity : 0,
-          total_cost_basis: totalCost,
-          fees: fees,
-          status: 'OPEN'
-        }
-      });
-
-      createdLots.push(lot);
-    }
+    // Use position tracker service to create lots + journal entries
+    const result = await prisma.$transaction(
+      async (tx) => {
+        return await positionTrackerService.commitStockTrade({
+          legs,
+          strategy,
+          tradeNum: actualTradeNum,
+          userId: user.id,
+          tx
+        });
+      },
+      { maxWait: 30000, timeout: 120000 }
+    );
 
     return NextResponse.json({
       success: true,
-      created: createdLots.filter(l => !l.skipped).length,
-      skipped: createdLots.filter(l => l.skipped).length,
-      lots: createdLots
+      tradeNum: actualTradeNum,
+      ...result
     });
   } catch (error) {
     console.error('Stock lots create error:', error);
-    return NextResponse.json({ error: 'Failed to create lots' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to create lots' 
+    }, { status: 500 });
   }
 }
 
-// Helper to extract symbol from transaction name
 function extractSymbol(name: string): string {
-  // Try to find a stock symbol pattern (1-5 uppercase letters)
   const match = name.match(/\b([A-Z]{1,5})\b/);
   return match ? match[1] : 'UNKNOWN';
 }
