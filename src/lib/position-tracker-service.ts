@@ -46,18 +46,39 @@ export class PositionTrackerService {
     // Then process ALL closes (can now find the opens we just created)
     for (const leg of legs) {
       if (leg.positionEffect === 'close') {
-        // Check if open position exists BEFORE attempting close
-        const openExists = await db.trading_positions.findFirst({
-          where: { 
-            symbol: leg.symbol, 
-            strike_price: leg.strike, 
-            option_type: leg.contractType?.toUpperCase(),
-            expiration_date: leg.expiry, 
-            status: 'OPEN' 
-          }
-        });
+        // Check if this is an exercise/assignment transaction
+        const legName = (leg as any).name?.toLowerCase() || '';
+        const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
         
-        if (!openExists) {
+        let openPosition = null;
+        
+        if (isExerciseOrAssignment) {
+          // For exercise/assignment: find open position by TRADE NUMBER
+          // These transactions close options but have stock symbol, not option details
+          openPosition = await db.trading_positions.findFirst({
+            where: { 
+              trade_num: tradeNum,
+              status: 'OPEN' 
+            }
+          });
+          
+          if (openPosition) {
+            console.log(`  [EXERCISE/ASSIGN CLOSE] Found position by trade #${tradeNum}: ${openPosition.symbol} $${openPosition.strike_price}`);
+          }
+        } else {
+          // Normal option close: match by symbol/strike/type/expiry
+          openPosition = await db.trading_positions.findFirst({
+            where: { 
+              symbol: leg.symbol, 
+              strike_price: leg.strike, 
+              option_type: leg.contractType?.toUpperCase(),
+              expiration_date: leg.expiry, 
+              status: 'OPEN' 
+            }
+          });
+        }
+        
+        if (!openPosition) {
           console.warn(`  [SKIP CLOSE] No open position for ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
           skipped.push({
             legId: leg.id,
@@ -71,7 +92,13 @@ export class PositionTrackerService {
         }
         
         console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        const result = await this.closePosition(leg, strategy, tradeNum, db);
+        // For exercise/assignment, pass the matched position info to closePosition
+        const result = await this.closePosition(
+          isExerciseOrAssignment ? { ...leg, matchedPosition: openPosition } : leg, 
+          strategy, 
+          tradeNum, 
+          db
+        );
         results.push(result);
       }
     }
@@ -139,22 +166,29 @@ export class PositionTrackerService {
   }
 
   private async closePosition(
-    leg: InvestmentLeg, 
+    leg: InvestmentLeg & { matchedPosition?: any }, 
     strategy: string, 
     tradeNum: string,
     db: TransactionContext
   ) {
     const TRADING_CASH = 'T-1010';
-    const openPosition = await db.trading_positions.findFirst({
-      where: { 
-        symbol: leg.symbol, 
-        strike_price: leg.strike, 
-        option_type: leg.contractType?.toUpperCase(),
-        expiration_date: leg.expiry, 
-        status: 'OPEN' 
-      },
-      orderBy: { open_date: 'asc' }
-    });
+    
+    // Use pre-matched position (for exercise/assignment) or lookup by option details
+    let openPosition = leg.matchedPosition;
+    
+    if (!openPosition) {
+      openPosition = await db.trading_positions.findFirst({
+        where: { 
+          symbol: leg.symbol, 
+          strike_price: leg.strike, 
+          option_type: leg.contractType?.toUpperCase(),
+          expiration_date: leg.expiry, 
+          status: 'OPEN' 
+        },
+        orderBy: { open_date: 'asc' }
+      });
+    }
+    
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
     const multiplier = 100;
     let proceeds: number;
