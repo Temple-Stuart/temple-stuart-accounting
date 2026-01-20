@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     // Create lots
-    const createdLots = [];
+    const createdLots: Array<any> = [];
     for (const txn of transactions) {
       // Check if lot already exists for this transaction
       const existing = await prisma.stock_lots.findFirst({
