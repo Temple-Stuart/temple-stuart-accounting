@@ -131,9 +131,14 @@ export default function TradingPage() {
   const [tradesLoading, setTradesLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/trading')
-      .then(res => res.json())
-      .then(setData)
+    Promise.all([
+      fetch('/api/trading').then(res => res.json()),
+      fetch('/api/trading/trades').then(res => res.json())
+    ])
+      .then(([tradingData, tradesResult]) => {
+        setData(tradingData);
+        setTradesData(tradesResult);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -255,38 +260,44 @@ export default function TradingPage() {
         {activeTab === 'overview' && (
           <>
             {/* P&L Hero */}
-            <Card className={`p-6 mb-8 ${(data?.summary.totalRealizedPL || 0) >= 0 ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'}`}>
+            <Card className={`p-6 mb-8 ${(tradesData?.summary.totalRealizedPL || 0) >= 0 ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium mb-1 text-gray-600">Total Realized P&L</div>
                   <div className="text-4xl font-bold">
-                    {formatPL(data?.summary.totalRealizedPL || 0)}
+                    {formatPL(tradesData?.summary.totalRealizedPL || 0)}
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {data?.summary.closedTradeCount || 0} closed trades
+                    {tradesData?.summary.closedTrades || 0} closed trades • {tradesData?.summary.winRate || 0}% win rate
                   </div>
                 </div>
-                <div className="text-6xl opacity-50">📈</div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">Avg Win</div>
+                  <div className="text-lg font-bold text-green-600">${(tradesData?.summary.avgWin || 0).toFixed(2)}</div>
+                  <div className="text-sm text-gray-500 mt-1">Avg Loss</div>
+                  <div className="text-lg font-bold text-red-600">${Math.abs(tradesData?.summary.avgLoss || 0).toFixed(2)}</div>
+                </div>
               </div>
             </Card>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Open Positions</div>
-                <div className="text-2xl font-bold text-gray-900">{data?.summary.openPositionCount || 0}</div>
+                <div className="text-sm text-gray-500 mb-1">Total Trades</div>
+                <div className="text-2xl font-bold text-gray-900">{tradesData?.summary.totalTrades || 0}</div>
+                <div className="text-xs text-gray-400">{tradesData?.summary.openTrades || 0} open</div>
+              </Card>
+              <Card className="p-6">
+                <div className="text-sm text-gray-500 mb-1">Win Rate</div>
+                <div className="text-2xl font-bold text-blue-600">{tradesData?.summary.winRate || 0}%</div>
+              </Card>
+              <Card className="p-6">
+                <div className="text-sm text-gray-500 mb-1">Profit Factor</div>
+                <div className="text-2xl font-bold text-purple-600">{(tradesData?.summary.profitFactor || 0).toFixed(2)}</div>
               </Card>
               <Card className="p-6">
                 <div className="text-sm text-gray-500 mb-1">Contributions</div>
-                <div className="text-2xl font-bold text-blue-600">{formatCurrency(data?.summary.contributions || 0)}</div>
-              </Card>
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Withdrawals</div>
-                <div className="text-2xl font-bold text-orange-600">{formatCurrency(data?.summary.withdrawals || 0)}</div>
-              </Card>
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Net Capital Flow</div>
-                <div className="text-2xl font-bold text-gray-900">{formatCurrency(data?.summary.netCapitalFlow || 0)}</div>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(data?.summary.totalContributions || 0)}</div>
               </Card>
             </div>
 
@@ -295,17 +306,40 @@ export default function TradingPage() {
               <Card className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">P&L by Strategy</h2>
                 <div className="space-y-3">
-                  {data?.byStrategy.map(s => (
+                  {tradesData?.byStrategy.map(s => (
                     <div key={s.strategy} className="flex items-center justify-between py-2 border-b border-gray-100">
                       <div>
                         <div className="font-medium text-gray-900">{s.strategy}</div>
-                        <div className="text-xs text-gray-400">{s.count} trades</div>
+                        <div className="text-xs text-gray-400">{s.count} trades • {s.wins}W/{s.losses}L</div>
                       </div>
-                      <div className="font-semibold">{formatPL(s.realizedPL)}</div>
+                      <div className={`font-semibold ${s.pl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatPL(s.pl)}
+                      </div>
                     </div>
                   ))}
-                  {(!data?.byStrategy || data.byStrategy.length === 0) && (
+                  {(!tradesData?.byStrategy || tradesData.byStrategy.length === 0) && (
                     <div className="text-gray-400 text-sm">No closed trades yet</div>
+                  )}
+                </div>
+              </Card>
+
+              {/* P&L by Ticker */}
+              <Card className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">P&L by Ticker</h2>
+                <div className="space-y-3">
+                  {tradesData?.byTicker.map(t => (
+                    <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-gray-100">
+                      <div>
+                        <div className="font-medium text-gray-900">{t.ticker}</div>
+                        <div className="text-xs text-gray-400">{t.count} trades • {t.wins}W/{t.losses}L</div>
+                      </div>
+                      <div className={`font-semibold ${t.pl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatPL(t.pl)}
+                      </div>
+                    </div>
+                  ))}
+                  {(!tradesData?.byTicker || tradesData.byTicker.length === 0) && (
+                    <div className="text-gray-400 text-sm">No trades by ticker yet</div>
                   )}
                 </div>
               </Card>
