@@ -73,7 +73,7 @@ const STRATEGY_OPTIONS = [
 ];
 
 export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowProps) {
-  const [activeTab, setActiveTab] = useState<'opens' | 'closes' | 'trades'>('opens');
+  const [activeTab, setActiveTab] = useState<'opens' | 'closes' | 'trades' | 'corporate-actions'>('opens');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -82,6 +82,22 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   const [closes, setCloses] = useState<Transaction[]>([]);
   const [openTrades, setOpenTrades] = useState<OpenTrade[]>([]);
   const [stockLots, setStockLots] = useState<StockLotGroup[]>([]);
+  const [corporateActions, setCorporateActions] = useState<any[]>([]);
+  const [showCorpActionModal, setShowCorpActionModal] = useState(false);
+  const [corpActionForm, setCorpActionForm] = useState({
+    symbol: '',
+    action_type: 'REVERSE_SPLIT',
+    effective_date: '',
+    ratio_from: 1,
+    ratio_to: 1,
+    pre_split_shares: '',
+    post_split_shares: '',
+    notes: '',
+    source: '',
+    add_pre_split_lot: false,
+    lot_cost_basis: 0,
+    lot_acquired_date: ''
+  });
   const [nextTradeNum, setNextTradeNum] = useState(1);
   
   // Selection state
@@ -100,17 +116,19 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     setLoading(true);
     setError(null);
     try {
-      const [opensRes, tradesRes, maxRes, lotsRes] = await Promise.all([
+      const [opensRes, tradesRes, maxRes, lotsRes, corpActionsRes] = await Promise.all([
         fetch('/api/investment-transactions/opens'),
         fetch('/api/trading-positions/open'),
         fetch('/api/investment-transactions/max-trade-num'),
-        fetch('/api/stock-lots?status=OPEN')
+        fetch('/api/stock-lots?status=OPEN'),
+        fetch('/api/corporate-actions')
       ]);
       
       const opensData = await opensRes.json();
       const tradesData = await tradesRes.json();
       const maxData = await maxRes.json();
       const lotsData = await lotsRes.json();
+      const corpActionsData = await corpActionsRes.json();
       
       if (opensData.error) throw new Error(opensData.error);
       
@@ -149,6 +167,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         avgCostPerShare: g.totalShares > 0 ? g.totalCostBasis / g.totalShares : 0
       }));
       setStockLots(stockLotGroups);
+      setCorporateActions(corpActionsData.actions || []);
       
       setNextTradeNum((maxData.maxTradeNum || 0) + 1);
       setTradeNum(String((maxData.maxTradeNum || 0) + 1));
@@ -537,6 +556,14 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           >
             3. Trades ({openTrades.length})
           </button>
+          <button
+            onClick={() => { setActiveTab('corporate-actions'); clearSelection(); }}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'corporate-actions' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            4. Corp Actions ({corporateActions.length})
+          </button>
         </div>
       </div>
 
@@ -743,6 +770,283 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             ))
           )}
         </div>
+      )}
+
+      {/* CORPORATE ACTIONS TAB */}
+      {activeTab === 'corporate-actions' && (
+        <>
+          <div className="mb-4">
+            <button
+              onClick={() => setShowCorpActionModal(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+            >
+              + Record Corporate Action
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-semibold text-gray-700">Corporate Actions History</h3>
+            {corporateActions.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+                <p>No corporate actions recorded.</p>
+                <p className="text-sm mt-2">Stock splits, dividends, mergers, and spinoffs will appear here.</p>
+              </div>
+            ) : (
+              corporateActions.map((action: any) => (
+                <div key={action.id} className="border rounded-lg p-4 bg-white">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-lg">{action.symbol}</span>
+                      <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                        action.action_type === 'REVERSE_SPLIT' ? 'bg-orange-100 text-orange-700' :
+                        action.action_type === 'SPLIT' ? 'bg-green-100 text-green-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {action.action_type.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="text-right text-sm text-gray-500">
+                      {new Date(action.effective_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Ratio:</span>
+                      <span className="ml-2 font-medium">{action.ratio_from}:{action.ratio_to}</span>
+                    </div>
+                    {action.pre_split_shares && (
+                      <div>
+                        <span className="text-gray-500">Shares:</span>
+                        <span className="ml-2 font-medium">{action.pre_split_shares} → {action.post_split_shares}</span>
+                      </div>
+                    )}
+                  </div>
+                  {action.notes && (
+                    <div className="mt-2 text-sm text-gray-600 italic">&quot;{action.notes}&quot;</div>
+                  )}
+                  {action.source && (
+                    <div className="mt-1 text-xs text-gray-400">Source: {action.source}</div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {showCorpActionModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-4">Record Corporate Action</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Symbol *</label>
+                    <input
+                      type="text"
+                      value={corpActionForm.symbol}
+                      onChange={e => setCorpActionForm({...corpActionForm, symbol: e.target.value.toUpperCase()})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="e.g., UAVS"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Action Type *</label>
+                    <select
+                      value={corpActionForm.action_type}
+                      onChange={e => setCorpActionForm({...corpActionForm, action_type: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    >
+                      <option value="REVERSE_SPLIT">Reverse Split (fewer shares)</option>
+                      <option value="SPLIT">Forward Split (more shares)</option>
+                      <option value="STOCK_DIVIDEND">Stock Dividend</option>
+                      <option value="MERGER">Merger</option>
+                      <option value="SPINOFF">Spinoff</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date *</label>
+                    <input
+                      type="date"
+                      value={corpActionForm.effective_date}
+                      onChange={e => setCorpActionForm({...corpActionForm, effective_date: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ratio From *</label>
+                      <input
+                        type="number"
+                        value={corpActionForm.ratio_from}
+                        onChange={e => setCorpActionForm({...corpActionForm, ratio_from: parseInt(e.target.value) || 1})}
+                        className="w-full border rounded-lg px-3 py-2"
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ratio To *</label>
+                      <input
+                        type="number"
+                        value={corpActionForm.ratio_to}
+                        onChange={e => setCorpActionForm({...corpActionForm, ratio_to: parseInt(e.target.value) || 1})}
+                        className="w-full border rounded-lg px-3 py-2"
+                        min="1"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 -mt-2">
+                    For 1:50 reverse split, enter 1 and 50. For 2:1 forward split, enter 2 and 1.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pre-Split Shares</label>
+                      <input
+                        type="number"
+                        value={corpActionForm.pre_split_shares}
+                        onChange={e => setCorpActionForm({...corpActionForm, pre_split_shares: e.target.value})}
+                        className="w-full border rounded-lg px-3 py-2"
+                        placeholder="e.g., 555"
+                        step="0.0001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Post-Split Shares</label>
+                      <input
+                        type="number"
+                        value={corpActionForm.post_split_shares}
+                        onChange={e => setCorpActionForm({...corpActionForm, post_split_shares: e.target.value})}
+                        className="w-full border rounded-lg px-3 py-2"
+                        placeholder="e.g., 11.1"
+                        step="0.0001"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={corpActionForm.add_pre_split_lot}
+                        onChange={e => setCorpActionForm({...corpActionForm, add_pre_split_lot: e.target.checked})}
+                        className="rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Add missing pre-split lot</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Check this if you had shares before the split that are not in the system yet.
+                    </p>
+                  </div>
+
+                  {corpActionForm.add_pre_split_lot && (
+                    <div className="ml-6 space-y-3 p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Original Cost Basis ($)</label>
+                        <input
+                          type="number"
+                          value={corpActionForm.lot_cost_basis}
+                          onChange={e => setCorpActionForm({...corpActionForm, lot_cost_basis: parseFloat(e.target.value) || 0})}
+                          className="w-full border rounded-lg px-3 py-2"
+                          placeholder="0 if unknown"
+                          step="0.01"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Enter $0 if original cost is unknown.</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Original Acquisition Date</label>
+                        <input
+                          type="date"
+                          value={corpActionForm.lot_acquired_date}
+                          onChange={e => setCorpActionForm({...corpActionForm, lot_acquired_date: e.target.value})}
+                          className="w-full border rounded-lg px-3 py-2"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave blank to use split date.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <input
+                      type="text"
+                      value={corpActionForm.notes}
+                      onChange={e => setCorpActionForm({...corpActionForm, notes: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="e.g., 1:50 reverse split per SEC filing"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Source Documentation</label>
+                    <input
+                      type="text"
+                      value={corpActionForm.source}
+                      onChange={e => setCorpActionForm({...corpActionForm, source: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="e.g., Broker statement - Robinhood"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowCorpActionModal(false);
+                      setCorpActionForm({
+                        symbol: '', action_type: 'REVERSE_SPLIT', effective_date: '',
+                        ratio_from: 1, ratio_to: 1, pre_split_shares: '', post_split_shares: '',
+                        notes: '', source: '', add_pre_split_lot: false, lot_cost_basis: 0, lot_acquired_date: ''
+                      });
+                    }}
+                    className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!corpActionForm.symbol || !corpActionForm.effective_date) {
+                        alert('Symbol and Effective Date are required');
+                        return;
+                      }
+                      try {
+                        const res = await fetch('/api/corporate-actions', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            ...corpActionForm,
+                            pre_split_shares: corpActionForm.pre_split_shares ? parseFloat(String(corpActionForm.pre_split_shares)) : undefined,
+                            post_split_shares: corpActionForm.post_split_shares ? parseFloat(String(corpActionForm.post_split_shares)) : undefined,
+                            lot_acquired_date: corpActionForm.lot_acquired_date || corpActionForm.effective_date
+                          })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                          alert('Corporate action recorded successfully');
+                          setShowCorpActionModal(false);
+                          setCorpActionForm({
+                            symbol: '', action_type: 'REVERSE_SPLIT', effective_date: '',
+                            ratio_from: 1, ratio_to: 1, pre_split_shares: '', post_split_shares: '',
+                            notes: '', source: '', add_pre_split_lot: false, lot_cost_basis: 0, lot_acquired_date: ''
+                          });
+                          await fetchData();
+                          await onReload();
+                        } else {
+                          alert('Error: ' + result.error);
+                        }
+                      } catch (err) {
+                        alert('Failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+                  >
+                    Record Corporate Action
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
