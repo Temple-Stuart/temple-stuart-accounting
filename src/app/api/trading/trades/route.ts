@@ -185,8 +185,38 @@ export async function GET() {
     const openCount = allTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length;
     const closedCount = allTrades.filter(t => t.status === 'CLOSED').length;
 
+    // Group by strategy for P&L breakdown
+    const byStrategyMap: Record<string, { strategy: string; trades: number; wins: number; losses: number; realizedPL: number }> = {};
+    allTrades.filter(t => t.status === 'CLOSED').forEach(t => {
+      const key = t.strategy || 'unknown';
+      if (!byStrategyMap[key]) {
+        byStrategyMap[key] = { strategy: key, trades: 0, wins: 0, losses: 0, realizedPL: 0 };
+      }
+      byStrategyMap[key].trades++;
+      byStrategyMap[key].realizedPL += t.realizedPL || 0;
+      if ((t.realizedPL || 0) >= 0) byStrategyMap[key].wins++;
+      else byStrategyMap[key].losses++;
+    });
+    const byStrategy = Object.values(byStrategyMap);
+
+    // Group by ticker for P&L breakdown
+    const byTickerMap: Record<string, { ticker: string; trades: number; wins: number; losses: number; realizedPL: number }> = {};
+    allTrades.filter(t => t.status === 'CLOSED').forEach(t => {
+      const key = t.underlying || 'UNKNOWN';
+      if (!byTickerMap[key]) {
+        byTickerMap[key] = { ticker: key, trades: 0, wins: 0, losses: 0, realizedPL: 0 };
+      }
+      byTickerMap[key].trades++;
+      byTickerMap[key].realizedPL += t.realizedPL || 0;
+      if ((t.realizedPL || 0) >= 0) byTickerMap[key].wins++;
+      else byTickerMap[key].losses++;
+    });
+    const byTicker = Object.values(byTickerMap);
+
     return NextResponse.json({
       trades: allTrades,
+      byStrategy,
+      byTicker,
       summary: {
         total: allTrades.length,
         open: openCount,
