@@ -186,28 +186,28 @@ export async function GET() {
     const closedCount = allTrades.filter(t => t.status === 'CLOSED').length;
 
     // Group by strategy for P&L breakdown
-    const byStrategyMap: Record<string, { strategy: string; trades: number; wins: number; losses: number; realizedPL: number }> = {};
+    const byStrategyMap: Record<string, { strategy: string; count: number; wins: number; losses: number; pl: number }> = {};
     allTrades.filter(t => t.status === 'CLOSED').forEach(t => {
       const key = t.strategy || 'unknown';
       if (!byStrategyMap[key]) {
-        byStrategyMap[key] = { strategy: key, trades: 0, wins: 0, losses: 0, realizedPL: 0 };
+        byStrategyMap[key] = { strategy: key, count: 0, wins: 0, losses: 0, pl: 0 };
       }
-      byStrategyMap[key].trades++;
-      byStrategyMap[key].realizedPL += t.realizedPL || 0;
+      byStrategyMap[key].count++;
+      byStrategyMap[key].pl += t.realizedPL || 0;
       if ((t.realizedPL || 0) >= 0) byStrategyMap[key].wins++;
       else byStrategyMap[key].losses++;
     });
     const byStrategy = Object.values(byStrategyMap);
 
     // Group by ticker for P&L breakdown
-    const byTickerMap: Record<string, { ticker: string; trades: number; wins: number; losses: number; realizedPL: number }> = {};
+    const byTickerMap: Record<string, { ticker: string; count: number; wins: number; losses: number; pl: number }> = {};
     allTrades.filter(t => t.status === 'CLOSED').forEach(t => {
       const key = t.underlying || 'UNKNOWN';
       if (!byTickerMap[key]) {
-        byTickerMap[key] = { ticker: key, trades: 0, wins: 0, losses: 0, realizedPL: 0 };
+        byTickerMap[key] = { ticker: key, count: 0, wins: 0, losses: 0, pl: 0 };
       }
-      byTickerMap[key].trades++;
-      byTickerMap[key].realizedPL += t.realizedPL || 0;
+      byTickerMap[key].count++;
+      byTickerMap[key].pl += t.realizedPL || 0;
       if ((t.realizedPL || 0) >= 0) byTickerMap[key].wins++;
       else byTickerMap[key].losses++;
     });
