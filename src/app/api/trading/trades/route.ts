@@ -218,10 +218,24 @@ export async function GET() {
       byStrategy,
       byTicker,
       summary: {
-        total: allTrades.length,
-        open: openCount,
-        closed: closedCount,
-        totalRealizedPL
+        totalTrades: allTrades.length,
+        openTrades: openCount,
+        closedTrades: closedCount,
+        totalRealizedPL,
+        winRate: closedCount > 0 ? Math.round((allTrades.filter(t => t.status === 'CLOSED' && (t.realizedPL || 0) >= 0).length / closedCount) * 100) : 0,
+        avgWin: (() => {
+          const wins = allTrades.filter(t => t.status === 'CLOSED' && (t.realizedPL || 0) > 0);
+          return wins.length > 0 ? wins.reduce((sum, t) => sum + (t.realizedPL || 0), 0) / wins.length : 0;
+        })(),
+        avgLoss: (() => {
+          const losses = allTrades.filter(t => t.status === 'CLOSED' && (t.realizedPL || 0) < 0);
+          return losses.length > 0 ? losses.reduce((sum, t) => sum + (t.realizedPL || 0), 0) / losses.length : 0;
+        })(),
+        profitFactor: (() => {
+          const totalWins = allTrades.filter(t => t.status === 'CLOSED' && (t.realizedPL || 0) > 0).reduce((sum, t) => sum + (t.realizedPL || 0), 0);
+          const totalLosses = Math.abs(allTrades.filter(t => t.status === 'CLOSED' && (t.realizedPL || 0) < 0).reduce((sum, t) => sum + (t.realizedPL || 0), 0));
+          return totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0;
+        })()
       }
     });
   } catch (error) {
