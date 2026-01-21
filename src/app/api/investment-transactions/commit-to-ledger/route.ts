@@ -31,8 +31,9 @@ export async function POST(request: Request) {
       
       // Extract symbol from security or name
       const symbol = txn.security?.option_underlying_ticker || 
-                     txn.name.split(' ').find(w => /^[A-Z]{1,5}$/.test(w)) || 
-                     'UNKNOWN';
+                    txn.security?.ticker_symbol ||
+                    txn.name.split(' ').find(w => /^[A-Z]{1,5}$/.test(w)) || 
+                    'UNKNOWN';
       
       return {
         id: txn.id,
