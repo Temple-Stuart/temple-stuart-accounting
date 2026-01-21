@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { v4 as uuidv4 } from 'uuid';
 
 // POST: Commit a sale using the selected matching method
 export async function POST(request: Request) {
@@ -178,8 +179,120 @@ export async function POST(request: Request) {
         }
       });
 
+      // Get next trade number
+      const maxResult = await tx.investment_transactions.findMany({
+        where: { tradeNum: { not: null } },
+        select: { tradeNum: true }
+      });
+      const maxNum = maxResult.reduce((max, t) => {
+        const num = parseInt(t.tradeNum || '0', 10);
+        return num > max ? num : max;
+      }, 0);
+      const tradeNum = String(maxNum + 1);
+
+      // Create journal entry for the sale
+      const TRADING_CASH = 'T-1010';
+      const STOCK_POSITION = 'T-1100';
+      const PL_ACCOUNT = shortTermGain + longTermGain >= 0 ? 'T-4100' : 'T-5100';
+      
+      const totalGainLoss = shortTermGain + longTermGain;
+      const proceedsCents = Math.round(totalProceeds * 100);
+      const costBasisCents = Math.round(totalCostBasis * 100);
+      const plCents = Math.round(totalGainLoss * 100);
+
+      // Fetch accounts
+      const accounts = await tx.chart_of_accounts.findMany({
+        where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] } }
+      });
+      
+      const cashAccount = accounts.find(a => a.code === TRADING_CASH);
+      const stockAccount = accounts.find(a => a.code === STOCK_POSITION);
+      const plAccount = accounts.find(a => a.code === PL_ACCOUNT);
+      
+      if (!cashAccount || !stockAccount || !plAccount) {
+        throw new Error('Missing required accounts: T-1010, T-1100, T-4100/T-5100');
+      }
+
+      // Create journal transaction
+      const journalTxn = await tx.journal_transactions.create({
+        data: {
+          id: uuidv4(),
+          transaction_date: saleDateObj,
+          description: `SELL STOCK: ${saleQuantity} ${symbol} @ $${salePrice.toFixed(2)} (${matchingMethod})`,
+          external_transaction_id: saleTxnId,
+          strategy: 'stock-long',
+          trade_num: tradeNum,
+          amount: proceedsCents,
+          posted_at: new Date()
+        }
+      });
+
+      // Journal entry: DR Cash (proceeds), CR Stock Position (cost basis), DR/CR P&L (difference)
+      // If gain: DR Cash, CR Stock, CR P&L (T-4100)
+      // If loss: DR Cash, DR P&L (T-5100), CR Stock
+      
+      // DR Trading Cash (proceeds received)
+      await tx.ledger_entries.create({
+        data: {
+          id: uuidv4(),
+          transaction_id: journalTxn.id,
+          account_id: cashAccount.id,
+          amount: BigInt(proceedsCents),
+          entry_type: 'D'
+        }
+      });
+      await tx.chart_of_accounts.update({
+        where: { id: cashAccount.id },
+        data: { settled_balance: { increment: BigInt(proceedsCents) }, version: { increment: 1 } }
+      });
+
+      // CR Stock Position (cost basis removed)
+      await tx.ledger_entries.create({
+        data: {
+          id: uuidv4(),
+          transaction_id: journalTxn.id,
+          account_id: stockAccount.id,
+          amount: BigInt(costBasisCents),
+          entry_type: 'C'
+        }
+      });
+      await tx.chart_of_accounts.update({
+        where: { id: stockAccount.id },
+        data: { settled_balance: { increment: BigInt(-costBasisCents) }, version: { increment: 1 } }
+      });
+
+      // P&L entry (gain = credit T-4100, loss = debit T-5100)
+      await tx.ledger_entries.create({
+        data: {
+          id: uuidv4(),
+          transaction_id: journalTxn.id,
+          account_id: plAccount.id,
+          amount: BigInt(Math.abs(plCents)),
+          entry_type: totalGainLoss >= 0 ? 'C' : 'D'
+        }
+      });
+      const plBalanceChange = totalGainLoss >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));
+      await tx.chart_of_accounts.update({
+        where: { id: plAccount.id },
+        data: { settled_balance: { increment: plBalanceChange }, version: { increment: 1 } }
+      });
+
+      // Update sale investment transaction with tradeNum
+      if (saleTxnId) {
+        await tx.investment_transactions.update({
+          where: { id: saleTxnId },
+          data: {
+            tradeNum,
+            strategy: 'stock-long',
+            accountCode: TRADING_CASH
+          }
+        });
+      }
+
       return {
         scenarioId: scenario.id,
+        tradeNum,
+        journalId: journalTxn.id,
         dispositions,
         summary: {
           totalProceeds,
