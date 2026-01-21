@@ -77,8 +77,23 @@ export async function GET() {
       orderBy: { close_date: 'desc' }
     });
 
-    // Calculate P&L
-    const totalRealizedPL = closedPositions.reduce((sum, p) => sum + (p.realized_pl || 0), 0);
+    // Get stock lots for this user
+    const stockLots = await prisma.stock_lots.findMany({
+      where: { user_id: user.id },
+      include: { dispositions: true }
+    });
+
+    // Calculate stock P&L from dispositions
+    const stockRealizedPL = stockLots.reduce((sum, lot) => {
+      return sum + lot.dispositions.reduce((dSum, d) => dSum + d.realized_gain_loss, 0);
+    }, 0);
+
+    const openStockLots = stockLots.filter(l => l.status === 'OPEN' || l.status === 'PARTIAL');
+    const closedStockLots = stockLots.filter(l => l.status === 'CLOSED');
+
+    // Calculate P&L (options + stocks)
+    const optionRealizedPL = closedPositions.reduce((sum, p) => sum + (p.realized_pl || 0), 0);
+    const totalRealizedPL = optionRealizedPL + stockRealizedPL;
 
     // Group by strategy
     const byStrategy: Record<string, { total: number; count: number }> = {};
@@ -100,7 +115,10 @@ export async function GET() {
     return NextResponse.json({
       summary: {
         totalRealizedPL,
-        openPositionsCount: openPositions.length,
+        optionRealizedPL,
+        stockRealizedPL,
+        openPositionsCount: openPositions.length + openStockLots.length,
+        closedTradeCount: closedPositions.length + closedStockLots.length,
         totalContributions: contributions,
         totalWithdrawals: withdrawals
       },
