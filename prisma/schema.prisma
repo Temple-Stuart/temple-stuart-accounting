@@ -353,6 +353,7 @@ model users {
   tax_scenarios        tax_scenarios[]
   calendar_events      calendar_events[]
   home_expenses        home_expenses[]
+  corporate_actions   corporate_actions[]
 }
 
 model budgets {
@@ -1028,6 +1029,7 @@ model stock_lots {
   // Relations
   user                  users     @relation(fields: [user_id], references: [id])
   dispositions          lot_dispositions[]
+  adjustments           lot_adjustments[]
   
   @@index([user_id])
   @@index([symbol])
@@ -1172,4 +1174,46 @@ model module_expenses {
   target_date  DateTime? @db.Date
 
   @@index([user_id, module], map: "idx_module_expenses_user_module")
+}
+
+// Corporate Actions - Track splits, dividends, mergers, spinoffs
+model corporate_actions {
+  id              String   @id @default(uuid())
+  user_id         String
+  symbol          String
+  action_type     String   // SPLIT, REVERSE_SPLIT, STOCK_DIVIDEND, MERGER, SPINOFF
+  effective_date  DateTime
+  ratio_from      Int      // e.g., 1 for 1:50 reverse split
+  ratio_to        Int      // e.g., 50 for 1:50 reverse split
+  pre_split_shares  Float?   // Shares before action
+  post_split_shares Float?   // Shares after action
+  notes           String?
+  source          String?  // SEC filing, broker statement, etc.
+  created_at      DateTime @default(now())
+  
+  // Relations
+  user            users    @relation(fields: [user_id], references: [id])
+  lot_adjustments lot_adjustments[]
+  
+  @@index([user_id, symbol])
+  @@index([effective_date])
+}
+
+// Lot Adjustments - Track how lots were modified by corporate actions
+model lot_adjustments {
+  id                  String   @id @default(uuid())
+  lot_id              String   @db.Uuid
+  corporate_action_id String
+  original_quantity   Float
+  adjusted_quantity   Float
+  original_cost_per_share Float
+  adjusted_cost_per_share Float
+  adjustment_date     DateTime @default(now())
+  
+  // Relations
+  lot               stock_lots        @relation(fields: [lot_id], references: [id])
+  corporate_action  corporate_actions @relation(fields: [corporate_action_id], references: [id])
+  
+  @@index([lot_id])
+  @@index([corporate_action_id])
 }
