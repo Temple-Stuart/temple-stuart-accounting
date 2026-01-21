@@ -141,7 +141,7 @@ export async function GET() {
         closeDate: isClosed && allDispositions.length > 0 
           ? allDispositions[allDispositions.length - 1].disposed_date.toISOString() 
           : null,
-        legs: lots.length,
+        legs: lots.length + allDispositions.length,
         shares: {
           original: totalOriginalShares,
           remaining: totalRemainingShares,
