@@ -36,13 +36,6 @@ interface CalendarSummary {
   growthTotal: number;
   tripTotal: number;
   grandTotal: number;
-  homeCount: number;
-  autoCount: number;
-  shoppingCount: number;
-  personalCount: number;
-  healthCount: number;
-  growthCount: number;
-  tripCount: number;
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -63,6 +56,20 @@ const parseDate = (dateStr: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+// Glow style for under/over budget
+const getVarianceStyle = (budget: number, actual: number) => {
+  if (budget === 0 && actual === 0) return '';
+  if (actual === 0) return 'bg-emerald-100/50'; // No spend yet
+  if (actual <= budget) return 'bg-emerald-100 shadow-[inset_0_0_12px_rgba(16,185,129,0.3)]'; // Under budget - green glow
+  return 'bg-red-100 shadow-[inset_0_0_12px_rgba(239,68,68,0.3)]'; // Over budget - red glow
+};
+
+const getVarianceTextColor = (budget: number, actual: number) => {
+  if (budget === 0 && actual === 0) return 'text-gray-400';
+  if (actual <= budget) return 'text-emerald-600';
+  return 'text-red-600';
+};
+
 export default function HubPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -79,9 +86,18 @@ export default function HubPage() {
     latitude: number | null; longitude: number | null;
     startDate: string | null; endDate: string | null; totalBudget: number;
   }>>([]);
-  const [yearCalendar, setYearCalendar] = useState<Record<number, Record<string, number>>>({});
+  
+  // Budget & Actual data
+  const [yearBudget, setYearBudget] = useState<Record<number, Record<string, number>>>({});
+  const [yearActual, setYearActual] = useState<Record<number, Record<string, number>>>({});
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
-  const [nomadBudget, setNomadBudget] = useState<{ monthlyData: Record<string, Record<number, number>>; coaNames: Record<string, string>; grandTotal: number }>({ monthlyData: {}, coaNames: {}, grandTotal: 0 });
+  const [nomadBudget, setNomadBudget] = useState<{ 
+    budgetData: Record<string, Record<number, number>>; 
+    actualData: Record<string, Record<number, number>>;
+    coaNames: Record<string, string>; 
+    budgetGrandTotal: number;
+    actualGrandTotal: number;
+  }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
 
   useEffect(() => {
     loadCalendar();
@@ -119,7 +135,8 @@ export default function HubPage() {
       const res = await fetch(`/api/hub/year-calendar?year=${selectedYear}`);
       if (res.ok) {
         const data = await res.json();
-        setYearCalendar(data.monthlyData || {});
+        setYearBudget(data.budgetData || data.monthlyData || {});
+        setYearActual(data.actualData || {});
       }
     } catch (err) {
       console.error("Failed to load year calendar:", err);
@@ -131,7 +148,13 @@ export default function HubPage() {
       const res = await fetch(`/api/hub/nomad-budget?year=${selectedYear}`);
       if (res.ok) {
         const data = await res.json();
-        setNomadBudget({ monthlyData: data.monthlyData || {}, coaNames: data.coaNames || {}, grandTotal: data.grandTotal || 0 });
+        setNomadBudget({ 
+          budgetData: data.budgetData || data.monthlyData || {}, 
+          actualData: data.actualData || {},
+          coaNames: data.coaNames || {}, 
+          budgetGrandTotal: data.budgetGrandTotal || data.grandTotal || 0,
+          actualGrandTotal: data.actualGrandTotal || 0
+        });
       }
     } catch (err) {
       console.error("Failed to load nomad budget:", err);
@@ -198,34 +221,23 @@ export default function HubPage() {
   const currentYear = now.getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
 
-  // ═══════════════════════════════════════════════════════════════════
-  // CALCULATOR LOGIC
-  // ═══════════════════════════════════════════════════════════════════
-  // Travel months (selected): Compare Homebase vs Travel → show savings
-  // Home months (unselected): Homebase + Travel combined → total cost
-  
+  // Calculator logic
   const homeMonths = MONTHS.map((_, i) => i).filter(i => !travelMonths.includes(i));
   
-  // For travel months: what you'd spend at home
-  const travelMonthsHomebaseCost = travelMonths.reduce((sum, i) => sum + (yearCalendar[i]?.total || 0), 0);
-  // For travel months: what you'd spend traveling
-  const travelMonthsTravelCost = travelMonths.reduce((sum, i) => sum + Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
-  // Savings = homebase cost avoided - travel cost incurred
-  const travelSavings = travelMonthsHomebaseCost - travelMonthsTravelCost;
+  const travelMonthsHomebaseBudget = travelMonths.reduce((sum, i) => sum + (yearBudget[i]?.total || 0), 0);
+  const travelMonthsTravelBudget = travelMonths.reduce((sum, i) => sum + Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
+  const travelSavings = travelMonthsHomebaseBudget - travelMonthsTravelBudget;
   
-  // For home months: homebase cost (you're paying this)
-  const homeMonthsHomebaseCost = homeMonths.reduce((sum, i) => sum + (yearCalendar[i]?.total || 0), 0);
-  // For home months: travel cost (you're also paying this if traveling during those months)
-  const homeMonthsTravelCost = homeMonths.reduce((sum, i) => sum + Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
-  // Combined = both costs when staying home
-  const homeMonthsCombined = homeMonthsHomebaseCost + homeMonthsTravelCost;
+  const homeMonthsHomebaseBudget = homeMonths.reduce((sum, i) => sum + (yearBudget[i]?.total || 0), 0);
+  const homeMonthsTravelBudget = homeMonths.reduce((sum, i) => sum + Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
+  const homeMonthsCombined = homeMonthsHomebaseBudget + homeMonthsTravelBudget;
   
-  // Grand total for the year
-  const yearlyHomebase = Object.values(yearCalendar).reduce((sum, m) => sum + (m.total || 0), 0);
-  const yearlyTravel = nomadBudget.grandTotal;
+  const yearlyHomebaseBudget = Object.values(yearBudget).reduce((sum, m) => sum + (m.total || 0), 0);
+  const yearlyHomebaseActual = Object.values(yearActual).reduce((sum, m) => sum + (m.total || 0), 0);
+  const yearlyTravelBudget = nomadBudget.budgetGrandTotal;
+  const yearlyTravelActual = nomadBudget.actualGrandTotal;
   
-  // Effective yearly cost: home months (combined) + travel months (just travel)
-  const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelCost;
+  const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget;
 
   return (
     <AppLayout>
@@ -241,10 +253,8 @@ export default function HubPage() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* BUDGET TABLES */}
+          {/* HOMEBASE BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-
-          {/* Homebase Budget */}
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -253,17 +263,25 @@ export default function HubPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Homebase Budget</h2>
-                  <p className="text-sm text-gray-500">{selectedYear} monthly breakdown</p>
+                  <p className="text-sm text-gray-500">{selectedYear} • Budget vs Actual</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedYear(y => y - 1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <span className="text-sm font-medium text-gray-700 min-w-[50px] text-center">{selectedYear}</span>
-                <button onClick={() => setSelectedYear(y => y + 1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                </button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="w-3 h-3 rounded bg-emerald-200 shadow-[inset_0_0_4px_rgba(16,185,129,0.5)]"></span>
+                  <span className="text-gray-500">Under</span>
+                  <span className="w-3 h-3 rounded bg-red-200 shadow-[inset_0_0_4px_rgba(239,68,68,0.5)] ml-2"></span>
+                  <span className="text-gray-500">Over</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedYear(y => y - 1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <span className="text-sm font-medium text-gray-700 min-w-[50px] text-center">{selectedYear}</span>
+                  <button onClick={() => setSelectedYear(y => y + 1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -271,41 +289,89 @@ export default function HubPage() {
                 <thead>
                   <tr className="bg-gray-50/80">
                     <th className="text-left py-3 px-4 text-gray-600 font-semibold w-[140px]">Category</th>
+                    <th className="text-left py-3 px-2 text-gray-500 font-medium w-[60px] text-xs">Type</th>
                     {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[75px] text-gray-600 font-medium">{m.slice(0,3)}</th>)}
                     <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[100px]">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {Object.entries(SOURCE_CONFIG).filter(([s]) => s !== 'trip').map(([source, config]) => (
-                    <tr key={source} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-3 px-4 text-gray-700 font-medium">
-                        <span className="mr-2">{config.icon}</span>
-                        {source.charAt(0).toUpperCase() + source.slice(1)}
-                      </td>
-                      {MONTHS.map((_, i) => (
-                        <td key={i} className="text-right py-3 px-3 tabular-nums">
-                          {yearCalendar[i]?.[source] 
-                            ? <span className={config.color}>{formatCurrency(yearCalendar[i][source])}</span>
-                            : <span className="text-gray-300">—</span>
-                          }
-                        </td>
-                      ))}
-                      <td className={`text-right py-3 px-4 font-semibold tabular-nums bg-gray-50/50 ${config.color}`}>
-                        {formatCurrency(Object.values(yearCalendar).reduce((sum, m) => sum + (m[source] || 0), 0))}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {Object.entries(SOURCE_CONFIG).filter(([s]) => s !== 'trip').map(([source, config]) => {
+                    const budgetTotal = Object.values(yearBudget).reduce((sum, m) => sum + (m[source] || 0), 0);
+                    const actualTotal = Object.values(yearActual).reduce((sum, m) => sum + (m[source] || 0), 0);
+                    
+                    return (
+                      <>
+                        {/* Budget Row */}
+                        <tr key={`${source}-budget`} className="border-t border-gray-100">
+                          <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
+                            <span className="mr-2">{config.icon}</span>
+                            {source.charAt(0).toUpperCase() + source.slice(1)}
+                          </td>
+                          <td className="py-2 px-2 text-xs text-gray-400">Budget</td>
+                          {MONTHS.map((_, i) => (
+                            <td key={i} className="text-right py-2 px-3 tabular-nums">
+                              {yearBudget[i]?.[source] 
+                                ? <span className={config.color}>{formatCurrency(yearBudget[i][source])}</span>
+                                : <span className="text-gray-300">—</span>
+                              }
+                            </td>
+                          ))}
+                          <td className={`text-right py-2 px-4 font-semibold tabular-nums bg-gray-50/50 ${config.color}`}>
+                            {formatCurrency(budgetTotal)}
+                          </td>
+                        </tr>
+                        {/* Actual Row */}
+                        <tr key={`${source}-actual`} className="border-b border-gray-200">
+                          <td className="py-2 px-2 text-xs text-gray-400">Actual</td>
+                          {MONTHS.map((_, i) => {
+                            const budget = yearBudget[i]?.[source] || 0;
+                            const actual = yearActual[i]?.[source] || 0;
+                            return (
+                              <td key={i} className={`text-right py-2 px-3 tabular-nums rounded ${getVarianceStyle(budget, actual)}`}>
+                                {actual 
+                                  ? <span className={getVarianceTextColor(budget, actual)}>{formatCurrency(actual)}</span>
+                                  : <span className="text-gray-300">—</span>
+                                }
+                              </td>
+                            );
+                          })}
+                          <td className={`text-right py-2 px-4 font-semibold tabular-nums rounded ${getVarianceStyle(budgetTotal, actualTotal)}`}>
+                            <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
+                          </td>
+                        </tr>
+                      </>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
+                  {/* Total Budget */}
                   <tr className="bg-gradient-to-r from-amber-50 to-orange-50 border-t-2 border-amber-200">
                     <td className="py-3 px-4 font-bold text-gray-900">Total</td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Budget</td>
                     {MONTHS.map((_, i) => (
                       <td key={i} className="text-right py-3 px-3 font-bold tabular-nums text-gray-900">
-                        {yearCalendar[i]?.total ? formatCurrency(yearCalendar[i].total) : <span className="text-gray-300">—</span>}
+                        {yearBudget[i]?.total ? formatCurrency(yearBudget[i].total) : <span className="text-gray-300">—</span>}
                       </td>
                     ))}
                     <td className="text-right py-3 px-4 font-bold tabular-nums text-amber-700 bg-amber-100/50 text-lg">
-                      {formatCurrency(yearlyHomebase)}
+                      {formatCurrency(yearlyHomebaseBudget)}
+                    </td>
+                  </tr>
+                  {/* Total Actual */}
+                  <tr className="bg-gradient-to-r from-amber-50/50 to-orange-50/50">
+                    <td className="py-3 px-4 font-bold text-gray-700"></td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Actual</td>
+                    {MONTHS.map((_, i) => {
+                      const budget = yearBudget[i]?.total || 0;
+                      const actual = yearActual[i]?.total || 0;
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums rounded ${getVarianceStyle(budget, actual)}`}>
+                          {actual ? <span className={getVarianceTextColor(budget, actual)}>{formatCurrency(actual)}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className={`text-right py-3 px-4 font-bold tabular-nums text-lg rounded ${getVarianceStyle(yearlyHomebaseBudget, yearlyHomebaseActual)}`}>
+                      <span className={getVarianceTextColor(yearlyHomebaseBudget, yearlyHomebaseActual)}>{formatCurrency(yearlyHomebaseActual)}</span>
                     </td>
                   </tr>
                 </tfoot>
@@ -313,7 +379,9 @@ export default function HubPage() {
             </div>
           </div>
 
-          {/* Travel Budget */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* TRAVEL BUDGET - With Actuals */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center">
@@ -321,7 +389,7 @@ export default function HubPage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Travel Budget</h2>
-                <p className="text-sm text-gray-500">{selectedYear} trip expenses by account</p>
+                <p className="text-sm text-gray-500">{selectedYear} • Budget vs Actual</p>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -329,44 +397,91 @@ export default function HubPage() {
                 <thead>
                   <tr className="bg-gray-50/80">
                     <th className="text-left py-3 px-4 text-gray-600 font-semibold w-[140px]">Account</th>
+                    <th className="text-left py-3 px-2 text-gray-500 font-medium w-[60px] text-xs">Type</th>
                     {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[75px] text-gray-600 font-medium">{m.slice(0,3)}</th>)}
                     <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[100px]">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {Object.entries(nomadBudget.coaNames).map(([code, name]) => {
-                    const rowData = nomadBudget.monthlyData[code] || {};
-                    const rowTotal = Object.values(rowData).reduce((s, v) => s + v, 0);
-                    if (rowTotal === 0) return null;
+                    const budgetRow = nomadBudget.budgetData[code] || {};
+                    const actualRow = nomadBudget.actualData[code] || {};
+                    const budgetTotal = Object.values(budgetRow).reduce((s, v) => s + v, 0);
+                    const actualTotal = Object.values(actualRow).reduce((s, v) => s + v, 0);
+                    
+                    if (budgetTotal === 0 && actualTotal === 0) return null;
+                    
                     return (
-                      <tr key={code} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="py-3 px-4 text-gray-700 font-medium whitespace-nowrap">
-                          {name} <span className="text-gray-400 text-xs ml-1">{code}</span>
-                        </td>
-                        {MONTHS.map((_, i) => (
-                          <td key={i} className="text-right py-3 px-3 tabular-nums">
-                            {rowData[i] 
-                              ? <span className="text-cyan-600">{formatCurrency(rowData[i])}</span>
-                              : <span className="text-gray-300">—</span>
-                            }
+                      <>
+                        {/* Budget Row */}
+                        <tr key={`${code}-budget`} className="border-t border-gray-100">
+                          <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium whitespace-nowrap border-r border-gray-100">
+                            {name} <span className="text-gray-400 text-xs ml-1">{code}</span>
                           </td>
-                        ))}
-                        <td className="text-right py-3 px-4 font-semibold tabular-nums text-cyan-600 bg-gray-50/50">
-                          {formatCurrency(rowTotal)}
-                        </td>
-                      </tr>
+                          <td className="py-2 px-2 text-xs text-gray-400">Budget</td>
+                          {MONTHS.map((_, i) => (
+                            <td key={i} className="text-right py-2 px-3 tabular-nums">
+                              {budgetRow[i] 
+                                ? <span className="text-cyan-600">{formatCurrency(budgetRow[i])}</span>
+                                : <span className="text-gray-300">—</span>
+                              }
+                            </td>
+                          ))}
+                          <td className="text-right py-2 px-4 font-semibold tabular-nums text-cyan-600 bg-gray-50/50">
+                            {formatCurrency(budgetTotal)}
+                          </td>
+                        </tr>
+                        {/* Actual Row */}
+                        <tr key={`${code}-actual`} className="border-b border-gray-200">
+                          <td className="py-2 px-2 text-xs text-gray-400">Actual</td>
+                          {MONTHS.map((_, i) => {
+                            const budget = budgetRow[i] || 0;
+                            const actual = actualRow[i] || 0;
+                            return (
+                              <td key={i} className={`text-right py-2 px-3 tabular-nums rounded ${getVarianceStyle(budget, actual)}`}>
+                                {actual 
+                                  ? <span className={getVarianceTextColor(budget, actual)}>{formatCurrency(actual)}</span>
+                                  : <span className="text-gray-300">—</span>
+                                }
+                              </td>
+                            );
+                          })}
+                          <td className={`text-right py-2 px-4 font-semibold tabular-nums rounded ${getVarianceStyle(budgetTotal, actualTotal)}`}>
+                            <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
+                          </td>
+                        </tr>
+                      </>
                     );
                   })}
                 </tbody>
                 <tfoot>
+                  {/* Total Budget */}
                   <tr className="bg-gradient-to-r from-cyan-50 to-sky-50 border-t-2 border-cyan-200">
                     <td className="py-3 px-4 font-bold text-gray-900">Total Travel</td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Budget</td>
                     {MONTHS.map((_, i) => {
-                      const monthTotal = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const monthTotal = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       return <td key={i} className="text-right py-3 px-3 font-bold tabular-nums text-gray-900">{monthTotal ? formatCurrency(monthTotal) : <span className="text-gray-300">—</span>}</td>;
                     })}
                     <td className="text-right py-3 px-4 font-bold tabular-nums text-cyan-700 bg-cyan-100/50 text-lg">
-                      {formatCurrency(yearlyTravel)}
+                      {formatCurrency(yearlyTravelBudget)}
+                    </td>
+                  </tr>
+                  {/* Total Actual */}
+                  <tr className="bg-gradient-to-r from-cyan-50/50 to-sky-50/50">
+                    <td className="py-3 px-4 font-bold text-gray-700"></td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Actual</td>
+                    {MONTHS.map((_, i) => {
+                      const budgetMonth = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const actualMonth = Object.values(nomadBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums rounded ${getVarianceStyle(budgetMonth, actualMonth)}`}>
+                          {actualMonth ? <span className={getVarianceTextColor(budgetMonth, actualMonth)}>{formatCurrency(actualMonth)}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className={`text-right py-3 px-4 font-bold tabular-nums text-lg rounded ${getVarianceStyle(yearlyTravelBudget, yearlyTravelActual)}`}>
+                      <span className={getVarianceTextColor(yearlyTravelBudget, yearlyTravelActual)}>{formatCurrency(yearlyTravelActual)}</span>
                     </td>
                   </tr>
                 </tfoot>
@@ -374,7 +489,9 @@ export default function HubPage() {
             </div>
           </div>
 
-          {/* Homebase + Travel Calculator */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* HOMEBASE + TRAVEL CALCULATOR */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-cyan-100 flex items-center justify-center">
@@ -418,25 +535,22 @@ export default function HubPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-6 border-b border-gray-100">
-              {/* Home Months Card */}
               <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
                 <div className="text-xs text-gray-500 mb-1 font-medium">🏠 Home Months</div>
-                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(homeMonthsHomebaseCost)}</div>
+                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(homeMonthsHomebaseBudget)}</div>
                 <div className="text-xs text-amber-600 mt-1">Homebase cost</div>
-                {homeMonthsTravelCost > 0 && (
-                  <div className="text-xs text-cyan-600 mt-0.5">+ {formatCurrency(homeMonthsTravelCost)} travel</div>
+                {homeMonthsTravelBudget > 0 && (
+                  <div className="text-xs text-cyan-600 mt-0.5">+ {formatCurrency(homeMonthsTravelBudget)} travel</div>
                 )}
               </div>
               
-              {/* Travel Months Card */}
               <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-100">
                 <div className="text-xs text-gray-500 mb-1 font-medium">✈️ Travel Months</div>
-                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(travelMonthsTravelCost)}</div>
+                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(travelMonthsTravelBudget)}</div>
                 <div className="text-xs text-cyan-600 mt-1">Travel cost only</div>
-                <div className="text-xs text-gray-400 mt-0.5 line-through">{formatCurrency(travelMonthsHomebaseCost)} homebase</div>
+                <div className="text-xs text-gray-400 mt-0.5 line-through">{formatCurrency(travelMonthsHomebaseBudget)} homebase</div>
               </div>
               
-              {/* Savings Card */}
               <div className={`p-4 rounded-xl border-2 ${travelSavings >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                 <div className="text-xs text-gray-500 mb-1 font-medium">💵 Travel Savings</div>
                 <div className={`text-xl font-bold tabular-nums ${travelSavings >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -447,7 +561,6 @@ export default function HubPage() {
                 </div>
               </div>
               
-              {/* Effective Total Card */}
               <div className="p-4 bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5 rounded-xl border-2 border-[#b4b237]/30">
                 <div className="text-xs text-gray-500 mb-1 font-medium">📊 Effective Total</div>
                 <div className="text-xl font-bold text-[#8f8c2a] tabular-nums">{formatCurrency(effectiveYearlyCost)}</div>
@@ -455,113 +568,18 @@ export default function HubPage() {
               </div>
             </div>
 
-            {/* Detailed Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50/80">
-                    <th className="py-3 px-4 text-left text-gray-600 font-semibold w-[140px]">Category</th>
-                    {MONTHS.map((m, i) => (
-                      <th key={i} className={`text-right py-3 px-3 text-gray-600 font-medium min-w-[75px] ${travelMonths.includes(i) ? 'bg-cyan-50/50' : 'bg-amber-50/50'}`}>
-                        <div className="text-[10px] mb-0.5">{travelMonths.includes(i) ? '✈️' : '🏠'}</div>
-                        {m.slice(0,3)}
-                      </th>
-                    ))}
-                    <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[100px]">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-700 font-medium">🏠 Homebase</td>
-                    {MONTHS.map((_, i) => {
-                      const val = yearCalendar[i]?.total || 0;
-                      const isTraveling = travelMonths.includes(i);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
-                          {val ? (
-                            <span className={isTraveling ? 'text-gray-300 line-through' : 'text-amber-600'}>
-                              {formatCurrency(val)}
-                            </span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-amber-700 bg-gray-50/50">
-                      {formatCurrency(homeMonthsHomebaseCost)}
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-700 font-medium">✈️ Travel</td>
-                    {MONTHS.map((_, i) => { 
-                      const mt = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      const isTraveling = travelMonths.includes(i);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
-                          {mt ? (
-                            <span className="text-cyan-600">{formatCurrency(mt)}</span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                      ); 
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-cyan-700 bg-gray-50/50">
-                      {formatCurrency(travelMonthsTravelCost + homeMonthsTravelCost)}
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gradient-to-r from-emerald-50 to-green-50 border-t-2 border-emerald-200">
-                    <td className="py-3 px-4 font-bold text-gray-900">💵 Monthly Cost</td>
-                    {MONTHS.map((_, i) => { 
-                      const homebase = yearCalendar[i]?.total || 0; 
-                      const travel = Object.values(nomadBudget.monthlyData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      const isTraveling = travelMonths.includes(i);
-                      // If traveling: only travel cost. If home: homebase + travel
-                      const effective = isTraveling ? travel : (homebase + travel);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums ${isTraveling ? 'text-cyan-600 bg-cyan-50/50' : 'text-amber-600 bg-amber-50/50'}`}>
-                          {effective ? formatCurrency(effective) : <span className="text-gray-300">—</span>}
-                        </td>
-                      ); 
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-lg text-[#8f8c2a] bg-[#b4b237]/10">
-                      {formatCurrency(effectiveYearlyCost)}
-                    </td>
-                  </tr>
-                  <tr className="bg-violet-50/50 border-t border-violet-100">
-                    <td className="py-3 px-4 text-violet-700 font-medium">📍 Trips</td>
-                    {MONTHS.map((_, i) => {
-                      const tripsInMonth = committedTrips.filter(t => {
-                        if (!t.startDate) return false;
-                        const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
-                        return start.getMonth() === i && start.getFullYear() === selectedYear;
-                      });
-                      return (
-                        <td key={i} className="text-center py-3 px-3 text-xs text-violet-600" style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
-                          {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.name).join(', ') : <span className="text-gray-300">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-center py-3 px-4 text-xs text-violet-600 font-semibold bg-violet-100/30">
-                      {committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
             <div className="px-6 py-4 text-center text-sm text-gray-500 bg-gray-50/50 border-t border-gray-100">
               <span className="text-amber-600">🏠 Home months</span> = Homebase + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
             </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* MAIN CONTENT GRID - CALENDAR + SIDEBAR */}
+          {/* CALENDAR + SIDEBAR */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Calendar */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-                {/* Calendar Header */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-4">
                     <button onClick={prevMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
@@ -607,7 +625,6 @@ export default function HubPage() {
                   </button>
                 </div>
 
-                {/* Days header */}
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {DAYS.map(day => (
                     <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
@@ -616,7 +633,6 @@ export default function HubPage() {
                   ))}
                 </div>
 
-                {/* Calendar grid */}
                 <div className="grid grid-cols-7 gap-1">
                   {calendarDays.map((day, idx) => {
                     if (day === null) {
@@ -668,7 +684,6 @@ export default function HubPage() {
                   })}
                 </div>
 
-                {/* Legend */}
                 <div className="flex gap-6 mt-6 pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <span className="w-3 h-3 rounded-full bg-amber-500"></span> Home
