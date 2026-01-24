@@ -23,36 +23,30 @@ interface GrokChatResponse {
   };
 }
 
-// Chat completion with optional tools (x_search, web_search)
+// Chat completion (OpenAI-compatible)
 export async function grokChat(options: {
   model?: string;
   messages: GrokMessage[];
   temperature?: number;
   max_tokens?: number;
-  tools?: Array<{ type: string }>;
 }): Promise<GrokChatResponse> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
     throw new Error('XAI_API_KEY not configured');
   }
 
-  const body: any = {
-    model: options.model || 'grok-4',
+  const body = {
+    model: options.model || 'grok-3-latest',
     messages: options.messages,
     temperature: options.temperature ?? 0.3,
     max_tokens: options.max_tokens ?? 8000,
   };
 
-  // Add tools if specified
-  if (options.tools && options.tools.length > 0) {
-    body.tools = options.tools;
-  }
-
-  const response = await fetch(`${XAI_API_URL}/chat/completions`, {
+  const response = await fetch(XAI_API_URL + '/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': 'Bearer ' + apiKey,
     },
     body: JSON.stringify(body),
   });
@@ -60,13 +54,13 @@ export async function grokChat(options: {
   if (!response.ok) {
     const error = await response.text();
     console.error('[Grok] API error:', response.status, error);
-    throw new Error(`Grok API error: ${response.status}`);
+    throw new Error('Grok API error: ' + response.status);
   }
 
   return response.json();
 }
 
-// Analyze places with real-time X + web search
+// Analyze places with Grok (no x_search/web_search for now - use prompt-based)
 export async function analyzePlacesWithSentiment(options: {
   places: Array<{
     name: string;
@@ -110,16 +104,16 @@ export async function analyzePlacesWithSentiment(options: {
 
   // Build the place list for Grok
   const placeList = places.map((p, i) => 
-    `${i + 1}. ${p.name} | ${p.category} | ⭐${p.rating} (${p.reviewCount} reviews) | ${p.address}`
+    (i + 1) + '. ' + p.name + ' | ' + p.category + ' | Rating: ' + p.rating + ' (' + p.reviewCount + ' reviews) | ' + p.address
   ).join('\n');
 
   const activitiesStr = activities.join(', ');
-  const timeframe = month && year ? `${month} ${year}` : 'upcoming trip';
+  const timeframe = month && year ? month + ' ' + year : 'upcoming trip';
 
-  const prompt = `You are a travel intelligence analyst with access to real-time X (Twitter) and web data.
+  const prompt = `You are a travel intelligence analyst helping plan a trip.
 
 DESTINATION: ${destination}
-TRAVELER ACTIVITIES: ${activitiesStr}
+TRAVELER ACTIVITIES: ${activitiesStr || 'General tourism'}
 TRIP TYPE: ${profile.tripType}
 BUDGET: ${profile.budget}
 GROUP SIZE: ${profile.groupSize}
@@ -132,57 +126,41 @@ Here are ${places.length} places from Google Maps to analyze:
 ${placeList}
 
 YOUR TASK:
-1. Use x_search to find recent X/Twitter posts, mentions, and discussions about EACH place
-2. Use web_search to find recent reviews, news, and travel blog mentions
-3. Analyze sentiment from real posts and reviews you find
-4. Determine how well each place fits the traveler's activities and profile
-5. Rank all places by combined value (Google rating × sentiment × fit)
+1. Based on your knowledge of ${destination}, analyze each place
+2. Consider what travelers typically say about these places
+3. Determine how well each place fits the traveler's activities and profile
+4. Rank all places by combined value (Google rating x fit for this traveler)
 
 For EACH place, return:
 - index: The number from the list (1-indexed)
-- sentimentScore: 1-10 based on what you found on X and web (10 = overwhelmingly positive)
+- sentimentScore: 1-10 based on general reputation (10 = excellent reputation)
 - sentiment: "positive" | "neutral" | "negative"
-- summary: 2-3 sentences summarizing what real people are saying (quote specific themes you found)
-- warnings: Array of specific concerns found (empty array if none) - things like "wifi issues", "closed for renovation", "overpriced", "sketchy area"
-- trending: true if you see increased buzz/mentions recently, false otherwise
+- summary: 2-3 sentences about this place and why it might work for this traveler
+- warnings: Array of potential concerns (empty array if none)
+- trending: true if this is a popular/buzzy spot, false otherwise
 - fitScore: 1-10 how well this matches the traveler's activities and profile
 - valueRank: Final ranking 1 to ${places.length} (1 = best overall value for this traveler)
 
 IMPORTANT:
-- Base sentiment on ACTUAL posts and reviews you find, not assumptions
-- If you can't find much about a place, say so in the summary and give neutral sentiment
-- Be specific in summaries - "nomads praise the 100mbps fiber" not "good wifi"
+- Be specific in summaries based on the place type and traveler needs
 - Warnings should be actionable - specific issues travelers should know
-- Trending means recent buzz (last 30 days), not just popular overall
+- Consider the activities: ${activitiesStr || 'general tourism'}
 
 Return ONLY a valid JSON array, no markdown:
-[{
-  "index": 1,
-  "sentimentScore": 8,
-  "sentiment": "positive",
-  "summary": "Digital nomads on X consistently praise the dedicated workspace and community events. Recent posts mention new outdoor seating area. Some complaints about AC in main room during peak hours.",
-  "warnings": ["Gets crowded 10am-2pm", "AC issues reported in main room"],
-  "trending": true,
-  "fitScore": 9,
-  "valueRank": 1
-}]`;
+[{"index": 1, "sentimentScore": 8, "sentiment": "positive", "summary": "...", "warnings": [], "trending": true, "fitScore": 9, "valueRank": 1}]`;
 
   try {
     const response = await grokChat({
-      model: 'grok-4',
+      model: 'grok-3-latest',
       messages: [
         { 
           role: 'system', 
-          content: 'You are a travel analyst with real-time access to X and web data. Search for actual recent posts and reviews about each place. Return only valid JSON array.' 
+          content: 'You are a travel analyst. Return only valid JSON array with no markdown formatting.' 
         },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
       max_tokens: 12000,
-      tools: [
-        { type: 'x_search' },
-        { type: 'web_search' }
-      ]
     });
 
     const content = response.choices[0]?.message?.content || '[]';
@@ -211,7 +189,7 @@ Return ONLY a valid JSON array, no markdown:
         reviewCount: place.reviewCount,
         sentimentScore: rank.sentimentScore || 5,
         sentiment: rank.sentiment || 'neutral',
-        summary: rank.summary || 'No recent reviews found.',
+        summary: rank.summary || 'No analysis available.',
         warnings: rank.warnings || [],
         trending: rank.trending || false,
         fitScore: rank.fitScore || 5,
@@ -221,7 +199,7 @@ Return ONLY a valid JSON array, no markdown:
     }).filter((x): x is NonNullable<typeof x> => x !== null);
 
     // Sort by valueRank
-    results.sort((a: any, b: any) => a.valueRank - b.valueRank);
+    results.sort((a, b) => a.valueRank - b.valueRank);
 
     return results;
 
