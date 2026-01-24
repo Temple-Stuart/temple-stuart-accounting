@@ -153,7 +153,7 @@ export default function TripsPage() {
       <div className="px-4 lg:px-8 py-8 space-y-8">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
@@ -188,7 +188,7 @@ export default function TripsPage() {
                       onClick={() => setSelectedYear(year)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         year === selectedYear
-                          ? 'bg-[#b4b237] text-white'
+                          ? 'bg-purple-600 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
@@ -249,7 +249,7 @@ export default function TripsPage() {
                                 onClick={() => tripOnDay && router.push(`/budgets/trips/${tripOnDay.id}`)}
                                 className={`h-5 text-[10px] flex items-center justify-center rounded-sm transition-all ${
                                   tripOnDay
-                                    ? `${ACTIVITY_COLORS[tripOnDay.activity || ''] || 'bg-[#b4b237]'} text-white cursor-pointer hover:opacity-80`
+                                    ? `${ACTIVITY_COLORS[tripOnDay.activity || ''] || 'bg-purple-600'} text-white cursor-pointer hover:opacity-80`
                                     : 'text-gray-500 hover:bg-gray-100'
                                 }`}
                                 title={tripOnDay ? `${tripOnDay.name} - ${tripOnDay.destination}` : undefined}
@@ -266,7 +266,7 @@ export default function TripsPage() {
                               <div
                                 key={t.id}
                                 onClick={() => router.push(`/budgets/trips/${t.id}`)}
-                                className={`text-[9px] px-1.5 py-0.5 rounded truncate cursor-pointer ${ACTIVITY_COLORS[t.activity || ''] || 'bg-[#b4b237]'} text-white`}
+                                className={`text-[9px] px-1.5 py-0.5 rounded truncate cursor-pointer ${ACTIVITY_COLORS[t.activity || ''] || 'bg-purple-600'} text-white`}
                               >
                                 {ACTIVITIES[t.activity || '']?.split(' ')[0] || '🗺️'} {t.destination || t.name}
                               </div>
@@ -294,7 +294,7 @@ export default function TripsPage() {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trips.map((trip) => (
-                  <Card key={trip.id} className="hover:border-[#b4b237] hover:shadow-lg transition-all cursor-pointer group" noPadding>
+                  <Card key={trip.id} className="hover:border-purple-600 hover:shadow-lg transition-all cursor-pointer group" noPadding>
                     <div onClick={() => router.push(`/budgets/trips/${trip.id}`)} className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <span className="text-2xl">
@@ -311,7 +311,7 @@ export default function TripsPage() {
                         )}
                       </div>
 
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-[#b4b237] transition-colors mb-1">
+                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors mb-1">
                         {trip.name}
                       </h3>
                       <p className="text-gray-500 text-sm mb-4">

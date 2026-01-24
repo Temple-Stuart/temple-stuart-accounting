@@ -192,7 +192,7 @@ export default function NewTripPage() {
         <header className="bg-white border-b sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">TS</span>
               </div>
               <div className="font-semibold text-gray-900">Trip Created!</div>
@@ -219,7 +219,7 @@ export default function NewTripPage() {
                 />
                 <button
                   onClick={copyInviteLink}
-                  className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
                 >
                   Copy
                 </button>
@@ -251,7 +251,7 @@ export default function NewTripPage() {
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold">TS</span>
             </div>
             <div className="hidden sm:block">
@@ -284,7 +284,7 @@ export default function NewTripPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Bali Surf & Work Trip 2025"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
               required
             />
           </div>
@@ -294,7 +294,7 @@ export default function NewTripPage() {
             <div className="flex items-center justify-between mb-4">
               <label className="block text-sm font-medium text-gray-700">Activities *</label>
               {activities.length > 0 && (
-                <span className="text-xs bg-[#b4b237]/10 text-[#b4b237] px-2 py-1 rounded-full font-medium">
+                <span className="text-xs bg-purple-600/10 text-purple-600 px-2 py-1 rounded-full font-medium">
                   {activities.length} selected
                 </span>
               )}
@@ -317,7 +317,7 @@ export default function NewTripPage() {
                           onClick={() => toggleActivity(a.value)}
                           className={`p-2.5 rounded-lg border-2 text-center transition-all ${
                             isSelected
-                              ? 'border-[#b4b237] bg-[#b4b237]/10 shadow-sm'
+                              ? 'border-purple-600 bg-purple-600/10 shadow-sm'
                               : 'border-gray-100 hover:border-gray-200 bg-gray-50'
                           }`}
                         >
@@ -340,13 +340,13 @@ export default function NewTripPage() {
                     return act ? (
                       <span 
                         key={actValue}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-[#b4b237]/10 text-[#b4b237] rounded-full text-xs font-medium"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-600/10 text-purple-600 rounded-full text-xs font-medium"
                       >
                         {act.icon} {act.label}
                         <button
                           type="button"
                           onClick={() => toggleActivity(actValue)}
-                          className="ml-1 hover:text-[#8a8a2a]"
+                          className="ml-1 hover:text-purple-800"
                         >
                           ×
                         </button>
@@ -366,7 +366,7 @@ export default function NewTripPage() {
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
             />
             <p className="text-xs text-gray-500 mt-2">Trip can span multiple months based on duration</p>
           </div>
@@ -380,7 +380,7 @@ export default function NewTripPage() {
               max={90}
               value={daysTravel}
               onChange={(e) => setDaysTravel(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
             />
             <p className="text-xs text-gray-500 mt-2">Total trip length including travel days</p>
           </div>
@@ -409,7 +409,7 @@ export default function NewTripPage() {
             <button
               type="submit"
               disabled={saving || !name || activities.length === 0}
-              className="flex-1 px-6 py-3 bg-[#b4b237] text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Creating...' : 'Create Trip'}
             </button>
