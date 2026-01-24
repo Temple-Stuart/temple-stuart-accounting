@@ -162,7 +162,7 @@ export async function POST(
       });
 
       // Add to master list with category
-      filtered.forEach(p => {
+      filtered.slice(0, 5).forEach(p => {
         allPlaces.push({
           name: p.name,
           address: p.address,
