@@ -117,8 +117,8 @@ TRAVELER ACTIVITIES: ${activitiesStr || 'General tourism'}
 TRIP TYPE: ${profile.tripType}
 BUDGET: ${profile.budget}
 GROUP SIZE: ${profile.groupSize}
-PRIORITIES: ${profile.priorities.join(', ') || 'Best value'}
-DEALBREAKERS: ${profile.dealbreakers.join(', ') || 'None'}
+PRIORITIES: ${(profile.priorities || []).join(', ') || 'Best value'}
+DEALBREAKERS: ${(profile.dealbreakers || []).join(', ') || 'None'}
 TIMEFRAME: ${timeframe}
 
 Here are ${places.length} places from Google Maps to analyze:
