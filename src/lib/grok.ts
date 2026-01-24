@@ -164,6 +164,7 @@ Return ONLY a valid JSON array, no markdown:
     });
 
     const content = response.choices[0]?.message?.content || '[]';
+    console.log('[Grok] Response received, content length:', content.length);
     const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
     
     let rankings: any[];
