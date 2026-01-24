@@ -247,7 +247,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     const tripType = TRIP_TYPES.find(t => t.value === profile.tripType);
     const budget = BUDGET_OPTIONS.find(b => b.value === profile.budget);
     const pace = PACE_OPTIONS.find(p => p.value === profile.pace);
-    const vibeLabels = profile.vibe.slice(0, 2).map(v => VIBE_OPTIONS.find(vo => vo.value === v)?.label).filter(Boolean).join(', ');
+    const vibeLabels = (profile.vibe || []).slice(0, 2).map(v => VIBE_OPTIONS.find(vo => vo.value === v)?.label).filter(Boolean).join(', ');
     const acts = tripActivities.length > 0 ? tripActivities.slice(0, 2).join(', ') : '';
     return [
       tripType?.icon + ' ' + tripType?.label,
@@ -264,18 +264,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const togglePriority = (value: string) => {
     setProfile(p => ({
       ...p,
-      priorities: p.priorities.includes(value) 
-        ? p.priorities.filter(x => x !== value)
-        : p.priorities.length < 6 ? [...p.priorities, value] : p.priorities
+      priorities: (p.priorities || []).includes(value) 
+        ? (p.priorities || []).filter(x => x !== value)
+        : (p.priorities || []).length < 6 ? [...(p.priorities || []), value] : p.priorities
     }));
   };
 
   const toggleVibe = (value: string) => {
     setProfile(p => ({
       ...p,
-      vibe: p.vibe.includes(value) 
-        ? p.vibe.filter(x => x !== value)
-        : p.vibe.length < 3 ? [...p.vibe, value] : p.vibe
+      vibe: (p.vibe || []).includes(value) 
+        ? (p.vibe || []).filter(x => x !== value)
+        : (p.vibe || []).length < 3 ? [...(p.vibe || []), value] : p.vibe
     }));
   };
 
@@ -483,7 +483,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                 <div className="space-y-4">
                   <div className="text-center mb-6">
                     <h4 className="font-semibold text-lg text-gray-800">What matters most to you?</h4>
-                    <p className="text-gray-500 text-sm">Select up to 6 priorities • {profile.priorities.length}/6 selected</p>
+                    <p className="text-gray-500 text-sm">Select up to 6 priorities • {(profile.priorities || []).length}/6 selected</p>
                   </div>
                   {PRIORITY_GROUPS.map(group => (
                     <div key={group.label} className="mb-4">
@@ -491,7 +491,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                       <div className="flex flex-wrap gap-2">
                         {group.priorities.map(p => (
                           <button key={p.value} onClick={() => togglePriority(p.value)}
-                            className={'px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ' + (profile.priorities.includes(p.value) ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-gray-200 hover:border-gray-300')}>
+                            className={'px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ' + ((profile.priorities || []).includes(p.value) ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-gray-200 hover:border-gray-300')}>
                             {p.icon} {p.label}
                           </button>
                         ))}
@@ -514,7 +514,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     <div className="grid grid-cols-2 gap-2">
                       {VIBE_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => toggleVibe(opt.value)}
-                          className={'p-3 rounded-xl border-2 text-left transition-all ' + (profile.vibe.includes(opt.value) ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300')}>
+                          className={'p-3 rounded-xl border-2 text-left transition-all ' + ((profile.vibe || []).includes(opt.value) ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300')}>
                           <div className="flex items-center gap-2">
                             <span className="text-xl">{opt.icon}</span>
                             <div>
