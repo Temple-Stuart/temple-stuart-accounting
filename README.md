@@ -1,70 +1,134 @@
-# Temple Stuart OS
+# Temple Stuart
 
-Temple Stuart OS is a personal back office that blends money, travel, and planning into one clear system. Track every dollar, plan the trip, split the costs, and see the full picture without juggling apps.
+**Personal back office for people with complex financial lives.**
 
-## What we've built
-- **Personal back office.** A unified home for budgets, recurring commitments, and net-worth tracking.
-- **Bookkeeping and trading.** Double-entry ledgers, entity separation, Plaid sync, and investment P&L with wash-sale handling.
-- **Trip planning with real math.** Compare destinations, collect RSVPs, split expenses, and price your share without spreadsheets.
-- **Decision tools.** A nomad vs. home calculator that puts the cost of staying put next to the cost of leaving.
-- **AI helpers.** Meal planning and spending insights that connect the dots across your transactions.
+Track your money. Budget your life. Plan your trips.
 
-## Why it matters
-Temple Stuart is built to replace guesswork with signal. It shows you what your money is doing, what your future commitments are, and what the trip actually costs before you book it. The value is clarity, speed, and a system that makes both money and travel feel deliberate.
+---
 
+## What is this?
 
-## How it's put together
-- **Frontend:** Next.js App Router with Tailwind styling in `src/app` and `src/components`.
-- **Data + auth:** Prisma + Postgres, NextAuth, and JWT helpers.
-- **Integrations:** Plaid for bank sync, OpenAI for AI helpers, plus travel/search connectors (Google Places, Amadeus, Duffel, Yelp).
+Temple Stuart is a unified finance platform that replaces the patchwork of apps most people use to manage their money — Mint, QuickBooks, spreadsheets, trading journals, trip planners.
 
+Connect your accounts once. Categorize transactions once. The system handles the rest.
 
-## Quick start
-1. **Install dependencies:** `npm install`.
-2. **Set environment variables** (see below) in `.env.local`.
-3. **Generate Prisma client:** `npx prisma generate` (runs on install/build).
-4. **Run migrations:** `npx prisma migrate dev`.
-5. **Start the dev server:** `npm run dev` and open http://localhost:3000.
+---
 
-## Environment variables
-Required for a minimal local run:
-- `DATABASE_URL` (Postgres connection string)
-- `JWT_SECRET`
-- `NEXTAUTH_SECRET`
+## What's built
 
-Bank sync:
-- `PLAID_CLIENT_ID`
-- `PLAID_SECRET`
+**Bookkeeping**
+- Plaid integration (banks, brokerages, credit cards)
+- Transaction review queues (spending + investing separated)
+- Chart of Accounts with proper entity separation
+- Double-entry accounting running under the hood
+- Financial statements: income statement, balance sheet, general ledger
+- CPA-ready exports
 
-Auth providers (optional):
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GITHUB_CLIENT_ID`
-- `GITHUB_CLIENT_SECRET`
+**Trading P&L**
+- Lot-based cost basis (FIFO / LIFO / HIFO)
+- Wash sale detection
+- Stock split handling
+- Strategy-level analytics
+- Win rate, average win/loss, P&L by ticker
 
-AI and travel services (optional, feature-dependent):
-- `OPENAI_API_KEY`
-- `GOOGLE_PLACES_API_KEY`
-- `AMADEUS_API_KEY`
-- `AMADEUS_API_SECRET`
-- `DUFFEL_API_TOKEN`
-- `YELP_API_KEY`
+**Budgeting**
+- Monthly budgets by category
+- Actuals populate automatically from committed transactions
+- Budget vs actual comparison with variance indicators
+- Homebase vs travel cost calculator
 
-Operational:
-- `CRON_SECRET`
-- `ADMIN_PASSWORD`
-- `NEXT_PUBLIC_BASE_URL`
-- `NEXT_PUBLIC_APP_URL`
+**Trip Planning**
+- Create trips, invite friends
+- AI assistant searches Google Places for lodging, coworking, dining, activities, nightlife
+- Traveler profile (trip type, budget, priorities, dealbreakers)
+- Selections commit directly to budget with cost splitting
+- 11 vendor categories: lodging, coworking, moto rental, equipment rental, airport transfers, brunch/coffee, dinner, activities, nightlife, toiletries, wellness
 
-## How to use it
-1. **Connect accounts.** Link your banks via Plaid to pull transactions.
-2. **Categorize + reconcile.** Map transactions to categories, reconcile statements, and keep the ledger tight.
-3. **Plan the month.** Add recurring expenses so your calendar shows what’s already committed.
-4. **Plan the trip.** Compare destinations, get group RSVPs, and split costs automatically.
-5. **Review the story.** Track net worth, income trends, and what’s changing month over month.
+**Hub**
+- Central dashboard
+- Budget vs actual matrix
+- Nomad calculator: compare staying home vs traveling
 
-## Scripts
-- `npm run dev` — start the dev server
-- `npm run build` — generate Prisma client and build
-- `npm run start` — run production build
-- `npm run lint` — lint the codebase
+---
+
+## Tech stack
+
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js 15, TypeScript, Tailwind CSS |
+| Backend | Next.js API routes |
+| Database | PostgreSQL (Azure) |
+| ORM | Prisma |
+| Auth | JWT with HTTP-only cookies |
+| Financial data | Plaid API |
+| AI recommendations | GPT-4, Google Places API |
+| Flights | Duffel API |
+| Hotels | RateHawk API |
+| Hosting | Vercel |
+
+---
+
+## Current status
+
+**Working prototype.** I use it daily to manage my own finances.
+
+- Core bookkeeping pipeline complete
+- Trading P&L functional with 746+ trades synced
+- Trip planner AI operational
+- Budgeting module live with actuals integration
+- Security hardening in progress before public release
+
+---
+
+## Traction
+
+All organic. No ad spend.
+
+- 4M+ views across Reddit and social media
+- 1.8k Instagram followers (overnight, single post)
+- 1.3k Reddit followers
+- New York Times feature on using AI for accounting and trading
+- YouTube videos with 1.8k+ views
+
+---
+
+## Who this is for
+
+- Founders running a business while trading on the side
+- Freelancers and contractors who need clean books
+- Digital nomads who want to see if traveling actually saves money
+- Anyone tired of juggling five finance apps and a spreadsheet
+
+---
+
+## Roadmap
+
+- [ ] Security hardening
+- [ ] User onboarding flow
+- [ ] Public beta release
+- [ ] Mobile experience
+- [ ] Multi-user trip planning
+- [ ] AI-powered shopping/grocery module
+- [ ] Marketplace integration (buy directly from budget)
+
+---
+
+## About
+
+Built by Alex — 7 years as a general accountant, no degree, hit a ceiling, decided to build the thing myself.
+
+I built this because I've never been organized with money. Just guessing every time I made a decision. Temple Stuart is the tool I needed but couldn't find.
+
+---
+
+## License
+
+AGPL-3.0
+
+---
+
+## Links
+
+- [Website](https://templestuart.com)
+- [Instagram](https://instagram.com/templestuart)
+- [Reddit](https://reddit.com/u/templestuart)
