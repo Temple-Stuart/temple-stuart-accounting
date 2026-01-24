@@ -463,11 +463,12 @@ model trips {
   name         String    @db.VarChar(255)
   destination  String?   @db.VarChar(255)
   activity     String?   @db.VarChar(50)
+  activities   String[]
   inviteToken  String?   @unique @db.VarChar(64)
   month        Int
   year         Int
   daysTravel   Int
-  daysRiding   Int
+  daysRiding   Int       @default(0)
   rsvpDeadline DateTime?
   ogImage      String?   @db.Text
   status       String    @default("planning") @db.VarChar(20)

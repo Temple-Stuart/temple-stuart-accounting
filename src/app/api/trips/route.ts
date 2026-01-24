@@ -73,11 +73,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, destination, activity, month, year, daysTravel, daysRiding, startDate } = body;
+    const { 
+      name, 
+      destination, 
+      activity,      // backward compat: single activity (deprecated)
+      activities,    // NEW: array of activities
+      month, 
+      year, 
+      daysTravel, 
+      daysRiding, 
+      startDate 
+    } = body;
 
     // Validate required fields
-    if (!name || !month || !year || !daysTravel || !daysRiding) {
+    if (!name || !month || !year || !daysTravel) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Require at least one activity
+    const activityArray = activities || (activity ? [activity] : []);
+    if (activityArray.length === 0) {
+      return NextResponse.json({ error: 'At least one activity is required' }, { status: 400 });
     }
 
     // Generate invite token for the trip
@@ -89,11 +105,12 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         name,
         destination: destination || null,
-        activity: activity || null,
+        activity: activityArray[0] || null,  // backward compat: store primary activity
+        activities: activityArray,            // NEW: store full array
         month: parseInt(month),
         year: parseInt(year),
         daysTravel: parseInt(daysTravel),
-        daysRiding: parseInt(daysRiding),
+        daysRiding: daysRiding ? parseInt(daysRiding) : parseInt(daysTravel), // default to daysTravel
         startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
         inviteToken: tripInviteToken,
         participants: {
