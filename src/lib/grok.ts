@@ -141,10 +141,14 @@ For EACH place, return:
 - fitScore: 1-10 how well this matches the traveler's activities and profile
 - valueRank: Final ranking 1 to ${places.length} (1 = best overall value for this traveler)
 
-IMPORTANT:
-- Be specific in summaries based on the place type and traveler needs
-- Warnings should be actionable - specific issues travelers should know
-- Consider the activities: ${activitiesStr || 'general tourism'}
+IMPORTANT - MULTI-ACTIVITY TRIP:
+- The traveler selected MULTIPLE activities: ${activitiesStr}
+- Your fitScore and summaries MUST address ALL these activities, not just one
+- For lodging: If nomad/coworking is in activities, WIFI and WORKSPACE are TOP priorities
+- For coworking spaces: Highlight wifi speed, desk quality, AC, community vibe
+- Places that support MULTIPLE of the travelers activities should rank HIGHER
+- Be specific in summaries - mention which activities each place supports
+- Warnings should be actionable issues travelers should know
 
 Return ONLY a valid JSON array, no markdown:
 [{"index": 1, "sentimentScore": 8, "sentiment": "positive", "summary": "...", "warnings": [], "trending": true, "fitScore": 9, "valueRank": 1}]`;
