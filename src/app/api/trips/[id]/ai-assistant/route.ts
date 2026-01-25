@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzePlacesWithSentiment } from '@/lib/grok';
+import { analyzeWithLiveSearch, analyzeAllCategories } from '@/lib/grokAgent';
 import { searchPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 
@@ -99,7 +99,8 @@ export async function POST(
     console.log('[Grok AI] Trip type: ' + travelerProfile.tripType + ', Budget: ' + travelerProfile.budget);
 
     // STEP 1: Gather all places from Google Places API (cached)
-    const allPlaces: Array<{
+    // STEP 1: Gather all places from Google Places API (cached) BY CATEGORY
+    const placesByCategory: Record<string, Array<{
       name: string;
       address: string;
       rating: number;
@@ -107,8 +108,7 @@ export async function POST(
       website?: string;
       photoUrl?: string;
       category: string;
-    }> = [];
-
+    }>> = {};
     for (const cat of categories) {
       const config = CATEGORY_SEARCHES[cat];
       if (!config) {
@@ -161,9 +161,8 @@ export async function POST(
         return true;
       });
 
-      // Add to master list with category
-      filtered.slice(0, 10).forEach(p => {
-        allPlaces.push({
+      // Add to category group
+      placesByCategory[cat] = filtered.slice(0, 20).map(p => ({
           name: p.name,
           address: p.address,
           rating: p.rating,
@@ -171,15 +170,15 @@ export async function POST(
           website: p.website || undefined,
           photoUrl: p.photos?.[0] || undefined,
           category: cat
-        });
-      });
+        }));
 
       console.log('[Grok AI] ' + cat + ': ' + filtered.length + ' places after filter');
     }
 
-    console.log('[Grok AI] Total places to analyze: ' + allPlaces.length);
+    const totalPlaces = Object.values(placesByCategory).flat().length;
+    console.log('[Grok AI] Total places to analyze: ' + totalPlaces);
 
-    if (allPlaces.length === 0) {
+    if (totalPlaces === 0) {
       return NextResponse.json({ 
         recommendations: [],
         context: { city, country, activities: tripActivities, month, year, daysTravel }
@@ -189,32 +188,27 @@ export async function POST(
     // STEP 2: Send to Grok for sentiment analysis with x_search + web_search
     const monthName = month ? new Date(year || 2025, month - 1).toLocaleString('en-US', { month: 'long' }) : undefined;
     
-    const analyzed = await analyzePlacesWithSentiment({
-      places: allPlaces,
+    const byCategory = await analyzeAllCategories({
+      placesByCategory,
       destination: `${city}, ${country}`,
       activities: tripActivities,
       profile: {
         tripType: travelerProfile.tripType,
-        budget: BUDGET_LABELS[travelerProfile.budget] || '$100-200/night',
+        budget: BUDGET_LABELS[travelerProfile.budget] || "$100-200/night",
         priorities: travelerProfile.priorities,
         dealbreakers: travelerProfile.dealbreakers,
         groupSize: travelerProfile.groupSize
       },
       month: monthName,
-      year: year
+      year: year,
+      maxParallel: 2  // Limit parallel requests to avoid rate limits
     });
 
-    console.log('[Grok AI] Analysis complete: ' + analyzed.length + ' places ranked');
+    // Flatten for the recommendations array
+    const analyzed = Object.values(byCategory).flat();
+    analyzed.sort((a, b) => a.valueRank - b.valueRank);
 
     // Group results by category for the response
-    const byCategory: Record<string, PlaceResult[]> = {};
-    analyzed.forEach(place => {
-      if (!byCategory[place.category]) {
-        byCategory[place.category] = [];
-      }
-      byCategory[place.category].push(place);
-    });
-
     return NextResponse.json({ 
       recommendations: analyzed,        // Flat list sorted by valueRank
       byCategory: byCategory,           // Grouped by category
@@ -227,7 +221,7 @@ export async function POST(
         daysTravel,
         tripType: travelerProfile.tripType,
         budget: travelerProfile.budget,
-        totalAnalyzed: allPlaces.length
+        totalAnalyzed: totalPlaces
       }
     });
 
