@@ -189,7 +189,7 @@ IMPORTANT:
 - Include real evidence from your X/web searches in xEvidence`;
 
   try {
-    console.log(`[GrokAgent] Analyzing ${places.length} ${category} places with live search...`);
+    console.log("[GrokAgent] Analyzing " + places.length + " " + category + " places with live search...");
     
     const response = await fetch('https://api.x.ai/v1/responses', {
       method: 'POST',
@@ -234,7 +234,7 @@ IMPORTANT:
       }
     }
 
-    console.log(`[GrokAgent] Response received. Citations: ${citations.length}`);
+    console.log("[GrokAgent] Response received. Citations: " + citations.length);
     
     // Extract JSON from response
     let jsonStr = textContent;
@@ -290,7 +290,7 @@ IMPORTANT:
     // Sort by valueRank
     results.sort((a, b) => a.valueRank - b.valueRank);
 
-    console.log(`[GrokAgent] Analysis complete: ${results.length} places ranked for ${category}`);
+    console.log("[GrokAgent] Analysis complete: " + results.length + " places ranked for " + category);
     return results;
 
   } catch (err) {
@@ -312,7 +312,7 @@ export async function analyzeAllCategories(options: {
   const { placesByCategory, destination, activities, profile, month, year, maxParallel = 3 } = options;
   
   const categories = Object.keys(placesByCategory);
-  console.log(`[GrokAgent] Starting analysis of ${categories.length} categories (max ${maxParallel} parallel)...`);
+  console.log("[GrokAgent] Starting analysis of " + categories.length + " categories (max " + maxParallel + " parallel)...");
   
   const results: Record<string, GrokAnalysis[]> = {};
   
@@ -339,7 +339,7 @@ export async function analyzeAllCategories(options: {
           });
           return { category, analyses };
         } catch (err) {
-          console.error(`[GrokAgent] Failed to analyze ${category}:`, err);
+          console.error("[GrokAgent] Failed to analyze " + category + ":", err);
           return { category, analyses: [] as GrokAnalysis[] };
         }
       })
