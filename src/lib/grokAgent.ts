@@ -237,21 +237,31 @@ IMPORTANT:
     console.log(`[GrokAgent] Response received. Citations: ${citations.length}`);
     
     // Extract JSON from response
-    const jsonMatch = textContent.match(/\[[\s\S]*?\]/);
+    let jsonStr = textContent;
+    
+    // Remove markdown code blocks if present
+    const codeBlockMatch = textContent.match(/```(?:json)?\n?([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1];
+    }
+    
+    // Find JSON array
+    const jsonMatch = jsonStr.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!jsonMatch) {
-      console.error('[GrokAgent] No JSON array found in response');
-      console.error('[GrokAgent] Content preview:', textContent.substring(0, 500));
+      console.error("[GrokAgent] No JSON array found in response");
+      console.error("[GrokAgent] Content preview:", textContent.substring(0, 1000));
       return [];
     }
     
     let rankings: any[];
     try {
       rankings = JSON.parse(jsonMatch[0]);
+      console.log("[GrokAgent] Parsed " + rankings.length + " rankings");
     } catch (parseErr) {
-      console.error('[GrokAgent] JSON parse error:', parseErr);
+      console.error("[GrokAgent] JSON parse error:", parseErr);
+      console.error("[GrokAgent] Attempted to parse:", jsonMatch[0].substring(0, 500));
       return [];
     }
-
     // Merge analysis with original place data
     const results: GrokAnalysis[] = rankings.map((rank: any) => {
       const place = places[rank.index - 1];
