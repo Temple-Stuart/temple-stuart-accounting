@@ -43,7 +43,7 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
 
   if (!mounted || !MapContainer || !TileLayer || !Marker || !Popup || !Polyline || !L) {
     return (
-      <div className="aspect-square max-w-2xl mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
+      <div className="aspect-[2/1] w-full bg-gray-100 rounded-xl flex items-center justify-center">
         <div className="text-gray-400">Loading map...</div>
       </div>
     );
@@ -59,7 +59,7 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
 
   if (tripsWithCoords.length === 0) {
     return (
-      <div className="aspect-square max-w-2xl mx-auto bg-gray-100 rounded-xl flex items-center justify-center">
+      <div className="aspect-[2/1] w-full bg-gray-100 rounded-xl flex items-center justify-center">
         <div className="text-center text-gray-400">
           <div className="text-4xl mb-2">🗺️</div>
           <p>No trip locations to display</p>
@@ -112,7 +112,7 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
   };
 
   return (
-    <div className="aspect-square max-w-2xl mx-auto">
+    <div className="aspect-[2/1] w-full">
       <MapContainer
         center={[centerLat, centerLng]}
         zoom={4}
