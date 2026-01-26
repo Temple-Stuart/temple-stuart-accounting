@@ -451,7 +451,7 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* HOMEBASE BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
@@ -578,7 +578,7 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* TRAVEL BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center">
                 <span className="text-xl">✈️</span>
@@ -688,7 +688,7 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* HOMEBASE + TRAVEL CALCULATOR */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+          <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-cyan-100 flex items-center justify-center">
                 <span className="text-xl">📊</span>
