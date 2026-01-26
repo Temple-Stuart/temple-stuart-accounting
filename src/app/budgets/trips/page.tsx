@@ -29,6 +29,7 @@ interface Trip {
   committedAt: string | null;
   latitude: string | null;
   longitude: string | null;
+  destinationPhoto: string | null;
   participants: Participant[];
   _count: {
     expenses: number;
@@ -294,86 +295,110 @@ export default function TripsPage() {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trips.map((trip) => (
-                  <Card key={trip.id} className="hover:border-purple-600 hover:shadow-lg transition-all cursor-pointer group" noPadding>
-                    <div onClick={() => router.push(`/budgets/trips/${trip.id}`)} className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <span className="text-2xl">
-                          {trip.activity && ACTIVITIES[trip.activity]?.split(' ')[0] || '🗺️'}
-                        </span>
+                  <div 
+                    key={trip.id} 
+                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+                    onClick={() => router.push(`/budgets/trips/${trip.id}`)}
+                  >
+                    {/* Destination Image */}
+                    <div className="relative aspect-[16/10] bg-gradient-to-br from-purple-100 to-indigo-100">
+                      {trip.destinationPhoto ? (
+                        <img 
+                          src={trip.destinationPhoto} 
+                          alt={trip.destination || trip.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-6xl">{trip.activity && ACTIVITIES[trip.activity]?.split(' ')[0] || '✈️'}</span>
+                        </div>
+                      )}
+                      {/* Status Badge */}
+                      <div className="absolute top-3 left-3">
                         {trip.committedAt ? (
-                          <Badge variant="success">Committed</Badge>
-                        ) : trip.status === 'confirmed' ? (
-                          <Badge variant="success">Confirmed</Badge>
+                          <span className="px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">Committed</span>
                         ) : trip.status === 'planning' ? (
-                          <Badge variant="warning">Planning</Badge>
+                          <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-full">Planning</span>
                         ) : (
-                          <Badge variant="default">{trip.status}</Badge>
+                          <span className="px-2 py-1 bg-gray-500 text-white text-xs font-semibold rounded-full">{trip.status}</span>
                         )}
                       </div>
-
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-purple-600 transition-colors mb-1">
-                        {trip.name}
-                      </h3>
-                      <p className="text-gray-500 text-sm mb-4">
-                        {trip.destination || 'Destination TBD'} • {trip.startDate && trip.endDate
-                          ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.endDate).getTime() + 12*60*60*1000).toLocaleDateString()}`
-                          : trip.startDate 
-                            ? `${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000).toLocaleDateString()} - ${new Date(new Date(trip.startDate).getTime() + 12*60*60*1000 + (trip.daysTravel - 1) * 24*60*60*1000).toLocaleDateString()}`
-                            : `${MONTHS[trip.month]} ${trip.year}`}
-                      </p>
-
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="flex -space-x-2">
-                          {trip.participants.slice(0, 4).map((p) => (
-                            <div
-                              key={p.id}
-                              className={`w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white ${
-                                p.rsvpStatus === 'confirmed' ? 'bg-green-500' :
-                                p.rsvpStatus === 'maybe' ? 'bg-yellow-500' : 'bg-gray-400'
-                              }`}
-                              title={`${p.firstName} ${p.lastName}`}
-                            >
-                              {p.firstName[0]}
-                            </div>
-                          ))}
-                          {trip.participants.length > 4 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-                              +{trip.participants.length - 4}
-                            </div>
-                          )}
+                      {/* Activity Badge */}
+                      {trip.activity && (
+                        <div className="absolute top-3 right-3">
+                          <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-700 text-xs font-medium rounded-full">
+                            {ACTIVITIES[trip.activity] || trip.activity}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {trip.participants.filter(p => p.rsvpStatus === 'confirmed').length} confirmed
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
-                        <span>{trip.daysTravel} days</span>
-                        <span>•</span>
+                      )}
+                    </div>
+                    
+                    {/* Trip Info */}
+                    <div className="p-4">
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition-colors mb-1">
+                        {trip.destination || trip.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-3">
+                        {trip.startDate 
+                          ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+                            (trip.endDate ? ' - ' + new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
+                          : MONTHS[trip.month] + ' ' + trip.year}
+                        {' • '}{trip.daysTravel} days
+                      </p>
+                      
+                      {/* Participants */}
+                      {trip.participants.length > 0 && (
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="flex -space-x-2">
+                            {trip.participants.slice(0, 4).map((p) => (
+                              <div
+                                key={p.id}
+                                className={`w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white ${
+                                  p.rsvpStatus === 'confirmed' ? 'bg-green-500' :
+                                  p.rsvpStatus === 'maybe' ? 'bg-yellow-500' : 'bg-gray-400'
+                                }`}
+                                title={`${p.firstName} ${p.lastName}`}
+                              >
+                                {p.firstName[0]}
+                              </div>
+                            ))}
+                            {trip.participants.length > 4 && (
+                              <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                                +{trip.participants.length - 4}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {trip.participants.filter(p => p.rsvpStatus === 'confirmed').length} confirmed
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Stats */}
+                      <div className="flex items-center gap-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
                         <span>{trip._count.expenses} expenses</span>
                         <span>•</span>
                         <span>{trip._count.budget_line_items || trip._count.itinerary} budget items</span>
                       </div>
                     </div>
-
-                    <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                    
+                    {/* Actions */}
+                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+                      <button
                         onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }}
-                        loading={deleting === trip.id}
+                        className="px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        disabled={deleting === trip.id}
                       >
-                        Delete
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
+                        {deleting === trip.id ? '...' : 'Delete'}
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); router.push(`/budgets/trips/${trip.id}`); }}
+                        className="px-3 py-1.5 text-sm bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
                       >
                         View
-                      </Button>
+                      </button>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             )}
