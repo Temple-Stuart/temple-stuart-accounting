@@ -84,7 +84,7 @@ export default function HubPage() {
   const [committedTrips, setCommittedTrips] = useState<Array<{
     id: string; name: string; destination: string | null;
     latitude: number | null; longitude: number | null;
-    startDate: string | null; endDate: string | null; totalBudget: number;
+    startDate: string | null; endDate: string | null; totalBudget: number; destinationPhoto: string | null;
   }>>([]);
   
   // Budget & Actual data
@@ -269,17 +269,31 @@ export default function HubPage() {
                     <div 
                       key={trip.id} 
                       onClick={() => router.push(`/budgets/trips/${trip.id}`)} 
-                      className="p-4 rounded-xl bg-cyan-50 hover:bg-cyan-100 cursor-pointer transition-all border border-cyan-100 hover:border-cyan-200"
+                      className="rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-md cursor-pointer transition-all"
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-semibold text-gray-800 text-sm">{trip.destination || trip.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "TBD"}
+                      {/* Destination Image */}
+                      <div className="relative h-24 sm:h-32 bg-gradient-to-br from-cyan-100 to-blue-100">
+                        {trip.destinationPhoto ? (
+                          <img 
+                            src={trip.destinationPhoto} 
+                            alt={trip.destination || trip.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-4xl">✈️</span>
                           </div>
+                        )}
+                        {/* Budget Badge */}
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg">
+                          <span className="font-bold text-sm text-cyan-600 tabular-nums">{formatCurrency(trip.totalBudget)}</span>
                         </div>
-                        <div className="font-bold text-sm text-cyan-600 tabular-nums">
-                          {formatCurrency(trip.totalBudget)}
+                      </div>
+                      {/* Trip Info */}
+                      <div className="p-3">
+                        <div className="font-semibold text-gray-800 text-sm">{trip.destination || trip.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {trip.startDate ? new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD"}
                         </div>
                       </div>
                     </div>

@@ -471,6 +471,7 @@ model trips {
   daysRiding   Int       @default(0)
   rsvpDeadline DateTime?
   ogImage      String?   @db.Text
+  destinationPhoto String?   @db.Text
   status       String    @default("planning") @db.VarChar(20)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

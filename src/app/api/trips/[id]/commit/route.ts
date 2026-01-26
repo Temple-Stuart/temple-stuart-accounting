@@ -119,6 +119,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+
+    // Fetch destination photo from Google Places (only if not already set)
+    let destinationPhoto: string | null = null;
+    if (trip.destination && !trip.destinationPhoto) {
+      try {
+        const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+        if (apiKey) {
+          // Search for the destination to get a photo
+          const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(trip.destination)}&key=${apiKey}`;
+          const searchRes = await fetch(searchUrl);
+          const searchData = await searchRes.json();
+          
+          if (searchData.results?.[0]?.photos?.[0]?.photo_reference) {
+            const photoRef = searchData.results[0].photos[0].photo_reference;
+            destinationPhoto = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`;
+            console.log("[Commit] Fetched destination photo for", trip.destination);
+          }
+        }
+      } catch (photoErr) {
+        console.error("[Commit] Failed to fetch destination photo:", photoErr);
+      }
+    }
     // Update trip with dates and status
     await prisma.trips.update({
       where: { id },
@@ -126,7 +148,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: 'committed',
         committedAt: new Date(),
         startDate,
-        endDate
+        endDate,
+        ...(destinationPhoto && { destinationPhoto })
       }
     });
 

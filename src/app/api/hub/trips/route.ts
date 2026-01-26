@@ -40,6 +40,7 @@ export async function GET() {
       longitude: trip.longitude ? Number(trip.longitude) : null,
       startDate: trip.startDate,
       endDate: trip.endDate,
+      destinationPhoto: trip.destinationPhoto,
       totalBudget: trip.budget_line_items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
     }));
 
