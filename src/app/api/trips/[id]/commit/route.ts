@@ -120,28 +120,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
 
-    // Fetch destination photo from Google Places (only if not already set)
+    // Fetch destination photo and coordinates from Google Places (only if not already set)
     let destinationPhoto: string | null = null;
-    if (trip.destination && !trip.destinationPhoto) {
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+    
+    if (trip.destination && (!trip.destinationPhoto || !trip.latitude)) {
       try {
         const apiKey = process.env.GOOGLE_PLACES_API_KEY;
         if (apiKey) {
-          // Search for the destination to get a photo
+          // Search for the destination to get photo and coordinates
           const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(trip.destination)}&key=${apiKey}`;
           const searchRes = await fetch(searchUrl);
           const searchData = await searchRes.json();
           
-          if (searchData.results?.[0]?.photos?.[0]?.photo_reference) {
-            const photoRef = searchData.results[0].photos[0].photo_reference;
-            destinationPhoto = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`;
-            console.log("[Commit] Fetched destination photo for", trip.destination);
+          const firstResult = searchData.results?.[0];
+          if (firstResult) {
+            // Extract coordinates
+            if (firstResult.geometry?.location) {
+              latitude = firstResult.geometry.location.lat;
+              longitude = firstResult.geometry.location.lng;
+              console.log("[Commit] Got coordinates for", trip.destination, latitude, longitude);
+            }
+            
+            // Extract photo
+            if (firstResult.photos?.[0]?.photo_reference && !trip.destinationPhoto) {
+              const photoRef = firstResult.photos[0].photo_reference;
+              destinationPhoto = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${photoRef}&key=${apiKey}`;
+              console.log("[Commit] Fetched destination photo for", trip.destination);
+            }
           }
         }
       } catch (photoErr) {
-        console.error("[Commit] Failed to fetch destination photo:", photoErr);
+        console.error("[Commit] Failed to fetch destination data:", photoErr);
       }
     }
-    // Update trip with dates and status
+    
+    // Update trip with dates, status, photo, and coordinates
     await prisma.trips.update({
       where: { id },
       data: { 
@@ -149,7 +164,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         committedAt: new Date(),
         startDate,
         endDate,
-        ...(destinationPhoto && { destinationPhoto })
+        ...(destinationPhoto && { destinationPhoto }),
+        ...(latitude && { latitude }),
+        ...(longitude && { longitude })
       }
     });
 
