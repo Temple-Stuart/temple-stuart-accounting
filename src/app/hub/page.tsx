@@ -258,7 +258,7 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Upcoming Trips */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-xl">✈️</span>
                 <h2 className="text-lg font-semibold text-gray-900">Upcoming Trips</h2>
@@ -294,7 +294,7 @@ export default function HubPage() {
             </div>
 
             {/* Events List */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 {MONTHS[selectedMonth]} Events
               </h2>
@@ -335,10 +335,10 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* CALENDAR - FULL WIDTH */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
               <div className="flex items-center gap-4">
-                <button onClick={prevMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                <button onClick={prevMonth} className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
                   <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
@@ -348,7 +348,7 @@ export default function HubPage() {
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
+                    className="text-base sm:text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
                   >
                     {MONTHS.map((month, idx) => (
                       <option key={month} value={idx}>{month}</option>
@@ -358,7 +358,7 @@ export default function HubPage() {
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
+                    className="text-base sm:text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
                   >
                     {years.map(year => (
                       <option key={year} value={year}>{year}</option>
@@ -366,7 +366,7 @@ export default function HubPage() {
                   </select>
                 </div>
                 
-                <button onClick={nextMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                <button onClick={nextMonth} className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
                   <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -402,7 +402,7 @@ export default function HubPage() {
                 return (
                   <div
                     key={day}
-                    className={`aspect-square p-1 rounded-xl border transition-all cursor-pointer hover:border-gray-300 ${
+                    className={`aspect-square p-0.5 sm:p-1 rounded-xl border overflow-hidden transition-all cursor-pointer hover:border-gray-300 ${
                       isToday ? "border-[#b4b237] border-2 bg-[#b4b237]/5" : "border-gray-100 bg-gray-50/50"
                     }`}
                   >
@@ -420,10 +420,10 @@ export default function HubPage() {
                               );
                             })}
                             {dayEvents.length > 4 && (
-                              <span className="text-[10px] text-gray-400">+{dayEvents.length - 4}</span>
+                              <span className="text-[8px] sm:text-[10px] text-gray-400">+{dayEvents.length - 4}</span>
                             )}
                           </div>
-                          <div className="text-[10px] font-bold text-gray-600 tabular-nums">
+                          <div className="text-[8px] sm:text-[10px] font-bold text-gray-600 tabular-nums truncate">
                             {formatCurrency(dayTotal)}
                           </div>
                         </div>
