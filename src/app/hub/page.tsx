@@ -466,13 +466,13 @@ export default function HubPage() {
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto lg:overflow-visible">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50/80">
                     <th className="text-left py-3 px-4 text-gray-600 font-semibold w-[140px]">Category</th>
                     <th className="text-left py-3 px-2 text-gray-500 font-medium w-[60px] text-xs">Type</th>
-                    {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[75px] text-gray-600 font-medium">{m.slice(0,3)}</th>)}
+                    {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[60px] lg:min-w-0 text-gray-600 font-medium">{m.slice(0,3)}</th>)}
                     <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[100px]">Total</th>
                   </tr>
                 </thead>
@@ -574,13 +574,13 @@ export default function HubPage() {
                 <p className="text-sm text-gray-500">{selectedYear} • Budget vs Actual</p>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto lg:overflow-visible">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50/80">
                     <th className="text-left py-3 px-4 text-gray-600 font-semibold w-[140px]">Account</th>
                     <th className="text-left py-3 px-2 text-gray-500 font-medium w-[60px] text-xs">Type</th>
-                    {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[75px] text-gray-600 font-medium">{m.slice(0,3)}</th>)}
+                    {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[60px] lg:min-w-0 text-gray-600 font-medium">{m.slice(0,3)}</th>)}
                     <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[100px]">Total</th>
                   </tr>
                 </thead>
@@ -751,13 +751,13 @@ export default function HubPage() {
             </div>
 
             {/* Detailed Comparison Table */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto lg:overflow-visible">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50/80">
                     <th className="py-3 px-4 text-left text-gray-600 font-semibold w-[140px]">Category</th>
                     {MONTHS.map((m, i) => (
-                      <th key={i} className={`text-right py-3 px-3 text-gray-600 font-medium min-w-[75px] ${travelMonths.includes(i) ? 'bg-cyan-50/50' : 'bg-amber-50/50'}`}>
+                      <th key={i} className={`text-right py-3 px-3 text-gray-600 font-medium min-w-[60px] lg:min-w-0 ${travelMonths.includes(i) ? 'bg-cyan-50/50' : 'bg-amber-50/50'}`}>
                         <div className="text-[10px] mb-0.5">{travelMonths.includes(i) ? '✈️' : '🏠'}</div>
                         {m.slice(0,3)}
                       </th>
