@@ -252,6 +252,188 @@ export default function HubPage() {
             <p className="text-gray-500 mt-1">Your Financial Command Center</p>
           </div>
 
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* TOP ROW: UPCOMING TRIPS + EVENTS */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Upcoming Trips */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-xl">✈️</span>
+                <h2 className="text-lg font-semibold text-gray-900">Upcoming Trips</h2>
+              </div>
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                {committedTrips.length > 0 ? (
+                  committedTrips.map(trip => (
+                    <div 
+                      key={trip.id} 
+                      onClick={() => router.push(`/budgets/trips/${trip.id}`)} 
+                      className="p-4 rounded-xl bg-cyan-50 hover:bg-cyan-100 cursor-pointer transition-all border border-cyan-100 hover:border-cyan-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-semibold text-gray-800 text-sm">{trip.destination || trip.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "TBD"}
+                          </div>
+                        </div>
+                        <div className="font-bold text-sm text-cyan-600 tabular-nums">
+                          {formatCurrency(trip.totalBudget)}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-4xl mb-3">✈️</div>
+                    <p className="text-sm">No committed trips</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Events List */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                {MONTHS[selectedMonth]} Events
+              </h2>
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                {events.length > 0 ? (
+                  events.map(event => {
+                    const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
+                    const eventDate = parseDate(event.start_date);
+                    return (
+                      <div key={event.id} className={`p-3 rounded-xl ${config.bgColor} border border-gray-100`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <span>{event.icon || config.icon}</span>
+                            <div>
+                              <div className="font-medium text-gray-800 text-sm">{event.title}</div>
+                              <div className="text-xs text-gray-500">
+                                {MONTHS[eventDate.getMonth()].slice(0, 3)} {eventDate.getDate()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className={`font-bold text-sm tabular-nums ${config.color}`}>
+                            {formatCurrency(event.budget_amount)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-4xl mb-3">📅</div>
+                    <p className="text-sm">No events this month</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* CALENDAR - FULL WIDTH */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <button onClick={prevMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
+                  >
+                    {MONTHS.map((month, idx) => (
+                      <option key={month} value={idx}>{month}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
+                  >
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <button onClick={nextMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+              
+              <button 
+                onClick={goToToday}
+                className="px-4 py-2 text-sm bg-[#b4b237] text-white font-semibold rounded-lg hover:bg-[#9a9830] transition-colors shadow-sm"
+              >
+                Today
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {DAYS.map(day => (
+                <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {calendarDays.map((day, idx) => {
+                if (!day) {
+                  return <div key={`empty-${idx}`} className="aspect-square" />;
+                }
+                const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                const dayEvents = eventsByDay[day] || [];
+                const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
+                const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+                
+                return (
+                  <div
+                    key={day}
+                    className={`aspect-square p-1 rounded-xl border transition-all cursor-pointer hover:border-gray-300 ${
+                      isToday ? "border-[#b4b237] border-2 bg-[#b4b237]/5" : "border-gray-100 bg-gray-50/50"
+                    }`}
+                  >
+                    <div className="flex flex-col h-full">
+                      <div className={`text-xs font-semibold mb-1 ${isToday ? "text-[#b4b237]" : "text-gray-600"}`}>
+                        {day}
+                      </div>
+                      {dayEvents.length > 0 && (
+                        <div className="flex-1 flex flex-col justify-end">
+                          <div className="flex flex-wrap gap-0.5 mb-1">
+                            {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => {
+                              const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home;
+                              return (
+                                <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />
+                              );
+                            })}
+                            {dayEvents.length > 4 && (
+                              <span className="text-[10px] text-gray-400">+{dayEvents.length - 4}</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] font-bold text-gray-600 tabular-nums">
+                            {formatCurrency(dayTotal)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* HOMEBASE BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -663,188 +845,6 @@ export default function HubPage() {
 
             <div className="px-6 py-4 text-center text-sm text-gray-500 bg-gray-50/50 border-t border-gray-100">
               <span className="text-amber-600">🏠 Home months</span> = Homebase + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
-            </div>
-          </div>
-
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* TOP ROW: UPCOMING TRIPS + EVENTS */}
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Upcoming Trips */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-xl">✈️</span>
-                <h2 className="text-lg font-semibold text-gray-900">Upcoming Trips</h2>
-              </div>
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
-                {committedTrips.length > 0 ? (
-                  committedTrips.map(trip => (
-                    <div 
-                      key={trip.id} 
-                      onClick={() => router.push(`/budgets/trips/${trip.id}`)} 
-                      className="p-4 rounded-xl bg-cyan-50 hover:bg-cyan-100 cursor-pointer transition-all border border-cyan-100 hover:border-cyan-200"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-semibold text-gray-800 text-sm">{trip.destination || trip.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "TBD"}
-                          </div>
-                        </div>
-                        <div className="font-bold text-sm text-cyan-600 tabular-nums">
-                          {formatCurrency(trip.totalBudget)}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-4xl mb-3">✈️</div>
-                    <p className="text-sm">No committed trips</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Events List */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {MONTHS[selectedMonth]} Events
-              </h2>
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
-                {events.length > 0 ? (
-                  events.map(event => {
-                    const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
-                    const eventDate = parseDate(event.start_date);
-                    return (
-                      <div key={event.id} className={`p-3 rounded-xl ${config.bgColor} border border-gray-100`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span>{event.icon || config.icon}</span>
-                            <div>
-                              <div className="font-medium text-gray-800 text-sm">{event.title}</div>
-                              <div className="text-xs text-gray-500">
-                                {MONTHS[eventDate.getMonth()].slice(0, 3)} {eventDate.getDate()}
-                              </div>
-                            </div>
-                          </div>
-                          <div className={`font-bold text-sm tabular-nums ${config.color}`}>
-                            {formatCurrency(event.budget_amount)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-4xl mb-3">📅</div>
-                    <p className="text-sm">No events this month</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* CALENDAR - FULL WIDTH */}
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <button onClick={prevMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
-                  >
-                    {MONTHS.map((month, idx) => (
-                      <option key={month} value={idx}>{month}</option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
-                  >
-                    {years.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <button onClick={nextMonth} className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-              
-              <button 
-                onClick={goToToday}
-                className="px-4 py-2 text-sm bg-[#b4b237] text-white font-semibold rounded-lg hover:bg-[#9a9830] transition-colors shadow-sm"
-              >
-                Today
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAYS.map(day => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((day, idx) => {
-                if (!day) {
-                  return <div key={`empty-${idx}`} className="aspect-square" />;
-                }
-                const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                const dayEvents = eventsByDay[day] || [];
-                const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
-                const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
-                
-                return (
-                  <div
-                    key={day}
-                    className={`aspect-square p-1 rounded-xl border transition-all cursor-pointer hover:border-gray-300 ${
-                      isToday ? "border-[#b4b237] border-2 bg-[#b4b237]/5" : "border-gray-100 bg-gray-50/50"
-                    }`}
-                  >
-                    <div className="flex flex-col h-full">
-                      <div className={`text-xs font-semibold mb-1 ${isToday ? "text-[#b4b237]" : "text-gray-600"}`}>
-                        {day}
-                      </div>
-                      {dayEvents.length > 0 && (
-                        <div className="flex-1 flex flex-col justify-end">
-                          <div className="flex flex-wrap gap-0.5 mb-1">
-                            {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => {
-                              const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home;
-                              return (
-                                <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />
-                              );
-                            })}
-                            {dayEvents.length > 4 && (
-                              <span className="text-[10px] text-gray-400">+{dayEvents.length - 4}</span>
-                            )}
-                          </div>
-                          <div className="text-[10px] font-bold text-gray-600 tabular-nums">
-                            {formatCurrency(dayTotal)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           </div>
 
