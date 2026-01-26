@@ -611,8 +611,8 @@ export default function HubPage() {
                       <>
                         {/* Budget Row */}
                         <tr key={`${code}-budget`} className="border-t border-gray-100">
-                          <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium whitespace-nowrap border-r border-gray-100">
-                            {name} <span className="text-gray-400 text-xs ml-1">{code}</span>
+                          <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
+                            <div className="font-medium">{name}</div><div className="text-gray-400 text-xs">{code}</div>
                           </td>
                           <td className="py-2 px-2 text-xs text-gray-400">Budget</td>
                           {MONTHS.map((_, i) => (
