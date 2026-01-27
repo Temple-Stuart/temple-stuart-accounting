@@ -1194,6 +1194,22 @@ export default function HubPage() {
                     </td>
                   </tr>
                   <tr className="hover:bg-gray-50/50">
+                    <td className="py-3 px-4 text-gray-700 font-medium">💼 Business</td>
+                    {MONTHS.map((_, i) => {
+                      const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${travelMonths.includes(i) ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
+                          {val ? (
+                            <span className="text-indigo-600">{formatCurrency(val)}</span>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-indigo-700 bg-gray-50/50">
+                      {formatCurrency(yearlyBusinessBudget)}
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50/50">
                     <td className="py-3 px-4 text-gray-700 font-medium">✈️ Travel</td>
                     {MONTHS.map((_, i) => { 
                       const mt = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
