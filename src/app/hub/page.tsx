@@ -41,14 +41,64 @@ interface CalendarSummary {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string }> = {
-  home: { icon: '🏠', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500' },
-  auto: { icon: '🚗', color: 'text-slate-600', bgColor: 'bg-slate-50', dotColor: 'bg-slate-400' },
-  shopping: { icon: '🛒', color: 'text-pink-600', bgColor: 'bg-pink-50', dotColor: 'bg-pink-500' },
-  personal: { icon: '👤', color: 'text-violet-600', bgColor: 'bg-violet-50', dotColor: 'bg-violet-500' },
-  health: { icon: '💪', color: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-500' },
-  growth: { icon: '📚', color: 'text-blue-600', bgColor: 'bg-blue-50', dotColor: 'bg-blue-500' },
-  trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500' },
+const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
+  home: { icon: '🏠', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
+  auto: { icon: '🚗', color: 'text-slate-600', bgColor: 'bg-slate-50', dotColor: 'bg-slate-400', calendarColor: 'bg-slate-400' },
+  shopping: { icon: '🛒', color: 'text-pink-600', bgColor: 'bg-pink-50', dotColor: 'bg-pink-500', calendarColor: 'bg-pink-400' },
+  personal: { icon: '👤', color: 'text-violet-600', bgColor: 'bg-violet-50', dotColor: 'bg-violet-500', calendarColor: 'bg-violet-400' },
+  health: { icon: '💪', color: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-500', calendarColor: 'bg-emerald-400' },
+  growth: { icon: '📚', color: 'text-blue-600', bgColor: 'bg-blue-50', dotColor: 'bg-blue-500', calendarColor: 'bg-blue-400' },
+  trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
+};
+
+// Auto-generate destination tags based on keywords
+const getDestinationTag = (destination: string | null): { label: string; color: string } => {
+  if (!destination) return { label: 'Adventure awaits', color: 'bg-gray-600' };
+  
+  const d = destination.toLowerCase();
+  
+  // Tropical destinations
+  if (d.includes('hawaii') || d.includes('honolulu') || d.includes('maui') || d.includes('caribbean') || 
+      d.includes('bahamas') || d.includes('cancun') || d.includes('phuket') || d.includes('bali') ||
+      d.includes('fiji') || d.includes('maldives') || d.includes('tahiti')) {
+    return { label: 'Tropical paradise', color: 'bg-emerald-600' };
+  }
+  
+  // Coastal destinations
+  if (d.includes('beach') || d.includes('coast') || d.includes('monterey') || d.includes('carmel') ||
+      d.includes('laguna') || d.includes('malibu') || d.includes('santa cruz') || d.includes('san diego') ||
+      d.includes('miami') || d.includes('cape') || d.includes('seaside')) {
+    return { label: 'Coastal charm', color: 'bg-blue-600' };
+  }
+  
+  // Mountain destinations
+  if (d.includes('aspen') || d.includes('vail') || d.includes('tahoe') || d.includes('mountain') ||
+      d.includes('alps') || d.includes('rockies') || d.includes('whistler') || d.includes('denver') ||
+      d.includes('colorado') || d.includes('jackson hole') || d.includes('mammoth')) {
+    return { label: 'Mountain retreat', color: 'bg-slate-600' };
+  }
+  
+  // City destinations
+  if (d.includes('new york') || d.includes('nyc') || d.includes('los angeles') || d.includes('chicago') ||
+      d.includes('san francisco') || d.includes('london') || d.includes('paris') || d.includes('tokyo') ||
+      d.includes('vegas') || d.includes('seattle') || d.includes('austin')) {
+    return { label: 'City escape', color: 'bg-violet-600' };
+  }
+  
+  // Relaxing destinations
+  if (d.includes('spa') || d.includes('retreat') || d.includes('resort') || d.includes('napa') ||
+      d.includes('wine') || d.includes('sedona') || d.includes('palm springs')) {
+    return { label: 'Relaxing escape', color: 'bg-rose-600' };
+  }
+  
+  // International
+  if (d.includes('mexico') || d.includes('canada') || d.includes('europe') || d.includes('asia') ||
+      d.includes('japan') || d.includes('italy') || d.includes('spain') || d.includes('france') ||
+      d.includes('greece') || d.includes('portugal') || d.includes('thailand') || d.includes('vietnam')) {
+    return { label: 'International adventure', color: 'bg-indigo-600' };
+  }
+  
+  return { label: 'Adventure awaits', color: 'bg-cyan-600' };
 };
 
 const parseDate = (dateStr: string): Date => {
@@ -59,9 +109,9 @@ const parseDate = (dateStr: string): Date => {
 // Glow style for under/over budget
 const getVarianceStyle = (budget: number, actual: number) => {
   if (budget === 0 && actual === 0) return '';
-  if (actual === 0) return 'bg-emerald-100/50'; // No spend yet
-  if (actual <= budget) return 'bg-emerald-100 shadow-[inset_0_0_12px_rgba(16,185,129,0.3)]'; // Under budget - green glow
-  return 'bg-red-100 shadow-[inset_0_0_12px_rgba(239,68,68,0.3)]'; // Over budget - red glow
+  if (actual === 0) return 'bg-emerald-100/50';
+  if (actual <= budget) return 'bg-emerald-100 shadow-[inset_0_0_12px_rgba(16,185,129,0.3)]';
+  return 'bg-red-100 shadow-[inset_0_0_12px_rgba(239,68,68,0.3)]';
 };
 
 const getVarianceTextColor = (budget: number, actual: number) => {
@@ -80,6 +130,14 @@ export default function HubPage() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('week');
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const start = new Date(today);
+    start.setDate(today.getDate() - dayOfWeek);
+    return start;
+  });
 
   const [committedTrips, setCommittedTrips] = useState<Array<{
     id: string; name: string; destination: string | null;
@@ -98,6 +156,17 @@ export default function HubPage() {
     budgetGrandTotal: number;
     actualGrandTotal: number;
   }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
+
+  // Category visibility for calendar
+  const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({
+    home: true,
+    auto: true,
+    shopping: true,
+    personal: true,
+    health: true,
+    growth: true,
+    trip: true,
+  });
 
   useEffect(() => {
     loadCalendar();
@@ -205,18 +274,65 @@ export default function HubPage() {
     }
   };
 
+  const prevWeek = () => {
+    const newStart = new Date(selectedWeekStart);
+    newStart.setDate(newStart.getDate() - 7);
+    setSelectedWeekStart(newStart);
+    // Update month/year if week crosses boundary
+    setSelectedMonth(newStart.getMonth());
+    setSelectedYear(newStart.getFullYear());
+  };
+
+  const nextWeek = () => {
+    const newStart = new Date(selectedWeekStart);
+    newStart.setDate(newStart.getDate() + 7);
+    setSelectedWeekStart(newStart);
+    // Update month/year if week crosses boundary
+    setSelectedMonth(newStart.getMonth());
+    setSelectedYear(newStart.getFullYear());
+  };
+
   const goToToday = () => {
     setSelectedYear(now.getFullYear());
     setSelectedMonth(now.getMonth());
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const start = new Date(today);
+    start.setDate(today.getDate() - dayOfWeek);
+    setSelectedWeekStart(start);
   };
 
-  const calendarDays = [];
+  const calendarDays: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) {
     calendarDays.push(null);
   }
   for (let day = 1; day <= daysInMonth; day++) {
     calendarDays.push(day);
   }
+
+  // Get week days for week view
+  const getWeekDays = () => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(selectedWeekStart);
+      day.setDate(selectedWeekStart.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const weekDays = getWeekDays();
+
+  // Get events for a specific date (for week view)
+  const getEventsForDate = (date: Date) => {
+    return events.filter(e => {
+      const eventDate = parseDate(e.start_date);
+      return eventDate.getDate() === date.getDate() &&
+             eventDate.getMonth() === date.getMonth() &&
+             eventDate.getFullYear() === date.getFullYear() &&
+             visibleCategories[e.source];
+    });
+  };
 
   const currentYear = now.getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
@@ -252,202 +368,333 @@ export default function HubPage() {
             <p className="text-gray-500 mt-1">Your Financial Command Center</p>
           </div>
 
-
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* TOP ROW: UPCOMING TRIPS + EVENTS */}
+          {/* UPCOMING TRIPS - HORIZONTAL SCROLL CARDS (Airbnb Style) */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Upcoming Trips */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-xl">✈️</span>
-                <h2 className="text-lg font-semibold text-gray-900">Upcoming Trips</h2>
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">✈️</span>
+                <h2 className="text-xl font-semibold text-gray-900">Upcoming Trips</h2>
               </div>
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
-                {committedTrips.length > 0 ? (
-                  committedTrips.map(trip => (
+              <button 
+                onClick={() => router.push('/budgets/trips')}
+                className="text-sm text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1"
+              >
+                View all
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            
+            {committedTrips.length > 0 ? (
+              <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2 snap-x snap-mandatory scrollbar-hide">
+                {committedTrips.map(trip => {
+                  const tag = getDestinationTag(trip.destination);
+                  const nights = trip.startDate && trip.endDate 
+                    ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+                  const avgPerNight = nights && nights > 0 ? trip.totalBudget / nights : null;
+                  
+                  return (
                     <div 
-                      key={trip.id} 
-                      onClick={() => router.push(`/budgets/trips/${trip.id}`)} 
-                      className="rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-md cursor-pointer transition-all"
+                      key={trip.id}
+                      onClick={() => router.push(`/budgets/trips/${trip.id}`)}
+                      className="flex-shrink-0 w-[280px] snap-start cursor-pointer group"
                     >
-                      {/* Destination Image */}
-                      <div className="relative h-24 sm:h-32 bg-gradient-to-br from-cyan-100 to-blue-100">
+                      {/* Image Container */}
+                      <div className="relative h-[187px] rounded-xl overflow-hidden mb-3">
                         {trip.destinationPhoto ? (
                           <img 
                             src={trip.destinationPhoto} 
                             alt={trip.destination || trip.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-4xl">✈️</span>
+                          <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
+                            <span className="text-6xl">✈️</span>
                           </div>
                         )}
-                        {/* Budget Badge */}
-                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          <span className="font-bold text-sm text-cyan-600 tabular-nums">{formatCurrency(trip.totalBudget)}</span>
+                        {/* Tag Badge */}
+                        <div className={`absolute top-3 left-3 ${tag.color} text-white text-xs font-medium px-2.5 py-1 rounded-md shadow-lg`}>
+                          {tag.label}
                         </div>
+                        {/* Favorite Button */}
+                        <button 
+                          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                          onClick={(e) => { e.stopPropagation(); }}
+                        >
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
                       </div>
+                      
                       {/* Trip Info */}
-                      <div className="p-3">
-                        <div className="font-semibold text-gray-800 text-sm">{trip.destination || trip.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {trip.startDate ? new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD"}
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-base mb-0.5">
+                          {trip.destination || trip.name}
+                        </h3>
+                        <p className="text-gray-500 text-sm mb-2">
+                          {trip.startDate 
+                            ? new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                            : "Date TBD"
+                          }
+                          {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+                        </p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-bold text-gray-900">{formatCurrency(trip.totalBudget)}</span>
+                          {nights && <span className="text-gray-500 text-sm">total · {nights} nights</span>}
                         </div>
+                        {avgPerNight && (
+                          <p className="text-gray-400 text-sm">{formatCurrency(avgPerNight)} avg/night</p>
+                        )}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-4xl mb-3">✈️</div>
-                    <p className="text-sm">No committed trips</p>
+                  );
+                })}
+                
+                {/* Add Trip Card */}
+                <div 
+                  onClick={() => router.push('/budgets/trips/new')}
+                  className="flex-shrink-0 w-[280px] h-[187px] rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/50 transition-colors snap-start"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
                   </div>
-                )}
+                  <span className="text-gray-500 font-medium">Plan a new trip</span>
+                </div>
               </div>
-            </div>
-
-            {/* Events List */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {MONTHS[selectedMonth]} Events
-              </h2>
-              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
-                {events.length > 0 ? (
-                  events.map(event => {
-                    const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
-                    const eventDate = parseDate(event.start_date);
-                    return (
-                      <div key={event.id} className={`p-3 rounded-xl ${config.bgColor} border border-gray-100`}>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <span>{event.icon || config.icon}</span>
-                            <div>
-                              <div className="font-medium text-gray-800 text-sm">{event.title}</div>
-                              <div className="text-xs text-gray-500">
-                                {MONTHS[eventDate.getMonth()].slice(0, 3)} {eventDate.getDate()}
-                              </div>
-                            </div>
-                          </div>
-                          <div className={`font-bold text-sm tabular-nums ${config.color}`}>
-                            {formatCurrency(event.budget_amount)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center py-8 text-gray-400">
-                    <div className="text-4xl mb-3">📅</div>
-                    <p className="text-sm">No events this month</p>
-                  </div>
-                )}
+            ) : (
+              <div 
+                onClick={() => router.push('/budgets/trips/new')}
+                className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/50 transition-colors"
+              >
+                <div className="text-5xl mb-4">✈️</div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">No trips planned yet</h3>
+                <p className="text-gray-500 mb-4">Start planning your next adventure</p>
+                <span className="inline-flex items-center gap-2 text-cyan-600 font-medium">
+                  Plan a trip
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
               </div>
-            </div>
+            )}
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* CALENDAR - FULL WIDTH */}
+          {/* CALENDAR - macOS STYLE */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-3 sm:p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            {/* Calendar Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-center gap-4">
-                <button onClick={prevMonth} className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* View Toggle */}
+                <div className="flex bg-gray-200/70 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setCalendarView('week')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      calendarView === 'week' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Week
+                  </button>
+                  <button
+                    onClick={() => setCalendarView('month')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      calendarView === 'month' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Month
+                  </button>
+                </div>
+              </div>
+
+              {/* Month/Year Display */}
+              <h2 className="text-xl font-semibold text-gray-900">
+                {calendarView === 'week' 
+                  ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}`
+                  : `${MONTHS[selectedMonth]} ${selectedYear}`
+                }
+              </h2>
+
+              {/* Navigation */}
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={goToToday}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                >
+                  Today
+                </button>
+                <button 
+                  onClick={calendarView === 'week' ? prevWeek : prevMonth} 
+                  className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="text-base sm:text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
-                  >
-                    {MONTHS.map((month, idx) => (
-                      <option key={month} value={idx}>{month}</option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="text-base sm:text-xl font-bold text-gray-900 bg-transparent border-none cursor-pointer focus:ring-0 focus:outline-none"
-                  >
-                    {years.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <button onClick={nextMonth} className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button 
+                  onClick={calendarView === 'week' ? nextWeek : nextMonth} 
+                  className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
-              
-              <button 
-                onClick={goToToday}
-                className="px-4 py-2 text-sm bg-[#b4b237] text-white font-semibold rounded-lg hover:bg-[#9a9830] transition-colors shadow-sm"
-              >
-                Today
-              </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAYS.map(day => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
-                  {day}
+            <div className="flex">
+              {/* Category Sidebar */}
+              <div className="w-44 border-r border-gray-200 p-3 bg-gray-50/30 hidden sm:block">
+                <div className="space-y-0.5">
+                  {Object.entries(SOURCE_CONFIG).map(([source, config]) => (
+                    <label 
+                      key={source}
+                      className="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleCategories[source]}
+                        onChange={(e) => setVisibleCategories(prev => ({ ...prev, [source]: e.target.checked }))}
+                        className="sr-only"
+                      />
+                      <div 
+                        className={`w-3 h-3 rounded-sm transition-colors ${visibleCategories[source] ? config.calendarColor : 'bg-gray-300'}`}
+                      />
+                      <span className={`text-sm transition-colors ${visibleCategories[source] ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>
+                        {source.charAt(0).toUpperCase() + source.slice(1)}
+                      </span>
+                    </label>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((day, idx) => {
-                if (!day) {
-                  return <div key={`empty-${idx}`} className="aspect-square" />;
-                }
-                const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                const dayEvents = eventsByDay[day] || [];
-                const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
-                const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
-                
-                return (
-                  <div
-                    key={day}
-                    className={`aspect-square p-0.5 sm:p-1 rounded-xl border overflow-hidden transition-all cursor-pointer hover:border-gray-300 ${
-                      isToday ? "border-[#b4b237] border-2 bg-[#b4b237]/5" : "border-gray-100 bg-gray-50/50"
-                    }`}
-                  >
-                    <div className="flex flex-col h-full">
-                      <div className={`text-xs font-semibold mb-1 ${isToday ? "text-[#b4b237]" : "text-gray-600"}`}>
-                        {day}
-                      </div>
-                      {dayEvents.length > 0 && (
-                        <div className="flex-1 flex flex-col justify-end">
-                          <div className="flex flex-wrap gap-0.5 mb-1">
-                            {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => {
-                              const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home;
-                              return (
-                                <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />
-                              );
-                            })}
-                            {dayEvents.length > 4 && (
-                              <span className="text-[8px] sm:text-[10px] text-gray-400">+{dayEvents.length - 4}</span>
-                            )}
+              {/* Calendar Content */}
+              <div className="flex-1 min-w-0">
+                {calendarView === 'week' ? (
+                  /* Week View */
+                  <div>
+                    {/* Day Headers */}
+                    <div className="grid grid-cols-7 border-b border-gray-200">
+                      {weekDays.map((day, idx) => {
+                        const isToday = day.toDateString() === now.toDateString();
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`text-center py-3 border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-red-50' : ''}`}
+                          >
+                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium">
+                              {DAYS[day.getDay()]}
+                            </div>
+                            <div className={`text-2xl font-light mt-0.5 ${isToday ? 'bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center mx-auto' : 'text-gray-900'}`}>
+                              {day.getDate()}
+                            </div>
                           </div>
-                          <div className="text-[8px] sm:text-[10px] font-bold text-gray-600 tabular-nums truncate">
-                            {formatCurrency(dayTotal)}
+                        );
+                      })}
+                    </div>
+
+                    {/* Events Grid */}
+                    <div className="grid grid-cols-7 min-h-[320px]">
+                      {weekDays.map((day, idx) => {
+                        const dayEvents = getEventsForDate(day);
+                        const isToday = day.toDateString() === now.toDateString();
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`border-r border-gray-100 last:border-r-0 p-1.5 ${isToday ? 'bg-red-50/30' : ''}`}
+                          >
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 8).map((event, eventIdx) => {
+                                const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
+                                return (
+                                  <div
+                                    key={event.id || eventIdx}
+                                    className={`${config.calendarColor} text-white text-xs px-2 py-1.5 rounded truncate cursor-pointer hover:opacity-90 transition-opacity`}
+                                    title={`${event.title} - ${formatCurrency(event.budget_amount)}`}
+                                  >
+                                    {event.title}
+                                  </div>
+                                );
+                              })}
+                              {dayEvents.length > 8 && (
+                                <div className="text-xs text-gray-500 px-2">
+                                  +{dayEvents.length - 8} more
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
                   </div>
-                );
-              })}
+                ) : (
+                  /* Month View */
+                  <div className="p-4">
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {DAYS.map(day => (
+                        <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1">
+                      {calendarDays.map((day, idx) => {
+                        if (!day) {
+                          return <div key={`empty-${idx}`} className="aspect-square" />;
+                        }
+                        const dayEvents = eventsByDay[day]?.filter(e => visibleCategories[e.source]) || [];
+                        const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
+                        const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+                        
+                        return (
+                          <div
+                            key={day}
+                            className={`aspect-square p-1 rounded-xl border overflow-hidden transition-all cursor-pointer hover:border-gray-300 ${
+                              isToday ? "border-red-400 border-2 bg-red-50" : "border-gray-100 bg-gray-50/50"
+                            }`}
+                          >
+                            <div className="flex flex-col h-full">
+                              <div className={`text-xs font-semibold mb-1 ${isToday ? "text-red-500" : "text-gray-600"}`}>
+                                {day}
+                              </div>
+                              {dayEvents.length > 0 && (
+                                <div className="flex-1 flex flex-col justify-end">
+                                  <div className="flex flex-wrap gap-0.5 mb-1">
+                                    {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => {
+                                      const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home;
+                                      return (
+                                        <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />
+                                      );
+                                    })}
+                                    {dayEvents.length > 4 && (
+                                      <span className="text-[8px] text-gray-400">+{dayEvents.length - 4}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] font-bold text-gray-600 tabular-nums truncate">
+                                    {formatCurrency(dayTotal)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* HOMEBASE BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -496,9 +743,9 @@ export default function HubPage() {
                     const actualTotal = Object.values(yearActual).reduce((sum, m) => sum + (m[source] || 0), 0);
                     
                     return (
-                      <>
+                      <tbody key={source}>
                         {/* Budget Row */}
-                        <tr key={`${source}-budget`} className="border-t border-gray-100">
+                        <tr className="border-t border-gray-100">
                           <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
                             <span className="mr-2">{config.icon}</span>
                             {source.charAt(0).toUpperCase() + source.slice(1)}
@@ -517,7 +764,7 @@ export default function HubPage() {
                           </td>
                         </tr>
                         {/* Actual Row */}
-                        <tr key={`${source}-actual`} className="border-b border-gray-200">
+                        <tr className="border-b border-gray-200">
                           <td className="py-2 px-2 text-xs text-gray-400">Actual</td>
                           {MONTHS.map((_, i) => {
                             const budget = yearBudget[i]?.[source] || 0;
@@ -535,7 +782,7 @@ export default function HubPage() {
                             <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
                           </td>
                         </tr>
-                      </>
+                      </tbody>
                     );
                   })}
                 </tbody>
@@ -608,9 +855,9 @@ export default function HubPage() {
                     if (budgetTotal === 0 && actualTotal === 0) return null;
                     
                     return (
-                      <>
+                      <tbody key={code}>
                         {/* Budget Row */}
-                        <tr key={`${code}-budget`} className="border-t border-gray-100">
+                        <tr className="border-t border-gray-100">
                           <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
                             <div className="font-medium">{name}</div><div className="text-gray-400 text-xs">{code}</div>
                           </td>
@@ -628,7 +875,7 @@ export default function HubPage() {
                           </td>
                         </tr>
                         {/* Actual Row */}
-                        <tr key={`${code}-actual`} className="border-b border-gray-200">
+                        <tr className="border-b border-gray-200">
                           <td className="py-2 px-2 text-xs text-gray-400">Actual</td>
                           {MONTHS.map((_, i) => {
                             const budget = budgetRow[i] || 0;
@@ -646,7 +893,7 @@ export default function HubPage() {
                             <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
                           </td>
                         </tr>
-                      </>
+                      </tbody>
                     );
                   })}
                 </tbody>
@@ -867,4 +1114,3 @@ export default function HubPage() {
     </AppLayout>
   );
 }
-
