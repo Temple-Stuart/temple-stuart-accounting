@@ -308,7 +308,7 @@ export default function HubPage() {
           {/* UPCOMING TRIPS - HORIZONTAL SCROLL CARDS (Airbnb Style) */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">✈️</span>
                 <h2 className="text-xl font-semibold text-gray-900">Upcoming Trips</h2>
@@ -479,12 +479,12 @@ export default function HubPage() {
           {/* BUDGET COMPARISON - WALL STREET STYLE */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Budget Comparison</h2>
                 <p className="text-sm text-gray-500 mt-0.5">FY {selectedYear} · Homebase + Business + Travel · USD</p>
               </div>
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-600 rounded-sm"></span><span className="text-gray-600">Under Budget</span></span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-600 rounded-sm"></span><span className="text-gray-600">Over Budget</span></span>
                 <div className="h-4 w-px bg-gray-300 mx-2"></div>
@@ -525,7 +525,7 @@ export default function HubPage() {
             </div>
 
             {/* Summary Row */}
-            <div className="grid grid-cols-4 gap-px bg-gray-300 mb-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-gray-300 mb-4">
               <div className="bg-white p-4">
                 <div className="text-xs text-gray-500 font-medium mb-1">Home Months Cost</div>
                 <div className="text-2xl font-bold text-gray-900 font-mono">{fmt(homeMonthsHomebaseBudget)}</div>
