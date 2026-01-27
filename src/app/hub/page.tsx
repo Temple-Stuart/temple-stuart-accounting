@@ -389,7 +389,7 @@ export default function HubPage() {
             </div>
             
             {committedTrips.length > 0 ? (
-              <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2 snap-x snap-mandatory scrollbar-hide">
+              <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8">
                 {committedTrips.map(trip => {
                   const tag = getDestinationTag(trip.destination);
                   const nights = trip.startDate && trip.endDate 
