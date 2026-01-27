@@ -510,7 +510,7 @@ export default function HubPage() {
                     onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
                     className={`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
                       travelMonths.includes(i) 
-                        ? 'bg-[#1a2b3c] text-white border-[#1a2b3c]' 
+                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -541,7 +541,7 @@ export default function HubPage() {
                 <div className={`text-2xl font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
                 <div className="text-xs text-gray-500 mt-1">{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
               </div>
-              <div className="bg-[#1a2b3c] p-4 text-white">
+              <div className="bg-[#2d1b4e] p-4 text-white">
                 <div className="text-xs text-gray-300 font-medium mb-1">Effective Total</div>
                 <div className="text-2xl font-bold font-mono">{fmt(effectiveYearlyCost)}</div>
                 <div className="text-xs text-gray-400 mt-1">{selectedYear} projected</div>
@@ -552,12 +552,12 @@ export default function HubPage() {
             <div className="border border-gray-300 bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#1a2b3c] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#2a3b4c] w-36">Category</th>
+                  <tr className="bg-[#2d1b4e] text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-36">Category</th>
                     {MONTHS_SHORT.map((m, i) => (
-                      <th key={m} className={`py-2 px-2 font-medium border-r border-[#2a3b4c] text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-[#0f1a24]' : ''}`}>{m}</th>
+                      <th key={m} className={`py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-[#1a0f2e]' : ''}`}>{m}</th>
                     ))}
-                    <th className="py-2 px-3 font-medium text-right bg-[#0f1a24] min-w-[70px]">FY Total</th>
+                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -592,17 +592,17 @@ export default function HubPage() {
                   </tr>
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#1a2b3c] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#2a3b4c]">Monthly Total</td>
+                  <tr className="bg-[#2d1b4e] text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Monthly Total</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const homebase = yearBudget[i]?.total || 0;
                       const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const isTraveling = travelMonths.includes(i);
                       const effective = isTraveling ? (travel + business) : (homebase + travel + business);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#2a3b4c] ${isTraveling ? 'bg-[#0f1a24]' : ''}`}>{fmt(effective)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${isTraveling ? 'bg-[#1a0f2e]' : ''}`}>{fmt(effective)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono bg-[#0f1a24]">{fmt(effectiveYearlyCost)}</td>
+                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(effectiveYearlyCost)}</td>
                   </tr>
                   <tr className="bg-gray-100 text-gray-600 text-[10px]">
                     <td className="py-1.5 px-3 border-r border-gray-200">Trips</td>
@@ -638,11 +638,11 @@ export default function HubPage() {
             <div className="border border-gray-300 bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#1a2b3c] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#2a3b4c] w-40">Account</th>
-                    <th className="py-2 px-2 font-medium border-r border-[#2a3b4c] w-10 text-center">Type</th>
-                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#2a3b4c] text-right min-w-[55px]">{m}</th>)}
-                    <th className="py-2 px-3 font-medium text-right bg-[#0f1a24] min-w-[70px]">FY Total</th>
+                  <tr className="bg-[#2d1b4e] text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
+                    <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
+                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
+                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -682,21 +682,21 @@ export default function HubPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#1a2b3c] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#2a3b4c]">Total</td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">BUD</td>
-                    {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#2a3b4c]">{fmt(yearBudget[i]?.total || 0)}</td>))}
-                    <td className="py-2 px-3 text-right font-mono bg-[#0f1a24]">{fmt(yearlyHomebaseBudget)}</td>
+                  <tr className="bg-[#2d1b4e] text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
+                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
+                    {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(yearBudget[i]?.total || 0)}</td>))}
+                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyHomebaseBudget)}</td>
                   </tr>
-                  <tr className="bg-[#243447] text-white">
-                    <td className="py-2 px-3 border-r border-[#2a3b4c]"></td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">ACT</td>
+                  <tr className="bg-[#3d2b5e] text-white">
+                    <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
+                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const bud = yearBudget[i]?.total || 0;
                       const act = yearActual[i]?.total || 0;
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#2a3b4c] ${act > 0 && act > bud ? 'text-red-300' : act > 0 ? 'text-emerald-300' : ''}`}>{fmt(act)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${act > 0 && act > bud ? 'text-red-300' : act > 0 ? 'text-emerald-300' : ''}`}>{fmt(act)}</td>);
                     })}
-                    <td className={`py-2 px-3 text-right font-mono bg-[#0f1a24] ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
+                    <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -716,11 +716,11 @@ export default function HubPage() {
             <div className="border border-gray-300 bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#1a2b3c] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#2a3b4c] w-40">Account</th>
-                    <th className="py-2 px-2 font-medium border-r border-[#2a3b4c] w-10 text-center">Type</th>
-                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#2a3b4c] text-right min-w-[55px]">{m}</th>)}
-                    <th className="py-2 px-3 font-medium text-right bg-[#0f1a24] min-w-[70px]">FY Total</th>
+                  <tr className="bg-[#2d1b4e] text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
+                    <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
+                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
+                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -755,24 +755,24 @@ export default function HubPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#1a2b3c] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#2a3b4c]">Total</td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">BUD</td>
+                  <tr className="bg-[#2d1b4e] text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
+                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const monthTotal = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#2a3b4c]">{fmt(monthTotal)}</td>);
+                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(monthTotal)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono bg-[#0f1a24]">{fmt(yearlyTravelBudget)}</td>
+                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyTravelBudget)}</td>
                   </tr>
-                  <tr className="bg-[#243447] text-white">
-                    <td className="py-2 px-3 border-r border-[#2a3b4c]"></td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">ACT</td>
+                  <tr className="bg-[#3d2b5e] text-white">
+                    <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
+                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const budMonth = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const actMonth = Object.values(nomadBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#2a3b4c] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                     })}
-                    <td className={`py-2 px-3 text-right font-mono bg-[#0f1a24] ${yearlyTravelActual > yearlyTravelBudget ? 'text-red-300' : yearlyTravelActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyTravelActual)}</td>
+                    <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyTravelActual > yearlyTravelBudget ? 'text-red-300' : yearlyTravelActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyTravelActual)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -793,11 +793,11 @@ export default function HubPage() {
               <div className="border border-gray-300 bg-white overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-[#1a2b3c] text-white">
-                      <th className="text-left py-2 px-3 font-medium border-r border-[#2a3b4c] w-40">Account</th>
-                      <th className="py-2 px-2 font-medium border-r border-[#2a3b4c] w-10 text-center">Type</th>
-                      {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#2a3b4c] text-right min-w-[55px]">{m}</th>)}
-                      <th className="py-2 px-3 font-medium text-right bg-[#0f1a24] min-w-[70px]">FY Total</th>
+                    <tr className="bg-[#2d1b4e] text-white">
+                      <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
+                      <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
+                      {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
+                      <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -832,24 +832,24 @@ export default function HubPage() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-[#1a2b3c] text-white font-semibold">
-                      <td className="py-2 px-3 border-r border-[#2a3b4c]">Total</td>
-                      <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">BUD</td>
+                    <tr className="bg-[#2d1b4e] text-white font-semibold">
+                      <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
+                      <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
                       {MONTHS_SHORT.map((_, i) => {
                         const monthTotal = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                        return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#2a3b4c]">{fmt(monthTotal)}</td>);
+                        return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(monthTotal)}</td>);
                       })}
-                      <td className="py-2 px-3 text-right font-mono bg-[#0f1a24]">{fmt(yearlyBusinessBudget)}</td>
+                      <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyBusinessBudget)}</td>
                     </tr>
-                    <tr className="bg-[#243447] text-white">
-                      <td className="py-2 px-3 border-r border-[#2a3b4c]"></td>
-                      <td className="py-2 px-2 text-[10px] border-r border-[#2a3b4c] text-center">ACT</td>
+                    <tr className="bg-[#3d2b5e] text-white">
+                      <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
+                      <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
                       {MONTHS_SHORT.map((_, i) => {
                         const budMonth = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                         const actMonth = Object.values(businessBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                        return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#2a3b4c] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                        return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                       })}
-                      <td className={`py-2 px-3 text-right font-mono bg-[#0f1a24] ${yearlyBusinessActual > yearlyBusinessBudget ? 'text-red-300' : yearlyBusinessActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyBusinessActual)}</td>
+                      <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyBusinessActual > yearlyBusinessBudget ? 'text-red-300' : yearlyBusinessActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyBusinessActual)}</td>
                     </tr>
                   </tfoot>
                 </table>
