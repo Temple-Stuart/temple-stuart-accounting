@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
@@ -743,7 +743,7 @@ export default function HubPage() {
                     const actualTotal = Object.values(yearActual).reduce((sum, m) => sum + (m[source] || 0), 0);
                     
                     return (
-                      <tbody key={source}>
+                      <Fragment key={source}>
                         {/* Budget Row */}
                         <tr className="border-t border-gray-100">
                           <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
@@ -782,7 +782,7 @@ export default function HubPage() {
                             <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
                           </td>
                         </tr>
-                      </tbody>
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -855,7 +855,7 @@ export default function HubPage() {
                     if (budgetTotal === 0 && actualTotal === 0) return null;
                     
                     return (
-                      <tbody key={code}>
+                      <Fragment key={code}>
                         {/* Budget Row */}
                         <tr className="border-t border-gray-100">
                           <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
@@ -893,7 +893,7 @@ export default function HubPage() {
                             <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
                           </td>
                         </tr>
-                      </tbody>
+                      </Fragment>
                     );
                   })}
                 </tbody>
