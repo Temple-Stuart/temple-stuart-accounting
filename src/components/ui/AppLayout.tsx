@@ -26,7 +26,7 @@ const navigation = [
   { name: 'Health', href: '/health', icon: '💪' },
   { name: 'Growth', href: '/growth', icon: '📚' },
   { name: 'Trips', href: '/budgets/trips', icon: '✈️' },
-  { name: 'Net Worth', href: '/net-worth', icon: '💰' },
+  { name: 'Business', href: '/business', icon: '💼' },
   { name: 'Budget', href: '/hub/itinerary', icon: '📈' },
 ];
 

@@ -157,6 +157,15 @@ export default function HubPage() {
     actualGrandTotal: number;
   }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
 
+
+  // Business Budget data
+  const [businessBudget, setBusinessBudget] = useState<{ 
+    budgetData: Record<string, Record<number, number>>; 
+    actualData: Record<string, Record<number, number>>;
+    coaNames: Record<string, string>; 
+    budgetGrandTotal: number;
+    actualGrandTotal: number;
+  }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
   // Category visibility for calendar
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({
     home: true,
@@ -230,7 +239,25 @@ export default function HubPage() {
     }
   };
 
-  useEffect(() => { loadCommittedTrips(); loadYearCalendar(); loadNomadBudget(); }, [selectedYear]);
+  const loadBusinessBudget = async () => {
+    try {
+      const res = await fetch(`/api/hub/business-budget?year=${selectedYear}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBusinessBudget({ 
+          budgetData: data.budgetData || {}, 
+          actualData: data.actualData || {},
+          coaNames: data.coaNames || {}, 
+          budgetGrandTotal: data.budgetGrandTotal || 0,
+          actualGrandTotal: data.actualGrandTotal || 0
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load business budget:", err);
+    }
+  };
+
+  useEffect(() => { loadCommittedTrips(); loadYearCalendar(); loadNomadBudget(); loadBusinessBudget(); }, [selectedYear]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -353,7 +380,9 @@ export default function HubPage() {
   const yearlyTravelBudget = nomadBudget.budgetGrandTotal;
   const yearlyTravelActual = nomadBudget.actualGrandTotal;
   
-  const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget;
+  const yearlyBusinessBudget = businessBudget.budgetGrandTotal;
+  const yearlyBusinessActual = businessBudget.actualGrandTotal;
+  const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget + yearlyBusinessBudget;
 
   return (
     <AppLayout>
@@ -932,8 +961,126 @@ export default function HubPage() {
             </div>
           </div>
 
+
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* HOMEBASE + TRAVEL CALCULATOR */}
+          {/* BUSINESS BUDGET - With Actuals */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <span className="text-xl">💼</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Business Budget</h2>
+                <p className="text-sm text-gray-500">{selectedYear} • Budget vs Actual</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto lg:overflow-visible">
+              {Object.keys(businessBudget.coaNames).length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50/80">
+                    <th className="text-left py-3 px-4 text-gray-600 font-semibold w-[80px] whitespace-normal">Account</th>
+                    <th className="text-left py-3 px-2 text-gray-500 font-medium w-[50px] text-xs">Type</th>
+                    {MONTHS.map(m => <th key={m} className="text-right py-3 px-3 min-w-[50px] lg:min-w-0 text-gray-600 font-medium">{m.slice(0,3)}</th>)}
+                    <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[80px]">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(businessBudget.coaNames).map(([code, name]) => {
+                    const budgetRow = businessBudget.budgetData[code] || {};
+                    const actualRow = businessBudget.actualData[code] || {};
+                    const budgetTotal = Object.values(budgetRow).reduce((s, v) => s + v, 0);
+                    const actualTotal = Object.values(actualRow).reduce((s, v) => s + v, 0);
+                    
+                    if (budgetTotal === 0 && actualTotal === 0) return null;
+                    
+                    return (
+                      <Fragment key={code}>
+                        {/* Budget Row */}
+                        <tr className="border-t border-gray-100">
+                          <td rowSpan={2} className="py-2 px-4 text-gray-700 font-medium border-r border-gray-100">
+                            <div className="font-medium">{name}</div><div className="text-gray-400 text-xs">{code}</div>
+                          </td>
+                          <td className="py-2 px-2 text-xs text-gray-400">Budget</td>
+                          {MONTHS.map((_, i) => (
+                            <td key={i} className="text-right py-2 px-3 tabular-nums">
+                              {budgetRow[i] 
+                                ? <span className="text-indigo-600">{formatCurrency(budgetRow[i])}</span>
+                                : <span className="text-gray-300">—</span>
+                              }
+                            </td>
+                          ))}
+                          <td className="text-right py-2 px-4 font-semibold tabular-nums text-indigo-600 bg-gray-50/50">
+                            {formatCurrency(budgetTotal)}
+                          </td>
+                        </tr>
+                        {/* Actual Row */}
+                        <tr className="border-b border-gray-200">
+                          <td className="py-2 px-2 text-xs text-gray-400">Actual</td>
+                          {MONTHS.map((_, i) => {
+                            const budget = budgetRow[i] || 0;
+                            const actual = actualRow[i] || 0;
+                            return (
+                              <td key={i} className={`text-right py-2 px-3 tabular-nums rounded ${getVarianceStyle(budget, actual)}`}>
+                                {actual 
+                                  ? <span className={getVarianceTextColor(budget, actual)}>{formatCurrency(actual)}</span>
+                                  : <span className="text-gray-300">—</span>
+                                }
+                              </td>
+                            );
+                          })}
+                          <td className={`text-right py-2 px-4 font-semibold tabular-nums rounded ${getVarianceStyle(budgetTotal, actualTotal)}`}>
+                            <span className={getVarianceTextColor(budgetTotal, actualTotal)}>{formatCurrency(actualTotal)}</span>
+                          </td>
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  {/* Total Budget */}
+                  <tr className="bg-gradient-to-r from-indigo-50 to-violet-50 border-t-2 border-indigo-200">
+                    <td className="py-3 px-4 font-bold text-gray-900">Total Business</td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Budget</td>
+                    {MONTHS.map((_, i) => {
+                      const monthTotal = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return <td key={i} className="text-right py-3 px-3 font-bold tabular-nums text-gray-900">{monthTotal ? formatCurrency(monthTotal) : <span className="text-gray-300">—</span>}</td>;
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-indigo-700 bg-indigo-100/50 text-lg">
+                      {formatCurrency(yearlyBusinessBudget)}
+                    </td>
+                  </tr>
+                  {/* Total Actual */}
+                  <tr className="bg-gradient-to-r from-indigo-50/50 to-violet-50/50">
+                    <td className="py-3 px-4 font-bold text-gray-700"></td>
+                    <td className="py-3 px-2 text-xs text-gray-500">Actual</td>
+                    {MONTHS.map((_, i) => {
+                      const budgetMonth = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const actualMonth = Object.values(businessBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums rounded ${getVarianceStyle(budgetMonth, actualMonth)}`}>
+                          {actualMonth ? <span className={getVarianceTextColor(budgetMonth, actualMonth)}>{formatCurrency(actualMonth)}</span> : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className={`text-right py-3 px-4 font-bold tabular-nums text-lg rounded ${getVarianceStyle(yearlyBusinessBudget, yearlyBusinessActual)}`}>
+                      <span className={getVarianceTextColor(yearlyBusinessBudget, yearlyBusinessActual)}>{formatCurrency(yearlyBusinessActual)}</span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+              ) : (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="text-4xl mb-3">💼</div>
+                  <p className="text-sm">No business accounts yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Map transactions to B-xxxx accounts to see them here</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* HOMEBASE + BUSINESS + TRAVEL CALCULATOR */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
@@ -941,7 +1088,7 @@ export default function HubPage() {
                 <span className="text-xl">📊</span>
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Homebase + Travel</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Homebase + Business + Travel</h2>
                 <p className="text-sm text-gray-500">Select months you'll travel instead of staying home</p>
               </div>
             </div>
@@ -1105,7 +1252,7 @@ export default function HubPage() {
             </div>
 
             <div className="px-6 py-4 text-center text-sm text-gray-500 bg-gray-50/50 border-t border-gray-100">
-              <span className="text-amber-600">🏠 Home months</span> = Homebase + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
+              <span className="text-amber-600">🏠 Home months</span> = Homebase + Business + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
             </div>
           </div>
 
