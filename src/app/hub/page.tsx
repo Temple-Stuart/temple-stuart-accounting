@@ -725,6 +725,198 @@ export default function HubPage() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* HOMEBASE + BUSINESS + TRAVEL CALCULATOR */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-cyan-100 flex items-center justify-center">
+                <span className="text-xl">📊</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Homebase + Business + Travel</h2>
+                <p className="text-sm text-gray-500">Select months you'll travel instead of staying home</p>
+              </div>
+            </div>
+            
+            {/* Month Selection */}
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-700">Which months will you travel?</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-3 py-1.5 bg-white text-gray-600 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors font-medium">All Travel</button>
+                  <button onClick={() => setTravelMonths([])} className="text-xs px-3 py-1.5 bg-white text-gray-600 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors font-medium">All Home</button>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {MONTHS.map((m, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
+                    className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
+                      travelMonths.includes(i) 
+                        ? 'bg-cyan-500 text-white shadow-sm' 
+                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200'
+                    }`}
+                  >
+                    {travelMonths.includes(i) ? '✈️' : '🏠'} {m.slice(0,3)}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-4 text-xs text-gray-500 mt-3">
+                <span>🏠 {homeMonths.length} months at home</span>
+                <span>✈️ {travelMonths.length} months traveling</span>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-6 border-b border-gray-100">
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                <div className="text-xs text-gray-500 mb-1 font-medium">🏠 Home Months</div>
+                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(homeMonthsHomebaseBudget)}</div>
+                <div className="text-xs text-amber-600 mt-1">Homebase cost</div>
+                {homeMonthsTravelBudget > 0 && (
+                  <div className="text-xs text-cyan-600 mt-0.5">+ {formatCurrency(homeMonthsTravelBudget)} travel</div>
+                )}
+              </div>
+              
+              <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-100">
+                <div className="text-xs text-gray-500 mb-1 font-medium">✈️ Travel Months</div>
+                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(travelMonthsTravelBudget)}</div>
+                <div className="text-xs text-cyan-600 mt-1">Travel cost only</div>
+                <div className="text-xs text-gray-400 mt-0.5 line-through">{formatCurrency(travelMonthsHomebaseBudget)} homebase</div>
+              </div>
+              
+              <div className={`p-4 rounded-xl border-2 ${travelSavings >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                <div className="text-xs text-gray-500 mb-1 font-medium">💵 Travel Savings</div>
+                <div className={`text-xl font-bold tabular-nums ${travelSavings >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {travelSavings >= 0 ? '+' : ''}{formatCurrency(travelSavings)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {travelSavings >= 0 ? 'Saved vs staying home' : 'Extra cost vs home'}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5 rounded-xl border-2 border-[#b4b237]/30">
+                <div className="text-xs text-gray-500 mb-1 font-medium">📊 Effective Total</div>
+                <div className="text-xl font-bold text-[#8f8c2a] tabular-nums">{formatCurrency(effectiveYearlyCost)}</div>
+                <div className="text-xs text-gray-500 mt-1">{selectedYear} projected spend</div>
+              </div>
+            </div>
+
+            {/* Detailed Comparison Table */}
+            <div className="overflow-x-auto lg:overflow-visible">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50/80">
+                    <th className="py-3 px-4 text-left text-gray-600 font-semibold w-[80px] whitespace-normal">Category</th>
+                    {MONTHS.map((m, i) => (
+                      <th key={i} className={`text-right py-3 px-3 text-gray-600 font-medium min-w-[50px] lg:min-w-0 ${travelMonths.includes(i) ? 'bg-cyan-50/50' : 'bg-amber-50/50'}`}>
+                        <div className="text-[10px] mb-0.5">{travelMonths.includes(i) ? '✈️' : '🏠'}</div>
+                        {m.slice(0,3)}
+                      </th>
+                    ))}
+                    <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[80px]">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr className="hover:bg-gray-50/50">
+                    <td className="py-3 px-4 text-gray-700 font-medium">🏠 Homebase</td>
+                    {MONTHS.map((_, i) => {
+                      const val = yearBudget[i]?.total || 0;
+                      const isTraveling = travelMonths.includes(i);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
+                          {val ? (
+                            <span className={isTraveling ? 'text-gray-300 line-through' : 'text-amber-600'}>
+                              {formatCurrency(val)}
+                            </span>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-amber-700 bg-gray-50/50">
+                      {formatCurrency(homeMonthsHomebaseBudget)}
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50/50">
+                    <td className="py-3 px-4 text-gray-700 font-medium">💼 Business</td>
+                    {MONTHS.map((_, i) => {
+                      const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${travelMonths.includes(i) ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
+                          {val ? (
+                            <span className="text-indigo-600">{formatCurrency(val)}</span>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-indigo-700 bg-gray-50/50">
+                      {formatCurrency(yearlyBusinessBudget)}
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50/50">
+                    <td className="py-3 px-4 text-gray-700 font-medium">✈️ Travel</td>
+                    {MONTHS.map((_, i) => { 
+                      const mt = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const isTraveling = travelMonths.includes(i);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
+                          {mt ? (
+                            <span className="text-cyan-600">{formatCurrency(mt)}</span>
+                          ) : <span className="text-gray-300">—</span>}
+                        </td>
+                      ); 
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-cyan-700 bg-gray-50/50">
+                      {formatCurrency(travelMonthsTravelBudget + homeMonthsTravelBudget)}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gradient-to-r from-emerald-50 to-green-50 border-t-2 border-emerald-200">
+                    <td className="py-3 px-4 font-bold text-gray-900">💵 Monthly Cost</td>
+                    {MONTHS.map((_, i) => { 
+                      const homebase = yearBudget[i]?.total || 0; 
+                      const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const isTraveling = travelMonths.includes(i);
+                      const effective = isTraveling ? travel : (homebase + travel);
+                      return (
+                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums ${isTraveling ? 'text-cyan-600 bg-cyan-50/50' : 'text-amber-600 bg-amber-50/50'}`}>
+                          {effective ? formatCurrency(effective) : <span className="text-gray-300">—</span>}
+                        </td>
+                      ); 
+                    })}
+                    <td className="text-right py-3 px-4 font-bold tabular-nums text-lg text-[#8f8c2a] bg-[#b4b237]/10">
+                      {formatCurrency(effectiveYearlyCost)}
+                    </td>
+                  </tr>
+                  <tr className="bg-violet-50/50 border-t border-violet-100">
+                    <td className="py-3 px-4 text-violet-700 font-medium">📍 Trips</td>
+                    {MONTHS.map((_, i) => {
+                      const tripsInMonth = committedTrips.filter(t => {
+                        if (!t.startDate) return false;
+                        const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
+                        return start.getMonth() === i && start.getFullYear() === selectedYear;
+                      });
+                      return (
+                        <td key={i} className="text-center py-3 px-3 text-xs text-violet-600" style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
+                          {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.name).join(', ') : <span className="text-gray-300">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="text-center py-3 px-4 text-xs text-violet-600 font-semibold bg-violet-100/30">
+                      {committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="px-6 py-4 text-center text-sm text-gray-500 bg-gray-50/50 border-t border-gray-100">
+              <span className="text-amber-600">🏠 Home months</span> = Homebase + Business + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
+            </div>
+          </div>
           {/* HOMEBASE BUDGET - With Actuals */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
@@ -1077,198 +1269,6 @@ export default function HubPage() {
                   <p className="text-xs text-gray-400 mt-1">Map transactions to B-xxxx accounts to see them here</p>
                 </div>
               )}
-            </div>
-          </div>
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* HOMEBASE + BUSINESS + TRAVEL CALCULATOR */}
-          {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-8 bg-white rounded-2xl border border-gray-200 overflow-hidden lg:overflow-x-auto shadow-sm hover:shadow-md transition-shadow">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-cyan-100 flex items-center justify-center">
-                <span className="text-xl">📊</span>
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Homebase + Business + Travel</h2>
-                <p className="text-sm text-gray-500">Select months you'll travel instead of staying home</p>
-              </div>
-            </div>
-            
-            {/* Month Selection */}
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-700">Which months will you travel?</span>
-                <div className="flex gap-2">
-                  <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-3 py-1.5 bg-white text-gray-600 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors font-medium">All Travel</button>
-                  <button onClick={() => setTravelMonths([])} className="text-xs px-3 py-1.5 bg-white text-gray-600 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors font-medium">All Home</button>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {MONTHS.map((m, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
-                    className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
-                      travelMonths.includes(i) 
-                        ? 'bg-cyan-500 text-white shadow-sm' 
-                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200'
-                    }`}
-                  >
-                    {travelMonths.includes(i) ? '✈️' : '🏠'} {m.slice(0,3)}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-4 text-xs text-gray-500 mt-3">
-                <span>🏠 {homeMonths.length} months at home</span>
-                <span>✈️ {travelMonths.length} months traveling</span>
-              </div>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-6 border-b border-gray-100">
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                <div className="text-xs text-gray-500 mb-1 font-medium">🏠 Home Months</div>
-                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(homeMonthsHomebaseBudget)}</div>
-                <div className="text-xs text-amber-600 mt-1">Homebase cost</div>
-                {homeMonthsTravelBudget > 0 && (
-                  <div className="text-xs text-cyan-600 mt-0.5">+ {formatCurrency(homeMonthsTravelBudget)} travel</div>
-                )}
-              </div>
-              
-              <div className="p-4 bg-cyan-50 rounded-xl border border-cyan-100">
-                <div className="text-xs text-gray-500 mb-1 font-medium">✈️ Travel Months</div>
-                <div className="text-xl font-bold text-gray-900 tabular-nums">{formatCurrency(travelMonthsTravelBudget)}</div>
-                <div className="text-xs text-cyan-600 mt-1">Travel cost only</div>
-                <div className="text-xs text-gray-400 mt-0.5 line-through">{formatCurrency(travelMonthsHomebaseBudget)} homebase</div>
-              </div>
-              
-              <div className={`p-4 rounded-xl border-2 ${travelSavings >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                <div className="text-xs text-gray-500 mb-1 font-medium">💵 Travel Savings</div>
-                <div className={`text-xl font-bold tabular-nums ${travelSavings >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {travelSavings >= 0 ? '+' : ''}{formatCurrency(travelSavings)}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {travelSavings >= 0 ? 'Saved vs staying home' : 'Extra cost vs home'}
-                </div>
-              </div>
-              
-              <div className="p-4 bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5 rounded-xl border-2 border-[#b4b237]/30">
-                <div className="text-xs text-gray-500 mb-1 font-medium">📊 Effective Total</div>
-                <div className="text-xl font-bold text-[#8f8c2a] tabular-nums">{formatCurrency(effectiveYearlyCost)}</div>
-                <div className="text-xs text-gray-500 mt-1">{selectedYear} projected spend</div>
-              </div>
-            </div>
-
-            {/* Detailed Comparison Table */}
-            <div className="overflow-x-auto lg:overflow-visible">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50/80">
-                    <th className="py-3 px-4 text-left text-gray-600 font-semibold w-[80px] whitespace-normal">Category</th>
-                    {MONTHS.map((m, i) => (
-                      <th key={i} className={`text-right py-3 px-3 text-gray-600 font-medium min-w-[50px] lg:min-w-0 ${travelMonths.includes(i) ? 'bg-cyan-50/50' : 'bg-amber-50/50'}`}>
-                        <div className="text-[10px] mb-0.5">{travelMonths.includes(i) ? '✈️' : '🏠'}</div>
-                        {m.slice(0,3)}
-                      </th>
-                    ))}
-                    <th className="text-right py-3 px-4 font-bold text-gray-900 bg-gray-100/80 w-[80px]">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-700 font-medium">🏠 Homebase</td>
-                    {MONTHS.map((_, i) => {
-                      const val = yearBudget[i]?.total || 0;
-                      const isTraveling = travelMonths.includes(i);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
-                          {val ? (
-                            <span className={isTraveling ? 'text-gray-300 line-through' : 'text-amber-600'}>
-                              {formatCurrency(val)}
-                            </span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-amber-700 bg-gray-50/50">
-                      {formatCurrency(homeMonthsHomebaseBudget)}
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-700 font-medium">💼 Business</td>
-                    {MONTHS.map((_, i) => {
-                      const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${travelMonths.includes(i) ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
-                          {val ? (
-                            <span className="text-indigo-600">{formatCurrency(val)}</span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-indigo-700 bg-gray-50/50">
-                      {formatCurrency(yearlyBusinessBudget)}
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-700 font-medium">✈️ Travel</td>
-                    {MONTHS.map((_, i) => { 
-                      const mt = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      const isTraveling = travelMonths.includes(i);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 tabular-nums ${isTraveling ? 'bg-cyan-50/30' : 'bg-amber-50/30'}`}>
-                          {mt ? (
-                            <span className="text-cyan-600">{formatCurrency(mt)}</span>
-                          ) : <span className="text-gray-300">—</span>}
-                        </td>
-                      ); 
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-cyan-700 bg-gray-50/50">
-                      {formatCurrency(travelMonthsTravelBudget + homeMonthsTravelBudget)}
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gradient-to-r from-emerald-50 to-green-50 border-t-2 border-emerald-200">
-                    <td className="py-3 px-4 font-bold text-gray-900">💵 Monthly Cost</td>
-                    {MONTHS.map((_, i) => { 
-                      const homebase = yearBudget[i]?.total || 0; 
-                      const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      const isTraveling = travelMonths.includes(i);
-                      const effective = isTraveling ? travel : (homebase + travel);
-                      return (
-                        <td key={i} className={`text-right py-3 px-3 font-bold tabular-nums ${isTraveling ? 'text-cyan-600 bg-cyan-50/50' : 'text-amber-600 bg-amber-50/50'}`}>
-                          {effective ? formatCurrency(effective) : <span className="text-gray-300">—</span>}
-                        </td>
-                      ); 
-                    })}
-                    <td className="text-right py-3 px-4 font-bold tabular-nums text-lg text-[#8f8c2a] bg-[#b4b237]/10">
-                      {formatCurrency(effectiveYearlyCost)}
-                    </td>
-                  </tr>
-                  <tr className="bg-violet-50/50 border-t border-violet-100">
-                    <td className="py-3 px-4 text-violet-700 font-medium">📍 Trips</td>
-                    {MONTHS.map((_, i) => {
-                      const tripsInMonth = committedTrips.filter(t => {
-                        if (!t.startDate) return false;
-                        const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
-                        return start.getMonth() === i && start.getFullYear() === selectedYear;
-                      });
-                      return (
-                        <td key={i} className="text-center py-3 px-3 text-xs text-violet-600" style={{maxWidth: '80px', whiteSpace: 'normal', wordWrap: 'break-word'}}>
-                          {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.name).join(', ') : <span className="text-gray-300">—</span>}
-                        </td>
-                      );
-                    })}
-                    <td className="text-center py-3 px-4 text-xs text-violet-600 font-semibold bg-violet-100/30">
-                      {committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <div className="px-6 py-4 text-center text-sm text-gray-500 bg-gray-50/50 border-t border-gray-100">
-              <span className="text-amber-600">🏠 Home months</span> = Homebase + Business + Travel costs &nbsp;|&nbsp; <span className="text-cyan-600">✈️ Travel months</span> = Travel cost only (homebase avoided)
             </div>
           </div>
 
