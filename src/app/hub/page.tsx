@@ -343,7 +343,7 @@ export default function HubPage() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* UPCOMING TRIPS - WALL STREET STYLE DATA CARDS */}
+          {/* UPCOMING TRIPS - WALL STREET STYLE WITH IMAGES */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
@@ -357,7 +357,7 @@ export default function HubPage() {
             </div>
             
             {committedTrips.length > 0 ? (
-              <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8">
+              <div className="flex gap-3 overflow-x-scroll pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8 scrollbar-thin">
                 {committedTrips.map(trip => {
                   const metrics = getNomadMetrics(trip.destination);
                   const nights = trip.startDate && trip.endDate 
@@ -369,20 +369,31 @@ export default function HubPage() {
                     <div 
                       key={trip.id}
                       onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                      className="flex-shrink-0 w-[240px] border border-gray-300 bg-white cursor-pointer hover:shadow-md transition-shadow"
+                      className="flex-shrink-0 w-[260px] border border-gray-300 bg-white cursor-pointer hover:shadow-lg transition-shadow group"
                     >
-                      {/* Header */}
-                      <div className="bg-[#2d1b4e] text-white px-3 py-2">
-                        <div className="font-semibold text-sm truncate">{trip.destination || trip.name}</div>
-                        <div className="text-[10px] text-gray-300 font-mono">
-                          {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
-                          {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                          {nights && ` · ${nights}N`}
+                      {/* Image */}
+                      <div className="relative h-[120px] overflow-hidden">
+                        {trip.destinationPhoto ? (
+                          <img src={trip.destinationPhoto} alt={trip.destination || trip.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-[#2d1b4e] to-[#4a3a6e] flex items-center justify-center">
+                            <span className="text-white/50 text-3xl font-mono">{(trip.destination || trip.name || '?').charAt(0)}</span>
+                          </div>
+                        )}
+                        {/* Overlay with destination name */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                          <div className="font-semibold text-white text-sm truncate">{trip.destination || trip.name}</div>
+                          <div className="text-[10px] text-gray-300 font-mono">
+                            {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                            {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                            {nights && ` · ${nights}N`}
+                          </div>
                         </div>
                       </div>
                       
                       {/* Budget Row */}
-                      <div className="bg-[#3d2b5e] text-white px-3 py-2 flex justify-between items-center">
+                      <div className="bg-[#2d1b4e] text-white px-3 py-2 flex justify-between items-center">
                         <div>
                           <div className="text-lg font-bold font-mono">{fmt(trip.totalBudget)}</div>
                           <div className="text-[10px] text-gray-300">total budget</div>
@@ -395,47 +406,49 @@ export default function HubPage() {
 
                       {/* Metrics Grid */}
                       {metrics ? (
-                        <div className="grid grid-cols-2 divide-x divide-y divide-gray-200 text-xs">
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Cost Index</div>
-                            <div className={`font-mono font-semibold ${metrics.costIndex < 0.5 ? 'text-emerald-700' : metrics.costIndex < 0.7 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.costIndex}x US</div>
+                        <div className="grid grid-cols-3 divide-x divide-gray-200 text-xs border-b border-gray-200">
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">Cost</div>
+                            <div className={`font-mono font-semibold text-[11px] ${metrics.costIndex < 0.5 ? 'text-emerald-700' : metrics.costIndex < 0.7 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.costIndex}x</div>
                           </div>
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Visa</div>
-                            <div className="font-mono font-semibold text-gray-700">{metrics.visa}</div>
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">Visa</div>
+                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.visa.split(' ')[0]}</div>
                           </div>
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Timezone</div>
-                            <div className="font-mono font-semibold text-gray-700">{metrics.timezone}</div>
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">TZ</div>
+                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.timezone.replace('UTC', '')}</div>
                           </div>
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Internet</div>
-                            <div className={`font-mono font-semibold ${metrics.internet >= 50 ? 'text-emerald-700' : metrics.internet >= 30 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.internet} Mbps</div>
+                        </div>
+                      ) : null}
+                      {metrics ? (
+                        <div className="grid grid-cols-3 divide-x divide-gray-200 text-xs">
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">WiFi</div>
+                            <div className={`font-mono font-semibold text-[11px] ${metrics.internet >= 50 ? 'text-emerald-700' : 'text-gray-700'}`}>{metrics.internet}M</div>
                           </div>
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Cowork</div>
-                            <div className="font-mono font-semibold text-gray-700">${metrics.cowork}/mo</div>
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">Cowork</div>
+                            <div className="font-mono font-semibold text-[11px] text-gray-700">${metrics.cowork}</div>
                           </div>
-                          <div className="p-2">
-                            <div className="text-gray-500 text-[10px]">Weather</div>
-                            <div className="font-mono font-semibold text-gray-700">{metrics.temp}°C</div>
+                          <div className="p-1.5 text-center">
+                            <div className="text-gray-400 text-[9px]">Temp</div>
+                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.temp}°</div>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-3 text-center text-xs text-gray-400">
-                          <div className="text-gray-500 mb-1">No metrics data</div>
-                        </div>
+                        <div className="p-2 text-center text-[10px] text-gray-400">No metrics</div>
                       )}
 
                       {/* Status Bar */}
-                      <div className="bg-gray-100 px-3 py-1.5 text-[10px] text-gray-500 flex justify-between border-t border-gray-200">
+                      <div className="bg-gray-100 px-2 py-1 text-[9px] text-gray-500 flex justify-between border-t border-gray-200">
                         {metrics ? (
                           <>
-                            <span>Safety: {metrics.safety}/10</span>
-                            <span className={metrics.costIndex < 0.5 ? 'text-emerald-600 font-medium' : 'text-gray-500'}>{Math.round((1 - metrics.costIndex) * 100)}% cheaper</span>
+                            <span>Safety {metrics.safety}</span>
+                            <span className={metrics.costIndex < 0.5 ? 'text-emerald-600 font-medium' : ''}>{Math.round((1 - metrics.costIndex) * 100)}% savings</span>
                           </>
                         ) : (
-                          <span>Add destination metrics</span>
+                          <span className="w-full text-center">Add destination data</span>
                         )}
                       </div>
                     </div>
@@ -443,7 +456,7 @@ export default function HubPage() {
                 })}
                 
                 {/* Add Trip Card */}
-                <div onClick={() => router.push('/budgets/trips/new')} className="flex-shrink-0 w-[240px] border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors min-h-[280px]">
+                <div onClick={() => router.push('/budgets/trips/new')} className="flex-shrink-0 w-[260px] border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors" style={{minHeight: '280px'}}>
                   <div className="w-10 h-10 border-2 border-gray-300 flex items-center justify-center mb-2">
                     <span className="text-gray-400 text-xl">+</span>
                   </div>
