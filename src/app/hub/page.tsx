@@ -52,6 +52,36 @@ const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: stri
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
 };
 
+// Nomad metrics lookup by destination (static data - can be API-driven later)
+const NOMAD_METRICS: Record<string, { costIndex: number; visa: string; timezone: string; internet: number; cowork: number; temp: number; safety: number }> = {
+  'canggu': { costIndex: 0.35, visa: '30d VOA', timezone: 'UTC+8', internet: 45, cowork: 120, temp: 28, safety: 7.5 },
+  'bali': { costIndex: 0.35, visa: '30d VOA', timezone: 'UTC+8', internet: 40, cowork: 120, temp: 28, safety: 7.5 },
+  'kuala lumpur': { costIndex: 0.40, visa: '90d free', timezone: 'UTC+8', internet: 65, cowork: 150, temp: 32, safety: 7.8 },
+  'da nang': { costIndex: 0.30, visa: '45d e-visa', timezone: 'UTC+7', internet: 50, cowork: 80, temp: 30, safety: 8.2 },
+  'vietnam': { costIndex: 0.30, visa: '45d e-visa', timezone: 'UTC+7', internet: 50, cowork: 80, temp: 30, safety: 8.0 },
+  'phuket': { costIndex: 0.45, visa: '60d free', timezone: 'UTC+7', internet: 55, cowork: 180, temp: 31, safety: 7.6 },
+  'thailand': { costIndex: 0.40, visa: '60d free', timezone: 'UTC+7', internet: 55, cowork: 150, temp: 31, safety: 7.5 },
+  'tarifa': { costIndex: 0.65, visa: '90d Schengen', timezone: 'UTC+1', internet: 80, cowork: 200, temp: 24, safety: 8.5 },
+  'spain': { costIndex: 0.70, visa: '90d Schengen', timezone: 'UTC+1', internet: 100, cowork: 220, temp: 22, safety: 8.5 },
+  'lisbon': { costIndex: 0.60, visa: '90d Schengen', timezone: 'UTC+0', internet: 90, cowork: 180, temp: 20, safety: 8.3 },
+  'portugal': { costIndex: 0.60, visa: '90d Schengen', timezone: 'UTC+0', internet: 85, cowork: 180, temp: 20, safety: 8.3 },
+  'mexico city': { costIndex: 0.45, visa: '180d free', timezone: 'UTC-6', internet: 60, cowork: 150, temp: 22, safety: 6.5 },
+  'playa del carmen': { costIndex: 0.55, visa: '180d free', timezone: 'UTC-5', internet: 50, cowork: 180, temp: 28, safety: 6.8 },
+  'medellin': { costIndex: 0.40, visa: '90d free', timezone: 'UTC-5', internet: 55, cowork: 120, temp: 24, safety: 6.5 },
+  'buenos aires': { costIndex: 0.35, visa: '90d free', timezone: 'UTC-3', internet: 50, cowork: 100, temp: 18, safety: 6.2 },
+  'siargao': { costIndex: 0.30, visa: '30d free', timezone: 'UTC+8', internet: 25, cowork: 80, temp: 29, safety: 7.8 },
+  'philippines': { costIndex: 0.35, visa: '30d free', timezone: 'UTC+8', internet: 30, cowork: 100, temp: 30, safety: 7.0 },
+};
+
+const getNomadMetrics = (destination: string | null) => {
+  if (!destination) return null;
+  const d = destination.toLowerCase();
+  for (const [key, metrics] of Object.entries(NOMAD_METRICS)) {
+    if (d.includes(key)) return metrics;
+  }
+  return null;
+};
+
 // Auto-generate destination tags based on keywords
 const getDestinationTag = (destination: string | null): { label: string; color: string } => {
   if (!destination) return { label: 'Adventure awaits', color: 'bg-gray-600' };
@@ -296,90 +326,137 @@ export default function HubPage() {
       <div className="min-h-screen bg-[#F8F9FA]">
         <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
           
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''} 👋
-            </h1>
-            <p className="text-gray-500 mt-1">Your Financial Command Center</p>
+          {/* Header - Wall Street Style */}
+          <div className="mb-6 bg-[#2d1b4e] text-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {session?.user?.name || 'Dashboard'}
+                </h1>
+                <p className="text-gray-300 text-sm mt-0.5 font-mono">Financial Command Center · FY {selectedYear}</p>
+              </div>
+              <div className="text-right text-xs">
+                <div className="text-gray-300">Last updated</div>
+                <div className="font-mono">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+              </div>
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* UPCOMING TRIPS - HORIZONTAL SCROLL CARDS (Airbnb Style) */}
+          {/* UPCOMING TRIPS - WALL STREET STYLE DATA CARDS */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">✈️</span>
-                <h2 className="text-xl font-semibold text-gray-900">Upcoming Trips</h2>
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Committed Trips</h2>
+                <p className="text-xs text-gray-500">FY {selectedYear} · Nomad Itinerary · {committedTrips.length} destinations</p>
               </div>
-              <button 
-                onClick={() => router.push('/budgets/trips')}
-                className="text-sm text-cyan-600 hover:text-cyan-700 font-medium flex items-center gap-1"
-              >
-                View all
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+              <button onClick={() => router.push('/budgets/trips')} className="text-xs text-gray-600 hover:text-gray-900 font-medium">
+                View all →
               </button>
             </div>
             
             {committedTrips.length > 0 ? (
-              <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8">
+              <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8">
                 {committedTrips.map(trip => {
-                  const tag = getDestinationTag(trip.destination);
+                  const metrics = getNomadMetrics(trip.destination);
                   const nights = trip.startDate && trip.endDate 
                     ? Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24))
                     : null;
-                  const avgPerNight = nights && nights > 0 ? trip.totalBudget / nights : null;
+                  const avgPerNight = nights && nights > 0 ? Math.round(trip.totalBudget / nights) : null;
                   
                   return (
                     <div 
                       key={trip.id}
                       onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                      className="flex-shrink-0 w-[280px] snap-start cursor-pointer group"
+                      className="flex-shrink-0 w-[240px] border border-gray-300 bg-white cursor-pointer hover:shadow-md transition-shadow"
                     >
-                      <div className="relative h-[187px] rounded-xl overflow-hidden mb-3">
-                        {trip.destinationPhoto ? (
-                          <img src={trip.destinationPhoto} alt={trip.destination || trip.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center"><span className="text-6xl">✈️</span></div>
-                        )}
-                        <div className={`absolute top-3 left-3 ${tag.color} text-white text-xs font-medium px-2.5 py-1 rounded-md shadow-lg`}>{tag.label}</div>
-                        <button className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors" onClick={(e) => { e.stopPropagation(); }}>
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                        </button>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-base mb-0.5">{trip.destination || trip.name}</h3>
-                        <p className="text-gray-500 text-sm mb-2">
-                          {trip.startDate ? new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Date TBD"}
-                          {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
-                        </p>
-                        <div className="flex items-baseline gap-1">
-                          <span className="font-bold text-gray-900">{formatCurrency(trip.totalBudget)}</span>
-                          {nights && <span className="text-gray-500 text-sm">total · {nights} nights</span>}
+                      {/* Header */}
+                      <div className="bg-[#2d1b4e] text-white px-3 py-2">
+                        <div className="font-semibold text-sm truncate">{trip.destination || trip.name}</div>
+                        <div className="text-[10px] text-gray-300 font-mono">
+                          {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                          {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                          {nights && ` · ${nights}N`}
                         </div>
-                        {avgPerNight && <p className="text-gray-400 text-sm">{formatCurrency(avgPerNight)} avg/night</p>}
+                      </div>
+                      
+                      {/* Budget Row */}
+                      <div className="bg-[#3d2b5e] text-white px-3 py-2 flex justify-between items-center">
+                        <div>
+                          <div className="text-lg font-bold font-mono">{fmt(trip.totalBudget)}</div>
+                          <div className="text-[10px] text-gray-300">total budget</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-mono">{avgPerNight ? `$${avgPerNight}` : '—'}/nt</div>
+                          <div className="text-[10px] text-gray-300">avg cost</div>
+                        </div>
+                      </div>
+
+                      {/* Metrics Grid */}
+                      {metrics ? (
+                        <div className="grid grid-cols-2 divide-x divide-y divide-gray-200 text-xs">
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Cost Index</div>
+                            <div className={`font-mono font-semibold ${metrics.costIndex < 0.5 ? 'text-emerald-700' : metrics.costIndex < 0.7 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.costIndex}x US</div>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Visa</div>
+                            <div className="font-mono font-semibold text-gray-700">{metrics.visa}</div>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Timezone</div>
+                            <div className="font-mono font-semibold text-gray-700">{metrics.timezone}</div>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Internet</div>
+                            <div className={`font-mono font-semibold ${metrics.internet >= 50 ? 'text-emerald-700' : metrics.internet >= 30 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.internet} Mbps</div>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Cowork</div>
+                            <div className="font-mono font-semibold text-gray-700">${metrics.cowork}/mo</div>
+                          </div>
+                          <div className="p-2">
+                            <div className="text-gray-500 text-[10px]">Weather</div>
+                            <div className="font-mono font-semibold text-gray-700">{metrics.temp}°C</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-gray-400">
+                          <div className="text-gray-500 mb-1">No metrics data</div>
+                        </div>
+                      )}
+
+                      {/* Status Bar */}
+                      <div className="bg-gray-100 px-3 py-1.5 text-[10px] text-gray-500 flex justify-between border-t border-gray-200">
+                        {metrics ? (
+                          <>
+                            <span>Safety: {metrics.safety}/10</span>
+                            <span className={metrics.costIndex < 0.5 ? 'text-emerald-600 font-medium' : 'text-gray-500'}>{Math.round((1 - metrics.costIndex) * 100)}% cheaper</span>
+                          </>
+                        ) : (
+                          <span>Add destination metrics</span>
+                        )}
                       </div>
                     </div>
                   );
                 })}
-                <div onClick={() => router.push('/budgets/trips/new')} className="flex-shrink-0 w-[280px] h-[187px] rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/50 transition-colors snap-start">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3"><svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></div>
-                  <span className="text-gray-500 font-medium">Plan a new trip</span>
+                
+                {/* Add Trip Card */}
+                <div onClick={() => router.push('/budgets/trips/new')} className="flex-shrink-0 w-[240px] border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors min-h-[280px]">
+                  <div className="w-10 h-10 border-2 border-gray-300 flex items-center justify-center mb-2">
+                    <span className="text-gray-400 text-xl">+</span>
+                  </div>
+                  <span className="text-gray-500 text-sm font-medium">Add Trip</span>
                 </div>
               </div>
             ) : (
-              <div onClick={() => router.push('/budgets/trips/new')} className="bg-white rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/50 transition-colors">
-                <div className="text-5xl mb-4">✈️</div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">No trips planned yet</h3>
-                <p className="text-gray-500 mb-4">Start planning your next adventure</p>
-                <span className="inline-flex items-center gap-2 text-cyan-600 font-medium">Plan a trip<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></span>
+              <div onClick={() => router.push('/budgets/trips/new')} className="border border-dashed border-gray-300 bg-white p-8 text-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors">
+                <div className="text-gray-400 mb-2">No committed trips</div>
+                <span className="text-sm text-[#2d1b4e] font-medium">+ Add Trip</span>
               </div>
             )}
           </div>
-
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* CALENDAR - macOS STYLE */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
