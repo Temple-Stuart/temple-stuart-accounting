@@ -140,7 +140,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             <button
               onClick={openPlaidLink}
               disabled={!linkToken || loading}
-              className="px-3 py-1.5 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
             >
               {loading ? '...' : '+ Add Account'}
             </button>

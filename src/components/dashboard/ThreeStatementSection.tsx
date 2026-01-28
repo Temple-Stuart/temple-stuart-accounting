@@ -222,7 +222,7 @@ export default function ThreeStatementSection({
             onClick={() => setActiveStatement(tab.key as any)}
             className={`px-5 py-3 text-sm font-medium transition-colors ${
               activeStatement === tab.key
-                ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white'
+                ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white'
                 : 'text-gray-500 hover:text-gray-700 bg-gray-50'
             }`}
           >
@@ -332,7 +332,7 @@ export default function ThreeStatementSection({
                     </optgroup>
                   ))}
                 </select>
-                <button onClick={handleReassign} disabled={!reassignCoa || isReassigning} className="px-3 py-1 bg-[#b4b237] text-white rounded text-sm disabled:opacity-50">
+                <button onClick={handleReassign} disabled={!reassignCoa || isReassigning} className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-sm disabled:opacity-50">
                   {isReassigning ? '...' : 'Move'}
                 </button>
               </div>

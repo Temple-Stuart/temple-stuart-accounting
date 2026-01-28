@@ -271,7 +271,7 @@ export default function AdjustingEntriesTab() {
             disabled={!canSubmit() || loading}
             className={`px-6 py-2 rounded-lg text-sm font-medium ${
               canSubmit() && !loading
-                ? 'bg-[#b4b237] text-white hover:bg-[#9a9730]'
+                ? 'bg-[#2d1b4e] text-white hover:bg-[#9a9730]'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >

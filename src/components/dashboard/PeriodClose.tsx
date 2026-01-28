@@ -226,7 +226,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                       <button
                         onClick={() => setClosing(idx)}
                         disabled={!canClose(idx)}
-                        className="px-3 py-1 bg-[#b4b237] text-white rounded text-xs font-medium disabled:opacity-50"
+                        className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-xs font-medium disabled:opacity-50"
                         title={uncatCount > 0 ? 'Categorize all transactions first' : ''}
                       >
                         Close Period

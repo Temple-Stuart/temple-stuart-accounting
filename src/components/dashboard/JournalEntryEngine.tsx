@@ -163,7 +163,7 @@ export default function JournalEntryEngine({ entries, coaOptions, onSave, onRelo
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-[#b4b237] text-white rounded-lg text-sm font-medium"
+          className="px-4 py-1.5 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium"
         >
           {showForm ? '✕ Cancel' : '+ New Entry'}
         </button>
@@ -277,7 +277,7 @@ export default function JournalEntryEngine({ entries, coaOptions, onSave, onRelo
             <tfoot className="bg-gray-50 font-semibold">
               <tr>
                 <td className="px-2 py-2" colSpan={2}>
-                  <button onClick={addLine} className="text-[#b4b237] text-sm hover:underline">+ Add Line</button>
+                  <button onClick={addLine} className="text-[#2d1b4e] text-sm hover:underline">+ Add Line</button>
                 </td>
                 <td className="px-2 py-2 text-right">${totalDebits.toFixed(2)}</td>
                 <td className="px-2 py-2 text-right">${totalCredits.toFixed(2)}</td>
@@ -312,7 +312,7 @@ export default function JournalEntryEngine({ entries, coaOptions, onSave, onRelo
               <button
                 onClick={() => handleSave('posted')}
                 disabled={!isBalanced || saving}
-                className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Post Entry'}
               </button>

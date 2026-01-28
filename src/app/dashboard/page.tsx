@@ -269,7 +269,7 @@ export default function Dashboard() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-3 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -329,11 +329,11 @@ export default function Dashboard() {
             <Card noPadding>
               <div className="flex border-b">
                 <button onClick={() => setMappingTab('spending')}
-                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'spending' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'spending' ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
                   Spending <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedSpending.length}</span>
                 </button>
                 <button onClick={() => setMappingTab('investments')}
-                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'investments' ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'investments' ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
                   Invest <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedInvestments.length}</span>
                 </button>
               </div>
@@ -357,7 +357,7 @@ export default function Dashboard() {
               <div className="flex border-b overflow-x-auto">
                 {[{ key: 'income', label: 'Income' }, { key: 'balance', label: 'Balance' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
                   <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
-                    className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${activeStatement === tab.key ? 'border-b-2 border-[#b4b237] text-[#b4b237] bg-white' : 'text-gray-500 bg-gray-50'}`}>
+                    className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${activeStatement === tab.key ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
                     {tab.label}
                   </button>
                 ))}
@@ -366,23 +366,23 @@ export default function Dashboard() {
               {activeStatement === 'income' && (
                 <ResponsiveTable minWidth="900px">
                   <table className="w-full text-sm border-collapse">
-                    <thead className="bg-gray-900 text-white">
+                    <thead className="bg-[#2d1b4e] text-white">
                       <tr>
                         <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
                         {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
-                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-gray-800 sticky right-0">YTD</th>
+                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-[#1a0f2e] sticky right-0">YTD</th>
                       </tr>
                     </thead>
                     <tbody>
                       {revenueCodes.length > 0 && <>{renderSectionHeader('Revenue', true)}{revenueCodes.map(renderStatementRow)}{renderSectionTotal('Revenue', revenueCodes, true)}</>}
                       {expenseCodes.length > 0 && <>{renderSectionHeader('Expenses', false)}{expenseCodes.map(renderStatementRow)}{renderSectionTotal('Expenses', expenseCodes, false)}</>}
-                      <tr className="bg-[#b4b237]/10 font-bold border-t-2 border-[#b4b237]">
-                        <td className="px-3 py-2.5 sticky left-0 bg-[#b4b237]/10 z-10 text-gray-900 text-xs sm:text-sm shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Net Income</td>
+                      <tr className="bg-[#2d1b4e]/10 font-bold border-t-2 border-[#2d1b4e]">
+                        <td className="px-3 py-2.5 sticky left-0 bg-[#2d1b4e]/10 z-10 text-gray-900 text-xs sm:text-sm shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Net Income</td>
                         {MONTHS.map((_, m) => {
                           const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
                           return <td key={m} className={`px-1.5 sm:px-2 py-2.5 text-right tabular-nums text-xs sm:text-sm whitespace-nowrap ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>{ni === 0 ? '-' : formatMoney(ni, true)}</td>;
                         })}
-                        <td className={`px-2 sm:px-3 py-2.5 text-right bg-[#b4b237]/20 sticky right-0 tabular-nums font-bold text-xs sm:text-sm whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        <td className={`px-2 sm:px-3 py-2.5 text-right bg-[#2d1b4e]/20 sticky right-0 tabular-nums font-bold text-xs sm:text-sm whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                           {formatMoney(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)), true)}
                         </td>
                       </tr>
@@ -395,11 +395,11 @@ export default function Dashboard() {
               {activeStatement === 'balance' && (
                 <ResponsiveTable minWidth="900px">
                   <table className="w-full text-sm border-collapse">
-                    <thead className="bg-gray-900 text-white">
+                    <thead className="bg-[#2d1b4e] text-white">
                       <tr>
                         <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
                         {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
-                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-gray-800 sticky right-0">YTD</th>
+                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-[#1a0f2e] sticky right-0">YTD</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -466,8 +466,8 @@ export default function Dashboard() {
                   <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                 ))}
               </select>
-              <input type="text" value={assignSub} onChange={(e) => setAssignSub(e.target.value)} placeholder="Vendor" className="flex-1 min-w-[80px] px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg text-xs sm:text-sm" />
-              <Button size="sm" onClick={handleBulkAssign} disabled={(!assignCoa && !assignSub) || isAssigning} loading={isAssigning}>Go</Button>
+              
+              <Button size="sm" onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} loading={isAssigning}>Go</Button>
               <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
             </div>
           </div>
@@ -486,7 +486,7 @@ export default function Dashboard() {
               </div>
 
               {selectedDrilldownTxns.length > 0 && (
-                <div className="px-4 sm:px-6 py-2 sm:py-3 bg-[#b4b237]/10 border-b flex items-center gap-2">
+                <div className="px-4 sm:px-6 py-2 sm:py-3 bg-[#2d1b4e]/10 border-b flex items-center gap-2">
                   <Badge variant="gold" size="sm">{selectedDrilldownTxns.length}</Badge>
                   <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 text-xs sm:text-sm border rounded-lg px-2 py-1">
                     <option value="">Move to...</option>

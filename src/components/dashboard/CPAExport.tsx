@@ -262,7 +262,7 @@ export default function CPAExport({ transactions, coaOptions, selectedYear }: CP
           <button
             onClick={exportAll}
             disabled={exporting !== null}
-            className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
           >
             {exporting === 'all' ? 'Exporting...' : '📦 Export All'}
           </button>
