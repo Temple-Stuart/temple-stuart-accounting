@@ -6,75 +6,113 @@ export async function GET() {
   try {
     const cookieStore = await cookies();
     const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
+    const entries = await prisma.trade_journal_entries.findMany({
+      where: { userId: user.id },
+      orderBy: { entryDate: 'desc' }
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Query ALL trading positions (both OPEN and CLOSED)
-    const positions = await prisma.trading_positions.findMany({
-      where: {
-        status: 'CLOSED'  // Only show completed trades
-      },
-      orderBy: { close_date: 'desc' }
-    });
-
-    console.log(`Found ${positions.length} closed positions`);
-
-    // Group positions by trade_num
-    const groupedByTradeNum: { [key: string]: any[] } = {};
-    
-    positions.forEach(position => {
-      const key = position.trade_num || position.id;
-      if (!groupedByTradeNum[key]) {
-        groupedByTradeNum[key] = [];
-      }
-      groupedByTradeNum[key].push(position);
-    });
-
-    const tradeGroups = Object.entries(groupedByTradeNum).map(([tradeNum, legs]) => {
-      // Use calculated realized_pl from position tracker (IRS-compliant)
-      const totalPL = legs.reduce((sum, leg) => sum + (Number(leg.realized_pl) || 0), 0);
-      const totalFees = legs.reduce((sum, leg) => sum + (Number(leg.open_fees) || 0) + (Number(leg.close_fees) || 0), 0);
-      const netPL = totalPL;
-      
-      const firstLeg = legs[0];
-      const lastLeg = legs[legs.length - 1];
-      
-      return {
-        tradeNum,
-        strategy: firstLeg.strategy || 'Unknown',
-        symbol: firstLeg.symbol,
-        entryDate: firstLeg.open_date,
-        exitDate: lastLeg.close_date || lastLeg.open_date,
-        legs: legs.length,
-        totalPL,
-        totalFees,
-        netPL,
-        isWinner: netPL > 0,
-        trades: legs.map(leg => ({
-          id: leg.id,
-          date: leg.open_date,
-          name: `${leg.position_type} ${leg.symbol} $${leg.strike_price} ${leg.option_type}`,
-          quantity: leg.quantity,
-          price: Number(leg.open_price),
-          amount: Number(leg.realized_pl),
-          fees: Number(leg.open_fees) + Number(leg.close_fees)
-        }))
-      };
-    });
-
-    return NextResponse.json(tradeGroups);
+    return NextResponse.json({ entries });
   } catch (error) {
-    console.error('Trading journal error:', error);
-    return NextResponse.json({ error: 'Failed to fetch trading journal' }, { status: 500 });
+    console.error('Trading journal GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const body = await request.json();
+    const { tradeNum, entryType, thesis, setup, emotion, mistakes, lessons, rating, tags } = body;
+
+    if (!tradeNum) {
+      return NextResponse.json({ error: 'tradeNum is required' }, { status: 400 });
+    }
+
+    // Upsert - update if exists, create if not
+    const existing = await prisma.trade_journal_entries.findFirst({
+      where: { userId: user.id, tradeNum }
+    });
+
+    let entry;
+    if (existing) {
+      entry = await prisma.trade_journal_entries.update({
+        where: { id: existing.id },
+        data: {
+          entryType: entryType || existing.entryType,
+          thesis: thesis ?? existing.thesis,
+          setup: setup ?? existing.setup,
+          emotion: emotion ?? existing.emotion,
+          mistakes: mistakes ?? existing.mistakes,
+          lessons: lessons ?? existing.lessons,
+          rating: rating ?? existing.rating,
+          tags: tags ?? existing.tags,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      entry = await prisma.trade_journal_entries.create({
+        data: {
+          userId: user.id,
+          tradeNum,
+          entryType: entryType || 'post-trade',
+          thesis: thesis || null,
+          setup: setup || null,
+          emotion: emotion || 'neutral',
+          mistakes: mistakes || null,
+          lessons: lessons || null,
+          rating: rating || null,
+          tags: tags || []
+        }
+      });
+    }
+
+    return NextResponse.json({ entry });
+  } catch (error) {
+    console.error('Trading journal POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    await prisma.trade_journal_entries.deleteMany({
+      where: { id, userId: user.id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Trading journal DELETE error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
