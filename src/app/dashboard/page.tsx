@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Script from 'next/script';
-import { AppLayout, Card, Button, Badge, PageHeader, ResponsiveTable } from '@/components/ui';
+import { AppLayout, ResponsiveTable } from '@/components/ui';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -22,7 +22,6 @@ interface Transaction {
   subAccount: string | null;
   plaidAccountId: string;
 }
-
 interface Account {
   id: string;
   name: string;
@@ -62,8 +61,8 @@ export default function Dashboard() {
   const [reassignCoa, setReassignCoa] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assignCoa, setAssignCoa] = useState('');
-  const [assignSub, setAssignSub] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>('accounts');
 
   useEffect(() => {
     if (session?.user?.email) {
@@ -102,18 +101,12 @@ export default function Dashboard() {
     finally { setLoading(false); }
   }, []);
 
-  // Load data on mount - don't gate on session since APIs use cookie auth
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
   const getCoaType = (code: string) => coaOptions.find(c => c.code === code)?.accountType || '';
-  const formatMoney = (n: number, showSign = false) => {
-    const formatted = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    if (showSign) return n < 0 ? `-$${formatted}` : `$${formatted}`;
-    return `$${formatted}`;
-  };
+  const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const fmtSigned = (n: number) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   const uncommittedSpending = transactions.filter(t => !t.accountCode);
   const committedSpending = transactions.filter(t => t.accountCode);
@@ -192,13 +185,13 @@ export default function Dashboard() {
   };
 
   const handleBulkAssign = async () => {
-    if (!selectedIds.length || (!assignCoa && !assignSub)) return;
+    if (!selectedIds.length || !assignCoa) return;
     setIsAssigning(true);
     await fetch('/api/transactions/assign-coa', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactionIds: selectedIds, accountCode: assignCoa || undefined, subAccount: assignSub || undefined })
+      body: JSON.stringify({ transactionIds: selectedIds, accountCode: assignCoa })
     });
-    setSelectedIds([]); setAssignCoa(''); setAssignSub('');
+    setSelectedIds([]); setAssignCoa('');
     await loadData();
     setIsAssigning(false);
   };
@@ -223,53 +216,14 @@ export default function Dashboard() {
   const closePeriod = async (year: number, month: number, notes?: string) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "close", notes }) }); };
   const reopenPeriod = async (year: number, month: number) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "reopen" }) }); };
 
-  const renderStatementRow = (code: string) => (
-    <tr key={code} className="border-b border-gray-100 hover:bg-gray-50/50">
-      <td className="px-3 py-2.5 sticky left-0 bg-white z-10 min-w-[140px] sm:min-w-[180px] border-r border-gray-100 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
-        <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">{getCoaName(code)}</div>
-        <div className="text-[10px] sm:text-xs text-gray-400 font-mono">{code}</div>
-      </td>
-      {MONTHS.map((_, m) => {
-        const val = gridData[code]?.[m] || 0;
-        return (
-          <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
-            className={`px-1.5 sm:px-2 py-2.5 text-right text-xs sm:text-sm tabular-nums whitespace-nowrap ${val !== 0 ? 'cursor-pointer hover:bg-blue-50 text-gray-900' : 'text-gray-300'}`}>
-            {val === 0 ? '-' : formatMoney(val)}
-          </td>
-        );
-      })}
-      <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
-        className="px-2 sm:px-3 py-2.5 text-right text-xs sm:text-sm font-bold bg-gray-50 sticky right-0 cursor-pointer hover:bg-blue-50 tabular-nums whitespace-nowrap border-l border-gray-200 shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]">
-        {formatMoney(getRowTotal(code))}
-      </td>
-    </tr>
-  );
-
-  const renderSectionHeader = (title: string, isRevenue: boolean) => (
-    <tr className={isRevenue ? 'bg-green-50' : 'bg-red-50'}>
-      <td colSpan={14} className={`px-3 py-2 font-bold text-xs sm:text-sm sticky left-0 ${isRevenue ? 'text-green-800 bg-green-50' : 'text-red-800 bg-red-50'}`}>{title}</td>
-    </tr>
-  );
-
-  const renderSectionTotal = (title: string, codes: string[], isRevenue: boolean) => (
-    <tr className={isRevenue ? 'bg-green-100' : 'bg-red-100'}>
-      <td className={`px-3 py-2.5 font-bold text-xs sm:text-sm sticky left-0 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] ${isRevenue ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Total {title}</td>
-      {MONTHS.map((_, m) => (
-        <td key={m} className={`px-1.5 sm:px-2 py-2.5 text-right font-bold text-xs sm:text-sm tabular-nums whitespace-nowrap ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
-          {formatMoney(getMonthTotal(codes, m))}
-        </td>
-      ))}
-      <td className={`px-2 sm:px-3 py-2.5 text-right font-bold text-xs sm:text-sm bg-gray-100 sticky right-0 tabular-nums whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${isRevenue ? 'text-green-800' : 'text-red-800'}`}>
-        {formatMoney(getSectionTotal(codes))}
-      </td>
-    </tr>
-  );
+  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+  const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
 
   if (loading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-3 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -279,259 +233,461 @@ export default function Dashboard() {
     <>
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
       <AppLayout>
-        <PageHeader
-          title="Bookkeeping"
-          subtitle={`${transactions.length.toLocaleString()} transactions • ${accounts.length} accounts`}
-          backHref="/hub"
-          actions={
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={syncAccounts} loading={syncing}>{syncing ? '...' : '🔄'}</Button>
-              <Button size="sm" onClick={openPlaidLink} disabled={!linkToken}>+ Account</Button>
-            </div>
-          }
-        />
-
-        <div className="px-3 sm:px-4 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
-          {/* Section 1: Connected Accounts */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Connected Accounts</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-              {accounts.map(acc => (
-                <Card key={acc.id} className="hover:shadow-md transition-shadow !p-3 sm:!p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-900 text-sm truncate">{acc.institutionName}</div>
-                      <div className="text-[10px] sm:text-xs text-gray-400">•••• {acc.mask || '----'}</div>
-                    </div>
-                    <div className="sm:text-right">
-                      <div className="text-base sm:text-xl font-bold text-gray-900">${acc.balance.toLocaleString()}</div>
-                      <Badge variant="default" size="sm">{acc.type}</Badge>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-              {accounts.length === 0 && (
-                <Card className="col-span-full text-center py-6 sm:py-8 text-gray-400 text-sm">
-                  No accounts connected. Tap "+ Account" to link your bank.
-                </Card>
-              )}
-            </div>
-          </section>
-
-          {/* Section 2: Map to COA */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4 flex items-center flex-wrap gap-2">
-              Map to COA
-              {(uncommittedSpending.length + uncommittedInvestments.length) > 0 && (
-                <Badge variant="warning" size="sm">{uncommittedSpending.length + uncommittedInvestments.length} pending</Badge>
-              )}
-            </h2>
-            <Card noPadding>
-              <div className="flex border-b">
-                <button onClick={() => setMappingTab('spending')}
-                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'spending' ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
-                  Spending <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedSpending.length}</span>
-                </button>
-                <button onClick={() => setMappingTab('investments')}
-                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${mappingTab === 'investments' ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
-                  Invest <span className="text-[10px] sm:text-xs text-gray-400 ml-1">{uncommittedInvestments.length}</span>
-                </button>
-              </div>
-              <div className="p-3 sm:p-4">
-                {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
-                {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={loadData} />}
-              </div>
-            </Card>
-          </section>
-
-          {/* Section 3: Financial Statements */}
-          <section>
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider">Financial Statements</h2>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="border border-gray-200 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm">
-                {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <Card noPadding>
-              <div className="flex border-b overflow-x-auto">
-                {[{ key: 'income', label: 'Income' }, { key: 'balance', label: 'Balance' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
-                  <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
-                    className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${activeStatement === tab.key ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white' : 'text-gray-500 bg-gray-50'}`}>
-                    {tab.label}
+        <div className="min-h-screen bg-[#f5f5f5]">
+          <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
+            
+            {/* Header - Wall Street Style */}
+            <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-semibold tracking-tight">Bookkeeping</h1>
+                  <p className="text-gray-300 text-xs font-mono">{transactions.length.toLocaleString()} transactions · {accounts.length} accounts · FY {selectedYear}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={syncAccounts} disabled={syncing} className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 transition-colors">
+                    {syncing ? 'Syncing...' : 'Sync'}
                   </button>
-                ))}
+                  <button onClick={openPlaidLink} disabled={!linkToken} className="px-3 py-1.5 text-xs bg-white/20 hover:bg-white/30 transition-colors">
+                    + Account
+                  </button>
+                </div>
               </div>
+            </div>
 
-              {activeStatement === 'income' && (
-                <ResponsiveTable minWidth="900px">
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="bg-[#2d1b4e] text-white">
-                      <tr>
-                        <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
-                        {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
-                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-[#1a0f2e] sticky right-0">YTD</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {revenueCodes.length > 0 && <>{renderSectionHeader('Revenue', true)}{revenueCodes.map(renderStatementRow)}{renderSectionTotal('Revenue', revenueCodes, true)}</>}
-                      {expenseCodes.length > 0 && <>{renderSectionHeader('Expenses', false)}{expenseCodes.map(renderStatementRow)}{renderSectionTotal('Expenses', expenseCodes, false)}</>}
-                      <tr className="bg-[#2d1b4e]/10 font-bold border-t-2 border-[#2d1b4e]">
-                        <td className="px-3 py-2.5 sticky left-0 bg-[#2d1b4e]/10 z-10 text-gray-900 text-xs sm:text-sm shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">Net Income</td>
-                        {MONTHS.map((_, m) => {
-                          const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
-                          return <td key={m} className={`px-1.5 sm:px-2 py-2.5 text-right tabular-nums text-xs sm:text-sm whitespace-nowrap ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>{ni === 0 ? '-' : formatMoney(ni, true)}</td>;
-                        })}
-                        <td className={`px-2 sm:px-3 py-2.5 text-right bg-[#2d1b4e]/20 sticky right-0 tabular-nums font-bold text-xs sm:text-sm whitespace-nowrap shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)] ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                          {formatMoney(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)), true)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-8 sm:p-12 text-center text-gray-400 text-sm">No data for {selectedYear}</div>}
-                </ResponsiveTable>
-              )}
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div className="bg-white border border-gray-200 p-3">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Balance</div>
+                <div className="text-xl font-bold font-mono text-gray-900">{fmt(totalBalance)}</div>
+              </div>
+              <div className="bg-white border border-gray-200 p-3">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pending Review</div>
+                <div className="text-xl font-bold font-mono text-gray-900">{pendingCount}</div>
+              </div>
+              <div className="bg-white border border-gray-200 p-3">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">YTD Revenue</div>
+                <div className="text-xl font-bold font-mono text-emerald-700">{fmt(Math.abs(getSectionTotal(revenueCodes)))}</div>
+              </div>
+              <div className="bg-white border border-gray-200 p-3">
+                <div className="text-[10px] text-gray-500 uppercase tracking-wider">YTD Expenses</div>
+                <div className="text-xl font-bold font-mono text-red-700">{fmt(Math.abs(getSectionTotal(expenseCodes)))}</div>
+              </div>
+            </div>
 
-              {activeStatement === 'balance' && (
-                <ResponsiveTable minWidth="900px">
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="bg-[#2d1b4e] text-white">
-                      <tr>
-                        <th className="px-3 py-2.5 text-left font-semibold text-xs sm:text-sm sticky left-0 bg-gray-900 z-20 min-w-[140px] sm:min-w-[180px]">Account</th>
-                        {MONTHS.map((m, i) => <th key={i} className="px-1.5 sm:px-2 py-2.5 text-right font-semibold text-[10px] sm:text-xs">{m}</th>)}
-                        <th className="px-2 sm:px-3 py-2.5 text-right font-semibold text-xs sm:text-sm bg-[#1a0f2e] sticky right-0">YTD</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assetCodes.length > 0 && <>{renderSectionHeader('Assets', true)}{assetCodes.map(renderStatementRow)}{renderSectionTotal('Assets', assetCodes, true)}</>}
-                      {liabilityCodes.length > 0 && <>{renderSectionHeader('Liabilities', false)}{liabilityCodes.map(renderStatementRow)}{renderSectionTotal('Liabilities', liabilityCodes, false)}</>}
-                      {equityCodes.length > 0 && <>{renderSectionHeader('Equity', true)}{equityCodes.map(renderStatementRow)}{renderSectionTotal('Equity', equityCodes, true)}</>}
-                    </tbody>
-                  </table>
-                  {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-8 sm:p-12 text-center text-gray-400 text-sm">No data for {selectedYear}</div>}
-                </ResponsiveTable>
-              )}
+            {/* Section Tabs */}
+            <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
+              {[
+                { key: 'accounts', label: 'Accounts' },
+                { key: 'mapping', label: `Map COA${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
+                { key: 'statements', label: 'Statements' },
+                { key: 'ledger', label: 'Ledger' },
+                { key: 'journal', label: 'Journal' },
+                { key: 'reconcile', label: 'Reconcile' },
+                { key: 'close', label: 'Period Close' },
+                { key: 'export', label: 'Export' },
+              ].map(tab => (
+                <button key={tab.key} onClick={() => setActiveSection(tab.key)}
+                  className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeSection === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-              {activeStatement === 'cashflow' && (
-                <div className="p-8 sm:p-12 text-center text-gray-400">
-                  <div className="text-3xl sm:text-4xl mb-3">📊</div>
-                  <p className="text-sm sm:text-base font-medium">Cash Flow Statement</p>
-                  <p className="text-xs sm:text-sm mt-1">Coming soon</p>
+            {/* Section Content */}
+            <div className="bg-white border border-gray-200">
+              
+              {/* Connected Accounts */}
+              {activeSection === 'accounts' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                    Connected Accounts
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#3d2b5e] text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Institution</th>
+                          <th className="px-3 py-2 text-left font-medium">Account</th>
+                          <th className="px-3 py-2 text-left font-medium">Type</th>
+                          <th className="px-3 py-2 text-right font-medium">Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {accounts.map(acc => (
+                          <tr key={acc.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 font-medium text-gray-900">{acc.institutionName}</td>
+                            <td className="px-3 py-2 text-gray-600 font-mono">•••• {acc.mask || '----'}</td>
+                            <td className="px-3 py-2"><span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] uppercase">{acc.type}</span></td>
+                            <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(acc.balance)}</td>
+                          </tr>
+                        ))}
+                        {accounts.length === 0 && (
+                          <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400">No accounts connected</td></tr>
+                        )}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(totalBalance)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               )}
-            </Card>
-          </section>
 
-          {/* Section 4: General Ledger */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">General Ledger</h2>
-            <GeneralLedger transactions={transactions} coaOptions={coaOptions} onUpdate={handleLedgerUpdate} />
-          </section>
+              {/* Map to COA */}
+              {activeSection === 'mapping' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold">Map Transactions to Chart of Accounts</span>
+                    {pendingCount > 0 && <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-medium">{pendingCount} pending</span>}
+                  </div>
+                  <div className="flex border-b border-gray-200">
+                    <button onClick={() => setMappingTab('spending')}
+                      className={`flex-1 px-4 py-2 text-xs font-medium ${mappingTab === 'spending' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
+                      Spending ({uncommittedSpending.length})
+                    </button>
+                    <button onClick={() => setMappingTab('investments')}
+                      className={`flex-1 px-4 py-2 text-xs font-medium ${mappingTab === 'investments' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
+                      Investments ({uncommittedInvestments.length})
+                    </button>
+                  </div>
+                  <div className="p-4">
+                    {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
+                    {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={loadData} />}
+                  </div>
+                </div>
+              )}
 
-          {/* Section 5: Journal Entries */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Journal Entries</h2>
-            <JournalEntryEngine entries={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={loadData} />
-          </section>
+              {/* Financial Statements */}
+              {activeSection === 'statements' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold">Financial Statements</span>
+                    <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
+                      className="bg-[#3d2b5e] text-white border-0 text-xs px-2 py-1">
+                      {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex border-b border-gray-200">
+                    {[{ key: 'income', label: 'Income Statement' }, { key: 'balance', label: 'Balance Sheet' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
+                      <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
+                        className={`px-4 py-2 text-xs font-medium ${activeStatement === tab.key ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
 
-          {/* Section 6: Bank Reconciliation */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Bank Reconciliation</h2>
-            <BankReconciliation accounts={accounts} transactions={transactions} reconciliations={reconciliations} onSave={saveReconciliation} onReload={loadData} />
-          </section>
+                  {activeStatement === 'income' && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="bg-[#2d1b4e] text-white">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-[#2d1b4e] z-10 min-w-[160px]">Account</th>
+                            {MONTHS.map((m, i) => <th key={i} className="px-2 py-2 text-right font-medium w-16">{m}</th>)}
+                            <th className="px-3 py-2 text-right font-medium bg-[#1a0f2e] sticky right-0 w-20">YTD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {revenueCodes.length > 0 && (
+                            <>
+                              <tr className="bg-emerald-50">
+                                <td colSpan={14} className="px-3 py-1.5 font-bold text-emerald-800 sticky left-0 bg-emerald-50">Revenue</td>
+                              </tr>
+                              {revenueCodes.map(code => (
+                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                  </td>
+                                  {MONTHS.map((_, m) => {
+                                    const val = gridData[code]?.[m] || 0;
+                                    return (
+                                      <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
+                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-emerald-50 text-gray-900' : 'text-gray-300'}`}>
+                                        {val === 0 ? '—' : fmt(val)}
+                                      </td>
+                                    );
+                                  })}
+                                  <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
+                                    className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0 cursor-pointer hover:bg-emerald-50">
+                                    {fmt(getRowTotal(code))}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="bg-emerald-100">
+                                <td className="px-3 py-2 font-bold text-emerald-800 sticky left-0 bg-emerald-100">Total Revenue</td>
+                                {MONTHS.map((_, m) => (
+                                  <td key={m} className="px-2 py-2 text-right font-mono font-bold text-emerald-800">{fmt(getMonthTotal(revenueCodes, m))}</td>
+                                ))}
+                                <td className="px-3 py-2 text-right font-mono font-bold text-emerald-800 bg-emerald-100 sticky right-0">{fmt(getSectionTotal(revenueCodes))}</td>
+                              </tr>
+                            </>
+                          )}
+                          {expenseCodes.length > 0 && (
+                            <>
+                              <tr className="bg-red-50">
+                                <td colSpan={14} className="px-3 py-1.5 font-bold text-red-800 sticky left-0 bg-red-50">Expenses</td>
+                              </tr>
+                              {expenseCodes.map(code => (
+                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                  </td>
+                                  {MONTHS.map((_, m) => {
+                                    const val = gridData[code]?.[m] || 0;
+                                    return (
+                                      <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
+                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-red-50 text-gray-900' : 'text-gray-300'}`}>
+                                        {val === 0 ? '—' : fmt(val)}
+                                      </td>
+                                    );
+                                  })}
+                                  <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
+                                    className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0 cursor-pointer hover:bg-red-50">
+                                    {fmt(getRowTotal(code))}
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="bg-red-100">
+                                <td className="px-3 py-2 font-bold text-red-800 sticky left-0 bg-red-100">Total Expenses</td>
+                                {MONTHS.map((_, m) => (
+                                  <td key={m} className="px-2 py-2 text-right font-mono font-bold text-red-800">{fmt(getMonthTotal(expenseCodes, m))}</td>
+                                ))}
+                                <td className="px-3 py-2 text-right font-mono font-bold text-red-800 bg-red-100 sticky right-0">{fmt(getSectionTotal(expenseCodes))}</td>
+                              </tr>
+                            </>
+                          )}
+                          <tr className="bg-[#2d1b4e]/10 border-t-2 border-[#2d1b4e]">
+                            <td className="px-3 py-2 font-bold text-gray-900 sticky left-0 bg-[#2d1b4e]/10">Net Income</td>
+                            {MONTHS.map((_, m) => {
+                              const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
+                              return <td key={m} className={`px-2 py-2 text-right font-mono font-bold ${ni >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{ni === 0 ? '—' : fmtSigned(ni)}</td>;
+                            })}
+                            <td className={`px-3 py-2 text-right font-mono font-bold sticky right-0 bg-[#2d1b4e]/20 ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                              {fmtSigned(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)))}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-8 text-center text-gray-400">No data for {selectedYear}</div>}
+                    </div>
+                  )}
 
-          {/* Section 7: Period Close */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Period Close</h2>
-            <PeriodClose transactions={transactions} reconciliations={reconciliations} periodCloses={periodCloses} selectedYear={selectedYear} onClose={closePeriod} onReopen={reopenPeriod} onReload={loadData} />
-          </section>
+                  {activeStatement === 'balance' && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="bg-[#2d1b4e] text-white">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-[#2d1b4e] z-10 min-w-[160px]">Account</th>
+                            {MONTHS.map((m, i) => <th key={i} className="px-2 py-2 text-right font-medium w-16">{m}</th>)}
+                            <th className="px-3 py-2 text-right font-medium bg-[#1a0f2e] sticky right-0 w-20">YTD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {assetCodes.length > 0 && (
+                            <>
+                              <tr className="bg-blue-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-blue-800 sticky left-0 bg-blue-50">Assets</td></tr>
+                              {assetCodes.map(code => (
+                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                  </td>
+                                  {MONTHS.map((_, m) => {
+                                    const val = gridData[code]?.[m] || 0;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                  })}
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                </tr>
+                              ))}
+                            </>
+                          )}
+                          {liabilityCodes.length > 0 && (
+                            <>
+                              <tr className="bg-orange-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-orange-800 sticky left-0 bg-orange-50">Liabilities</td></tr>
+                              {liabilityCodes.map(code => (
+                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                  </td>
+                                  {MONTHS.map((_, m) => {
+                                    const val = gridData[code]?.[m] || 0;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                  })}
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                </tr>
+                              ))}
+                            </>
+                          )}
+                          {equityCodes.length > 0 && (
+                            <>
+                              <tr className="bg-purple-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-purple-800 sticky left-0 bg-purple-50">Equity</td></tr>
+                              {equityCodes.map(code => (
+                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                  <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                  </td>
+                                  {MONTHS.map((_, m) => {
+                                    const val = gridData[code]?.[m] || 0;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                  })}
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                </tr>
+                              ))}
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+                      {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-8 text-center text-gray-400">No data for {selectedYear}</div>}
+                    </div>
+                  )}
 
-          {/* Section 8: CPA Export */}
-          <section>
-            <h2 className="text-xs sm:text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">CPA Export</h2>
-            <CPAExport transactions={transactions} coaOptions={coaOptions} selectedYear={selectedYear} />
-          </section>
+                  {activeStatement === 'cashflow' && (
+                    <div className="p-8 text-center text-gray-400">
+                      <p className="text-sm font-medium">Cash Flow Statement</p>
+                      <p className="text-xs mt-1">Coming soon</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {selectedIds.length > 0 && <div className="h-20" />}
+              {/* General Ledger */}
+              {activeSection === 'ledger' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">General Ledger</div>
+                  <div className="p-4">
+                    <GeneralLedger transactions={transactions} coaOptions={coaOptions} onUpdate={handleLedgerUpdate} />
+                  </div>
+                </div>
+              )}
+
+              {/* Journal Entries */}
+              {activeSection === 'journal' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Journal Entries</div>
+                  <div className="p-4">
+                    <JournalEntryEngine entries={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={loadData} />
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Reconciliation */}
+              {activeSection === 'reconcile' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Bank Reconciliation</div>
+                  <div className="p-4">
+                    <BankReconciliation accounts={accounts} transactions={transactions} reconciliations={reconciliations} onSave={saveReconciliation} onReload={loadData} />
+                  </div>
+                </div>
+              )}
+
+              {/* Period Close */}
+              {activeSection === 'close' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Period Close</div>
+                  <div className="p-4">
+                    <PeriodClose transactions={transactions} reconciliations={reconciliations} periodCloses={periodCloses} selectedYear={selectedYear} onClose={closePeriod} onReopen={reopenPeriod} onReload={loadData} />
+                  </div>
+                </div>
+              )}
+
+              {/* CPA Export */}
+              {activeSection === 'export' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">CPA Export</div>
+                  <div className="p-4">
+                    <CPAExport transactions={transactions} coaOptions={coaOptions} selectedYear={selectedYear} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
         </div>
 
         {/* Bulk Assign Bar */}
         {selectedIds.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 sm:p-4 z-40">
-            <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
-              <Badge variant="gold">{selectedIds.length}</Badge>
-              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 min-w-[100px] px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg text-xs sm:text-sm">
-                <option value="">Category...</option>
+          <div className="fixed bottom-0 left-0 right-0 bg-[#2d1b4e] text-white p-3 z-40">
+            <div className="max-w-7xl mx-auto flex items-center gap-3">
+              <span className="px-2 py-1 bg-white/20 text-xs font-mono">{selectedIds.length}</span>
+              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 bg-[#3d2b5e] text-white border-0 px-3 py-1.5 text-xs">
+                <option value="">Select COA...</option>
                 {Object.entries(coaGrouped).map(([type, opts]) => (
                   <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                 ))}
               </select>
-              
-              <Button size="sm" onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} loading={isAssigning}>Go</Button>
-              <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
+              <button onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} className="px-4 py-1.5 bg-white text-[#2d1b4e] text-xs font-medium disabled:opacity-50">
+                {isAssigning ? '...' : 'Assign'}
+              </button>
+              <button onClick={() => setSelectedIds([])} className="text-white/60 hover:text-white text-lg">×</button>
             </div>
           </div>
         )}
 
         {/* Drilldown Modal */}
         {drilldownCell && (
-          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>
-            <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex justify-between items-center">
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-gray-900 text-sm sm:text-base truncate">{getCoaName(drilldownCell.coaCode)}</h4>
-                  <p className="text-xs sm:text-sm text-gray-500">{drilldownCell.month === -1 ? 'Year' : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} txns</p>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>
+            <div className="bg-white w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="bg-[#2d1b4e] text-white px-4 py-3 flex justify-between items-center">
+                <div>
+                  <h4 className="font-semibold text-sm">{getCoaName(drilldownCell.coaCode)}</h4>
+                  <p className="text-xs text-gray-300 font-mono">{drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} · {drilldownTransactions.length} transactions</p>
                 </div>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 text-xl ml-2">×</button>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="text-white/60 hover:text-white text-xl">×</button>
               </div>
 
               {selectedDrilldownTxns.length > 0 && (
-                <div className="px-4 sm:px-6 py-2 sm:py-3 bg-[#2d1b4e]/10 border-b flex items-center gap-2">
-                  <Badge variant="gold" size="sm">{selectedDrilldownTxns.length}</Badge>
-                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 text-xs sm:text-sm border rounded-lg px-2 py-1">
+                <div className="bg-[#3d2b5e] text-white px-4 py-2 flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-white/20 text-xs font-mono">{selectedDrilldownTxns.length}</span>
+                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 bg-[#2d1b4e] text-white border-0 text-xs px-2 py-1">
                     <option value="">Move to...</option>
                     {Object.entries(coaGrouped).map(([type, opts]) => (
                       <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                     ))}
                   </select>
-                  <Button size="sm" onClick={handleDrilldownReassign} disabled={!reassignCoa}>Move</Button>
+                  <button onClick={handleDrilldownReassign} disabled={!reassignCoa} className="px-3 py-1 bg-white text-[#2d1b4e] text-xs font-medium disabled:opacity-50">Move</button>
                 </div>
               )}
 
               <div className="flex-1 overflow-auto">
-                <table className="w-full text-xs sm:text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0">
                     <tr>
-                      <th className="px-3 sm:px-4 py-2 sm:py-3 w-8 sm:w-10">
+                      <th className="px-3 py-2 w-8">
                         <input type="checkbox" checked={selectedDrilldownTxns.length === drilldownTransactions.length && drilldownTransactions.length > 0}
                           onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? drilldownTransactions.map(t => t.id) : [])}
-                          className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded" />
+                          className="w-3 h-3" />
                       </th>
-                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold">Date</th>
-                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold">Description</th>
-                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold">Amount</th>
+                      <th className="px-2 py-2 text-left font-medium">Date</th>
+                      <th className="px-2 py-2 text-left font-medium">Description</th>
+                      <th className="px-2 py-2 text-right font-medium">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {drilldownTransactions.map(txn => (
-                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-[#b4b237]/5' : ''}`}>
-                        <td className="px-3 sm:px-4 py-2 sm:py-3">
+                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-[#2d1b4e]/5' : ''}`}>
+                        <td className="px-3 py-2">
                           <input type="checkbox" checked={selectedDrilldownTxns.includes(txn.id)}
                             onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? [...selectedDrilldownTxns, txn.id] : selectedDrilldownTxns.filter(id => id !== txn.id))}
-                            className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded" />
+                            className="w-3 h-3" />
                         </td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-gray-600">{new Date(txn.date).toLocaleDateString()}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 truncate max-w-[120px] sm:max-w-[250px] text-gray-900">{txn.name}</td>
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono font-medium whitespace-nowrap">${Math.abs(txn.amount).toFixed(2)}</td>
+                        <td className="px-2 py-2 text-gray-600 font-mono">{new Date(txn.date).toLocaleDateString()}</td>
+                        <td className="px-2 py-2 text-gray-900 truncate max-w-[200px]">{txn.name}</td>
+                        <td className="px-2 py-2 text-right font-mono font-medium">{fmt(Math.abs(txn.amount))}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-gray-50 flex justify-between items-center">
-                <span className="font-semibold text-gray-900 text-xs sm:text-sm">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
-                <Button variant="ghost" size="sm" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>Close</Button>
+              <div className="bg-gray-100 px-4 py-3 flex justify-between items-center border-t">
+                <span className="font-semibold text-gray-900 text-xs">Total: {fmt(drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0))}</span>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-300">Close</button>
               </div>
             </div>
           </div>
