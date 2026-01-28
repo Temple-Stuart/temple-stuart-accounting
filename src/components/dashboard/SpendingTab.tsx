@@ -178,8 +178,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                     onClick={() => setSelectedFilter({ type: 'merchant', value: merchant })}
                     className={`px-2 py-1 rounded-full text-xs border transition-colors ${
                       selectedFilter?.value === merchant 
-                        ? 'bg-[#b4b237] text-white border-[#b4b237]' 
-                        : 'bg-white hover:border-[#b4b237]'
+                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
+                        : 'bg-white hover:border-[#2d1b4e]'
                     }`}
                   >
                     {merchant.slice(0, 15)}{merchant.length > 15 ? '...' : ''} ({count})
@@ -198,8 +198,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                     onClick={() => setSelectedFilter({ type: 'category', value: cat })}
                     className={`px-2 py-1 rounded-full text-xs border transition-colors ${
                       selectedFilter?.value === cat 
-                        ? 'bg-[#b4b237] text-white border-[#b4b237]' 
-                        : 'bg-white hover:border-[#b4b237]'
+                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
+                        : 'bg-white hover:border-[#2d1b4e]'
                     }`}
                   >
                     {cat} ({count})
@@ -242,7 +242,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
       {/* Assignment Bar - Shows when filter active or items selected */}
       {(selectedFilter || selectedUncommitted.length > 0) && (
-        <div className="p-3 bg-[#b4b237]/10 border border-[#b4b237]/30 rounded-lg space-y-3">
+        <div className="p-3 bg-[#2d1b4e]/10 border border-[#2d1b4e]/30 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
               {selectedUncommitted.length > 0 
@@ -311,7 +311,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredTxns.slice(0, 50).map((txn: any) => (
-                    <tr key={txn.id} className={`hover:bg-gray-50 ${selectedUncommitted.includes(txn.id) ? 'bg-[#b4b237]/5' : ''}`}>
+                    <tr key={txn.id} className={`hover:bg-gray-50 ${selectedUncommitted.includes(txn.id) ? 'bg-[#2d1b4e]/5' : ''}`}>
                       <td className="px-3 py-2 sticky left-0 bg-white">
                         <input 
                           type="checkbox" 

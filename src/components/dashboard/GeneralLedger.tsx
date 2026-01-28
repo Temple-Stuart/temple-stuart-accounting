@@ -282,7 +282,7 @@ export default function GeneralLedger({ transactions, coaOptions, onUpdate }: Ge
       {visibleCount < filtered.length && (
         <button
           onClick={() => setVisibleCount(v => v + 100)}
-          className="w-full py-3 text-sm text-[#b4b237] hover:bg-gray-50 border-t"
+          className="w-full py-3 text-sm text-[#2d1b4e] hover:bg-gray-50 border-t"
         >
           Load more ({filtered.length - visibleCount} remaining)
         </button>

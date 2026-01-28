@@ -147,7 +147,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           onClick={() => setSelectedEntity(null)}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedEntity === null
-              ? 'bg-[#b4b237] text-white'
+              ? 'bg-[#2d1b4e] text-white'
               : 'bg-white text-gray-700 border hover:bg-gray-50'
           }`}
         >
@@ -157,7 +157,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           onClick={() => setSelectedEntity('Personal')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedEntity === 'Personal'
-              ? 'bg-[#b4b237] text-white'
+              ? 'bg-[#2d1b4e] text-white'
               : 'bg-white text-gray-700 border hover:bg-gray-50'
           }`}
         >
@@ -167,7 +167,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           onClick={() => setSelectedEntity('Business')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedEntity === 'Business'
-              ? 'bg-[#b4b237] text-white'
+              ? 'bg-[#2d1b4e] text-white'
               : 'bg-white text-gray-700 border hover:bg-gray-50'
           }`}
         >
@@ -177,7 +177,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           onClick={() => setSelectedEntity('Trading')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             selectedEntity === 'Trading'
-              ? 'bg-[#b4b237] text-white'
+              ? 'bg-[#2d1b4e] text-white'
               : 'bg-white text-gray-700 border hover:bg-gray-50'
           }`}
         >

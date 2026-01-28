@@ -154,7 +154,7 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                           {isSubExpanded && (
                             <div className="bg-white border-t">
                               {selectedTxns.length > 0 && (
-                                <div className="px-4 py-2 bg-[#b4b237]/10 flex items-center gap-2 border-b">
+                                <div className="px-4 py-2 bg-[#2d1b4e]/10 flex items-center gap-2 border-b">
                                   <span className="text-sm font-medium">{selectedTxns.length} selected</span>
                                   <input
                                     type="text"
@@ -170,7 +170,7 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                                   <button
                                     onClick={handleUpdateSub}
                                     disabled={isUpdating}
-                                    className="px-3 py-1 bg-[#b4b237] text-white rounded text-sm disabled:opacity-50"
+                                    className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-sm disabled:opacity-50"
                                   >
                                     {isUpdating ? '...' : 'Update'}
                                   </button>

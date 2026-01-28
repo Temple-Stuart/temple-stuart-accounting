@@ -149,7 +149,7 @@ export default function ReviewQueueTab({ coaOptions }: { coaOptions: any[] }) {
           <button
             onClick={commitSelected}
             disabled={committing || selectedIds.size === 0}
-            className="px-4 py-2 bg-[#b4b237] text-white rounded-lg disabled:bg-gray-400"
+            className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg disabled:bg-gray-400"
           >
             {committing ? 'Committing...' : `Commit Selected (${selectedIds.size})`}
           </button>

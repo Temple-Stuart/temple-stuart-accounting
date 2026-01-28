@@ -13,8 +13,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export default function Button({ children, variant = 'primary', size = 'md', loading = false, icon, className = '', disabled, ...props }: ButtonProps) {
   const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   const variants = {
-    primary: 'bg-gray-900 text-white hover:bg-[#b4b237] focus:ring-[#b4b237] shadow-sm',
-    secondary: 'bg-white text-gray-900 border-2 border-gray-900 hover:border-[#b4b237] hover:text-[#b4b237] focus:ring-[#b4b237]',
+    primary: 'bg-gray-900 text-white hover:bg-[#2d1b4e] focus:ring-[#b4b237] shadow-sm',
+    secondary: 'bg-white text-gray-900 border-2 border-gray-900 hover:border-[#2d1b4e] hover:text-[#2d1b4e] focus:ring-[#b4b237]',
     ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-300',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   };

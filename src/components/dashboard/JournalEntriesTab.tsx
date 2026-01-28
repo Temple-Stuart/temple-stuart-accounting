@@ -73,7 +73,7 @@ export default function JournalEntriesTab() {
         </div>
         <button 
           onClick={loadEntries}
-          className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm"
+          className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm"
         >
           Refresh
         </button>

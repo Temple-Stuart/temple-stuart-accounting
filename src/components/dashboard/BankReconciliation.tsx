@@ -168,7 +168,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-[#b4b237] text-white rounded-lg text-sm font-medium"
+          className="px-4 py-1.5 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium"
         >
           {showForm ? '✕ Cancel' : '+ New Reconciliation'}
         </button>
@@ -359,7 +359,7 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
                 <button
                   onClick={() => handleSave('reconciled')}
                   disabled={!isReconciled || saving}
-                  className="px-4 py-2 bg-[#b4b237] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Mark as Reconciled'}
                 </button>

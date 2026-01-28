@@ -204,13 +204,13 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
         {usedAccounts.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
-              <thead className="bg-gray-900 text-white">
+              <thead className="bg-[#2d1b4e] text-white">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-gray-900 z-20 min-w-[200px]">Account</th>
+                  <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-[#2d1b4e] z-20 min-w-[200px]">Account</th>
                   <th className="px-3 py-3 text-right font-semibold">YTD</th>
                   <th className="px-3 py-3 text-right font-semibold">Avg</th>
                   {MONTH_LABELS.map(m => <th key={m} className="px-2 py-3 text-center font-semibold">{m}</th>)}
-                  <th className="px-3 py-3 text-right font-semibold bg-gray-800 sticky right-0">Annual</th>
+                  <th className="px-3 py-3 text-right font-semibold bg-[#1a0f2e] sticky right-0">Annual</th>
                 </tr>
               </thead>
               <tbody>
