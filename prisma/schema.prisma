@@ -354,6 +354,7 @@ model users {
   calendar_events      calendar_events[]
   home_expenses        home_expenses[]
   corporate_actions   corporate_actions[]
+  trade_journal_entries trade_journal_entries[]
 }
 
 model budgets {
@@ -1218,4 +1219,29 @@ model lot_adjustments {
   
   @@index([lot_id])
   @@index([corporate_action_id])
+}
+
+model trade_journal_entries {
+  id            String    @id @default(cuid())
+  userId        String
+  tradeNum      String    @db.VarChar(20)
+  entryDate     DateTime  @default(now())
+  entryType     String    @db.VarChar(20) // pre-trade, during, post-trade, review
+  thesis        String?   @db.Text
+  setup         String?   @db.VarChar(100) // technical setup name
+  emotion       String?   @db.VarChar(20) // confident, nervous, fomo, revenge, neutral
+  riskReward    String?   @db.VarChar(20) // planned R:R
+  mistakes      String?   @db.Text
+  lessons       String?   @db.Text
+  rating        Int?      // 1-5 self-assessment
+  aiAnalysis    String?   @db.Text
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tradeNum])
+  @@index([entryDate])
 }

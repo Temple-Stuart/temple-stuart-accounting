@@ -1,56 +1,72 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AppLayout, Card } from '@/components/ui';
+import { useState, useEffect, useMemo } from 'react';
+import { AppLayout } from '@/components/ui';
 
-interface TradingSummary {
+interface TradeSummary {
+  totalTrades: number;
+  openTrades: number;
+  closedTrades: number;
   totalRealizedPL: number;
-  totalUnrealizedPL: number;
-  openPositionCount: number;
-  closedTradeCount: number;
-  contributions: number;
-  withdrawals: number;
-  netCapitalFlow: number;
+  winRate: number;
+  avgWin: number;
+  avgLoss: number;
+  profitFactor: number;
 }
 
-interface Position {
-  id: string;
-  symbol: string;
-  optionType?: string;
-  strikePrice?: number;
-  expirationDate?: string;
-  quantity: number;
-  costBasis?: number;
-  realizedPL?: number;
+interface Trade {
+  tradeNum: string;
+  type: string;
+  underlying: string;
+  strategy: string;
+  status: 'OPEN' | 'CLOSED' | 'PARTIAL';
   openDate: string;
-  closeDate?: string;
-  strategy?: string;
+  closeDate: string | null;
+  legs: number;
+  realizedPL: number;
+  shares?: { original: number; remaining: number; sold: number };
+  costBasis?: number;
+  proceeds?: number;
+  shortTermPL?: number;
+  longTermPL?: number;
+  transactions?: any[];
 }
 
-interface StrategyPL {
+interface StrategyBreakdown {
   strategy: string;
   count: number;
-  realizedPL: number;
+  wins: number;
+  losses: number;
+  pl: number;
 }
 
-interface RecentTrade {
+interface TickerBreakdown {
+  ticker: string;
+  count: number;
+  wins: number;
+  losses: number;
+  pl: number;
+}
+
+interface JournalEntry {
   id: string;
-  date: string;
-  name: string;
-  type: string;
-  subtype: string;
-  quantity: number;
-  price: number;
-  amount: number;
-  ticker?: string;
+  tradeNum: string;
+  entryDate: string;
+  entryType: string;
+  thesis: string | null;
+  setup: string | null;
+  emotion: string | null;
+  mistakes: string | null;
+  lessons: string | null;
+  rating: number | null;
+  tags: string[];
 }
 
-interface TradingData {
-  summary: TradingSummary;
-  openPositions: Position[];
-  closedPositions: Position[];
-  byStrategy: StrategyPL[];
-  recentTrades: RecentTrade[];
+interface TradesData {
+  summary: TradeSummary;
+  trades: Trade[];
+  byStrategy: StrategyBreakdown[];
+  byTicker: TickerBreakdown[];
 }
 
 interface OpenTransaction {
@@ -58,11 +74,6 @@ interface OpenTransaction {
   date: string;
   name: string;
   ticker: string | null;
-  underlying: string | null;
-  isOption: boolean;
-  optionType: string | null;
-  strike: number | null;
-  expiration: string | null;
   action: string;
   quantity: number;
   price: number;
@@ -75,121 +86,242 @@ interface OpensData {
   byDate: Record<string, OpenTransaction[]>;
 }
 
+type TabType = 'overview' | 'journal' | 'positions' | 'commit';
 
-interface TradeRecord {
-  tradeNum: string;
-  underlying: string;
-  strategy: string;
-  status: 'OPEN' | 'CLOSED';
-  openDate: string;
-  closeDate: string | null;
-  legs: number;
-  openLegs: number;
-  closeLegs: number;
-  openAmount: number;
-  closeAmount: number;
-  realizedPL: number;
-  transactions: Array<{
-    id: string;
-    date: string;
-    name: string;
-    type: string;
-    quantity: number;
-    price: number;
-    amount: number;
-    isOpen: boolean;
-    isClose: boolean;
-  }>;
-}
-
-interface TradesData {
-  summary: {
-    totalTrades: number;
-    openTrades: number;
-    closedTrades: number;
-    totalRealizedPL: number;
-    winRate: number;
-    avgWin: number;
-    avgLoss: number;
-    profitFactor: number;
-  };
-  trades: TradeRecord[];
-  byTicker: Array<{ ticker: string; count: number; pl: number; wins: number; losses: number }>;
-  byStrategy: Array<{ strategy: string; count: number; pl: number; wins: number; losses: number }>;
-}
-
-type TabType = 'overview' | 'trades' | 'commit';
+const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy', 'fearful'];
+const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
 
 export default function TradingPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [data, setData] = useState<TradingData | null>(null);
+  const [tradesData, setTradesData] = useState<TradesData | null>(null);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [opensData, setOpensData] = useState<OpensData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [opensLoading, setOpensLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [tradesData, setTradesData] = useState<TradesData | null>(null);
-  const [tradesLoading, setTradesLoading] = useState(false);
+  
+  // Date range filter
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  
+  // Journal modal
+  const [journalModal, setJournalModal] = useState<{ trade: Trade; entry?: JournalEntry } | null>(null);
+  const [journalForm, setJournalForm] = useState({
+    entryType: 'post-trade',
+    thesis: '',
+    setup: '',
+    emotion: 'neutral',
+    mistakes: '',
+    lessons: '',
+    rating: 3,
+    tags: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Expanded trade details
+  const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/trading').then(res => res.json()),
-      fetch('/api/trading/trades').then(res => res.json())
+      fetch('/api/trading/trades').then(res => res.json()),
+      fetch('/api/trading-journal').then(res => res.ok ? res.json() : { entries: [] })
     ])
-      .then(([tradingData, tradesResult]) => {
-        setData(tradingData);
+      .then(([tradesResult, journalResult]) => {
         setTradesData(tradesResult);
+        setJournalEntries(journalResult.entries || []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'trades' && !tradesData) {
-      setTradesLoading(true);
-      fetch('/api/trading/trades')
-        .then(res => res.json())
-        .then(setTradesData)
-        .catch(console.error)
-        .finally(() => setTradesLoading(false));
-    }
-  }, [activeTab, tradesData]);
-
-  useEffect(() => {
     if (activeTab === 'commit' && !opensData) {
-      setOpensLoading(true);
       fetch('/api/investment-transactions/opens')
         .then(res => res.json())
         .then(setOpensData)
-        .catch(console.error)
-        .finally(() => setOpensLoading(false));
+        .catch(console.error);
     }
   }, [activeTab, opensData]);
 
-  const formatCurrency = (amount: number) => {
-    const formatted = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(Math.abs(amount));
-    return amount < 0 ? `-${formatted}` : formatted;
+  // Filtered trades based on date range
+  const filteredTrades = useMemo(() => {
+    if (!tradesData?.trades) return [];
+    let trades = tradesData.trades;
+    
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      trades = trades.filter(t => new Date(t.openDate) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59);
+      trades = trades.filter(t => new Date(t.openDate) <= to);
+    }
+    
+    return trades;
+  }, [tradesData, dateFrom, dateTo]);
+
+  // Recalculate metrics for filtered trades
+  const filteredMetrics = useMemo(() => {
+    const closed = filteredTrades.filter(t => t.status === 'CLOSED');
+    const wins = closed.filter(t => t.realizedPL >= 0);
+    const losses = closed.filter(t => t.realizedPL < 0);
+    
+    const totalPL = closed.reduce((sum, t) => sum + t.realizedPL, 0);
+    const totalWins = wins.reduce((sum, t) => sum + t.realizedPL, 0);
+    const totalLosses = Math.abs(losses.reduce((sum, t) => sum + t.realizedPL, 0));
+    
+    return {
+      totalTrades: filteredTrades.length,
+      openTrades: filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length,
+      closedTrades: closed.length,
+      totalRealizedPL: totalPL,
+      winRate: closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : 0,
+      avgWin: wins.length > 0 ? totalWins / wins.length : 0,
+      avgLoss: losses.length > 0 ? totalLosses / losses.length : 0,
+      profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0,
+      largestWin: wins.length > 0 ? Math.max(...wins.map(t => t.realizedPL)) : 0,
+      largestLoss: losses.length > 0 ? Math.min(...losses.map(t => t.realizedPL)) : 0,
+      avgHoldDays: closed.length > 0 ? closed.reduce((sum, t) => {
+        if (!t.closeDate) return sum;
+        const days = Math.ceil((new Date(t.closeDate).getTime() - new Date(t.openDate).getTime()) / (1000 * 60 * 60 * 24));
+        return sum + days;
+      }, 0) / closed.length : 0,
+      winStreak: calculateStreak(closed, true),
+      lossStreak: calculateStreak(closed, false),
+    };
+  }, [filteredTrades]);
+
+  // Equity curve data
+  const equityCurve = useMemo(() => {
+    const closed = filteredTrades
+      .filter(t => t.status === 'CLOSED' && t.closeDate)
+      .sort((a, b) => new Date(a.closeDate!).getTime() - new Date(b.closeDate!).getTime());
+    
+    let cumulative = 0;
+    return closed.map(t => {
+      cumulative += t.realizedPL;
+      return { date: t.closeDate!, pl: t.realizedPL, cumulative, trade: t };
+    });
+  }, [filteredTrades]);
+
+  // P&L by day of week
+  const plByDayOfWeek = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const byDay: Record<string, { pl: number; count: number }> = {};
+    days.forEach(d => byDay[d] = { pl: 0, count: 0 });
+    
+    filteredTrades.filter(t => t.status === 'CLOSED' && t.closeDate).forEach(t => {
+      const day = days[new Date(t.closeDate!).getDay()];
+      byDay[day].pl += t.realizedPL;
+      byDay[day].count++;
+    });
+    
+    return days.map(d => ({ day: d, ...byDay[d] }));
+  }, [filteredTrades]);
+
+  // P&L by strategy (filtered)
+  const filteredByStrategy = useMemo(() => {
+    const map: Record<string, StrategyBreakdown> = {};
+    filteredTrades.filter(t => t.status === 'CLOSED').forEach(t => {
+      const key = t.strategy || 'unknown';
+      if (!map[key]) map[key] = { strategy: key, count: 0, wins: 0, losses: 0, pl: 0 };
+      map[key].count++;
+      map[key].pl += t.realizedPL;
+      if (t.realizedPL >= 0) map[key].wins++;
+      else map[key].losses++;
+    });
+    return Object.values(map).sort((a, b) => b.pl - a.pl);
+  }, [filteredTrades]);
+
+  // P&L by ticker (filtered)
+  const filteredByTicker = useMemo(() => {
+    const map: Record<string, TickerBreakdown> = {};
+    filteredTrades.filter(t => t.status === 'CLOSED').forEach(t => {
+      const key = t.underlying || 'UNKNOWN';
+      if (!map[key]) map[key] = { ticker: key, count: 0, wins: 0, losses: 0, pl: 0 };
+      map[key].count++;
+      map[key].pl += t.realizedPL;
+      if (t.realizedPL >= 0) map[key].wins++;
+      else map[key].losses++;
+    });
+    return Object.values(map).sort((a, b) => b.pl - a.pl);
+  }, [filteredTrades]);
+
+  function calculateStreak(trades: Trade[], isWin: boolean): number {
+    let maxStreak = 0;
+    let currentStreak = 0;
+    
+    trades.forEach(t => {
+      if ((isWin && t.realizedPL >= 0) || (!isWin && t.realizedPL < 0)) {
+        currentStreak++;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        currentStreak = 0;
+      }
+    });
+    
+    return maxStreak;
+  }
+
+  const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const fmtPL = (n: number) => (n >= 0 ? '+' : '-') + fmt(n);
+  const fmtPct = (n: number) => n.toFixed(1) + '%';
+
+  const openJournalModal = (trade: Trade) => {
+    const existing = journalEntries.find(e => e.tradeNum === trade.tradeNum);
+    setJournalForm({
+      entryType: existing?.entryType || 'post-trade',
+      thesis: existing?.thesis || '',
+      setup: existing?.setup || '',
+      emotion: existing?.emotion || 'neutral',
+      mistakes: existing?.mistakes || '',
+      lessons: existing?.lessons || '',
+      rating: existing?.rating || 3,
+      tags: existing?.tags?.join(', ') || ''
+    });
+    setJournalModal({ trade, entry: existing });
   };
 
-  const formatPL = (amount: number) => {
-    const formatted = formatCurrency(amount);
-    const color = amount >= 0 ? 'text-green-600' : 'text-red-600';
-    const prefix = amount >= 0 ? '+' : '';
-    return <span className={color}>{prefix}{formatted}</span>;
+  const saveJournalEntry = async () => {
+    if (!journalModal) return;
+    setSaving(true);
+    
+    try {
+      const res = await fetch('/api/trading-journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tradeNum: journalModal.trade.tradeNum,
+          ...journalForm,
+          tags: journalForm.tags.split(',').map(t => t.trim()).filter(Boolean)
+        })
+      });
+      
+      if (res.ok) {
+        const updated = await res.json();
+        setJournalEntries(prev => {
+          const idx = prev.findIndex(e => e.tradeNum === journalModal.trade.tradeNum);
+          if (idx >= 0) {
+            const newEntries = [...prev];
+            newEntries[idx] = updated.entry;
+            return newEntries;
+          }
+          return [...prev, updated.entry];
+        });
+        setJournalModal(null);
+      }
+    } catch (err) {
+      console.error('Failed to save journal entry:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -203,11 +335,13 @@ export default function TradingPage() {
     });
   };
 
+  const getJournalEntry = (tradeNum: string) => journalEntries.find(e => e.tradeNum === tradeNum);
+
   if (loading) {
     return (
       <AppLayout>
-        <div className="p-8 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -215,341 +349,597 @@ export default function TradingPage() {
 
   return (
     <AppLayout>
-      <div className="p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">📊</span>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Trading</h1>
-              <p className="text-gray-500">Track positions, P&L, and strategies</p>
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
+          
+          {/* Header */}
+          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">Trading Dashboard</h1>
+                <p className="text-gray-300 text-xs font-mono">
+                  {filteredMetrics.totalTrades} trades · {filteredMetrics.closedTrades} closed · {filteredMetrics.openTrades} open
+                </p>
+              </div>
+              
+              {/* Date Range Filter */}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-gray-400">Period:</span>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="bg-[#3d2b5e] text-white border-0 px-2 py-1 text-xs" />
+                <span className="text-gray-400">to</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="bg-[#3d2b5e] text-white border-0 px-2 py-1 text-xs" />
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(''); setDateTo(''); }} 
+                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-xs">Clear</button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'overview'
-                ? 'bg-white border border-b-white border-gray-200 text-gray-900 -mb-px'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('commit')}
-            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'commit'
-                ? 'bg-white border border-b-white border-gray-200 text-gray-900 -mb-px'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Commit Trades
-            {opensData && (
-              <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                {opensData.totalOpens}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <>
-            {/* P&L Hero */}
-            <Card className={`p-6 mb-8 ${(tradesData?.summary.totalRealizedPL || 0) >= 0 ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium mb-1 text-gray-600">Total Realized P&L</div>
-                  <div className="text-4xl font-bold">
-                    {formatPL(tradesData?.summary.totalRealizedPL || 0)}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {tradesData?.summary.closedTrades || 0} closed trades • {tradesData?.summary.winRate || 0}% win rate
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">Avg Win</div>
-                  <div className="text-lg font-bold text-green-600">${(tradesData?.summary.avgWin || 0).toFixed(2)}</div>
-                  <div className="text-sm text-gray-500 mt-1">Avg Loss</div>
-                  <div className="text-lg font-bold text-red-600">${Math.abs(tradesData?.summary.avgLoss || 0).toFixed(2)}</div>
-                </div>
+          {/* Hero Stats Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+            <div className={`p-4 border ${filteredMetrics.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total P&L</div>
+              <div className={`text-2xl font-bold font-mono ${filteredMetrics.totalRealizedPL >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                {fmtPL(filteredMetrics.totalRealizedPL)}
               </div>
-            </Card>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Total Trades</div>
-                <div className="text-2xl font-bold text-gray-900">{tradesData?.summary.totalTrades || 0}</div>
-                <div className="text-xs text-gray-400">{tradesData?.summary.openTrades || 0} open</div>
-              </Card>
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Win Rate</div>
-                <div className="text-2xl font-bold text-blue-600">{tradesData?.summary.winRate || 0}%</div>
-              </Card>
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Profit Factor</div>
-                <div className="text-2xl font-bold text-purple-600">{(tradesData?.summary.profitFactor || 0).toFixed(2)}</div>
-              </Card>
-              <Card className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Contributions</div>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(data?.summary.contributions || 0)}</div>
-              </Card>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* P&L by Strategy */}
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">P&L by Strategy</h2>
-                <div className="space-y-3">
-                  {tradesData?.byStrategy.map(s => (
-                    <div key={s.strategy} className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <div>
-                        <div className="font-medium text-gray-900">{s.strategy}</div>
-                        <div className="text-xs text-gray-400">{s.count} trades • {s.wins}W/{s.losses}L</div>
-                      </div>
-                      <div className={`font-semibold ${s.pl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatPL(s.pl)}
-                      </div>
-                    </div>
-                  ))}
-                  {(!tradesData?.byStrategy || tradesData.byStrategy.length === 0) && (
-                    <div className="text-gray-400 text-sm">No closed trades yet</div>
-                  )}
-                </div>
-              </Card>
-
-              {/* P&L by Ticker */}
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">P&L by Ticker</h2>
-                <div className="space-y-3">
-                  {tradesData?.byTicker.map(t => (
-                    <div key={t.ticker} className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <div>
-                        <div className="font-medium text-gray-900">{t.ticker}</div>
-                        <div className="text-xs text-gray-400">{t.count} trades • {t.wins}W/{t.losses}L</div>
-                      </div>
-                      <div className={`font-semibold ${t.pl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatPL(t.pl)}
-                      </div>
-                    </div>
-                  ))}
-                  {(!tradesData?.byTicker || tradesData.byTicker.length === 0) && (
-                    <div className="text-gray-400 text-sm">No trades by ticker yet</div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Open Positions */}
-              <Card className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Open Positions</h2>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {data?.openPositions.map(p => (
-                    <div key={p.id} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-gray-900">{p.symbol}</div>
-                        <div className="text-sm text-gray-600">{p.quantity} contracts</div>
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {p.optionType && `${p.optionType} `}
-                        {p.strikePrice && `$${p.strikePrice} `}
-                        {p.strategy && `• ${p.strategy}`}
-                      </div>
-                    </div>
-                  ))}
-                  {(!data?.openPositions || data.openPositions.length === 0) && (
-                    <div className="text-gray-400 text-sm">No open positions</div>
-                  )}
-                </div>
-              </Card>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Win Rate</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{filteredMetrics.winRate}%</div>
+              <div className="text-[10px] text-gray-400">{filteredMetrics.closedTrades} closed</div>
             </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Profit Factor</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{filteredMetrics.profitFactor.toFixed(2)}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Win</div>
+              <div className="text-xl font-bold font-mono text-emerald-700">{fmt(filteredMetrics.avgWin)}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Loss</div>
+              <div className="text-xl font-bold font-mono text-red-700">{fmt(filteredMetrics.avgLoss)}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Hold</div>
+              <div className="text-xl font-bold font-mono text-gray-900">{filteredMetrics.avgHoldDays.toFixed(1)}d</div>
+            </div>
+          </div>
 
-            {/* Committed Trades */}
-            <Card className="p-6 mt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Committed Trades
-                {tradesData?.trades && (
-                  <span className="ml-2 text-sm font-normal text-gray-500">
-                    ({tradesData.trades.length} trades)
-                  </span>
-                )}
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="pb-2">Trade #</th>
-                      <th className="pb-2">Opened</th>
-                      <th className="pb-2">Ticker</th>
-                      <th className="pb-2">Strategy</th>
-                      <th className="pb-2">Legs</th>
-                      <th className="pb-2">Status</th>
-                      <th className="pb-2 text-right">P&L</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tradesData?.trades
-                      ?.slice()
-                      .sort((a, b) => new Date(a.openDate).getTime() - new Date(b.openDate).getTime())
-                      .map(t => (
-                      <tr key={t.tradeNum} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 font-mono text-gray-600">#{t.tradeNum}</td>
-                        <td className="py-2">{new Date(t.openDate).toLocaleDateString()}</td>
-                        <td className="py-2 font-medium">{t.underlying}</td>
-                        <td className="py-2">
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                            {t.strategy}
-                          </span>
-                        </td>
-                        <td className="py-2 text-center">{t.legs}</td>
-                        <td className="py-2">
-                          <span className={`px-2 py-0.5 rounded text-xs ${
-                            t.status === 'OPEN' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {t.status}
-                          </span>
-                        </td>
-                        <td className={`py-2 text-right font-medium ${
-                          t.status === 'CLOSED'
-                            ? t.realizedPL >= 0 ? 'text-green-600' : 'text-red-600'
-                            : 'text-gray-400'
-                        }`}>
-                          {t.status === 'CLOSED' ? formatPL(t.realizedPL) : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(!tradesData?.trades || tradesData.trades.length === 0) && (
-                  <div className="text-gray-400 text-sm text-center py-4">
-                    No committed trades yet. Use the Commit Trades tab to commit your first trade.
+          {/* Secondary Stats */}
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Largest Win</div>
+              <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(filteredMetrics.largestWin)}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Largest Loss</div>
+              <div className="text-sm font-mono font-semibold text-red-700">{fmt(Math.abs(filteredMetrics.largestLoss))}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Win Streak</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredMetrics.winStreak}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Loss Streak</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredMetrics.lossStreak}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Options</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredTrades.filter(t => t.type === 'option').length}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Stocks</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredTrades.filter(t => t.type === 'stock').length}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Strategies</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredByStrategy.length}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-2 text-center">
+              <div className="text-[9px] text-gray-500 uppercase">Tickers</div>
+              <div className="text-sm font-mono font-semibold text-gray-900">{filteredByTicker.length}</div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
+            {[
+              { key: 'overview', label: 'Overview' },
+              { key: 'journal', label: 'Trade Journal' },
+              { key: 'positions', label: 'Open Positions' },
+              { key: 'commit', label: `Commit${opensData ? ` (${opensData.totalOpens})` : ''}` },
+            ].map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
+                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <div className="bg-white border border-gray-200">
+            
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div>
+                {/* Equity Curve */}
+                <div className="border-b border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                    Equity Curve
                   </div>
-                )}
-              </div>
-            </Card>
-          </>
-        )}
-
-        {/* Commit Trades Tab */}
-        {activeTab === 'commit' && (
-          <div>
-            {opensLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : (
-              <>
-                {/* Selection Summary */}
-                <Card className="p-4 mb-6 bg-blue-50 border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-medium text-blue-900">
-                        {selectedIds.size} transactions selected
-                      </span>
-                      <span className="text-blue-600 ml-4">
-                        {opensData?.totalOpens || 0} total opens to commit
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedIds(new Set())}
-                        className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        disabled={selectedIds.size === 0}
-                        className="px-4 py-1 text-sm bg-[#b4b237] text-white rounded hover:bg-[#9a982f] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Group as Trade →
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Transactions by Date */}
-                <div className="space-y-4">
-                  {opensData?.byDate && Object.entries(opensData.byDate)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([date, transactions]) => (
-                      <Card key={date} className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-gray-900">
-                            {new Date(date).toLocaleDateString('en-US', { 
-                              weekday: 'short', 
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                            <span className="ml-2 text-sm font-normal text-gray-500">
-                              ({transactions.length} transactions)
-                            </span>
-                          </h3>
-                          <button
-                            onClick={() => selectAllOnDate(date)}
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                          >
-                            Select all
-                          </button>
-                        </div>
-                        <div className="space-y-1">
-                          {transactions.map(t => (
-                            <div
-                              key={t.id}
-                              onClick={() => toggleSelect(t.id)}
-                              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                                selectedIds.has(t.id) 
-                                  ? 'bg-blue-100 border border-blue-300' 
-                                  : 'hover:bg-gray-50 border border-transparent'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(t.id)}
-                                onChange={() => toggleSelect(t.id)}
-                                className="w-4 h-4 rounded"
-                              />
-                              <div className={`w-16 text-xs font-medium px-2 py-0.5 rounded ${
-                                t.action === 'sell_to_open' 
-                                  ? 'bg-red-100 text-red-700' 
-                                  : 'bg-green-100 text-green-700'
-                              }`}>
-                                {t.action === 'sell_to_open' ? 'SELL' : 'BUY'}
-                              </div>
-                              <div className="flex-1 font-mono text-sm">
-                                {t.ticker || 'Unknown'}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {t.quantity} @ ${t.price?.toFixed(2)}
-                              </div>
-                              <div className={`text-sm font-medium w-24 text-right ${
-                                (t.amount || 0) < 0 ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                                {formatCurrency(t.amount || 0)}
+                  <div className="p-4">
+                    {equityCurve.length > 0 ? (
+                      <div className="h-48 flex items-end gap-1">
+                        {equityCurve.map((point, i) => {
+                          const max = Math.max(...equityCurve.map(p => Math.abs(p.cumulative)));
+                          const height = max > 0 ? (Math.abs(point.cumulative) / max) * 100 : 0;
+                          const isPositive = point.cumulative >= 0;
+                          return (
+                            <div key={i} className="flex-1 flex flex-col justify-end items-center group relative">
+                              <div className={`w-full ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} 
+                                style={{ height: `${Math.max(height, 2)}%` }} />
+                              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                                {new Date(point.date).toLocaleDateString()}<br />
+                                Trade: {fmtPL(point.pl)}<br />
+                                Cumulative: {fmtPL(point.cumulative)}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </Card>
-                    ))}
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No closed trades in period</div>
+                    )}
+                  </div>
                 </div>
 
+                <div className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+                  {/* By Strategy */}
+                  <div>
+                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                      P&L by Strategy
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Strategy</th>
+                            <th className="px-3 py-2 text-center font-medium">W/L</th>
+                            <th className="px-3 py-2 text-right font-medium">P&L</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {filteredByStrategy.map(s => (
+                            <tr key={s.strategy} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 font-medium">{s.strategy}</td>
+                              <td className="px-3 py-2 text-center text-gray-500">{s.wins}W/{s.losses}L</td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${s.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                {fmtPL(s.pl)}
+                              </td>
+                            </tr>
+                          ))}
+                          {filteredByStrategy.length === 0 && (
+                            <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No data</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* By Ticker */}
+                  <div>
+                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                      P&L by Ticker
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Ticker</th>
+                            <th className="px-3 py-2 text-center font-medium">W/L</th>
+                            <th className="px-3 py-2 text-right font-medium">P&L</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {filteredByTicker.slice(0, 10).map(t => (
+                            <tr key={t.ticker} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 font-mono font-medium">{t.ticker}</td>
+                              <td className="px-3 py-2 text-center text-gray-500">{t.wins}W/{t.losses}L</td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${t.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                {fmtPL(t.pl)}
+                              </td>
+                            </tr>
+                          ))}
+                          {filteredByTicker.length === 0 && (
+                            <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No data</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* By Day of Week */}
+                  <div>
+                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                      P&L by Day
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Day</th>
+                            <th className="px-3 py-2 text-center font-medium">Trades</th>
+                            <th className="px-3 py-2 text-right font-medium">P&L</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {plByDayOfWeek.filter(d => d.count > 0).map(d => (
+                            <tr key={d.day} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 font-medium">{d.day}</td>
+                              <td className="px-3 py-2 text-center text-gray-500">{d.count}</td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${d.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                {fmtPL(d.pl)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Trade Journal Tab */}
+            {activeTab === 'journal' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                  <span>Trade Journal</span>
+                  <span className="text-xs text-gray-300">{filteredTrades.length} trades · {journalEntries.length} entries</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-[#3d2b5e] text-white">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Trade #</th>
+                        <th className="px-3 py-2 text-left font-medium">Date</th>
+                        <th className="px-3 py-2 text-left font-medium">Ticker</th>
+                        <th className="px-3 py-2 text-left font-medium">Strategy</th>
+                        <th className="px-3 py-2 text-center font-medium">Type</th>
+                        <th className="px-3 py-2 text-center font-medium">Status</th>
+                        <th className="px-3 py-2 text-right font-medium">P&L</th>
+                        <th className="px-3 py-2 text-center font-medium">Rating</th>
+                        <th className="px-3 py-2 text-center font-medium">Journal</th>
+                        <th className="px-3 py-2 text-center font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredTrades.map(trade => {
+                        const journal = getJournalEntry(trade.tradeNum);
+                        const isExpanded = expandedTrade === trade.tradeNum;
+                        
+                        return (
+                          <>
+                            <tr key={trade.tradeNum} className={`hover:bg-gray-50 ${isExpanded ? 'bg-[#2d1b4e]/5' : ''}`}>
+                              <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
+                              <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
+                              <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
+                              <td className="px-3 py-2">
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                                  {trade.type}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`px-2 py-0.5 text-[10px] ${
+                                  trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 
+                                  trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>{trade.status}</span>
+                              </td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                                trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-emerald-700' : 'text-red-700') : 'text-gray-400'
+                              }`}>
+                                {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {journal?.rating ? (
+                                  <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
+                                ) : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {journal ? (
+                                  <span className={`px-2 py-0.5 text-[10px] ${
+                                    journal.emotion === 'confident' ? 'bg-emerald-100 text-emerald-700' :
+                                    journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
+                                    journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>{journal.emotion}</span>
+                                ) : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <div className="flex items-center gap-1 justify-center">
+                                  <button onClick={() => openJournalModal(trade)}
+                                    className="px-2 py-1 text-[10px] bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                                    {journal ? 'Edit' : 'Add'}
+                                  </button>
+                                  <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
+                                    className="px-2 py-1 text-[10px] bg-gray-100 text-gray-700 hover:bg-gray-200">
+                                    {isExpanded ? '▲' : '▼'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr key={`${trade.tradeNum}-detail`}>
+                                <td colSpan={10} className="px-4 py-3 bg-gray-50">
+                                  <div className="grid lg:grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                      <div className="font-semibold text-gray-700 mb-2">Trade Details</div>
+                                      <div className="space-y-1 text-gray-600">
+                                        <div>Opened: {new Date(trade.openDate).toLocaleString()}</div>
+                                        {trade.closeDate && <div>Closed: {new Date(trade.closeDate).toLocaleString()}</div>}
+                                        <div>Legs: {trade.legs}</div>
+                                        {trade.type === 'stock' && trade.shares && (
+                                          <>
+                                            <div>Shares: {trade.shares.original} (sold: {trade.shares.sold})</div>
+                                            <div>Cost Basis: {fmt(trade.costBasis || 0)}</div>
+                                            {trade.status === 'CLOSED' && <div>Proceeds: {fmt(trade.proceeds || 0)}</div>}
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {journal && (
+                                      <div>
+                                        <div className="font-semibold text-gray-700 mb-2">Journal Notes</div>
+                                        <div className="space-y-1 text-gray-600">
+                                          {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
+                                          {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
+                                          {journal.mistakes && <div><span className="font-medium text-red-600">Mistakes:</span> {journal.mistakes}</div>}
+                                          {journal.lessons && <div><span className="font-medium text-emerald-600">Lessons:</span> {journal.lessons}</div>}
+                                          {journal.tags?.length > 0 && (
+                                            <div className="flex gap-1 flex-wrap">
+                                              {journal.tags.map(tag => (
+                                                <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px]">{tag}</span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        );
+                      })}
+                      {filteredTrades.length === 0 && (
+                        <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No trades in selected period</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Open Positions Tab */}
+            {activeTab === 'positions' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  Open Positions ({filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length})
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-[#3d2b5e] text-white">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Trade #</th>
+                        <th className="px-3 py-2 text-left font-medium">Opened</th>
+                        <th className="px-3 py-2 text-left font-medium">Ticker</th>
+                        <th className="px-3 py-2 text-left font-medium">Strategy</th>
+                        <th className="px-3 py-2 text-center font-medium">Type</th>
+                        <th className="px-3 py-2 text-center font-medium">Status</th>
+                        <th className="px-3 py-2 text-right font-medium">Days Open</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').map(trade => {
+                        const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <tr key={trade.tradeNum} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
+                            <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
+                            <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
+                            <td className="px-3 py-2">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                                {trade.type}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                                {trade.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono">{daysOpen}d</td>
+                          </tr>
+                        );
+                      })}
+                      {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length === 0 && (
+                        <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">No open positions</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Commit Trades Tab */}
+            {activeTab === 'commit' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                  <span>Commit Trades</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-300">{selectedIds.size} selected</span>
+                    {selectedIds.size > 0 && (
+                      <>
+                        <button onClick={() => setSelectedIds(new Set())} 
+                          className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20">Clear</button>
+                        <button className="px-3 py-1 text-xs bg-white text-[#2d1b4e] font-medium hover:bg-gray-100">
+                          Group as Trade →
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                {opensData?.byDate && Object.entries(opensData.byDate)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([date, transactions]) => (
+                    <div key={date} className="border-b border-gray-200">
+                      <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+                        <span className="font-medium text-sm text-gray-700">
+                          {new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                          <span className="ml-2 text-xs text-gray-500">({transactions.length})</span>
+                        </span>
+                        <button onClick={() => selectAllOnDate(date)} className="text-xs text-[#2d1b4e] hover:underline">
+                          Select all
+                        </button>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {transactions.map(t => (
+                          <div key={t.id} onClick={() => toggleSelect(t.id)}
+                            className={`flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors ${
+                              selectedIds.has(t.id) ? 'bg-[#2d1b4e]/10' : 'hover:bg-gray-50'
+                            }`}>
+                            <input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)}
+                              className="w-4 h-4" />
+                            <span className={`w-12 text-[10px] font-medium px-2 py-0.5 text-center ${
+                              t.action === 'sell_to_open' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {t.action === 'sell_to_open' ? 'STO' : 'BTO'}
+                            </span>
+                            <span className="flex-1 font-mono text-sm">{t.ticker || 'Unknown'}</span>
+                            <span className="text-sm text-gray-600">{t.quantity} @ ${t.price?.toFixed(2)}</span>
+                            <span className={`text-sm font-mono font-medium w-20 text-right ${
+                              (t.amount || 0) < 0 ? 'text-emerald-700' : 'text-red-700'
+                            }`}>
+                              {fmt(t.amount || 0)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                
                 {(!opensData?.opens || opensData.opens.length === 0) && (
-                  <Card className="p-8 text-center text-gray-500">
-                    No uncommitted opens found
-                  </Card>
+                  <div className="p-8 text-center text-gray-400">No uncommitted transactions</div>
                 )}
-              </>
+              </div>
             )}
           </div>
-        )}
+
+        </div>
       </div>
+
+      {/* Journal Entry Modal */}
+      {journalModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setJournalModal(null)}>
+          <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#2d1b4e] text-white px-4 py-3 flex justify-between items-center sticky top-0">
+              <div>
+                <div className="font-semibold">Trade Journal</div>
+                <div className="text-xs text-gray-300">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
+              </div>
+              <button onClick={() => setJournalModal(null)} className="text-white/60 hover:text-white text-xl">×</button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Entry Type</label>
+                <select value={journalForm.entryType} onChange={e => setJournalForm(p => ({ ...p, entryType: e.target.value }))}
+                  className="w-full border border-gray-200 px-3 py-2 text-sm">
+                  <option value="pre-trade">Pre-Trade (Planning)</option>
+                  <option value="during">During Trade</option>
+                  <option value="post-trade">Post-Trade (Review)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Thesis / Reason</label>
+                <textarea value={journalForm.thesis} onChange={e => setJournalForm(p => ({ ...p, thesis: e.target.value }))}
+                  className="w-full border border-gray-200 px-3 py-2 text-sm h-20" placeholder="Why did you take this trade?" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Setup</label>
+                  <select value={journalForm.setup} onChange={e => setJournalForm(p => ({ ...p, setup: e.target.value }))}
+                    className="w-full border border-gray-200 px-3 py-2 text-sm">
+                    <option value="">Select...</option>
+                    {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Emotion</label>
+                  <select value={journalForm.emotion} onChange={e => setJournalForm(p => ({ ...p, emotion: e.target.value }))}
+                    className="w-full border border-gray-200 px-3 py-2 text-sm">
+                    {EMOTIONS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Mistakes</label>
+                <textarea value={journalForm.mistakes} onChange={e => setJournalForm(p => ({ ...p, mistakes: e.target.value }))}
+                  className="w-full border border-gray-200 px-3 py-2 text-sm h-16" placeholder="What went wrong?" />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Lessons Learned</label>
+                <textarea value={journalForm.lessons} onChange={e => setJournalForm(p => ({ ...p, lessons: e.target.value }))}
+                  className="w-full border border-gray-200 px-3 py-2 text-sm h-16" placeholder="What will you do differently?" />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => setJournalForm(p => ({ ...p, rating: n }))}
+                      className={`w-10 h-10 text-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-gray-300'}`}>
+                      {journalForm.rating >= n ? '★' : '☆'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <input type="text" value={journalForm.tags} onChange={e => setJournalForm(p => ({ ...p, tags: e.target.value }))}
+                  className="w-full border border-gray-200 px-3 py-2 text-sm" placeholder="e.g., earnings, scalp, swing" />
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
+              <button onClick={() => setJournalModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+              </button>
+              <button onClick={saveJournalEntry} disabled={saving}
+                className="px-4 py-2 text-sm bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Entry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
