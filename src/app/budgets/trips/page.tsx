@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { AppLayout, Card, Button, Badge, PageHeader } from '@/components/ui';
+import { AppLayout } from '@/components/ui';
 import TripMap from '@/components/trips/TripMap';
 import 'leaflet/dist/leaflet.css';
 
@@ -38,58 +38,27 @@ interface Trip {
   };
 }
 
-const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const ACTIVITIES: Record<string, string> = {
-  surf: '🏄 Surf',
-  kitesurf: '🪁 Kitesurf',
-  sail: '⛵ Sail',
-  snowboard: '🏂 Snowboard',
-  ski: '⛷️ Ski',
-  scuba: '🤿 Scuba',
-  mtb: '🚵 MTB',
-  climbing: '🧗 Climbing',
-  hiking: '🥾 Hiking',
-  fishing: '🎣 Fishing',
-  golf: '⛳ Golf',
-  roadcycle: '🚴 Road Cycling',
-  moto: '🏍️ Moto',
-  hike: '🏕️ Hike',
-  climb: '🧗 Climb',
-  bike: '🚴 Bike',
-  run: '🏃 Run',
-  triathlon: '🏊 Triathlon',
-  skate: '🛹 Skate',
-  festival: '🎪 Festival',
-  conference: '🎤 Conference',
-  nomad: '💼 Nomad',
+  surf: 'Surf', kitesurf: 'Kitesurf', sail: 'Sail', snowboard: 'Snowboard', ski: 'Ski',
+  scuba: 'Scuba', mtb: 'MTB', climbing: 'Climbing', hiking: 'Hiking', fishing: 'Fishing',
+  golf: 'Golf', roadcycle: 'Road Cycling', moto: 'Moto', hike: 'Hike', climb: 'Climb',
+  bike: 'Bike', run: 'Run', triathlon: 'Triathlon', skate: 'Skate', festival: 'Festival',
+  conference: 'Conference', nomad: 'Nomad',
 };
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  surf: 'bg-blue-500',
-  kitesurf: 'bg-cyan-500',
-  sail: 'bg-indigo-500',
-  snowboard: 'bg-purple-500',
-  ski: 'bg-violet-500',
-  scuba: 'bg-teal-500',
-  mtb: 'bg-orange-500',
-  climbing: 'bg-red-500',
-  hiking: 'bg-green-500',
-  fishing: 'bg-emerald-500',
-  golf: 'bg-lime-500',
-  roadcycle: 'bg-yellow-500',
-  moto: 'bg-rose-500',
-  hike: 'bg-green-600',
-  climb: 'bg-red-600',
-  bike: 'bg-orange-600',
-  run: 'bg-pink-500',
-  triathlon: 'bg-blue-600',
-  skate: 'bg-purple-600',
-  festival: 'bg-fuchsia-500',
-  conference: 'bg-gray-500',
-  nomad: 'bg-amber-500',
+  surf: '#3b82f6', kitesurf: '#06b6d4', sail: '#6366f1', snowboard: '#8b5cf6', ski: '#7c3aed',
+  scuba: '#14b8a6', mtb: '#f97316', climbing: '#ef4444', hiking: '#22c55e', fishing: '#10b981',
+  golf: '#84cc16', roadcycle: '#eab308', moto: '#f43f5e', hike: '#16a34a', climb: '#dc2626',
+  bike: '#ea580c', run: '#ec4899', triathlon: '#2563eb', skate: '#9333ea', festival: '#d946ef',
+  conference: '#6b7280', nomad: '#f59e0b',
 };
+
+type ViewMode = 'calendar' | 'list' | 'map';
 
 export default function TripsPage() {
   const router = useRouter();
@@ -97,10 +66,10 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
+  useEffect(() => { loadTrips(); }, []);
 
   const loadTrips = async () => {
     try {
@@ -121,14 +90,13 @@ export default function TripsPage() {
     }
   };
 
-  const deleteTrip = async (id: string) => {
+  const deleteTrip = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm('Delete this trip? This cannot be undone.')) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/trips/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setTrips(trips.filter(t => t.id !== id));
-      }
+      if (res.ok) setTrips(trips.filter(t => t.id !== id));
     } catch (error) {
       console.error('Failed to delete trip:', error);
     } finally {
@@ -137,273 +105,336 @@ export default function TripsPage() {
   };
 
   const committedTrips = trips.filter(t => t.committedAt && t.startDate);
+  const plannedTrips = trips.filter(t => !t.committedAt);
+
+  // Stats
+  const stats = useMemo(() => {
+    const yearTrips = committedTrips.filter(t => {
+      const start = new Date(t.startDate!);
+      return start.getFullYear() === selectedYear;
+    });
+    const totalDays = yearTrips.reduce((sum, t) => sum + t.daysTravel, 0);
+    const totalBudget = yearTrips.reduce((sum, t) => sum + (t._count.expenses || 0), 0);
+    const uniqueDestinations = new Set(yearTrips.map(t => t.destination).filter(Boolean)).size;
+    
+    return { count: yearTrips.length, days: totalDays, budget: totalBudget, destinations: uniqueDestinations };
+  }, [committedTrips, selectedYear]);
+
+  const fmt = (n: number) => '$' + n.toLocaleString();
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
-      <PageHeader
-        title="Trips & Agenda"
-        subtitle="Plan trips, compare destinations, coordinate with your crew"
-        backHref="/hub"
-        actions={
-          <Button onClick={() => router.push('/budgets/trips/new')}>
-            + New Trip
-          </Button>
-        }
-      />
-
-      <div className="px-4 lg:px-8 py-8 space-y-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
+          
+          {/* Header */}
+          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">Trip Command Center</h1>
+                <p className="text-gray-300 text-xs font-mono">
+                  {trips.length} trips · {committedTrips.length} committed · {plannedTrips.length} planning
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => router.push('/budgets/trips/new')}
+                  className="px-4 py-2 text-xs bg-white text-[#2d1b4e] font-medium hover:bg-gray-100">
+                  + New Trip
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Trip Map */}
-            <Card>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">🗺️ Trip Locations</h2>
-              </div>
-              <TripMap 
-                trips={committedTrips.map(t => ({
-                  id: t.id,
-                  name: t.name,
-                  destination: t.destination,
-                  activity: t.activity,
-                  latitude: t.latitude,
-                  longitude: t.longitude,
-                  startDate: t.startDate,
-                  endDate: t.endDate,
-                }))}
-                onTripClick={(id) => router.push(`/budgets/trips/${id}`)}
-              />
-            </Card>
 
-            {/* Year Calendar */}
-            <Card>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">📅 Trip Calendar</h2>
-                <div className="flex items-center gap-2">
-                  {[selectedYear - 1, selectedYear, selectedYear + 1].map(year => (
-                    <button
-                      key={year}
-                      onClick={() => setSelectedYear(year)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                        year === selectedYear
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {year}
-                    </button>
-                  ))}
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Trips {selectedYear}</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{stats.count}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Travel Days</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{stats.days}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Destinations</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{stats.destinations}</div>
+            </div>
+            <div className="bg-white border border-gray-200 p-4">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Budget Items</div>
+              <div className="text-2xl font-bold font-mono text-gray-900">{stats.budget}</div>
+            </div>
+          </div>
+
+          {/* View Toggle + Year Selector */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-1 bg-white border border-gray-200">
+              {(['calendar', 'list', 'map'] as ViewMode[]).map(mode => (
+                <button key={mode} onClick={() => setViewMode(mode)}
+                  className={`px-4 py-2 text-xs font-medium ${viewMode === mode ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  {mode === 'calendar' ? 'Calendar' : mode === 'list' ? 'List' : 'Map'}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 bg-white border border-gray-200">
+              {[selectedYear - 1, selectedYear, selectedYear + 1].map(year => (
+                <button key={year} onClick={() => setSelectedYear(year)}
+                  className={`px-4 py-2 text-xs font-medium ${year === selectedYear ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  {year}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="bg-white border border-gray-200">
+            
+            {/* Calendar View */}
+            {viewMode === 'calendar' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  {selectedYear} Travel Calendar
                 </div>
-              </div>
-
-              {committedTrips.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <div className="text-4xl mb-2">📅</div>
-                  <p>No committed trips yet. Commit a trip to see it on the calendar.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                  {FULL_MONTHS.map((monthName, monthIndex) => {
-                    const monthNum = monthIndex + 1;
-                    const daysInMonth = new Date(selectedYear, monthNum, 0).getDate();
-                    const firstDayOfWeek = new Date(selectedYear, monthIndex, 1).getDay();
-                    
-                    const monthTrips = committedTrips.filter(t => {
-                      if (!t.startDate) return false;
-                      const start = new Date(new Date(t.startDate).getTime() + 12*60*60*1000);
-                      const end = new Date(new Date(t.endDate!).getTime() + 12*60*60*1000);
-                      const monthStart = new Date(selectedYear, monthIndex, 1);
-                      const monthEnd = new Date(selectedYear, monthNum, 0);
-                      return start <= monthEnd && end >= monthStart;
-                    });
-
-                    return (
-                      <div key={monthName} className="bg-gray-50 rounded-xl p-3">
-                        <div className="text-xs font-semibold text-gray-500 mb-2 text-center">{monthName}</div>
-                        
-                        <div className="grid grid-cols-7 gap-px text-center">
-                          {['S','M','T','W','T','F','S'].map((d, i) => (
-                            <div key={i} className="text-[8px] text-gray-400 font-medium">{d}</div>
-                          ))}
-                          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                            <div key={`empty-${i}`} className="h-5" />
-                          ))}
-                          {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
-                            const day = dayIndex + 1;
-                            const currentDate = new Date(selectedYear, monthIndex, day);
-                            
-                            const tripOnDay = monthTrips.find(t => {
-                              const start = new Date(new Date(t.startDate!).getTime() + 12*60*60*1000);
-                              const end = new Date(new Date(t.endDate!).getTime() + 12*60*60*1000);
-                              start.setHours(0,0,0,0);
-                              end.setHours(23,59,59,999);
-                              currentDate.setHours(12,0,0,0);
-                              return currentDate >= start && currentDate <= end;
-                            });
-
-                            return (
-                              <div
-                                key={day}
-                                onClick={() => tripOnDay && router.push(`/budgets/trips/${tripOnDay.id}`)}
-                                className={`h-5 text-[10px] flex items-center justify-center rounded-sm transition-all ${
-                                  tripOnDay
-                                    ? `${ACTIVITY_COLORS[tripOnDay.activity || ''] || 'bg-purple-600'} text-white cursor-pointer hover:opacity-80`
-                                    : 'text-gray-500 hover:bg-gray-100'
-                                }`}
-                                title={tripOnDay ? `${tripOnDay.name} - ${tripOnDay.destination}` : undefined}
-                              >
-                                {day}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {monthTrips.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {monthTrips.slice(0, 2).map(t => (
-                              <div
-                                key={t.id}
-                                onClick={() => router.push(`/budgets/trips/${t.id}`)}
-                                className={`text-[9px] px-1.5 py-0.5 rounded truncate cursor-pointer ${ACTIVITY_COLORS[t.activity || ''] || 'bg-purple-600'} text-white`}
-                              >
-                                {ACTIVITIES[t.activity || '']?.split(' ')[0] || '🗺️'} {t.destination || t.name}
-                              </div>
-                            ))}
-                            {monthTrips.length > 2 && (
-                              <div className="text-[9px] text-gray-400 text-center">+{monthTrips.length - 2} more</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            {/* Trip Cards */}
-            {trips.length === 0 ? (
-              <Card className="max-w-lg mx-auto text-center py-12">
-                <div className="text-5xl mb-4">✈️</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No trips yet</h3>
-                <p className="text-gray-500 mb-6">Create your first trip to start planning adventures with your crew.</p>
-                <Button onClick={() => router.push('/budgets/trips/new')}>Create Your First Trip</Button>
-              </Card>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trips.map((trip) => (
-                  <div 
-                    key={trip.id} 
-                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
-                    onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                  >
-                    {/* Destination Image */}
-                    <div className="relative aspect-[16/10] bg-gradient-to-br from-purple-100 to-indigo-100">
-                      {trip.destinationPhoto ? (
-                        <img 
-                          src={trip.destinationPhoto} 
-                          alt={trip.destination || trip.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-6xl">{trip.activity && ACTIVITIES[trip.activity]?.split(' ')[0] || '✈️'}</span>
-                        </div>
-                      )}
-                      {/* Status Badge */}
-                      <div className="absolute top-3 left-3">
-                        {trip.committedAt ? (
-                          <span className="px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">Committed</span>
-                        ) : trip.status === 'planning' ? (
-                          <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-full">Planning</span>
-                        ) : (
-                          <span className="px-2 py-1 bg-gray-500 text-white text-xs font-semibold rounded-full">{trip.status}</span>
-                        )}
-                      </div>
-                      {/* Activity Badge */}
-                      {trip.activity && (
-                        <div className="absolute top-3 right-3">
-                          <span className="px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-700 text-xs font-medium rounded-full">
-                            {ACTIVITIES[trip.activity] || trip.activity}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Trip Info */}
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition-colors mb-1">
-                        {trip.destination || trip.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 mb-3">
-                        {trip.startDate 
-                          ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
-                            (trip.endDate ? ' - ' + new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')
-                          : MONTHS[trip.month] + ' ' + trip.year}
-                        {' • '}{trip.daysTravel} days
-                      </p>
-                      
-                      {/* Participants */}
-                      {trip.participants.length > 0 && (
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="flex -space-x-2">
-                            {trip.participants.slice(0, 4).map((p) => (
-                              <div
-                                key={p.id}
-                                className={`w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white ${
-                                  p.rsvpStatus === 'confirmed' ? 'bg-green-500' :
-                                  p.rsvpStatus === 'maybe' ? 'bg-yellow-500' : 'bg-gray-400'
-                                }`}
-                                title={`${p.firstName} ${p.lastName}`}
-                              >
-                                {p.firstName[0]}
-                              </div>
-                            ))}
-                            {trip.participants.length > 4 && (
-                              <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-                                +{trip.participants.length - 4}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {trip.participants.filter(p => p.rsvpStatus === 'confirmed').length} confirmed
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Stats */}
-                      <div className="flex items-center gap-3 pt-3 border-t border-gray-100 text-xs text-gray-400">
-                        <span>{trip._count.expenses} expenses</span>
-                        <span>•</span>
-                        <span>{trip._count.budget_line_items || trip._count.itinerary} budget items</span>
-                      </div>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteTrip(trip.id); }}
-                        className="px-3 py-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        disabled={deleting === trip.id}
-                      >
-                        {deleting === trip.id ? '...' : 'Delete'}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); router.push(`/budgets/trips/${trip.id}`); }}
-                        className="px-3 py-1.5 text-sm bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        View
-                      </button>
-                    </div>
+                
+                {committedTrips.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <p className="text-sm">No committed trips. Commit a trip to see it on the calendar.</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-gray-200">
+                    {FULL_MONTHS.map((monthName, monthIndex) => {
+                      const monthNum = monthIndex + 1;
+                      const daysInMonth = new Date(selectedYear, monthNum, 0).getDate();
+                      const firstDayOfWeek = new Date(selectedYear, monthIndex, 1).getDay();
+                      
+                      const monthTrips = committedTrips.filter(t => {
+                        if (!t.startDate) return false;
+                        const start = new Date(t.startDate);
+                        const end = new Date(t.endDate!);
+                        const monthStart = new Date(selectedYear, monthIndex, 1);
+                        const monthEnd = new Date(selectedYear, monthNum, 0);
+                        return start <= monthEnd && end >= monthStart;
+                      });
+
+                      return (
+                        <div key={monthName} className="bg-white p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{monthName}</span>
+                            {monthTrips.length > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-[#2d1b4e] text-white">{monthTrips.length}</span>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-7 gap-px text-center mb-1">
+                            {WEEKDAYS.map((d, i) => (
+                              <div key={i} className="text-[9px] text-gray-400 font-medium py-1">{d[0]}</div>
+                            ))}
+                          </div>
+                          
+                          <div className="grid grid-cols-7 gap-px">
+                            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                              <div key={`empty-${i}`} className="aspect-square" />
+                            ))}
+                            {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
+                              const day = dayIndex + 1;
+                              const currentDate = new Date(selectedYear, monthIndex, day);
+                              
+                              const tripOnDay = monthTrips.find(t => {
+                                const start = new Date(t.startDate!);
+                                const end = new Date(t.endDate!);
+                                start.setHours(0, 0, 0, 0);
+                                end.setHours(23, 59, 59, 999);
+                                return currentDate >= start && currentDate <= end;
+                              });
+
+                              const isStart = tripOnDay && new Date(tripOnDay.startDate!).getDate() === day && 
+                                new Date(tripOnDay.startDate!).getMonth() === monthIndex;
+                              const isEnd = tripOnDay && new Date(tripOnDay.endDate!).getDate() === day &&
+                                new Date(tripOnDay.endDate!).getMonth() === monthIndex;
+
+                              return (
+                                <div key={day}
+                                  onClick={() => tripOnDay && router.push(`/budgets/trips/${tripOnDay.id}`)}
+                                  className={`aspect-square flex items-center justify-center text-[10px] transition-all relative ${
+                                    tripOnDay
+                                      ? 'text-white cursor-pointer hover:opacity-80'
+                                      : 'text-gray-500 hover:bg-gray-50'
+                                  }`}
+                                  style={tripOnDay ? { backgroundColor: ACTIVITY_COLORS[tripOnDay.activity || ''] || '#2d1b4e' } : {}}
+                                  title={tripOnDay ? `${tripOnDay.name} - ${tripOnDay.destination}` : undefined}
+                                >
+                                  {day}
+                                  {isStart && <div className="absolute -left-px top-0 bottom-0 w-1 bg-black/30" />}
+                                  {isEnd && <div className="absolute -right-px top-0 bottom-0 w-1 bg-black/30" />}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Month trips list */}
+                          {monthTrips.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {monthTrips.slice(0, 3).map(t => (
+                                <div key={t.id} onClick={() => router.push(`/budgets/trips/${t.id}`)}
+                                  className="text-[10px] px-2 py-1 cursor-pointer hover:opacity-80 flex items-center gap-1 text-white truncate"
+                                  style={{ backgroundColor: ACTIVITY_COLORS[t.activity || ''] || '#2d1b4e' }}>
+                                  <span className="font-medium">{t.destination || t.name}</span>
+                                  <span className="opacity-70">· {t.daysTravel}d</span>
+                                </div>
+                              ))}
+                              {monthTrips.length > 3 && (
+                                <div className="text-[10px] text-gray-400 text-center">+{monthTrips.length - 3} more</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </>
-        )}
+
+            {/* List View */}
+            {viewMode === 'list' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  All Trips
+                </div>
+                
+                {trips.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <p className="text-sm mb-4">No trips yet. Create your first trip to start planning.</p>
+                    <button onClick={() => router.push('/budgets/trips/new')}
+                      className="px-4 py-2 text-sm bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                      Create First Trip
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#3d2b5e] text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Trip</th>
+                          <th className="px-3 py-2 text-left font-medium">Destination</th>
+                          <th className="px-3 py-2 text-left font-medium">Activity</th>
+                          <th className="px-3 py-2 text-left font-medium">Dates</th>
+                          <th className="px-3 py-2 text-center font-medium">Days</th>
+                          <th className="px-3 py-2 text-center font-medium">Crew</th>
+                          <th className="px-3 py-2 text-center font-medium">Status</th>
+                          <th className="px-3 py-2 text-center font-medium"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {trips.map(trip => (
+                          <tr key={trip.id} onClick={() => router.push(`/budgets/trips/${trip.id}`)}
+                            className="hover:bg-gray-50 cursor-pointer">
+                            <td className="px-3 py-3">
+                              <div className="font-medium text-gray-900">{trip.name}</div>
+                            </td>
+                            <td className="px-3 py-3 text-gray-600">{trip.destination || '—'}</td>
+                            <td className="px-3 py-3">
+                              {trip.activity && (
+                                <span className="px-2 py-0.5 text-[10px] text-white"
+                                  style={{ backgroundColor: ACTIVITY_COLORS[trip.activity] || '#6b7280' }}>
+                                  {ACTIVITIES[trip.activity] || trip.activity}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 font-mono text-gray-600">
+                              {trip.startDate 
+                                ? `${new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(trip.endDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                                : `${MONTHS[trip.month - 1]} ${trip.year}`}
+                            </td>
+                            <td className="px-3 py-3 text-center font-mono">{trip.daysTravel}</td>
+                            <td className="px-3 py-3 text-center">
+                              <div className="flex -space-x-1 justify-center">
+                                {trip.participants.slice(0, 3).map(p => (
+                                  <div key={p.id}
+                                    className={`w-5 h-5 rounded-full border border-white flex items-center justify-center text-[8px] font-bold text-white ${
+                                      p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : 'bg-gray-400'
+                                    }`}>
+                                    {p.firstName[0]}
+                                  </div>
+                                ))}
+                                {trip.participants.length > 3 && (
+                                  <div className="w-5 h-5 rounded-full border border-white bg-gray-200 flex items-center justify-center text-[8px] text-gray-600">
+                                    +{trip.participants.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <span className={`px-2 py-0.5 text-[10px] ${
+                                trip.committedAt ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {trip.committedAt ? 'Committed' : 'Planning'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <button onClick={(e) => deleteTrip(trip.id, e)}
+                                className="text-gray-400 hover:text-red-600 text-xs px-2 py-1">
+                                {deleting === trip.id ? '...' : '×'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Map View */}
+            {viewMode === 'map' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  Trip Locations
+                </div>
+                <div className="p-4">
+                  <TripMap 
+                    trips={committedTrips.map(t => ({
+                      id: t.id,
+                      name: t.name,
+                      destination: t.destination,
+                      activity: t.activity,
+                      latitude: t.latitude,
+                      longitude: t.longitude,
+                      startDate: t.startDate,
+                      endDate: t.endDate,
+                    }))}
+                    onTripClick={(id) => router.push(`/budgets/trips/${id}`)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Trip Detail Sidebar (when selected) */}
+          {selectedTrip && (
+            <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-xl z-50 overflow-y-auto">
+              <div className="bg-[#2d1b4e] text-white p-4 flex justify-between items-center">
+                <div>
+                  <div className="font-semibold">{selectedTrip.name}</div>
+                  <div className="text-xs text-gray-300">{selectedTrip.destination}</div>
+                </div>
+                <button onClick={() => setSelectedTrip(null)} className="text-white/60 hover:text-white">×</button>
+              </div>
+              {/* Quick details would go here */}
+            </div>
+          )}
+
+        </div>
       </div>
     </AppLayout>
   );
