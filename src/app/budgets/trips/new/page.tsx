@@ -2,123 +2,87 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppLayout } from '@/components/ui';
 
 const ACTIVITY_GROUPS = [
   {
     label: 'Snow & Mountain',
     activities: [
-      { value: 'snowboard', label: 'Snowboard', icon: '🏂' },
-      { value: 'ski', label: 'Ski', icon: '⛷️' },
-      { value: 'backcountry', label: 'Backcountry', icon: '🎿' },
-      { value: 'mtb', label: 'Mountain Bike', icon: '🚵' },
-      { value: 'hike', label: 'Hiking', icon: '🥾' },
-      { value: 'camp', label: 'Camping', icon: '🏕️' },
-      { value: 'climb', label: 'Rock Climbing', icon: '🧗' },
-      { value: 'bouldering', label: 'Bouldering', icon: '🪨' },
+      { value: 'snowboard', label: 'Snowboard' },
+      { value: 'ski', label: 'Ski' },
+      { value: 'backcountry', label: 'Backcountry' },
+      { value: 'mtb', label: 'Mountain Bike' },
+      { value: 'hike', label: 'Hiking' },
+      { value: 'camp', label: 'Camping' },
+      { value: 'climb', label: 'Rock Climbing' },
     ]
   },
   {
     label: 'Water Sports',
     activities: [
-      { value: 'surf', label: 'Surf', icon: '🏄' },
-      { value: 'kitesurf', label: 'Kitesurf', icon: '🪁' },
-      { value: 'windsurf', label: 'Windsurf', icon: '🌊' },
-      { value: 'wakeboard', label: 'Wakeboard', icon: '🏄‍♂️' },
-      { value: 'sail', label: 'Sailing', icon: '⛵' },
-      { value: 'kayak', label: 'Kayak', icon: '🛶' },
-      { value: 'rafting', label: 'Rafting', icon: '🚣' },
-      { value: 'scuba', label: 'Scuba Dive', icon: '🤿' },
-      { value: 'snorkel', label: 'Snorkel', icon: '🐠' },
-      { value: 'swim', label: 'Swim', icon: '🏊' },
-      { value: 'cliffjump', label: 'Cliff Jump', icon: '🪂' },
-      { value: 'fish', label: 'Fishing', icon: '🎣' },
+      { value: 'surf', label: 'Surf' },
+      { value: 'kitesurf', label: 'Kitesurf' },
+      { value: 'windsurf', label: 'Windsurf' },
+      { value: 'wakeboard', label: 'Wakeboard' },
+      { value: 'sail', label: 'Sailing' },
+      { value: 'kayak', label: 'Kayak' },
+      { value: 'scuba', label: 'Scuba Dive' },
+      { value: 'fish', label: 'Fishing' },
     ]
   },
   {
     label: 'Endurance & Fitness',
     activities: [
-      { value: 'roadbike', label: 'Road Cycling', icon: '🚴' },
-      { value: 'gravel', label: 'Gravel Bike', icon: '🚲' },
-      { value: 'run', label: 'Running', icon: '🏃' },
-      { value: 'trail', label: 'Trail Running', icon: '🏔️' },
-      { value: 'marathon', label: 'Marathon', icon: '🏅' },
-      { value: 'triathlon', label: 'Triathlon', icon: '🏊‍♂️' },
-      { value: 'crossfit', label: 'CrossFit', icon: '🏋️' },
-      { value: 'yoga', label: 'Yoga Retreat', icon: '🧘' },
-      { value: 'wellness', label: 'Wellness & Spa', icon: '💆' },
+      { value: 'roadbike', label: 'Road Cycling' },
+      { value: 'gravel', label: 'Gravel Bike' },
+      { value: 'run', label: 'Running' },
+      { value: 'trail', label: 'Trail Running' },
+      { value: 'triathlon', label: 'Triathlon' },
+      { value: 'yoga', label: 'Yoga Retreat' },
     ]
   },
   {
     label: 'Motorsports & Action',
     activities: [
-      { value: 'moto', label: 'Motorcycle', icon: '🏍️' },
-      { value: 'atv', label: 'ATV/UTV', icon: '🛞' },
-      { value: 'skydive', label: 'Skydiving', icon: '🪂' },
-      { value: 'paraglide', label: 'Paragliding', icon: '🪂' },
-      { value: 'bungee', label: 'Bungee Jump', icon: '🎢' },
-      { value: 'zipline', label: 'Zipline', icon: '🌲' },
+      { value: 'moto', label: 'Motorcycle' },
+      { value: 'atv', label: 'ATV/UTV' },
+      { value: 'skydive', label: 'Skydiving' },
+      { value: 'paraglide', label: 'Paragliding' },
     ]
   },
   {
     label: 'Urban & Lifestyle',
     activities: [
-      { value: 'golf', label: 'Golf', icon: '⛳' },
-      { value: 'tennis', label: 'Tennis', icon: '🎾' },
-      { value: 'pickleball', label: 'Pickleball', icon: '🏓' },
-      { value: 'skate', label: 'Skateboard', icon: '🛹' },
-      { value: 'photography', label: 'Photography', icon: '📷' },
-      { value: 'foodtour', label: 'Food Tour', icon: '🍜' },
-      { value: 'winetour', label: 'Wine Tour', icon: '🍷' },
-      { value: 'breweries', label: 'Breweries', icon: '🍺' },
+      { value: 'golf', label: 'Golf' },
+      { value: 'tennis', label: 'Tennis' },
+      { value: 'skate', label: 'Skateboard' },
+      { value: 'foodtour', label: 'Food Tour' },
+      { value: 'winetour', label: 'Wine Tour' },
     ]
   },
   {
-    label: 'Culture & Entertainment',
+    label: 'Culture & Events',
     activities: [
-      { value: 'museum', label: 'Museums', icon: '🏛️' },
-      { value: 'art', label: 'Art Galleries', icon: '🎨' },
-      { value: 'history', label: 'Historical Sites', icon: '🏰' },
-      { value: 'festival', label: 'Festival', icon: '🎪' },
-      { value: 'concert', label: 'Concert', icon: '🎸' },
-      { value: 'nightlife', label: 'Nightlife', icon: '🎉' },
-      { value: 'theater', label: 'Theater', icon: '🎭' },
-      { value: 'sports', label: 'Watch Sports', icon: '🏟️' },
+      { value: 'festival', label: 'Festival' },
+      { value: 'concert', label: 'Concert' },
+      { value: 'conference', label: 'Conference' },
+      { value: 'wedding', label: 'Wedding' },
     ]
   },
   {
     label: 'Business & Work',
     activities: [
-      { value: 'conference', label: 'Conference', icon: '🎤' },
-      { value: 'nomad', label: 'Remote Work', icon: '💻' },
-      { value: 'coworking', label: 'Coworking', icon: '🏢' },
-      { value: 'networking', label: 'Networking', icon: '🤝' },
-      { value: 'retreat', label: 'Team Retreat', icon: '👥' },
-      { value: 'workshop', label: 'Workshop', icon: '📋' },
-    ]
-  },
-  {
-    label: 'Social & Dining',
-    activities: [
-      { value: 'dinner', label: 'Fine Dining', icon: '🍽️' },
-      { value: 'brunch', label: 'Brunch', icon: '🥂' },
-      { value: 'coffee', label: 'Coffee Culture', icon: '☕' },
-      { value: 'cooking', label: 'Cooking Class', icon: '👨‍🍳' },
-      { value: 'wedding', label: 'Wedding', icon: '💒' },
-      { value: 'bachelor', label: 'Bachelor/ette', icon: '🥳' },
-      { value: 'birthday', label: 'Birthday', icon: '🎂' },
-      { value: 'reunion', label: 'Reunion', icon: '👨‍👩‍👧‍👦' },
+      { value: 'nomad', label: 'Remote Work' },
+      { value: 'coworking', label: 'Coworking' },
+      { value: 'retreat', label: 'Team Retreat' },
     ]
   },
   {
     label: 'Wildlife & Nature',
     activities: [
-      { value: 'safari', label: 'Safari', icon: '🦁' },
-      { value: 'whalewatching', label: 'Whale Watch', icon: '🐋' },
-      { value: 'birdwatching', label: 'Bird Watch', icon: '🦅' },
-      { value: 'stargazing', label: 'Stargazing', icon: '🌌' },
-      { value: 'nationalpark', label: 'National Park', icon: '🏞️' },
-      { value: 'beach', label: 'Beach', icon: '🏖️' },
-      { value: 'hotspring', label: 'Hot Springs', icon: '♨️' },
+      { value: 'safari', label: 'Safari' },
+      { value: 'nationalpark', label: 'National Park' },
+      { value: 'beach', label: 'Beach' },
     ]
   },
 ];
@@ -135,11 +99,7 @@ export default function NewTripPage() {
   const [daysTravel, setDaysTravel] = useState(7);
 
   const toggleActivity = (value: string) => {
-    setActivities(prev => 
-      prev.includes(value) 
-        ? prev.filter(a => a !== value)
-        : [...prev, value]
-    );
+    setActivities(prev => prev.includes(value) ? prev.filter(a => a !== value) : [...prev, value]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,12 +114,12 @@ export default function NewTripPage() {
         body: JSON.stringify({
           name,
           activities,
-          activity: activities[0] || null, // backward compat: primary activity
+          activity: activities[0] || null,
           month: new Date(startDate + 'T12:00:00').getMonth() + 1,
           year: new Date(startDate + 'T12:00:00').getFullYear(),
           startDate,
           daysTravel,
-          daysRiding: daysTravel // default to total days
+          daysRiding: daysTravel
         })
       });
 
@@ -181,241 +141,177 @@ export default function NewTripPage() {
   const copyInviteLink = () => {
     if (created?.inviteUrl) {
       navigator.clipboard.writeText(created.inviteUrl);
-      alert('Invite link copied!');
     }
   };
 
   // Success screen
   if (created) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b sticky top-0 z-50">
-          <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">TS</span>
+      <AppLayout>
+        <div className="min-h-screen bg-[#f5f5f5]">
+          <div className="p-4 lg:p-6 max-w-xl mx-auto">
+            <div className="bg-white border border-gray-200">
+              <div className="bg-[#2d1b4e] text-white p-4 text-center">
+                <div className="text-lg font-semibold">Trip Created</div>
               </div>
-              <div className="font-semibold text-gray-900">Trip Created!</div>
+              <div className="p-6 text-center">
+                <div className="text-4xl mb-4">✓</div>
+                <p className="text-gray-600 mb-6 text-sm">
+                  Share the invite link with your travelers. They'll add their names and blackout dates.
+                </p>
+
+                <div className="bg-gray-50 p-3 mb-6">
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Invite Link</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={created.inviteUrl} readOnly
+                      className="flex-1 px-3 py-2 border border-gray-200 text-xs font-mono bg-white" />
+                    <button onClick={copyInviteLink}
+                      className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e]">
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-center">
+                  <button onClick={() => router.push(`/budgets/trips/${created.id}`)}
+                    className="px-6 py-2 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e]">
+                    View Trip →
+                  </button>
+                  <button onClick={() => router.push('/budgets/trips')}
+                    className="px-6 py-2 border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+                    All Trips
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </header>
-
-        <main className="max-w-xl mx-auto px-4 py-12">
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Trip Created!</h1>
-            <p className="text-gray-500 mb-8">
-              Share the invite link with your travelers. They'll add their names and blackout dates.
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <label className="block text-sm text-gray-500 mb-2">Invite Link</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={created.inviteUrl}
-                  readOnly
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-                />
-                <button
-                  onClick={copyInviteLink}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => router.push(`/budgets/trips/${created.id}`)}
-                className="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-all"
-              >
-                View Trip →
-              </button>
-              <button
-                onClick={() => router.push('/budgets/trips')}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:border-gray-400 transition-all"
-              >
-                All Trips
-              </button>
-            </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">TS</span>
+    <AppLayout>
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="p-4 lg:p-6 max-w-2xl mx-auto">
+          
+          {/* Header */}
+          <div className="mb-4 bg-[#2d1b4e] text-white p-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold">New Trip</h1>
+              <p className="text-gray-300 text-xs">Plan your next adventure</p>
             </div>
-            <div className="hidden sm:block">
-              <div className="font-semibold text-gray-900">New Trip</div>
-              <div className="text-xs text-gray-400">Plan your adventure</div>
-            </div>
-          </div>
-          <button 
-            onClick={() => router.push('/budgets/trips')}
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            ← Back
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto px-4 py-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Trip Name */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Trip Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Bali Surf & Work Trip 2025"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
-              required
-            />
+            <button onClick={() => router.push('/budgets/trips')} className="text-xs text-gray-300 hover:text-white">
+              ← Back
+            </button>
           </div>
 
-          {/* Activity Selection - Multi-select */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-gray-700">Activities *</label>
-              {activities.length > 0 && (
-                <span className="text-xs bg-purple-600/10 text-purple-600 px-2 py-1 rounded-full font-medium">
-                  {activities.length} selected
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mb-4">Select all that apply — these feed into AI recommendations</p>
-            
-            <div className="space-y-5 max-h-[400px] overflow-y-auto pr-2">
-              {ACTIVITY_GROUPS.map(group => (
-                <div key={group.label}>
-                  <div className="text-xs text-gray-400 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">
-                    {group.label}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4 text-sm">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Trip Name */}
+            <div className="bg-white border border-gray-200">
+              <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                Trip Details
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Trip Name *</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., Bali Surf Trip 2025"
+                    className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]"
+                    required />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]" />
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {group.activities.map(a => {
-                      const isSelected = activities.includes(a.value);
-                      return (
-                        <button
-                          key={a.value}
-                          type="button"
-                          onClick={() => toggleActivity(a.value)}
-                          className={`p-2.5 rounded-lg border-2 text-center transition-all ${
-                            isSelected
-                              ? 'border-purple-600 bg-purple-600/10 shadow-sm'
-                              : 'border-gray-100 hover:border-gray-200 bg-gray-50'
-                          }`}
-                        >
-                          <div className="text-xl mb-0.5">{a.icon}</div>
-                          <div className="text-xs font-medium text-gray-700 leading-tight">{a.label}</div>
-                        </button>
-                      );
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Duration (days)</label>
+                    <input type="number" min={1} max={90} value={daysTravel}
+                      onChange={(e) => setDaysTravel(parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Activities */}
+            <div className="bg-white border border-gray-200">
+              <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
+                <span>Activities</span>
+                {activities.length > 0 && (
+                  <span className="text-[10px] bg-white/20 px-2 py-0.5">{activities.length} selected</span>
+                )}
+              </div>
+              <div className="p-4 max-h-[400px] overflow-y-auto space-y-4">
+                {ACTIVITY_GROUPS.map(group => (
+                  <div key={group.label}>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">{group.label}</div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {group.activities.map(a => {
+                        const isSelected = activities.includes(a.value);
+                        return (
+                          <button key={a.value} type="button" onClick={() => toggleActivity(a.value)}
+                            className={`px-3 py-2 text-xs font-medium transition-all ${
+                              isSelected
+                                ? 'bg-[#2d1b4e] text-white'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                            }`}>
+                            {a.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Selected summary */}
+              {activities.length > 0 && (
+                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                  <div className="flex flex-wrap gap-1">
+                    {activities.map(actValue => {
+                      const act = ACTIVITY_GROUPS.flatMap(g => g.activities).find(a => a.value === actValue);
+                      return act ? (
+                        <span key={actValue}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-[#2d1b4e] text-white text-[10px] font-medium">
+                          {act.label}
+                          <button type="button" onClick={() => toggleActivity(actValue)} className="ml-1 hover:text-gray-300">×</button>
+                        </span>
+                      ) : null;
                     })}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* Selected activities summary */}
-            {activities.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex flex-wrap gap-2">
-                  {activities.map(actValue => {
-                    const act = ACTIVITY_GROUPS.flatMap(g => g.activities).find(a => a.value === actValue);
-                    return act ? (
-                      <span 
-                        key={actValue}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-purple-600/10 text-purple-600 rounded-full text-xs font-medium"
-                      >
-                        {act.icon} {act.label}
-                        <button
-                          type="button"
-                          onClick={() => toggleActivity(actValue)}
-                          className="ml-1 hover:text-purple-800"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+            {/* Info Box */}
+            <div className="bg-blue-50 border border-blue-200 p-4 text-xs text-blue-800">
+              <strong>How it works:</strong> After creating, you'll get a shareable invite link. 
+              Send it to your crew — they'll add their names and mark blackout dates.
+            </div>
 
-          {/* When */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
-            />
-            <p className="text-xs text-gray-500 mt-2">Trip can span multiple months based on duration</p>
-          </div>
-
-          {/* Duration - Single field now */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Duration (days)</label>
-            <input
-              type="number"
-              min={1}
-              max={90}
-              value={daysTravel}
-              onChange={(e) => setDaysTravel(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-600"
-            />
-            <p className="text-xs text-gray-500 mt-2">Total trip length including travel days</p>
-          </div>
-
-          {/* Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            {/* Actions */}
             <div className="flex gap-3">
-              <div className="text-blue-500 text-xl">💡</div>
-              <div className="text-sm text-blue-800">
-                <strong>How it works:</strong> After creating the trip, you'll get a shareable invite link. 
-                Send it to your crew — they'll add their names and mark blackout dates. The AI will use your 
-                selected activities to recommend lodging, restaurants, and experiences.
-              </div>
+              <button type="button" onClick={() => router.back()}
+                className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving || !name || activities.length === 0}
+                className="flex-1 px-4 py-3 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e] disabled:opacity-50">
+                {saving ? 'Creating...' : 'Create Trip'}
+              </button>
             </div>
-          </div>
-
-          {/* Submit */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:border-gray-400 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !name || activities.length === 0}
-              className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Creating...' : 'Create Trip'}
-            </button>
-          </div>
-        </form>
-      </main>
-    </div>
+          </form>
+        </div>
+      </div>
+    </AppLayout>
   );
 }
