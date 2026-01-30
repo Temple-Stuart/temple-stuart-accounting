@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: "Temple Stuart",
     images: [
       {
-        url: "https://templestuart.com/og-image.png",
+        url: "https://templestuart.com/opengraph-image",
         width: 1200,
         height: 630,
         alt: "Temple Stuart - Personal Back Office",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Temple Stuart | Personal Back Office",
     description: "Track your money. Plan your trips. Find your people.",
-    images: ["https://templestuart.com/og-image.png"],
+    images: ["https://templestuart.com/opengraph-image"],
   },
 };
 
