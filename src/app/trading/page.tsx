@@ -245,20 +245,52 @@ export default function TradingPage() {
     });
   }, [filteredTrades]);
 
-  // P&L by day of week
-  const plByDayOfWeek = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const byDay: Record<string, { pl: number; count: number }> = {};
-    days.forEach(d => byDay[d] = { pl: 0, count: 0 });
+  // P&L by actual date (365 day calendar)
+  const plByDate = useMemo(() => {
+    const byDate: Record<string, { pl: number; count: number; trades: Trade[] }> = {};
     
     filteredTrades.filter(t => t.status === 'CLOSED' && t.closeDate).forEach(t => {
-      const day = days[new Date(t.closeDate!).getDay()];
-      byDay[day].pl += t.realizedPL;
-      byDay[day].count++;
+      const dateKey = new Date(t.closeDate!).toISOString().split('T')[0];
+      if (!byDate[dateKey]) byDate[dateKey] = { pl: 0, count: 0, trades: [] };
+      byDate[dateKey].pl += t.realizedPL;
+      byDate[dateKey].count++;
+      byDate[dateKey].trades.push(t);
     });
     
-    return days.map(d => ({ day: d, ...byDay[d] }));
+    return byDate;
   }, [filteredTrades]);
+
+  // Calendar data for the last 365 days
+  const calendarData = useMemo(() => {
+    const today = new Date();
+    const days: { date: Date; dateStr: string; pl: number; count: number }[] = [];
+    
+    for (let i = 364; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const data = plByDate[dateStr];
+      days.push({
+        date,
+        dateStr,
+        pl: data?.pl || 0,
+        count: data?.count || 0
+      });
+    }
+    
+    return days;
+  }, [plByDate]);
+
+  // Group calendar by month for display
+  const calendarByMonth = useMemo(() => {
+    const months: Record<string, typeof calendarData> = {};
+    calendarData.forEach(day => {
+      const monthKey = day.dateStr.slice(0, 7); // YYYY-MM
+      if (!months[monthKey]) months[monthKey] = [];
+      months[monthKey].push(day);
+    });
+    return Object.entries(months).sort(([a], [b]) => a.localeCompare(b));
+  }, [calendarData]);
 
   // P&L by strategy (filtered)
   const filteredByStrategy = useMemo(() => {
@@ -670,38 +702,87 @@ export default function TradingPage() {
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div>
-                {/* Equity Curve */}
+                {/* P&L Calendar - 365 Day Heatmap */}
                 <div className="border-b border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                    Equity Curve
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                    <span>P&L Calendar</span>
+                    <span className="text-xs text-gray-300">Last 365 days</span>
                   </div>
-                  <div className="p-4">
-                    {equityCurve.length > 0 ? (
-                      <div className="h-48 flex items-end gap-1">
-                        {equityCurve.map((point, i) => {
-                          const max = Math.max(...equityCurve.map(p => Math.abs(p.cumulative)));
-                          const height = max > 0 ? (Math.abs(point.cumulative) / max) * 100 : 0;
-                          const isPositive = point.cumulative >= 0;
+                  <div className="p-4 overflow-x-auto">
+                    {calendarByMonth.length > 0 ? (
+                      <div className="space-y-3">
+                        {calendarByMonth.map(([monthKey, days]) => {
+                          const monthDate = new Date(monthKey + '-01');
+                          const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                          const monthTotal = days.reduce((sum, d) => sum + d.pl, 0);
+                          const tradeDays = days.filter(d => d.count > 0).length;
+                          
                           return (
-                            <div key={i} className="flex-1 flex flex-col justify-end items-center group relative">
-                              <div className={`w-full ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} 
-                                style={{ height: `${Math.max(height, 2)}%` }} />
-                              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
-                                {new Date(point.date).toLocaleDateString()}<br />
-                                Trade: {fmtPL(point.pl)}<br />
-                                Cumulative: {fmtPL(point.cumulative)}
+                            <div key={monthKey} className="flex items-start gap-3">
+                              <div className="w-20 flex-shrink-0">
+                                <div className="text-xs font-medium text-gray-700">{monthName}</div>
+                                <div className={`text-[10px] font-mono ${monthTotal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {monthTotal !== 0 ? fmtPL(monthTotal) : '—'}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-[2px]">
+                                {days.map((day, i) => {
+                                  const intensity = day.pl === 0 ? 0 : Math.min(Math.abs(day.pl) / 500, 1);
+                                  const isPositive = day.pl >= 0;
+                                  const dayOfWeek = day.date.getDay();
+                                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                                  
+                                  let bgColor = 'bg-gray-100';
+                                  if (day.count > 0) {
+                                    if (isPositive) {
+                                      bgColor = intensity > 0.7 ? 'bg-emerald-600' : intensity > 0.3 ? 'bg-emerald-400' : 'bg-emerald-200';
+                                    } else {
+                                      bgColor = intensity > 0.7 ? 'bg-red-600' : intensity > 0.3 ? 'bg-red-400' : 'bg-red-200';
+                                    }
+                                  } else if (isWeekend) {
+                                    bgColor = 'bg-gray-50';
+                                  }
+                                  
+                                  return (
+                                    <div key={i} className="group relative">
+                                      <div className={`w-4 h-4 ${bgColor} ${day.count > 0 ? 'cursor-pointer' : ''}`} />
+                                      {day.count > 0 && (
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20">
+                                          <div className="font-medium">{day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                                          <div className={day.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtPL(day.pl)}</div>
+                                          <div className="text-gray-400">{day.count} trade{day.count > 1 ? 's' : ''}</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No closed trades in period</div>
+                      <div className="h-32 flex items-center justify-center text-gray-400 text-sm">No trading data</div>
                     )}
+                    
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                      <span className="text-[10px] text-gray-500">Less</span>
+                      <div className="flex gap-1">
+                        <div className="w-3 h-3 bg-red-600" title="Large Loss" />
+                        <div className="w-3 h-3 bg-red-400" title="Medium Loss" />
+                        <div className="w-3 h-3 bg-red-200" title="Small Loss" />
+                        <div className="w-3 h-3 bg-gray-100" title="No Trades" />
+                        <div className="w-3 h-3 bg-emerald-200" title="Small Win" />
+                        <div className="w-3 h-3 bg-emerald-400" title="Medium Win" />
+                        <div className="w-3 h-3 bg-emerald-600" title="Large Win" />
+                      </div>
+                      <span className="text-[10px] text-gray-500">More</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
                   {/* By Strategy */}
                   <div>
                     <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
@@ -749,7 +830,7 @@ export default function TradingPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {filteredByTicker.slice(0, 10).map(t => (
+                          {filteredByTicker.slice(0, 15).map(t => (
                             <tr key={t.ticker} className="hover:bg-gray-50">
                               <td className="px-3 py-2 font-mono font-medium">{t.ticker}</td>
                               <td className="px-3 py-2 text-center text-gray-500">{t.wins}W/{t.losses}L</td>
@@ -761,35 +842,6 @@ export default function TradingPage() {
                           {filteredByTicker.length === 0 && (
                             <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No data</td></tr>
                           )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* By Day of Week */}
-                  <div>
-                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                      P&L by Day
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50 sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left font-medium">Day</th>
-                            <th className="px-3 py-2 text-center font-medium">Trades</th>
-                            <th className="px-3 py-2 text-right font-medium">P&L</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {plByDayOfWeek.filter(d => d.count > 0).map(d => (
-                            <tr key={d.day} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 font-medium">{d.day}</td>
-                              <td className="px-3 py-2 text-center text-gray-500">{d.count}</td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${d.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                {fmtPL(d.pl)}
-                              </td>
-                            </tr>
-                          ))}
                         </tbody>
                       </table>
                     </div>
