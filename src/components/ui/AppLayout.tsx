@@ -17,7 +17,7 @@ interface CookieUser {
 const navigation = [
   { name: 'Hub', href: '/hub' },
   { name: 'Books', href: '/dashboard' },
-  { name: 'Income', href: '/income' },
+  { name: 'Business', href: '/business' },
   { name: 'Trading', href: '/trading' },
   { name: 'Home', href: '/home' },
   { name: 'Auto', href: '/auto' },
@@ -26,9 +26,10 @@ const navigation = [
   { name: 'Health', href: '/health' },
   { name: 'Growth', href: '/growth' },
   { name: 'Trips', href: '/budgets/trips' },
-  { name: 'Business', href: '/business' },
+  { name: 'Income', href: '/income' },
   { name: 'Budget', href: '/hub/itinerary' },
 ];
+
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const router = useRouter();
