@@ -40,7 +40,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white flex items-center justify-center">
-                <Image src="/temple-stuart-logo.png" alt="TS" width={32} height={32} className="object-contain" />
+                <span className="text-[#2d1b4e] font-bold text-lg">TS</span>
               </div>
               <div>
                 <div className="text-sm font-semibold tracking-tight">Temple Stuart</div>
@@ -265,9 +265,9 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-white flex items-center justify-center">
-                <Image src="/temple-stuart-logo.png" alt="TS" width={24} height={24} className="object-contain" />
+                <span className="text-[#2d1b4e] font-bold text-sm">TS</span>
               </div>
-              <div className="text-xs text-gray-400">© 2025 Temple Stuart, LLC</div>
+              <div className="text-xs text-gray-400">© 2026 Temple Stuart, LLC</div>
             </div>
             <div className="flex items-center gap-4">
               <a href="https://instagram.com/templestuart" target="_blank" rel="noopener noreferrer"
