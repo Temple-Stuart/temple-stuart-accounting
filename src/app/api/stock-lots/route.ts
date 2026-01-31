@@ -99,10 +99,13 @@ export async function POST(request: Request) {
     }
 
     // Validate: all must be BUY transactions for stocks (not options)
+    // Use security metadata to detect options (same as opens API), not name string matching
     const invalidTxns = transactions.filter(t => {
       const name = t.name.toLowerCase();
       const isBuy = name.includes('buy') && !name.includes('sell');
-      const isOption = name.includes('call') || name.includes('put');
+      // Detect options via security metadata, not name substring
+      const sec = t.security;
+      const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
       return !isBuy || isOption;
     });
 
@@ -125,8 +128,8 @@ export async function POST(request: Request) {
     // Transform to legs format
     const legs = transactions.map(txn => {
       const symbol = txn.security?.ticker_symbol || 
-                     txn.security?.option_underlying_ticker ||
-                     extractSymbol(txn.name);
+                    txn.security?.option_underlying_ticker ||
+                    extractSymbol(txn.name);
       return {
         id: txn.id,
         date: txn.date,
