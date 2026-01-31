@@ -98,18 +98,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
     }
 
+
     // Validate: all must be BUY transactions for stocks (not options)
     // Use security metadata to detect options (same as opens API), not name string matching
+    console.log('Stock lots validation - received txn count:', transactions.length);
     const invalidTxns = transactions.filter(t => {
-      const name = t.name.toLowerCase();
+      const name = (t.name || '').toLowerCase();
       const isBuy = name.includes('buy') && !name.includes('sell');
       // Detect options via security metadata, not name substring
       const sec = t.security;
       const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
+      
+      console.log('Validating:', { 
+        id: t.id, 
+        nameSample: t.name?.substring(0, 40),
+        isBuy, 
+        isOption,
+        hasSec: !!sec,
+        optType: sec?.option_contract_type,
+        strike: sec?.option_strike_price
+      });
+      
       return !isBuy || isOption;
     });
 
+    console.log('Invalid count:', invalidTxns.length);
     if (invalidTxns.length > 0) {
+      console.log('Rejected:', invalidTxns.map(t => t.name?.substring(0, 50)));
       return NextResponse.json({ 
         error: 'Invalid transactions: must be stock BUY transactions (not options)',
         invalid: invalidTxns.map(t => ({ id: t.id, name: t.name }))
