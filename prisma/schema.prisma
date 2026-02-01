@@ -272,6 +272,7 @@ model trading_positions {
   expiration_date         DateTime?
   position_type           String    @db.VarChar(10)
   quantity                Float
+  remaining_quantity      Float?
   open_price              Float
   open_fees               Float     @default(0)
   open_date               DateTime

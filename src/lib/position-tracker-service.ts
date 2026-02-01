@@ -196,13 +196,14 @@ export class PositionTrackerService {
     let openPosition = leg.matchedPosition;
     
     if (!openPosition) {
+      // Find position with remaining quantity > 0
       openPosition = await db.trading_positions.findFirst({
         where: { 
           symbol: leg.symbol, 
           strike_price: leg.strike, 
           option_type: leg.contractType?.toUpperCase(),
           expiration_date: leg.expiry, 
-          status: 'OPEN' 
+          remaining_quantity: { gt: 0 }
         },
         orderBy: { open_date: 'asc' }
       });
@@ -210,30 +211,45 @@ export class PositionTrackerService {
     
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
     
+    // Calculate close quantity and proportional values
+    const closeQty = leg.quantity;
+    const positionQty = openPosition.quantity;
+    const remainingQty = openPosition.remaining_quantity ?? positionQty;
+    
+    if (closeQty > remainingQty) {
+      throw new Error(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
+    }
+    
+    // Proportional cost basis for partial close
+    const proportionalCostBasis = (closeQty / positionQty) * openPosition.cost_basis;
+    const originalCost = Math.round(proportionalCostBasis * 100);
+    
     // Check if this is an exercise/assignment (stock transaction closing an option)
     const legName = (leg as any).name?.toLowerCase() || '';
     const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
     
+    // Calculate new remaining quantity
+    const newRemainingQty = remainingQty - closeQty;
+    const isFullClose = newRemainingQty <= 0;
+    
     let proceeds: number;
     let realizedPL: number;
-    const originalCost = Math.round(openPosition.cost_basis * 100);
     
     if (isExerciseOrAssignment) {
       // For exercise/assignment, skip journal entry creation entirely.
-      // The stock transactions don't correspond to option positions in a way
-      // that makes sense for double-entry bookkeeping of the option trade.
       // P&L is calculated at the trade level from transaction amounts.
       
-      // Just close the position without journal entry
+      // Update position (partial or full close)
       await db.trading_positions.update({
         where: { id: openPosition.id },
         data: { 
-          status: 'CLOSED', 
-          close_investment_txn_id: leg.id, 
-          close_price: leg.price,
-          close_fees: leg.fees || 0, 
-          close_date: leg.date, 
-          proceeds: leg.amount, 
+          remaining_quantity: Math.max(0, newRemainingQty),
+          status: isFullClose ? 'CLOSED' : 'OPEN', 
+          close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id, 
+          close_price: isFullClose ? leg.price : openPosition.close_price,
+          close_fees: (openPosition.close_fees || 0) + (leg.fees || 0), 
+          close_date: isFullClose ? leg.date : openPosition.close_date, 
+          proceeds: (openPosition.proceeds || 0) + leg.amount, 
           realized_pl: 0 // Will be calculated at trade level
         }
       });
@@ -245,15 +261,15 @@ export class PositionTrackerService {
         realizedPL: 0, 
         proceeds: Math.round(leg.amount * 100), 
         originalCost, 
-        action: 'CLOSE_EXERCISE' 
+        action: isFullClose ? 'CLOSE_EXERCISE' : 'PARTIAL_CLOSE_EXERCISE'
       };
     } else {
       // Normal option close: calculate from price * quantity * multiplier
       const multiplier = 100;
       if (leg.action === 'sell') {
-        proceeds = Math.round((leg.price * leg.quantity * multiplier - leg.fees) * 100);
+        proceeds = Math.round((leg.price * closeQty * multiplier - leg.fees) * 100);
       } else {
-        proceeds = Math.round((leg.price * leg.quantity * multiplier + leg.fees) * 100);
+        proceeds = Math.round((leg.price * closeQty * multiplier + leg.fees) * 100);
       }
       
       if (openPosition.position_type === 'LONG') {
@@ -281,18 +297,27 @@ export class PositionTrackerService {
     }
     const journalEntry = await this.createJournalEntry({
       date: leg.date,
-      description: `CLOSE ${openPosition.position_type}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
+      description: `${isFullClose ? 'CLOSE' : 'PARTIAL CLOSE'} ${openPosition.position_type}: ${closeQty}x ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
       db
     });
+    
+    // Update position with new remaining quantity
     await db.trading_positions.update({
       where: { id: openPosition.id },
-      data: { status: 'CLOSED', close_investment_txn_id: leg.id, close_price: leg.price,
-        close_fees: leg.fees, close_date: leg.date, proceeds: proceeds / 100, realized_pl: realizedPL / 100 }
+      data: { 
+        remaining_quantity: Math.max(0, newRemainingQty),
+        status: isFullClose ? 'CLOSED' : 'OPEN',
+        close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id, 
+        close_price: isFullClose ? leg.price : openPosition.close_price,
+        close_fees: (openPosition.close_fees || 0) + (leg.fees || 0), 
+        close_date: isFullClose ? leg.date : openPosition.close_date, 
+        proceeds: ((openPosition.proceeds || 0) * 100 + proceeds) / 100, 
+        realized_pl: ((openPosition.realized_pl || 0) * 100 + realizedPL) / 100 
+      }
     });
-    return { legId: leg.id, journalId: journalEntry.id, coaCode: plAccount, realizedPL, proceeds, originalCost, action: 'CLOSE' };
+    return { legId: leg.id, journalId: journalEntry.id, coaCode: plAccount, realizedPL, proceeds, originalCost, action: isFullClose ? 'CLOSE' : 'PARTIAL_CLOSE' };
   }
-
   private async createJournalEntry(params: {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
