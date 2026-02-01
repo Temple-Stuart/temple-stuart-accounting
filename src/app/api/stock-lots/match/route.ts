@@ -52,7 +52,6 @@ export async function POST(request: Request) {
     }
 
     // Cap sale quantity to available if within tolerance
-    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
 
     const saleDateObj = new Date(saleDate);
     const totalProceeds = saleQuantity * salePrice;
@@ -171,7 +170,6 @@ function calculateMatch(
     }
 
     // Cap sale quantity to available if within tolerance
-    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
 
     lotsUsed.push({
       lotId: lot.id,
@@ -202,8 +200,6 @@ function calculateMatch(
       estimatedTax
     }
 
-    // Cap sale quantity to available if within tolerance
-    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
   };
 }
 
