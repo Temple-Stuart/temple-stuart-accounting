@@ -176,7 +176,7 @@ export class PositionTrackerService {
     await db.trading_positions.create({
       data: {
         open_investment_txn_id: leg.id, symbol: leg.symbol, option_type: leg.contractType?.toUpperCase() as string,
-        strike_price: leg.strike, expiration_date: leg.expiry, position_type: positionType, quantity: leg.quantity,
+        strike_price: leg.strike, expiration_date: leg.expiry, position_type: positionType, quantity: leg.quantity, remaining_quantity: leg.quantity,
         open_price: leg.price, open_fees: leg.fees, open_date: leg.date, cost_basis: costBasis / 100,
         status: 'OPEN', trade_num: tradeNum, strategy: strategy
       }
