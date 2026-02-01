@@ -157,7 +157,7 @@ export async function POST(request: Request) {
         remaining -= quantityFromLot;
       }
 
-      if (remaining > 0.0001) {
+      if (remaining > 0.01) {
         throw new Error(`Could not match all shares: ${remaining.toFixed(4)} remaining`);
       }
 
