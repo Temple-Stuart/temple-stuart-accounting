@@ -264,20 +264,15 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     }
   };
 
-
   // Commit STOCK LOTS (each buy becomes a separate lot for FIFO/LIFO tracking)
   const commitStockLots = async () => {
-    const idsToSend = Array.from(selectedIds);
-    console.log('commitStockLots - sending IDs:', idsToSend);
-    alert(`DEBUG: Sending ${idsToSend.length} transaction IDs to /api/stock-lots\n\nFirst 3: ${idsToSend.slice(0, 3).join('\n')});
-    
     setCommitting(true);
     try {
       const res = await fetch('/api/stock-lots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transactionIds: idsToSend,
+          transactionIds: Array.from(selectedIds),
           strategy,
           tradeNum
         })
