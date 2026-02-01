@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     console.log('Stock lots validation - received txn count:', transactions.length);
     const invalidTxns = transactions.filter(t => {
       const name = (t.name || '').toLowerCase();
-      const isBuy = name.includes('buy') && !name.includes('sell');
+      const isBuy = name.startsWith('buy');
       // Detect options via security metadata, not name substring
       const sec = t.security;
       const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
