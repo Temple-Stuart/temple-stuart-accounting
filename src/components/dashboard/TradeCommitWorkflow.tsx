@@ -229,7 +229,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     if (!tradeNum) return alert('Enter a trade number');
 
     // Stock lots use different workflow
-    if (strategy === 'stock-long' || strategy === 'stock-short') {
+    if (strategy === 'stock-long' || strategy === 'stock-short' || strategy === 'crypto') {
       return commitStockLots();
     }
 
