@@ -211,27 +211,31 @@ export class PositionTrackerService {
     
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
     
+
+    // Check if this is an exercise/assignment FIRST (stock transaction closing an option)
+    const legName = (leg as any).name?.toLowerCase() || '';
+    const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
+
     // Calculate close quantity and proportional values
     const closeQty = leg.quantity;
     const positionQty = openPosition.quantity;
     const remainingQty = openPosition.remaining_quantity ?? positionQty;
-    
-    if (closeQty > remainingQty) {
+
+    // Skip quantity validation for exercise/assignment (qty is shares, not contracts)
+    if (!isExerciseOrAssignment && closeQty > remainingQty) {
       throw new Error(`Cannot close ${closeQty} contracts - only ${remainingQty} remaining`);
     }
-    
+
+    // For normal closes, use leg qty; for exercise/assignment, close full position
+    const effectiveCloseQty = isExerciseOrAssignment ? remainingQty : closeQty;
+
     // Proportional cost basis for partial close
-    const proportionalCostBasis = (closeQty / positionQty) * openPosition.cost_basis;
+    const proportionalCostBasis = (effectiveCloseQty / positionQty) * openPosition.cost_basis;
     const originalCost = Math.round(proportionalCostBasis * 100);
-    
-    // Check if this is an exercise/assignment (stock transaction closing an option)
-    const legName = (leg as any).name?.toLowerCase() || '';
-    const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
-    
+
     // Calculate new remaining quantity
-    const newRemainingQty = remainingQty - closeQty;
+    const newRemainingQty = remainingQty - effectiveCloseQty;
     const isFullClose = newRemainingQty <= 0;
-    
     let proceeds: number;
     let realizedPL: number;
     
