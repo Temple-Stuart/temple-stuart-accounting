@@ -51,6 +51,9 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
+    // Cap sale quantity to available if within tolerance
+    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
+
     const saleDateObj = new Date(saleDate);
     const totalProceeds = saleQuantity * salePrice;
 
@@ -69,33 +72,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No open lots found for this symbol' }, { status: 404 });
     }
 
+
     const totalAvailable = lots.reduce((sum, l) => sum + l.remaining_quantity, 0);
-    if (totalAvailable < saleQuantity) {
+    const tolerance = 0.01; // Allow small rounding differences
+    if (totalAvailable < saleQuantity - tolerance) {
       return NextResponse.json({ 
         error: `Insufficient shares: have ${totalAvailable.toFixed(4)}, need ${saleQuantity}`,
         available: totalAvailable
       }, { status: 400 });
     }
 
+    // Cap sale quantity to available if within tolerance
+    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
+
     // Calculate each matching method
     const scenarios: Record<string, MatchResult> = {
-      fifo: calculateMatch(lots, saleQuantity, salePrice, saleDateObj, 'FIFO', stTaxRate, ltTaxRate),
-      lifo: calculateMatch([...lots].reverse(), saleQuantity, salePrice, saleDateObj, 'LIFO', stTaxRate, ltTaxRate),
+      fifo: calculateMatch(lots, effectiveSaleQty, salePrice, saleDateObj, 'FIFO', stTaxRate, ltTaxRate),
+      lifo: calculateMatch([...lots].reverse(), effectiveSaleQty, salePrice, saleDateObj, 'LIFO', stTaxRate, ltTaxRate),
       hifo: calculateMatch(
         [...lots].sort((a, b) => b.cost_per_share - a.cost_per_share), 
-        saleQuantity, salePrice, saleDateObj, 'HIFO', stTaxRate, ltTaxRate
+        effectiveSaleQty, salePrice, saleDateObj, 'HIFO', stTaxRate, ltTaxRate
       ),
       lofo: calculateMatch(
         [...lots].sort((a, b) => a.cost_per_share - b.cost_per_share), 
-        saleQuantity, salePrice, saleDateObj, 'LOFO', stTaxRate, ltTaxRate
+        effectiveSaleQty, salePrice, saleDateObj, 'LOFO', stTaxRate, ltTaxRate
       ),
       ltFirst: calculateMatch(
         [...lots].sort((a, b) => a.acquired_date.getTime() - b.acquired_date.getTime())
           .filter(l => isLongTerm(l.acquired_date, saleDateObj))
           .concat([...lots].filter(l => !isLongTerm(l.acquired_date, saleDateObj))),
-        saleQuantity, salePrice, saleDateObj, 'LT_FIRST', stTaxRate, ltTaxRate
+        effectiveSaleQty, salePrice, saleDateObj, 'LT_FIRST', stTaxRate, ltTaxRate
       ),
-      minTax: findMinTaxScenario(lots, saleQuantity, salePrice, saleDateObj, stTaxRate, ltTaxRate)
+      minTax: findMinTaxScenario(lots, effectiveSaleQty, salePrice, saleDateObj, stTaxRate, ltTaxRate)
     };
 
     // Find the best scenario
@@ -162,6 +170,9 @@ function calculateMatch(
       shortTermGain += gainLoss;
     }
 
+    // Cap sale quantity to available if within tolerance
+    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
+
     lotsUsed.push({
       lotId: lot.id,
       acquiredDate: lot.acquired_date.toISOString(),
@@ -190,6 +201,9 @@ function calculateMatch(
       totalGainLoss,
       estimatedTax
     }
+
+    // Cap sale quantity to available if within tolerance
+    const effectiveSaleQty = Math.min(saleQuantity, totalAvailable);
   };
 }
 
