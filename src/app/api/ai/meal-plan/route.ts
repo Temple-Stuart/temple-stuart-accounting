@@ -64,38 +64,105 @@ export async function POST(request: NextRequest) {
     const totalMealsPerWeek = profile.mealsPerDay * 7;
     const mealsToPlan = totalMealsPerWeek - profile.eatOutMeals;
 
+    // Compute prep day schedule based on food safety (3-4 day max fridge life)
+    const DAYS_LIST = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    type PrepDay = { day: number; dayName: string; covers: string[] };
+    let prepDays: PrepDay[] = [];
+
+    if (profile.cookingStyle === 'meal-prep' || profile.cookingStyle === 'hybrid') {
+      if (profile.cookingDays === 1) {
+        // 1 prep day: Sunday covers Mon-Wed fridge + Thu-Sat freezer
+        prepDays = [
+          { day: 7, dayName: 'Sunday', covers: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] }
+        ];
+      } else if (profile.cookingDays === 2) {
+        // 2 prep days: Sunday covers Sun-Wed, Wednesday covers Wed-Sat
+        prepDays = [
+          { day: 7, dayName: 'Sunday', covers: ['Sunday', 'Monday', 'Tuesday', 'Wednesday'] },
+          { day: 4, dayName: 'Wednesday', covers: ['Thursday', 'Friday', 'Saturday'] }
+        ];
+      } else if (profile.cookingDays === 3) {
+        prepDays = [
+          { day: 7, dayName: 'Sunday', covers: ['Sunday', 'Monday'] },
+          { day: 3, dayName: 'Tuesday', covers: ['Tuesday', 'Wednesday', 'Thursday'] },
+          { day: 6, dayName: 'Friday', covers: ['Friday', 'Saturday'] }
+        ];
+      } else if (profile.cookingDays === 4) {
+        prepDays = [
+          { day: 7, dayName: 'Sunday', covers: ['Sunday', 'Monday'] },
+          { day: 2, dayName: 'Monday', covers: ['Tuesday'] },
+          { day: 4, dayName: 'Wednesday', covers: ['Wednesday', 'Thursday'] },
+          { day: 6, dayName: 'Friday', covers: ['Friday', 'Saturday'] }
+        ];
+      } else {
+        // 5+ days: nearly daily, assign sequentially
+        const spacing = Math.floor(7 / profile.cookingDays);
+        for (let i = 0; i < profile.cookingDays; i++) {
+          const dayIdx = (i * spacing) % 7;
+          const coversCount = i < profile.cookingDays - 1 ? spacing : 7 - (i * spacing);
+          const coversDays = [];
+          for (let j = 0; j < coversCount; j++) {
+            coversDays.push(DAYS_LIST[(dayIdx + j) % 7]);
+          }
+          prepDays.push({ day: dayIdx + 1, dayName: DAYS_LIST[dayIdx], covers: coversDays });
+        }
+      }
+    }
+
+    const prepDayScheduleText = prepDays.length > 0
+      ? prepDays.map(pd => `- PREP DAY: ${pd.dayName} (day ${pd.day}) → cook meals for: ${pd.covers.join(', ')}`).join('\n')
+      : '';
+
     // Build cooking style instructions
     let cookingInstructions = '';
     if (profile.cookingStyle === 'meal-prep') {
       cookingInstructions = `
-MEAL PREP MODE - CRITICAL:
-- User cooks on ${profile.cookingDays} day(s) per week only (e.g., Sunday and Wednesday)
-- ALL ${mealsToPlan} meals must be prepared on these cooking days
-- Recipes MUST be batch-friendly: make large portions that refrigerate/freeze well
-- Include reheating instructions for each meal
-- Mark which day each meal should be PREPPED on (prepDay field)
-- Set isMealPrep: true for all meals
-- Good meal prep foods: grain bowls, sheet pan proteins, soups, casseroles, overnight oats
-- Avoid: salads that wilt, fried foods that get soggy, dishes that don't reheat well
+MEAL PREP MODE — FOOD SAFETY IS NON-NEGOTIABLE:
+The user cooks on EXACTLY ${profile.cookingDays} day(s). All ${mealsToPlan} meals must be covered.
 
-PREP SCHEDULE REQUIRED:
-Generate a "prepSchedule" array showing what to cook each prep day:
-[{ "day": 1, "dayName": "Sunday", "meals": ["Chicken grain bowls (4 servings)", "Overnight oats (7 servings)"] }]`;
+PREP DAY ASSIGNMENTS (follow exactly):
+${prepDayScheduleText}
+
+FOOD SAFETY RULES:
+- Cooked meat/poultry: 3-4 days max in fridge
+- Cooked grains/rice: 4-5 days max
+- Cut fruit/veg: 3-5 days
+- If a meal is eaten 5+ days after prep, it MUST be frozen then thawed
+- Each meal's "prepDay" field MUST match the prep day that covers it
+
+MEAL REQUIREMENTS:
+- ALL meals isMealPrep: true
+- Each meal MUST have a prepDay value matching one of the prep days above
+- Recipes must be batch-friendly: grain bowls, sheet pan proteins, soups, stews, casseroles, overnight oats
+- Include storage instructions (fridge vs freeze) and reheating instructions
+- AVOID: salads that wilt, fried foods that go soggy, raw fish dishes
+
+PREP SCHEDULE (required in response):
+Generate "prepSchedule" array:
+[${prepDays.map(pd => `{ "day": ${pd.day}, "dayName": "${pd.dayName}", "meals": ["Item 1 (X servings)", "Item 2 (X servings)"] }`).join(', ')}]
+
+DISTRIBUTE MEALS ACROSS PREP DAYS — do NOT put all meals on one day.`;
     } else if (profile.cookingStyle === 'hybrid') {
       cookingInstructions = `
-HYBRID MODE:
-- User preps some meals ahead, cooks others fresh
-- ${profile.cookingDays} cooking days per week
-- Make 50% of meals batch-friendly for meal prep
-- Other 50% can be quick fresh meals (15-20 min)
-- Mark meal prep meals with isMealPrep: true and prepDay`;
+HYBRID MODE — MIX OF PREP AND FRESH:
+The user cooks on ${profile.cookingDays} days per week.
+
+PREP DAY ASSIGNMENTS:
+${prepDayScheduleText}
+
+RULES:
+- ~50% of meals should be batch-prepped (isMealPrep: true, with prepDay)
+- ~50% should be quick fresh meals (15-20 min, isMealPrep: false)
+- Fresh meals should fall on or near cooking days
+- Prepped meals follow same food safety rules: 3-4 days fridge max
+- Include prepSchedule array for the batch-prep meals`;
     } else {
       cookingInstructions = `
 DAILY COOKING MODE:
-- User cooks fresh most days (${profile.cookingDays} days/week)
-- Focus on ${timeRange.prep + timeRange.cook} minute or less meals
-- Variety is key - different meals each day
-- Some leftovers OK but not required`;
+- User cooks fresh ${profile.cookingDays} days/week
+- Target ${timeRange.prep + timeRange.cook} minutes or less per meal
+- Variety each day, leftovers OK but not required
+- isMealPrep: false for all, no prepDay needed`;
     }
 
     // Build goal-specific instructions
