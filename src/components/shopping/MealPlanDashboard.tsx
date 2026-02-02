@@ -27,7 +27,9 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
   const [shoppingList, setShoppingList] = useState<Ingredient[]>(plan.shoppingList);
   const [selectedDay, setSelectedDay] = useState<number>(1);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
-  const [view, setView] = useState<'dashboard' | 'meals' | 'shopping'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'prep' | 'meals' | 'shopping'>('dashboard');
+
+  const isMealPrep = plan.profile.cookingStyle === 'meal-prep';
 
   // ─────────────────────────────────────────────────────────────────────────
   // METRICS
@@ -95,6 +97,10 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
     });
   };
 
+  const getMealsByPrepDay = (prepDay: number): Meal[] => {
+    return plan.meals.filter(m => m.prepDay === prepDay);
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
@@ -103,26 +109,67 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
     <div className="space-y-4">
       {/* Sub-tabs */}
       <div className="flex border-b border-gray-200">
-        {(['dashboard', 'meals', 'shopping'] as const).map(tab => (
+        <button
+          onClick={() => setView('dashboard')}
+          className={`px-4 py-2 text-xs font-medium transition-colors ${
+            view === 'dashboard' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Dashboard
+        </button>
+        {isMealPrep && (
           <button
-            key={tab}
-            onClick={() => setView(tab)}
+            onClick={() => setView('prep')}
             className={`px-4 py-2 text-xs font-medium transition-colors ${
-              view === tab
-                ? 'bg-[#2d1b4e] text-white'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              view === 'prep' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
-            {tab === 'dashboard' && 'Dashboard'}
-            {tab === 'meals' && '7-Day Meals'}
-            {tab === 'shopping' && 'Shopping List'}
+            Prep Schedule
           </button>
-        ))}
+        )}
+        <button
+          onClick={() => setView('meals')}
+          className={`px-4 py-2 text-xs font-medium transition-colors ${
+            view === 'meals' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          7-Day Meals
+        </button>
+        <button
+          onClick={() => setView('shopping')}
+          className={`px-4 py-2 text-xs font-medium transition-colors ${
+            view === 'shopping' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          Shopping List
+        </button>
       </div>
 
       {/* Dashboard View */}
       {view === 'dashboard' && (
         <div className="space-y-4">
+          {/* Plan Info */}
+          <div className="bg-gray-50 border border-gray-200 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Cooking Style</span>
+                <div className="font-medium text-gray-900 capitalize">{plan.profile.cookingStyle.replace('-', ' ')}</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Cooking Days</span>
+                <div className="font-medium text-gray-900">{plan.profile.cookingDays}/week</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Meals Planned</span>
+                <div className="font-medium text-gray-900">{metrics.mealsCount}</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Eating Out</span>
+                <div className="font-medium text-gray-900">{plan.profile.eatOutMeals}/week</div>
+              </div>
+            </div>
+          </div>
+
           {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-3">
             <div className="bg-white border border-gray-200 p-3">
@@ -249,6 +296,86 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
         </div>
       )}
 
+      {/* Prep Schedule View */}
+      {view === 'prep' && (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 p-3">
+            <div className="text-sm text-amber-800">
+              <strong>Meal Prep Mode:</strong> Cook on {plan.profile.cookingDays} day(s), eat all week. 
+              Below is your prep schedule showing what to cook each cooking day.
+            </div>
+          </div>
+
+          {plan.prepSchedule && plan.prepSchedule.length > 0 ? (
+            <div className="space-y-4">
+              {plan.prepSchedule.map((prepDay, idx) => (
+                <div key={idx} className="bg-white border border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex justify-between">
+                    <span>Prep Day: {prepDay.dayName}</span>
+                    <span className="text-gray-300">{prepDay.meals.length} items to prep</span>
+                  </div>
+                  <div className="p-4">
+                    <ul className="space-y-2">
+                      {prepDay.meals.map((meal, mIdx) => (
+                        <li key={mIdx} className="flex items-start gap-2">
+                          <span className="text-emerald-600 mt-0.5">✓</span>
+                          <span className="text-sm text-gray-700">{meal}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Fallback: group meals by prepDay
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5, 6, 7].map(prepDay => {
+                const mealsForPrepDay = getMealsByPrepDay(prepDay);
+                if (mealsForPrepDay.length === 0) return null;
+                return (
+                  <div key={prepDay} className="bg-white border border-gray-200">
+                    <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex justify-between">
+                      <span>Prep Day: {DAYS[prepDay - 1]}</span>
+                      <span className="text-gray-300">{mealsForPrepDay.length} meals</span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {mealsForPrepDay.map(meal => (
+                        <div key={meal.id} className="px-4 py-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-gray-900 text-sm">{meal.name}</div>
+                              <div className="text-xs text-gray-500">
+                                For {DAYS[meal.day - 1]} {meal.mealType} · {meal.servings} servings
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {meal.prepTime + meal.cookTime} min
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Prep Tips */}
+          <div className="bg-gray-50 border border-gray-200 p-4">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Meal Prep Tips</div>
+            <ul className="space-y-1 text-xs text-gray-600">
+              <li>• Start with items that take longest to cook (proteins, grains)</li>
+              <li>• Prep vegetables while proteins are cooking</li>
+              <li>• Let food cool before storing to prevent condensation</li>
+              <li>• Label containers with meal name and date</li>
+              <li>• Most prepped meals last 4-5 days refrigerated</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Meals View */}
       {view === 'meals' && (
         <div className="space-y-4">
@@ -282,8 +409,18 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
                     className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50"
                   >
                     <div>
-                      <div className="font-medium text-gray-900 text-sm">{meal.name}</div>
-                      <div className="text-xs text-gray-500 capitalize">{meal.mealType} · {meal.prepTime + meal.cookTime} min</div>
+                      <div className="font-medium text-gray-900 text-sm">
+                        {meal.name}
+                        {meal.isMealPrep && (
+                          <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 uppercase">
+                            Prepped
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 capitalize">
+                        {meal.mealType} · {meal.prepTime + meal.cookTime} min
+                        {meal.prepDay && <span> · Prep on {DAYS[meal.prepDay - 1]}</span>}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
