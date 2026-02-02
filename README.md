@@ -11,7 +11,6 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Plaid](https://img.shields.io/badge/Plaid-Connected-00D64F?style=for-the-badge&logo=plaid&logoColor=white)](https://plaid.com/)
 
 <br>
 
@@ -80,11 +79,13 @@ problem_we_solve:
   - QuickBooks is overkill for personal + small biz hybrid
   - TraderSync doesn't integrate with your books
   - TurboTax can't handle active trading complexity
+  - Spreadsheets for trip budgets don't talk to your ledger
   - No single source of truth across entities
 
 built_for:
   - Founder-traders (personal + business + trading accounts)
   - Active options traders needing wash-sale compliance
+  - Digital nomads planning activity-based trips
   - Freelancers wanting CPA-ready double-entry books
   - Anyone managing complex financial lives
 
@@ -120,7 +121,7 @@ principles:
 │                                 │                                          │
 │    ┌────────────────────────────┴───────────────────────────────────────┐  │
 │    │                    🔌 INTEGRATION LAYER                            │  │
-│    │         Plaid • Duffel • Google Places • OpenAI (read-only)        │  │
+│    │       Plaid • Duffel • Google Places • xAI Grok • OpenAI           │  │
 │    └────────────────────────────────────────────────────────────────────┘  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -140,26 +141,28 @@ principles:
 
 Real accounting, not "tracking."
 
-- **Plaid Integration** — Multi-institution sync with automatic categorization
+- **Plaid Sync** — Multi-institution import (banks, brokerages, credit cards)
+- **Auto-Categorization** — Merchant mapping with confidence scores, learns from corrections
+- **Entity Separation** — P- (personal) • B- (business) • T- (trading) prefixes
 - **Journal Entries** — Every transaction creates balanced debits/credits
-- **Entity Separation** — Personal • Business • Trading (IRS-compliant boundaries)
-- **Merchant Mapping** — Learn once, categorize forever
-- **CPA Export** — One-click reports your accountant will love
+- **Merchant Learning** — Override once, categorize forever
+- **Bank Reconciliation** — Month-end verification against statements
 
 </td>
 <td width="50%" valign="top">
 
 ### 📈 Trading Analytics
 
-<img src="https://img.shields.io/badge/Status-Beta-yellow?style=flat-square" alt="Beta">
+<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
 
 Built by a daily options trader.
 
 - **Strategy Detection** — Spreads, straddles, iron condors auto-identified
-- **Wash Sale Tracking** — IRS-compliant, lot-level precision
-- **Cost Basis Methods** — FIFO, LIFO, Specific ID, Average Cost
-- **P&L Reporting** — Short-term / Long-term segregation
-- **Tax Lot Optimization** — Minimize tax liability legally
+- **Position Lifecycle** — Open → partial → closed with full audit trail
+- **Lot-Based Cost Basis** — FIFO, LIFO, HIFO, Specific ID per IRS requirements
+- **Wash Sale Tracking** — Disallowed loss + cost basis adjustment fields
+- **Trade Journal** — Link thesis, emotion, mistakes to each trade number
+- **Robinhood CSV Import** — Parse history, match to Plaid transactions
 
 </td>
 </tr>
@@ -172,26 +175,28 @@ Built by a daily options trader.
 
 Activity-based, not destination-based.
 
-- **AI Recommendations** — GPT-powered suggestions based on your preferences
-- **Duffel Integration** — Flight search and booking built-in
-- **Group Cost Splitting** — Fair splits, track who owes what
-- **Budget Tracking** — Per-trip, per-category budgets
-- **Itinerary Builder** — Drag-and-drop activity scheduling
+- **Multi-Activity Support** — Surf + nomad + coworking in one trip
+- **Duffel GDS** — Real-time flight search, offers, booking
+- **Google Places** — 60 results per category with photos and ratings
+- **Grok AI Analysis** — Sentiment scoring, fit scoring, warnings per place
+- **Group Management** — Invite tokens, RSVP tracking, expense splitting
+- **Budget Integration** — Trip expenses flow to your Chart of Accounts
 
 </td>
 <td width="50%" valign="top">
 
 ### 🎛️ Hub / Command Center
 
-<img src="https://img.shields.io/badge/Status-Alpha-red?style=flat-square" alt="Alpha">
+<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
 
 Your financial cockpit.
 
-- **Unified Dashboard** — All modules, one view
-- **Net Worth Tracking** — Assets minus liabilities, over time
-- **Budget vs Actual** — Committed plans vs reality
-- **Calendar Integration** — Scheduled transactions, bill reminders
-- **Quick Actions** — Record transactions without navigating
+- **Unified Calendar** — All committed expenses across modules
+- **Budget Comparison** — Homebase vs Travel vs Business, month by month
+- **Travel Calculator** — Toggle months to see nomad savings
+- **Trip Cards** — Destination photos, nomad metrics, budget summaries
+- **Committed Trips** — Map view with coordinates and itineraries
+- **Wall Street Style** — Dense, data-rich tables, no fluff
 
 </td>
 </tr>
@@ -215,7 +220,7 @@ Your financial cockpit.
 </td>
 <td align="center" width="96">
 <img src="https://skillicons.dev/icons?i=react" width="48" height="48" alt="React" />
-<br><sub><b>React 19</b></sub>
+<br><sub><b>React 18</b></sub>
 </td>
 <td align="center" width="96">
 <img src="https://skillicons.dev/icons?i=tailwind" width="48" height="48" alt="Tailwind" />
@@ -240,25 +245,38 @@ Your financial cockpit.
 <br><sub><b>Vercel</b></sub>
 </td>
 <td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=github" width="48" height="48" alt="GitHub" />
-<br><sub><b>GitHub</b></sub>
+<img src="https://avatars.githubusercontent.com/u/134034493" width="48" height="48" alt="Plaid" style="border-radius: 8px" />
+<br><sub><b>Plaid</b></sub>
 </td>
 <td align="center" width="96">
-<img src="https://cdn.simpleicons.org/plaid/00D64F" width="48" height="48" alt="Plaid" />
-<br><sub><b>Plaid API</b></sub>
+<img src="https://avatars.githubusercontent.com/u/54536011" width="48" height="48" alt="Duffel" style="border-radius: 8px" />
+<br><sub><b>Duffel</b></sub>
 </td>
 <td align="center" width="96">
-<img src="https://cdn.simpleicons.org/openai/412991" width="48" height="48" alt="OpenAI" />
-<br><sub><b>OpenAI</b></sub>
+<img src="https://www.gstatic.com/images/branding/product/2x/maps_96dp.png" width="48" height="48" alt="Google Places" />
+<br><sub><b>Places API</b></sub>
 </td>
 <td align="center" width="96">
-<img src="https://cdn.simpleicons.org/stripe/635BFF" width="48" height="48" alt="Stripe" />
-<br><sub><b>Stripe</b></sub>
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/X_logo_2023.svg/300px-X_logo_2023.svg.png" width="48" height="48" alt="xAI" style="background: black; border-radius: 8px; padding: 8px" />
+<br><sub><b>xAI Grok</b></sub>
 </td>
 </tr>
 </table>
 
 </div>
+
+<br>
+
+### Integration Details
+
+| Integration | Purpose | Implementation |
+|-------------|---------|----------------|
+| **Plaid** | Banking data sync | Production environment, transactions + investments + balances |
+| **Duffel** | Flight booking | GDS access: search → offers → passenger details → order creation |
+| **Google Places** | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
+| **xAI Grok** | Trip AI analysis | Sentiment scoring, fit scoring, warnings, trending detection |
+| **OpenAI** | General AI | Singleton client for explanatory features |
+| **Leaflet** | Maps | Trip visualization, destination markers, interactive popups |
 
 <br>
 
@@ -268,29 +286,36 @@ Your financial cockpit.
 ```
 temple-stuart/
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/             # Authentication routes
-│   │   ├── (dashboard)/        # Protected dashboard routes
-│   │   ├── api/                # API routes
+│   ├── app/                    # Next.js App Router (flat routes)
+│   │   ├── accounts/           # Plaid account management
+│   │   ├── api/                # API routes (61 endpoints)
+│   │   │   ├── plaid/          # Plaid webhooks + sync
+│   │   │   ├── flights/        # Duffel search + booking
+│   │   │   ├── trips/          # Trip CRUD + participants
+│   │   │   ├── trading/        # P&L, positions, journal
+│   │   │   ├── transactions/   # Commit to ledger
+│   │   │   └── ...
+│   │   ├── budgets/            # Budget management + trips UI
+│   │   ├── hub/                # Command center dashboard
+│   │   ├── trading/            # Trading analytics UI
+│   │   ├── transactions/       # Transaction review UI
 │   │   └── layout.tsx          # Root layout
 │   ├── components/             # React components
-│   │   ├── ui/                 # shadcn/ui primitives
-│   │   ├── bookkeeping/        # Bookkeeping module
-│   │   ├── trading/            # Trading module
-│   │   ├── trips/              # Trip planning module
-│   │   └── hub/                # Hub/dashboard
+│   │   ├── ui/                 # Shared UI primitives
+│   │   └── trips/              # Trip-specific (TripMap, etc.)
 │   ├── lib/                    # Core libraries
-│   │   ├── accounting/         # Double-entry engine
-│   │   ├── plaid/              # Plaid integration
-│   │   ├── trading/            # P&L calculations
-│   │   └── utils/              # Shared utilities
+│   │   ├── plaid.ts            # Plaid client (production)
+│   │   ├── duffel.ts           # Duffel GDS client
+│   │   ├── grok.ts             # xAI Grok client
+│   │   ├── placesSearch.ts     # Google Places with caching
+│   │   ├── auto-categorization-service.ts
+│   │   ├── investment-ledger-service.ts
+│   │   ├── robinhood-parser.ts # CSV import
+│   │   └── prisma.ts           # Database client
 │   └── types/                  # TypeScript types
 ├── prisma/
-│   ├── schema.prisma           # Database schema
-│   ├── migrations/             # Migration history
-│   └── seed.ts                 # Database seeding
-├── docs/                       # Documentation
-├── tests/                      # Test suites
+│   ├── schema.prisma           # 50+ models, full audit trail
+│   └── migrations/             # Migration history
 └── public/                     # Static assets
 ```
 
@@ -306,7 +331,7 @@ temple-stuart/
 ```
                                     ┌─────────────────┐
                                     │    USERS        │
-                                    │  (Web / Mobile) │
+                                    │  (Web Browser)  │
                                     └────────┬────────┘
                                              │
                                              ▼
@@ -314,7 +339,7 @@ temple-stuart/
 │                              PRESENTATION LAYER                            │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │                         Next.js 15 (App Router)                       │  │
-│  │  • React Server Components    • Edge Runtime    • API Routes          │  │
+│  │  • React 18 Server Components    • API Routes    • Vercel Edge        │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────────┘
                                              │
@@ -325,31 +350,126 @@ temple-stuart/
 │  │ Bookkeeping │  │   Trading   │  │    Trips    │  │     Hub     │       │
 │  │   Service   │  │   Service   │  │   Service   │  │   Service   │       │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘       │
-│         └─────────────────┴─────────────────┴───────────────┘              │
-│                                    │                                       │
-│                    ┌───────────────┴───────────────┐                       │
-│                    │   Double-Entry Accounting     │                       │
-│                    │          Engine               │                       │
-│                    └───────────────────────────────┘                       │
+│         │                │                │                │               │
+│  ┌──────┴────────────────┴────────────────┴────────────────┴──────┐       │
+│  │                  AUTO-CATEGORIZATION ENGINE                     │       │
+│  │    Merchant Mapping (high confidence) → Category Fallback       │       │
+│  │    Learning Loop: User corrections → Future predictions         │       │
+│  └─────────────────────────────┬──────────────────────────────────┘       │
+│                                │                                           │
+│                    ┌───────────┴───────────┐                               │
+│                    │   Double-Entry        │                               │
+│                    │   Accounting Engine   │                               │
+│                    │   (ledger_entries)    │                               │
+│                    └───────────────────────┘                               │
 └────────────────────────────────────────────────────────────────────────────┘
                                              │
                                              ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                                DATA LAYER                                  │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                     Prisma ORM + PostgreSQL 16                       │   │
-│  │  • Full audit logging    • Entity separation    • Soft deletes       │   │
+│  │                     Prisma ORM + PostgreSQL (Azure)                  │   │
+│  │  • 50+ models          • Entity separation (P/B/T)    • Audit trail  │   │
+│  │  • stock_lots          • trading_positions            • trip RSVP    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────────┘
                                              │
                                              ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                            INTEGRATION LAYER                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌──────────┐               │
-│  │   Plaid  │  │  Duffel  │  │ Google Places│  │  OpenAI  │               │
-│  │ Banking  │  │ Flights  │  │  Locations   │  │ (explain)│               │
-│  └──────────┘  └──────────┘  └──────────────┘  └──────────┘               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌──────────┐ │
+│  │   Plaid  │  │  Duffel  │  │ Google Places│  │ xAI Grok │  │  OpenAI  │ │
+│  │ Banking  │  │ Flights  │  │  Locations   │  │ Analysis │  │ Explain  │ │
+│  │  (prod)  │  │  (GDS)   │  │  (cached)    │  │(grok-3)  │  │          │ │
+│  └──────────┘  └──────────┘  └──────────────┘  └──────────┘  └──────────┘ │
 └────────────────────────────────────────────────────────────────────────────┘
+```
+
+</details>
+
+<details>
+<summary><strong>🔄 Auto-Categorization Flow</strong></summary>
+
+```
+Transaction arrives from Plaid
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  1. MERCHANT MAPPING (High Conf)    │
+│     Look up merchant_coa_mappings   │
+│     Match: merchant + category      │
+│     Confidence: 0.5 - 1.0           │
+└──────────────┬──────────────────────┘
+               │ No match?
+               ▼
+┌─────────────────────────────────────┐
+│  2. CATEGORY FALLBACK (Med Conf)    │
+│     Map Plaid category → COA code   │
+│     FOOD_AND_DRINK → P-6100         │
+│     TRANSPORTATION → P-6400         │
+│     Confidence: 0.6                 │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  3. HUMAN REVIEW                    │
+│     predicted_coa_code set          │
+│     review_status = pending_review  │
+│     User approves or overrides      │
+└──────────────┬──────────────────────┘
+               │ User overrides?
+               ▼
+┌─────────────────────────────────────┐
+│  4. LEARNING LOOP                   │
+│     Save to merchant_coa_mappings   │
+│     Future transactions auto-match  │
+│     manually_overridden = true      │
+└─────────────────────────────────────┘
+```
+
+</details>
+
+<details>
+<summary><strong>✈️ Trip AI Pipeline</strong></summary>
+
+```
+User selects: Destination + Activities (e.g., surf, nomad, coworking)
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  GOOGLE PLACES API                  │
+│  Facts only. No opinions.           │
+│                                     │
+│  • Geocode destination              │
+│  • Search 60 places per category    │
+│  • Get: rating, reviewCount, price  │
+│  • Cache results (places_cache)     │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  XAI GROK (grok-3-latest)           │
+│  Analysis + Judgment                │
+│                                     │
+│  Input: places + traveler profile   │
+│  Output per place:                  │
+│    • sentimentScore (1-10)          │
+│    • fitScore (1-10 for activities) │
+│    • warnings (actionable issues)   │
+│    • trending (buzzy or not)        │
+│    • valueRank (final ordering)     │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  USER SEES                          │
+│  Ranked recommendations with:       │
+│  • Google rating + review count     │
+│  • Grok sentiment + fit score       │
+│  • Specific warnings                │
+│  • Photos from Google               │
+│  User decides. AI explains.         │
+└─────────────────────────────────────┘
 ```
 
 </details>
@@ -370,8 +490,8 @@ temple-stuart/
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/temple-stuart.git
-cd temple-stuart
+git clone https://github.com/Temple-Stuart/temple-stuart-accounting.git
+cd temple-stuart-accounting
 
 # Install dependencies
 npm install
@@ -396,19 +516,29 @@ NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
 NEXTAUTH_URL="http://localhost:3000"
 
 # ═══════════════════════════════════════════════════════════════
-# PLAID (Banking Integration)
+# PLAID (Banking Integration) — Required
 # ═══════════════════════════════════════════════════════════════
 PLAID_CLIENT_ID="your-client-id"
 PLAID_SECRET="your-secret"
-PLAID_ENV="sandbox"  # sandbox | development | production
+# Note: App forces production environment for real data
 
 # ═══════════════════════════════════════════════════════════════
 # DUFFEL (Flight Booking) — Optional
 # ═══════════════════════════════════════════════════════════════
-DUFFEL_ACCESS_TOKEN="your-duffel-token"
+DUFFEL_API_TOKEN="duffel_live_..."
 
 # ═══════════════════════════════════════════════════════════════
-# OPENAI (Explanatory AI) — Optional
+# GOOGLE PLACES — Optional (for trip recommendations)
+# ═══════════════════════════════════════════════════════════════
+GOOGLE_PLACES_API_KEY="AIza..."
+
+# ═══════════════════════════════════════════════════════════════
+# XAI GROK — Optional (for trip AI analysis)
+# ═══════════════════════════════════════════════════════════════
+XAI_API_KEY="xai-..."
+
+# ═══════════════════════════════════════════════════════════════
+# OPENAI — Optional
 # ═══════════════════════════════════════════════════════════════
 OPENAI_API_KEY="sk-..."
 ```
@@ -469,7 +599,7 @@ Temple Stuart uses a **dual-license model** to balance open-source values with s
 
 **For businesses & proprietary use**
 
-<img src="https://img.shields.io/badge/Starts_at-$500%2Fyr-blue?style=flat-square" alt="From $500/yr">
+<img src="https://img.shields.io/badge/Pricing-Contact%20Us-blue?style=flat-square" alt="Contact Us">
 
 ✅ Keep your code proprietary<br>
 ✅ No copyleft obligations<br>
@@ -478,15 +608,15 @@ Temple Stuart uses a **dual-license model** to balance open-source values with s
 
 <br>
 
-| Tier | Price | Revenue Cap |
-|------|-------|-------------|
-| 🌱 **Indie** | $500/yr | < $100K |
-| 🏢 **Business** | $2,500/yr | < $1M |
-| 🏛️ **Enterprise** | Custom | Unlimited |
+| Tier | Notes |
+|------|-------|
+| 🌱 **Indie** | Small teams, < $100K revenue |
+| 🏢 **Business** | Growing companies |
+| 🏛️ **Enterprise** | Custom terms |
 
 <br>
 
-[**📄 Read Full License →**](COMMERCIAL_LICENSE.md)
+[**📧 Contact for Pricing →**](mailto:astuart@templestuart.com)
 
 </td>
 </tr>
@@ -517,6 +647,8 @@ The AGPL + Commercial model ensures:
 
 **Don't want to self-host? We've got you.**
 
+*Pricing is estimated — final tiers TBD*
+
 </div>
 
 <br>
@@ -524,9 +656,9 @@ The AGPL + Commercial model ensures:
 <table>
 <tr>
 <th></th>
-<th align="center">🌱 Starter<br><sub>$19/mo</sub></th>
-<th align="center">🚀 Pro<br><sub>$49/mo</sub></th>
-<th align="center">👨‍👩‍👧‍👦 Family<br><sub>$79/mo</sub></th>
+<th align="center">🌱 Starter<br><sub>~$19/mo</sub></th>
+<th align="center">🚀 Pro<br><sub>~$49/mo</sub></th>
+<th align="center">👨‍👩‍👧‍👦 Family<br><sub>~$79/mo</sub></th>
 </tr>
 <tr>
 <td><strong>Users</strong></td>
@@ -584,9 +716,9 @@ The AGPL + Commercial model ensures:
 </tr>
 <tr>
 <td></td>
-<td align="center"><a href="#">Start Free Trial</a></td>
-<td align="center"><a href="#">Start Free Trial</a></td>
-<td align="center"><a href="#">Start Free Trial</a></td>
+<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
+<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
+<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
 </tr>
 </table>
 
@@ -619,34 +751,52 @@ The AGPL + Commercial model ensures:
 <div align="center">
 
 ```
-2026 Q1                    2026 Q2                    2026 Q3                    2026 Q4
+2025 Q1                    2025 Q2                    2025 Q3                    2025 Q4
    │                          │                          │                          │
    ▼                          ▼                          ▼                          ▼
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
 │ ✅ Core     │         │ 📱 Mobile   │         │ 💰 Invoice  │         │ 🌍 Multi-   │
 │ Bookkeeping │         │    App      │         │ Generation  │         │  Currency   │
 ├─────────────┤         ├─────────────┤         ├─────────────┤         ├─────────────┤
-│ ✅ Plaid    │         │ 🔄 Wash     │         │ 📊 Advanced │         │ 🏦 Direct   │
-│    Sync     │         │    Sales    │         │  Analytics  │         │   Banking   │
+│ ✅ Plaid    │         │ 📄 Tax      │         │ 📊 Advanced │         │ 🏦 Direct   │
+│    Sync     │         │    Export   │         │  Analytics  │         │   Banking   │
 ├─────────────┤         ├─────────────┤         ├─────────────┤         ├─────────────┤
-│ ✅ Basic    │         │ 📄 Tax      │         │ 👥 Team     │         │ 🔗 More     │
-│    Trading  │         │    Export   │         │   Features  │         │ Integrations│
-└─────────────┘         └─────────────┘         └─────────────┘         └─────────────┘
+│ ✅ Trading  │         │ ✅ Wash     │         │ 👥 Team     │         │ 🔗 More     │
+│    P&L      │         │    Sales    │         │   Features  │         │ Integrations│
+├─────────────┤         └─────────────┘         └─────────────┘         └─────────────┘
+│ ✅ Trip     │
+│    Planning │
+├─────────────┤
+│ ✅ Grok AI  │
+│    Analysis │
+└─────────────┘
 ```
 
 </div>
 
 <br>
 
+**Completed:**
 - [x] Double-entry bookkeeping engine
-- [x] Plaid multi-account synchronization
-- [x] Basic trading P&L reporting
-- [x] Trip planning with AI recommendations
-- [ ] Wash sale detection (Q1 2026)
-- [ ] Tax document generation (Q2 2026)
-- [ ] iOS & Android apps (Q2 2026)
-- [ ] Multi-currency support (Q4 2026)
-- [ ] Invoice generation (Q3 2026)
+- [x] Plaid multi-account synchronization (production)
+- [x] Trading P&L with position lifecycle
+- [x] Lot-based cost basis tracking
+- [x] Trip planning with multi-activity support
+- [x] Duffel flight search and booking
+- [x] Google Places integration with caching
+- [x] xAI Grok sentiment/fit analysis
+- [x] Auto-categorization with learning loop
+- [x] Robinhood CSV import + matching
+
+**In Progress:**
+- [ ] Wash sale detection automation
+- [ ] Tax document generation (8949)
+- [ ] Mobile app (React Native)
+
+**Planned:**
+- [ ] Multi-currency support
+- [ ] Invoice generation
+- [ ] Team/family shared access
 
 <br>
 
@@ -658,7 +808,7 @@ We welcome contributions! Whether it's bug fixes, new features, or documentation
 # 1. Fork the repository
 
 # 2. Clone your fork
-git clone https://github.com/YOUR_USERNAME/temple-stuart.git
+git clone https://github.com/YOUR_USERNAME/temple-stuart-accounting.git
 
 # 3. Create a feature branch
 git checkout -b feature/amazing-feature
@@ -702,7 +852,7 @@ Security is critical for financial software.
 | **Audit Logging** | Every action logged with user, timestamp, before/after |
 | **Dependency Scanning** | Automated via Dependabot |
 
-**Found a vulnerability?** Email [security@templestuart.com](mailto:security@templestuart.com) with details. We respond within 24 hours and offer bounties for critical issues.
+**Found a vulnerability?** Email [astuart@templestuart.com](mailto:astuart@templestuart.com) with details. We respond within 24 hours.
 
 <br>
 
@@ -710,9 +860,7 @@ Security is critical for financial software.
 
 <div align="center">
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/templestuart)
-[![Twitter](https://img.shields.io/badge/Twitter-Follow-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/templestuart)
-[![GitHub Discussions](https://img.shields.io/badge/Discussions-Ask%20Questions-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/yourusername/temple-stuart/discussions)
+[![GitHub Discussions](https://img.shields.io/badge/Discussions-Ask%20Questions-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Temple-Stuart/temple-stuart-accounting/discussions)
 
 </div>
 
@@ -722,11 +870,7 @@ Security is critical for financial software.
 
 | Purpose | Contact |
 |---------|---------|
-| **Commercial Licensing** | [licensing@templestuart.com](mailto:licensing@templestuart.com) |
-| **Managed Hosting** | [hosting@templestuart.com](mailto:hosting@templestuart.com) |
-| **General Support** | [support@templestuart.com](mailto:support@templestuart.com) |
-| **Security Issues** | [security@templestuart.com](mailto:security@templestuart.com) |
-| **Press & Media** | [press@templestuart.com](mailto:press@templestuart.com) |
+| **Everything** | [astuart@templestuart.com](mailto:astuart@templestuart.com) |
 
 <br>
 
@@ -742,11 +886,11 @@ Security is critical for financial software.
 
 <br>
 
-<a href="https://github.com/yourusername/temple-stuart/stargazers">
-  <img src="https://img.shields.io/github/stars/yourusername/temple-stuart?style=social" alt="GitHub Stars">
+<a href="https://github.com/Temple-Stuart/temple-stuart-accounting/stargazers">
+  <img src="https://img.shields.io/github/stars/Temple-Stuart/temple-stuart-accounting?style=social" alt="GitHub Stars">
 </a>
-<a href="https://github.com/yourusername/temple-stuart/network/members">
-  <img src="https://img.shields.io/github/forks/yourusername/temple-stuart?style=social" alt="GitHub Forks">
+<a href="https://github.com/Temple-Stuart/temple-stuart-accounting/network/members">
+  <img src="https://img.shields.io/github/forks/Temple-Stuart/temple-stuart-accounting?style=social" alt="GitHub Forks">
 </a>
 
 <br><br>
