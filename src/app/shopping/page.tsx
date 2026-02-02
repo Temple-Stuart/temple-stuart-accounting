@@ -1,13 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AppLayout, Card, Button, Badge } from '@/components/ui';
+import { AppLayout, Button, Badge } from '@/components/ui';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface Expense {
   id: string;
@@ -36,10 +32,6 @@ const CADENCE_OPTIONS = [
   { value: 'annual', label: 'Annually' },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function ShoppingPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,36 +44,23 @@ export default function ShoppingPage() {
     target_date: new Date().toISOString().split('T')[0]
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  // Meal plan state
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [activeTab, setActiveTab] = useState<'meals' | 'expenses'>('meals');
 
   useEffect(() => {
     loadExpenses();
-    // Load saved meal plan from localStorage
     const saved = localStorage.getItem('mealPlan');
     if (saved) {
-      try {
-        setMealPlan(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load saved meal plan');
-      }
+      try { setMealPlan(JSON.parse(saved)); } catch (e) { console.error('Failed to load saved meal plan'); }
     }
   }, []);
 
   const loadExpenses = async () => {
     try {
       const res = await fetch('/api/shopping');
-      if (res.ok) {
-        const data = await res.json();
-        setExpenses(data.expenses || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) { const data = await res.json(); setExpenses(data.expenses || []); }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,31 +72,21 @@ export default function ShoppingPage() {
     });
     if (res.ok) {
       setShowForm(false);
-      setForm({
-        name: '',
-        coa_code: 'P-8120',
-        amount: '',
-        cadence: 'weekly',
-        target_date: new Date().toISOString().split('T')[0]
-      });
+      setForm({ name: '', coa_code: 'P-8120', amount: '', cadence: 'weekly', target_date: new Date().toISOString().split('T')[0] });
       loadExpenses();
     }
   };
 
   const handleAction = async (id: string, action: 'commit' | 'uncommit') => {
-    if (!confirm(action === 'commit' ? 'Commit this expense?' : 'Uncommit this expense?')) return;
+    if (!confirm(action === 'commit' ? 'Commit?' : 'Uncommit?')) return;
     setActionLoading(id);
-    await fetch(`/api/shopping/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action })
-    });
+    await fetch(`/api/shopping/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
     loadExpenses();
     setActionLoading(null);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this expense?')) return;
+    if (!confirm('Delete?')) return;
     await fetch(`/api/shopping/${id}`, { method: 'DELETE' });
     loadExpenses();
   };
@@ -129,11 +98,7 @@ export default function ShoppingPage() {
 
   const handleUpdatePrices = (shoppingList: Ingredient[]) => {
     if (!mealPlan) return;
-    const updated = {
-      ...mealPlan,
-      shoppingList,
-      totalActual: shoppingList.reduce((sum, item) => sum + (item.actualPrice || 0), 0)
-    };
+    const updated = { ...mealPlan, shoppingList, totalActual: shoppingList.reduce((sum, item) => sum + (item.actualPrice || 0), 0) };
     setMealPlan(updated);
     localStorage.setItem('mealPlan', JSON.stringify(updated));
   };
@@ -143,28 +108,21 @@ export default function ShoppingPage() {
     localStorage.removeItem('mealPlan');
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0
-  }).format(n);
-
-  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString() : '-';
+  const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   const draft = expenses.filter(e => e.status === 'draft');
   const committed = expenses.filter(e => e.status === 'committed');
-
-  // Calculate totals
   const totalDraft = draft.reduce((sum, e) => sum + e.amount, 0);
   const totalCommitted = committed.reduce((sum, e) => sum + e.amount, 0);
   const mealBudget = mealPlan?.totalEstimated || 0;
   const mealActual = mealPlan?.totalActual || 0;
+  const pendingCount = draft.length;
 
   if (loading) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -172,262 +130,239 @@ export default function ShoppingPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-zinc-950 text-white">
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white">🛒 Shopping</h1>
-              <p className="text-zinc-400">Meal planning, groceries & household supplies</p>
+      <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
+
+          {/* Header - Wall Street Style */}
+          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">Shopping & Meal Planning</h1>
+                <p className="text-gray-300 text-xs font-mono">
+                  {mealPlan ? `${mealPlan.meals.length} meals planned` : 'No meal plan'} · {expenses.length} recurring items
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {mealPlan && (
+                  <button onClick={handleResetPlan} className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 transition-colors">
+                    Reset Plan
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* KPI Summary Cards */}
-          <div className="grid grid-cols-5 gap-4">
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Meal Budget</div>
-              <div className="text-2xl font-bold text-white">{fmt(mealBudget)}</div>
-              <div className="text-xs text-zinc-500 mt-1">weekly estimate</div>
+          {/* Quick Stats Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Meal Budget</div>
+              <div className="text-xl font-bold font-mono text-gray-900">{fmt(mealBudget)}</div>
+              <div className="text-[10px] text-gray-400">weekly estimate</div>
             </div>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Meal Actual</div>
-              <div className={`text-2xl font-bold ${mealActual > 0 ? 'text-white' : 'text-zinc-600'}`}>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Meal Actual</div>
+              <div className={`text-xl font-bold font-mono ${mealActual > 0 ? (mealActual <= mealBudget ? 'text-emerald-700' : 'text-red-700') : 'text-gray-400'}`}>
                 {mealActual > 0 ? fmt(mealActual) : '—'}
               </div>
-              <div className={`text-xs mt-1 ${
-                mealActual === 0 ? 'text-zinc-500' :
-                mealActual <= mealBudget ? 'text-emerald-400' : 'text-red-400'
-              }`}>
-                {mealActual > 0 ? `${((mealActual / mealBudget) * 100).toFixed(0)}% of budget` : 'enter prices'}
-              </div>
+              <div className="text-[10px] text-gray-400">{mealActual > 0 ? `${((mealActual / mealBudget) * 100).toFixed(0)}% of budget` : 'enter prices'}</div>
             </div>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Draft Expenses</div>
-              <div className="text-2xl font-bold text-amber-400">{fmt(totalDraft)}</div>
-              <div className="text-xs text-zinc-500 mt-1">{draft.length} items pending</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Draft Items</div>
+              <div className="text-xl font-bold font-mono text-amber-600">{fmt(totalDraft)}</div>
+              <div className="text-[10px] text-gray-400">{draft.length} pending</div>
             </div>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Committed</div>
-              <div className="text-2xl font-bold text-emerald-400">{fmt(totalCommitted)}</div>
-              <div className="text-xs text-zinc-500 mt-1">{committed.length} items active</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Committed</div>
+              <div className="text-xl font-bold font-mono text-emerald-700">{fmt(totalCommitted)}</div>
+              <div className="text-[10px] text-gray-400">{committed.length} active</div>
             </div>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Weekly</div>
-              <div className="text-2xl font-bold text-white">{fmt(mealBudget + totalCommitted)}</div>
-              <div className="text-xs text-zinc-500 mt-1">meals + recurring</div>
+            <div className="bg-white border border-gray-200 p-3">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Weekly</div>
+              <div className="text-xl font-bold font-mono text-gray-900">{fmt(mealBudget + totalCommitted)}</div>
+              <div className="text-[10px] text-gray-400">all categories</div>
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex gap-2 border-b border-zinc-800 pb-4">
+          {/* Section Tabs */}
+          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
             <button
               onClick={() => setActiveTab('meals')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'meals'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'meals' ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              🥗 Meal Planning
+              Meal Planning
             </button>
             <button
               onClick={() => setActiveTab('expenses')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'expenses'
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+              className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'expenses' ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              📦 Recurring Expenses
+              Recurring Expenses{pendingCount > 0 ? ` (${pendingCount})` : ''}
             </button>
           </div>
 
-          {/* Meal Planning Tab */}
-          {activeTab === 'meals' && (
-            <div>
-              {mealPlan ? (
-                <MealPlanDashboard
-                  plan={mealPlan}
-                  onUpdatePrices={handleUpdatePrices}
-                  onReset={handleResetPlan}
-                />
-              ) : (
-                <MealPlannerForm onPlanGenerated={handlePlanGenerated} />
-              )}
-            </div>
-          )}
-
-          {/* Recurring Expenses Tab */}
-          {activeTab === 'expenses' && (
-            <div className="space-y-6">
-              {/* Add Button */}
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setShowForm(!showForm)}
-                  className="bg-emerald-600 hover:bg-emerald-500"
-                >
-                  + Add Expense
-                </Button>
-              </div>
-
-              {/* Add Form */}
-              {showForm && (
-                <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6">
-                  <h3 className="font-medium text-white mb-4">New Recurring Expense</h3>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500"
-                        placeholder="Name"
-                        value={form.name}
-                        onChange={e => setForm({ ...form, name: e.target.value })}
-                        required
-                      />
-                      <select
-                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white"
-                        value={form.coa_code}
-                        onChange={e => setForm({ ...form, coa_code: e.target.value })}
-                      >
-                        {COA_OPTIONS.map(o => (
-                          <option key={o.code} value={o.code}>{o.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <input
-                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500"
-                        type="number"
-                        step="0.01"
-                        placeholder="Amount"
-                        value={form.amount}
-                        onChange={e => setForm({ ...form, amount: e.target.value })}
-                        required
-                      />
-                      <select
-                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white"
-                        value={form.cadence}
-                        onChange={e => setForm({ ...form, cadence: e.target.value })}
-                      >
-                        {CADENCE_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                      <input
-                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white"
-                        type="date"
-                        value={form.target_date}
-                        onChange={e => setForm({ ...form, target_date: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setShowForm(false)}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" className="bg-emerald-600 hover:bg-emerald-500">
-                        Save
-                      </Button>
-                    </div>
-                  </form>
+          {/* Section Content */}
+          <div className="bg-white border border-gray-200">
+            
+            {/* Meal Planning Tab */}
+            {activeTab === 'meals' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  AI Meal Planner
                 </div>
-              )}
+                <div className="p-4">
+                  {mealPlan ? (
+                    <MealPlanDashboard
+                      plan={mealPlan}
+                      onUpdatePrices={handleUpdatePrices}
+                      onReset={handleResetPlan}
+                    />
+                  ) : (
+                    <MealPlannerForm onPlanGenerated={handlePlanGenerated} />
+                  )}
+                </div>
+              </div>
+            )}
 
-              {/* Draft Expenses */}
-              {draft.length > 0 && (
-                <div className="space-y-3">
-                  <h2 className="font-semibold text-amber-400 flex items-center gap-2">
-                    📝 Draft
-                    <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
-                      {draft.length}
-                    </span>
-                  </h2>
-                  {draft.map(e => (
-                    <div
-                      key={e.id}
-                      className="bg-zinc-900 rounded-xl border border-zinc-800 p-4 flex justify-between items-center"
-                    >
-                      <div>
-                        <div className="font-medium text-white">{e.name}</div>
-                        <div className="text-sm text-zinc-500">
-                          {e.coa_code} • {CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label} • {fmtDate(e.target_date)}
-                        </div>
+            {/* Recurring Expenses Tab */}
+            {activeTab === 'expenses' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold">Recurring Household Expenses</span>
+                  <button onClick={() => setShowForm(!showForm)} className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 transition-colors">
+                    + Add Item
+                  </button>
+                </div>
+
+                {/* Add Form */}
+                {showForm && (
+                  <div className="p-4 border-b border-gray-200 bg-gray-50">
+                    <form onSubmit={handleSubmit} className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          className="border border-gray-300 px-3 py-2 text-sm"
+                          placeholder="Item name"
+                          value={form.name}
+                          onChange={e => setForm({ ...form, name: e.target.value })}
+                          required
+                        />
+                        <select
+                          className="border border-gray-300 px-3 py-2 text-sm"
+                          value={form.coa_code}
+                          onChange={e => setForm({ ...form, coa_code: e.target.value })}
+                        >
+                          {COA_OPTIONS.map(o => <option key={o.code} value={o.code}>{o.name}</option>)}
+                        </select>
                       </div>
-                      <div className="flex gap-3 items-center">
-                        <span className="font-bold text-white">{fmt(e.amount)}</span>
-                        <Button
-                          size="sm"
-                          onClick={() => handleAction(e.id, 'commit')}
-                          disabled={actionLoading === e.id}
-                          className="bg-emerald-600 hover:bg-emerald-500"
+                      <div className="grid grid-cols-3 gap-3">
+                        <input
+                          className="border border-gray-300 px-3 py-2 text-sm"
+                          type="number"
+                          step="0.01"
+                          placeholder="Amount"
+                          value={form.amount}
+                          onChange={e => setForm({ ...form, amount: e.target.value })}
+                          required
+                        />
+                        <select
+                          className="border border-gray-300 px-3 py-2 text-sm"
+                          value={form.cadence}
+                          onChange={e => setForm({ ...form, cadence: e.target.value })}
                         >
-                          {actionLoading === e.id ? '...' : '✓'}
-                        </Button>
-                        <button
-                          className="text-red-400 hover:text-red-300 text-sm font-medium"
-                          onClick={() => handleDelete(e.id)}
-                        >
-                          ×
+                          {CADENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        <input
+                          className="border border-gray-300 px-3 py-2 text-sm"
+                          type="date"
+                          value={form.target_date}
+                          onChange={e => setForm({ ...form, target_date: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100">
+                          Cancel
+                        </button>
+                        <button type="submit" className="px-3 py-1.5 text-xs bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                          Save
                         </button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    </form>
+                  </div>
+                )}
 
-              {/* Committed Expenses */}
-              {committed.length > 0 && (
-                <div className="space-y-3">
-                  <h2 className="font-semibold text-emerald-400 flex items-center gap-2">
-                    ✓ Committed
-                    <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
-                      {committed.length}
-                    </span>
-                  </h2>
-                  {committed.map(e => (
-                    <div
-                      key={e.id}
-                      className="bg-emerald-500/5 rounded-xl border border-emerald-500/20 p-4 flex justify-between items-center"
-                    >
-                      <div>
-                        <div className="font-medium text-white flex items-center gap-2">
-                          {e.name}
-                          <Badge variant="success">Active</Badge>
-                        </div>
-                        <div className="text-sm text-zinc-500">
-                          {e.coa_code} • {CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label}
-                        </div>
-                      </div>
-                      <div className="flex gap-3 items-center">
-                        <span className="font-bold text-emerald-400">{fmt(e.amount)}</span>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleAction(e.id, 'uncommit')}
-                          className="bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
-                        >
-                          Undo
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                {/* Expenses Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-[#3d2b5e] text-white">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Item</th>
+                        <th className="px-3 py-2 text-left font-medium">Category</th>
+                        <th className="px-3 py-2 text-left font-medium">Frequency</th>
+                        <th className="px-3 py-2 text-left font-medium">Status</th>
+                        <th className="px-3 py-2 text-right font-medium">Amount</th>
+                        <th className="px-3 py-2 text-center font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {expenses.length === 0 && (
+                        <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-400">No recurring expenses</td></tr>
+                      )}
+                      {expenses.map(e => (
+                        <tr key={e.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 font-medium text-gray-900">{e.name}</td>
+                          <td className="px-3 py-2 text-gray-600">{COA_OPTIONS.find(c => c.code === e.coa_code)?.name || e.coa_code}</td>
+                          <td className="px-3 py-2 text-gray-600">{CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label}</td>
+                          <td className="px-3 py-2">
+                            <span className={`px-2 py-0.5 text-[10px] uppercase font-medium ${
+                              e.status === 'committed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {e.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(e.amount)}</td>
+                          <td className="px-3 py-2 text-center">
+                            {e.status === 'draft' ? (
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => handleAction(e.id, 'commit')}
+                                  disabled={actionLoading === e.id}
+                                  className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white hover:bg-emerald-700"
+                                >
+                                  {actionLoading === e.id ? '...' : 'Commit'}
+                                </button>
+                                <button onClick={() => handleDelete(e.id)} className="px-2 py-0.5 text-[10px] text-red-600 hover:bg-red-50">
+                                  Delete
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleAction(e.id, 'uncommit')}
+                                className="px-2 py-0.5 text-[10px] text-gray-600 hover:bg-gray-100"
+                              >
+                                Undo
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {expenses.length > 0 && (
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <td colSpan={4} className="px-3 py-2 font-semibold text-gray-900">Total Committed</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(totalCommitted)}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
                 </div>
-              )}
-
-              {/* Empty State */}
-              {expenses.length === 0 && (
-                <div className="text-center py-16 bg-zinc-900 rounded-2xl border border-zinc-800">
-                  <div className="text-5xl mb-4">📦</div>
-                  <h3 className="font-bold text-lg text-white mb-2">No Recurring Expenses</h3>
-                  <p className="text-zinc-500">Add hygiene, cleaning supplies, and household items</p>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </AppLayout>
