@@ -1,3 +1,4 @@
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:21262d&height=220&section=header&text=Temple%20Stuart&fontSize=70&fontColor=58a6ff&fontAlignY=32&desc=Personal%20Back%20Office%20•%20Financial%20OS&descSize=22&descAlignY=52&descColor=8b949e&animation=fadeIn&stroke=30363d&strokeWidth=1">
   <source media="(prefers-color-scheme: light)" srcset="https://capsule-render.vercel.app/api?type=waving&color=0:667eea,50:764ba2,100:f093fb&height=220&section=header&text=Temple%20Stuart&fontSize=70&fontColor=ffffff&fontAlignY=32&desc=Personal%20Back%20Office%20•%20Financial%20OS&descSize=22&descAlignY=52&animation=fadeIn">
@@ -748,55 +749,65 @@ The AGPL + Commercial model ensures:
 
 ## 🗺️ Roadmap
 
-<div align="center">
+<table>
+<tr>
+<td align="center" width="25%"><strong>✅ 2025 — Shipped</strong></td>
+<td align="center" width="25%"><strong>🔧 2026 Q1</strong></td>
+<td align="center" width="25%"><strong>🚀 2026 Q2–Q3</strong></td>
+<td align="center" width="25%"><strong>🔮 2026 Q4+</strong></td>
+</tr>
+<tr>
+<td valign="top">
 
-```
-2025 Q1                    2025 Q2                    2025 Q3                    2025 Q4
-   │                          │                          │                          │
-   ▼                          ▼                          ▼                          ▼
-┌─────────────┐         ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│ ✅ Core     │         │ 📱 Mobile   │         │ 💰 Invoice  │         │ 🌍 Multi-   │
-│ Bookkeeping │         │    App      │         │ Generation  │         │  Currency   │
-├─────────────┤         ├─────────────┤         ├─────────────┤         ├─────────────┤
-│ ✅ Plaid    │         │ 📄 Tax      │         │ 📊 Advanced │         │ 🏦 Direct   │
-│    Sync     │         │    Export   │         │  Analytics  │         │   Banking   │
-├─────────────┤         ├─────────────┤         ├─────────────┤         ├─────────────┤
-│ ✅ Trading  │         │ ✅ Wash     │         │ 👥 Team     │         │ 🔗 More     │
-│    P&L      │         │    Sales    │         │   Features  │         │ Integrations│
-├─────────────┤         └─────────────┘         └─────────────┘         └─────────────┘
-│ ✅ Trip     │
-│    Planning │
-├─────────────┤
-│ ✅ Grok AI  │
-│    Analysis │
-└─────────────┘
-```
+✅ Double-Entry Bookkeeping<br>
+✅ Plaid Real-Time Sync<br>
+✅ Trading P&L Engine<br>
+✅ Lot-Based Cost Basis<br>
+✅ Wash Sale Tracking<br>
+✅ Auto-Categorization<br>
+✅ Bank Reconciliation<br>
+✅ General Ledger<br>
+✅ Period Close<br>
+✅ Budget Builder<br>
+✅ Trip Planning + AI Recs<br>
+✅ Duffel Flight Booking<br>
+✅ Google Places Integration<br>
+✅ Grok Sentiment Analysis<br>
+✅ Robinhood CSV Import<br>
+✅ Hub Command Center
 
-</div>
+</td>
+<td valign="top">
 
-<br>
+🔲 Auth + Account Creation<br>
+🔲 Free & Paid Tiers (Stripe)<br>
+🔲 Onboarding Flow<br>
+🔲 Tax Export (Form 8949)<br>
+🔲 Schedule C Generation<br>
+🔲 Meal Planning Module
 
-**Completed:**
-- [x] Double-entry bookkeeping engine
-- [x] Plaid multi-account synchronization (production)
-- [x] Trading P&L with position lifecycle
-- [x] Lot-based cost basis tracking
-- [x] Trip planning with multi-activity support
-- [x] Duffel flight search and booking
-- [x] Google Places integration with caching
-- [x] xAI Grok sentiment/fit analysis
-- [x] Auto-categorization with learning loop
-- [x] Robinhood CSV import + matching
+</td>
+<td valign="top">
 
-**In Progress:**
-- [ ] Wash sale detection automation
-- [ ] Tax document generation (8949)
-- [ ] Mobile app (React Native)
+🔲 Invoice Generation<br>
+🔲 Advanced Analytics<br>
+🔲 Mobile-Responsive UI<br>
+🔲 iOS & Android App<br>
+🔲 CPA Client Portal<br>
+🔲 Team / Multi-User
 
-**Planned:**
-- [ ] Multi-currency support
-- [ ] Invoice generation
-- [ ] Team/family shared access
+</td>
+<td valign="top">
+
+🔲 Multi-Currency Support<br>
+🔲 Direct Bank Feeds<br>
+🔲 Payroll Integration<br>
+🔲 White-Label for CPAs<br>
+🔲 Additional Integrations
+
+</td>
+</tr>
+</table>
 
 <br>
 
