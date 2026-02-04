@@ -311,6 +311,10 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
+              <a href="/pricing"
+                className="mt-6 w-full block text-center px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e] no-underline">
+                Subscribe
+              </a>
             </div>
 
             {/* Pro+ */}
