@@ -1,3 +1,4 @@
+import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    const tierGate = requireTier(user.tier, 'ai');
+    if (tierGate) return tierGate;
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,

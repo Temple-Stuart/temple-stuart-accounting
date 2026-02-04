@@ -1,10 +1,11 @@
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { canAccess, TierConfig } from '@/lib/tiers';
 
 /**
  * Get current authenticated user from cookie.
  * Returns null if not authenticated.
- * Use in API routes: const user = await getCurrentUser();
  */
 export async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -28,4 +29,22 @@ export async function requireUser() {
     throw { status: 401, message: 'Unauthorized' };
   }
   return user;
+}
+
+/**
+ * Gate a route by tier + feature.
+ * Returns null if allowed, or a NextResponse 403 if blocked.
+ *
+ * Usage in any API route:
+ *   const gate = requireTier(user.tier, 'plaid');
+ *   if (gate) return gate;
+ */
+export function requireTier(tier: string | null | undefined, feature: keyof TierConfig): NextResponse | null {
+  if (!canAccess(tier, feature)) {
+    return NextResponse.json(
+      { error: 'Upgrade required', feature, message: `This feature requires a plan with ${feature} access.` },
+      { status: 403 }
+    );
+  }
+  return null;
 }

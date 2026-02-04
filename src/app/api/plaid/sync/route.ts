@@ -1,3 +1,4 @@
+import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
@@ -31,6 +32,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    const tierGate = requireTier(user.tier, 'plaid');
+    if (tierGate) return tierGate;
 
     const { itemId } = await request.json();
     
