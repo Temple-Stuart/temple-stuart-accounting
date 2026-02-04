@@ -12,6 +12,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.15.0",
+    "@stripe/stripe-js": "^8.7.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
@@ -25,6 +26,7 @@
     "react-dom": "^18.3.1",
     "react-leaflet": "^5.0.0",
     "react-plaid-link": "^3.6.1",
+    "stripe": "^20.3.0",
     "uuid": "^13.0.0",
     "xai-sdk": "^1.0.0-alpha.0"
   },
