@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const { action } = await request.json();
 
     if (action === 'uncommit') {
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id}`;
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id} AND user_id = ${user.id}`;
       await prisma.$queryRaw`UPDATE module_expenses SET status = 'draft', committed_at = NULL WHERE id = ${id}::uuid`;
       return NextResponse.json({ success: true });
     }
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const expense = expenses[0];
 
       // Clear old events
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id}`;
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id} AND user_id = ${user.id}`;
 
       const targetDate = expense.target_date ? new Date(expense.target_date) : new Date();
       const amount = Number(expense.amount);
@@ -134,9 +134,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
     const { id } = await params;
-    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id}`;
-    await prisma.$queryRaw`DELETE FROM module_expenses WHERE id = ${id}::uuid`;
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = ${MODULE} AND source_id::text = ${id} AND user_id = ${user.id}`;
+    await prisma.$queryRaw`DELETE FROM module_expenses WHERE id = ${id}::uuid AND user_id = ${user.id}`;
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });

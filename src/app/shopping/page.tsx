@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { AppLayout, Button, Badge } from '@/components/ui';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
+function getMealPlanKey(): string {
+  const email = document.cookie.split('; ').find(c => c.startsWith('userEmail='))?.split('=')[1] || 'default';
+  return `mealPlan_${email}`;
+}
+
 
 interface Expense {
   id: string;
@@ -49,7 +54,7 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     loadExpenses();
-    const saved = localStorage.getItem('mealPlan');
+    const saved = localStorage.getItem(getMealPlanKey());
     if (saved) {
       try { setMealPlan(JSON.parse(saved)); } catch (e) { console.error('Failed to load saved meal plan'); }
     }
@@ -93,19 +98,19 @@ export default function ShoppingPage() {
 
   const handlePlanGenerated = (plan: MealPlan) => {
     setMealPlan(plan);
-    localStorage.setItem('mealPlan', JSON.stringify(plan));
+    localStorage.setItem(getMealPlanKey(), JSON.stringify(plan));
   };
 
   const handleUpdatePrices = (shoppingList: Ingredient[]) => {
     if (!mealPlan) return;
     const updated = { ...mealPlan, shoppingList, totalActual: shoppingList.reduce((sum, item) => sum + (item.actualPrice || 0), 0) };
     setMealPlan(updated);
-    localStorage.setItem('mealPlan', JSON.stringify(updated));
+    localStorage.setItem(getMealPlanKey(), JSON.stringify(updated));
   };
 
   const handleResetPlan = () => {
     setMealPlan(null);
-    localStorage.removeItem('mealPlan');
+    localStorage.removeItem(getMealPlanKey());
   };
 
   const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
