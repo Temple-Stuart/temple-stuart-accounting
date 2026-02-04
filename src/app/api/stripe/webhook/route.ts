@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { stripe, getTierFromPriceId } from '@/lib/stripe';
+import { getStripe, getTierFromPriceId } from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
     }
 
-    const event = stripe.webhooks.constructEvent(
+    const event = getStripe().webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
         if (userId && subscriptionId) {
           // Fetch subscription to get price ID
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
           const priceId = subscription.items.data[0]?.price.id;
           const tier = priceId ? getTierFromPriceId(priceId) : 'pro';
 
