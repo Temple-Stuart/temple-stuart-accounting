@@ -1,9 +1,27 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // SECURITY: Scoped to user's COA only
     const ledgerEntries = await prisma.ledger_entries.findMany({
+      where: {
+        chart_of_accounts: { userId: user.id }
+      },
       include: {
         chart_of_accounts: true,
         journal_transactions: true
@@ -33,7 +51,6 @@ export async function GET() {
 
       const account = accountMap.get(accountId);
       
-      // Calculate running balance
       const isNormalBalance = entry.entry_type === entry.chart_of_accounts.balance_type;
       const change = isNormalBalance ? Number(entry.amount) : -Number(entry.amount);
       account.runningBalance += change;
@@ -48,11 +65,10 @@ export async function GET() {
       });
     });
 
-    // Convert map to array
     const ledgers = Array.from(accountMap.values()).map(account => ({
       accountCode: account.accountCode,
       accountName: account.accountName,
-      accountType: account.account_type.toLowerCase(),
+      accountType: account.accountType,
       entries: account.entries,
       openingBalance: 0,
       closingBalance: account.runningBalance / 100

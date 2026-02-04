@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 
 export async function POST(req: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -10,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { thisMonthTotal, thisYearTotal, thisMonthCount, categories, merchants, trends, entity } = await req.json();
 
     const entityText = entity ? ` for ${entity} accounts` : '';
-    
+
     const categoriesText = categories.map(([cat, amt]: [string, number]) => `${cat}: $${amt.toFixed(2)}`).join(', ');
     const merchantsText = merchants.map(([merch, amt]: [string, number]) => `${merch}: $${amt.toFixed(2)}`).join(', ');
     const trendsText = trends.map((t: any) => `${t.month}: $${t.total.toFixed(2)}`).join(', ');
@@ -27,7 +42,7 @@ Top Merchants: ${merchantsText}
 Provide actionable insights about spending patterns, notable changes, and suggestions. Be conversational but professional.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-nano',
       messages: [
         { role: 'system', content: 'You are a helpful financial advisor providing spending insights.' },
         { role: 'user', content: prompt }

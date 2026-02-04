@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { analyzeWithLiveSearch, analyzeAllCategories } from '@/lib/grokAgent';
 import { searchPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
@@ -63,6 +65,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { 
       city, 

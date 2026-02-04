@@ -23,10 +23,11 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // Get all Business COA codes (B-xxxx prefix)
+    // Get Business COA codes (B-xxxx prefix) — scoped to user
     // ═══════════════════════════════════════════════════════════════════
     const businessAccounts = await prisma.chart_of_accounts.findMany({
       where: {
+        userId: user.id,
         code: { startsWith: 'B-' },
         account_type: 'expense',
         is_archived: false
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From transactions with business COA codes (B-xxxx)
+    // SECURITY: Scoped to user's accounts only
     // ═══════════════════════════════════════════════════════════════════
     const businessCodes = Object.keys(COA_NAMES);
     const startOfYear = new Date(year, 0, 1);
@@ -88,6 +90,7 @@ export async function GET(request: Request) {
 
     const transactions = await prisma.transactions.findMany({
       where: {
+        accounts: { userId: user.id },
         accountCode: { in: businessCodes },
         date: {
           gte: startOfYear,

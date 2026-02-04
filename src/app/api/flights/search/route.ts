@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { searchFlights, parseOffer } from '@/lib/duffel';
 
 export async function GET(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const params = request.nextUrl.searchParams;
 
     const origin = params.get('origin');

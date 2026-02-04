@@ -1,10 +1,25 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // SECURITY: Scoped to user's COA only
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { is_archived: false },
+      where: { userId: user.id, is_archived: false },
       orderBy: { code: 'asc' }
     });
 

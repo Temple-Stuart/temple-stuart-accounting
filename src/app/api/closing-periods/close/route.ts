@@ -1,21 +1,36 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { journalEntryService } from '@/lib/journal-entry-service';
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { periodEnd, periodType } = await request.json();
 
     if (!periodEnd) {
       return NextResponse.json({ error: 'Period end date is required' }, { status: 400 });
     }
 
-    // Check if period already closed
+    // Check if period already closed for THIS user
     const existing = await prisma.closing_periods.findFirst({
       where: {
         periodEnd: new Date(periodEnd),
-        status: 'closed'
+        status: 'closed',
+        closedBy: user.id
       }
     });
 
@@ -23,9 +38,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This period is already closed' }, { status: 400 });
     }
 
-    // Calculate net income
+    // SECURITY: Only this user's COA
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { is_archived: false }
+      where: { userId: user.id, is_archived: false }
     });
 
     let revenue = 0;
@@ -41,10 +56,8 @@ export async function POST(request: Request) {
 
     const netIncome = revenue - expenses;
 
-    // Create closing entry
     const lines = [];
     
-    // Close revenue accounts (debit)
     if (revenue !== 0) {
       const revenueAccount = accounts.find(a => a.account_type.toLowerCase() === 'revenue' && Number(a.settled_balance) !== 0);
       if (revenueAccount) {
@@ -56,7 +69,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Close expense accounts (credit)
     if (expenses !== 0) {
       const expenseAccount = accounts.find(a => a.account_type.toLowerCase() === 'expense' && Number(a.settled_balance) !== 0);
       if (expenseAccount) {
@@ -68,10 +80,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Transfer to retained earnings/equity
     const equityAccount = accounts.find(a => 
-      a.code.includes('3130') || // B-3130 Retained Earnings
-      a.code.includes('3010')    // P-3010 Personal Net Worth
+      a.code.includes('3130') || a.code.includes('3010')
     );
 
     if (equityAccount && netIncome !== 0) {
@@ -93,7 +103,6 @@ export async function POST(request: Request) {
       closingEntryId = entry.id;
     }
 
-    // Create closing period record
     const closingPeriod = await prisma.closing_periods.create({
       data: {
         id: randomUUID(),
@@ -101,7 +110,7 @@ export async function POST(request: Request) {
         periodType,
         status: 'closed',
         closedAt: new Date(),
-        closedBy: 'system',
+        closedBy: user.id,
         closingEntryId,
         updatedAt: new Date()
       }
@@ -112,7 +121,7 @@ export async function POST(request: Request) {
       periodId: closingPeriod.id,
       netIncome,
       closingEntryId,
-        updatedAt: new Date()
+      updatedAt: new Date()
     });
   } catch (error) {
     console.error('Close period error:', error);

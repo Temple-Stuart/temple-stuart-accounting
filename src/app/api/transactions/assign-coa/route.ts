@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { transactionIds, accountCode, subAccount } = body;
 
@@ -10,23 +24,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'transactionIds required' }, { status: 400 });
     }
 
+    const ownedTxns = await prisma.transactions.findMany({
+      where: { id: { in: transactionIds }, accounts: { userId: user.id } },
+      select: { id: true, merchantName: true, subAccount: true }
+    });
+
+    if (ownedTxns.length !== transactionIds.length) {
+      return NextResponse.json({ error: 'Some transactions do not belong to your account' }, { status: 403 });
+    }
+
     let updateCount = 0;
 
     for (const id of transactionIds) {
-      // If subAccount not provided, fetch merchantName to auto-populate
       let finalSubAccount = subAccount;
-      
+
       if (finalSubAccount === undefined || finalSubAccount === null) {
-        const txn = await prisma.transactions.findUnique({
-          where: { id },
-          select: { merchantName: true, subAccount: true }
-        });
-        
-        // Use merchantName if no subAccount provided and transaction doesn't already have one
+        const txn = ownedTxns.find(t => t.id === id);
         if (txn && !txn.subAccount && txn.merchantName) {
           finalSubAccount = txn.merchantName;
         } else if (txn?.subAccount) {
-          // Keep existing subAccount if it exists
           finalSubAccount = txn.subAccount;
         }
       }
@@ -40,11 +56,7 @@ export async function POST(request: Request) {
       updateCount++;
     }
 
-    return NextResponse.json({ 
-      success: true,
-      updated: updateCount
-    });
-
+    return NextResponse.json({ success: true, updated: updateCount });
   } catch (error: any) {
     console.error('Assign COA error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

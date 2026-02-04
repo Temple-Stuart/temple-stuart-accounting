@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
@@ -6,6 +7,12 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const { status } = await request.json();
     
@@ -26,6 +33,12 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const cookieStore2 = await cookies();
+    const userEmail2 = cookieStore2.get('userEmail')?.value;
+    if (!userEmail2) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await context.params;
     
     await prisma.prospects.delete({

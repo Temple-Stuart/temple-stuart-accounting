@@ -69,6 +69,7 @@ export async function GET(request: Request) {
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From transactions with trip COA codes (P-7xxx)
+    // SECURITY: Scoped to user's accounts only
     // ═══════════════════════════════════════════════════════════════════
     const tripCodes = Object.keys(COA_NAMES);
     const startOfYear = new Date(year, 0, 1);
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
 
     const transactions = await prisma.transactions.findMany({
       where: {
+        accounts: { userId: user.id },
         accountCode: { in: tripCodes },
         date: {
           gte: startOfYear,
@@ -114,8 +116,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       year, 
-      budgetData,      // Budget by COA/month
-      actualData,      // Actuals by COA/month  
+      budgetData,
+      actualData,
       coaNames: COA_NAMES, 
       budgetGrandTotal,
       actualGrandTotal,
