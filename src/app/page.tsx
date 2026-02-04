@@ -279,7 +279,7 @@ export default function LandingPage() {
               </div>
               <button onClick={() => setShowLogin(true)}
                 className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
-                Get Started
+                Get Started Free
               </button>
             </div>
 
@@ -311,10 +311,6 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
-              <button onClick={() => setShowLogin(true)}
-                className="mt-6 w-full px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">
-                Start Free Trial
-              </button>
             </div>
 
             {/* Pro+ */}
@@ -344,10 +340,10 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <button onClick={() => setShowLogin(true)}
-                className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
-                Start Free Trial
-              </button>
+              <a href="/pricing"
+                className="mt-6 w-full block text-center px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 no-underline">
+                Subscribe
+              </a>
             </div>
           </div>
         </div>
