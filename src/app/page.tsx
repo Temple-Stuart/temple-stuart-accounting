@@ -311,10 +311,10 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
-              <a href="/pricing"
-                className="mt-6 w-full block text-center px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e] no-underline">
+              <button onClick={() => setShowLogin(true)}
+                className="mt-6 w-full px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">
                 Subscribe
-              </a>
+              </button>
             </div>
 
             {/* Pro+ */}
@@ -344,10 +344,10 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <a href="/pricing"
-                className="mt-6 w-full block text-center px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 no-underline">
+              <button onClick={() => setShowLogin(true)}
+                className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
                 Subscribe
-              </a>
+              </button>
             </div>
           </div>
         </div>
