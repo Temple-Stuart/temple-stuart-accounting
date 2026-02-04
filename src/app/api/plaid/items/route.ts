@@ -1,3 +1,4 @@
+import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    const tierGate = requireTier(user.tier, 'plaid');
+    if (tierGate) return tierGate;
 
     const items = await prisma.plaid_items.findMany({
       where: { userId: user.id }
