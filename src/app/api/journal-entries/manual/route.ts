@@ -1,23 +1,36 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { journalEntryService } from '@/lib/journal-entry-service';
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { date, description, lines } = await request.json();
 
     if (!date || !description || !lines || lines.length < 2) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Validate debits = credits
     const totalDebits = lines.filter((l: any) => l.entryType === 'D').reduce((sum: number, l: any) => sum + l.amount, 0);
     const totalCredits = lines.filter((l: any) => l.entryType === 'C').reduce((sum: number, l: any) => sum + l.amount, 0);
 
-    if (Math.abs(totalDebits - totalCredits) > 1) { // Allow 1 cent tolerance
+    if (Math.abs(totalDebits - totalCredits) > 1) {
       return NextResponse.json({ error: 'Debits must equal credits' }, { status: 400 });
     }
 
-    // Create journal entry
     await journalEntryService.createJournalEntry({
       date: new Date(date),
       description,

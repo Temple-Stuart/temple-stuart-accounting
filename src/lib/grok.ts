@@ -36,7 +36,7 @@ export async function grokChat(options: {
   }
 
   const body = {
-    model: options.model || 'grok-3-latest',
+    model: options.model || 'grok-4-1-fast-non-reasoning',
     messages: options.messages,
     temperature: options.temperature ?? 0.3,
     max_tokens: options.max_tokens ?? 8000,
@@ -155,7 +155,7 @@ Return ONLY a valid JSON array, no markdown:
 
   try {
     const response = await grokChat({
-      model: 'grok-3-latest',
+      model: 'grok-4-1-fast-non-reasoning',
       messages: [
         { 
           role: 'system', 

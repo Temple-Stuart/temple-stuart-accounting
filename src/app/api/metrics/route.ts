@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Get current statements
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // SECURITY: Scoped to user's COA only
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { is_archived: false }
+      where: { userId: user.id, is_archived: false }
     });
 
     let revenue = 0, expenses = 0, assets = 0, liabilities = 0, equity = 0;
@@ -32,28 +46,30 @@ export async function GET() {
 
     const netIncome = revenue - expenses;
 
-    // Calculate profitability metrics
     const grossProfitMargin = revenue !== 0 ? ((revenue - expenses) / revenue) * 100 : 0;
     const netProfitMargin = revenue !== 0 ? (netIncome / revenue) * 100 : 0;
     const returnOnAssets = assets !== 0 ? (netIncome / assets) * 100 : 0;
     const returnOnEquity = equity !== 0 ? (netIncome / equity) * 100 : 0;
 
-    // Calculate liquidity metrics
     const currentRatio = liabilities !== 0 ? Math.abs(currentAssets / liabilities) : 0;
     const quickRatio = liabilities !== 0 ? Math.abs((currentAssets - 0) / liabilities) : 0;
     const cashRatio = liabilities !== 0 ? Math.abs(cashAssets / liabilities) : 0;
 
-    // Calculate efficiency metrics
     const expenseRatio = revenue !== 0 ? (expenses / revenue) * 100 : 0;
     const assetTurnover = assets !== 0 ? revenue / assets : 0;
 
-    // Get historical data for growth calculation
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
+    // SECURITY: Scoped journals to user's COA
     const oldJournals = await prisma.journal_transactions.findMany({
       where: {
-        transaction_date: { lt: threeMonthsAgo }
+        transaction_date: { lt: threeMonthsAgo },
+        ledger_entries: {
+          some: {
+            chart_of_accounts: { userId: user.id }
+          }
+        }
       },
       include: {
         ledger_entries: {
@@ -65,6 +81,7 @@ export async function GET() {
     let oldRevenue = 0, oldIncome = 0, oldAssets = 0;
     oldJournals.forEach(je => {
       je.ledger_entries.forEach(le => {
+        if (le.chart_of_accounts.userId !== user.id) return;
         const amt = Number(le.amount) / 100;
         const type = le.chart_of_accounts.account_type.toLowerCase();
         if (type === 'revenue') oldRevenue += amt;
@@ -77,7 +94,6 @@ export async function GET() {
     const incomeGrowth = oldIncome !== 0 ? ((netIncome - oldIncome) / Math.abs(oldIncome)) * 100 : 0;
     const assetGrowth = oldAssets !== 0 ? ((assets - oldAssets) / Math.abs(oldAssets)) * 100 : 0;
 
-    // Simple projections (linear trend)
     const revenueMonthlyGrowth = revenueGrowth / 3;
     const incomeMonthlyGrowth = incomeGrowth / 3;
 
@@ -109,26 +125,10 @@ export async function GET() {
     ];
 
     const metrics = {
-      profitability: {
-        grossProfitMargin,
-        netProfitMargin,
-        returnOnAssets,
-        returnOnEquity
-      },
-      liquidity: {
-        currentRatio,
-        quickRatio,
-        cashRatio
-      },
-      efficiency: {
-        expenseRatio,
-        assetTurnover
-      },
-      growth: {
-        revenueGrowth,
-        incomeGrowth,
-        assetGrowth
-      }
+      profitability: { grossProfitMargin, netProfitMargin, returnOnAssets, returnOnEquity },
+      liquidity: { currentRatio, quickRatio, cashRatio },
+      efficiency: { expenseRatio, assetTurnover },
+      growth: { revenueGrowth, incomeGrowth, assetGrowth }
     };
 
     return NextResponse.json({ metrics, projections });

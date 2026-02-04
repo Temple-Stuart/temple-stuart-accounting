@@ -30,7 +30,7 @@ model RFP {
 
 model accounts {
   id                      String                    @id
-  plaidItemId             String
+  plaidItemId             String?
   accountId               String                    @unique
   name                    String
   officialName            String?
@@ -46,7 +46,8 @@ model accounts {
   accountCode             String?
   subAccount              String?
   entityType              String?
-  plaid_items             plaid_items               @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  source                  String                    @default("plaid") @db.VarChar(20)
+  plaid_items             plaid_items?              @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
 
@@ -341,6 +342,9 @@ model users {
   updatedAt            DateTime
   accountCode          String?
   subAccount           String?
+  tier                 String                 @default("free") @db.VarChar(20)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
   accounts             accounts[]
   plaid_items          plaid_items[]
   budgets              budgets[]

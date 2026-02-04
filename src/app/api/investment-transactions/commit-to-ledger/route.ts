@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { transactionIds, strategy, tradeNum } = await request.json();
 
     if (!transactionIds || !strategy || !tradeNum) {
@@ -13,9 +27,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch all investment transactions with security details
+    // SECURITY: Only fetch transactions belonging to user's accounts
     const invTxns = await prisma.investment_transactions.findMany({
-      where: { id: { in: transactionIds } },
+      where: {
+        id: { in: transactionIds },
+        accounts: { userId: user.id }
+      },
       include: { security: true }
     });
 
@@ -23,13 +40,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
     }
 
-    // Transform to InvestmentLeg format
+    // Verify all requested IDs belong to this user
+    if (invTxns.length !== transactionIds.length) {
+      return NextResponse.json(
+        { error: 'Some transaction IDs do not belong to your account' },
+        { status: 403 }
+      );
+    }
+
     const legs = invTxns.map(txn => {
       const name = txn.name.toLowerCase();
       const positionEffect = name.includes('to open') ? 'open' : 'close';
       const action = txn.type as 'buy' | 'sell';
       
-      // Extract symbol from security or name
       const symbol = txn.security?.option_underlying_ticker || 
                     txn.security?.ticker_symbol ||
                     txn.name.split(' ').find(w => /^[A-Z]{1,5}$/.test(w)) || 
@@ -38,7 +61,7 @@ export async function POST(request: Request) {
       return {
         id: txn.id,
         date: txn.date,
-        name: txn.name, // Include name for exercise/assignment detection
+        name: txn.name,
         symbol,
         strike: txn.security?.option_strike_price || null,
         expiry: txn.security?.option_expiration_date || null,
@@ -52,19 +75,18 @@ export async function POST(request: Request) {
       };
     });
 
-    // CRITICAL FIX: Wrap ENTIRE commit in single transaction to prevent deadlocks
     const result = await prisma.$transaction(
       async (tx) => {
         return await positionTrackerService.commitOptionsTrade({
           legs,
           strategy,
           tradeNum,
-          tx  // Pass transaction context
+          tx
         });
       },
       {
-        maxWait: 30000,  // 30 seconds max wait
-        timeout: 120000, // 2 minutes timeout (for 316 transactions)
+        maxWait: 30000,
+        timeout: 120000,
       }
     );
 

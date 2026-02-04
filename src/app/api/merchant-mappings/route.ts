@@ -1,17 +1,29 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const merchantName = searchParams.get('merchantName');
     const categoryPrimary = searchParams.get('categoryPrimary');
-    
+
     let mappings;
-    
+
     if (merchantName) {
       mappings = await prisma.merchant_coa_mappings.findMany({
         where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
@@ -36,7 +48,7 @@ export async function GET(request: Request) {
         take: 50
       });
     }
-    
+
     return NextResponse.json({ mappings });
   } catch (error: any) {
     console.error('Merchant mapping fetch error:', error);
@@ -44,23 +56,31 @@ export async function GET(request: Request) {
       { error: 'Failed to fetch merchant mappings', details: error.message },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { merchant_name, plaidCategoryPrimary, plaidCategoryDetailed, coaCode, subAccount } = body;
-    
+
     if (!merchant_name || !coaCode) {
-      return NextResponse.json(
-        { error: 'merchantName and coaCode required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'merchantName and coaCode required' }, { status: 400 });
     }
-    
+
     const existing = await prisma.merchant_coa_mappings.findUnique({
       where: {
         merchant_name_plaid_category_primary: {
@@ -69,7 +89,7 @@ export async function POST(request: Request) {
         }
       }
     });
-    
+
     if (existing) {
       const updated = await prisma.merchant_coa_mappings.update({
         where: { id: existing.id },
@@ -101,7 +121,5 @@ export async function POST(request: Request) {
       { error: 'Failed to save merchant mapping', details: error.message },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -1,18 +1,39 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Get all OPEN trading positions grouped by trade_num
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get user's investment transaction IDs to scope positions
+    const userInvTxnIds = (await prisma.investment_transactions.findMany({
+      where: { accounts: { userId: user.id } },
+      select: { id: true }
+    })).map(t => t.id);
+
     const positions = await prisma.trading_positions.findMany({
-      where: { status: 'OPEN' },
+      where: {
+        status: 'OPEN',
+        open_investment_txn_id: { in: userInvTxnIds }
+      },
       orderBy: [
         { trade_num: 'asc' },
         { open_date: 'asc' }
       ]
     });
 
-    // Group positions by trade_num
     const tradeGroups: { [tradeNum: string]: typeof positions } = {};
     positions.forEach(pos => {
       const key = pos.trade_num || 'unassigned';
@@ -20,11 +41,10 @@ export async function GET() {
       tradeGroups[key].push(pos);
     });
 
-    // Transform to trade objects
     const trades = Object.entries(tradeGroups).map(([tradeNum, legs]) => {
       const firstLeg = legs[0];
       const totalCostBasis = legs.reduce((sum, leg) => sum + leg.cost_basis, 0);
-      
+
       return {
         id: firstLeg.id,
         trade_num: tradeNum,
@@ -46,7 +66,6 @@ export async function GET() {
       };
     });
 
-    // Sort by trade number
     trades.sort((a, b) => {
       const numA = parseInt(a.trade_num) || 0;
       const numB = parseInt(b.trade_num) || 0;
@@ -54,7 +73,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ trades });
-    
+
   } catch (error: any) {
     console.error('Open trades fetch error:', error);
     return NextResponse.json(

@@ -1,13 +1,34 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'monthly';
 
-    // Get all journal entries with ledger entries
+    // SECURITY: Scoped journals to user's COA
     const journalEntries = await prisma.journal_transactions.findMany({
+      where: {
+        ledger_entries: {
+          some: {
+            chart_of_accounts: { userId: user.id }
+          }
+        }
+      },
       include: {
         ledger_entries: {
           include: {
@@ -48,6 +69,7 @@ export async function GET(request: Request) {
       const periodData = periodMap.get(periodKey);
 
       je.ledger_entries.forEach(le => {
+        if (le.chart_of_accounts.userId !== user.id) return;
         const amount = Number(le.amount) / 100;
         const accountType = le.chart_of_accounts.account_type.toLowerCase();
         const isNormalBalance = le.entry_type === le.chart_of_accounts.balance_type;
@@ -67,13 +89,12 @@ export async function GET(request: Request) {
       });
     });
 
-    // Convert to array and calculate net income
     const periods = Array.from(periodMap.values())
       .map(p => ({
         ...p,
         netIncome: p.revenue - p.expenses
       }))
-      .sort((a, b) => b.period.localeCompare(a.period)); // Most recent first
+      .sort((a, b) => b.period.localeCompare(a.period));
 
     return NextResponse.json({ periods });
   } catch (error) {

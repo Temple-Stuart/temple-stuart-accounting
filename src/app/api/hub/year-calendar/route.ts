@@ -60,6 +60,7 @@ export async function GET(request: Request) {
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From transactions via chart_of_accounts.module
+    // SECURITY: Scoped to user's accounts only
     // ═══════════════════════════════════════════════════════════════════
     const modules = ['home', 'auto', 'shopping', 'personal', 'health', 'growth'];
     
@@ -85,6 +86,7 @@ export async function GET(request: Request) {
     
     const transactions = await prisma.transactions.findMany({
       where: {
+        accounts: { userId: user.id },
         accountCode: { in: allCodes },
         date: {
           gte: startOfYear,
@@ -112,7 +114,7 @@ export async function GET(request: Request) {
 
     for (const txn of transactions) {
       const month = new Date(txn.date).getMonth();
-      const amount = Math.abs(txn.amount); // Expenses are typically negative
+      const amount = Math.abs(txn.amount);
       const module = txn.accountCode ? codeToModule[txn.accountCode] : null;
       
       if (module && actualData[month][module] !== undefined) {
@@ -130,9 +132,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       year, 
-      budgetData,   // Budget amounts by month/category
-      actualData,   // Actual spend by month/category
-      // Legacy support
+      budgetData,
+      actualData,
       monthlyData: budgetData 
     });
   } catch (error) {

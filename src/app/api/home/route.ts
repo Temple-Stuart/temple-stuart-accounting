@@ -30,8 +30,9 @@ export async function GET() {
 
     const codes = homeCodes.map(c => c.code);
 
+    // SECURITY: Scoped to user's accounts only
     const transactions = await prisma.transactions.findMany({
-      where: { accountCode: { in: codes } },
+      where: { accounts: { userId: user.id }, accountCode: { in: codes } },
       orderBy: { date: 'desc' }
     });
 
@@ -64,8 +65,8 @@ export async function GET() {
 
     const totalMonthlyHistorical = Object.values(byCode).reduce((sum, c) => sum + c.monthlyAvg, 0);
     const totalMonthlyCommitted = expenses
-      .filter(e => e.status === 'committed')
-      .reduce((sum, e) => sum + (e.amount || 0), 0);
+      .filter((e: any) => e.status === 'committed')
+      .reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     return NextResponse.json({
       expenses,
@@ -73,8 +74,8 @@ export async function GET() {
       summary: {
         totalMonthlyHistorical,
         totalMonthlyCommitted,
-        draftCount: expenses.filter(e => e.status === 'draft').length,
-        committedCount: expenses.filter(e => e.status === 'committed').length,
+        draftCount: expenses.filter((e: any) => e.status === 'draft').length,
+        committedCount: expenses.filter((e: any) => e.status === 'committed').length,
       },
       recentTransactions: transactions.slice(0, 15).map(t => ({
         id: t.id, date: t.date, name: t.name, amount: t.amount, accountCode: t.accountCode

@@ -9,22 +9,29 @@ interface LoginBoxProps {
 }
 
 export default function LoginBox({ onClose }: LoginBoxProps) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const body = mode === 'login'
+      ? { email, password }
+      : { email, password, name };
+
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
@@ -32,7 +39,7 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
         onClose?.();
       } else {
         const data = await res.json();
-        setError(data.error || 'Login failed');
+        setError(data.error || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
       }
     } catch {
       setError('Something went wrong');
@@ -45,11 +52,20 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
     signIn(provider, { callbackUrl: '/hub' });
   };
 
+  const switchMode = () => {
+    setMode(mode === 'login' ? 'register' : 'login');
+    setError('');
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-light text-gray-900 mb-2">Welcome</h2>
-        <p className="text-gray-500 text-sm">Sign in to Temple Stuart</p>
+        <h2 className="text-2xl font-light text-gray-900 mb-2">
+          {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+        </h2>
+        <p className="text-gray-500 text-sm">
+          {mode === 'login' ? 'Sign in to Temple Stuart' : 'Start tracking your finances for free'}
+        </p>
       </div>
 
       {/* OAuth Buttons */}
@@ -76,7 +92,6 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
           </svg>
           Continue with GitHub
         </button>
-
       </div>
 
       <div className="relative mb-6">
@@ -88,8 +103,18 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
         </div>
       </div>
 
-      {/* Email Login */}
-      <form onSubmit={handleEmailLogin}>
+      {/* Email Form */}
+      <form onSubmit={handleSubmit}>
+        {mode === 'register' && (
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Full name"
+            className="w-full px-4 py-3 border border-gray-200 rounded-full text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#b4b237] mb-3"
+            required
+          />
+        )}
         <input
           type="email"
           value={email}
@@ -102,8 +127,10 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
+          placeholder={mode === 'register' ? 'Password (min 8 characters)' : 'Password'}
           className="w-full px-4 py-3 border border-gray-200 rounded-full text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#b4b237] mb-3"
+          required
+          minLength={mode === 'register' ? 8 : undefined}
         />
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
         <button
@@ -111,14 +138,30 @@ export default function LoginBox({ onClose }: LoginBoxProps) {
           disabled={loading}
           className="w-full py-3 bg-[#b4b237] text-white rounded-full font-medium hover:shadow-lg hover:shadow-[#b4b237]/25 transition-all disabled:opacity-50"
         >
-          {loading ? 'Signing in...' : 'Continue with Email'}
+          {loading
+            ? (mode === 'login' ? 'Signing in...' : 'Creating account...')
+            : (mode === 'login' ? 'Continue with Email' : 'Create Free Account')
+          }
         </button>
       </form>
+
+      {/* Mode Switcher */}
+      <div className="mt-4 text-center">
+        <button
+          onClick={switchMode}
+          className="text-sm text-gray-500 hover:text-[#b4b237] transition-colors"
+        >
+          {mode === 'login'
+            ? "Don't have an account? Sign up free"
+            : 'Already have an account? Sign in'
+          }
+        </button>
+      </div>
 
       {onClose && (
         <button
           onClick={onClose}
-          className="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600"
+          className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600"
         >
           Cancel
         </button>
