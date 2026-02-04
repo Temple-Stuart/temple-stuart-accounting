@@ -48,6 +48,9 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <a href="#pricing" className="text-xs text-gray-300 hover:text-white hidden sm:block">
+                Pricing
+              </a>
               <a href="mailto:astuart@templestuart.com" className="text-xs text-gray-300 hover:text-white hidden sm:block">
                 Contact
               </a>
@@ -233,6 +236,119 @@ export default function LandingPage() {
                 <div className="text-[10px] text-gray-500">{f.desc}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+
+      {/* Pricing */}
+      <section id="pricing" className="bg-white border-y border-gray-200 py-12">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="mb-8">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Plans</div>
+            <h2 className="text-2xl font-light text-gray-900">Start free. Upgrade when you need more.</h2>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-4">
+            {/* Free */}
+            <div className="border border-gray-200 p-6">
+              <div className="text-xs font-medium text-gray-900 mb-1">Free</div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$0</div>
+              <div className="text-[10px] text-gray-500 mb-4">Forever</div>
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Manual transaction entry</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Budgeting across all modules</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Trip planning & flight search</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Double-entry bookkeeping</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Hub command center</span>
+                </div>
+              </div>
+              <button onClick={() => setShowLogin(true)}
+                className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
+                Get Started
+              </button>
+            </div>
+
+            {/* Pro */}
+            <div className="border-2 border-[#2d1b4e] p-6 relative">
+              <div className="absolute -top-2.5 left-4 bg-[#2d1b4e] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Popular</div>
+              <div className="text-xs font-medium text-gray-900 mb-1">Pro</div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$19<span className="text-sm font-normal text-gray-500">/mo</span></div>
+              <div className="text-[10px] text-gray-500 mb-4">Everything free, plus</div>
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Plaid bank sync (up to 10 accounts)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Trading P&L analytics</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Auto-categorization</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Wash sale tracking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Bank reconciliation</span>
+                </div>
+              </div>
+              <button onClick={() => setShowLogin(true)}
+                className="mt-6 w-full px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">
+                Start Free Trial
+              </button>
+            </div>
+
+            {/* Pro+ */}
+            <div className="border border-gray-200 p-6">
+              <div className="text-xs font-medium text-gray-900 mb-1">Pro+</div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$39<span className="text-sm font-normal text-gray-500">/mo</span></div>
+              <div className="text-[10px] text-gray-500 mb-4">Everything Pro, plus</div>
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>AI spending insights</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>AI meal planning</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Trip AI recommendations</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Up to 25 linked accounts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Priority support</span>
+                </div>
+              </div>
+              <button onClick={() => setShowLogin(true)}
+                className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
+                Start Free Trial
+              </button>
+            </div>
           </div>
         </div>
       </section>
