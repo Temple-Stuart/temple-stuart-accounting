@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
+import LoginBox from '@/components/LoginBox';
 
 const TIERS = [
   {
@@ -56,12 +57,23 @@ const TIERS = [
 
 function PricingContent() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [pendingTier, setPendingTier] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const cancelled = searchParams.get('cancelled');
 
-  const handleUpgrade = async (tier: string) => {
-    if (tier === 'free') return;
+  useEffect(() => {
+    // Check if user is logged in
+    fetch('/api/auth/me')
+      .then(res => {
+        setIsLoggedIn(res.ok);
+      })
+      .catch(() => setIsLoggedIn(false));
+  }, []);
+
+  const proceedToCheckout = async (tier: string) => {
     setLoading(tier);
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -82,7 +94,39 @@ function PricingContent() {
     }
   };
 
+  const handleUpgrade = async (tier: string) => {
+    if (tier === 'free') {
+      if (isLoggedIn) {
+        router.push('/hub');
+      } else {
+        setShowLogin(true);
+      }
+      return;
+    }
+
+    if (!isLoggedIn) {
+      setPendingTier(tier);
+      setShowLogin(true);
+      return;
+    }
+
+    proceedToCheckout(tier);
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLogin(false);
+    setIsLoggedIn(true);
+    if (pendingTier) {
+      proceedToCheckout(pendingTier);
+      setPendingTier(null);
+    }
+  };
+
   const handleManage = async () => {
+    if (!isLoggedIn) {
+      setShowLogin(true);
+      return;
+    }
     setLoading('manage');
     try {
       const res = await fetch('/api/stripe/portal', { method: 'POST' });
@@ -147,12 +191,12 @@ function PricingContent() {
 
             <button
               onClick={() => handleUpgrade(t.tier)}
-              disabled={loading !== null || t.tier === 'free'}
+              disabled={loading !== null}
               className={`w-full px-4 py-2 text-xs font-medium ${
                 t.highlight
                   ? 'bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]'
                   : t.tier === 'free'
-                  ? 'border border-gray-200 text-gray-400 cursor-default'
+                  ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                   : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -170,6 +214,19 @@ function PricingContent() {
           {loading === 'manage' ? 'Loading...' : 'Manage existing subscription'}
         </button>
       </div>
+
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowLogin(false); setPendingTier(null); }} />
+          <div className="relative z-10">
+            <LoginBox 
+              onClose={() => { setShowLogin(false); setPendingTier(null); }}
+              onSuccess={handleLoginSuccess}
+            />
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
