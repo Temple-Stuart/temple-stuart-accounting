@@ -289,7 +289,7 @@ temple-stuart/
 ├── src/
 │   ├── app/                    # Next.js App Router (flat routes)
 │   │   ├── accounts/           # Plaid account management
-│   │   ├── api/                # API routes (61 endpoints)
+│   │   ├── api/                # API routes (120 endpoints)
 │   │   │   ├── plaid/          # Plaid webhooks + sync
 │   │   │   ├── flights/        # Duffel search + booking
 │   │   │   ├── trips/          # Trip CRUD + participants
@@ -657,69 +657,69 @@ The AGPL + Commercial model ensures:
 <table>
 <tr>
 <th></th>
-<th align="center">🌱 Starter<br><sub>~$19/mo</sub></th>
-<th align="center">🚀 Pro<br><sub>~$49/mo</sub></th>
-<th align="center">👨‍👩‍👧‍👦 Family<br><sub>~$79/mo</sub></th>
+<th align="center">🆓 Free<br><sub>$0/mo</sub></th>
+<th align="center">🚀 Pro<br><sub>$19/mo</sub></th>
+<th align="center">⚡ Pro+<br><sub>$39/mo</sub></th>
 </tr>
 <tr>
-<td><strong>Users</strong></td>
-<td align="center">1</td>
-<td align="center">1</td>
-<td align="center">5</td>
-</tr>
-<tr>
-<td><strong>Linked Accounts</strong></td>
-<td align="center">2</td>
-<td align="center">Unlimited</td>
-<td align="center">Unlimited</td>
-</tr>
-<tr>
-<td><strong>Bookkeeping</strong></td>
+<td><strong>Manual Entry & Budgeting</strong></td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 </tr>
 <tr>
-<td><strong>Trading Analytics</strong></td>
+<td><strong>Trip Planning & Flights</strong></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Double-Entry Bookkeeping</strong></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Hub Command Center</strong></td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Plaid Bank Sync</strong></td>
+<td align="center">—</td>
+<td align="center">✅ (10 accounts)</td>
+<td align="center">✅ (25 accounts)</td>
+</tr>
+<tr>
+<td><strong>Trading P&L Analytics</strong></td>
 <td align="center">—</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 </tr>
 <tr>
-<td><strong>Trip Planning</strong></td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Daily Backups</strong></td>
-<td align="center">✅</td>
+<td><strong>Auto-Categorization</strong></td>
+<td align="center">—</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 </tr>
 <tr>
-<td><strong>Plaid Included</strong></td>
+<td><strong>AI Insights & Meal Planning</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
 <td align="center">✅</td>
-<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Trip AI Recommendations</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
 <td align="center">✅</td>
 </tr>
 <tr>
 <td><strong>Support</strong></td>
+<td align="center">Community</td>
 <td align="center">Email</td>
 <td align="center">Priority</td>
-<td align="center">Priority</td>
-</tr>
-<tr>
-<td><strong>Data Export</strong></td>
-<td align="center">CSV</td>
-<td align="center">CSV + API</td>
-<td align="center">CSV + API</td>
-</tr>
-<tr>
-<td></td>
-<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
-<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
-<td align="center"><a href="mailto:astuart@templestuart.com">Contact</a></td>
 </tr>
 </table>
 
@@ -779,12 +779,12 @@ The AGPL + Commercial model ensures:
 </td>
 <td valign="top">
 
-🔲 Auth + Account Creation<br>
-🔲 Free & Paid Tiers (Stripe)<br>
+✅ Auth + Account Creation<br>
+✅ Free & Paid Tiers (tier gating)<br>
 🔲 Onboarding Flow<br>
 🔲 Tax Export (Form 8949)<br>
 🔲 Schedule C Generation<br>
-🔲 Meal Planning Module
+✅ Meal Planning Module
 
 </td>
 <td valign="top">
@@ -857,10 +857,11 @@ Security is critical for financial software.
 
 | Measure | Implementation |
 |---------|----------------|
-| **Data Encryption** | AES-256 at rest, TLS 1.3 in transit |
-| **Authentication** | NextAuth.js with secure session handling |
-| **API Security** | Rate limiting, CORS, CSRF protection |
-| **Audit Logging** | Every action logged with user, timestamp, before/after |
+| **Authentication** | Cookie-based auth on 110/120 API routes |
+| **Data Isolation** | All financial queries scoped to userId |
+| **Tier Gating** | Paid API access (Plaid, AI) restricted by plan |
+| **Transport Security** | TLS via Vercel (HTTPS enforced) |
+| **Password Hashing** | bcrypt with salt rounds |
 | **Dependency Scanning** | Automated via Dependabot |
 
 **Found a vulnerability?** Email [astuart@templestuart.com](mailto:astuart@templestuart.com) with details. We respond within 24 hours.
