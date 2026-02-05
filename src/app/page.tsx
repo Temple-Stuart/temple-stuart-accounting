@@ -311,7 +311,7 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
-              <button onClick={() => setShowLogin(true)}
+              <button onClick={() => window.location.href = '/pricing'}
                 className="mt-6 w-full px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">
                 Subscribe
               </button>
@@ -344,7 +344,7 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <button onClick={() => setShowLogin(true)}
+              <button onClick={() => window.location.href = '/pricing'}
                 className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
                 Subscribe
               </button>
