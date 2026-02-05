@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStripe, getTierFromPriceId } from '@/lib/stripe';
 
+const OWNER_EMAIL = 'stuart.alexander.phi@gmail.com';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
@@ -29,14 +31,17 @@ export async function POST(request: NextRequest) {
           const priceId = subscription.items.data[0]?.price.id;
           const tier = priceId ? getTierFromPriceId(priceId) : 'pro';
 
-          await prisma.users.update({
-            where: { id: userId },
-            data: {
-              tier,
-              stripeSubscriptionId: subscriptionId,
-              stripeCustomerId: session.customer as string,
-            },
-          });
+          const checkoutUser = await prisma.users.findUnique({ where: { id: userId } });
+          if (checkoutUser?.email !== OWNER_EMAIL) {
+            await prisma.users.update({
+              where: { id: userId },
+              data: {
+                tier,
+                stripeSubscriptionId: subscriptionId,
+                stripeCustomerId: session.customer as string,
+              },
+            });
+          }
         }
         break;
       }
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
           where: { stripeCustomerId: customerId },
         });
 
-        if (user) {
+        if (user && user.email !== OWNER_EMAIL) {
           await prisma.users.update({
             where: { id: user.id },
             data: {
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
           where: { stripeCustomerId: customerId },
         });
 
-        if (user) {
+        if (user && user.email !== OWNER_EMAIL) {
           await prisma.users.update({
             where: { id: user.id },
             data: {
