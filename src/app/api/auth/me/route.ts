@@ -23,7 +23,8 @@ export async function GET() {
         id: true,
         email: true, 
         name: true,
-        createdAt: true
+        createdAt: true,
+        tier: true
       }
     });
 
