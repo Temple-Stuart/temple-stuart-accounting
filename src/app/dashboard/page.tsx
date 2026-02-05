@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Script from 'next/script';
 import { AppLayout, ResponsiveTable } from '@/components/ui';
+import UpgradePrompt from '@/components/UpgradePrompt';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -53,6 +54,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [userTier, setUserTier] = useState<string>('free');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [activeStatement, setActiveStatement] = useState<'income' | 'balance' | 'cashflow'>('income');
@@ -97,6 +100,8 @@ export default function Dashboard() {
       if (pcRes.ok) { const pcData = await pcRes.json(); setPeriodCloses(pcData.periods || []); }
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) { const meData = await meRes.json(); setUserTier(meData.user?.tier || 'free'); }
     } catch (err) { console.error('Load error:', err); }
     finally { setLoading(false); }
   }, []);
@@ -157,6 +162,14 @@ export default function Dashboard() {
     coaOptions.forEach(o => { if (!g[o.accountType]) g[o.accountType] = []; g[o.accountType].push(o); });
     return g;
   }, [coaOptions]);
+
+  const handleAddAccount = () => {
+    if (userTier === 'free') {
+      setShowUpgradeModal(true);
+      return;
+    }
+    openPlaidLink();
+  };
 
   const openPlaidLink = useCallback(() => {
     if (!linkToken || !(window as any).Plaid) return;
@@ -225,6 +238,19 @@ export default function Dashboard() {
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
+            <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($19/mo) to connect your bank accounts via Plaid.</div>
+            <div className="flex gap-2">
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+            </div>
+          </div>
+        </div>
+      )}
       </AppLayout>
     );
   }
@@ -247,7 +273,7 @@ export default function Dashboard() {
                   <button onClick={syncAccounts} disabled={syncing} className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 transition-colors">
                     {syncing ? 'Syncing...' : 'Sync'}
                   </button>
-                  <button onClick={openPlaidLink} disabled={!linkToken} className="px-3 py-1.5 text-xs bg-white/20 hover:bg-white/30 transition-colors">
+                  <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken} className="px-3 py-1.5 text-xs bg-white/20 hover:bg-white/30 transition-colors">
                     + Account
                   </button>
                 </div>
@@ -692,6 +718,19 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
+            <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($19/mo) to connect your bank accounts via Plaid.</div>
+            <div className="flex gap-2">
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+            </div>
+          </div>
+        </div>
+      )}
       </AppLayout>
     </>
   );
