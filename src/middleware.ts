@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/pricing',
   '/api/stripe/webhook',
+  '/opengraph-image',
 ];
 
 function isPublic(pathname: string): boolean {
