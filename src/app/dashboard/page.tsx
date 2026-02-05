@@ -243,7 +243,7 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
           <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
             <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($19/mo) to connect your bank accounts via Plaid.</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
               <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
@@ -723,7 +723,7 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
           <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
             <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($19/mo) to connect your bank accounts via Plaid.</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
               <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>

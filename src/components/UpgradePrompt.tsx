@@ -11,7 +11,7 @@ interface UpgradePromptProps {
 export default function UpgradePrompt({ feature, requiredTier = 'pro' }: UpgradePromptProps) {
   const router = useRouter();
   const tierLabel = requiredTier === 'pro_plus' ? 'Pro+' : 'Pro';
-  const price = requiredTier === 'pro_plus' ? '$39' : '$19';
+  const price = requiredTier === 'pro_plus' ? '$40' : '$20';
 
   return (
     <div className="border border-gray-200 bg-gray-50 p-6 text-center max-w-md mx-auto my-8">
