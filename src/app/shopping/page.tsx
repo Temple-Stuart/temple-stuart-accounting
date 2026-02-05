@@ -50,10 +50,13 @@ export default function ShoppingPage() {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [userTier, setUserTier] = useState<string>('free');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'meals' | 'expenses'>('meals');
 
   useEffect(() => {
     loadExpenses();
+    fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); });
     const saved = localStorage.getItem(getMealPlanKey());
     if (saved) {
       try { setMealPlan(JSON.parse(saved)); } catch (e) { console.error('Failed to load saved meal plan'); }
@@ -79,6 +82,7 @@ export default function ShoppingPage() {
       setShowForm(false);
       setForm({ name: '', coa_code: 'P-8120', amount: '', cadence: 'weekly', target_date: new Date().toISOString().split('T')[0] });
       loadExpenses();
+    fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); });
     }
   };
 
@@ -87,6 +91,7 @@ export default function ShoppingPage() {
     setActionLoading(id);
     await fetch(`/api/shopping/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
     loadExpenses();
+    fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); });
     setActionLoading(null);
   };
 
@@ -94,6 +99,7 @@ export default function ShoppingPage() {
     if (!confirm('Delete?')) return;
     await fetch(`/api/shopping/${id}`, { method: 'DELETE' });
     loadExpenses();
+    fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); });
   };
 
   const handlePlanGenerated = (plan: MealPlan) => {
@@ -129,7 +135,20 @@ export default function ShoppingPage() {
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppLayout>
+        {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
+            <div className="text-sm font-medium text-gray-900 mb-2">AI Meal Planning requires Pro+</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($39/mo) to unlock AI-powered meal planning.</div>
+            <div className="flex gap-2">
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
     );
   }
 
@@ -225,7 +244,15 @@ export default function ShoppingPage() {
                       onReset={handleResetPlan}
                     />
                   ) : (
-                    <MealPlannerForm onPlanGenerated={handlePlanGenerated} />
+                    userTier === 'free' ? (
+                      <div className="text-center py-8">
+                        <div className="text-sm font-medium text-gray-900 mb-2">AI Meal Planning requires Pro+</div>
+                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($39/mo) to unlock AI-powered meal planning.</div>
+                        <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                      </div>
+                    ) : (
+                      <MealPlannerForm onPlanGenerated={handlePlanGenerated} />
+                    )
                   )}
                 </div>
               </div>
@@ -370,6 +397,19 @@ export default function ShoppingPage() {
           </div>
         </div>
       </div>
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
+            <div className="text-sm font-medium text-gray-900 mb-2">AI Meal Planning requires Pro+</div>
+            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($39/mo) to unlock AI-powered meal planning.</div>
+            <div className="flex gap-2">
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
