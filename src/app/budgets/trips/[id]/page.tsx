@@ -120,6 +120,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
   });
   const [savingExpense, setSavingExpense] = useState(false);
+  const [userTier, setUserTier] = useState<string>('free');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); }, [id]);
 
@@ -793,6 +795,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   {(() => {
                     const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
                     return (
+                      userTier === 'free' || userTier === 'pro' ? (
+                      <div className="text-center py-8">
+                        <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
+                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($39/mo) to unlock AI-powered trip planning.</div>
+                        <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                      </div>
+                    ) : (
                       <TripPlannerAI
                         committedBudget={tripBudget}
                         tripId={id}
@@ -819,7 +828,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           setTripBudget(items);
                         }}
                       />
-                    );
+                    )
+                  );
                   })()}
                 </div>
               </div>
