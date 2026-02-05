@@ -31,6 +31,7 @@ const FEATURES = [
 
 export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
+  const [loginRedirect, setLoginRedirect] = useState('/hub');
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
@@ -311,7 +312,7 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
-              <button onClick={() => window.location.href = '/pricing'}
+              <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">
                 Subscribe
               </button>
@@ -344,7 +345,7 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <button onClick={() => window.location.href = '/pricing'}
+              <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
                 Subscribe
               </button>
@@ -420,7 +421,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogin(false)} />
           <div className="relative z-10">
-            <LoginBox onClose={() => setShowLogin(false)} />
+            <LoginBox onClose={() => setShowLogin(false)} redirectTo={loginRedirect} />
           </div>
         </div>
       )}
