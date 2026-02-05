@@ -288,7 +288,7 @@ export default function LandingPage() {
             <div className="border-2 border-[#2d1b4e] p-6 relative">
               <div className="absolute -top-2.5 left-4 bg-[#2d1b4e] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Popular</div>
               <div className="text-xs font-medium text-gray-900 mb-1">Pro</div>
-              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$19<span className="text-sm font-normal text-gray-500">/mo</span></div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$20<span className="text-sm font-normal text-gray-500">/mo</span></div>
               <div className="text-[10px] text-gray-500 mb-4">Everything free, plus</div>
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export default function LandingPage() {
             {/* Pro+ */}
             <div className="border border-gray-200 p-6">
               <div className="text-xs font-medium text-gray-900 mb-1">Pro+</div>
-              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$39<span className="text-sm font-normal text-gray-500">/mo</span></div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$40<span className="text-sm font-normal text-gray-500">/mo</span></div>
               <div className="text-[10px] text-gray-500 mb-4">Everything Pro, plus</div>
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">

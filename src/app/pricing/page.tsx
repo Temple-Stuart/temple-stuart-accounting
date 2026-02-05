@@ -23,7 +23,7 @@ const TIERS = [
   },
   {
     name: 'Pro',
-    price: '$19',
+    price: '$20',
     period: '/mo',
     tier: 'pro',
     features: [
@@ -39,7 +39,7 @@ const TIERS = [
   },
   {
     name: 'Pro+',
-    price: '$39',
+    price: '$40',
     period: '/mo',
     tier: 'pro_plus',
     features: [

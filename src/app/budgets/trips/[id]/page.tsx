@@ -798,7 +798,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       userTier === 'free' || userTier === 'pro' ? (
                       <div className="text-center py-8">
                         <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
-                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($39/mo) to unlock AI-powered trip planning.</div>
+                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
                         <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
                       </div>
                     ) : (
