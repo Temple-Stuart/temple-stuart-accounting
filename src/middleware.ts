@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   '/pricing',
   '/api/stripe/webhook',
   '/opengraph-image',
+  '/terms',
+  '/privacy',
 ];
 
 function isPublic(pathname: string): boolean {

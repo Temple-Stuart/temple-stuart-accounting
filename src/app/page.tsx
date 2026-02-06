@@ -412,6 +412,10 @@ export default function LandingPage() {
                 </svg>
               </a>
             </div>
+            <div className="flex items-center gap-4 mt-4">
+              <a href="/terms" className="text-xs text-gray-500 hover:text-gray-300">Terms of Service</a>
+              <a href="/privacy" className="text-xs text-gray-500 hover:text-gray-300">Privacy Policy</a>
+            </div>
           </div>
         </div>
       </section>
