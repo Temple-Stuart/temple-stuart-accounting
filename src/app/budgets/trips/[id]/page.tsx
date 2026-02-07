@@ -123,7 +123,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [userTier, setUserTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); }); }, [id]);
 
   const loadTrip = async () => {
     try {
