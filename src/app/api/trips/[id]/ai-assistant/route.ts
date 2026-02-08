@@ -2,7 +2,7 @@ import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { analyzeWithLiveSearch, analyzeAllCategories } from '@/lib/grokAgent';
+import { analyzeWithLiveSearch } from '@/lib/grokAgent';
 import { searchPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 
@@ -15,27 +15,10 @@ interface TravelerProfile {
   groupSize: number;
 }
 
-interface PlaceResult {
-  name: string;
-  address: string;
-  website: string | null;
-  photoUrl: string | null;
-  googleRating: number;
-  reviewCount: number;
-  sentimentScore: number;
-  sentiment: 'positive' | 'neutral' | 'negative';
-  summary: string;
-  warnings: string[];
-  trending: boolean;
-  fitScore: number;
-  valueRank: number;
-  category: string;
-}
-
 const BUDGET_LABELS: Record<string, string> = {
   'under50': 'Under $50/night',
   '50to100': '$50-100/night',
-  '100to200': '$100-200/night', 
+  '100to200': '$100-200/night',
   '200to400': '$200-400/night',
   'over400': '$400+/night'
 };
@@ -61,6 +44,9 @@ async function enrichPlaceDetails(places: any[]): Promise<any[]> {
   return enriched;
 }
 
+// Accepts a single category per request. Client iterates categories and
+// calls this endpoint once per category, updating UI as each returns.
+// This keeps each request under the serverless function timeout.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -78,28 +64,29 @@ export async function POST(
     if (tierGate) return tierGate;
 
     const body = await request.json();
-    const { 
-      city, 
-      country, 
-      activities = [],      // NEW: array of activities from trip
-      activity,             // backward compat: single activity
+    const {
+      city,
+      country,
+      activities = [],
+      activity,
       month,
       year,
       daysTravel,
       minRating = 4.0,
       minReviews = 50,
-      categories = Object.keys(CATEGORY_SEARCHES),
+      category,
       profile
     } = body;
 
     if (!city || !country) {
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
     }
+    if (!category || !CATEGORY_SEARCHES[category]) {
+      return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
+    }
 
-    // Use activities array or fall back to single activity
     const tripActivities = activities.length > 0 ? activities : (activity ? [activity] : []);
 
-    // Default profile if not provided
     const travelerProfile: TravelerProfile = profile || {
       tripType: 'relaxation',
       budget: '100to200',
@@ -108,102 +95,67 @@ export async function POST(
       groupSize: 1
     };
 
-    console.log('[Grok AI] Starting analysis for ' + city + ', ' + country);
-    console.log('[Grok AI] Activities: ' + tripActivities.join(', '));
-    console.log('[Grok AI] Trip type: ' + travelerProfile.tripType + ', Budget: ' + travelerProfile.budget);
-
-    // STEP 1: Gather all places from Google Places API (cached)
-    // STEP 1: Gather all places from Google Places API (cached) BY CATEGORY
-    const placesByCategory: Record<string, Array<{
-      name: string;
-      address: string;
-      rating: number;
-      reviewCount: number;
-      website?: string;
-      photoUrl?: string;
-      category: string;
-    }>> = {};
-    for (const cat of categories) {
-      const config = CATEGORY_SEARCHES[cat];
-      if (!config) {
-        console.log('[Grok AI] Unknown category: ' + cat);
-        continue;
-      }
-
-      // Skip certain categories based on trip type
-      if (travelerProfile.tripType === 'family' && cat === 'nightlife') {
-        console.log('[Grok AI] Skipping nightlife for family trip');
-        continue;
-      }
-
-      let query = config.query;
-      
-      // Customize queries based on trip type
-      if (cat === 'lodging') {
-        if (travelerProfile.tripType === 'family') {
-          query = 'family hotel resort apartment';
-        } else if (travelerProfile.tripType === 'romantic') {
-          query = 'boutique hotel romantic resort';
-        } else if (travelerProfile.tripType === 'solo') {
-          query = 'hostel guesthouse budget hotel';
-        } else if (travelerProfile.tripType === 'friends') {
-          query = 'villa apartment hostel group accommodation';
-        } else if (travelerProfile.tripType === 'remote_work') {
-          query = 'hotel coworking coliving digital nomad';
-        }
-      }
-
-      // CHECK CACHE FIRST
-      let enriched: any[] = [];
-      const cacheIsFresh = await isCacheFresh(city, country, cat);
-      
-      if (cacheIsFresh) {
-        enriched = await getCachedPlaces(city, country, cat);
-        console.log('[Grok AI] ' + cat + ': Using ' + enriched.length + ' CACHED places');
-      } else {
-        console.log('[Grok AI] ' + cat + ': Cache miss - calling Google API');
-        const places = await searchPlaces(query, city, country, 60);
-        enriched = await enrichPlaceDetails(places);
-        await cachePlaces(enriched, city, country, cat);
-        console.log('[Grok AI] ' + cat + ': Cached ' + enriched.length + ' places');
-      }
-
-      // Filter by rating and reviews
-      const filtered = enriched.filter(p => {
-        if (p.rating < minRating) return false;
-        if (p.reviewCount < minReviews) return false;
-        return true;
-      });
-
-      // Add to category group
-      placesByCategory[cat] = filtered.slice(0, 10).map(p => ({
-          name: p.name,
-          address: p.address,
-          rating: p.rating,
-          reviewCount: p.reviewCount,
-          website: p.website || undefined,
-          photoUrl: p.photos?.[0] || undefined,
-          category: cat
-        }));
-
-      console.log('[Grok AI] ' + cat + ': ' + filtered.length + ' places after filter');
+    // Skip nightlife for family trips
+    if (travelerProfile.tripType === 'family' && category === 'nightlife') {
+      return NextResponse.json({ category, recommendations: [] });
     }
 
-    const totalPlaces = Object.values(placesByCategory).flat().length;
-    console.log('[Grok AI] Total places to analyze: ' + totalPlaces);
+    console.log(`[Grok AI] ${category}: Starting analysis for ${city}, ${country}`);
 
-    if (totalPlaces === 0) {
-      return NextResponse.json({ 
-        recommendations: [],
-        context: { city, country, activities: tripActivities, month, year, daysTravel }
-      });
+    // Customize lodging query based on trip type
+    let query = CATEGORY_SEARCHES[category].query;
+    if (category === 'lodging') {
+      if (travelerProfile.tripType === 'family') {
+        query = 'family hotel resort apartment';
+      } else if (travelerProfile.tripType === 'romantic') {
+        query = 'boutique hotel romantic resort';
+      } else if (travelerProfile.tripType === 'solo') {
+        query = 'hostel guesthouse budget hotel';
+      } else if (travelerProfile.tripType === 'friends') {
+        query = 'villa apartment hostel group accommodation';
+      } else if (travelerProfile.tripType === 'remote_work') {
+        query = 'hotel coworking coliving digital nomad';
+      }
     }
 
-    // STEP 2: Send to Grok for sentiment analysis with x_search + web_search
+    // Fetch places from Google (cached)
+    let enriched: any[] = [];
+    const cacheIsFresh = await isCacheFresh(city, country, category);
+
+    if (cacheIsFresh) {
+      enriched = await getCachedPlaces(city, country, category);
+      console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
+    } else {
+      console.log(`[Grok AI] ${category}: Cache miss — calling Google`);
+      const places = await searchPlaces(query, city, country, 60);
+      enriched = await enrichPlaceDetails(places);
+      await cachePlaces(enriched, city, country, category);
+      console.log(`[Grok AI] ${category}: Cached ${enriched.length} places`);
+    }
+
+    const filtered = enriched.filter(p => p.rating >= minRating && p.reviewCount >= minReviews);
+
+    const placesToAnalyze = filtered.slice(0, 10).map(p => ({
+      name: p.name,
+      address: p.address,
+      rating: p.rating,
+      reviewCount: p.reviewCount,
+      website: p.website || undefined,
+      photoUrl: p.photos?.[0] || undefined,
+      category
+    }));
+
+    console.log(`[Grok AI] ${category}: ${placesToAnalyze.length} places after filter`);
+
+    if (placesToAnalyze.length === 0) {
+      return NextResponse.json({ category, recommendations: [] });
+    }
+
+    // Single Grok call for this one category
     const monthName = month ? new Date(year || 2025, month - 1).toLocaleString('en-US', { month: 'long' }) : undefined;
-    
-    const byCategory = await analyzeAllCategories({
-      placesByCategory,
+
+    const recommendations = await analyzeWithLiveSearch({
+      places: placesToAnalyze,
       destination: `${city}, ${country}`,
       activities: tripActivities,
       profile: {
@@ -213,31 +165,14 @@ export async function POST(
         dealbreakers: travelerProfile.dealbreakers,
         groupSize: travelerProfile.groupSize
       },
+      category,
       month: monthName,
       year: year,
-      maxPlacesPerCall: 10, // Keep prompts small — Grok searches each place via agent tools
     });
 
-    // Flatten for the recommendations array
-    const analyzed = Object.values(byCategory).flat();
-    analyzed.sort((a, b) => a.valueRank - b.valueRank);
+    console.log(`[Grok AI] ${category}: ${recommendations.length} results`);
 
-    // Group results by category for the response
-    return NextResponse.json({ 
-      recommendations: analyzed,        // Flat list sorted by valueRank
-      byCategory: byCategory,           // Grouped by category
-      context: { 
-        city, 
-        country, 
-        activities: tripActivities,
-        month: monthName, 
-        year, 
-        daysTravel,
-        tripType: travelerProfile.tripType,
-        budget: travelerProfile.budget,
-        totalAnalyzed: totalPlaces
-      }
-    });
+    return NextResponse.json({ category, recommendations });
 
   } catch (err) {
     console.error('Grok AI Assistant error:', err);
