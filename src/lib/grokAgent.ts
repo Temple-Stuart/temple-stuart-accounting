@@ -198,8 +198,8 @@ IMPORTANT:
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast',
-        input: prompt,
+        model: 'grok-4-1-fast-reasoning',
+        input: [{ role: 'user', content: prompt }],
         tools: [
           { type: 'web_search' },
           { type: 'x_search' },
@@ -213,7 +213,14 @@ IMPORTANT:
       throw new Error(`Grok API error: ${response.status}`);
     }
 
-    const data: XAIResponse = await response.json();
+    const responseText = await response.text();
+    let data: XAIResponse;
+    try {
+      data = JSON.parse(responseText);
+    } catch (jsonErr) {
+      console.error('[GrokAgent] API returned non-JSON response:', responseText.substring(0, 500));
+      throw new Error('Grok API returned invalid JSON response');
+    }
     
     // Extract text content and citations
     let textContent = '';
