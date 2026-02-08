@@ -232,6 +232,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
         const data = await res.json();
         const items: GrokRecommendation[] = data.recommendations || [];
+        console.log(`[AI] ${cat}: ${items.length} results`);
 
         if (items.length > 0) {
           setByCategory(prev => ({ ...prev, [cat]: items }));
@@ -790,7 +791,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       )}
 
       {/* Results */}
-      {Object.keys(byCategory).length > 0 && !loading && (
+      {Object.keys(byCategory).length > 0 && (
         <div className="space-y-3">
           <h3 className="font-bold text-xl text-gray-800">📊 AI Analysis Results <span className="text-sm font-normal text-gray-500">({recommendations.length} places)</span></h3>
           {Object.entries(byCategory).map(([cat, items]) => {
