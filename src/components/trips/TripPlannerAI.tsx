@@ -162,6 +162,9 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
 
 export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget }: Props) {
   const [loading, setLoading] = useState(false);
+  const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalCategories, setTotalCategories] = useState(0);
   const [recommendations, setRecommendations] = useState<GrokRecommendation[]>([]);
   const [byCategory, setByCategory] = useState<Record<string, GrokRecommendation[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -192,21 +195,60 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     if (!city || !country) { setError('Please select a destination first'); return; }
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, profile })
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      const data = await res.json();
-      setRecommendations(data.recommendations || []);
-      setByCategory(data.byCategory || {});
-      setSelections([]);
-      const firstCat = Object.keys(data.byCategory || {})[0];
-      if (firstCat) setExpandedCategory(firstCat);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Request failed'); }
-    finally { setLoading(false); }
+    setByCategory({});
+    setRecommendations([]);
+    setSelections([]);
+    setExpandedCategory(null);
+    setCompletedCount(0);
+
+    const categories = Object.keys(CATEGORY_INFO);
+    setTotalCategories(categories.length);
+    let firstExpanded = false;
+
+    for (let i = 0; i < categories.length; i++) {
+      const cat = categories[i];
+      setLoadingCategory(CATEGORY_INFO[cat]?.label || cat);
+      setCompletedCount(i);
+
+      try {
+        const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, category: cat, profile })
+        });
+
+        // Guard against non-JSON responses (serverless timeout returns HTML)
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          console.error(`[TripAI] ${cat}: non-JSON response — likely timeout`);
+          continue;
+        }
+
+        if (!res.ok) {
+          const d = await res.json();
+          console.error(`[TripAI] ${cat} failed:`, d.error);
+          continue;
+        }
+
+        const data = await res.json();
+        const items: GrokRecommendation[] = data.recommendations || [];
+
+        if (items.length > 0) {
+          setByCategory(prev => ({ ...prev, [cat]: items }));
+          setRecommendations(prev => [...prev, ...items].sort((a, b) => a.valueRank - b.valueRank));
+          if (!firstExpanded) {
+            setExpandedCategory(cat);
+            firstExpanded = true;
+          }
+        }
+      } catch (err) {
+        console.error(`[TripAI] ${cat} error:`, err);
+      }
+    }
+
+    setCompletedCount(categories.length);
+    setLoadingCategory(null);
+    setLoading(false);
   };
 
   const handleSelectItem = (item: GrokRecommendation) => {
@@ -449,8 +491,17 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         <div className="text-center py-16 bg-gradient-to-b from-purple-50 to-white rounded-2xl border border-purple-100">
           <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-700 font-semibold text-lg">Grok is analyzing {city}...</p>
-          <p className="text-gray-500 text-sm mt-2">Searching for the best spots based on your profile</p>
-          <p className="text-gray-400 text-xs mt-1">This may take 30-60 seconds</p>
+          {loadingCategory && (
+            <p className="text-purple-600 text-sm mt-2 font-medium">
+              {loadingCategory} ({completedCount + 1}/{totalCategories})
+            </p>
+          )}
+          <p className="text-gray-400 text-xs mt-1">Each category takes ~30 seconds</p>
+          {completedCount > 0 && (
+            <div className="mt-4 mx-auto w-64 bg-gray-200 rounded-full h-2">
+              <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
+            </div>
+          )}
         </div>
       )}
 
