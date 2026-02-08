@@ -176,7 +176,7 @@ export async function POST(
       });
 
       // Add to category group
-      placesByCategory[cat] = filtered.slice(0, 20).map(p => ({
+      placesByCategory[cat] = filtered.slice(0, 10).map(p => ({
           name: p.name,
           address: p.address,
           rating: p.rating,
@@ -215,7 +215,7 @@ export async function POST(
       },
       month: monthName,
       year: year,
-      maxParallel: 2  // Limit parallel requests to avoid rate limits
+      maxPlacesPerCall: 10, // Keep prompts small — Grok searches each place via agent tools
     });
 
     // Flatten for the recommendations array
