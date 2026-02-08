@@ -198,7 +198,7 @@ IMPORTANT:
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast-reasoning',
+        model: 'grok-4-1-fast',
         input: [{ role: 'user', content: prompt }],
         tools: [
           { type: 'web_search' },
