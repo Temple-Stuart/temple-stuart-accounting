@@ -308,7 +308,8 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 8000,
+      max_tokens: 16000,
+      response_format: { type: 'json_object' },
     });
 
     const textContent = completion.choices[0]?.message?.content;
@@ -319,8 +320,14 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
     let planData;
     try {
       let jsonStr = textContent;
-      const jsonMatch = jsonStr.match(/```json\s*([\s\S]*?)\s*```/) || jsonStr.match(/```\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) jsonStr = jsonMatch[1];
+      // Strip markdown code blocks if present
+      const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) jsonStr = codeBlockMatch[1];
+      // Fallback: extract outermost JSON object
+      if (!jsonStr.trim().startsWith('{')) {
+        const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (objMatch) jsonStr = objMatch[0];
+      }
       planData = JSON.parse(jsonStr.trim());
     } catch (parseError) {
       console.error('JSON parse error:', textContent.substring(0, 500));
