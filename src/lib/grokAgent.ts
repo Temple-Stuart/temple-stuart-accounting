@@ -189,8 +189,10 @@ IMPORTANT:
 - Include real evidence from your X/web searches in xEvidence`;
 
   try {
-    console.log("[GrokAgent] Analyzing " + places.length + " " + category + " places with live search...");
-    
+    const promptLen = prompt.length;
+    console.log(`[GrokAgent] Analyzing ${places.length} ${category} places (prompt: ${promptLen} chars)...`);
+    const startTime = Date.now();
+
     const response = await fetch('https://api.x.ai/v1/responses', {
       method: 'POST',
       headers: {
@@ -205,21 +207,26 @@ IMPORTANT:
           { type: 'x_search' },
         ],
       }),
+      signal: AbortSignal.timeout(90_000), // 90s timeout per call
     });
 
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[GrokAgent] ${category} response: ${response.status} in ${elapsed}s`);
+
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const error = await response.text();
-      console.error('[GrokAgent] API error:', response.status, error);
+      console.error(`[GrokAgent] API error ${response.status} for ${category}:`, responseText.substring(0, 1000));
       throw new Error(`Grok API error: ${response.status}`);
     }
 
-    const responseText = await response.text();
     let data: XAIResponse;
     try {
       data = JSON.parse(responseText);
     } catch (jsonErr) {
-      console.error('[GrokAgent] API returned non-JSON response:', responseText.substring(0, 500));
-      throw new Error('Grok API returned invalid JSON response');
+      console.error(`[GrokAgent] ${category}: API returned non-JSON (${responseText.length} chars):`);
+      console.error(`[GrokAgent] Full response: ${responseText.substring(0, 2000)}`);
+      throw new Error(`Grok API returned non-JSON for ${category}: "${responseText.substring(0, 100)}"`);
     }
     
     // Extract text content and citations
@@ -306,7 +313,9 @@ IMPORTANT:
   }
 }
 
-// Analyze multiple categories in parallel
+// Analyze categories sequentially to avoid overwhelming Grok's agent tools.
+// Each call triggers multi-turn web_search + x_search internally, so parallel
+// calls cause rate limits and "An error occurred" text responses.
 export async function analyzeAllCategories(options: {
   placesByCategory: Record<string, PlaceToAnalyze[]>;
   destination: string;
@@ -314,49 +323,52 @@ export async function analyzeAllCategories(options: {
   profile: TravelerProfile;
   month?: string;
   year?: number;
-  maxParallel?: number;
+  maxPlacesPerCall?: number;
 }): Promise<Record<string, GrokAnalysis[]>> {
-  const { placesByCategory, destination, activities, profile, month, year, maxParallel = 3 } = options;
-  
+  const { placesByCategory, destination, activities, profile, month, year, maxPlacesPerCall = 10 } = options;
+
   const categories = Object.keys(placesByCategory);
-  console.log("[GrokAgent] Starting analysis of " + categories.length + " categories (max " + maxParallel + " parallel)...");
-  
+  const totalPlaces = Object.values(placesByCategory).flat().length;
+  console.log(`[GrokAgent] Starting sequential analysis: ${categories.length} categories, ${totalPlaces} total places (max ${maxPlacesPerCall}/call)`);
+
   const results: Record<string, GrokAnalysis[]> = {};
-  
-  // Process in batches to avoid rate limits
-  for (let i = 0; i < categories.length; i += maxParallel) {
-    const batch = categories.slice(i, i + maxParallel);
-    
-    const batchResults = await Promise.all(
-      batch.map(async (category) => {
-        const places = placesByCategory[category];
-        if (!places || places.length === 0) {
-          return { category, analyses: [] as GrokAnalysis[] };
-        }
-        
-        try {
-          const analyses = await analyzeWithLiveSearch({
-            places: places.slice(0, 20),
-            destination,
-            activities,
-            profile,
-            category,
-            month,
-            year,
-          });
-          return { category, analyses };
-        } catch (err) {
-          console.error("[GrokAgent] Failed to analyze " + category + ":", err);
-          return { category, analyses: [] as GrokAnalysis[] };
-        }
-      })
-    );
-    
-    for (const { category, analyses } of batchResults) {
+
+  // Process one category at a time — Grok agent tools can't handle parallel calls
+  for (let i = 0; i < categories.length; i++) {
+    const category = categories[i];
+    const places = placesByCategory[category];
+
+    if (!places || places.length === 0) {
+      results[category] = [];
+      continue;
+    }
+
+    console.log(`[GrokAgent] [${i + 1}/${categories.length}] Analyzing ${category}...`);
+
+    try {
+      const analyses = await analyzeWithLiveSearch({
+        places: places.slice(0, maxPlacesPerCall),
+        destination,
+        activities,
+        profile,
+        category,
+        month,
+        year,
+      });
       results[category] = analyses;
+    } catch (err) {
+      console.error(`[GrokAgent] Failed ${category} (continuing):`, err instanceof Error ? err.message : err);
+      results[category] = [];
+    }
+
+    // Brief pause between calls to avoid rate limits
+    if (i < categories.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
-  
+
+  const totalResults = Object.values(results).flat().length;
+  console.log(`[GrokAgent] Done: ${totalResults} results across ${categories.length} categories`);
   return results;
 }
 
