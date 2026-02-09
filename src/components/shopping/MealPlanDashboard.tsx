@@ -67,6 +67,21 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
   return (
     <div className="space-y-4">
 
+      {/* Summary + Clear */}
+      <div className="flex items-center justify-between bg-gray-50 border border-gray-200 px-4 py-3">
+        <div className="text-xs text-gray-600">
+          <span className="font-semibold text-gray-900">{(plan.meals || []).length}</span> meals &middot;{' '}
+          <span className="font-semibold text-gray-900">{metrics.totalItems}</span> shopping items &middot;{' '}
+          Est. <span className="font-mono font-semibold text-gray-900">{fmt(metrics.totalEstimated)}</span>
+        </div>
+        <button
+          onClick={onReset}
+          className="px-3 py-1.5 text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+        >
+          Clear Plan
+        </button>
+      </div>
+
       {/* 7 Days of Meals */}
       {DAYS.map((dayName, i) => {
         const dayNum = i + 1;

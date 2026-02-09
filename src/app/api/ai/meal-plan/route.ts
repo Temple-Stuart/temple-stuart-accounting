@@ -145,7 +145,10 @@ MEAL PREP MODE — FOOD SAFETY IS NON-NEGOTIABLE:
 The user cooks on EXACTLY ${profile.cookingDays} day(s). All ${mealsToPlan} eating occasions must be covered.
 
 *** UNIQUE RECIPE LIMIT (CRITICAL — DO NOT IGNORE) ***
-Generate AT MOST ${uniqueRecipeCap} unique recipes. The user cooks ${profile.cookingDays} day(s)/week — they batch-cook large portions and eat LEFTOVERS for the remaining days. ${mealsToPlan} is the number of EATING OCCASIONS, not unique meals. Each recipe should yield enough servings to cover multiple days. For example, "Chicken Rice Bowls" cooked Sunday can be lunch on Monday, Tuesday, and Wednesday. Assign the SAME meal name + recipe to multiple days. Do NOT create ${mealsToPlan} unique recipes — that defeats the purpose of meal prep.
+Generate AT MOST ${uniqueRecipeCap} unique recipes. The user cooks ${profile.cookingDays} day(s)/week — they batch-cook large portions and eat LEFTOVERS for the remaining days. ${mealsToPlan} is the number of EATING OCCASIONS, not unique meals. Each recipe should yield enough servings to cover multiple days. Reuse the same recipe name across multiple days. Do NOT create ${mealsToPlan} unique recipes — that defeats the purpose of meal prep.
+
+DAILY ROTATION (CRITICAL — DO NOT MAKE EVERY DAY IDENTICAL):
+Generate ${uniqueRecipeCap} base recipes, then ROTATE them across the 7 days so each day has a DIFFERENT combination. For example with 4 recipes (A, B, C, D): Day 1 = A/B/C, Day 2 = A/C/D, Day 3 = B/C/D, Day 4 = A/B/D, etc. Not every day should have the same breakfast, lunch, and dinner. Vary which recipe fills which meal slot each day.
 
 PREP DAY ASSIGNMENTS (follow exactly):
 ${prepDayScheduleText}
@@ -268,7 +271,10 @@ SHOPPING LIST INTEGRITY (CRITICAL):
 The shopping list MUST contain every single ingredient referenced in any meal. Cross-check every meal's ingredients against the shopping list before responding. If an ingredient appears in a meal, it MUST appear in the shopping list. The shopping list is derived by consolidating ALL ingredients from ALL meals — do NOT generate it independently. After generating all meals, walk through each meal's ingredient list and verify it maps to a shopping list entry. Missing ingredients = invalid response.
 
 PRICE ESTIMATES (CRITICAL):
-Estimate grocery prices conservatively — use the higher end of typical US grocery store prices, not the lowest. Round up to the nearest dollar. After calculating totalEstimated, add a 15% buffer to that number. For example, if items sum to $100, report totalEstimated as $115.
+Estimate grocery prices conservatively — use the higher end of typical US grocery store prices, not the lowest. Round up to the nearest dollar.
+
+totalEstimated CALCULATION (MANDATORY):
+totalEstimated MUST equal the sum of all shoppingList estimatedPrice values plus a 15% buffer. CALCULATE it — do NOT estimate it independently. Formula: totalEstimated = (sum of all shoppingList[i].estimatedPrice) * 1.15, rounded to 2 decimal places. If your shoppingList items sum to $58, totalEstimated must be $66.70, NOT $92 or any other made-up number.
 
 Respond with ONLY valid JSON:
 {
@@ -325,8 +331,8 @@ Generate ${profile.mealsPerDay === 3 ? 'breakfast, lunch, dinner' : 'lunch, dinn
 ${profile.cookingStyle === 'meal-prep' ? `REMEMBER: Max ${uniqueRecipeCap} unique recipes — reuse batch-cooked meals across days. ${mealsToPlan} is eating occasions, NOT unique recipes.` : ''}
 Shopping list must be CONSOLIDATED - combine all uses of same ingredient. Every meal ingredient MUST appear on the shopping list.
 Categories: produce, dairy, meat, seafood, grains, pantry, frozen, beverages, spices
-Prices must use high-end US grocery estimates, rounded up. totalEstimated must include the 15% buffer.
-FINAL CHECK: totalEstimated MUST be ≤ $${weeklyBudget}. If over budget, revise before responding.
+Prices must use high-end US grocery estimates, rounded up.
+FINAL CHECK: totalEstimated = sum(shoppingList estimatedPrices) * 1.15. Verify this math. totalEstimated MUST be ≤ $${weeklyBudget}. If over budget, revise before responding.
 ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing what to cook each prep day.' : ''}`;
 
     const completion = await openai.chat.completions.create({
@@ -391,10 +397,14 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
         estimatedPrice: Number(item.estimatedPrice) || 0,
         actualPrice: null
       })),
-      totalEstimated: Number(planData.totalEstimated) || 0,
+      totalEstimated: 0, // computed below from shopping list
       totalActual: 0,
       prepSchedule: planData.prepSchedule || null
     };
+
+    // Server-side: compute totalEstimated from actual shopping list prices + 15% buffer
+    const shoppingSum = plan.shoppingList.reduce((sum: number, item: { estimatedPrice: number }) => sum + item.estimatedPrice, 0);
+    plan.totalEstimated = Math.round(shoppingSum * 1.15 * 100) / 100;
 
     return NextResponse.json(plan);
 
