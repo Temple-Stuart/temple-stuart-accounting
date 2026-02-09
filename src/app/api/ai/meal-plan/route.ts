@@ -366,18 +366,32 @@ ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing wha
       meals: (planData.meals || []).map((m: Record<string, unknown>, i: number) => ({
         ...m,
         id: `meal_${i}`,
+        day: Number(m.day) || 0,
+        prepTime: Number(m.prepTime) || 0,
+        cookTime: Number(m.cookTime) || 0,
+        servings: Number(m.servings) || 0,
+        calories: Number(m.calories) || 0,
+        protein: Number(m.protein) || 0,
+        carbs: Number(m.carbs) || 0,
+        fat: Number(m.fat) || 0,
         ingredients: ((m.ingredients as Record<string, unknown>[]) || []).map((ing: Record<string, unknown>, j: number) => ({
           ...ing,
           id: `ing_${i}_${j}`,
+          quantity: Number(ing.quantity) || 0,
+          packageQuantity: Number(ing.packageQuantity) || 0,
+          estimatedPrice: Number(ing.estimatedPrice) || 0,
           actualPrice: null
         }))
       })),
       shoppingList: (planData.shoppingList || []).map((item: Record<string, unknown>, i: number) => ({
         ...item,
         id: `shop_${i}`,
+        quantity: Number(item.quantity) || 0,
+        packageQuantity: Number(item.packageQuantity) || 0,
+        estimatedPrice: Number(item.estimatedPrice) || 0,
         actualPrice: null
       })),
-      totalEstimated: planData.totalEstimated || 0,
+      totalEstimated: Number(planData.totalEstimated) || 0,
       totalActual: 0,
       prepSchedule: planData.prepSchedule || null
     };
