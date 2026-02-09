@@ -677,7 +677,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   {trip.startDate ? (
                     <div>
                       {/* Day Selector */}
-                      <div className="flex gap-1 p-3 border-b border-gray-200 overflow-x-auto">
+                      <div className="flex flex-wrap gap-2 p-3 border-b border-gray-200">
                         {itineraryDays.map(day => (
                           <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
                             className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
