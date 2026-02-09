@@ -88,7 +88,7 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
-type TabType = 'overview' | 'itinerary' | 'crew' | 'budget' | 'destinations' | 'flights';
+type TabType = 'overview' | 'budget' | 'destinations' | 'crew' | 'itinerary';
 
 export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -405,11 +405,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
             {[
               { key: 'overview', label: 'Overview' },
-              { key: 'itinerary', label: 'Itinerary' },
-              { key: 'crew', label: `Crew (${participants.length})` },
               { key: 'budget', label: 'Budget' },
               { key: 'destinations', label: 'Destinations' },
-              { key: 'flights', label: 'Flights' },
+              { key: 'crew', label: `Crew (${participants.length})` },
+              { key: 'itinerary', label: 'Itinerary' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
                 className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
@@ -865,61 +864,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* Flights Tab */}
-            {activeTab === 'flights' && (
-              <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                  Flight Search
-                </div>
-                <div className="p-4">
-                  {(() => {
-                    const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
-                    const defaultDestAirport = selectedDest?.resort?.nearestAirport || "DPS";
-                    const effectiveDestAirport = destinationAirport || defaultDestAirport;
-                    
-                    return (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <label className="block text-[10px] text-gray-500 uppercase mb-1">From</label>
-                            <input type="text" value={originAirport}
-                              onChange={(e) => setOriginAirport(e.target.value.toUpperCase())}
-                              maxLength={3}
-                              className="w-20 border border-gray-200 px-3 py-2 text-sm font-mono uppercase" />
-                          </div>
-                          <span className="text-gray-400 mt-5">→</span>
-                          <div>
-                            <label className="block text-[10px] text-gray-500 uppercase mb-1">To</label>
-                            <input type="text" value={destinationAirport || defaultDestAirport}
-                              onChange={(e) => setDestinationAirport(e.target.value.toUpperCase())}
-                              maxLength={3}
-                              className="w-20 border border-gray-200 px-3 py-2 text-sm font-mono uppercase" />
-                          </div>
-                          {trip.destination && <span className="text-xs text-gray-500 mt-5">({trip.destination})</span>}
-                        </div>
-                        
-                        {tripDates ? (
-                          <FlightPicker
-                            destinationName={trip.destination || "Destination"}
-                            destinationAirport={effectiveDestAirport}
-                            originAirport={originAirport}
-                            departureDate={tripDates.departure}
-                            returnDate={tripDates.return}
-                            passengers={confirmedParticipants.length || 1}
-                            selectedFlight={selectedFlight}
-                            onSelectFlight={setSelectedFlight}
-                          />
-                        ) : (
-                          <div className="text-center py-8 bg-amber-50 border border-amber-200 text-amber-700 text-sm">
-                            Select trip dates to search flights
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
 
           </div>
         </div>
