@@ -120,6 +120,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
   });
   const [savingExpense, setSavingExpense] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(1);
   const [userTier, setUserTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -271,7 +272,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     return windows;
   }, [trip, participants]);
 
-  // Day-by-day itinerary
+  // Day-by-day itinerary (from trip_itinerary, not expenses)
   const itineraryDays = useMemo(() => {
     if (!trip || !trip.startDate) return [];
     const days = [];
@@ -279,14 +280,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     for (let i = 0; i < trip.daysTravel; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
-      const dayExpenses = trip.expenses.filter(e => e.day === i + 1);
+      const dayItems = (trip.itinerary || []).filter((item: any) => item.day === i + 1);
       days.push({
         dayNum: i + 1,
         date: date,
         weekday: WEEKDAYS[date.getDay()],
         dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        expenses: dayExpenses,
-        totalCost: dayExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+        items: dayItems,
+        totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
       });
     }
     return days;
@@ -669,17 +670,96 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                 {/* Itinerary Section */}
                 <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
-                    <span>Day-by-Day Itinerary</span>
-                    <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                      className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
-                      {showExpenseForm ? 'Cancel' : '+ Add Expense'}
-                    </button>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                    Itinerary
                   </div>
 
-                  {/* Expense Form */}
+                  {trip.startDate ? (
+                    <div>
+                      {/* Day Selector */}
+                      <div className="flex gap-1 p-3 border-b border-gray-200 overflow-x-auto">
+                        {itineraryDays.map(day => (
+                          <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
+                            className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
+                              selectedDay === day.dayNum ? 'bg-[#2d1b4e] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}>
+                            Day {day.dayNum} · {day.dateStr}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Selected Day Content */}
+                      {(() => {
+                        const day = itineraryDays.find(d => d.dayNum === selectedDay);
+                        if (!day) return null;
+                        return (
+                          <div className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-[#2d1b4e] text-white flex items-center justify-center font-bold">
+                                  {day.dayNum}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-semibold text-gray-900">{day.weekday}, {day.dateStr}</div>
+                                  <div className="text-[10px] text-gray-500">{day.items.length} items</div>
+                                </div>
+                              </div>
+                              {day.totalCost > 0 && (
+                                <div className="text-right">
+                                  <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
+                                </div>
+                              )}
+                            </div>
+
+                            {day.items.length > 0 ? (
+                              <div className="space-y-2">
+                                {day.items.map((item: any) => (
+                                  <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 text-xs">
+                                    <div className="flex items-center gap-2">
+                                      {item.destTime && (
+                                        <span className="px-2 py-0.5 bg-[#2d1b4e] text-white text-[10px] font-mono">{item.destTime}</span>
+                                      )}
+                                      <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px]">{item.category}</span>
+                                      <span className="font-medium">{item.vendor}</span>
+                                      {item.note && <span className="text-gray-500">· {item.note}</span>}
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="font-mono font-semibold">{fmt(parseFloat(item.cost || 0))}</div>
+                                      {item.splitBy > 1 && item.perPerson && (
+                                        <div className="text-[10px] text-gray-500">
+                                          {fmt(parseFloat(item.perPerson))}/person
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 italic">No activities planned for this day</div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-gray-400">
+                      <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
+                      <p className="text-xs">Select dates and destination first</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Expense Section */}
+                <div className="border-t border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                    <span>Add Expense</span>
+                    <button onClick={() => setShowExpenseForm(!showExpenseForm)}
+                      className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
+                      {showExpenseForm ? 'Cancel' : '+ New'}
+                    </button>
+                  </div>
                   {showExpenseForm && (
-                    <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
+                    <form onSubmit={handleAddExpense} className="p-4 bg-gray-50">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                         <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
                           className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required>
@@ -717,61 +797,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                         {savingExpense ? '...' : 'Add'}
                       </button>
                     </form>
-                  )}
-
-                  {/* Day-by-Day View */}
-                  {trip.startDate ? (
-                    <div className="divide-y divide-gray-200">
-                      {itineraryDays.map(day => (
-                        <div key={day.dayNum} className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-[#2d1b4e] text-white flex items-center justify-center font-bold">
-                                {day.dayNum}
-                              </div>
-                              <div>
-                                <div className="text-sm font-semibold text-gray-900">{day.weekday}, {day.dateStr}</div>
-                                <div className="text-[10px] text-gray-500">{day.expenses.length} items</div>
-                              </div>
-                            </div>
-                            {day.totalCost > 0 && (
-                              <div className="text-right">
-                                <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
-                              </div>
-                            )}
-                          </div>
-
-                          {day.expenses.length > 0 ? (
-                            <div className="ml-13 space-y-2">
-                              {day.expenses.map(expense => (
-                                <div key={expense.id} className="flex items-center justify-between p-2 bg-gray-50 text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px]">{expense.category}</span>
-                                    <span className="font-medium">{expense.vendor}</span>
-                                    {expense.description && <span className="text-gray-500">· {expense.description}</span>}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-mono font-semibold">{fmt(parseFloat(expense.amount))}</div>
-                                    {expense.isShared && (
-                                      <div className="text-[10px] text-gray-500">
-                                        {fmt(parseFloat(expense.perPerson || expense.amount))}/person
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="ml-13 text-xs text-gray-400 italic">No activities planned</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-gray-400">
-                      <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
-                      <p className="text-xs">Select dates and destination first</p>
-                    </div>
                   )}
                 </div>
               </div>
