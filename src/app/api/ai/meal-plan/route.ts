@@ -248,6 +248,12 @@ PLAN EFFICIENTLY:
 3. Buy 2-3 lb protein packs, distribute across multiple meals
 4. Consolidate shopping list - no duplicates
 
+SHOPPING LIST INTEGRITY (CRITICAL):
+The shopping list MUST contain every single ingredient referenced in any meal. Cross-check every meal's ingredients against the shopping list before responding. If an ingredient appears in a meal, it MUST appear in the shopping list. The shopping list is derived by consolidating ALL ingredients from ALL meals — do NOT generate it independently. After generating all meals, walk through each meal's ingredient list and verify it maps to a shopping list entry. Missing ingredients = invalid response.
+
+PRICE ESTIMATES (CRITICAL):
+Estimate grocery prices conservatively — use the higher end of typical US grocery store prices, not the lowest. Round up to the nearest dollar. After calculating totalEstimated, add a 15% buffer to that number. For example, if items sum to $100, report totalEstimated as $115.
+
 Respond with ONLY valid JSON:
 {
   "meals": [
@@ -300,8 +306,9 @@ Respond with ONLY valid JSON:
 }
 
 Generate ${profile.mealsPerDay === 3 ? 'breakfast, lunch, dinner' : 'lunch, dinner'} for all 7 days (${mealsToPlan} meals total).
-Shopping list must be CONSOLIDATED - combine all uses of same ingredient.
+Shopping list must be CONSOLIDATED - combine all uses of same ingredient. Every meal ingredient MUST appear on the shopping list.
 Categories: produce, dairy, meat, seafood, grains, pantry, frozen, beverages, spices
+Prices must use high-end US grocery estimates, rounded up. totalEstimated must include the 15% buffer.
 ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing what to cook each prep day.' : ''}`;
 
     const completion = await openai.chat.completions.create({
