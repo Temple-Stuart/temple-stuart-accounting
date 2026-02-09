@@ -133,10 +133,19 @@ export async function POST(request: NextRequest) {
 
     // Build cooking style instructions
     let cookingInstructions = '';
+    // Calculate max unique recipes for meal-prep modes
+    const uniqueRecipeCap = profile.cookingDays <= 1 ? 4
+      : profile.cookingDays === 2 ? 7
+      : profile.cookingDays === 3 ? 10
+      : Math.min(mealsToPlan, profile.cookingDays * 3);
+
     if (profile.cookingStyle === 'meal-prep') {
       cookingInstructions = `
 MEAL PREP MODE — FOOD SAFETY IS NON-NEGOTIABLE:
-The user cooks on EXACTLY ${profile.cookingDays} day(s). All ${mealsToPlan} meals must be covered.
+The user cooks on EXACTLY ${profile.cookingDays} day(s). All ${mealsToPlan} eating occasions must be covered.
+
+*** UNIQUE RECIPE LIMIT (CRITICAL — DO NOT IGNORE) ***
+Generate AT MOST ${uniqueRecipeCap} unique recipes. The user cooks ${profile.cookingDays} day(s)/week — they batch-cook large portions and eat LEFTOVERS for the remaining days. ${mealsToPlan} is the number of EATING OCCASIONS, not unique meals. Each recipe should yield enough servings to cover multiple days. For example, "Chicken Rice Bowls" cooked Sunday can be lunch on Monday, Tuesday, and Wednesday. Assign the SAME meal name + recipe to multiple days. Do NOT create ${mealsToPlan} unique recipes — that defeats the purpose of meal prep.
 
 PREP DAY ASSIGNMENTS (follow exactly):
 ${prepDayScheduleText}
@@ -154,6 +163,7 @@ MEAL REQUIREMENTS:
 - Recipes must be batch-friendly: grain bowls, sheet pan proteins, soups, stews, casseroles, overnight oats
 - Include storage instructions (fridge vs freeze) and reheating instructions
 - AVOID: salads that wilt, fried foods that go soggy, raw fish dishes
+- REUSE recipes across days — a batch of soup cooked Sunday IS the same meal entry for Mon, Tue, Wed
 
 PREP SCHEDULE (required in response):
 Generate "prepSchedule" array:
@@ -215,10 +225,16 @@ PROFILE:
 - Diet: ${profile.diet}
 - Daily Calories Target: ~${dailyCalories}/person
 - Meal Complexity: ${profile.mealComplexity} (${timeRange.prep} min prep, ${timeRange.cook} min cook max)
-- Budget: ~$${weeklyBudget}/week total
+- Budget: $${weeklyBudget}/week HARD CEILING (see budget rules below)
 
 ${cookingInstructions}
 ${goalInstructions}
+
+*** HARD BUDGET CEILING (DO NOT EXCEED) ***
+The total shopping list cost (totalEstimated) MUST NOT exceed $${weeklyBudget}. This is a HARD ceiling, not a suggestion.
+- If your initial plan exceeds the budget, you MUST revise: use cheaper proteins (chicken thighs, eggs, beans, lentils instead of beef/salmon), buy store-brand, reduce portion sizes, or remove expensive items.
+- The budget of $${weeklyBudget}/week for ${profile.peopleCount} person(s) is non-negotiable. A plan that exceeds this amount is INVALID.
+- Double-check: sum all shoppingList estimatedPrice values. If the sum > $${weeklyBudget}, revise the plan before responding.
 
 ALLERGIES/RESTRICTIONS: ${profile.allergies.length > 0 ? profile.allergies.join(', ') : 'None'}
 FOODS TO EXCLUDE: ${profile.excludeFoods || 'None'}
@@ -305,10 +321,12 @@ Respond with ONLY valid JSON:
   ]
 }
 
-Generate ${profile.mealsPerDay === 3 ? 'breakfast, lunch, dinner' : 'lunch, dinner'} for all 7 days (${mealsToPlan} meals total).
+Generate ${profile.mealsPerDay === 3 ? 'breakfast, lunch, dinner' : 'lunch, dinner'} for all 7 days (${mealsToPlan} eating occasions total).
+${profile.cookingStyle === 'meal-prep' ? `REMEMBER: Max ${uniqueRecipeCap} unique recipes — reuse batch-cooked meals across days. ${mealsToPlan} is eating occasions, NOT unique recipes.` : ''}
 Shopping list must be CONSOLIDATED - combine all uses of same ingredient. Every meal ingredient MUST appear on the shopping list.
 Categories: produce, dairy, meat, seafood, grains, pantry, frozen, beverages, spices
 Prices must use high-end US grocery estimates, rounded up. totalEstimated must include the 15% buffer.
+FINAL CHECK: totalEstimated MUST be ≤ $${weeklyBudget}. If over budget, revise before responding.
 ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing what to cook each prep day.' : ''}`;
 
     const completion = await openai.chat.completions.create({
