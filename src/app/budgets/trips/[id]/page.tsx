@@ -88,7 +88,7 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
-type TabType = 'overview' | 'budget' | 'destinations';
+type TabType = 'overview' | 'budget';
 
 export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -406,7 +406,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'budget', label: 'Budget' },
-              { key: 'destinations', label: 'Destinations' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
                 className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
@@ -781,10 +780,38 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* Budget Tab */}
             {activeTab === 'budget' && (
               <div>
+                {/* Destinations */}
                 <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                  AI Trip Planner
+                  Compare Destinations
                 </div>
                 <div className="p-4">
+                  <DestinationSelector
+                    activity={trip.activity}
+                    tripId={id}
+                    selectedDestinations={destinations}
+                    onDestinationsChange={loadDestinations}
+                    selectedDestinationId={destinations.find(d => d.resort?.name === trip.destination)?.resortId}
+                    onSelectDestination={selectDestination}
+                  />
+
+                  {destinations.length > 0 && (
+                    <div className="mt-6">
+                      <div className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">Location Map</div>
+                      <DestinationMap
+                        destinations={destinations}
+                        selectedName={trip.destination}
+                        onDestinationClick={(resortId, name) => selectDestination(resortId, name)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Trip Planner */}
+                <div className="border-t border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                    AI Trip Planner
+                  </div>
+                  <div className="p-4">
                   {(() => {
                     const selectedDest = destinations.find(d => d.resort?.name === trip.destination);
                     return (
@@ -824,6 +851,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     )
                   );
                   })()}
+                  </div>
                 </div>
 
                 {/* Flight Search */}
@@ -849,35 +877,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* Destinations Tab */}
-            {activeTab === 'destinations' && (
-              <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                  Compare Destinations
-                </div>
-                <div className="p-4">
-                  <DestinationSelector
-                    activity={trip.activity}
-                    tripId={id}
-                    selectedDestinations={destinations}
-                    onDestinationsChange={loadDestinations}
-                    selectedDestinationId={destinations.find(d => d.resort?.name === trip.destination)?.resortId}
-                    onSelectDestination={selectDestination}
-                  />
-                  
-                  {destinations.length > 0 && (
-                    <div className="mt-6">
-                      <div className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">Location Map</div>
-                      <DestinationMap
-                        destinations={destinations}
-                        selectedName={trip.destination}
-                        onDestinationClick={(resortId, name) => selectDestination(resortId, name)}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
 
           </div>
