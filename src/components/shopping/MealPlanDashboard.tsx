@@ -24,7 +24,7 @@ const CATEGORY_CONFIG: Record<string, { label: string }> = {
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Props) {
-  const [shoppingList, setShoppingList] = useState<Ingredient[]>(plan.shoppingList);
+  const [shoppingList, setShoppingList] = useState<Ingredient[]>(plan.shoppingList || []);
 
   // ─────────────────────────────────────────────────────────────────────────
   // METRICS
@@ -54,7 +54,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
   const fmt = (n: number) => '$' + n.toFixed(2);
 
   const getMealsForDay = (day: number): Meal[] => {
-    return plan.meals.filter(m => m.day === day).sort((a, b) => {
+    return (plan.meals || []).filter(m => m.day === day).sort((a, b) => {
       const order = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 };
       return (order[a.mealType] || 4) - (order[b.mealType] || 4);
     });
@@ -112,7 +112,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
                     <div className="mb-2">
                       <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Ingredients</div>
                       <ul className="space-y-0.5">
-                        {meal.ingredients.map((ing, j) => (
+                        {(meal.ingredients || []).map((ing, j) => (
                           <li key={j} className="text-xs text-gray-600">• {ing.quantity} {ing.unit} {ing.name}</li>
                         ))}
                       </ul>
@@ -122,7 +122,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
                     <div>
                       <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Instructions</div>
                       <ol className="space-y-0.5">
-                        {meal.instructions.map((step, j) => (
+                        {(meal.instructions || []).map((step, j) => (
                           <li key={j} className="text-xs text-gray-600">
                             <span className="font-medium text-gray-900">{j + 1}.</span> {step}
                           </li>

@@ -163,7 +163,7 @@ export default function ShoppingPage() {
               <div>
                 <h1 className="text-lg font-semibold tracking-tight">Shopping & Meal Planning</h1>
                 <p className="text-gray-300 text-xs font-mono">
-                  {mealPlan ? `${mealPlan.meals.length} meals planned` : 'No meal plan'} · {expenses.length} recurring items
+                  {mealPlan ? `${(mealPlan.meals || []).length} meals planned` : 'No meal plan'} · {expenses.length} recurring items
                 </p>
               </div>
               <div className="flex items-center gap-2">
