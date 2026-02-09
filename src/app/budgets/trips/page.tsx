@@ -295,7 +295,7 @@ export default function TripsPage() {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div>
                 <table className="w-full text-xs">
                   <thead className="bg-[#3d2b5e] text-white">
                     <tr>
