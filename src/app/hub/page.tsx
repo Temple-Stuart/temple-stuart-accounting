@@ -357,7 +357,7 @@ export default function HubPage() {
             </div>
             
             {committedTrips.length > 0 ? (
-              <div className="flex gap-3 overflow-x-scroll pb-4 -mx-6 px-6 lg:-mx-8 lg:px-8 scrollbar-thin">
+              <div className="flex flex-wrap gap-3">
                 {committedTrips.map(trip => {
                   const metrics = getNomadMetrics(trip.destination);
                   const nights = trip.startDate && trip.endDate 
@@ -369,7 +369,7 @@ export default function HubPage() {
                     <div 
                       key={trip.id}
                       onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                      className="flex-shrink-0 w-[260px] border border-gray-300 bg-white cursor-pointer hover:shadow-lg transition-shadow group"
+                      className="w-[260px] border border-gray-300 bg-white cursor-pointer hover:shadow-lg transition-shadow group"
                     >
                       {/* Image */}
                       <div className="relative h-[120px] overflow-hidden">
@@ -456,7 +456,7 @@ export default function HubPage() {
                 })}
                 
                 {/* Add Trip Card */}
-                <div onClick={() => router.push('/budgets/trips/new')} className="flex-shrink-0 w-[260px] border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors" style={{minHeight: '280px'}}>
+                <div onClick={() => router.push('/budgets/trips/new')} className="w-[260px] border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors" style={{minHeight: '280px'}}>
                   <div className="w-10 h-10 border-2 border-gray-300 flex items-center justify-center mb-2">
                     <span className="text-gray-400 text-xl">+</span>
                   </div>
