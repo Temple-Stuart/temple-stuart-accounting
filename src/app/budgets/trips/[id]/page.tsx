@@ -88,7 +88,7 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
-type TabType = 'overview' | 'budget' | 'destinations' | 'crew' | 'itinerary';
+type TabType = 'overview' | 'budget' | 'destinations';
 
 export default function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -407,8 +407,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               { key: 'overview', label: 'Overview' },
               { key: 'budget', label: 'Budget' },
               { key: 'destinations', label: 'Destinations' },
-              { key: 'crew', label: `Crew (${participants.length})` },
-              { key: 'itinerary', label: 'Itinerary' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
                 className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
@@ -571,216 +569,212 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Itinerary Tab - Day by Day */}
-            {activeTab === 'itinerary' && (
-              <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
-                  <span>Day-by-Day Itinerary</span>
-                  <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                    className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
-                    {showExpenseForm ? 'Cancel' : '+ Add Expense'}
-                  </button>
-                </div>
-
-                {/* Expense Form */}
-                {showExpenseForm && (
-                  <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                      <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required>
-                        <option value="">Paid by...</option>
-                        {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
-                      </select>
-                      <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs">
-                        {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                      </select>
-                      <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
-                      <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                      <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
-                      <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
-                      <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                        className="bg-white border border-gray-200 px-2 py-1.5 text-xs col-span-2" />
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-500">Split:</span>
-                      {confirmedParticipants.map(p => (
-                        <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
-                          className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-[#2d1b4e] text-white' : 'bg-gray-200 text-gray-600'}`}>
-                          {p.firstName}
-                        </button>
-                      ))}
-                    </div>
-                    <button type="submit" disabled={savingExpense}
-                      className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium disabled:opacity-50">
-                      {savingExpense ? '...' : 'Add'}
-                    </button>
-                  </form>
-                )}
-
-                {/* Day-by-Day View */}
-                {trip.startDate ? (
-                  <div className="divide-y divide-gray-200">
-                    {itineraryDays.map(day => (
-                      <div key={day.dayNum} className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#2d1b4e] text-white flex items-center justify-center font-bold">
-                              {day.dayNum}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">{day.weekday}, {day.dateStr}</div>
-                              <div className="text-[10px] text-gray-500">{day.expenses.length} items</div>
-                            </div>
-                          </div>
-                          {day.totalCost > 0 && (
-                            <div className="text-right">
-                              <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
-                            </div>
-                          )}
-                        </div>
-
-                        {day.expenses.length > 0 ? (
-                          <div className="ml-13 space-y-2">
-                            {day.expenses.map(expense => (
-                              <div key={expense.id} className="flex items-center justify-between p-2 bg-gray-50 text-xs">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px]">{expense.category}</span>
-                                  <span className="font-medium">{expense.vendor}</span>
-                                  {expense.description && <span className="text-gray-500">· {expense.description}</span>}
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-mono font-semibold">{fmt(parseFloat(expense.amount))}</div>
-                                  {expense.isShared && (
-                                    <div className="text-[10px] text-gray-500">
-                                      {fmt(parseFloat(expense.perPerson || expense.amount))}/person
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="ml-13 text-xs text-gray-400 italic">No activities planned</div>
-                        )}
-                      </div>
-                    ))}
+                {/* Crew Section */}
+                <div className="border-t border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                    Crew ({participants.length})
                   </div>
-                ) : (
-                  <div className="p-8 text-center text-gray-400">
-                    <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
-                    <p className="text-xs">Select dates and destination first</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Crew Tab */}
-            {activeTab === 'crew' && (
-              <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                  Crew ({participants.length})
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-[#3d2b5e] text-white">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Name</th>
-                        <th className="px-3 py-2 text-left font-medium">Email</th>
-                        <th className="px-3 py-2 text-center font-medium">Status</th>
-                        <th className="px-3 py-2 text-center font-medium">Role</th>
-                        <th className="px-3 py-2 text-center font-medium">Blackout Days</th>
-                        <th className="px-3 py-2 text-center font-medium"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {participants.map(p => (
-                        <tr key={p.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                                p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
-                              }`}>
-                                {p.firstName[0]}
-                              </div>
-                              <span className="font-medium text-gray-900">{p.firstName} {p.lastName}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-gray-600 font-mono">{p.email}</td>
-                          <td className="px-3 py-3 text-center">
-                            <span className={`px-2 py-0.5 text-[10px] ${
-                              p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                              p.rsvpStatus === 'declined' ? 'bg-red-100 text-red-700' :
-                              'bg-amber-100 text-amber-700'
-                            }`}>
-                              {p.rsvpStatus}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            {p.isOwner && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">Organizer</span>}
-                          </td>
-                          <td className="px-3 py-3 text-center text-gray-500">
-                            {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            {!p.isOwner && (
-                              <button onClick={() => removeParticipant(p.id, p.firstName)}
-                                className="text-gray-400 hover:text-red-600">×</button>
-                            )}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#3d2b5e] text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Name</th>
+                          <th className="px-3 py-2 text-left font-medium">Email</th>
+                          <th className="px-3 py-2 text-center font-medium">Status</th>
+                          <th className="px-3 py-2 text-center font-medium">Role</th>
+                          <th className="px-3 py-2 text-center font-medium">Blackout Days</th>
+                          <th className="px-3 py-2 text-center font-medium"></th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Settlement Matrix */}
-                {confirmedParticipants.length > 1 && (
-                  <div className="border-t border-gray-200">
-                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                      Settlement Matrix
-                    </div>
-                    <div className="p-4 overflow-x-auto">
-                      <table className="text-xs">
-                        <thead>
-                          <tr>
-                            <th className="text-left py-2 px-2 text-gray-500 font-medium">Owes →</th>
-                            {confirmedParticipants.map(p => (
-                              <th key={p.id} className="text-center py-2 px-3 text-gray-500 font-medium">{p.firstName}</th>
-                            ))}
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {participants.map(p => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                                  p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
+                                }`}>
+                                  {p.firstName[0]}
+                                </div>
+                                <span className="font-medium text-gray-900">{p.firstName} {p.lastName}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-gray-600 font-mono">{p.email}</td>
+                            <td className="px-3 py-3 text-center">
+                              <span className={`px-2 py-0.5 text-[10px] ${
+                                p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                                p.rsvpStatus === 'declined' ? 'bg-red-100 text-red-700' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>
+                                {p.rsvpStatus}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {p.isOwner && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">Organizer</span>}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {!p.isOwner && (
+                                <button onClick={() => removeParticipant(p.id, p.firstName)}
+                                  className="text-gray-400 hover:text-red-600">×</button>
+                              )}
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {confirmedParticipants.map(p => (
-                            <tr key={p.id} className="border-t border-gray-100">
-                              <td className="py-2 px-2 font-medium text-gray-900">{p.firstName}</td>
-                              {confirmedParticipants.map(other => (
-                                <td key={other.id} className="text-center py-2 px-3">
-                                  {p.id === other.id ? (
-                                    <span className="text-gray-300">—</span>
-                                  ) : (
-                                    <span className={(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
-                                      {(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? fmt(settlementMatrix[p.id][other.id]) : '$0'}
-                                    </span>
-                                  )}
-                                </td>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Settlement Matrix */}
+                  {confirmedParticipants.length > 1 && (
+                    <div className="border-t border-gray-200">
+                      <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                        Settlement Matrix
+                      </div>
+                      <div className="p-4 overflow-x-auto">
+                        <table className="text-xs">
+                          <thead>
+                            <tr>
+                              <th className="text-left py-2 px-2 text-gray-500 font-medium">Owes →</th>
+                              {confirmedParticipants.map(p => (
+                                <th key={p.id} className="text-center py-2 px-3 text-gray-500 font-medium">{p.firstName}</th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {confirmedParticipants.map(p => (
+                              <tr key={p.id} className="border-t border-gray-100">
+                                <td className="py-2 px-2 font-medium text-gray-900">{p.firstName}</td>
+                                {confirmedParticipants.map(other => (
+                                  <td key={other.id} className="text-center py-2 px-3">
+                                    {p.id === other.id ? (
+                                      <span className="text-gray-300">—</span>
+                                    ) : (
+                                      <span className={(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
+                                        {(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? fmt(settlementMatrix[p.id][other.id]) : '$0'}
+                                      </span>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Itinerary Section */}
+                <div className="border-t border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                    <span>Day-by-Day Itinerary</span>
+                    <button onClick={() => setShowExpenseForm(!showExpenseForm)}
+                      className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
+                      {showExpenseForm ? 'Cancel' : '+ Add Expense'}
+                    </button>
                   </div>
-                )}
+
+                  {/* Expense Form */}
+                  {showExpenseForm && (
+                    <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                        <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required>
+                          <option value="">Paid by...</option>
+                          {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
+                        </select>
+                        <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs">
+                          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                        <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
+                        <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                        <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
+                        <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
+                        <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs col-span-2" />
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Split:</span>
+                        {confirmedParticipants.map(p => (
+                          <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
+                            className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-[#2d1b4e] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                            {p.firstName}
+                          </button>
+                        ))}
+                      </div>
+                      <button type="submit" disabled={savingExpense}
+                        className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium disabled:opacity-50">
+                        {savingExpense ? '...' : 'Add'}
+                      </button>
+                    </form>
+                  )}
+
+                  {/* Day-by-Day View */}
+                  {trip.startDate ? (
+                    <div className="divide-y divide-gray-200">
+                      {itineraryDays.map(day => (
+                        <div key={day.dayNum} className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-[#2d1b4e] text-white flex items-center justify-center font-bold">
+                                {day.dayNum}
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">{day.weekday}, {day.dateStr}</div>
+                                <div className="text-[10px] text-gray-500">{day.expenses.length} items</div>
+                              </div>
+                            </div>
+                            {day.totalCost > 0 && (
+                              <div className="text-right">
+                                <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {day.expenses.length > 0 ? (
+                            <div className="ml-13 space-y-2">
+                              {day.expenses.map(expense => (
+                                <div key={expense.id} className="flex items-center justify-between p-2 bg-gray-50 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px]">{expense.category}</span>
+                                    <span className="font-medium">{expense.vendor}</span>
+                                    {expense.description && <span className="text-gray-500">· {expense.description}</span>}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-mono font-semibold">{fmt(parseFloat(expense.amount))}</div>
+                                    {expense.isShared && (
+                                      <div className="text-[10px] text-gray-500">
+                                        {fmt(parseFloat(expense.perPerson || expense.amount))}/person
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="ml-13 text-xs text-gray-400 italic">No activities planned</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-gray-400">
+                      <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
+                      <p className="text-xs">Select dates and destination first</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -831,6 +825,27 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   );
                   })()}
                 </div>
+
+                {/* Flight Search */}
+                {tripDates && trip.destination && (
+                  <div className="border-t border-gray-200">
+                    <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                      Flights
+                    </div>
+                    <div className="p-4">
+                      <FlightPicker
+                        destinationName={trip.destination}
+                        destinationAirport={destinationAirport}
+                        originAirport={originAirport}
+                        departureDate={tripDates.departure}
+                        returnDate={tripDates.return}
+                        passengers={confirmedParticipants.length || 1}
+                        selectedFlight={selectedFlight}
+                        onSelectFlight={setSelectedFlight}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
