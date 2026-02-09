@@ -31,8 +31,8 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
   // ─────────────────────────────────────────────────────────────────────────
 
   const metrics = useMemo(() => {
-    const totalEstimated = shoppingList.reduce((sum, item) => sum + item.estimatedPrice, 0);
-    const totalActual = shoppingList.reduce((sum, item) => sum + (item.actualPrice || 0), 0);
+    const totalEstimated = shoppingList.reduce((sum, item) => sum + (Number(item.estimatedPrice) || 0), 0);
+    const totalActual = shoppingList.reduce((sum, item) => sum + (Number(item.actualPrice) || 0), 0);
     const itemsWithPrices = shoppingList.filter(item => item.actualPrice !== null).length;
     const totalItems = shoppingList.length;
 
@@ -94,7 +94,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
                           )}
                         </div>
                         <div className="text-xs text-gray-500 capitalize">
-                          {meal.mealType} · {meal.prepTime + meal.cookTime} min · {meal.calories} cal · {meal.protein}g protein
+                          {meal.mealType} · {(Number(meal.prepTime) || 0) + (Number(meal.cookTime) || 0)} min · {meal.calories} cal · {meal.protein}g protein
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -176,7 +176,7 @@ export default function MealPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
                     onChange={e => updatePrice(item.id, e.target.value ? parseFloat(e.target.value) : null)}
                     className={`w-full border px-2 py-1 text-right font-mono text-sm ${
                       item.actualPrice !== null
-                        ? item.actualPrice > item.estimatedPrice * 1.1
+                        ? Number(item.actualPrice) > Number(item.estimatedPrice) * 1.1
                           ? 'border-red-300 bg-red-50 text-red-700'
                           : 'border-emerald-300 bg-emerald-50 text-emerald-700'
                         : 'border-gray-300'

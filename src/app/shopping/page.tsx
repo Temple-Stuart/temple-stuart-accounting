@@ -109,7 +109,7 @@ export default function ShoppingPage() {
 
   const handleUpdatePrices = (shoppingList: Ingredient[]) => {
     if (!mealPlan) return;
-    const updated = { ...mealPlan, shoppingList, totalActual: shoppingList.reduce((sum, item) => sum + (item.actualPrice || 0), 0) };
+    const updated = { ...mealPlan, shoppingList, totalActual: shoppingList.reduce((sum, item) => sum + (Number(item.actualPrice) || 0), 0) };
     setMealPlan(updated);
     localStorage.setItem(getMealPlanKey(), JSON.stringify(updated));
   };
@@ -125,8 +125,8 @@ export default function ShoppingPage() {
   const committed = expenses.filter(e => e.status === 'committed');
   const totalDraft = draft.reduce((sum, e) => sum + e.amount, 0);
   const totalCommitted = committed.reduce((sum, e) => sum + e.amount, 0);
-  const mealBudget = mealPlan?.totalEstimated || 0;
-  const mealActual = mealPlan?.totalActual || 0;
+  const mealBudget = Number(mealPlan?.totalEstimated) || 0;
+  const mealActual = Number(mealPlan?.totalActual) || 0;
   const pendingCount = draft.length;
 
   if (loading) {
