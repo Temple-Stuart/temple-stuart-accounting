@@ -120,6 +120,19 @@ export default function TradingPage() {
   const [ttUsername, setTtUsername] = useState('');
   const [ttPassword, setTtPassword] = useState('');
 
+  // Tastytrade live data state
+  const [ttPositions, setTtPositions] = useState<any[]>([]);
+  const [ttBalances, setTtBalances] = useState<any[]>([]);
+  const [ttLoading, setTtLoading] = useState(false);
+  const [ttDataError, setTtDataError] = useState<string | null>(null);
+  const [ttQuoteSymbol, setTtQuoteSymbol] = useState('');
+  const [ttQuoteData, setTtQuoteData] = useState<any | null>(null);
+  const [ttQuoteLoading, setTtQuoteLoading] = useState(false);
+  const [ttChainSymbol, setTtChainSymbol] = useState('');
+  const [ttChainData, setTtChainData] = useState<any | null>(null);
+  const [ttChainLoading, setTtChainLoading] = useState(false);
+  const [ttRefreshing, setTtRefreshing] = useState(false);
+
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
     if (!isOwner || activeTab !== 'market-intelligence') return;
@@ -166,10 +179,104 @@ export default function TradingPage() {
       await fetch('/api/tastytrade/disconnect', { method: 'POST' });
       setTtConnected(false);
       setTtAccounts([]);
+      setTtPositions([]);
+      setTtBalances([]);
     } catch {
       // ignore
     }
   };
+
+  const fetchTtData = async () => {
+    setTtLoading(true);
+    setTtDataError(null);
+    try {
+      const [posRes, balRes] = await Promise.all([
+        fetch('/api/tastytrade/positions'),
+        fetch('/api/tastytrade/balances'),
+      ]);
+      if (posRes.status === 401 || balRes.status === 401) {
+        setTtDataError('Session expired — please reconnect');
+        setTtConnected(false);
+        return;
+      }
+      const [posData, balData] = await Promise.all([posRes.json(), balRes.json()]);
+      setTtPositions(posData.positions || []);
+      setTtBalances(balData.balances || []);
+    } catch {
+      setTtDataError('Failed to load account data');
+    } finally {
+      setTtLoading(false);
+    }
+  };
+
+  // Fetch positions + balances when connected on Market Intelligence tab
+  useEffect(() => {
+    if (ttConnected && activeTab === 'market-intelligence') {
+      fetchTtData();
+    }
+  }, [ttConnected, activeTab]);
+
+  const handleTtRefresh = async () => {
+    setTtRefreshing(true);
+    try {
+      await fetch('/api/tastytrade/callback', { method: 'POST' });
+      await fetchTtData();
+    } catch {
+      setTtDataError('Failed to refresh session');
+    } finally {
+      setTtRefreshing(false);
+    }
+  };
+
+  const handleTtQuote = async () => {
+    if (!ttQuoteSymbol.trim()) return;
+    setTtQuoteLoading(true);
+    setTtQuoteData(null);
+    try {
+      const res = await fetch('/api/tastytrade/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: [ttQuoteSymbol.trim().toUpperCase()] }),
+      });
+      if (res.status === 401) {
+        setTtDataError('Session expired — please reconnect');
+        setTtConnected(false);
+        return;
+      }
+      const data = await res.json();
+      setTtQuoteData(data.quotes || {});
+    } catch {
+      setTtQuoteData(null);
+    } finally {
+      setTtQuoteLoading(false);
+    }
+  };
+
+  const handleTtChain = async () => {
+    if (!ttChainSymbol.trim()) return;
+    setTtChainLoading(true);
+    setTtChainData(null);
+    try {
+      const res = await fetch('/api/tastytrade/chains', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: ttChainSymbol.trim().toUpperCase() }),
+      });
+      if (res.status === 401) {
+        setTtDataError('Session expired — please reconnect');
+        setTtConnected(false);
+        return;
+      }
+      const data = await res.json();
+      setTtChainData(data.chain || null);
+    } catch {
+      setTtChainData(null);
+    } finally {
+      setTtChainLoading(false);
+    }
+  };
+
+  const fmtCurrency = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
   useEffect(() => {
     Promise.all([
@@ -871,9 +978,18 @@ export default function TradingPage() {
                           <div className="text-sm font-medium text-gray-900">Tastytrade</div>
                         </div>
                         {ttConnected && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                            <span className="text-xs text-emerald-600 font-medium">Connected</span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={handleTtRefresh}
+                              disabled={ttRefreshing}
+                              className="text-xs text-gray-500 hover:text-gray-700 underline disabled:opacity-50"
+                            >
+                              {ttRefreshing ? 'Refreshing...' : 'Refresh Data'}
+                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                              <span className="text-xs text-emerald-600 font-medium">Connected</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -924,19 +1040,180 @@ export default function TradingPage() {
                       )}
                     </div>
 
-                    {/* Placeholder cards */}
-                    <div className="bg-white border border-gray-200 p-6">
-                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Watchlist</div>
-                      <div className="text-sm text-gray-400">Watchlist — {ttConnected ? 'Tastytrade data coming soon' : 'Connect brokerage to populate'}</div>
-                    </div>
-                    <div className="bg-white border border-gray-200 p-6">
-                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Overview</div>
-                      <div className="text-sm text-gray-400">Market Overview — Live quotes coming soon</div>
-                    </div>
-                    <div className="bg-white border border-gray-200 p-6">
-                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Options Flow</div>
-                      <div className="text-sm text-gray-400">Options Analytics — Credit spread scanner coming soon</div>
-                    </div>
+                    {/* Live data or loading state */}
+                    {ttConnected && ttLoading ? (
+                      <div className="bg-white border border-gray-200 p-8 text-center">
+                        <div className="text-sm text-gray-400">Loading account data...</div>
+                      </div>
+                    ) : ttConnected && ttDataError ? (
+                      <div className="bg-white border border-gray-200 p-6">
+                        <div className="text-sm text-red-600 mb-3">{ttDataError}</div>
+                        <button onClick={fetchTtData} className="text-xs text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                      </div>
+                    ) : ttConnected ? (
+                      <>
+                        {/* Card 1 — Account Overview */}
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Account Overview</div>
+                          {ttBalances.length === 0 ? (
+                            <div className="text-sm text-gray-400">No account data available</div>
+                          ) : (
+                            <div className="space-y-3">
+                              {ttBalances.map((bal: any) => (
+                                <div key={bal.accountNumber} className="border border-gray-100 p-3">
+                                  <div className="text-xs font-medium text-gray-700 mb-2">{bal.accountNumber}</div>
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                      <div className="text-[10px] text-gray-400 uppercase">Net Liq</div>
+                                      <div className="text-sm font-mono font-medium">{fmtCurrency(bal.netLiq)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-gray-400 uppercase">Cash</div>
+                                      <div className="text-sm font-mono">{fmtCurrency(bal.cashBalance)}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] text-gray-400 uppercase">Buying Power</div>
+                                      <div className="text-sm font-mono">{fmtCurrency(bal.buyingPower)}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card 2 — Open Positions */}
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Open Positions</div>
+                          {ttPositions.length === 0 ? (
+                            <div className="text-sm text-gray-400">No open positions</div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="border-b border-gray-200 text-gray-500">
+                                    <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
+                                    <th className="text-left px-2 py-1.5 font-medium">Type</th>
+                                    <th className="text-right px-2 py-1.5 font-medium">Qty</th>
+                                    <th className="text-right px-2 py-1.5 font-medium">Avg Price</th>
+                                    <th className="text-right px-2 py-1.5 font-medium">Mkt Value</th>
+                                    <th className="text-right px-2 py-1.5 font-medium">P&L</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {ttPositions.map((pos: any, i: number) => (
+                                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                                      <td className="px-2 py-1.5 font-medium">{pos.symbol}</td>
+                                      <td className="px-2 py-1.5">
+                                        <span className={`px-1.5 py-0.5 text-[10px] ${pos.instrumentType === 'Equity' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                          {pos.instrumentType}
+                                        </span>
+                                      </td>
+                                      <td className="px-2 py-1.5 text-right font-mono">{pos.quantity}</td>
+                                      <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.averageOpenPrice)}</td>
+                                      <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.marketValue)}</td>
+                                      <td className={`px-2 py-1.5 text-right font-mono ${pos.unrealizedPL >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {pos.unrealizedPL >= 0 ? '+' : ''}{fmtCurrency(pos.unrealizedPL)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card 3 — Quick Quote */}
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Quick Quote</div>
+                          <div className="flex gap-2 mb-3">
+                            <input
+                              type="text"
+                              placeholder="Symbol (e.g. SPY)"
+                              value={ttQuoteSymbol}
+                              onChange={e => setTtQuoteSymbol(e.target.value.toUpperCase())}
+                              onKeyDown={e => e.key === 'Enter' && handleTtQuote()}
+                              className="flex-1 border border-gray-200 px-3 py-2 text-sm font-mono"
+                            />
+                            <button
+                              onClick={handleTtQuote}
+                              disabled={ttQuoteLoading || !ttQuoteSymbol.trim()}
+                              className="px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                            >
+                              {ttQuoteLoading ? 'Loading...' : 'Get Quote'}
+                            </button>
+                          </div>
+                          {ttQuoteData && Object.keys(ttQuoteData).length > 0 && (
+                            <div className="border border-gray-100 p-3">
+                              {Object.entries(ttQuoteData).map(([sym, q]: [string, any]) => (
+                                <div key={sym}>
+                                  <div className="text-sm font-medium text-gray-900 mb-2">{sym}</div>
+                                  <div className="grid grid-cols-5 gap-3 text-xs">
+                                    <div><span className="text-gray-400">Bid</span><div className="font-mono">{q.bid?.toFixed(2)}</div></div>
+                                    <div><span className="text-gray-400">Ask</span><div className="font-mono">{q.ask?.toFixed(2)}</div></div>
+                                    <div><span className="text-gray-400">Mid</span><div className="font-mono">{q.mid?.toFixed(2)}</div></div>
+                                    <div><span className="text-gray-400">Last</span><div className="font-mono">{q.last?.toFixed(2) || '—'}</div></div>
+                                    <div><span className="text-gray-400">Volume</span><div className="font-mono">{(q.volume || 0).toLocaleString()}</div></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {ttQuoteData && Object.keys(ttQuoteData).length === 0 && (
+                            <div className="text-xs text-gray-400">No quote data received — market may be closed</div>
+                          )}
+                        </div>
+
+                        {/* Card 4 — Option Chain Lookup */}
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Option Chain Lookup</div>
+                          <div className="flex gap-2 mb-3">
+                            <input
+                              type="text"
+                              placeholder="Symbol (e.g. AAPL)"
+                              value={ttChainSymbol}
+                              onChange={e => setTtChainSymbol(e.target.value.toUpperCase())}
+                              onKeyDown={e => e.key === 'Enter' && handleTtChain()}
+                              className="flex-1 border border-gray-200 px-3 py-2 text-sm font-mono"
+                            />
+                            <button
+                              onClick={handleTtChain}
+                              disabled={ttChainLoading || !ttChainSymbol.trim()}
+                              className="px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                            >
+                              {ttChainLoading ? 'Loading...' : 'Load Chain'}
+                            </button>
+                          </div>
+                          {ttChainData && ttChainData.expirations?.length > 0 && (
+                            <div className="space-y-1">
+                              {ttChainData.expirations.map((exp: any, i: number) => (
+                                <div key={i} className="border border-gray-100 px-3 py-2 flex items-center justify-between text-xs">
+                                  <div className="font-medium text-gray-700">{exp.date}</div>
+                                  <div className="flex gap-4 text-gray-500">
+                                    <span>{exp.dte} DTE</span>
+                                    <span>{exp.strikes?.length || 0} strikes</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {ttChainData && ttChainData.expirations?.length === 0 && (
+                            <div className="text-xs text-gray-400">No expirations found in 0–45 DTE range</div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Account Overview</div>
+                          <div className="text-sm text-gray-400">Connect brokerage to view account data</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Positions</div>
+                          <div className="text-sm text-gray-400">Connect brokerage to view positions</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center min-h-[500px] p-8">
