@@ -11,7 +11,7 @@ interface CartRequest {
   budgetMin: number;
   budgetMax: number;
   householdSize: number;
-  cadence: 'monthly' | 'quarterly' | 'as-needed';
+  cadence: 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'as-needed';
   preferences: string;
   excludeItems: string;
 }
