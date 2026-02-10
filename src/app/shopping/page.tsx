@@ -4,10 +4,25 @@ import { useState, useEffect } from 'react';
 import { AppLayout, Button, Badge } from '@/components/ui';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
+import CartPlannerForm, { CartPlan, CartItem, CartCategory } from '@/components/shopping/CartPlannerForm';
+import CartPlanDashboard from '@/components/shopping/CartPlanDashboard';
+
 function getMealPlanKey(): string {
   const email = document.cookie.split('; ').find(c => c.startsWith('userEmail='))?.split('=')[1] || 'default';
   return `mealPlan_${email}`;
 }
+
+function getCartPlanKey(category: CartCategory): string {
+  const email = document.cookie.split('; ').find(c => c.startsWith('userEmail='))?.split('=')[1] || 'default';
+  return `cartPlan_${category}_${email}`;
+}
+
+const CART_CATEGORIES: { key: CartCategory; label: string }[] = [
+  { key: 'clothing', label: 'Clothing' },
+  { key: 'hygiene', label: 'Hygiene' },
+  { key: 'cleaning', label: 'Cleaning' },
+  { key: 'kitchen', label: 'Kitchen' },
+];
 
 
 interface Expense {
@@ -50,9 +65,13 @@ export default function ShoppingPage() {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [cartPlans, setCartPlans] = useState<Record<CartCategory, CartPlan | null>>({
+    clothing: null, hygiene: null, cleaning: null, kitchen: null,
+  });
+  const [activeCartCategory, setActiveCartCategory] = useState<CartCategory>('clothing');
   const [userTier, setUserTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'meals' | 'expenses'>('meals');
+  const [activeTab, setActiveTab] = useState<'meals' | 'cart' | 'expenses'>('meals');
 
   useEffect(() => {
     loadExpenses();
@@ -61,6 +80,15 @@ export default function ShoppingPage() {
     if (saved) {
       try { setMealPlan(JSON.parse(saved)); } catch (e) { console.error('Failed to load saved meal plan'); }
     }
+    // Load cart plans from localStorage
+    const loadedCarts: Record<CartCategory, CartPlan | null> = { clothing: null, hygiene: null, cleaning: null, kitchen: null };
+    for (const cat of CART_CATEGORIES) {
+      const cartSaved = localStorage.getItem(getCartPlanKey(cat.key));
+      if (cartSaved) {
+        try { loadedCarts[cat.key] = JSON.parse(cartSaved); } catch (e) { console.error(`Failed to load ${cat.key} cart plan`); }
+      }
+    }
+    setCartPlans(loadedCarts);
   }, []);
 
   const loadExpenses = async () => {
@@ -117,6 +145,24 @@ export default function ShoppingPage() {
   const handleResetPlan = () => {
     setMealPlan(null);
     localStorage.removeItem(getMealPlanKey());
+  };
+
+  const handleCartGenerated = (category: CartCategory, plan: CartPlan) => {
+    setCartPlans(prev => ({ ...prev, [category]: plan }));
+    localStorage.setItem(getCartPlanKey(category), JSON.stringify(plan));
+  };
+
+  const handleCartUpdatePrices = (category: CartCategory, items: CartItem[]) => {
+    const plan = cartPlans[category];
+    if (!plan) return;
+    const updated = { ...plan, items, totalActual: items.reduce((sum, item) => sum + (Number(item.actualPrice) || 0), 0) };
+    setCartPlans(prev => ({ ...prev, [category]: updated }));
+    localStorage.setItem(getCartPlanKey(category), JSON.stringify(updated));
+  };
+
+  const handleCartReset = (category: CartCategory) => {
+    setCartPlans(prev => ({ ...prev, [category]: null }));
+    localStorage.removeItem(getCartPlanKey(category));
   };
 
   const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -218,6 +264,14 @@ export default function ShoppingPage() {
               Meal Planning
             </button>
             <button
+              onClick={() => setActiveTab('cart')}
+              className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'cart' ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              Cart Planner
+            </button>
+            <button
               onClick={() => setActiveTab('expenses')}
               className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === 'expenses' ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'
@@ -252,6 +306,59 @@ export default function ShoppingPage() {
                       </div>
                     ) : (
                       <MealPlannerForm onPlanGenerated={handlePlanGenerated} />
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Cart Planner Tab */}
+            {activeTab === 'cart' && (
+              <div>
+                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  AI Cart Planner
+                </div>
+
+                {/* Category Selector */}
+                <div className="flex gap-1 p-3 border-b border-gray-200 bg-gray-50">
+                  {CART_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.key}
+                      onClick={() => setActiveCartCategory(cat.key)}
+                      className={`px-4 py-2 text-xs font-medium transition-colors ${
+                        activeCartCategory === cat.key
+                          ? 'bg-[#2d1b4e] text-white'
+                          : cartPlans[cat.key]
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {cat.label}
+                      {cartPlans[cat.key] && activeCartCategory !== cat.key && ' \u2713'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Category Content */}
+                <div className="p-4">
+                  {cartPlans[activeCartCategory] ? (
+                    <CartPlanDashboard
+                      plan={cartPlans[activeCartCategory]!}
+                      onUpdatePrices={(items) => handleCartUpdatePrices(activeCartCategory, items)}
+                      onReset={() => handleCartReset(activeCartCategory)}
+                    />
+                  ) : (
+                    userTier === 'free' ? (
+                      <div className="text-center py-8">
+                        <div className="text-sm font-medium text-gray-900 mb-2">AI Cart Planning requires Pro+</div>
+                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered cart planning.</div>
+                        <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                      </div>
+                    ) : (
+                      <CartPlannerForm
+                        category={activeCartCategory}
+                        onPlanGenerated={(plan) => handleCartGenerated(activeCartCategory, plan)}
+                      />
                     )
                   )}
                 </div>
