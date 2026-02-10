@@ -53,6 +53,24 @@ const TIERS = [
     cta: 'Upgrade to Pro+',
     highlight: false,
   },
+  {
+    name: 'Trader Pro',
+    price: '$60',
+    period: '/mo',
+    tier: 'trader_pro',
+    features: [
+      'Everything in Pro+, plus:',
+      'Real-time market data (stocks, options, crypto, futures)',
+      'AI strategy builder — natural language algo creation',
+      'Historical backtesting engine',
+      'Live signal alerts',
+      'Wash sale & tax impact warnings before you trade',
+      'Portfolio Greeks across all accounts',
+      'Budget-aware position sizing',
+    ],
+    cta: 'Coming Soon',
+    highlight: false,
+  },
 ];
 
 function PricingContent() {
@@ -154,19 +172,26 @@ function PricingContent() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {TIERS.map((t) => (
           <div
             key={t.tier}
-            className={`p-6 ${
+            className={`p-6 relative ${
               t.highlight
-                ? 'border-2 border-[#2d1b4e] relative'
+                ? 'border-2 border-[#2d1b4e]'
+                : t.tier === 'trader_pro'
+                ? 'border-2 border-emerald-400 bg-gradient-to-b from-white to-emerald-50/30'
                 : 'border border-gray-200'
             }`}
           >
             {t.highlight && (
               <div className="absolute -top-2.5 left-4 bg-[#2d1b4e] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
                 Popular
+              </div>
+            )}
+            {t.tier === 'trader_pro' && (
+              <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
+                Coming Soon
               </div>
             )}
             <div className="text-xs font-medium text-gray-900 mb-1">{t.name}</div>
@@ -190,10 +215,12 @@ function PricingContent() {
             </div>
 
             <button
-              onClick={() => handleUpgrade(t.tier)}
-              disabled={loading !== null}
+              onClick={() => t.tier !== 'trader_pro' && handleUpgrade(t.tier)}
+              disabled={loading !== null || t.tier === 'trader_pro'}
               className={`w-full px-4 py-2 text-xs font-medium ${
-                t.highlight
+                t.tier === 'trader_pro'
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : t.highlight
                   ? 'bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]'
                   : t.tier === 'free'
                   ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'

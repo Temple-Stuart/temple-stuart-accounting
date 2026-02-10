@@ -69,64 +69,25 @@ interface TradesData {
   byTicker: TickerBreakdown[];
 }
 
-interface OpenTransaction {
-  id: string;
-  date: string;
-  name: string;
-  ticker: string | null;
-  underlying: string | null;
-  isOption: boolean;
-  optionType: string | null;
-  strike: number | null;
-  expiration: string | null;
-  action: string;
-  positionType: string;
-  quantity: number;
-  price: number;
-  amount: number;
-}
-
-interface OpensData {
-  totalOpens: number;
-  totalCloses: number;
-  opens: OpenTransaction[];
-  closes: OpenTransaction[];
-  byDate: Record<string, OpenTransaction[]>;
-  byDateAndUnderlying: Record<string, Record<string, OpenTransaction[]>>;
-}
-
-type TabType = 'overview' | 'journal' | 'positions' | 'commit';
+type TabType = 'overview' | 'positions' | 'market-intelligence';
 
 const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy', 'fearful'];
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
 
-const STRATEGY_OPTIONS = [
-  { value: 'bull-call-spread', label: 'Bull Call Spread' },
-  { value: 'bear-call-spread', label: 'Bear Call Spread' },
-  { value: 'bull-put-spread', label: 'Bull Put Spread' },
-  { value: 'bear-put-spread', label: 'Bear Put Spread' },
-  { value: 'iron-condor', label: 'Iron Condor' },
-  { value: 'iron-butterfly', label: 'Iron Butterfly' },
-  { value: 'straddle', label: 'Straddle' },
-  { value: 'strangle', label: 'Strangle' },
-  { value: 'covered-call', label: 'Covered Call' },
-  { value: 'cash-secured-put', label: 'Cash Secured Put' },
-  { value: 'naked-call', label: 'Naked Call' },
-  { value: 'naked-put', label: 'Naked Put' },
-  { value: 'long-call', label: 'Long Call' },
-  { value: 'long-put', label: 'Long Put' },
-  { value: 'stock-long', label: 'Stock Long' },
-  { value: 'stock-short', label: 'Stock Short' },
-  { value: 'custom', label: 'Custom / Other' },
-];
-
 export default function TradingPage() {
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const email = document.cookie.split('; ').find(c => c.startsWith('userEmail='))?.split('=')[1] || null;
+    setUserEmail(email);
+  }, []);
+
+  const isOwner = userEmail?.toLowerCase() === 'astuart@templestuart.com';
+
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tradesData, setTradesData] = useState<TradesData | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [opensData, setOpensData] = useState<OpensData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   // Date range filter
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -149,14 +110,6 @@ export default function TradingPage() {
   // Expanded trade details
   const [expandedTrade, setExpandedTrade] = useState<string | null>(null);
 
-  // Commit modal state
-  const [commitModal, setCommitModal] = useState<{
-    underlying: string;
-    legs: OpenTransaction[];
-    detectedStrategy: string;
-  } | null>(null);
-  const [commitStrategy, setCommitStrategy] = useState('');
-  const [committing, setCommitting] = useState(false);
   const [maxTradeNum, setMaxTradeNum] = useState(0);
 
   useEffect(() => {
@@ -173,15 +126,6 @@ export default function TradingPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  useEffect(() => {
-    if (activeTab === 'commit' && !opensData) {
-      fetch('/api/investment-transactions/opens')
-        .then(res => res.json())
-        .then(setOpensData)
-        .catch(console.error);
-    }
-  }, [activeTab, opensData]);
 
   // Filtered trades based on date range
   const filteredTrades = useMemo(() => {
@@ -320,74 +264,6 @@ export default function TradingPage() {
     return Object.values(map).sort((a, b) => b.pl - a.pl);
   }, [filteredTrades]);
 
-  // Detect strategy from legs
-  const detectStrategy = (legs: OpenTransaction[]): string => {
-    if (legs.length === 0) return 'unknown';
-    
-    const options = legs.filter(l => l.isOption);
-    const stocks = legs.filter(l => !l.isOption);
-    
-    // Single leg
-    if (legs.length === 1) {
-      const leg = legs[0];
-      if (!leg.isOption) return leg.action === 'buy' ? 'stock-long' : 'stock-short';
-      if (leg.action === 'buy_to_open' && leg.optionType === 'call') return 'long-call';
-      if (leg.action === 'buy_to_open' && leg.optionType === 'put') return 'long-put';
-      if (leg.action === 'sell_to_open' && leg.optionType === 'call') return 'naked-call';
-      if (leg.action === 'sell_to_open' && leg.optionType === 'put') return 'cash-secured-put';
-      return 'custom';
-    }
-    
-    // Two leg spreads
-    if (options.length === 2 && stocks.length === 0) {
-      const calls = options.filter(o => o.optionType === 'call');
-      const puts = options.filter(o => o.optionType === 'put');
-      const buys = options.filter(o => o.action === 'buy_to_open');
-      const sells = options.filter(o => o.action === 'sell_to_open');
-      
-      // Vertical spreads (same expiration, different strikes)
-      if (calls.length === 2 && buys.length === 1 && sells.length === 1) {
-        const buyLeg = buys[0];
-        const sellLeg = sells[0];
-        if ((buyLeg.strike || 0) < (sellLeg.strike || 0)) return 'bull-call-spread';
-        return 'bear-call-spread';
-      }
-      
-      if (puts.length === 2 && buys.length === 1 && sells.length === 1) {
-        const buyLeg = buys[0];
-        const sellLeg = sells[0];
-        if ((buyLeg.strike || 0) > (sellLeg.strike || 0)) return 'bear-put-spread';
-        return 'bull-put-spread';
-      }
-      
-      // Straddle (same strike, different types)
-      if (calls.length === 1 && puts.length === 1) {
-        if (calls[0].strike === puts[0].strike) return buys.length === 2 ? 'straddle' : 'straddle';
-        return buys.length === 2 ? 'strangle' : 'strangle';
-      }
-    }
-    
-    // Four leg (iron condor, iron butterfly)
-    if (options.length === 4) {
-      const calls = options.filter(o => o.optionType === 'call');
-      const puts = options.filter(o => o.optionType === 'put');
-      if (calls.length === 2 && puts.length === 2) {
-        return 'iron-condor';
-      }
-    }
-    
-    // Covered call
-    if (stocks.length === 1 && options.length === 1) {
-      const stock = stocks[0];
-      const option = options[0];
-      if (stock.action === 'buy' && option.action === 'sell_to_open' && option.optionType === 'call') {
-        return 'covered-call';
-      }
-    }
-    
-    return 'custom';
-  };
-
   function calculateStreak(trades: Trade[], isWin: boolean): number {
     let maxStreak = 0;
     let currentStreak = 0;
@@ -458,120 +334,7 @@ export default function TradingPage() {
     }
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const getJournalEntry = (tradeNum: string) => journalEntries.find(e => e.tradeNum === tradeNum);
-
-  // Open commit modal for a group of transactions
-  const openCommitModal = (underlying: string, legs: OpenTransaction[]) => {
-    const detected = detectStrategy(legs);
-    setCommitStrategy(detected);
-    setCommitModal({ underlying, legs, detectedStrategy: detected });
-  };
-
-  // Commit the trade
-  const commitTrade = async () => {
-    if (!commitModal) return;
-    setCommitting(true);
-    
-    const newTradeNum = maxTradeNum + 1;
-    
-    try {
-      const res = await fetch('/api/investment-transactions/commit-to-ledger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionIds: commitModal.legs.map(l => l.id),
-          tradeNum: newTradeNum.toString(),
-          strategy: commitStrategy
-        })
-      });
-      
-      if (res.ok) {
-        // Refresh data
-        setMaxTradeNum(newTradeNum);
-        setOpensData(null); // Force reload
-        setCommitModal(null);
-        
-        // Also refresh trades
-        const tradesRes = await fetch('/api/trading/trades');
-        if (tradesRes.ok) {
-          setTradesData(await tradesRes.json());
-        }
-      } else {
-        const err = await res.json();
-        alert(err.error || 'Failed to commit');
-      }
-    } catch (err) {
-      console.error('Commit error:', err);
-      alert('Failed to commit trade');
-    } finally {
-      setCommitting(false);
-    }
-  };
-
-  // Group opens by underlying for better visualization
-  const groupedOpens = useMemo(() => {
-    if (!opensData?.opens) return [];
-    
-    const byUnderlying: Record<string, OpenTransaction[]> = {};
-    opensData.opens.forEach(t => {
-      const key = t.underlying || t.ticker || 'UNKNOWN';
-      if (!byUnderlying[key]) byUnderlying[key] = [];
-      byUnderlying[key].push(t);
-    });
-    
-    return Object.entries(byUnderlying)
-      .map(([underlying, legs]) => {
-        const sortedLegs = [...legs].sort((a, b) => {
-          // Sort by date, then by strike
-          const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-          if (dateCompare !== 0) return dateCompare;
-          return (a.strike || 0) - (b.strike || 0);
-        });
-        
-        const netAmount = sortedLegs.reduce((sum, l) => sum + (l.amount || 0), 0);
-        const detected = detectStrategy(sortedLegs);
-        
-        return {
-          underlying,
-          legs: sortedLegs,
-          netAmount,
-          detectedStrategy: detected,
-          isCredit: netAmount < 0,
-          legCount: sortedLegs.length
-        };
-      })
-      .sort((a, b) => a.underlying.localeCompare(b.underlying));
-  }, [opensData]);
-
-  // Group closes similarly
-  const groupedCloses = useMemo(() => {
-    if (!opensData?.closes) return [];
-    
-    const byUnderlying: Record<string, OpenTransaction[]> = {};
-    opensData.closes.forEach(t => {
-      const key = t.underlying || t.ticker || 'UNKNOWN';
-      if (!byUnderlying[key]) byUnderlying[key] = [];
-      byUnderlying[key].push(t);
-    });
-    
-    return Object.entries(byUnderlying)
-      .map(([underlying, legs]) => ({
-        underlying,
-        legs: [...legs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-        netAmount: legs.reduce((sum, l) => sum + (l.amount || 0), 0),
-        legCount: legs.length
-      }))
-      .sort((a, b) => a.underlying.localeCompare(b.underlying));
-  }, [opensData]);
 
   if (loading) {
     return (
@@ -685,13 +448,12 @@ export default function TradingPage() {
           <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
             {[
               { key: 'overview', label: 'Overview' },
-              { key: 'journal', label: 'Trade Journal' },
               { key: 'positions', label: 'Open Positions' },
-              { key: 'commit', label: `Commit${opensData ? ` (${opensData.totalOpens + opensData.totalCloses})` : ''}` },
+              { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
                 className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-                {tab.label}
+                {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' \uD83D\uDD12' : ''}
               </button>
             ))}
           </div>
@@ -847,141 +609,140 @@ export default function TradingPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Trade Journal Tab */}
-            {activeTab === 'journal' && (
-              <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
-                  <span>Trade Journal</span>
-                  <span className="text-xs text-gray-300">{filteredTrades.length} trades · {journalEntries.length} entries</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-[#3d2b5e] text-white">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Trade #</th>
-                        <th className="px-3 py-2 text-left font-medium">Date</th>
-                        <th className="px-3 py-2 text-left font-medium">Ticker</th>
-                        <th className="px-3 py-2 text-left font-medium">Strategy</th>
-                        <th className="px-3 py-2 text-center font-medium">Type</th>
-                        <th className="px-3 py-2 text-center font-medium">Status</th>
-                        <th className="px-3 py-2 text-right font-medium">P&L</th>
-                        <th className="px-3 py-2 text-center font-medium">Rating</th>
-                        <th className="px-3 py-2 text-center font-medium">Journal</th>
-                        <th className="px-3 py-2 text-center font-medium"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredTrades.map(trade => {
-                        const journal = getJournalEntry(trade.tradeNum);
-                        const isExpanded = expandedTrade === trade.tradeNum;
-                        
-                        return (
-                          <>
-                            <tr key={trade.tradeNum} className={`hover:bg-gray-50 ${isExpanded ? 'bg-[#2d1b4e]/5' : ''}`}>
-                              <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
-                              <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
-                              <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
-                              <td className="px-3 py-2">
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
-                                  {trade.type}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 text-[10px] ${
-                                  trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 
-                                  trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>{trade.status}</span>
-                              </td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${
-                                trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-emerald-700' : 'text-red-700') : 'text-gray-400'
-                              }`}>
-                                {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                {journal?.rating ? (
-                                  <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
-                                ) : <span className="text-gray-300">—</span>}
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                {journal ? (
+                {/* Trade Journal */}
+                <div className="border-t border-gray-200">
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                    <span>Trade Journal</span>
+                    <span className="text-xs text-gray-300">{filteredTrades.length} trades · {journalEntries.length} entries</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#3d2b5e] text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Trade #</th>
+                          <th className="px-3 py-2 text-left font-medium">Date</th>
+                          <th className="px-3 py-2 text-left font-medium">Ticker</th>
+                          <th className="px-3 py-2 text-left font-medium">Strategy</th>
+                          <th className="px-3 py-2 text-center font-medium">Type</th>
+                          <th className="px-3 py-2 text-center font-medium">Status</th>
+                          <th className="px-3 py-2 text-right font-medium">P&L</th>
+                          <th className="px-3 py-2 text-center font-medium">Rating</th>
+                          <th className="px-3 py-2 text-center font-medium">Journal</th>
+                          <th className="px-3 py-2 text-center font-medium"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredTrades.map(trade => {
+                          const journal = getJournalEntry(trade.tradeNum);
+                          const isExpanded = expandedTrade === trade.tradeNum;
+
+                          return (
+                            <>
+                              <tr key={trade.tradeNum} className={`hover:bg-gray-50 ${isExpanded ? 'bg-[#2d1b4e]/5' : ''}`}>
+                                <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
+                                <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
+                                <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
+                                <td className="px-3 py-2">
+                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                                    {trade.type}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-center">
                                   <span className={`px-2 py-0.5 text-[10px] ${
-                                    journal.emotion === 'confident' ? 'bg-emerald-100 text-emerald-700' :
-                                    journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
-                                    journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>{journal.emotion}</span>
-                                ) : <span className="text-gray-300">—</span>}
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <div className="flex items-center gap-1 justify-center">
-                                  <button onClick={() => openJournalModal(trade)}
-                                    className="px-2 py-1 text-[10px] bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
-                                    {journal ? 'Edit' : 'Add'}
-                                  </button>
-                                  <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
-                                    className="px-2 py-1 text-[10px] bg-gray-100 text-gray-700 hover:bg-gray-200">
-                                    {isExpanded ? '▲' : '▼'}
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {isExpanded && (
-                              <tr key={`${trade.tradeNum}-detail`}>
-                                <td colSpan={10} className="px-4 py-3 bg-gray-50">
-                                  <div className="grid lg:grid-cols-2 gap-4 text-xs">
-                                    <div>
-                                      <div className="font-semibold text-gray-700 mb-2">Trade Details</div>
-                                      <div className="space-y-1 text-gray-600">
-                                        <div>Opened: {new Date(trade.openDate).toLocaleString()}</div>
-                                        {trade.closeDate && <div>Closed: {new Date(trade.closeDate).toLocaleString()}</div>}
-                                        <div>Legs: {trade.legs}</div>
-                                        {trade.type === 'stock' && trade.shares && (
-                                          <>
-                                            <div>Shares: {trade.shares.original} (sold: {trade.shares.sold})</div>
-                                            <div>Cost Basis: {fmt(trade.costBasis || 0)}</div>
-                                            {trade.status === 'CLOSED' && <div>Proceeds: {fmt(trade.proceeds || 0)}</div>}
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {journal && (
-                                      <div>
-                                        <div className="font-semibold text-gray-700 mb-2">Journal Notes</div>
-                                        <div className="space-y-1 text-gray-600">
-                                          {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
-                                          {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
-                                          {journal.mistakes && <div><span className="font-medium text-red-600">Mistakes:</span> {journal.mistakes}</div>}
-                                          {journal.lessons && <div><span className="font-medium text-emerald-600">Lessons:</span> {journal.lessons}</div>}
-                                          {journal.tags?.length > 0 && (
-                                            <div className="flex gap-1 flex-wrap">
-                                              {journal.tags.map(tag => (
-                                                <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px]">{tag}</span>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
+                                    trade.status === 'OPEN' ? 'bg-green-100 text-green-700' :
+                                    trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>{trade.status}</span>
+                                </td>
+                                <td className={`px-3 py-2 text-right font-mono font-semibold ${
+                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-emerald-700' : 'text-red-700') : 'text-gray-400'
+                                }`}>
+                                  {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  {journal?.rating ? (
+                                    <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
+                                  ) : <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  {journal ? (
+                                    <span className={`px-2 py-0.5 text-[10px] ${
+                                      journal.emotion === 'confident' ? 'bg-emerald-100 text-emerald-700' :
+                                      journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
+                                      journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>{journal.emotion}</span>
+                                  ) : <span className="text-gray-300">—</span>}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <div className="flex items-center gap-1 justify-center">
+                                    <button onClick={() => openJournalModal(trade)}
+                                      className="px-2 py-1 text-[10px] bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                                      {journal ? 'Edit' : 'Add'}
+                                    </button>
+                                    <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
+                                      className="px-2 py-1 text-[10px] bg-gray-100 text-gray-700 hover:bg-gray-200">
+                                      {isExpanded ? '▲' : '▼'}
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
-                            )}
-                          </>
-                        );
-                      })}
-                      {filteredTrades.length === 0 && (
-                        <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No trades in selected period</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+                              {isExpanded && (
+                                <tr key={`${trade.tradeNum}-detail`}>
+                                  <td colSpan={10} className="px-4 py-3 bg-gray-50">
+                                    <div className="grid lg:grid-cols-2 gap-4 text-xs">
+                                      <div>
+                                        <div className="font-semibold text-gray-700 mb-2">Trade Details</div>
+                                        <div className="space-y-1 text-gray-600">
+                                          <div>Opened: {new Date(trade.openDate).toLocaleString()}</div>
+                                          {trade.closeDate && <div>Closed: {new Date(trade.closeDate).toLocaleString()}</div>}
+                                          <div>Legs: {trade.legs}</div>
+                                          {trade.type === 'stock' && trade.shares && (
+                                            <>
+                                              <div>Shares: {trade.shares.original} (sold: {trade.shares.sold})</div>
+                                              <div>Cost Basis: {fmt(trade.costBasis || 0)}</div>
+                                              {trade.status === 'CLOSED' && <div>Proceeds: {fmt(trade.proceeds || 0)}</div>}
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {journal && (
+                                        <div>
+                                          <div className="font-semibold text-gray-700 mb-2">Journal Notes</div>
+                                          <div className="space-y-1 text-gray-600">
+                                            {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
+                                            {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
+                                            {journal.mistakes && <div><span className="font-medium text-red-600">Mistakes:</span> {journal.mistakes}</div>}
+                                            {journal.lessons && <div><span className="font-medium text-emerald-600">Lessons:</span> {journal.lessons}</div>}
+                                            {journal.tags?.length > 0 && (
+                                              <div className="flex gap-1 flex-wrap">
+                                                {journal.tags.map(tag => (
+                                                  <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px]">{tag}</span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })}
+                        {filteredTrades.length === 0 && (
+                          <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No trades in selected period</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+
               </div>
             )}
 
@@ -1038,192 +799,59 @@ export default function TradingPage() {
               </div>
             )}
 
-            {/* Commit Trades Tab - REDESIGNED */}
-            {activeTab === 'commit' && (
+            {/* Market Intelligence Tab */}
+            {activeTab === 'market-intelligence' && (
               <div>
-                {/* Header with counts */}
-                <div className="bg-[#2d1b4e] text-white px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold">Commit Trades</div>
-                      <div className="text-xs text-gray-400">
-                        Group transactions into trades · Next trade # will be {maxTradeNum + 1}
-                      </div>
+                {isOwner ? (
+                  <div className="space-y-4 p-4">
+                    <div className="bg-white border border-gray-200 p-6">
+                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Watchlist</div>
+                      <div className="text-sm text-gray-400">Watchlist — Connect Massive.com API to populate</div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs">
-                      <div className="text-center">
-                        <div className="text-lg font-bold font-mono">{opensData?.totalOpens || 0}</div>
-                        <div className="text-gray-400">Opens</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold font-mono">{opensData?.totalCloses || 0}</div>
-                        <div className="text-gray-400">Closes</div>
-                      </div>
+                    <div className="bg-white border border-gray-200 p-6">
+                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Overview</div>
+                      <div className="text-sm text-gray-400">Market Overview — Live quotes coming soon</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 p-6">
+                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Options Flow</div>
+                      <div className="text-sm text-gray-400">Options Analytics — Intrinio OptionsEdge coming soon</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 p-6">
+                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Crypto</div>
+                      <div className="text-sm text-gray-400">Crypto Markets — CoinGecko integration coming soon</div>
                     </div>
                   </div>
-                </div>
-
-                {/* Opens Section */}
-                <div className="border-b border-gray-200">
-                  <div className="bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    Opening Positions ({groupedOpens.length} underlyings, {opensData?.totalOpens || 0} legs)
-                  </div>
-                  
-                  {groupedOpens.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 text-sm">No opening transactions to commit</div>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {groupedOpens.map(group => (
-                        <div key={group.underlying} className="p-4 hover:bg-gray-50">
-                          {/* Group Header */}
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-lg font-bold font-mono text-gray-900">{group.underlying}</span>
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium">
-                                {STRATEGY_OPTIONS.find(s => s.value === group.detectedStrategy)?.label || group.detectedStrategy}
-                              </span>
-                              <span className="text-xs text-gray-500">{group.legCount} leg{group.legCount > 1 ? 's' : ''}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className={`text-right ${group.isCredit ? 'text-emerald-700' : 'text-red-700'}`}>
-                                <div className="text-xs text-gray-500">{group.isCredit ? 'Credit' : 'Debit'}</div>
-                                <div className="text-lg font-bold font-mono">{fmt(Math.abs(group.netAmount))}</div>
-                              </div>
-                              <button onClick={() => openCommitModal(group.underlying, group.legs)}
-                                className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e]">
-                                Commit →
-                              </button>
-                            </div>
+                ) : (
+                  <div className="flex items-center justify-center min-h-[500px] p-8">
+                    <div className="max-w-md w-full bg-gradient-to-b from-[#1a0f2e] to-[#2d1b4e] border border-[#3d2b5e] p-8 text-center">
+                      <div className="mb-4">
+                        <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-bold text-white mb-2">Market Intelligence</h2>
+                      <p className="text-sm text-gray-400 mb-6">Real-time market data, AI-powered strategy builder, and live trading signals</p>
+                      <div className="text-left space-y-3 mb-8">
+                        {[
+                          'Live stock, options, crypto & futures data',
+                          'AI algo builder — describe strategies in plain English',
+                          'Backtest against historical data',
+                          'Live signal alerts',
+                          'Tax-aware trade warnings (wash sales, ST/LT impact)',
+                        ].map((feature, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0"></div>
+                            <span>{feature}</span>
                           </div>
-                          
-                          {/* Legs Table */}
-                          <div className="bg-gray-50 rounded overflow-hidden">
-                            <table className="w-full text-xs">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Strike</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Expiration</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Qty</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Price</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200">
-                                {group.legs.map(leg => (
-                                  <tr key={leg.id} className="bg-white">
-                                    <td className="px-3 py-2 text-gray-600">{new Date(leg.date).toLocaleDateString()}</td>
-                                    <td className="px-3 py-2">
-                                      <span className={`px-2 py-0.5 text-[10px] font-medium ${
-                                        leg.action.includes('buy') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                      }`}>
-                                        {leg.action === 'buy_to_open' ? 'BTO' : leg.action === 'sell_to_open' ? 'STO' : leg.action.toUpperCase()}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      {leg.isOption ? (
-                                        <span className={`px-2 py-0.5 text-[10px] ${leg.optionType === 'call' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                                          {leg.optionType?.toUpperCase()}
-                                        </span>
-                                      ) : (
-                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px]">STOCK</span>
-                                      )}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-mono">{leg.strike ? `$${leg.strike}` : '—'}</td>
-                                    <td className="px-3 py-2 text-gray-600">{leg.expiration || '—'}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{leg.quantity}</td>
-                                    <td className="px-3 py-2 text-right font-mono">${leg.price?.toFixed(2)}</td>
-                                    <td className={`px-3 py-2 text-right font-mono font-semibold ${(leg.amount || 0) < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                      {(leg.amount || 0) < 0 ? '+' : '-'}{fmt(Math.abs(leg.amount || 0))}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                      <div className="inline-block px-6 py-2 bg-white/10 border border-white/20 text-sm font-medium text-gray-300 cursor-default">
+                        Coming Soon
+                      </div>
+                      <p className="text-xs text-gray-500 mt-4">Included in the Trader Pro plan</p>
                     </div>
-                  )}
-                </div>
-
-                {/* Closes Section */}
-                <div>
-                  <div className="bg-red-50 px-4 py-2 text-xs font-semibold text-red-800 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                    Closing Positions ({groupedCloses.length} underlyings, {opensData?.totalCloses || 0} legs)
                   </div>
-                  
-                  {groupedCloses.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 text-sm">No closing transactions to match</div>
-                  ) : (
-                    <div className="divide-y divide-gray-100">
-                      {groupedCloses.map(group => (
-                        <div key={group.underlying} className="p-4 hover:bg-gray-50">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-lg font-bold font-mono text-gray-900">{group.underlying}</span>
-                              <span className="text-xs text-gray-500">{group.legCount} leg{group.legCount > 1 ? 's' : ''}</span>
-                            </div>
-                            <div className={`text-lg font-bold font-mono ${group.netAmount < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                              {group.netAmount < 0 ? '+' : '-'}{fmt(Math.abs(group.netAmount))}
-                            </div>
-                          </div>
-                          
-                          <div className="bg-gray-50 rounded overflow-hidden">
-                            <table className="w-full text-xs">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Action</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Strike</th>
-                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Expiration</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Qty</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Price</th>
-                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200">
-                                {group.legs.map(leg => (
-                                  <tr key={leg.id} className="bg-white">
-                                    <td className="px-3 py-2 text-gray-600">{new Date(leg.date).toLocaleDateString()}</td>
-                                    <td className="px-3 py-2">
-                                      <span className={`px-2 py-0.5 text-[10px] font-medium ${
-                                        leg.action.includes('buy') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                      }`}>
-                                        {leg.action === 'buy_to_close' ? 'BTC' : leg.action === 'sell_to_close' ? 'STC' : leg.action.toUpperCase()}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      {leg.isOption ? (
-                                        <span className={`px-2 py-0.5 text-[10px] ${leg.optionType === 'call' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                                          {leg.optionType?.toUpperCase()}
-                                        </span>
-                                      ) : (
-                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-[10px]">STOCK</span>
-                                      )}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-mono">{leg.strike ? `$${leg.strike}` : '—'}</td>
-                                    <td className="px-3 py-2 text-gray-600">{leg.expiration || '—'}</td>
-                                    <td className="px-3 py-2 text-right font-mono">{leg.quantity}</td>
-                                    <td className="px-3 py-2 text-right font-mono">${leg.price?.toFixed(2)}</td>
-                                    <td className={`px-3 py-2 text-right font-mono font-semibold ${(leg.amount || 0) < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                      {(leg.amount || 0) < 0 ? '+' : '-'}{fmt(Math.abs(leg.amount || 0))}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             )}
 
@@ -1231,104 +859,6 @@ export default function TradingPage() {
 
         </div>
       </div>
-
-      {/* Commit Modal */}
-      {commitModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setCommitModal(null)}>
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="bg-[#2d1b4e] text-white px-4 py-3 flex justify-between items-center sticky top-0">
-              <div>
-                <div className="font-semibold">Commit Trade</div>
-                <div className="text-xs text-gray-300">Trade #{maxTradeNum + 1} · {commitModal.underlying}</div>
-              </div>
-              <button onClick={() => setCommitModal(null)} className="text-white/60 hover:text-white text-xl">×</button>
-            </div>
-            
-            <div className="p-4">
-              {/* Strategy Selection */}
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-700 mb-2">Strategy</label>
-                <select value={commitStrategy} onChange={e => setCommitStrategy(e.target.value)}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm">
-                  {STRATEGY_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-                {commitModal.detectedStrategy !== commitStrategy && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Auto-detected: {STRATEGY_OPTIONS.find(s => s.value === commitModal.detectedStrategy)?.label || commitModal.detectedStrategy}
-                  </div>
-                )}
-              </div>
-
-              {/* Legs Preview */}
-              <div className="mb-4">
-                <div className="text-xs font-medium text-gray-700 mb-2">Legs ({commitModal.legs.length})</div>
-                <div className="bg-gray-50 rounded overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Action</th>
-                        <th className="px-3 py-2 text-left font-medium">Type</th>
-                        <th className="px-3 py-2 text-right font-medium">Strike</th>
-                        <th className="px-3 py-2 text-left font-medium">Exp</th>
-                        <th className="px-3 py-2 text-right font-medium">Qty</th>
-                        <th className="px-3 py-2 text-right font-medium">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {commitModal.legs.map(leg => (
-                        <tr key={leg.id} className="bg-white">
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 text-[10px] font-medium ${
-                              leg.action.includes('buy') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                              {leg.action === 'buy_to_open' ? 'BTO' : leg.action === 'sell_to_open' ? 'STO' : leg.action.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            {leg.isOption ? (
-                              <span className={`px-2 py-0.5 text-[10px] ${leg.optionType === 'call' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                                {leg.optionType?.toUpperCase()}
-                              </span>
-                            ) : 'STOCK'}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono">{leg.strike ? `$${leg.strike}` : '—'}</td>
-                          <td className="px-3 py-2">{leg.expiration || '—'}</td>
-                          <td className="px-3 py-2 text-right font-mono">{leg.quantity}</td>
-                          <td className={`px-3 py-2 text-right font-mono font-semibold ${(leg.amount || 0) < 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                            {fmt(leg.amount || 0)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-100">
-                      <tr>
-                        <td colSpan={5} className="px-3 py-2 text-right font-semibold">Net:</td>
-                        <td className={`px-3 py-2 text-right font-mono font-bold ${
-                          commitModal.legs.reduce((sum, l) => sum + (l.amount || 0), 0) < 0 ? 'text-emerald-700' : 'text-red-700'
-                        }`}>
-                          {fmt(commitModal.legs.reduce((sum, l) => sum + (l.amount || 0), 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
-              <button onClick={() => setCommitModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-                Cancel
-              </button>
-              <button onClick={commitTrade} disabled={committing}
-                className="px-4 py-2 text-sm bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50">
-                {committing ? 'Committing...' : `Commit as Trade #${maxTradeNum + 1}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Journal Entry Modal */}
       {journalModal && (
