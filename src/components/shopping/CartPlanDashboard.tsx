@@ -7,6 +7,8 @@ interface Props {
   plan: CartPlan;
   onUpdatePrices: (items: CartItem[]) => void;
   onReset: () => void;
+  committedAt?: string | null;
+  onCommit?: () => void;
 }
 
 const PRIORITY_STYLE: Record<string, { bg: string; text: string }> = {
@@ -15,7 +17,7 @@ const PRIORITY_STYLE: Record<string, { bg: string; text: string }> = {
   optional: { bg: 'bg-gray-100', text: 'text-gray-600' },
 };
 
-export default function CartPlanDashboard({ plan, onUpdatePrices, onReset }: Props) {
+export default function CartPlanDashboard({ plan, onUpdatePrices, onReset, committedAt, onCommit }: Props) {
   const [items, setItems] = useState<CartItem[]>(plan.items || []);
 
   const metrics = useMemo(() => {
@@ -56,12 +58,26 @@ export default function CartPlanDashboard({ plan, onUpdatePrices, onReset }: Pro
             </>
           )}
         </div>
-        <button
-          onClick={onReset}
-          className="px-3 py-1.5 text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
-        >
-          Clear Plan
-        </button>
+        <div className="flex items-center gap-2">
+          {committedAt ? (
+            <span className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+              Committed &#10003;
+            </span>
+          ) : onCommit ? (
+            <button
+              onClick={onCommit}
+              className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+            >
+              Commit to Budget
+            </button>
+          ) : null}
+          <button
+            onClick={onReset}
+            className="px-3 py-1.5 text-xs text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+          >
+            Clear Plan
+          </button>
+        </div>
       </div>
 
       {/* Items Table */}

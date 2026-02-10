@@ -62,6 +62,8 @@ const BUDGET_OPTIONS = [
 const CADENCE_OPTIONS = [
   { value: 'monthly', label: 'Monthly', desc: 'Standard refill cycle' },
   { value: 'quarterly', label: 'Quarterly', desc: 'Bulk buy every 3 months' },
+  { value: 'semi-annual', label: 'Semi-Annual', desc: 'Stock up every 6 months' },
+  { value: 'annual', label: 'Annual', desc: 'Yearly bulk purchase, max savings' },
   { value: 'as-needed', label: 'As Needed', desc: 'Minimum restock now' },
 ];
 
