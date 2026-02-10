@@ -103,7 +103,11 @@ export async function POST(request: NextRequest) {
     const config = CATEGORY_CONFIG[category];
     const budgetCeiling = Math.round(((budgetMin + budgetMax) / 2) * householdSize);
 
-    const cadenceLabel = cadence === 'monthly' ? 'one month' : cadence === 'quarterly' ? 'three months (one quarter)' : 'a single replenishment cycle';
+    const cadenceLabel = cadence === 'monthly' ? 'one month'
+      : cadence === 'quarterly' ? 'three months (one quarter)'
+      : cadence === 'semi-annual' ? 'six months (half a year)'
+      : cadence === 'annual' ? 'one full year'
+      : 'a single replenishment cycle';
 
     const prompt = `${config.systemContext}
 
@@ -117,6 +121,8 @@ REPLENISHMENT CADENCE: ${cadence}
 - Buy quantities that last ${cadenceLabel}. Do not over-buy or under-buy.
 - For monthly: standard household quantities (1 bottle of cleaner, 1 pack of sponges, etc.)
 - For quarterly: bulk sizes where available (3-pack, warehouse sizes)
+- For semi-annual: warehouse/club store bulk (6-packs, large multi-packs, economy sizes)
+- For annual: maximum bulk — buy enough for a full year. Use the largest available sizes and multi-packs for maximum per-unit savings.
 - For as-needed: minimum viable restock
 
 ${preferences ? `USER PREFERENCES: ${preferences}` : ''}
