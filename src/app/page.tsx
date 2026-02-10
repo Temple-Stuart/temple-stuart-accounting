@@ -12,20 +12,20 @@ const MODULES = [
   { name: 'Trading', desc: 'P&L analytics', href: '/trading' },
   { name: 'Home', desc: 'Rent, utilities', href: '/home' },
   { name: 'Auto', desc: 'Gas, insurance', href: '/auto' },
-  { name: 'Shopping', desc: 'Groceries, supplies', href: '/shopping' },
+  { name: 'Shopping', desc: 'AI shopping planner', href: '/shopping' },
   { name: 'Personal', desc: 'Subscriptions, dining', href: '/personal' },
   { name: 'Health', desc: 'Gym, medical', href: '/health' },
   { name: 'Growth', desc: 'Education, courses', href: '/growth' },
-  { name: 'Trips', desc: 'Trip planning', href: '/budgets/trips' },
+  { name: 'Trips', desc: 'AI trips & flights', href: '/budgets/trips' },
   { name: 'Income', desc: 'Income tracking', href: '/income' },
 ];
 
 const FEATURES = [
   { title: 'Plaid Integration', desc: 'Bank sync for all accounts' },
   { title: 'Double-Entry', desc: 'CPA-grade bookkeeping' },
-  { title: 'Trading Analytics', desc: 'P&L, win rate, wash sales' },
-  { title: 'Trip Planning', desc: 'AI-powered itineraries' },
-  { title: 'Cost Splitting', desc: 'Group expense tracking' },
+  { title: 'Trading Analytics', desc: 'P&L, wash sale correctness' },
+  { title: 'Shopping Planner', desc: 'AI plans for 5 categories' },
+  { title: 'Trip Planning', desc: 'AI itineraries & flights' },
   { title: 'Tax Ready', desc: 'IRS-compliant reporting' },
 ];
 
@@ -74,8 +74,8 @@ export default function LandingPage() {
               <span className="text-gray-400">Find your people.</span>
             </h1>
             <p className="text-gray-400 text-lg mb-8 max-w-xl">
-              Personal back office for founder-traders. Bookkeeping, trading analytics, 
-              trip planning, and budgeting — unified in one system.
+              Personal back office for founder-traders. Bookkeeping, trading analytics,
+              AI shopping planner, and trip planning — unified in one system.
             </p>
             <div className="flex items-center gap-4">
               <button onClick={() => setShowLogin(true)}
@@ -186,7 +186,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Wash sale awareness</span>
+                    <span className="text-gray-700">Wash sale correctness</span>
                   </div>
                 </div>
               </div>
@@ -199,13 +199,13 @@ export default function LandingPage() {
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-600 mb-4">
-                  Create trips, invite travelers, find dates that work. AI recommends lodging, 
-                  activities, restaurants. Split costs, commit to budget.
+                  Two-tab workflow: Overview (crew, day-by-day itinerary, settlement matrix) and
+                  Budget (destinations map, AI recommendations per category, real flight search).
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Group availability finder</span>
+                    <span className="text-gray-700">AI itinerary per category</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -213,7 +213,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Settlement matrix</span>
+                    <span className="text-gray-700">Crew splits & settlement matrix</span>
                   </div>
                 </div>
               </div>
@@ -330,11 +330,11 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI meal planning</span>
+                  <span>AI shopping planner (5 categories)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Trip AI recommendations</span>
+                  <span>Trip AI & per-category recs</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
