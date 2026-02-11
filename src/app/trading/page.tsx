@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 
 interface TradeSummary {
@@ -75,13 +76,8 @@ const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy'
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
 
 export default function TradingPage() {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    const email = document.cookie.split('; ').find(c => c.startsWith('userEmail='))?.split('=')[1] || null;
-    setUserEmail(email);
-  }, []);
-
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email || null;
   const isOwner = userEmail?.toLowerCase() === 'stuart.alexander.phi@gmail.com';
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
