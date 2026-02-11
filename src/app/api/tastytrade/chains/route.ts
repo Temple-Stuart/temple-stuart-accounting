@@ -31,37 +31,48 @@ export async function POST(request: Request) {
     }
 
     const chainData = await client.instrumentsService.getNestedOptionChain(symbol);
-    const items = Array.isArray(chainData) ? chainData : chainData?.items || [chainData];
+    // chainData is an array of chain-type objects (Standard, Weekly, etc.)
+    // Each has an `expirations` array with the actual expiration entries.
+    const chainTypes = Array.isArray(chainData) ? chainData : [chainData];
 
     const now = new Date();
+    now.setHours(0, 0, 0, 0);
     const expirations: any[] = [];
+    const seen = new Set<string>();
 
-    for (const item of items) {
-      const expDateStr = item['expiration-date'] || item['expirationDate'] || '';
-      if (!expDateStr) continue;
+    for (const chain of chainTypes) {
+      const nestedExpirations = chain['expirations'] || [];
 
-      const expDate = new Date(expDateStr);
-      const dte = Math.round((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      for (const exp of nestedExpirations) {
+        const expDateStr: string = exp['expiration-date'] || '';
+        if (!expDateStr) continue;
 
-      if (dte < dteMin || dte > dteMax) continue;
+        // Avoid duplicates when the same expiration appears in multiple chain types
+        if (seen.has(expDateStr)) continue;
 
-      const strikeList = item['strikes'] || item['strike-prices'] || [];
-      const strikes: any[] = [];
+        const expDate = new Date(expDateStr + 'T00:00:00');
+        const dte = Math.round((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-      for (const s of (Array.isArray(strikeList) ? strikeList : [])) {
-        const strikePrice = Number(s['strike-price'] || s['strikePrice'] || 0);
-        strikes.push({
-          strike: strikePrice,
-          call: s['call'] || s['call-option'] || null,
-          put: s['put'] || s['put-option'] || null,
+        if (dte < dteMin || dte > dteMax) continue;
+        seen.add(expDateStr);
+
+        const strikeList = exp['strikes'] || [];
+        const strikes: any[] = [];
+
+        for (const s of (Array.isArray(strikeList) ? strikeList : [])) {
+          strikes.push({
+            strike: Number(s['strike-price'] || 0),
+            call: s['call'] || null,
+            put: s['put'] || null,
+          });
+        }
+
+        expirations.push({
+          date: expDateStr,
+          dte,
+          strikes,
         });
       }
-
-      expirations.push({
-        date: expDateStr,
-        dte,
-        strikes,
-      });
     }
 
     // Sort by DTE ascending
