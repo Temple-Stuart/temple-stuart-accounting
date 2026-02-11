@@ -82,7 +82,7 @@ export default function TradingPage() {
     setUserEmail(email);
   }, []);
 
-  const isOwner = userEmail?.toLowerCase() === 'astuart@templestuart.com';
+  const isOwner = userEmail?.toLowerCase() === 'stuart.alexander.phi@gmail.com';
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tradesData, setTradesData] = useState<TradesData | null>(null);
