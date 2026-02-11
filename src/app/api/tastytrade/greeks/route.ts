@@ -21,8 +21,8 @@ export async function POST(request: Request) {
     if (!Array.isArray(symbols) || symbols.length === 0) {
       return NextResponse.json({ error: 'symbols array is required' }, { status: 400 });
     }
-    if (symbols.length > 100) {
-      return NextResponse.json({ error: 'Maximum 100 symbols per request' }, { status: 400 });
+    if (symbols.length > 200) {
+      return NextResponse.json({ error: 'Maximum 200 symbols per request' }, { status: 400 });
     }
 
     const client = await getAuthenticatedClient(user.id);

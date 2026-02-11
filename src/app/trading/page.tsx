@@ -280,12 +280,23 @@ export default function TradingPage() {
   const handleLoadGreeks = async (exp: any) => {
     setTtGreeksLoading(true);
     try {
+      const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
+      // Use last quoted price if available, otherwise midpoint of all strikes
+      const quotePrice = ttQuoteData && Object.values(ttQuoteData)[0]
+        ? (Object.values(ttQuoteData)[0] as any).last || (Object.values(ttQuoteData)[0] as any).mid
+        : null;
+      const center = quotePrice || (allStrikes.length > 0
+        ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2
+        : 0);
+      const range = 30;
+
       const symbols: string[] = [];
       for (const s of exp.strikes || []) {
+        if (Math.abs(s.strike - center) > range) continue;
         if (s.callStreamerSymbol) symbols.push(s.callStreamerSymbol);
         if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
       }
-      console.log('[UI Greeks] Symbols to send:', symbols.slice(0, 3), `(${symbols.length} total)`);
+      console.log('[UI Greeks] Center:', center, 'Range: ±' + range, 'Symbols:', symbols.length);
       if (symbols.length === 0) {
         console.log('[UI Greeks] No streamer symbols found — check chain response');
         return;
