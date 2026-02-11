@@ -360,6 +360,7 @@ model users {
   home_expenses        home_expenses[]
   corporate_actions   corporate_actions[]
   trade_journal_entries trade_journal_entries[]
+  tastytrade_connections tastytrade_connections[]
 }
 
 model budgets {
@@ -1249,4 +1250,28 @@ model trade_journal_entries {
   @@index([userId])
   @@index([tradeNum])
   @@index([entryDate])
+}
+
+// ============================================
+// TASTYTRADE BROKERAGE CONNECTIONS
+// ============================================
+
+model tastytrade_connections {
+  id              String    @id @default(cuid())
+  userId          String
+  ttUsername       String    @db.VarChar(255)
+  sessionToken    String    @db.Text
+  rememberToken   String?   @db.Text
+  accountNumbers  String[]
+  status          String    @default("active") @db.VarChar(20) // active, expired, disconnected
+  connectedAt     DateTime  @default(now())
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([status])
 }
