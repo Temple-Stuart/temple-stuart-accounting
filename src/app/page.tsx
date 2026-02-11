@@ -27,6 +27,10 @@ const FEATURES = [
   { title: 'Shopping Planner', desc: 'AI plans for 5 categories' },
   { title: 'Trip Planning', desc: 'AI itineraries & flights' },
   { title: 'Tax Ready', desc: 'IRS-compliant reporting' },
+  { title: 'Market Intelligence', desc: 'Real-time data from your brokerage' },
+  { title: 'AI Algo Builder', desc: 'Strategies in plain English' },
+  { title: 'Multi-Broker', desc: 'Tastytrade, Schwab, IBKR coming soon' },
+  { title: 'Paper Trading', desc: 'Real data, zero risk (coming soon)' },
 ];
 
 export default function LandingPage() {
@@ -230,7 +234,7 @@ export default function LandingPage() {
             <h2 className="text-2xl font-light text-gray-900">Built for Complexity</h2>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {FEATURES.map(f => (
               <div key={f.title} className="bg-white border border-gray-200 p-4">
                 <div className="text-xs font-medium text-gray-900 mb-1">{f.title}</div>
@@ -259,15 +263,15 @@ export default function LandingPage() {
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Manual transaction entry</span>
+                  <span>Personal bookkeeping</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Budgeting across all modules</span>
+                  <span>Expense tracking</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Trip planning & flight search</span>
+                  <span>Budget tools</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -289,11 +293,15 @@ export default function LandingPage() {
               <div className="absolute -top-2.5 left-4 bg-[#2d1b4e] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Popular</div>
               <div className="text-xs font-medium text-gray-900 mb-1">Pro</div>
               <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$20<span className="text-sm font-normal text-gray-500">/mo</span></div>
-              <div className="text-[10px] text-gray-500 mb-4">Everything free, plus</div>
+              <div className="text-[10px] text-gray-500 mb-4">Everything in Free, plus</div>
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Plaid bank sync (up to 10 accounts)</span>
+                  <span>Trip planning & AI itineraries</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Business accounting</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -301,15 +309,11 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Auto-categorization</span>
+                  <span>Plaid bank sync</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
                   <span>Wash sale tracking</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Bank reconciliation</span>
                 </div>
               </div>
               <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
@@ -318,27 +322,27 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* Pro+ */}
+            {/* Trader Pro */}
             <div className="border border-gray-200 p-6">
-              <div className="text-xs font-medium text-gray-900 mb-1">Pro+</div>
+              <div className="text-xs font-medium text-gray-900 mb-1">Trader Pro</div>
               <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$40<span className="text-sm font-normal text-gray-500">/mo</span></div>
-              <div className="text-[10px] text-gray-500 mb-4">Everything Pro, plus</div>
+              <div className="text-[10px] text-gray-500 mb-4">Everything in Pro, plus</div>
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI spending insights</span>
+                  <span>Market Intelligence — real-time data</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI shopping planner (5 categories)</span>
+                  <span>AI Algo Builder</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Trip AI & per-category recs</span>
+                  <span>Multi-broker connections</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Up to 25 linked accounts</span>
+                  <span>Tastytrade, Schwab, IBKR</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
