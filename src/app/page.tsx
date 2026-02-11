@@ -30,7 +30,6 @@ const FEATURES = [
   { title: 'Market Intelligence', desc: 'Real-time data from your brokerage' },
   { title: 'AI Algo Builder', desc: 'Strategies in plain English' },
   { title: 'Multi-Broker', desc: 'Tastytrade, Schwab, IBKR coming soon' },
-  { title: 'Paper Trading', desc: 'Real data, zero risk (coming soon)' },
 ];
 
 export default function LandingPage() {
