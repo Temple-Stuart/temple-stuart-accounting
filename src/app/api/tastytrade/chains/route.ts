@@ -3,6 +3,19 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 
+// Convert OCC symbol (e.g. "SPY   260221P00690000") to DXFeed format (".SPY260221P690")
+function occToDxFeed(occ: string): string | null {
+  if (!occ || occ.length < 21) return null;
+  const root = occ.slice(0, 6).trim();
+  const date = occ.slice(6, 12);
+  const type = occ.slice(12, 13);
+  const strikeRaw = parseInt(occ.slice(13, 21), 10);
+  if (isNaN(strikeRaw)) return null;
+  const strike = strikeRaw / 1000;
+  const strikeStr = strike % 1 === 0 ? String(strike) : String(strike);
+  return `.${root}${date}${type}${strikeStr}`;
+}
+
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
@@ -60,12 +73,14 @@ export async function POST(request: Request) {
         const strikes: any[] = [];
 
         for (const s of (Array.isArray(strikeList) ? strikeList : [])) {
+          const callOcc: string = s['call'] || '';
+          const putOcc: string = s['put'] || '';
           strikes.push({
             strike: Number(s['strike-price'] || 0),
-            call: s['call'] || null,
-            put: s['put'] || null,
-            callStreamerSymbol: s['call-streamer-symbol'] || null,
-            putStreamerSymbol: s['put-streamer-symbol'] || null,
+            call: callOcc || null,
+            put: putOcc || null,
+            callStreamerSymbol: s['call-streamer-symbol'] || occToDxFeed(callOcc),
+            putStreamerSymbol: s['put-streamer-symbol'] || occToDxFeed(putOcc),
           });
         }
 
