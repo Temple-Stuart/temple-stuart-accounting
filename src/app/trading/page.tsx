@@ -112,6 +112,65 @@ export default function TradingPage() {
 
   const [maxTradeNum, setMaxTradeNum] = useState(0);
 
+  // Tastytrade connection state
+  const [ttConnected, setTtConnected] = useState<boolean | null>(null);
+  const [ttAccounts, setTtAccounts] = useState<string[]>([]);
+  const [ttConnecting, setTtConnecting] = useState(false);
+  const [ttError, setTtError] = useState<string | null>(null);
+  const [ttUsername, setTtUsername] = useState('');
+  const [ttPassword, setTtPassword] = useState('');
+
+  // Check Tastytrade connection status when owner loads Market Intelligence
+  useEffect(() => {
+    if (!isOwner || activeTab !== 'market-intelligence') return;
+    fetch('/api/tastytrade/status')
+      .then(res => res.json())
+      .then(data => {
+        setTtConnected(data.connected || false);
+        setTtAccounts(data.accountNumbers || []);
+      })
+      .catch(() => setTtConnected(false));
+  }, [isOwner, activeTab]);
+
+  const handleTtConnect = async () => {
+    if (!ttUsername || !ttPassword) {
+      setTtError('Username and password are required');
+      return;
+    }
+    setTtConnecting(true);
+    setTtError(null);
+    try {
+      const res = await fetch('/api/tastytrade/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: ttUsername, password: ttPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTtError(data.error || 'Connection failed');
+        return;
+      }
+      setTtConnected(true);
+      setTtAccounts(data.accountNumbers || []);
+      setTtUsername('');
+      setTtPassword('');
+    } catch {
+      setTtError('Failed to connect');
+    } finally {
+      setTtConnecting(false);
+    }
+  };
+
+  const handleTtDisconnect = async () => {
+    try {
+      await fetch('/api/tastytrade/disconnect', { method: 'POST' });
+      setTtConnected(false);
+      setTtAccounts([]);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     Promise.all([
       fetch('/api/trading/trades').then(res => res.json()),
@@ -804,9 +863,71 @@ export default function TradingPage() {
               <div>
                 {isOwner ? (
                   <div className="space-y-4 p-4">
+                    {/* Tastytrade Connection Card */}
+                    <div className="bg-white border border-gray-200 p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Brokerage Connection</div>
+                          <div className="text-sm font-medium text-gray-900">Tastytrade</div>
+                        </div>
+                        {ttConnected && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                            <span className="text-xs text-emerald-600 font-medium">Connected</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {ttConnected === null ? (
+                        <div className="text-xs text-gray-400">Checking connection...</div>
+                      ) : ttConnected ? (
+                        <div>
+                          <div className="text-xs text-gray-500 mb-2">
+                            Accounts: {ttAccounts.length > 0 ? ttAccounts.join(', ') : 'None found'}
+                          </div>
+                          <button
+                            onClick={handleTtDisconnect}
+                            className="text-xs text-red-500 hover:text-red-700 underline"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-xs text-gray-500">Connect your Tastytrade account to enable market data and trading features.</p>
+                          {ttError && (
+                            <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>
+                          )}
+                          <input
+                            type="text"
+                            placeholder="Tastytrade username or email"
+                            value={ttUsername}
+                            onChange={e => setTtUsername(e.target.value)}
+                            className="w-full border border-gray-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="password"
+                            placeholder="Password"
+                            value={ttPassword}
+                            onChange={e => setTtPassword(e.target.value)}
+                            className="w-full border border-gray-200 px-3 py-2 text-sm"
+                            onKeyDown={e => e.key === 'Enter' && handleTtConnect()}
+                          />
+                          <button
+                            onClick={handleTtConnect}
+                            disabled={ttConnecting}
+                            className="w-full px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                          >
+                            {ttConnecting ? 'Connecting...' : 'Connect Tastytrade'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Placeholder cards */}
                     <div className="bg-white border border-gray-200 p-6">
                       <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Watchlist</div>
-                      <div className="text-sm text-gray-400">Watchlist — Connect Massive.com API to populate</div>
+                      <div className="text-sm text-gray-400">Watchlist — {ttConnected ? 'Tastytrade data coming soon' : 'Connect brokerage to populate'}</div>
                     </div>
                     <div className="bg-white border border-gray-200 p-6">
                       <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Overview</div>
@@ -814,11 +935,7 @@ export default function TradingPage() {
                     </div>
                     <div className="bg-white border border-gray-200 p-6">
                       <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Options Flow</div>
-                      <div className="text-sm text-gray-400">Options Analytics — Intrinio OptionsEdge coming soon</div>
-                    </div>
-                    <div className="bg-white border border-gray-200 p-6">
-                      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Crypto</div>
-                      <div className="text-sm text-gray-400">Crypto Markets — CoinGecko integration coming soon</div>
+                      <div className="text-sm text-gray-400">Options Analytics — Credit spread scanner coming soon</div>
                     </div>
                   </div>
                 ) : (
