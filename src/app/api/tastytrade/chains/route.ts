@@ -64,6 +64,8 @@ export async function POST(request: Request) {
             strike: Number(s['strike-price'] || 0),
             call: s['call'] || null,
             put: s['put'] || null,
+            callStreamerSymbol: s['call-streamer-symbol'] || null,
+            putStreamerSymbol: s['put-streamer-symbol'] || null,
           });
         }
 

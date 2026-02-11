@@ -128,6 +128,9 @@ export default function TradingPage() {
   const [ttChainData, setTtChainData] = useState<any | null>(null);
   const [ttChainLoading, setTtChainLoading] = useState(false);
   const [ttRefreshing, setTtRefreshing] = useState(false);
+  const [ttExpandedExp, setTtExpandedExp] = useState<number | null>(null);
+  const [ttGreeksData, setTtGreeksData] = useState<Record<string, any>>({});
+  const [ttGreeksLoading, setTtGreeksLoading] = useState(false);
 
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
@@ -252,6 +255,8 @@ export default function TradingPage() {
     if (!ttChainSymbol.trim()) return;
     setTtChainLoading(true);
     setTtChainData(null);
+    setTtExpandedExp(null);
+    setTtGreeksData({});
     try {
       const res = await fetch('/api/tastytrade/chains', {
         method: 'POST',
@@ -269,6 +274,36 @@ export default function TradingPage() {
       setTtChainData(null);
     } finally {
       setTtChainLoading(false);
+    }
+  };
+
+  const handleLoadGreeks = async (exp: any) => {
+    setTtGreeksLoading(true);
+    try {
+      const symbols: string[] = [];
+      for (const s of exp.strikes || []) {
+        if (s.callStreamerSymbol) symbols.push(s.callStreamerSymbol);
+        if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
+      }
+      if (symbols.length === 0) return;
+      const res = await fetch('/api/tastytrade/greeks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols }),
+      });
+      if (res.status === 401) {
+        setTtDataError('Session expired — please reconnect');
+        setTtConnected(false);
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setTtGreeksData(prev => ({ ...prev, ...data.greeks }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setTtGreeksLoading(false);
     }
   };
 
@@ -1182,15 +1217,99 @@ export default function TradingPage() {
                           </div>
                           {ttChainData && ttChainData.expirations?.length > 0 && (
                             <div className="space-y-1">
-                              {ttChainData.expirations.map((exp: any, i: number) => (
-                                <div key={i} className="border border-gray-100 px-3 py-2 flex items-center justify-between text-xs">
-                                  <div className="font-medium text-gray-700">{exp.date}</div>
-                                  <div className="flex gap-4 text-gray-500">
-                                    <span>{exp.dte} DTE</span>
-                                    <span>{exp.strikes?.length || 0} strikes</span>
+                              {ttChainData.expirations.map((exp: any, i: number) => {
+                                const isExp = ttExpandedExp === i;
+                                return (
+                                  <div key={i} className="border border-gray-100">
+                                    <div
+                                      className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50"
+                                      onClick={() => setTtExpandedExp(isExp ? null : i)}
+                                    >
+                                      <div className="font-medium text-gray-700">{exp.date}</div>
+                                      <div className="flex gap-4 text-gray-500 items-center">
+                                        <span>{exp.dte} DTE</span>
+                                        <span>{exp.strikes?.length || 0} strikes</span>
+                                        <span className="text-[10px]">{isExp ? '\u25B2' : '\u25BC'}</span>
+                                      </div>
+                                    </div>
+                                    {isExp && exp.strikes?.length > 0 && (
+                                      <div className="border-t border-gray-100 px-3 py-2">
+                                        <div className="flex justify-end mb-2">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleLoadGreeks(exp); }}
+                                            disabled={ttGreeksLoading}
+                                            className="px-3 py-1 text-[10px] font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                                          >
+                                            {ttGreeksLoading ? 'Loading Greeks...' : 'Load Greeks'}
+                                          </button>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-[11px]">
+                                            <thead>
+                                              <tr className="border-b border-gray-200 text-gray-500">
+                                                <th className="text-right px-1 py-1 font-medium">C.IV</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.\u0394</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.\u0393</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.\u0398</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.V</th>
+                                                <th className="text-center px-1 py-1 font-semibold bg-gray-50">Strike</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.V</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.\u0398</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.\u0393</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.\u0394</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.IV</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {exp.strikes.map((s: any, j: number) => {
+                                                const cg = ttGreeksData[s.callStreamerSymbol];
+                                                const pg = ttGreeksData[s.putStreamerSymbol];
+                                                return (
+                                                  <tr key={j} className="border-b border-gray-50 hover:bg-gray-50">
+                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-600">
+                                                      {cg ? (cg.iv * 100).toFixed(1) + '%' : '\u2014'}
+                                                    </td>
+                                                    <td className="text-right px-1 py-0.5 font-mono text-emerald-600">
+                                                      {cg ? cg.delta.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
+                                                      {cg ? cg.gamma.toFixed(4) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
+                                                      {cg ? cg.theta.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
+                                                      {cg ? cg.vega.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-center px-1 py-0.5 font-mono font-semibold bg-gray-50">
+                                                      {s.strike.toFixed(2)}
+                                                    </td>
+                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
+                                                      {pg ? pg.vega.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
+                                                      {pg ? pg.theta.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
+                                                      {pg ? pg.gamma.toFixed(4) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-left px-1 py-0.5 font-mono text-red-600">
+                                                      {pg ? pg.delta.toFixed(3) : '\u2014'}
+                                                    </td>
+                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-600">
+                                                      {pg ? (pg.iv * 100).toFixed(1) + '%' : '\u2014'}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                           {ttChainData && ttChainData.expirations?.length === 0 && (
