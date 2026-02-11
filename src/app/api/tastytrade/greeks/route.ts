@@ -30,13 +30,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not connected' }, { status: 401 });
     }
 
+    console.log('[Greeks] Received symbols:', symbols.slice(0, 3), `(${symbols.length} total)`);
+
     const greeks: Record<string, any> = {};
     const expected = new Set(symbols as string[]);
+    let eventCount = 0;
 
     const removeListener = client.quoteStreamer.addEventListener((events) => {
       for (const evt of events) {
+        eventCount++;
         const sym = (evt['eventSymbol'] as string) || '';
         const type = (evt['eventType'] as string) || '';
+        if (eventCount <= 3) {
+          console.log('[Greeks] Event sample:', JSON.stringify(evt).slice(0, 500));
+        }
         if (type === 'Greeks' && expected.has(sym)) {
           greeks[sym] = {
             iv: Number(evt['volatility'] || 0),
@@ -51,6 +58,7 @@ export async function POST(request: Request) {
 
     try {
       await client.quoteStreamer.connect();
+      console.log('[Greeks] Streamer connected, subscribing to', symbols.length, 'symbols');
       client.quoteStreamer.subscribe(symbols, [MarketDataSubscriptionType.Greeks]);
 
       const deadline = Date.now() + 5000;
@@ -61,6 +69,13 @@ export async function POST(request: Request) {
     } finally {
       removeListener();
       client.quoteStreamer.disconnect();
+    }
+
+    console.log('[Greeks] Total events received:', eventCount);
+    console.log('[Greeks] Matched greeks:', Object.keys(greeks).length, 'of', symbols.length);
+    if (Object.keys(greeks).length > 0) {
+      const firstKey = Object.keys(greeks)[0];
+      console.log('[Greeks] Sample:', firstKey, JSON.stringify(greeks[firstKey]));
     }
 
     return NextResponse.json({ greeks });

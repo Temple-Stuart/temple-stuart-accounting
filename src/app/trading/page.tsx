@@ -285,7 +285,11 @@ export default function TradingPage() {
         if (s.callStreamerSymbol) symbols.push(s.callStreamerSymbol);
         if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
       }
-      if (symbols.length === 0) return;
+      console.log('[UI Greeks] Symbols to send:', symbols.slice(0, 3), `(${symbols.length} total)`);
+      if (symbols.length === 0) {
+        console.log('[UI Greeks] No streamer symbols found — check chain response');
+        return;
+      }
       const res = await fetch('/api/tastytrade/greeks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -298,6 +302,7 @@ export default function TradingPage() {
       }
       if (res.ok) {
         const data = await res.json();
+        console.log('[UI Greeks] Response keys:', Object.keys(data.greeks || {}).length, 'greeks received');
         setTtGreeksData(prev => ({ ...prev, ...data.greeks }));
       }
     } catch {
@@ -1248,15 +1253,15 @@ export default function TradingPage() {
                                             <thead>
                                               <tr className="border-b border-gray-200 text-gray-500">
                                                 <th className="text-right px-1 py-1 font-medium">C.IV</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.\u0394</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.\u0393</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.\u0398</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.Δ</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.Γ</th>
+                                                <th className="text-right px-1 py-1 font-medium">C.Θ</th>
                                                 <th className="text-right px-1 py-1 font-medium">C.V</th>
                                                 <th className="text-center px-1 py-1 font-semibold bg-gray-50">Strike</th>
                                                 <th className="text-left px-1 py-1 font-medium">P.V</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.\u0398</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.\u0393</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.\u0394</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.Θ</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.Γ</th>
+                                                <th className="text-left px-1 py-1 font-medium">P.Δ</th>
                                                 <th className="text-left px-1 py-1 font-medium">P.IV</th>
                                               </tr>
                                             </thead>
