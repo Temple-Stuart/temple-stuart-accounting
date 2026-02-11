@@ -32,26 +32,40 @@ export async function POST(request: Request) {
 
     console.log('[Greeks] Received symbols:', symbols.slice(0, 3), `(${symbols.length} total)`);
 
-    const greeks: Record<string, any> = {};
+    const data: Record<string, any> = {};
     const expected = new Set(symbols as string[]);
-    let eventCount = 0;
+    let greeksReceived = 0;
 
     const removeListener = client.quoteStreamer.addEventListener((events) => {
       for (const evt of events) {
-        eventCount++;
         const sym = (evt['eventSymbol'] as string) || '';
         const type = (evt['eventType'] as string) || '';
-        if (eventCount <= 3) {
-          console.log('[Greeks] Event sample:', JSON.stringify(evt).slice(0, 500));
-        }
-        if (type === 'Greeks' && expected.has(sym)) {
-          greeks[sym] = {
+        if (!expected.has(sym)) continue;
+
+        if (!data[sym]) data[sym] = {};
+
+        if (type === 'Greeks') {
+          greeksReceived++;
+          Object.assign(data[sym], {
             iv: Number(evt['volatility'] || 0),
             delta: Number(evt['delta'] || 0),
             gamma: Number(evt['gamma'] || 0),
             theta: Number(evt['theta'] || 0),
             vega: Number(evt['vega'] || 0),
-          };
+            rho: Number(evt['rho'] || 0),
+            theoPrice: Number(evt['price'] || 0),
+          });
+        } else if (type === 'Quote') {
+          Object.assign(data[sym], {
+            bid: Number(evt['bidPrice'] || 0),
+            ask: Number(evt['askPrice'] || 0),
+            bidSize: Number(evt['bidSize'] || 0),
+            askSize: Number(evt['askSize'] || 0),
+          });
+        } else if (type === 'Trade') {
+          data[sym].volume = Number(evt['dayVolume'] || evt['volume'] || 0);
+        } else if (type === 'Summary') {
+          data[sym].openInterest = Number(evt['openInterest'] || 0);
         }
       }
     });
@@ -59,11 +73,16 @@ export async function POST(request: Request) {
     try {
       await client.quoteStreamer.connect();
       console.log('[Greeks] Streamer connected, subscribing to', symbols.length, 'symbols');
-      client.quoteStreamer.subscribe(symbols, [MarketDataSubscriptionType.Greeks]);
+      client.quoteStreamer.subscribe(symbols, [
+        MarketDataSubscriptionType.Greeks,
+        MarketDataSubscriptionType.Quote,
+        MarketDataSubscriptionType.Trade,
+        MarketDataSubscriptionType.Summary,
+      ]);
 
       const deadline = Date.now() + 5000;
       while (Date.now() < deadline) {
-        if (Object.keys(greeks).length >= symbols.length) break;
+        if (greeksReceived >= symbols.length) break;
         await new Promise(resolve => setTimeout(resolve, 250));
       }
     } finally {
@@ -71,14 +90,13 @@ export async function POST(request: Request) {
       client.quoteStreamer.disconnect();
     }
 
-    console.log('[Greeks] Total events received:', eventCount);
-    console.log('[Greeks] Matched greeks:', Object.keys(greeks).length, 'of', symbols.length);
-    if (Object.keys(greeks).length > 0) {
-      const firstKey = Object.keys(greeks)[0];
-      console.log('[Greeks] Sample:', firstKey, JSON.stringify(greeks[firstKey]));
+    console.log('[Greeks] Matched:', Object.keys(data).length, 'of', symbols.length, `(${greeksReceived} greeks events)`);
+    if (Object.keys(data).length > 0) {
+      const firstKey = Object.keys(data)[0];
+      console.log('[Greeks] Sample:', firstKey, JSON.stringify(data[firstKey]));
     }
 
-    return NextResponse.json({ greeks });
+    return NextResponse.json({ greeks: data });
   } catch (error: any) {
     console.error('[Tastytrade] Greeks error:', error);
     return NextResponse.json({ error: 'Failed to fetch greeks' }, { status: 500 });

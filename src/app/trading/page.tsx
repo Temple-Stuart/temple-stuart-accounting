@@ -131,6 +131,8 @@ export default function TradingPage() {
   const [ttExpandedExp, setTtExpandedExp] = useState<number | null>(null);
   const [ttGreeksData, setTtGreeksData] = useState<Record<string, any>>({});
   const [ttGreeksLoading, setTtGreeksLoading] = useState(false);
+  const [ttGreeksFetched, setTtGreeksFetched] = useState<Set<number>>(new Set());
+  const [ttShowAllStrikes, setTtShowAllStrikes] = useState(false);
 
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
@@ -257,6 +259,8 @@ export default function TradingPage() {
     setTtChainData(null);
     setTtExpandedExp(null);
     setTtGreeksData({});
+    setTtGreeksFetched(new Set());
+    setTtShowAllStrikes(false);
     try {
       const res = await fetch('/api/tastytrade/chains', {
         method: 'POST',
@@ -277,11 +281,11 @@ export default function TradingPage() {
     }
   };
 
-  const handleLoadGreeks = async (exp: any) => {
+  const handleLoadGreeks = async (exp: any, expIndex: number) => {
+    if (ttGreeksFetched.has(expIndex)) return;
     setTtGreeksLoading(true);
     try {
       const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
-      // Use last quoted price if available, otherwise midpoint of all strikes
       const quotePrice = ttQuoteData && Object.values(ttQuoteData)[0]
         ? (Object.values(ttQuoteData)[0] as any).last || (Object.values(ttQuoteData)[0] as any).mid
         : null;
@@ -296,11 +300,7 @@ export default function TradingPage() {
         if (s.callStreamerSymbol) symbols.push(s.callStreamerSymbol);
         if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
       }
-      console.log('[UI Greeks] Center:', center, 'Range: ±' + range, 'Symbols:', symbols.length);
-      if (symbols.length === 0) {
-        console.log('[UI Greeks] No streamer symbols found — check chain response');
-        return;
-      }
+      if (symbols.length === 0) return;
       const res = await fetch('/api/tastytrade/greeks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -313,13 +313,21 @@ export default function TradingPage() {
       }
       if (res.ok) {
         const data = await res.json();
-        console.log('[UI Greeks] Response keys:', Object.keys(data.greeks || {}).length, 'greeks received');
         setTtGreeksData(prev => ({ ...prev, ...data.greeks }));
+        setTtGreeksFetched(prev => new Set(prev).add(expIndex));
       }
     } catch {
       // ignore
     } finally {
       setTtGreeksLoading(false);
+    }
+  };
+
+  const handleExpandExp = (i: number, exp: any) => {
+    const next = ttExpandedExp === i ? null : i;
+    setTtExpandedExp(next);
+    if (next !== null && !ttGreeksFetched.has(i)) {
+      handleLoadGreeks(exp, i);
     }
   };
 
@@ -1235,11 +1243,16 @@ export default function TradingPage() {
                             <div className="space-y-1">
                               {ttChainData.expirations.map((exp: any, i: number) => {
                                 const isExp = ttExpandedExp === i;
+                                const hasFetched = ttGreeksFetched.has(i);
+                                const visibleStrikes = (exp.strikes || []).filter((s: any) => {
+                                  if (ttShowAllStrikes || !hasFetched) return true;
+                                  return ttGreeksData[s.callStreamerSymbol] || ttGreeksData[s.putStreamerSymbol];
+                                });
                                 return (
                                   <div key={i} className="border border-gray-100">
                                     <div
                                       className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50"
-                                      onClick={() => setTtExpandedExp(isExp ? null : i)}
+                                      onClick={() => handleExpandExp(i, exp)}
                                     >
                                       <div className="font-medium text-gray-700">{exp.date}</div>
                                       <div className="flex gap-4 text-gray-500 items-center">
@@ -1248,79 +1261,91 @@ export default function TradingPage() {
                                         <span className="text-[10px]">{isExp ? '\u25B2' : '\u25BC'}</span>
                                       </div>
                                     </div>
-                                    {isExp && exp.strikes?.length > 0 && (
-                                      <div className="border-t border-gray-100 px-3 py-2">
-                                        <div className="flex justify-end mb-2">
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); handleLoadGreeks(exp); }}
-                                            disabled={ttGreeksLoading}
-                                            className="px-3 py-1 text-[10px] font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
-                                          >
-                                            {ttGreeksLoading ? 'Loading Greeks...' : 'Load Greeks'}
-                                          </button>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                          <table className="w-full text-[11px]">
-                                            <thead>
-                                              <tr className="border-b border-gray-200 text-gray-500">
-                                                <th className="text-right px-1 py-1 font-medium">C.IV</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.Δ</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.Γ</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.Θ</th>
-                                                <th className="text-right px-1 py-1 font-medium">C.V</th>
-                                                <th className="text-center px-1 py-1 font-semibold bg-gray-50">Strike</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.V</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.Θ</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.Γ</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.Δ</th>
-                                                <th className="text-left px-1 py-1 font-medium">P.IV</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {exp.strikes.map((s: any, j: number) => {
-                                                const cg = ttGreeksData[s.callStreamerSymbol];
-                                                const pg = ttGreeksData[s.putStreamerSymbol];
-                                                return (
-                                                  <tr key={j} className="border-b border-gray-50 hover:bg-gray-50">
-                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-600">
-                                                      {cg ? (cg.iv * 100).toFixed(1) + '%' : '\u2014'}
-                                                    </td>
-                                                    <td className="text-right px-1 py-0.5 font-mono text-emerald-600">
-                                                      {cg ? cg.delta.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
-                                                      {cg ? cg.gamma.toFixed(4) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
-                                                      {cg ? cg.theta.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-500">
-                                                      {cg ? cg.vega.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-center px-1 py-0.5 font-mono font-semibold bg-gray-50">
-                                                      {s.strike.toFixed(2)}
-                                                    </td>
-                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
-                                                      {pg ? pg.vega.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
-                                                      {pg ? pg.theta.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-500">
-                                                      {pg ? pg.gamma.toFixed(4) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-left px-1 py-0.5 font-mono text-red-600">
-                                                      {pg ? pg.delta.toFixed(3) : '\u2014'}
-                                                    </td>
-                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-600">
-                                                      {pg ? (pg.iv * 100).toFixed(1) + '%' : '\u2014'}
-                                                    </td>
+                                    {isExp && (
+                                      <div className="border-t border-gray-100 px-2 py-2">
+                                        {ttGreeksLoading && !hasFetched ? (
+                                          <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
+                                            <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                            Loading Greeks...
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {hasFetched && (
+                                              <div className="flex justify-end mb-1">
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); setTtShowAllStrikes(p => !p); }}
+                                                  className="text-[10px] text-gray-400 hover:text-gray-600 underline"
+                                                >
+                                                  {ttShowAllStrikes ? 'Show active only' : 'Show all strikes'}
+                                                </button>
+                                              </div>
+                                            )}
+                                            <div className="overflow-x-auto">
+                                              <table className="w-full text-[10px]">
+                                                <thead>
+                                                  <tr className="border-b border-gray-200 text-gray-500">
+                                                    <th className="text-right px-1 py-1 font-medium">Bid</th>
+                                                    <th className="text-right px-1 py-1 font-medium">Ask</th>
+                                                    <th className="text-right px-1 py-1 font-medium">Vol</th>
+                                                    <th className="text-right px-1 py-1 font-medium">OI</th>
+                                                    <th className="text-right px-1 py-1 font-medium">IV</th>
+                                                    <th className="text-right px-1 py-1 font-medium">{'\u0394'}</th>
+                                                    <th className="text-right px-1 py-1 font-medium">{'\u0393'}</th>
+                                                    <th className="text-right px-1 py-1 font-medium">{'\u0398'}</th>
+                                                    <th className="text-right px-1 py-1 font-medium">{'\u03BD'}</th>
+                                                    <th className="text-right px-1 py-1 font-medium">{'\u03C1'}</th>
+                                                    <th className="text-center px-1 py-1 font-semibold bg-gray-50">Strike</th>
+                                                    <th className="text-left px-1 py-1 font-medium">{'\u03C1'}</th>
+                                                    <th className="text-left px-1 py-1 font-medium">{'\u03BD'}</th>
+                                                    <th className="text-left px-1 py-1 font-medium">{'\u0398'}</th>
+                                                    <th className="text-left px-1 py-1 font-medium">{'\u0393'}</th>
+                                                    <th className="text-left px-1 py-1 font-medium">{'\u0394'}</th>
+                                                    <th className="text-left px-1 py-1 font-medium">IV</th>
+                                                    <th className="text-left px-1 py-1 font-medium">OI</th>
+                                                    <th className="text-left px-1 py-1 font-medium">Vol</th>
+                                                    <th className="text-left px-1 py-1 font-medium">Bid</th>
+                                                    <th className="text-left px-1 py-1 font-medium">Ask</th>
                                                   </tr>
-                                                );
-                                              })}
-                                            </tbody>
-                                          </table>
-                                        </div>
+                                                </thead>
+                                                <tbody>
+                                                  {visibleStrikes.map((s: any, j: number) => {
+                                                    const cg = ttGreeksData[s.callStreamerSymbol];
+                                                    const pg = ttGreeksData[s.putStreamerSymbol];
+                                                    const d = '\u2014';
+                                                    return (
+                                                      <tr key={j} className="border-b border-gray-50 hover:bg-gray-50">
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.bid != null ? cg.bid.toFixed(2) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.ask != null ? cg.ask.toFixed(2) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.volume != null ? cg.volume.toLocaleString() : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.openInterest != null ? cg.openInterest.toLocaleString() : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.iv != null ? (cg.iv * 100).toFixed(1) + '%' : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-emerald-600">{cg?.delta != null ? cg.delta.toFixed(3) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.gamma != null ? cg.gamma.toFixed(4) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.theta != null ? cg.theta.toFixed(3) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.vega != null ? cg.vega.toFixed(3) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.rho != null ? cg.rho.toFixed(4) : d}</td>
+                                                        <td className="text-center px-1 py-0.5 font-mono font-semibold bg-gray-50">{s.strike.toFixed(2)}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.rho != null ? pg.rho.toFixed(4) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.vega != null ? pg.vega.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.theta != null ? pg.theta.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.gamma != null ? pg.gamma.toFixed(4) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-red-600">{pg?.delta != null ? pg.delta.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.iv != null ? (pg.iv * 100).toFixed(1) + '%' : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.openInterest != null ? pg.openInterest.toLocaleString() : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.volume != null ? pg.volume.toLocaleString() : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.bid != null ? pg.bid.toFixed(2) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.ask != null ? pg.ask.toFixed(2) : d}</td>
+                                                      </tr>
+                                                    );
+                                                  })}
+                                                  {visibleStrikes.length === 0 && hasFetched && (
+                                                    <tr><td colSpan={21} className="text-center py-3 text-gray-400 text-xs">No active strikes with data</td></tr>
+                                                  )}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                     )}
                                   </div>
