@@ -35,7 +35,8 @@ export async function GET(request: Request) {
       ? symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
       : DEFAULT_SYMBOLS;
 
-    const raw = await client.marketMetricsService.getMarketMetrics({ symbols });
+    // Tastytrade API expects symbols as comma-separated, not bracket-array
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: symbols.join(',') });
     const items = Array.isArray(raw) ? raw : [];
 
     const metrics = items.map((m: any) => {

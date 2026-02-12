@@ -157,30 +157,31 @@ export default function TradingPage() {
   const fetchScannerData = async () => {
     setTtScannerLoading(true);
     try {
-      const [scanRes, vixRes] = await Promise.all([
-        fetch('/api/tastytrade/scanner'),
-        fetch('/api/tastytrade/quotes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbols: ['$VIX.X'] }),
-        }),
-      ]);
+      const scanRes = await fetch('/api/tastytrade/scanner');
       if (scanRes.ok) {
         const data = await scanRes.json();
         setTtScannerData(data.metrics || []);
         setTtScannerFetchedAt(data.fetchedAt || new Date().toISOString());
         setTtScannerCountdown(60);
       }
+    } catch {
+      // ignore — scanner failure shouldn't break the rest
+    }
+    try {
+      const vixRes = await fetch('/api/tastytrade/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: ['$VIX.X'] }),
+      });
       if (vixRes.ok) {
         const data = await vixRes.json();
         const vq = data.quotes?.['$VIX.X'] || data.quotes?.['VIX'] || Object.values(data.quotes || {})[0];
         if (vq) setTtVix(vq.last || vq.mid || null);
       }
     } catch {
-      // ignore — scanner failure shouldn't break the rest
-    } finally {
-      setTtScannerLoading(false);
+      // VIX fetch failure is non-critical
     }
+    setTtScannerLoading(false);
   };
 
   // Auto-fetch scanner on connection, refresh every 60s
@@ -1281,8 +1282,16 @@ export default function TradingPage() {
                               </table>
                             </div>
                           ) : !ttScannerLoading ? (
-                            <div className="text-sm text-gray-400">No scanner data — connect to Tastytrade first</div>
-                          ) : null}
+                            <div className="text-xs text-gray-400">
+                              No scanner data available.{' '}
+                              <button onClick={fetchScannerData} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
+                              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                              Loading scanner data...
+                            </div>
+                          )}
                         </div>
 
                         {/* Card 1 — Account Overview */}
