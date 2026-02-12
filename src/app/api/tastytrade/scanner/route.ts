@@ -197,7 +197,8 @@ export async function GET(request: Request) {
     const items = batchResults.flat();
 
     if (items.length > 0) {
-      console.log('[Scanner] Raw sample:', JSON.stringify(items[0]).slice(0, 1500));
+      console.log('[Scanner] ALL KEYS:', Object.keys(items[0]).sort().join('\n'));
+      console.log('[Scanner] FULL FIRST ITEM:', JSON.stringify(items[0], null, 2));
     }
 
     const metrics = items.map((m: any) => {
