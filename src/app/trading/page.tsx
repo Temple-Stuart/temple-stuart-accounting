@@ -1576,6 +1576,9 @@ export default function TradingPage() {
                                                             dangerouslySetInnerHTML={{ __html: renderPnlSvg(card.pnlPoints, card.breakevens, sbQuotePrice, 280, 120) }}
                                                           />
                                                         )}
+                                                        {card.hasWideSpread && (
+                                                          <div className="text-[9px] text-amber-600 mt-1">{'\u26A0'} Wide bid/ask spreads — prices may be unreliable (market may be closed)</div>
+                                                        )}
                                                       </div>
                                                     ))}
                                                     {/* Custom Strategy Card */}
@@ -1611,6 +1614,9 @@ export default function TradingPage() {
                                                           <div className="border-t border-indigo-200 pt-1 mt-1"
                                                             dangerouslySetInnerHTML={{ __html: renderPnlSvg(sbCustomCard.pnlPoints, sbCustomCard.breakevens, sbQuotePrice, 280, 120) }}
                                                           />
+                                                        )}
+                                                        {sbCustomCard.hasWideSpread && (
+                                                          <div className="text-[9px] text-amber-600 mt-1">{'\u26A0'} Wide bid/ask spreads — prices may be unreliable (market may be closed)</div>
                                                         )}
                                                       </div>
                                                     )}

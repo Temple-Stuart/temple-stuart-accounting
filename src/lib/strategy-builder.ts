@@ -23,6 +23,8 @@ export interface StrikeData {
   putVolume: number | null;
   callOI: number | null;
   putOI: number | null;
+  callWideSpread: boolean;
+  putWideSpread: boolean;
 }
 
 export interface StrategyLeg {
@@ -34,6 +36,7 @@ export interface StrategyLeg {
   gamma: number;
   theta: number;
   vega: number;
+  wideSpread: boolean;
 }
 
 export interface StrategyCard {
@@ -56,6 +59,7 @@ export interface StrategyCard {
   thetaPerDay: number;       // positive = collecting, negative = paying
   isUnlimited: boolean;      // unlimited risk or profit
   pnlPoints: { price: number; pnl: number }[];
+  hasWideSpread: boolean;
 }
 
 export interface GenerateParams {
@@ -164,6 +168,7 @@ function makeLeg(
     gamma: side === 'sell' ? -gamma : gamma,
     theta: side === 'sell' ? -theta : theta,
     vega: side === 'sell' ? -vega : vega,
+    wideSpread: type === 'call' ? strike.callWideSpread : strike.putWideSpread,
   };
 }
 
@@ -266,6 +271,7 @@ function buildCard(
     thetaPerDay,
     isUnlimited,
     pnlPoints,
+    hasWideSpread: legs.some(l => l.wideSpread),
   };
 }
 
@@ -461,15 +467,39 @@ export function buildStrikeData(
   expStrikes: any[],
   greeksData: Record<string, any>
 ): StrikeData[] {
-  return expStrikes.map((s: any) => {
+  const result: StrikeData[] = [];
+  for (const s of expStrikes) {
     const cg = greeksData[s.callStreamerSymbol] || {};
     const pg = greeksData[s.putStreamerSymbol] || {};
-    return {
+
+    let callBid: number | null = cg.bid ?? null;
+    let callAsk: number | null = cg.ask ?? null;
+    let putBid: number | null = pg.bid ?? null;
+    let putAsk: number | null = pg.ask ?? null;
+
+    // Estimate missing bid/ask from the other side
+    if (callBid === 0 && callAsk != null && callAsk > 0) callBid = callAsk * 0.4;
+    if (callAsk === 0 && callBid != null && callBid > 0) callAsk = callBid * 2.5;
+    if (putBid === 0 && putAsk != null && putAsk > 0) putBid = putAsk * 0.4;
+    if (putAsk === 0 && putBid != null && putBid > 0) putAsk = putBid * 2.5;
+
+    // Inverted quotes — null out that side entirely
+    if (callBid != null && callAsk != null && callBid > callAsk) {
+      callBid = null; callAsk = null;
+    }
+    if (putBid != null && putAsk != null && putBid > putAsk) {
+      putBid = null; putAsk = null;
+    }
+
+    // Wide spread detection: (ask - bid) / midpoint > 50%
+    const callMid = callBid != null && callAsk != null ? (callAsk + callBid) / 2 : 0;
+    const callWideSpread = callMid > 0 ? (callAsk! - callBid!) / callMid > 0.50 : false;
+    const putMid = putBid != null && putAsk != null ? (putAsk + putBid) / 2 : 0;
+    const putWideSpread = putMid > 0 ? (putAsk! - putBid!) / putMid > 0.50 : false;
+
+    result.push({
       strike: s.strike,
-      callBid: cg.bid ?? null,
-      callAsk: cg.ask ?? null,
-      putBid: pg.bid ?? null,
-      putAsk: pg.ask ?? null,
+      callBid, callAsk, putBid, putAsk,
       callDelta: cg.delta ?? null,
       putDelta: pg.delta ?? null,
       callTheta: cg.theta ?? null,
@@ -484,8 +514,11 @@ export function buildStrikeData(
       putVolume: pg.volume ?? null,
       callOI: cg.openInterest ?? null,
       putOI: pg.openInterest ?? null,
-    };
-  });
+      callWideSpread,
+      putWideSpread,
+    });
+  }
+  return result;
 }
 
 // ─── Custom Strategy Builder ────────────────────────────────────────
@@ -565,8 +598,12 @@ export function buildCustomCard(
   const legs: StrategyLeg[] = [];
   for (const cl of customLegs) {
     const g = greeksData[cl.streamerSymbol] || {};
-    const price = cl.side === 'sell' ? (g.bid ?? null) : (g.ask ?? null);
+    const bid: number | null = g.bid ?? null;
+    const ask: number | null = g.ask ?? null;
+    const price = cl.side === 'sell' ? bid : ask;
     if (price == null || price <= 0) continue;
+    const midVal = bid != null && ask != null ? (ask + bid) / 2 : 0;
+    const wide = midVal > 0 ? (ask! - bid!) / midVal > 0.50 : false;
     legs.push({
       type: cl.type,
       side: cl.side,
@@ -576,6 +613,7 @@ export function buildCustomCard(
       gamma: cl.side === 'sell' ? -(g.gamma ?? 0) : (g.gamma ?? 0),
       theta: cl.side === 'sell' ? -(g.theta ?? 0) : (g.theta ?? 0),
       vega: cl.side === 'sell' ? -(g.vega ?? 0) : (g.vega ?? 0),
+      wideSpread: wide,
     });
   }
   if (legs.length === 0) return null;
