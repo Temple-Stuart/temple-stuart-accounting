@@ -207,6 +207,7 @@ export async function GET(request: Request) {
       }
 
       return {
+        // Existing
         symbol: m['symbol'] || '',
         ivRank: Number(m['implied-volatility-index-rank'] || m['tos-implied-volatility-index-rank'] || m['tw-implied-volatility-index-rank'] || 0),
         ivPercentile: Number(m['implied-volatility-percentile'] || 0),
@@ -214,6 +215,40 @@ export async function GET(request: Request) {
         liquidityRating: Number(m['liquidity-rating'] || m['liquidity-value'] || 0),
         earningsDate,
         daysTillEarnings,
+
+        // Volatility
+        hv30: parseFloat(m['historical-volatility-30-day']) || null,
+        hv60: parseFloat(m['historical-volatility-60-day']) || null,
+        hv90: parseFloat(m['historical-volatility-90-day']) || null,
+        iv30: parseFloat(m['implied-volatility-30-day']) || null,
+        ivHvSpread: parseFloat(m['iv-hv-30-day-difference']) || null,
+
+        // Market Context
+        beta: parseFloat(m['beta']) || null,
+        corrSpy: parseFloat(m['corr-spy-3month']) || null,
+        marketCap: m['market-cap'] || null,
+        sector: m['sector'] || null,
+        industry: m['industry'] || null,
+
+        // Fundamentals
+        peRatio: parseFloat(m['price-earnings-ratio']) || null,
+        eps: parseFloat(m['earnings-per-share']) || null,
+        dividendYield: parseFloat(m['dividend-yield']) || null,
+        lendability: m['lendability'] || null,
+        borrowRate: parseFloat(m['borrow-rate']) || null,
+
+        // Earnings Detail
+        earningsActualEps: m['earnings']?.['actual-eps'] ? parseFloat(m['earnings']['actual-eps']) : null,
+        earningsEstimate: m['earnings']?.['consensus-estimate'] ? parseFloat(m['earnings']['consensus-estimate']) : null,
+        earningsTimeOfDay: m['earnings']?.['time-of-day'] || null,
+
+        // Term Structure
+        termStructure: (m['option-expiration-implied-volatilities'] || [])
+          .filter((e: any) => e['implied-volatility'])
+          .map((e: any) => ({
+            date: e['expiration-date'],
+            iv: parseFloat(e['implied-volatility']),
+          })),
       };
     }).filter((m: any) => m.symbol);
 
@@ -225,8 +260,6 @@ export async function GET(request: Request) {
       totalScanned: totalSymbols,
       universe,
       fetchedAt: new Date().toISOString(),
-      debugFields: items.length > 0 ? Object.keys(items[0]).sort() : [],
-      debugFirstItem: items.length > 0 ? items[0] : null,
     });
   } catch (error: any) {
     console.error('[Tastytrade] Scanner error:', error);

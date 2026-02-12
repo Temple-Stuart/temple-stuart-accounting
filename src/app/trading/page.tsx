@@ -147,7 +147,7 @@ export default function TradingPage() {
   const [ttScannerData, setTtScannerData] = useState<any[]>([]);
   const [ttScannerLoading, setTtScannerLoading] = useState(false);
   const [ttScannerFetchedAt, setTtScannerFetchedAt] = useState<string | null>(null);
-  const [ttScannerSort, setTtScannerSort] = useState<string>('ivRank');
+  const [ttScannerSort, setTtScannerSort] = useState<string>('score');
   const [ttScannerSortDir, setTtScannerSortDir] = useState<'asc' | 'desc'>('desc');
   const [ttScannerCountdown, setTtScannerCountdown] = useState(60);
   const [ttScannerUniverse, setTtScannerUniverse] = useState<string>('popular');
@@ -236,9 +236,54 @@ export default function TradingPage() {
     return () => clearInterval(timer);
   }, [ttScannerFetchedAt]);
 
-  // Sort scanner data
+  // Composite scoring function
+  const computeScore = (t: any): number => {
+    let score = 0;
+    // IV-HV Spread (0-30 pts)
+    const spread = t.ivHvSpread ?? 0;
+    if (spread >= 20) score += 30;
+    else if (spread >= 15) score += 25;
+    else if (spread >= 10) score += 20;
+    else if (spread >= 5) score += 12;
+    else if (spread >= 0) score += 5;
+    // IV Rank (0-25 pts)
+    const ivr = (t.ivRank ?? 0) * 100;
+    if (ivr >= 80) score += 25;
+    else if (ivr >= 60) score += 20;
+    else if (ivr >= 40) score += 15;
+    else if (ivr >= 20) score += 8;
+    else score += 3;
+    // Liquidity (0-20 pts)
+    const liq = t.liquidityRating ?? 0;
+    if (liq >= 4) score += 20;
+    else if (liq >= 3) score += 14;
+    else if (liq >= 2) score += 8;
+    else score += 2;
+    // Earnings Buffer (0-15 pts)
+    const dte = t.daysTillEarnings;
+    if (dte === null || dte === undefined) score += 15;
+    else if (dte < 0) score += 15;
+    else if (dte > 30) score += 12;
+    else if (dte > 14) score += 8;
+    else if (dte > 7) score += 4;
+    // Term Structure Shape (0-10 pts)
+    const ts = t.termStructure;
+    if (ts && ts.length >= 3) {
+      const nearIv = ts[0]?.iv ?? 0;
+      const farIv = ts[Math.min(ts.length - 1, 5)]?.iv ?? 0;
+      if (farIv > nearIv) score += 10;
+      else if (farIv > nearIv * 0.95) score += 6;
+      else score += 2;
+    } else {
+      score += 5;
+    }
+    return score;
+  };
+
+  // Sort scanner data with computed score
   const sortedScannerData = useMemo(() => {
-    return [...ttScannerData].sort((a, b) => {
+    const scored = ttScannerData.map(m => ({ ...m, score: computeScore(m) }));
+    return scored.sort((a, b) => {
       const av = a[ttScannerSort] ?? 0;
       const bv = b[ttScannerSort] ?? 0;
       return ttScannerSortDir === 'desc' ? bv - av : av - bv;
@@ -1438,7 +1483,9 @@ export default function TradingPage() {
                             <div className="overflow-x-auto">
                               {ttScannerTotalScanned > 50 && (
                                 <div className="text-[10px] text-gray-400 mb-1">
-                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned (sorted by {ttScannerSort === 'ivRank' ? 'IV Rank' : ttScannerSort === 'ivPercentile' ? 'IV %ile' : ttScannerSort === 'impliedVolatility' ? 'IV' : 'Liquidity'} {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'})
+                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned (sorted by {
+                                    { score: 'Score', ivRank: 'IV Rank', ivHvSpread: 'IV-HV', hv30: 'HV30', impliedVolatility: 'IV', liquidityRating: 'Liquidity' }[ttScannerSort] || ttScannerSort
+                                  } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'})
                                 </div>
                               )}
                               <table className="w-full text-xs">
@@ -1446,8 +1493,10 @@ export default function TradingPage() {
                                   <tr className="border-b border-gray-200 text-gray-500">
                                     <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
                                     {[
+                                      { key: 'score', label: 'Score' },
                                       { key: 'ivRank', label: 'IV Rank' },
-                                      { key: 'ivPercentile', label: 'IV %ile' },
+                                      { key: 'ivHvSpread', label: 'IV-HV \u25B3' },
+                                      { key: 'hv30', label: 'HV30' },
                                       { key: 'impliedVolatility', label: 'IV' },
                                       { key: 'liquidityRating', label: 'Liquidity' },
                                     ].map(col => (
@@ -1459,6 +1508,7 @@ export default function TradingPage() {
                                         {col.label}{ttScannerSort === col.key ? (ttScannerSortDir === 'desc' ? ' \u25BC' : ' \u25B2') : ''}
                                       </th>
                                     ))}
+                                    <th className="text-center px-2 py-1.5 font-medium">Sector</th>
                                     <th className="text-center px-2 py-1.5 font-medium">Earnings</th>
                                     <th className="text-left px-2 py-1.5 font-medium">Suggested</th>
                                     <th className="text-center px-2 py-1.5 font-medium"></th>
@@ -1468,6 +1518,11 @@ export default function TradingPage() {
                                   {sortedScannerData.slice(0, 50).map((m: any) => {
                                     const labels = getStrategyLabels(m.ivRank);
                                     const isExpanded = sbExpandedSymbol === m.symbol;
+                                    const ivhv = m.ivHvSpread;
+                                    const sectorShort: Record<string, string> = { Technology: 'Tech', Healthcare: 'Hlth', 'Financial Services': 'Finl', Energy: 'Enrg', Communication: 'Comm', 'Consumer Cyclical': 'CyCl', 'Consumer Defensive': 'CDef', Industrials: 'Indu', 'Basic Materials': 'Matl', 'Real Estate': 'REst', Utilities: 'Util' };
+                                    const earningsTag = m.daysTillEarnings !== null && m.daysTillEarnings >= 0 && m.daysTillEarnings <= 30
+                                      ? `${m.daysTillEarnings}d${m.earningsTimeOfDay === 'bmo' ? ' BMO' : m.earningsTimeOfDay === 'amc' ? ' AMC' : ''}`
+                                      : null;
                                     return (
                                       <Fragment key={m.symbol}>
                                         <tr
@@ -1478,19 +1533,31 @@ export default function TradingPage() {
                                             <span className="mr-1 text-[9px] text-gray-400">{isExpanded ? '\u25B2' : '\u25BC'}</span>
                                             {m.symbol}
                                           </td>
+                                          <td className={`text-right px-2 py-1.5 font-mono font-medium ${
+                                            m.score >= 80 ? 'text-emerald-500' :
+                                            m.score >= 60 ? 'text-emerald-600' :
+                                            m.score >= 40 ? 'text-amber-600' : 'text-gray-400'
+                                          }`}>{m.score}</td>
                                           <td className={`text-right px-2 py-1.5 font-mono ${
-                                            m.ivRank > 50 ? 'text-emerald-600 font-medium' :
-                                            m.ivRank < 20 ? 'text-red-500' : 'text-gray-700'
-                                          }`}>{(m.ivRank * 100).toFixed(1)}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.ivPercentile * 100).toFixed(1)}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility * 100).toFixed(1)}%</td>
+                                            (m.ivRank ?? 0) > 0.50 ? 'text-emerald-600 font-medium' :
+                                            (m.ivRank ?? 0) < 0.20 ? 'text-red-500' : 'text-gray-700'
+                                          }`}>{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
+                                          <td className={`text-right px-2 py-1.5 font-mono font-medium ${
+                                            ivhv != null && ivhv > 15 ? 'text-emerald-500' :
+                                            ivhv != null && ivhv > 8 ? 'text-emerald-600' :
+                                            ivhv != null && ivhv > 3 ? 'text-amber-600' :
+                                            ivhv != null && ivhv < 0 ? 'text-red-500' : 'text-gray-400'
+                                          }`}>{ivhv != null ? ivhv.toFixed(1) : '\u2014'}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.hv30 != null ? (m.hv30 * 100).toFixed(1) + '%' : '\u2014'}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
                                           <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating || '\u2014'}</td>
+                                          <td className="text-center px-2 py-1.5 text-[10px] text-gray-500 font-mono">{m.sector ? (sectorShort[m.sector] || m.sector.slice(0, 4)) : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5">
-                                            {m.daysTillEarnings !== null && m.daysTillEarnings >= 0 && m.daysTillEarnings <= 30 ? (
+                                            {earningsTag ? (
                                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                                                 m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
                                               }`}>
-                                                {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{m.daysTillEarnings}d
+                                                {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{earningsTag}
                                               </span>
                                             ) : (
                                               <span className="text-gray-300">{'\u2014'}</span>
@@ -1517,7 +1584,7 @@ export default function TradingPage() {
                                         {/* Expanded Strategy Builder Row */}
                                         {isExpanded && (
                                           <tr>
-                                            <td colSpan={9} className="bg-gray-50 border-b border-gray-200 px-3 py-3">
+                                            <td colSpan={12} className="bg-gray-50 border-b border-gray-200 px-3 py-3">
                                               {sbLoading ? (
                                                 <div className="flex items-center gap-2 text-xs text-gray-400 py-4 justify-center">
                                                   <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
