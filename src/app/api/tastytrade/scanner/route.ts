@@ -39,6 +39,10 @@ export async function GET(request: Request) {
     const raw = await client.marketMetricsService.getMarketMetrics({ symbols: symbols.join(',') });
     const items = Array.isArray(raw) ? raw : [];
 
+    if (items.length > 0) {
+      console.log('[Scanner] Raw sample:', JSON.stringify(items[0]).slice(0, 1500));
+    }
+
     const metrics = items.map((m: any) => {
       const earningsDate = m['earnings']?.['expected-report-date'] || m['next-earnings-date'] || null;
       let daysTillEarnings: number | null = null;
@@ -51,9 +55,9 @@ export async function GET(request: Request) {
 
       return {
         symbol: m['symbol'] || '',
-        ivRank: Number(m['implied-volatility-rank'] || m['tos-implied-volatility-rank'] || 0),
-        ivPercentile: Number(m['implied-volatility-percentile'] || m['tos-implied-volatility-percentile'] || 0),
-        impliedVolatility: Number(m['implied-volatility-index'] || m['tw-implied-volatility-index'] || 0),
+        ivRank: Number(m['implied-volatility-index-rank'] || m['tos-implied-volatility-index-rank'] || m['tw-implied-volatility-index-rank'] || 0),
+        ivPercentile: Number(m['implied-volatility-percentile'] || 0),
+        impliedVolatility: Number(m['implied-volatility-index'] || 0),
         liquidityRating: Number(m['liquidity-rating'] || m['liquidity-value'] || 0),
         earningsDate,
         daysTillEarnings,
