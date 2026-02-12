@@ -26,6 +26,20 @@ interface TradeSummary {
   profitFactor: number;
 }
 
+interface MarketBrief {
+  regime: string;
+  sectorHeatmap: string;
+  riskClusters: {
+    earningsCluster: string[];
+    sectorConcentration: string[];
+    risingVol: string[];
+    backwardation: string[];
+    anomalous: string[];
+  };
+  topNotes: { symbol: string; note: string }[];
+  marginal: { symbol: string; note: string }[];
+}
+
 interface Trade {
   tradeNum: string;
   type: string;
@@ -154,6 +168,12 @@ export default function TradingPage() {
   const [ttScannerCustomInput, setTtScannerCustomInput] = useState('');
   const [ttScannerTotalScanned, setTtScannerTotalScanned] = useState(0);
   const [ttVix, setTtVix] = useState<number | null>(null);
+
+  // Market Brief states
+  const [marketBrief, setMarketBrief] = useState<MarketBrief | null>(null);
+  const [marketBriefLoading, setMarketBriefLoading] = useState(false);
+  const [marketBriefError, setMarketBriefError] = useState<string | null>(null);
+  const [marketBriefUniverse, setMarketBriefUniverse] = useState<string | null>(null);
 
   // Strategy Builder states
   const [sbExpandedSymbol, setSbExpandedSymbol] = useState<string | null>(null);
@@ -356,6 +376,57 @@ export default function TradingPage() {
       setTtScannerSortDir('desc');
     }
   };
+
+  // Market Brief: fire once per universe load
+  const handleRefreshBrief = () => {
+    setMarketBrief(null);
+    setMarketBriefUniverse(null);
+    setMarketBriefError(null);
+  };
+
+  useEffect(() => {
+    if (passedData.length === 0) return;
+    if (marketBriefUniverse === ttScannerUniverse && marketBrief !== null) return;
+    let cancelled = false;
+    (async () => {
+      setMarketBriefLoading(true);
+      setMarketBriefError(null);
+      try {
+        const res = await fetch('/api/ai/market-brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            universe: ttScannerUniverse,
+            totalScanned: ttScannerTotalScanned,
+            totalPassed: passedData.length,
+            totalFiltered: filteredData.length,
+            tickers: passedData,
+          }),
+        });
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          if (data.error) { setMarketBriefError('AI analysis unavailable'); }
+          else { setMarketBrief(data); setMarketBriefUniverse(ttScannerUniverse); }
+        } else if (!cancelled) {
+          setMarketBriefError('AI analysis unavailable');
+        }
+      } catch {
+        if (!cancelled) setMarketBriefError('AI analysis unavailable');
+      }
+      if (!cancelled) setMarketBriefLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [passedData.length, ttScannerUniverse, marketBriefUniverse, marketBrief]);
+
+  // Memoize brief indicator sets
+  const { topSymbols, marginalSymbols, briefNoteMap } = useMemo(() => {
+    const top = new Set(marketBrief?.topNotes?.map(n => n.symbol) ?? []);
+    const marg = new Set(marketBrief?.marginal?.map(n => n.symbol) ?? []);
+    const notes: Record<string, string> = {};
+    for (const n of marketBrief?.topNotes ?? []) notes[n.symbol] = n.note;
+    for (const n of marketBrief?.marginal ?? []) notes[n.symbol] = n.note;
+    return { topSymbols: top, marginalSymbols: marg, briefNoteMap: notes };
+  }, [marketBrief]);
 
   // Strategy Builder: expand scanner row → fetch quote, chain, Greeks → generate strategies
   const handleScannerExpand = async (symbol: string, ivRank: number) => {
@@ -1487,6 +1558,8 @@ export default function TradingPage() {
                               value={ttScannerUniverse}
                               onChange={(e) => {
                                 setTtScannerUniverse(e.target.value);
+                                setMarketBrief(null);
+                                setMarketBriefUniverse(null);
                               }}
                               className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
                             >
@@ -1546,6 +1619,62 @@ export default function TradingPage() {
                                   } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'}
                                 </div>
                               )}
+                              {/* Market Brief Card */}
+                              {marketBriefLoading && (
+                                <div style={{ border: '1px solid #374151', borderRadius: 8, padding: 16, marginBottom: 16, color: '#9CA3AF' }} className="flex items-center gap-2 text-xs">
+                                  <div className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                  AI analyzing {passedData.length} qualifying tickers...
+                                </div>
+                              )}
+                              {marketBrief && !marketBriefLoading && (() => {
+                                const rc = marketBrief.riskClusters;
+                                const allRisks = [...(rc.earningsCluster || []), ...(rc.sectorConcentration || []), ...(rc.risingVol || []), ...(rc.backwardation || []), ...(rc.anomalous || [])];
+                                return (
+                                  <div style={{ border: '1px solid #374151', borderRadius: 8, padding: 20, marginBottom: 16, background: '#111827' }}>
+                                    <div className="flex justify-between items-center mb-3">
+                                      <div style={{ fontWeight: 600, fontSize: 13, color: '#D1D5DB', letterSpacing: '0.05em' }}>
+                                        MARKET BRIEF &mdash; {ttScannerUniverse} ({passedData.length} qualifying)
+                                      </div>
+                                      <button onClick={handleRefreshBrief} style={{ background: 'none', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: 12 }}>Refresh</button>
+                                    </div>
+                                    <p style={{ color: '#E5E7EB', fontSize: 13, lineHeight: 1.6, marginBottom: 16, margin: '0 0 16px 0' }}>{marketBrief.regime}</p>
+                                    <p style={{ color: '#D1D5DB', fontSize: 13, lineHeight: 1.6, marginBottom: 16, margin: '0 0 16px 0' }}>{marketBrief.sectorHeatmap}</p>
+                                    {allRisks.length > 0 && (
+                                      <div style={{ marginBottom: 16 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#F59E0B', marginBottom: 6 }}>RISK CLUSTERS</div>
+                                        {allRisks.map((r, i) => (
+                                          <div key={i} style={{ color: '#D1D5DB', fontSize: 12, lineHeight: 1.5, paddingLeft: 12 }}>{'\u2022'} {r}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {marketBrief.topNotes && marketBrief.topNotes.length > 0 && (
+                                      <div style={{ marginBottom: 16 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#10B981', marginBottom: 6 }}>TOP TICKERS</div>
+                                        {marketBrief.topNotes.map((t, i) => (
+                                          <div key={i} style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 4 }}>
+                                            <span style={{ color: '#10B981', fontWeight: 600 }}>{t.symbol}</span>
+                                            <span style={{ color: '#6B7280' }}> &mdash; </span>
+                                            <span style={{ color: '#9CA3AF' }}>{t.note}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {marketBrief.marginal && marketBrief.marginal.length > 0 && (
+                                      <div>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>MARGINAL (barely passed gates)</div>
+                                        {marketBrief.marginal.map((t, i) => (
+                                          <div key={i} style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 4, color: '#6B7280' }}>
+                                            <span style={{ fontWeight: 600 }}>{t.symbol}</span> &mdash; {t.note}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              {marketBriefError && !marketBriefLoading && (
+                                <div style={{ color: '#6B7280', fontSize: 12, marginBottom: 8 }}>{marketBriefError}</div>
+                              )}
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="border-b border-gray-200 text-gray-500">
@@ -1587,8 +1716,10 @@ export default function TradingPage() {
                                           className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-indigo-50' : ''}`}
                                           onClick={() => handleScannerExpand(m.symbol, m.ivRank)}
                                         >
-                                          <td className="px-2 py-1.5 font-mono font-medium text-gray-900">
+                                          <td className="px-2 py-1.5 font-mono font-medium text-gray-900" title={briefNoteMap[m.symbol] || undefined}>
                                             <span className="mr-1 text-[9px] text-gray-400">{isExpanded ? '\u25B2' : '\u25BC'}</span>
+                                            {topSymbols.has(m.symbol) && <span className="text-emerald-500 mr-0.5">{'\u25CF'}</span>}
+                                            {marginalSymbols.has(m.symbol) && <span className="text-gray-400 mr-0.5">{'\u25CF'}</span>}
                                             {m.symbol}
                                           </td>
                                           <td className={`text-right px-2 py-1.5 font-mono font-medium ${
