@@ -1,8 +1,19 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
+import {
+  getStrategyLabels,
+  generateStrategies,
+  buildStrikeData,
+  buildCustomCard,
+  detectStrategyName,
+  renderPnlSvg,
+  type StrategyCard,
+  type StrategyLabel,
+  type CustomLeg,
+} from '@/lib/strategy-builder';
 
 interface TradeSummary {
   totalTrades: number;
@@ -144,6 +155,18 @@ export default function TradingPage() {
   const [ttScannerTotalScanned, setTtScannerTotalScanned] = useState(0);
   const [ttVix, setTtVix] = useState<number | null>(null);
 
+  // Strategy Builder states
+  const [sbExpandedSymbol, setSbExpandedSymbol] = useState<string | null>(null);
+  const [sbLoading, setSbLoading] = useState(false);
+  const [sbQuotePrice, setSbQuotePrice] = useState<number | null>(null);
+  const [sbChainData, setSbChainData] = useState<any | null>(null);
+  const [sbGreeksData, setSbGreeksData] = useState<Record<string, any>>({});
+  const [sbStrategies, setSbStrategies] = useState<StrategyCard[]>([]);
+  const [sbSelectedExp, setSbSelectedExp] = useState<number | null>(null);
+  // Click-to-build
+  const [sbCustomLegs, setSbCustomLegs] = useState<CustomLeg[]>([]);
+  const [sbCustomCard, setSbCustomCard] = useState<StrategyCard | null>(null);
+
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
     if (!isOwner || activeTab !== 'market-intelligence') return;
@@ -229,6 +252,124 @@ export default function TradingPage() {
       setTtScannerSort(col);
       setTtScannerSortDir('desc');
     }
+  };
+
+  // Strategy Builder: expand scanner row → fetch quote, chain, Greeks → generate strategies
+  const handleScannerExpand = async (symbol: string, ivRank: number) => {
+    if (sbExpandedSymbol === symbol) {
+      setSbExpandedSymbol(null);
+      return;
+    }
+    setSbExpandedSymbol(symbol);
+    setSbLoading(true);
+    setSbStrategies([]);
+    setSbChainData(null);
+    setSbGreeksData({});
+    setSbSelectedExp(null);
+    setSbCustomLegs([]);
+    setSbCustomCard(null);
+    setSbQuotePrice(null);
+
+    try {
+      // 1. Fetch quote + chain in parallel
+      const [quoteRes, chainRes] = await Promise.all([
+        fetch('/api/tastytrade/quotes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: [symbol] }),
+        }),
+        fetch('/api/tastytrade/chains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol }),
+        }),
+      ]);
+
+      let price: number | null = null;
+      if (quoteRes.ok) {
+        const qd = await quoteRes.json();
+        const q = qd.quotes?.[symbol] || Object.values(qd.quotes || {})[0];
+        if (q) price = q.last || q.mid || null;
+      }
+      setSbQuotePrice(price);
+
+      if (!chainRes.ok) { setSbLoading(false); return; }
+      const chainJson = await chainRes.json();
+      const chain = chainJson.chain;
+      if (!chain?.expirations?.length) { setSbLoading(false); return; }
+      setSbChainData(chain);
+
+      // 2. Pick first expiration with DTE 7-45
+      let expIdx = chain.expirations.findIndex((e: any) => e.dte >= 7 && e.dte <= 45);
+      if (expIdx === -1) expIdx = 0; // fallback to first
+      setSbSelectedExp(expIdx);
+      const exp = chain.expirations[expIdx];
+
+      // 3. Fetch Greeks for that expiration
+      const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
+      const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
+      const range = price ? price * 0.15 : 50;
+      const symbols: string[] = [];
+      for (const s of exp.strikes || []) {
+        if (Math.abs(s.strike - center) > range) continue;
+        if (s.callStreamerSymbol) symbols.push(s.callStreamerSymbol);
+        if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
+      }
+
+      if (symbols.length > 0) {
+        const greeksRes = await fetch('/api/tastytrade/greeks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: symbols.slice(0, 200) }),
+        });
+        if (greeksRes.ok) {
+          const gd = await greeksRes.json();
+          const greeks = gd.greeks || {};
+          setSbGreeksData(greeks);
+
+          // 4. Generate strategies
+          if (price) {
+            const strikeData = buildStrikeData(exp.strikes || [], greeks);
+            const cards = generateStrategies({
+              strikes: strikeData,
+              currentPrice: price,
+              ivRank,
+              expiration: exp.date,
+              dte: exp.dte,
+            });
+            setSbStrategies(cards);
+          }
+        }
+      }
+    } catch {
+      // ignore — don't break scanner
+    } finally {
+      setSbLoading(false);
+    }
+  };
+
+  // Click-to-build: toggle a leg
+  const handleClickLeg = (type: 'call' | 'put', side: 'buy' | 'sell', strike: number, streamerSymbol: string) => {
+    setSbCustomLegs(prev => {
+      const exists = prev.find(l => l.streamerSymbol === streamerSymbol && l.side === side);
+      let next: CustomLeg[];
+      if (exists) {
+        next = prev.filter(l => !(l.streamerSymbol === streamerSymbol && l.side === side));
+      } else if (prev.length >= 4) {
+        return prev; // max 4 legs
+      } else {
+        next = [...prev, { type, side, strike, streamerSymbol }];
+      }
+      // Auto-build custom card
+      if (next.length > 0 && sbChainData && sbSelectedExp != null) {
+        const exp = sbChainData.expirations[sbSelectedExp];
+        const card = buildCustomCard(next, sbGreeksData, exp.date, exp.dte, sbQuotePrice || 0);
+        setSbCustomCard(card);
+      } else {
+        setSbCustomCard(null);
+      }
+      return next;
+    });
   };
 
   const handleScanSymbol = (symbol: string) => {
@@ -1319,39 +1460,237 @@ export default function TradingPage() {
                                       </th>
                                     ))}
                                     <th className="text-center px-2 py-1.5 font-medium">Earnings</th>
+                                    <th className="text-left px-2 py-1.5 font-medium">Suggested</th>
                                     <th className="text-center px-2 py-1.5 font-medium"></th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {sortedScannerData.slice(0, 50).map((m: any) => (
-                                    <tr key={m.symbol} className="border-b border-gray-50 hover:bg-gray-50">
-                                      <td className="px-2 py-1.5 font-mono font-medium text-gray-900">{m.symbol}</td>
-                                      <td className={`text-right px-2 py-1.5 font-mono ${
-                                        m.ivRank > 50 ? 'text-emerald-600 font-medium' :
-                                        m.ivRank < 20 ? 'text-red-500' : 'text-gray-700'
-                                      }`}>{(m.ivRank * 100).toFixed(1)}</td>
-                                      <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.ivPercentile * 100).toFixed(1)}</td>
-                                      <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility * 100).toFixed(1)}%</td>
-                                      <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating || '\u2014'}</td>
-                                      <td className="text-center px-2 py-1.5">
-                                        {m.daysTillEarnings !== null && m.daysTillEarnings >= 0 && m.daysTillEarnings <= 30 ? (
-                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                            m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                                          }`}>
-                                            {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{m.daysTillEarnings}d
-                                          </span>
-                                        ) : (
-                                          <span className="text-gray-300">{'\u2014'}</span>
+                                  {sortedScannerData.slice(0, 50).map((m: any) => {
+                                    const labels = getStrategyLabels(m.ivRank);
+                                    const isExpanded = sbExpandedSymbol === m.symbol;
+                                    return (
+                                      <Fragment key={m.symbol}>
+                                        <tr
+                                          className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-indigo-50' : ''}`}
+                                          onClick={() => handleScannerExpand(m.symbol, m.ivRank)}
+                                        >
+                                          <td className="px-2 py-1.5 font-mono font-medium text-gray-900">
+                                            <span className="mr-1 text-[9px] text-gray-400">{isExpanded ? '\u25B2' : '\u25BC'}</span>
+                                            {m.symbol}
+                                          </td>
+                                          <td className={`text-right px-2 py-1.5 font-mono ${
+                                            m.ivRank > 50 ? 'text-emerald-600 font-medium' :
+                                            m.ivRank < 20 ? 'text-red-500' : 'text-gray-700'
+                                          }`}>{(m.ivRank * 100).toFixed(1)}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.ivPercentile * 100).toFixed(1)}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility * 100).toFixed(1)}%</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating || '\u2014'}</td>
+                                          <td className="text-center px-2 py-1.5">
+                                            {m.daysTillEarnings !== null && m.daysTillEarnings >= 0 && m.daysTillEarnings <= 30 ? (
+                                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                                m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                              }`}>
+                                                {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{m.daysTillEarnings}d
+                                              </span>
+                                            ) : (
+                                              <span className="text-gray-300">{'\u2014'}</span>
+                                            )}
+                                          </td>
+                                          <td className="px-2 py-1.5">
+                                            <div className="flex flex-wrap gap-0.5">
+                                              {labels.map((l, li) => (
+                                                <span key={li} className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                                                  l.type === 'credit' ? 'bg-emerald-100 text-emerald-700' :
+                                                  l.type === 'debit' ? 'bg-blue-100 text-blue-700' :
+                                                  'bg-gray-100 text-gray-600'
+                                                }`}>{l.name}</span>
+                                              ))}
+                                            </div>
+                                          </td>
+                                          <td className="text-center px-2 py-1.5">
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); handleScanSymbol(m.symbol); }}
+                                              className="text-[10px] font-medium text-[#2d1b4e] hover:underline"
+                                            >Scan</button>
+                                          </td>
+                                        </tr>
+                                        {/* Expanded Strategy Builder Row */}
+                                        {isExpanded && (
+                                          <tr>
+                                            <td colSpan={9} className="bg-gray-50 border-b border-gray-200 px-3 py-3">
+                                              {sbLoading ? (
+                                                <div className="flex items-center gap-2 text-xs text-gray-400 py-4 justify-center">
+                                                  <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                  Fetching chain & Greeks for {m.symbol}...
+                                                </div>
+                                              ) : sbStrategies.length > 0 || sbCustomCard ? (
+                                                <div>
+                                                  <div className="text-[10px] text-gray-500 mb-2 font-medium">
+                                                    AI Strategies for {m.symbol} {sbChainData && sbSelectedExp != null && `\u2014 ${sbChainData.expirations[sbSelectedExp].date} (${sbChainData.expirations[sbSelectedExp].dte} DTE)`}
+                                                    {sbQuotePrice && <span className="ml-2 text-gray-400">@ ${sbQuotePrice.toFixed(2)}</span>}
+                                                  </div>
+                                                  {/* Strategy Cards */}
+                                                  <div className="flex flex-wrap gap-3 mb-3">
+                                                    {sbStrategies.map((card, ci) => (
+                                                      <div key={ci} className="border border-gray-200 bg-white rounded p-3 min-w-[280px] max-w-[320px] flex-1">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                          <div className="text-xs font-semibold text-gray-900">{card.label}) {card.name}</div>
+                                                          <div className="text-[9px] text-gray-400">{card.dte} DTE</div>
+                                                        </div>
+                                                        <div className="border-t border-gray-100 pt-1 mb-1 space-y-0.5">
+                                                          {card.legs.map((leg, li) => (
+                                                            <div key={li} className="text-[10px] font-mono text-gray-600">
+                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-blue-600'}>
+                                                                {leg.side === 'sell' ? 'SELL' : 'BUY'}
+                                                              </span>{' '}
+                                                              {leg.strike} {leg.type === 'call' ? 'C' : 'P'}{' '}
+                                                              <span className="text-gray-400">@${leg.price.toFixed(2)}</span>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                        <div className="border-t border-gray-100 pt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                                                          <div className="text-gray-500">
+                                                            {card.netCredit != null ? 'Credit:' : 'Debit:'}
+                                                            <span className={`ml-1 font-mono font-medium ${card.netCredit != null ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                              ${(card.netCredit ?? card.netDebit ?? 0).toFixed(2)}
+                                                            </span>
+                                                          </div>
+                                                          <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
+                                                          <div className="text-gray-500">Max Loss: <span className="font-mono font-medium text-gray-700">{card.maxLoss != null ? `$${card.maxLoss}` : <span className="text-amber-600">Undefined</span>}</span></div>
+                                                          <div className="text-gray-500">R/R: <span className="font-mono font-medium text-gray-700">{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
+                                                          {card.breakevens.length > 0 && (
+                                                            <div className="text-gray-500 col-span-2">BE: <span className="font-mono text-gray-700">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
+                                                          )}
+                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span></div>
+                                                          <div className="text-gray-500">{'\u0398'}: <span className={`font-mono font-medium ${card.thetaPerDay >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{card.thetaPerDay >= 0 ? '+' : ''}${card.thetaPerDay.toFixed(2)}/day</span></div>
+                                                        </div>
+                                                        <div className="border-t border-gray-100 pt-1 mt-1 text-[9px] font-mono text-gray-400 flex gap-3">
+                                                          <span>{'\u0394'} {card.netDelta >= 0 ? '+' : ''}{card.netDelta.toFixed(2)}</span>
+                                                          <span>{'\u0393'} {card.netGamma >= 0 ? '+' : ''}{card.netGamma.toFixed(3)}</span>
+                                                          <span>{'\u0398'} {card.netTheta >= 0 ? '+' : ''}{card.netTheta.toFixed(2)}</span>
+                                                          <span>{'\u03BD'} {card.netVega >= 0 ? '+' : ''}{card.netVega.toFixed(2)}</span>
+                                                        </div>
+                                                        {/* P&L Chart */}
+                                                        {card.pnlPoints.length > 2 && sbQuotePrice && (
+                                                          <div className="border-t border-gray-100 pt-1 mt-1"
+                                                            dangerouslySetInnerHTML={{ __html: renderPnlSvg(card.pnlPoints, card.breakevens, sbQuotePrice, 280, 120) }}
+                                                          />
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                    {/* Custom Strategy Card */}
+                                                    {sbCustomCard && (
+                                                      <div className="border border-indigo-300 bg-indigo-50 rounded p-3 min-w-[280px] max-w-[320px] flex-1">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                          <div className="text-xs font-semibold text-indigo-900">{sbCustomCard.name}</div>
+                                                          <button onClick={() => { setSbCustomLegs([]); setSbCustomCard(null); }} className="text-[9px] text-indigo-400 hover:text-indigo-600">Clear</button>
+                                                        </div>
+                                                        <div className="border-t border-indigo-200 pt-1 mb-1 space-y-0.5">
+                                                          {sbCustomCard.legs.map((leg, li) => (
+                                                            <div key={li} className="text-[10px] font-mono text-gray-600">
+                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-blue-600'}>
+                                                                {leg.side === 'sell' ? 'SELL' : 'BUY'}
+                                                              </span>{' '}
+                                                              {leg.strike} {leg.type === 'call' ? 'C' : 'P'}{' '}
+                                                              <span className="text-gray-400">@${leg.price.toFixed(2)}</span>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                        <div className="border-t border-indigo-200 pt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                                                          <div className="text-gray-500">
+                                                            {sbCustomCard.netCredit != null ? 'Credit:' : 'Debit:'}
+                                                            <span className={`ml-1 font-mono font-medium ${sbCustomCard.netCredit != null ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                              ${(sbCustomCard.netCredit ?? sbCustomCard.netDebit ?? 0).toFixed(2)}
+                                                            </span>
+                                                          </div>
+                                                          <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{sbCustomCard.maxProfit != null ? `$${sbCustomCard.maxProfit}` : 'Unlimited'}</span></div>
+                                                          <div className="text-gray-500">Max Loss: <span className="font-mono font-medium text-gray-700">{sbCustomCard.maxLoss != null ? `$${sbCustomCard.maxLoss}` : <span className="text-amber-600">Undefined</span>}</span></div>
+                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{sbCustomCard.pop != null ? `~${Math.round(sbCustomCard.pop * 100)}%` : 'N/A'}</span></div>
+                                                        </div>
+                                                        {sbCustomCard.pnlPoints.length > 2 && sbQuotePrice && (
+                                                          <div className="border-t border-indigo-200 pt-1 mt-1"
+                                                            dangerouslySetInnerHTML={{ __html: renderPnlSvg(sbCustomCard.pnlPoints, sbCustomCard.breakevens, sbQuotePrice, 280, 120) }}
+                                                          />
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  {/* Click-to-build strike table */}
+                                                  {sbChainData && sbSelectedExp != null && (
+                                                    <div>
+                                                      <div className="flex items-center gap-2 mb-1">
+                                                        <div className="text-[9px] text-gray-400 uppercase tracking-wider">Click bid/ask to build custom strategy (max 4 legs)</div>
+                                                        {sbCustomLegs.length > 0 && (
+                                                          <button onClick={() => { setSbCustomLegs([]); setSbCustomCard(null); }} className="text-[9px] text-red-400 hover:text-red-600">Clear All</button>
+                                                        )}
+                                                      </div>
+                                                      <div className="overflow-x-auto max-h-[200px] overflow-y-auto">
+                                                        <table className="w-full text-[9px]">
+                                                          <thead className="sticky top-0 bg-gray-50">
+                                                            <tr className="text-gray-500 border-b border-gray-200">
+                                                              <th className="text-right px-1 py-0.5 font-medium">C.Bid</th>
+                                                              <th className="text-right px-1 py-0.5 font-medium">C.Ask</th>
+                                                              <th className="text-right px-1 py-0.5 font-medium">{'\u0394'}</th>
+                                                              <th className="text-center px-1 py-0.5 font-semibold bg-gray-100">Strike</th>
+                                                              <th className="text-left px-1 py-0.5 font-medium">{'\u0394'}</th>
+                                                              <th className="text-left px-1 py-0.5 font-medium">P.Bid</th>
+                                                              <th className="text-left px-1 py-0.5 font-medium">P.Ask</th>
+                                                            </tr>
+                                                          </thead>
+                                                          <tbody>
+                                                            {(sbChainData.expirations[sbSelectedExp].strikes || [])
+                                                              .filter((s: any) => {
+                                                                if (!sbQuotePrice) return true;
+                                                                return Math.abs(s.strike - sbQuotePrice) <= sbQuotePrice * 0.12;
+                                                              })
+                                                              .map((s: any, si: number) => {
+                                                                const cg = sbGreeksData[s.callStreamerSymbol] || {};
+                                                                const pg = sbGreeksData[s.putStreamerSymbol] || {};
+                                                                const isCallBidSel = sbCustomLegs.some(l => l.streamerSymbol === s.callStreamerSymbol && l.side === 'sell');
+                                                                const isCallAskSel = sbCustomLegs.some(l => l.streamerSymbol === s.callStreamerSymbol && l.side === 'buy');
+                                                                const isPutBidSel = sbCustomLegs.some(l => l.streamerSymbol === s.putStreamerSymbol && l.side === 'sell');
+                                                                const isPutAskSel = sbCustomLegs.some(l => l.streamerSymbol === s.putStreamerSymbol && l.side === 'buy');
+                                                                return (
+                                                                  <tr key={si} className="border-b border-gray-50 hover:bg-white">
+                                                                    <td
+                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isCallBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-gray-600'}`}
+                                                                      onClick={(e) => { e.stopPropagation(); if (cg.bid != null) handleClickLeg('call', 'sell', s.strike, s.callStreamerSymbol); }}
+                                                                    >{cg.bid != null ? cg.bid.toFixed(2) : ''}</td>
+                                                                    <td
+                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-blue-100 ${isCallAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-gray-600'}`}
+                                                                      onClick={(e) => { e.stopPropagation(); if (cg.ask != null) handleClickLeg('call', 'buy', s.strike, s.callStreamerSymbol); }}
+                                                                    >{cg.ask != null ? cg.ask.toFixed(2) : ''}</td>
+                                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-400">{cg.delta != null ? cg.delta.toFixed(2) : ''}</td>
+                                                                    <td className={`text-center px-1 py-0.5 font-mono font-semibold bg-gray-100 ${sbQuotePrice && Math.abs(s.strike - sbQuotePrice) < 1 ? 'text-indigo-700' : 'text-gray-700'}`}>{s.strike}</td>
+                                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-400">{pg.delta != null ? pg.delta.toFixed(2) : ''}</td>
+                                                                    <td
+                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isPutBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-gray-600'}`}
+                                                                      onClick={(e) => { e.stopPropagation(); if (pg.bid != null) handleClickLeg('put', 'sell', s.strike, s.putStreamerSymbol); }}
+                                                                    >{pg.bid != null ? pg.bid.toFixed(2) : ''}</td>
+                                                                    <td
+                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-blue-100 ${isPutAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-gray-600'}`}
+                                                                      onClick={(e) => { e.stopPropagation(); if (pg.ask != null) handleClickLeg('put', 'buy', s.strike, s.putStreamerSymbol); }}
+                                                                    >{pg.ask != null ? pg.ask.toFixed(2) : ''}</td>
+                                                                  </tr>
+                                                                );
+                                                              })}
+                                                          </tbody>
+                                                        </table>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <div className="text-xs text-gray-400 text-center py-2">
+                                                  No strategies available{sbQuotePrice ? '' : ' (could not fetch quote price)'}
+                                                </div>
+                                              )}
+                                            </td>
+                                          </tr>
                                         )}
-                                      </td>
-                                      <td className="text-center px-2 py-1.5">
-                                        <button
-                                          onClick={() => handleScanSymbol(m.symbol)}
-                                          className="text-[10px] font-medium text-[#2d1b4e] hover:underline"
-                                        >Scan</button>
-                                      </td>
-                                    </tr>
-                                  ))}
+                                      </Fragment>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
