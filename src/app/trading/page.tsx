@@ -133,6 +133,13 @@ export default function TradingPage() {
   const [ttGreeksLoading, setTtGreeksLoading] = useState(false);
   const [ttGreeksFetched, setTtGreeksFetched] = useState<Set<number>>(new Set());
   const [ttShowAllStrikes, setTtShowAllStrikes] = useState(false);
+  const [ttScannerData, setTtScannerData] = useState<any[]>([]);
+  const [ttScannerLoading, setTtScannerLoading] = useState(false);
+  const [ttScannerFetchedAt, setTtScannerFetchedAt] = useState<string | null>(null);
+  const [ttScannerSort, setTtScannerSort] = useState<string>('ivRank');
+  const [ttScannerSortDir, setTtScannerSortDir] = useState<'asc' | 'desc'>('desc');
+  const [ttScannerCountdown, setTtScannerCountdown] = useState(60);
+  const [ttVix, setTtVix] = useState<number | null>(null);
 
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
@@ -145,6 +152,77 @@ export default function TradingPage() {
       })
       .catch(() => setTtConnected(false));
   }, [isOwner, activeTab]);
+
+  // Scanner: fetch market metrics + VIX
+  const fetchScannerData = async () => {
+    setTtScannerLoading(true);
+    try {
+      const [scanRes, vixRes] = await Promise.all([
+        fetch('/api/tastytrade/scanner'),
+        fetch('/api/tastytrade/quotes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: ['$VIX.X'] }),
+        }),
+      ]);
+      if (scanRes.ok) {
+        const data = await scanRes.json();
+        setTtScannerData(data.metrics || []);
+        setTtScannerFetchedAt(data.fetchedAt || new Date().toISOString());
+        setTtScannerCountdown(60);
+      }
+      if (vixRes.ok) {
+        const data = await vixRes.json();
+        const vq = data.quotes?.['$VIX.X'] || data.quotes?.['VIX'] || Object.values(data.quotes || {})[0];
+        if (vq) setTtVix(vq.last || vq.mid || null);
+      }
+    } catch {
+      // ignore — scanner failure shouldn't break the rest
+    } finally {
+      setTtScannerLoading(false);
+    }
+  };
+
+  // Auto-fetch scanner on connection, refresh every 60s
+  useEffect(() => {
+    if (!ttConnected || activeTab !== 'market-intelligence') return;
+    fetchScannerData();
+    const interval = setInterval(fetchScannerData, 60000);
+    return () => clearInterval(interval);
+  }, [ttConnected, activeTab]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!ttScannerFetchedAt) return;
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - new Date(ttScannerFetchedAt).getTime()) / 1000);
+      setTtScannerCountdown(Math.max(0, 60 - elapsed));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [ttScannerFetchedAt]);
+
+  // Sort scanner data
+  const sortedScannerData = useMemo(() => {
+    return [...ttScannerData].sort((a, b) => {
+      const av = a[ttScannerSort] ?? 0;
+      const bv = b[ttScannerSort] ?? 0;
+      return ttScannerSortDir === 'desc' ? bv - av : av - bv;
+    });
+  }, [ttScannerData, ttScannerSort, ttScannerSortDir]);
+
+  const handleScannerSort = (col: string) => {
+    if (ttScannerSort === col) {
+      setTtScannerSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    } else {
+      setTtScannerSort(col);
+      setTtScannerSortDir('desc');
+    }
+  };
+
+  const handleScanSymbol = (symbol: string) => {
+    setTtQuoteSymbol(symbol);
+    setTtChainSymbol(symbol);
+  };
 
   const handleTtConnect = async () => {
     if (!ttUsername || !ttPassword) {
@@ -1107,6 +1185,106 @@ export default function TradingPage() {
                       </div>
                     ) : ttConnected ? (
                       <>
+                        {/* Market Regime Header */}
+                        {ttVix !== null && (
+                          <div className="bg-white border border-gray-200 px-6 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-gray-500 uppercase tracking-wider">VIX</span>
+                              <span className="text-lg font-mono font-semibold">{ttVix.toFixed(2)}</span>
+                              <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${
+                                ttVix < 15 ? 'bg-emerald-100 text-emerald-700' :
+                                ttVix < 20 ? 'bg-gray-100 text-gray-700' :
+                                ttVix < 30 ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {ttVix < 15 ? 'Low Vol' : ttVix < 20 ? 'Normal' : ttVix < 30 ? 'Elevated' : 'High Vol'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              {ttVix < 15 ? 'Buying premium may outperform selling' :
+                               ttVix < 20 ? 'Balanced environment for premium strategies' :
+                               ttVix < 30 ? 'Elevated premiums — selling strategies favored' :
+                               'Extreme vol — wide spreads, manage risk tightly'}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Volatility Scanner */}
+                        <div className="bg-white border border-gray-200 p-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-xs text-gray-500 uppercase tracking-wider">Volatility Scanner</div>
+                            <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                              {ttScannerFetchedAt && (
+                                <span>Updated {new Date(ttScannerFetchedAt).toLocaleTimeString()}</span>
+                              )}
+                              <span>{ttScannerCountdown}s</span>
+                              {ttScannerLoading && (
+                                <div className="w-2.5 h-2.5 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                              )}
+                            </div>
+                          </div>
+                          {sortedScannerData.length > 0 ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="border-b border-gray-200 text-gray-500">
+                                    <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
+                                    {[
+                                      { key: 'ivRank', label: 'IV Rank' },
+                                      { key: 'ivPercentile', label: 'IV %ile' },
+                                      { key: 'impliedVolatility', label: 'IV' },
+                                      { key: 'liquidityRating', label: 'Liquidity' },
+                                    ].map(col => (
+                                      <th
+                                        key={col.key}
+                                        className="text-right px-2 py-1.5 font-medium cursor-pointer hover:text-gray-900 select-none"
+                                        onClick={() => handleScannerSort(col.key)}
+                                      >
+                                        {col.label}{ttScannerSort === col.key ? (ttScannerSortDir === 'desc' ? ' \u25BC' : ' \u25B2') : ''}
+                                      </th>
+                                    ))}
+                                    <th className="text-center px-2 py-1.5 font-medium">Earnings</th>
+                                    <th className="text-center px-2 py-1.5 font-medium"></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sortedScannerData.map((m: any) => (
+                                    <tr key={m.symbol} className="border-b border-gray-50 hover:bg-gray-50">
+                                      <td className="px-2 py-1.5 font-mono font-medium text-gray-900">{m.symbol}</td>
+                                      <td className={`text-right px-2 py-1.5 font-mono ${
+                                        m.ivRank > 50 ? 'text-emerald-600 font-medium' :
+                                        m.ivRank < 20 ? 'text-red-500' : 'text-gray-700'
+                                      }`}>{(m.ivRank * 100).toFixed(1)}</td>
+                                      <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.ivPercentile * 100).toFixed(1)}</td>
+                                      <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility * 100).toFixed(1)}%</td>
+                                      <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating || '\u2014'}</td>
+                                      <td className="text-center px-2 py-1.5">
+                                        {m.daysTillEarnings !== null && m.daysTillEarnings >= 0 && m.daysTillEarnings <= 30 ? (
+                                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                            m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                          }`}>
+                                            {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{m.daysTillEarnings}d
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-300">\u2014</span>
+                                        )}
+                                      </td>
+                                      <td className="text-center px-2 py-1.5">
+                                        <button
+                                          onClick={() => handleScanSymbol(m.symbol)}
+                                          className="text-[10px] font-medium text-[#2d1b4e] hover:underline"
+                                        >Scan</button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : !ttScannerLoading ? (
+                            <div className="text-sm text-gray-400">No scanner data — connect to Tastytrade first</div>
+                          ) : null}
+                        </div>
+
                         {/* Card 1 — Account Overview */}
                         <div className="bg-white border border-gray-200 p-6">
                           <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Account Overview</div>
