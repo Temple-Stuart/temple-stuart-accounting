@@ -196,11 +196,6 @@ export async function GET(request: Request) {
 
     const items = batchResults.flat();
 
-    if (items.length > 0) {
-      console.log('[Scanner] ALL KEYS:', Object.keys(items[0]).sort().join('\n'));
-      console.log('[Scanner] FULL FIRST ITEM:', JSON.stringify(items[0], null, 2));
-    }
-
     const metrics = items.map((m: any) => {
       const earningsDate = m['earnings']?.['expected-report-date'] || m['next-earnings-date'] || null;
       let daysTillEarnings: number | null = null;
@@ -230,6 +225,8 @@ export async function GET(request: Request) {
       totalScanned: totalSymbols,
       universe,
       fetchedAt: new Date().toISOString(),
+      debugFields: items.length > 0 ? Object.keys(items[0]).sort() : [],
+      debugFirstItem: items.length > 0 ? items[0] : null,
     });
   } catch (error: any) {
     console.error('[Tastytrade] Scanner error:', error);
