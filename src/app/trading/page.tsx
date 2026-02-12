@@ -277,18 +277,45 @@ export default function TradingPage() {
     } else {
       score += 5;
     }
+    // HV Trend (-3 to +5 pts)
+    if (t.hv30 != null && t.hv60 != null && t.hv90 != null) {
+      if (t.hv30 < t.hv60 && t.hv60 < t.hv90) score += 5;
+      else if (t.hv30 > t.hv60 && t.hv60 > t.hv90) score -= 3;
+    }
+    // Lendability (0-5 pts)
+    if (t.lendability === 'Easy To Borrow') score += 5;
+    else if (t.lendability === 'Locate Required') score += 2;
     return score;
   };
 
-  // Sort scanner data with computed score
-  const sortedScannerData = useMemo(() => {
-    const scored = ttScannerData.map(m => ({ ...m, score: computeScore(m) }));
-    return scored.sort((a, b) => {
+  // Hard gate filter reasons
+  const getFilterReason = (t: any): string | null => {
+    if (t.liquidityRating == null || t.liquidityRating < 2) return 'Low liquidity';
+    if ((t.ivRank ?? 0) > 0.3 && t.ivHvSpread != null && t.ivHvSpread < 0) return 'Negative IV-HV spread';
+    return null;
+  };
+
+  // Sort scanner data with computed score + hard gates
+  const [filteredOutExpanded, setFilteredOutExpanded] = useState(false);
+  const { passedData, filteredData } = useMemo(() => {
+    const scored = ttScannerData.map(m => ({
+      ...m,
+      score: computeScore(m),
+      filterReason: getFilterReason(m),
+    }));
+    const passed = scored.filter(m => !m.filterReason);
+    const filtered = scored.filter(m => m.filterReason);
+    const sortFn = (a: any, b: any) => {
       const av = a[ttScannerSort] ?? 0;
       const bv = b[ttScannerSort] ?? 0;
       return ttScannerSortDir === 'desc' ? bv - av : av - bv;
-    });
+    };
+    passed.sort(sortFn);
+    filtered.sort(sortFn);
+    return { passedData: passed, filteredData: filtered };
   }, [ttScannerData, ttScannerSort, ttScannerSortDir]);
+  // Keep sortedScannerData for backward compat (expanded row logic)
+  const sortedScannerData = passedData;
 
   const handleScannerSort = (col: string) => {
     if (ttScannerSort === col) {
@@ -1483,7 +1510,7 @@ export default function TradingPage() {
                             <div className="overflow-x-auto">
                               {ttScannerTotalScanned > 50 && (
                                 <div className="text-[10px] text-gray-400 mb-1">
-                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned (sorted by {
+                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned{filteredData.length > 0 ? ` (${filteredData.length} excluded by filters)` : ''} (sorted by {
                                     { score: 'Score', ivRank: 'IV Rank', ivHvSpread: 'IV-HV', hv30: 'HV30', impliedVolatility: 'IV', liquidityRating: 'Liquidity' }[ttScannerSort] || ttScannerSort
                                   } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'})
                                 </div>
@@ -1548,9 +1575,16 @@ export default function TradingPage() {
                                             ivhv != null && ivhv > 3 ? 'text-amber-600' :
                                             ivhv != null && ivhv < 0 ? 'text-red-500' : 'text-gray-400'
                                           }`}>{ivhv != null ? ivhv.toFixed(1) : '\u2014'}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.hv30 != null ? (m.hv30 * 100).toFixed(1) + '%' : '\u2014'}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating || '\u2014'}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.hv30 != null ? <>
+                                            {m.hv30.toFixed(1)}%{' '}
+                                            {m.hv30 != null && m.hv60 != null && m.hv90 != null ? (
+                                              m.hv30 < m.hv60 && m.hv60 < m.hv90 ? <span className="text-emerald-500">{'\u25BC'}</span> :
+                                              m.hv30 > m.hv60 && m.hv60 > m.hv90 ? <span className="text-red-500">{'\u25B2'}</span> :
+                                              <span className="text-gray-300">{'\u2014'}</span>
+                                            ) : null}
+                                          </> : '\u2014'}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility ?? 0).toFixed(1)}%</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5 text-[10px] text-gray-500 font-mono">{m.sector ? (sectorShort[m.sector] || m.sector.slice(0, 4)) : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5">
                                             {earningsTag ? (
@@ -1766,6 +1800,34 @@ export default function TradingPage() {
                                   })}
                                 </tbody>
                               </table>
+                              {filteredData.length > 0 && (
+                                <div className="mt-2">
+                                  <button
+                                    onClick={() => setFilteredOutExpanded(p => !p)}
+                                    className="text-[10px] text-gray-400 hover:text-gray-600"
+                                  >
+                                    {filteredOutExpanded ? '\u25B2' : '\u25BC'} Filtered Out ({filteredData.length})
+                                  </button>
+                                  {filteredOutExpanded && (
+                                    <table className="w-full text-xs mt-1 opacity-50">
+                                      <tbody>
+                                        {filteredData.slice(0, 30).map((m: any) => (
+                                          <tr key={m.symbol} className="border-b border-gray-50">
+                                            <td className="px-2 py-1 font-mono text-gray-400">{m.symbol}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.score}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.ivHvSpread != null ? m.ivHvSpread.toFixed(1) : '\u2014'}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.hv30 != null ? m.hv30.toFixed(1) + '%' : '\u2014'}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{(m.impliedVolatility ?? 0).toFixed(1)}%</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
+                                            <td className="px-2 py-1 text-[10px] text-red-400">{m.filterReason}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ) : !ttScannerLoading ? (
                             <div className="text-xs text-gray-400">

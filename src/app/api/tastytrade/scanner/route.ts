@@ -212,7 +212,7 @@ export async function GET(request: Request) {
         ivRank: Number(m['implied-volatility-index-rank'] || m['tos-implied-volatility-index-rank'] || m['tw-implied-volatility-index-rank'] || 0),
         ivPercentile: Number(m['implied-volatility-percentile'] || 0),
         impliedVolatility: Number(m['implied-volatility-index'] || 0),
-        liquidityRating: Number(m['liquidity-rating'] || m['liquidity-value'] || 0),
+        liquidityRating: m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null,
         earningsDate,
         daysTillEarnings,
 
