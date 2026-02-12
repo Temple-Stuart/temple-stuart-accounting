@@ -188,8 +188,17 @@ export default function TradingPage() {
   const [strategyAnalyses, setStrategyAnalyses] = useState<Record<string, { strategy: string; analysis: string }[]>>({});
   const [strategyAnalysisLoading, setStrategyAnalysisLoading] = useState<Record<string, boolean>>({});
 
-  // Auto-expand top tickers from brief
-  const [autoExpandTriggered, setAutoExpandTriggered] = useState(false);
+  // Top Picks — dedicated strategy analysis for brief's top tickers
+  const [topPicksData, setTopPicksData] = useState<Record<string, {
+    status: 'loading' | 'strategies' | 'analyzing' | 'done' | 'error';
+    price?: number;
+    expDate?: string;
+    dte?: number;
+    strategies?: StrategyCard[];
+    analyses?: { strategy: string; analysis: string }[];
+    error?: string;
+  }>>({});
+  const [topPicksTriggered, setTopPicksTriggered] = useState(false);
 
   // Click-to-build
   const [sbCustomLegs, setSbCustomLegs] = useState<CustomLeg[]>([]);
@@ -490,23 +499,184 @@ export default function TradingPage() {
     return { topSymbols: top, marginalSymbols: marg, briefNoteMap: notes };
   }, [marketBrief]);
 
-  // Auto-expand top 3 tickers from Market Brief (sequentially to avoid hammering TT API)
+  // Reset top picks when market brief is refreshed (set to null)
   useEffect(() => {
-    if (autoExpandTriggered) return;
+    if (!marketBrief) {
+      setTopPicksTriggered(false);
+      setTopPicksData({});
+    }
+  }, [marketBrief]);
+
+  // Top Picks: process all topNotes tickers sequentially after Market Brief loads
+  useEffect(() => {
+    if (topPicksTriggered) return;
     if (!marketBrief?.topNotes?.length) return;
     if (passedData.length === 0) return;
-    setAutoExpandTriggered(true);
-    const top3 = marketBrief.topNotes.slice(0, 3);
-    const passedSymbols = new Set(passedData.map((m: any) => m.symbol));
-    const validSymbols = top3.filter(n => passedSymbols.has(n.symbol));
-    if (validSymbols.length === 0) return;
-    // Expand first one immediately
-    const first = validSymbols[0];
-    const firstRow = passedData.find((m: any) => m.symbol === first.symbol);
-    if (firstRow) {
-      handleScannerExpand(first.symbol, firstRow.ivRank);
-    }
-  }, [marketBrief, passedData.length, autoExpandTriggered]);
+    setTopPicksTriggered(true);
+
+    const symbols = marketBrief.topNotes.slice(0, 8).map(n => n.symbol);
+    // Initialize all as loading
+    const init: typeof topPicksData = {};
+    for (const sym of symbols) init[sym] = { status: 'loading' };
+    setTopPicksData(init);
+
+    // Process sequentially to respect TT API rate limits
+    (async () => {
+      for (const symbol of symbols) {
+        try {
+          // 1. Fetch quote + chain in parallel
+          const [quoteRes, chainRes] = await Promise.all([
+            fetch('/api/tastytrade/quotes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbols: [symbol] }),
+            }),
+            fetch('/api/tastytrade/chains', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol }),
+            }),
+          ]);
+
+          let price: number | null = null;
+          if (quoteRes.ok) {
+            const qd = await quoteRes.json();
+            const q = qd.quotes?.[symbol] || Object.values(qd.quotes || {})[0];
+            if (q) price = (q as any).last || (q as any).mid || null;
+          }
+          if (!price) throw new Error('No quote');
+
+          if (!chainRes.ok) throw new Error('No chain');
+          const chainJson = await chainRes.json();
+          const chain = chainJson.chain;
+          if (!chain?.expirations?.length) throw new Error('No chain');
+
+          // 2. Pick expiration closest to 35 DTE within 20-60 range
+          let bestExpIdx = 0;
+          let bestDiff = Infinity;
+          for (let i = 0; i < chain.expirations.length; i++) {
+            const dte = chain.expirations[i].dte;
+            if (dte >= 20 && dte <= 60) {
+              const diff = Math.abs(dte - 35);
+              if (diff < bestDiff) { bestDiff = diff; bestExpIdx = i; }
+            }
+          }
+          const exp = chain.expirations[bestExpIdx];
+
+          // 3. Fetch Greeks for that expiration
+          const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
+          const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
+          const range = price ? price * 0.15 : 50;
+          const streamerSyms: string[] = [];
+          for (const s of exp.strikes || []) {
+            if (Math.abs(s.strike - center) > range) continue;
+            if (s.callStreamerSymbol) streamerSyms.push(s.callStreamerSymbol);
+            if (s.putStreamerSymbol) streamerSyms.push(s.putStreamerSymbol);
+          }
+
+          let greeks: Record<string, any> = {};
+          if (streamerSyms.length > 0) {
+            const greeksRes = await fetch('/api/tastytrade/greeks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbols: streamerSyms.slice(0, 200) }),
+            });
+            if (greeksRes.ok) {
+              const gd = await greeksRes.json();
+              greeks = gd.greeks || {};
+            }
+          }
+
+          // 4. Generate strategies (same functions as handleScannerExpand)
+          const scannerItem = passedData.find((t: any) => t.symbol === symbol);
+          const ivRank = scannerItem?.ivRank ?? 0;
+          const strikeData = buildStrikeData(exp.strikes || [], greeks);
+          const cards = generateStrategies({
+            strikes: strikeData,
+            currentPrice: price,
+            ivRank,
+            expiration: exp.date,
+            dte: exp.dte,
+          });
+
+          if (cards.length === 0) throw new Error('No strategies');
+
+          setTopPicksData(prev => ({
+            ...prev,
+            [symbol]: { status: 'analyzing', price, expDate: exp.date, dte: exp.dte, strategies: cards }
+          }));
+
+          // 5. AI analysis
+          try {
+            const aiRes = await fetch('/api/ai/strategy-analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                symbol,
+                scannerData: scannerItem ? {
+                  ivHvSpread: scannerItem.ivHvSpread,
+                  hvTrend: scannerItem.hv30 < scannerItem.hv60 && scannerItem.hv60 < scannerItem.hv90 ? 'declining' :
+                           scannerItem.hv30 > scannerItem.hv60 && scannerItem.hv60 > scannerItem.hv90 ? 'rising' : 'mixed',
+                  earningsDate: scannerItem.earningsDate,
+                  daysTillEarnings: scannerItem.daysTillEarnings,
+                  sector: scannerItem.sector,
+                  hasWideSpread: cards.some(c => c.hasWideSpread),
+                } : {},
+                strategies: cards.map(c => ({
+                  name: c.name,
+                  legs: c.legs.map(l => ({ side: l.side, type: l.type, strike: l.strike, price: l.price })),
+                  netCredit: c.netCredit,
+                  netDebit: c.netDebit,
+                  maxProfit: c.maxProfit,
+                  maxLoss: c.maxLoss,
+                  breakevens: c.breakevens,
+                  pop: c.pop,
+                  riskReward: c.riskReward,
+                  dte: c.dte,
+                  thetaPerDay: c.thetaPerDay,
+                  netDelta: c.netDelta,
+                  netVega: c.netVega,
+                })),
+              }),
+            });
+            if (aiRes.ok) {
+              const aiData = await aiRes.json();
+              setTopPicksData(prev => ({
+                ...prev,
+                [symbol]: {
+                  status: 'done',
+                  price,
+                  expDate: exp.date,
+                  dte: exp.dte,
+                  strategies: cards,
+                  analyses: Array.isArray(aiData) ? aiData : [],
+                }
+              }));
+            } else {
+              // AI failed, still show strategies without analysis
+              setTopPicksData(prev => ({
+                ...prev,
+                [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [] }
+              }));
+            }
+          } catch {
+            // AI failed, still show strategies
+            setTopPicksData(prev => ({
+              ...prev,
+              [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [] }
+            }));
+          }
+
+        } catch (err) {
+          setTopPicksData(prev => ({
+            ...prev,
+            [symbol]: { status: 'error', error: String(err) }
+          }));
+        }
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketBrief, passedData.length, topPicksTriggered]);
 
   // Strategy Builder: expand scanner row → fetch quote, chain, Greeks → generate strategies
   const handleScannerExpand = async (symbol: string, ivRank: number) => {
@@ -1755,6 +1925,143 @@ export default function TradingPage() {
                               {marketBriefError && !marketBriefLoading && (
                                 <div style={{ color: '#6B7280', fontSize: 12, marginBottom: 8 }}>{marketBriefError}</div>
                               )}
+
+                              {/* Top Picks — Strategy Analysis */}
+                              {marketBrief?.topNotes && marketBrief.topNotes.length > 0 && Object.keys(topPicksData).length > 0 && (
+                                <div style={{ marginBottom: 16 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#D1D5DB', letterSpacing: '0.05em', marginBottom: 12 }}>
+                                    TOP PICKS &mdash; STRATEGY ANALYSIS
+                                  </div>
+                                  {marketBrief.topNotes.slice(0, 8).map((pick) => {
+                                    const data = topPicksData[pick.symbol];
+                                    return (
+                                      <div key={pick.symbol} style={{ border: '1px solid #374151', borderRadius: 8, padding: 16, marginBottom: 12, background: '#111827' }}>
+                                        {/* Symbol header */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                          <span style={{ fontSize: 14, fontWeight: 700, color: '#10B981' }}>
+                                            {pick.symbol}
+                                            <span style={{ fontWeight: 400, color: '#6B7280', fontSize: 12, marginLeft: 8 }}>{pick.note}</span>
+                                          </span>
+                                          <span style={{ color: '#9CA3AF', fontSize: 12 }}>
+                                            {data?.price ? `$${data.price.toFixed(2)}` : ''}
+                                            {data?.expDate && data?.dte != null ? ` \u00B7 ${data.expDate} (${data.dte} DTE)` : ''}
+                                          </span>
+                                        </div>
+
+                                        {/* Loading state */}
+                                        {(!data || data.status === 'loading') && (
+                                          <div className="flex items-center gap-2" style={{ color: '#6B7280', fontSize: 12 }}>
+                                            <div className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                            Loading strategies...
+                                          </div>
+                                        )}
+
+                                        {/* Strategies generated, waiting for AI */}
+                                        {data?.status === 'analyzing' && data.strategies && (
+                                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                            {data.strategies.map((card, ci) => (
+                                              <div key={ci} style={{ flex: '1 1 280px', maxWidth: 340, border: '1px solid #1F2937', borderRadius: 6, padding: 12, background: '#0D1117' }}>
+                                                <div style={{ fontSize: 12, fontWeight: 600, color: '#D1D5DB', marginBottom: 4 }}>
+                                                  {card.label}) {card.name}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: '#6B7280' }}>
+                                                  {card.legs.length} legs | {card.dte} DTE |{' '}
+                                                  PoP {card.pop != null ? `${Math.round(card.pop * 100)}%` : 'N/A'} |{' '}
+                                                  {card.netCredit != null ? `Credit $${card.netCredit.toFixed(2)}` : `Debit $${(card.netDebit ?? 0).toFixed(2)}`}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-2" style={{ color: '#6B7280', fontSize: 11, fontStyle: 'italic' }}>
+                                                  <div className="w-2 h-2 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                                  Analyzing...
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {/* Done — full strategy cards with AI analysis */}
+                                        {data?.status === 'done' && data.strategies && (
+                                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                            {data.strategies.map((card, ci) => {
+                                              const analysis = data.analyses?.find(a => a.strategy === card.name);
+                                              return (
+                                                <div key={ci} style={{ flex: '1 1 280px', maxWidth: 340, border: '1px solid #1F2937', borderRadius: 6, padding: 12, background: '#0D1117' }}>
+                                                  <div style={{ fontSize: 12, fontWeight: 600, color: '#D1D5DB', marginBottom: 4 }}>
+                                                    {card.label}) {card.name}
+                                                  </div>
+
+                                                  {/* Legs detail */}
+                                                  <div style={{ borderTop: '1px solid #1F2937', paddingTop: 4, marginBottom: 4 }}>
+                                                    {card.legs.map((leg, li) => (
+                                                      <div key={li} style={{ fontSize: 11, fontFamily: 'monospace', color: '#6B7280', marginBottom: 2 }}>
+                                                        <span style={{ color: leg.side === 'sell' ? '#10B981' : '#3B82F6' }}>
+                                                          {leg.side === 'sell' ? 'SELL' : 'BUY'}
+                                                        </span>{' '}
+                                                        {leg.strike} {leg.type === 'call' ? 'C' : 'P'}{' '}
+                                                        <span style={{ color: '#4B5563' }}>@${leg.price.toFixed(2)}</span>
+                                                        {leg.delta != null && <span style={{ color: '#374151' }}> ({'\u0394'}{leg.delta.toFixed(2)})</span>}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+
+                                                  {/* Key metrics */}
+                                                  <div style={{ borderTop: '1px solid #1F2937', paddingTop: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', fontSize: 11, color: '#9CA3AF' }}>
+                                                    <div>{card.netCredit != null ? 'Credit:' : 'Debit:'} <span style={{ fontFamily: 'monospace', fontWeight: 500, color: card.netCredit != null ? '#10B981' : '#3B82F6' }}>${(card.netCredit ?? card.netDebit ?? 0).toFixed(2)}</span></div>
+                                                    <div>Max Profit: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
+                                                    <div>Max Loss: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.maxLoss != null ? `$${card.maxLoss}` : <span style={{ color: '#F59E0B' }}>Undefined</span>}</span></div>
+                                                    <div>R/R: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
+                                                  </div>
+
+                                                  {/* PoP + Greeks row */}
+                                                  <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 11, color: '#9CA3AF' }}>
+                                                    <span>PoP: <span style={{ color: card.pop != null && card.pop >= 0.6 ? '#10B981' : card.pop != null && card.pop >= 0.45 ? '#F59E0B' : '#EF4444' }}>
+                                                      {card.pop != null ? `${Math.round(card.pop * 100)}%` : 'N/A'}
+                                                    </span></span>
+                                                    <span>{'\u0398'}: ${card.thetaPerDay >= 0 ? '+' : ''}{card.thetaPerDay.toFixed(2)}/day</span>
+                                                    <span>{'\u0394'}: {card.netDelta >= 0 ? '+' : ''}{card.netDelta.toFixed(2)}</span>
+                                                    <span>{'\u03BD'}: {card.netVega >= 0 ? '+' : ''}{card.netVega.toFixed(2)}</span>
+                                                  </div>
+
+                                                  {/* Breakevens */}
+                                                  {card.breakevens.length > 0 && (
+                                                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
+                                                      BE: {card.breakevens.map(b => `$${b}`).join(' \u2014 ')}
+                                                    </div>
+                                                  )}
+
+                                                  {/* P&L Chart */}
+                                                  {card.pnlPoints.length > 2 && data.price && (
+                                                    <div style={{ borderTop: '1px solid #1F2937', paddingTop: 4, marginTop: 4 }}
+                                                      dangerouslySetInnerHTML={{ __html: renderPnlSvg(card.pnlPoints, card.breakevens, data.price, 280, 100) }}
+                                                    />
+                                                  )}
+
+                                                  {/* Wide spread warning */}
+                                                  {card.hasWideSpread && (
+                                                    <div style={{ fontSize: 10, color: '#F59E0B', marginTop: 4 }}>{'\u26A0'} Wide bid/ask spreads &mdash; fill prices may differ</div>
+                                                  )}
+
+                                                  {/* AI Analysis */}
+                                                  {analysis?.analysis && (
+                                                    <div style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.5, marginTop: 8, paddingTop: 8, borderTop: '1px solid #1F2937', fontStyle: 'italic' }}>
+                                                      {analysis.analysis}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
+                                        {/* Error state */}
+                                        {data?.status === 'error' && (
+                                          <div style={{ color: '#6B7280', fontSize: 12 }}>Could not load strategies for {pick.symbol}</div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="border-b border-gray-200 text-gray-500">
