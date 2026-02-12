@@ -200,6 +200,7 @@ export default function TradingPage() {
       news: { count: number; articles: { headline: string; source: string; daysAgo: number; url: string }[] } | null;
       analysts: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
       priceTarget: { high: number; low: number; mean: number; median: number; numberAnalysts: number } | null;
+      priceTargetStatus?: number; // HTTP status if price target was blocked (e.g. 403 = premium)
     } | null;
     error?: string;
   }>>({});
@@ -609,7 +610,23 @@ export default function TradingPage() {
             dte: exp.dte,
           });
 
-          if (cards.length === 0) throw new Error('No strategies');
+          if (cards.length === 0) {
+            // No valid strategies — show Finnhub data if available but note no strategies
+            const finnhubData = await finnhubPromise;
+            setTopPicksData(prev => ({
+              ...prev,
+              [symbol]: {
+                status: 'done',
+                price,
+                expDate: exp.date,
+                dte: exp.dte,
+                strategies: [],
+                analyses: [],
+                finnhub: finnhubData?.error ? null : finnhubData,
+              }
+            }));
+            continue; // move to next symbol
+          }
 
           // Await Finnhub data (started earlier in parallel — adds zero latency)
           const finnhubData = await finnhubPromise;
@@ -684,9 +701,10 @@ export default function TradingPage() {
           }
 
         } catch (err) {
+          console.error(`[TopPicks] Failed for ${symbol}:`, err);
           setTopPicksData(prev => ({
             ...prev,
-            [symbol]: { status: 'error', error: String(err) }
+            [symbol]: { status: 'error', error: err instanceof Error ? err.message : String(err) }
           }));
         }
       }
@@ -2053,7 +2071,7 @@ export default function TradingPage() {
                                         )}
 
                                         {/* Done — full strategy cards with AI analysis */}
-                                        {data?.status === 'done' && data.strategies && (
+                                        {data?.status === 'done' && data.strategies && data.strategies.length > 0 && (
                                           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                                             {data.strategies.map((card, ci) => {
                                               const analysis = data.analyses?.find(a => a.strategy === card.name);
@@ -2126,9 +2144,14 @@ export default function TradingPage() {
                                           </div>
                                         )}
 
+                                        {/* No strategies state (e.g. sparse options data) */}
+                                        {data?.status === 'done' && data.strategies && data.strategies.length === 0 && (
+                                          <div style={{ color: '#6B7280', fontSize: 12 }}>No suitable strategies found for {pick.symbol} &mdash; options data may be too sparse</div>
+                                        )}
+
                                         {/* Error state */}
                                         {data?.status === 'error' && (
-                                          <div style={{ color: '#6B7280', fontSize: 12 }}>Could not load strategies for {pick.symbol}</div>
+                                          <div style={{ color: '#6B7280', fontSize: 12 }}>Could not load strategies for {pick.symbol}{data.error ? `: ${data.error}` : ''}</div>
                                         )}
                                       </div>
                                     );

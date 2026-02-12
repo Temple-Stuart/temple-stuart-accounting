@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // 1. Company News (last 7 days)
     fetch(`${baseUrl}/company-news?symbol=${symbol}&from=${fmtDate(sevenDaysAgo)}&to=${fmtDate(today)}&token=${token}`)
       .then(r => {
-        if (!r.ok) return null;
+        if (!r.ok) { console.error(`[Finnhub] News ${symbol}: HTTP ${r.status}`); return null; }
         return r.json();
       })
       .then((articles: any[] | null) => {
@@ -41,12 +41,12 @@ export async function GET(request: Request) {
           })),
         };
       })
-      .catch(() => null),
+      .catch((e) => { console.error(`[Finnhub] News ${symbol} error:`, e); return null; }),
 
     // 2. Analyst Recommendations (most recent)
     fetch(`${baseUrl}/stock/recommendation?symbol=${symbol}&token=${token}`)
       .then(r => {
-        if (!r.ok) return null;
+        if (!r.ok) { console.error(`[Finnhub] Recommendations ${symbol}: HTTP ${r.status}`); return null; }
         return r.json();
       })
       .then((recs: any[] | null) => {
@@ -61,30 +61,48 @@ export async function GET(request: Request) {
           period: latest.period ?? '',
         };
       })
-      .catch(() => null),
+      .catch((e) => { console.error(`[Finnhub] Recommendations ${symbol} error:`, e); return null; }),
 
     // 3. Price Target
     fetch(`${baseUrl}/stock/price-target?symbol=${symbol}&token=${token}`)
-      .then(r => {
-        if (!r.ok) return null;
-        return r.json();
+      .then(async (r) => {
+        if (!r.ok) { console.error(`[Finnhub] PriceTarget ${symbol}: HTTP ${r.status}`); return { _status: r.status }; }
+        const pt = await r.json();
+        console.log(`[Finnhub] PriceTarget ${symbol} raw:`, JSON.stringify(pt));
+        return pt;
       })
       .then((pt: any | null) => {
-        if (!pt || (pt.targetMean == null && pt.targetMedian == null)) return null;
+        if (!pt || pt._status) return pt?._status ? { _blocked: pt._status } : null;
+        // Accept if ANY numeric target field exists
+        const mean = typeof pt.targetMean === 'number' ? pt.targetMean : null;
+        const median = typeof pt.targetMedian === 'number' ? pt.targetMedian : null;
+        const high = typeof pt.targetHigh === 'number' ? pt.targetHigh : null;
+        const low = typeof pt.targetLow === 'number' ? pt.targetLow : null;
+        const bestMean = mean ?? median ?? null;
+        if (bestMean === null || bestMean === 0) return null;
         return {
-          high: pt.targetHigh ?? 0,
-          low: pt.targetLow ?? 0,
-          mean: pt.targetMean ?? pt.targetMedian ?? 0,
-          median: pt.targetMedian ?? pt.targetMean ?? 0,
-          numberAnalysts: pt.numberAnalysts ?? 0,
+          high: high ?? 0,
+          low: low ?? 0,
+          mean: bestMean,
+          median: median ?? mean ?? 0,
+          numberAnalysts: typeof pt.numberAnalysts === 'number' ? pt.numberAnalysts : 0,
         };
       })
-      .catch(() => null),
+      .catch((e) => { console.error(`[Finnhub] PriceTarget ${symbol} error:`, e); return null; }),
   ]);
+
+  // Clean up internal debug fields from price target
+  const priceTarget = targetResult && typeof targetResult === 'object' && '_blocked' in targetResult
+    ? null
+    : targetResult;
 
   return NextResponse.json({
     news: newsResult,
     analysts: analystResult,
-    priceTarget: targetResult,
+    priceTarget,
+    // Debug: include if price target was blocked by HTTP status
+    ...(targetResult && typeof targetResult === 'object' && '_blocked' in targetResult
+      ? { priceTargetStatus: (targetResult as any)._blocked }
+      : {}),
   });
 }
