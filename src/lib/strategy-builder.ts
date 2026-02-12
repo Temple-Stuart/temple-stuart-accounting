@@ -300,7 +300,8 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
           makeLeg(lcIC, 'call', 'buy'),
         ].filter((l): l is StrategyLeg => l != null);
         if (legs.length === 4) {
-          cards.push(buildCard('Iron Condor', 'A', legs, expiration, dte, currentPrice, false));
+          const card = buildCard('Iron Condor', 'A', legs, expiration, dte, currentPrice, false);
+          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
         }
       }
     }
@@ -315,7 +316,8 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
           makeLeg(lpPCS, 'put', 'buy'),
         ].filter((l): l is StrategyLeg => l != null);
         if (legs.length === 2) {
-          cards.push(buildCard('Put Credit Spread', 'B', legs, expiration, dte, currentPrice, false));
+          const card = buildCard('Put Credit Spread', 'B', legs, expiration, dte, currentPrice, false);
+          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
         }
       }
     }
@@ -329,7 +331,8 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
         makeLeg(scSS, 'call', 'sell'),
       ].filter((l): l is StrategyLeg => l != null);
       if (legs.length === 2) {
-        cards.push(buildCard('Short Strangle', 'C', legs, expiration, dte, currentPrice, true));
+        const card = buildCard('Short Strangle', 'C', legs, expiration, dte, currentPrice, true);
+        if (card.netCredit != null && card.netCredit > 0) cards.push(card);
       }
     }
   } else if (pct >= 20) {
@@ -361,7 +364,8 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
           makeLeg(lcICW, 'call', 'buy'),
         ].filter((l): l is StrategyLeg => l != null);
         if (legs.length === 4) {
-          cards.push(buildCard('Iron Condor (wide)', 'B', legs, expiration, dte, currentPrice, false));
+          const card = buildCard('Iron Condor (wide)', 'B', legs, expiration, dte, currentPrice, false);
+          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
         }
       }
     }
@@ -376,7 +380,8 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
           makeLeg(lpPCS2, 'put', 'buy'),
         ].filter((l): l is StrategyLeg => l != null);
         if (legs.length === 2) {
-          cards.push(buildCard('Put Credit Spread', 'C', legs, expiration, dte, currentPrice, false));
+          const card = buildCard('Put Credit Spread', 'C', legs, expiration, dte, currentPrice, false);
+          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
         }
       }
     }
