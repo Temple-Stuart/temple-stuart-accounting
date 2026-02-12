@@ -2000,6 +2000,28 @@ export default function TradingPage() {
                                           </div>
                                         )}
 
+                                        {/* Finnhub news headlines */}
+                                        {data?.finnhub?.news?.articles && data.finnhub.news.articles.length > 0 && (
+                                          <div style={{ marginBottom: 10 }}>
+                                            {data.finnhub.news.articles.slice(0, 3).map((article, i) => {
+                                              const truncated = article.headline.length > 120
+                                                ? article.headline.substring(0, 117) + '...'
+                                                : article.headline;
+                                              return (
+                                                <div key={i} style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4, marginBottom: 2, paddingLeft: 8 }}>
+                                                  <span style={{ color: '#6B7280' }}>
+                                                    {article.daysAgo === 0 ? 'Today' : article.daysAgo === 1 ? '1d ago' : article.daysAgo + 'd ago'}
+                                                  </span>
+                                                  {' '}
+                                                  <span style={{ color: '#D1D5DB' }}>{truncated}</span>
+                                                  {' '}
+                                                  <span style={{ color: '#4B5563' }}>&mdash; {article.source}</span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+
                                         {/* Loading state */}
                                         {(!data || data.status === 'loading') && (
                                           <div className="flex items-center gap-2" style={{ color: '#6B7280', fontSize: 12 }}>
