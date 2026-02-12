@@ -183,6 +183,14 @@ export default function TradingPage() {
   const [sbGreeksData, setSbGreeksData] = useState<Record<string, any>>({});
   const [sbStrategies, setSbStrategies] = useState<StrategyCard[]>([]);
   const [sbSelectedExp, setSbSelectedExp] = useState<number | null>(null);
+
+  // Per-strategy AI analysis
+  const [strategyAnalyses, setStrategyAnalyses] = useState<Record<string, { strategy: string; analysis: string }[]>>({});
+  const [strategyAnalysisLoading, setStrategyAnalysisLoading] = useState<Record<string, boolean>>({});
+
+  // Auto-expand top tickers from brief
+  const [autoExpandTriggered, setAutoExpandTriggered] = useState(false);
+
   // Click-to-build
   const [sbCustomLegs, setSbCustomLegs] = useState<CustomLeg[]>([]);
   const [sbCustomCard, setSbCustomCard] = useState<StrategyCard | null>(null);
@@ -418,6 +426,60 @@ export default function TradingPage() {
     return () => { cancelled = true; };
   }, [passedData.length, ttScannerUniverse, marketBriefUniverse, marketBrief]);
 
+  // Trigger per-strategy AI analysis after strategies finish generating
+  useEffect(() => {
+    if (!sbExpandedSymbol || sbStrategies.length === 0) return;
+    if (strategyAnalyses[sbExpandedSymbol]) return; // already fetched
+    if (strategyAnalysisLoading[sbExpandedSymbol]) return; // already fetching
+    const symbol = sbExpandedSymbol;
+    const scannerRow = sortedScannerData.find((m: any) => m.symbol === symbol);
+    setStrategyAnalysisLoading(prev => ({ ...prev, [symbol]: true }));
+    (async () => {
+      try {
+        const res = await fetch('/api/ai/strategy-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            symbol,
+            scannerData: scannerRow ? {
+              ivHvSpread: scannerRow.ivHvSpread,
+              hvTrend: scannerRow.hv30 < scannerRow.hv60 && scannerRow.hv60 < scannerRow.hv90 ? 'declining' :
+                       scannerRow.hv30 > scannerRow.hv60 && scannerRow.hv60 > scannerRow.hv90 ? 'rising' : 'mixed',
+              earningsDate: scannerRow.earningsDate,
+              daysTillEarnings: scannerRow.daysTillEarnings,
+              sector: scannerRow.sector,
+              hasWideSpread: sbStrategies.some(c => c.hasWideSpread),
+            } : {},
+            strategies: sbStrategies.map(c => ({
+              name: c.name,
+              legs: c.legs.map(l => ({ side: l.side, type: l.type, strike: l.strike, price: l.price })),
+              netCredit: c.netCredit,
+              netDebit: c.netDebit,
+              maxProfit: c.maxProfit,
+              maxLoss: c.maxLoss,
+              breakevens: c.breakevens,
+              pop: c.pop,
+              riskReward: c.riskReward,
+              dte: c.dte,
+              thetaPerDay: c.thetaPerDay,
+              netDelta: c.netDelta,
+              netVega: c.netVega,
+            })),
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setStrategyAnalyses(prev => ({ ...prev, [symbol]: data }));
+          }
+        }
+      } catch {
+        // AI analysis failed silently — strategies still work
+      }
+      setStrategyAnalysisLoading(prev => ({ ...prev, [symbol]: false }));
+    })();
+  }, [sbExpandedSymbol, sbStrategies]);
+
   // Memoize brief indicator sets
   const { topSymbols, marginalSymbols, briefNoteMap } = useMemo(() => {
     const top = new Set(marketBrief?.topNotes?.map(n => n.symbol) ?? []);
@@ -427,6 +489,24 @@ export default function TradingPage() {
     for (const n of marketBrief?.marginal ?? []) notes[n.symbol] = n.note;
     return { topSymbols: top, marginalSymbols: marg, briefNoteMap: notes };
   }, [marketBrief]);
+
+  // Auto-expand top 3 tickers from Market Brief (sequentially to avoid hammering TT API)
+  useEffect(() => {
+    if (autoExpandTriggered) return;
+    if (!marketBrief?.topNotes?.length) return;
+    if (passedData.length === 0) return;
+    setAutoExpandTriggered(true);
+    const top3 = marketBrief.topNotes.slice(0, 3);
+    const passedSymbols = new Set(passedData.map((m: any) => m.symbol));
+    const validSymbols = top3.filter(n => passedSymbols.has(n.symbol));
+    if (validSymbols.length === 0) return;
+    // Expand first one immediately
+    const first = validSymbols[0];
+    const firstRow = passedData.find((m: any) => m.symbol === first.symbol);
+    if (firstRow) {
+      handleScannerExpand(first.symbol, firstRow.ivRank);
+    }
+  }, [marketBrief, passedData.length, autoExpandTriggered]);
 
   // Strategy Builder: expand scanner row → fetch quote, chain, Greeks → generate strategies
   const handleScannerExpand = async (symbol: string, ivRank: number) => {
@@ -1842,6 +1922,15 @@ export default function TradingPage() {
                                                         )}
                                                         {card.hasWideSpread && (
                                                           <div className="text-[9px] text-amber-600 mt-1">{'\u26A0'} Wide bid/ask spreads — prices may be unreliable (market may be closed)</div>
+                                                        )}
+                                                        {/* AI Analysis for this strategy */}
+                                                        {strategyAnalysisLoading[m.symbol] && (
+                                                          <div className="text-[9px] text-gray-400 mt-1 italic" style={{ animation: 'pulse 2s ease-in-out infinite' }}>Analyzing...</div>
+                                                        )}
+                                                        {strategyAnalyses[m.symbol]?.find(a => a.strategy === card.name)?.analysis && (
+                                                          <div className="border-t border-gray-100 pt-1 mt-1 text-[10px] text-gray-500 italic leading-relaxed">
+                                                            {strategyAnalyses[m.symbol].find(a => a.strategy === card.name)!.analysis}
+                                                          </div>
                                                         )}
                                                       </div>
                                                     ))}
