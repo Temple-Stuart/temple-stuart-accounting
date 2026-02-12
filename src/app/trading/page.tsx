@@ -259,13 +259,13 @@ export default function TradingPage() {
     else if (liq >= 3) score += 14;
     else if (liq >= 2) score += 8;
     else score += 2;
-    // Earnings Buffer (0-15 pts)
+    // Earnings Buffer (0-10 pts)
     const dte = t.daysTillEarnings;
-    if (dte === null || dte === undefined) score += 15;
-    else if (dte < 0) score += 15;
-    else if (dte > 30) score += 12;
-    else if (dte > 14) score += 8;
-    else if (dte > 7) score += 4;
+    if (dte === null || dte === undefined) score += 10;
+    else if (dte < 0) score += 10;
+    else if (dte > 30) score += 10;
+    else if (dte > 14) score += 7;
+    else if (dte > 7) score += 3;
     // Term Structure Shape (0-10 pts)
     const ts = t.termStructure;
     if (ts && ts.length >= 3) {
@@ -1570,11 +1570,12 @@ export default function TradingPage() {
                                             (m.ivRank ?? 0) < 0.20 ? 'text-red-500' : 'text-gray-700'
                                           }`}>{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
                                           <td className={`text-right px-2 py-1.5 font-mono font-medium ${
+                                            ivhv != null && ivhv > 80 ? 'text-orange-500' :
                                             ivhv != null && ivhv > 15 ? 'text-emerald-500' :
                                             ivhv != null && ivhv > 8 ? 'text-emerald-600' :
                                             ivhv != null && ivhv > 3 ? 'text-amber-600' :
                                             ivhv != null && ivhv < 0 ? 'text-red-500' : 'text-gray-400'
-                                          }`}>{ivhv != null ? ivhv.toFixed(1) : '\u2014'}</td>
+                                          }`}>{ivhv != null ? ivhv.toFixed(1) + (ivhv > 80 ? '?' : '') : '\u2014'}</td>
                                           <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.hv30 != null ? <>
                                             {m.hv30.toFixed(1)}%{' '}
                                             {m.hv30 != null && m.hv60 != null && m.hv90 != null ? (
@@ -1583,7 +1584,7 @@ export default function TradingPage() {
                                               <span className="text-gray-300">{'\u2014'}</span>
                                             ) : null}
                                           </> : '\u2014'}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{(m.impliedVolatility ?? 0).toFixed(1)}%</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
                                           <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5 text-[10px] text-gray-500 font-mono">{m.sector ? (sectorShort[m.sector] || m.sector.slice(0, 4)) : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5">
@@ -1818,7 +1819,7 @@ export default function TradingPage() {
                                             <td className="text-right px-2 py-1 font-mono text-gray-400">{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
                                             <td className="text-right px-2 py-1 font-mono text-gray-400">{m.ivHvSpread != null ? m.ivHvSpread.toFixed(1) : '\u2014'}</td>
                                             <td className="text-right px-2 py-1 font-mono text-gray-400">{m.hv30 != null ? m.hv30.toFixed(1) + '%' : '\u2014'}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{(m.impliedVolatility ?? 0).toFixed(1)}%</td>
+                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
                                             <td className="text-right px-2 py-1 font-mono text-gray-400">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
                                             <td className="px-2 py-1 text-[10px] text-red-400">{m.filterReason}</td>
                                           </tr>
