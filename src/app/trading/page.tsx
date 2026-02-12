@@ -236,75 +236,106 @@ export default function TradingPage() {
     return () => clearInterval(timer);
   }, [ttScannerFetchedAt]);
 
-  // Composite scoring function
+  // Composite scoring function — max 100 (with HV trend bonus)
   const computeScore = (t: any): number => {
     let score = 0;
-    // IV-HV Spread (0-30 pts)
+
+    // === IV-HV Spread (0-30 pts) — THE EDGE ===
     const spread = t.ivHvSpread ?? 0;
-    if (spread >= 20) score += 30;
-    else if (spread >= 15) score += 25;
-    else if (spread >= 10) score += 20;
-    else if (spread >= 5) score += 12;
-    else if (spread >= 0) score += 5;
-    // IV Rank (0-25 pts)
+    const clampedSpread = Math.min(spread, 100);
+    if (clampedSpread >= 20) score += 30;
+    else if (clampedSpread >= 15) score += 25;
+    else if (clampedSpread >= 10) score += 20;
+    else if (clampedSpread >= 5) score += 12;
+    else if (clampedSpread >= 0) score += 5;
+
+    // HV Trend Bonus/Penalty
+    const hv30 = t.hv30, hv60 = t.hv60, hv90 = t.hv90;
+    if (hv30 != null && hv60 != null && hv90 != null) {
+      if (hv30 < hv60 && hv60 < hv90) score += 5;
+      else if (hv30 > hv60 && hv60 > hv90) score -= 3;
+    }
+
+    // === IV Rank (0-20 pts) — RELATIVE RICHNESS ===
     const ivr = (t.ivRank ?? 0) * 100;
-    if (ivr >= 80) score += 25;
-    else if (ivr >= 60) score += 20;
-    else if (ivr >= 40) score += 15;
-    else if (ivr >= 20) score += 8;
-    else score += 3;
-    // Liquidity (0-20 pts)
-    const liq = t.liquidityRating ?? 0;
-    if (liq >= 4) score += 20;
-    else if (liq >= 3) score += 14;
-    else if (liq >= 2) score += 8;
+    if (ivr >= 80) score += 20;
+    else if (ivr >= 60) score += 16;
+    else if (ivr >= 40) score += 12;
+    else if (ivr >= 20) score += 6;
     else score += 2;
-    // Earnings Buffer (0-10 pts)
-    const dte = t.daysTillEarnings;
-    if (dte === null || dte === undefined) score += 10;
-    else if (dte < 0) score += 10;
-    else if (dte > 30) score += 10;
-    else if (dte > 14) score += 7;
-    else if (dte > 7) score += 3;
-    // Term Structure Shape (0-10 pts)
+
+    // === Liquidity (0-20 pts) — EXECUTION QUALITY ===
+    const liq = t.liquidityRating ?? 0;
+    if (liq >= 5) score += 20;
+    else if (liq >= 4) score += 18;
+    else if (liq >= 3) score += 12;
+    else if (liq >= 2) score += 6;
+
+    // === Term Structure Shape (0-10 pts) — MARKET REGIME ===
     const ts = t.termStructure;
     if (ts && ts.length >= 3) {
       const nearIv = ts[0]?.iv ?? 0;
       const farIv = ts[Math.min(ts.length - 1, 5)]?.iv ?? 0;
-      if (farIv > nearIv) score += 10;
-      else if (farIv > nearIv * 0.95) score += 6;
-      else score += 2;
+      if (nearIv > 0 && farIv > 0) {
+        if (farIv > nearIv * 1.02) score += 10;
+        else if (farIv > nearIv * 0.95) score += 7;
+        else score += 3;
+      } else {
+        score += 5;
+      }
     } else {
       score += 5;
     }
-    // HV Trend (-3 to +5 pts)
-    if (t.hv30 != null && t.hv60 != null && t.hv90 != null) {
-      if (t.hv30 < t.hv60 && t.hv60 < t.hv90) score += 5;
-      else if (t.hv30 > t.hv60 && t.hv60 > t.hv90) score -= 3;
-    }
-    // Lendability (0-5 pts)
+
+    // === Earnings Buffer (0-10 pts) — EVENT RISK ===
+    const dte = t.daysTillEarnings;
+    if (dte === null || dte === undefined) score += 10;
+    else if (dte < 0) score += 10;
+    else if (dte > 30) score += 8;
+    else if (dte >= 14) score += 5;
+    else if (dte >= 7) score += 2;
+
+    // === Lendability (0-5 pts) — SQUEEZE RISK ===
     if (t.lendability === 'Easy To Borrow') score += 5;
     else if (t.lendability === 'Locate Required') score += 2;
+
     return score;
   };
 
-  // Hard gate filter reasons
+  // Hard gate filter reasons — institutional-grade
   const getFilterReason = (t: any): string | null => {
-    if (t.liquidityRating == null || t.liquidityRating < 2) return 'Low liquidity';
-    if ((t.ivRank ?? 0) > 0.3 && t.ivHvSpread != null && t.ivHvSpread < 0) return 'Negative IV-HV spread';
+    if (t.liquidityRating == null || t.liquidityRating < 3) return 'Liquidity < 3';
+    if (t.ivHvSpread != null && t.ivHvSpread < 5) return 'IV-HV spread < 5';
+    if ((t.ivRank ?? 0) * 100 < 15) return 'IV Rank < 15';
+    if (t.borrowRate != null && t.borrowRate > 10) return 'Borrow rate > 10%';
     return null;
   };
 
-  // Sort scanner data with computed score + hard gates
+  // Sort scanner data with computed score + hard gates + sector penalty
   const [filteredOutExpanded, setFilteredOutExpanded] = useState(false);
   const { passedData, filteredData } = useMemo(() => {
     const scored = ttScannerData.map(m => ({
       ...m,
       score: computeScore(m),
       filterReason: getFilterReason(m),
+      sectorPenalty: false as boolean,
     }));
     const passed = scored.filter(m => !m.filterReason);
     const filtered = scored.filter(m => m.filterReason);
+
+    // Sort passed by score desc first to apply sector penalty to top 10
+    passed.sort((a, b) => b.score - a.score);
+    const sectorCount: Record<string, number> = {};
+    for (let i = 0; i < Math.min(passed.length, 10); i++) {
+      const sector = passed[i].sector || 'Unknown';
+      sectorCount[sector] = (sectorCount[sector] || 0) + 1;
+      if (sectorCount[sector] >= 3) {
+        passed[i].score -= 5;
+        passed[i].sectorPenalty = true;
+      }
+    }
+
+    // Now apply the user's chosen sort
     const sortFn = (a: any, b: any) => {
       const av = a[ttScannerSort] ?? 0;
       const bv = b[ttScannerSort] ?? 0;
@@ -1510,9 +1541,9 @@ export default function TradingPage() {
                             <div className="overflow-x-auto">
                               {ttScannerTotalScanned > 50 && (
                                 <div className="text-[10px] text-gray-400 mb-1">
-                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned{filteredData.length > 0 ? ` (${filteredData.length} excluded by filters)` : ''} (sorted by {
+                                  {ttScannerTotalScanned} scanned {'\u2192'} {sortedScannerData.length} passed all gates{filteredData.length > 0 ? ` (${filteredData.length} filtered)` : ''} {'\u00B7'} sorted by {
                                     { score: 'Score', ivRank: 'IV Rank', ivHvSpread: 'IV-HV', hv30: 'HV30', impliedVolatility: 'IV', liquidityRating: 'Liquidity' }[ttScannerSort] || ttScannerSort
-                                  } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'})
+                                  } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'}
                                 </div>
                               )}
                               <table className="w-full text-xs">
@@ -1564,7 +1595,7 @@ export default function TradingPage() {
                                             m.score >= 80 ? 'text-emerald-500' :
                                             m.score >= 60 ? 'text-emerald-600' :
                                             m.score >= 40 ? 'text-amber-600' : 'text-gray-400'
-                                          }`}>{m.score}</td>
+                                          }`}>{m.score}{m.sectorPenalty ? <span className="text-amber-500 ml-0.5" title={`Sector concentration: 3+ ${m.sector || 'Unknown'} in top 10`}>{'\u26A0'}</span> : null}</td>
                                           <td className={`text-right px-2 py-1.5 font-mono ${
                                             (m.ivRank ?? 0) > 0.50 ? 'text-emerald-600 font-medium' :
                                             (m.ivRank ?? 0) < 0.20 ? 'text-red-500' : 'text-gray-700'
