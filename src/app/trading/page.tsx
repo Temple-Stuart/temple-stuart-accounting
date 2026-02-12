@@ -1246,11 +1246,26 @@ export default function TradingPage() {
                               }}
                               className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
                             >
-                              <option value="popular">Popular (50)</option>
-                              <option value="nasdaq100">Nasdaq 100</option>
-                              <option value="dow30">Dow 30</option>
-                              <option value="sp500">S&P 500</option>
-                              <option value="custom">Custom</option>
+                              <optgroup label="Indices">
+                                <option value="popular">Popular (50)</option>
+                                <option value="megacap">Mega Cap (30)</option>
+                                <option value="nasdaq100">Nasdaq 100</option>
+                                <option value="dow30">Dow 30</option>
+                                <option value="sp500">S&P 500</option>
+                              </optgroup>
+                              <optgroup label="ETFs">
+                                <option value="etfs">ETFs (25)</option>
+                              </optgroup>
+                              <optgroup label="Sectors">
+                                <option value="sector_tech">Tech</option>
+                                <option value="sector_finance">Finance</option>
+                                <option value="sector_energy">Energy</option>
+                                <option value="sector_healthcare">Healthcare</option>
+                                <option value="retail_favorites">Retail Favorites</option>
+                              </optgroup>
+                              <optgroup label="Custom">
+                                <option value="custom">Custom</option>
+                              </optgroup>
                             </select>
                             {ttScannerUniverse === 'custom' && (
                               <>
@@ -1326,7 +1341,7 @@ export default function TradingPage() {
                                             {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{m.daysTillEarnings}d
                                           </span>
                                         ) : (
-                                          <span className="text-gray-300">\u2014</span>
+                                          <span className="text-gray-300">{'\u2014'}</span>
                                         )}
                                       </td>
                                       <td className="text-center px-2 py-1.5">

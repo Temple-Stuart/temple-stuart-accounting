@@ -11,6 +11,45 @@ const POPULAR_SYMBOLS = [
   'ARM','SMCI','AVGO','MRVL','PANW','CRWD','NET','DKNG','ABNB','UBER',
 ];
 
+const MEGA_CAP = [
+  'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','BRK.B','AVGO','LLY',
+  'JPM','V','WMT','MA','UNH','XOM','COST','HD','PG','JNJ',
+  'ORCL','BAC','NFLX','ABBV','CRM','AMD','CVX','MRK','KO','PEP',
+];
+
+const ETFS = [
+  'SPY','QQQ','IWM','DIA','XLF','XLE','XLK','XLV','XLI','XLP',
+  'XLU','XLB','XLRE','XLC','GDX','GDXJ','SLV','GLD','TLT','HYG',
+  'EEM','EFA','ARKK','VXX','KWEB',
+];
+
+const SECTOR_TECH = [
+  'AAPL','MSFT','NVDA','GOOGL','META','AMD','AVGO','CRM','ORCL','ADBE',
+  'INTC','MU','QCOM','TXN','AMAT','LRCX','KLAC','SNPS','CDNS','NOW',
+  'PANW','CRWD','NET','DDOG','ZS',
+];
+
+const SECTOR_FINANCE = [
+  'JPM','BAC','GS','MS','WFC','C','BLK','SCHW','AXP','USB',
+  'PNC','TFC','COF','ICE','CME','SPGI','MCO','MSCI','FIS','PYPL',
+  'SQ','COIN','SOFI','HOOD','AFRM',
+];
+
+const SECTOR_ENERGY = [
+  'XOM','CVX','COP','EOG','SLB','MPC','PSX','VLO','OXY','PXD',
+  'DVN','HES','FANG','HAL','BKR','KMI','WMB','OKE','TRGP','ET',
+];
+
+const SECTOR_HEALTHCARE = [
+  'UNH','JNJ','LLY','PFE','ABBV','MRK','TMO','ABT','DHR','BMY',
+  'AMGN','GILD','VRTX','REGN','ISRG','MDT','SYK','BDX','ZTS','CI',
+];
+
+const RETAIL_FAVORITES = [
+  'GME','AMC','PLTR','SOFI','RIVN','LCID','NIO','MARA','COIN','HOOD',
+  'BBBY','WISH','CLOV','BB','DKNG','RBLX','SNAP','PINS','ABNB','UBER',
+];
+
 const DOW_30 = [
   'AAPL','AMGN','AMZN','AXP','BA','CAT','CRM','CSCO','CVX','DIS',
   'GS','HD','HON','IBM','JNJ','JPM','KO','MCD','MMM','MRK',
@@ -82,13 +121,24 @@ const SP500 = [
   'XYZ','YUM','ZBH','ZBRA','ZTS',
 ];
 
-type Universe = 'popular' | 'nasdaq100' | 'dow30' | 'sp500' | 'custom';
+type Universe =
+  | 'popular' | 'megacap' | 'nasdaq100' | 'dow30' | 'sp500'
+  | 'etfs'
+  | 'sector_tech' | 'sector_finance' | 'sector_energy' | 'sector_healthcare' | 'retail_favorites'
+  | 'custom';
 
 function getSymbolsForUniverse(universe: Universe, customSymbols?: string): string[] {
   switch (universe) {
+    case 'megacap': return MEGA_CAP;
     case 'nasdaq100': return NASDAQ_100;
     case 'dow30': return DOW_30;
     case 'sp500': return SP500;
+    case 'etfs': return ETFS;
+    case 'sector_tech': return SECTOR_TECH;
+    case 'sector_finance': return SECTOR_FINANCE;
+    case 'sector_energy': return SECTOR_ENERGY;
+    case 'sector_healthcare': return SECTOR_HEALTHCARE;
+    case 'retail_favorites': return RETAIL_FAVORITES;
     case 'custom':
       return customSymbols
         ? customSymbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
