@@ -9,7 +9,7 @@ const MODULES = [
   { name: 'Hub', desc: 'Command center', href: '/hub' },
   { name: 'Books', desc: 'Double-entry accounting', href: '/dashboard' },
   { name: 'Business', desc: 'Business expenses', href: '/business' },
-  { name: 'Trading', desc: 'P&L analytics', href: '/trading' },
+  { name: 'Trading', desc: 'AI scanner + strategy builder', href: '/trading', featured: true },
   { name: 'Home', desc: 'Rent, utilities', href: '/home' },
   { name: 'Auto', desc: 'Gas, insurance', href: '/auto' },
   { name: 'Shopping', desc: 'AI shopping planner', href: '/shopping' },
@@ -23,13 +23,13 @@ const MODULES = [
 const FEATURES = [
   { title: 'Plaid Integration', desc: 'Bank sync for all accounts' },
   { title: 'Double-Entry', desc: 'CPA-grade bookkeeping' },
-  { title: 'Trading Analytics', desc: 'P&L, wash sale correctness' },
-  { title: 'Shopping Planner', desc: 'AI plans for 5 categories' },
+  { title: 'AI Vol Scanner', desc: '475 stocks scored and filtered' },
+  { title: 'Strategy Builder', desc: 'Auto-generated option spreads' },
+  { title: 'AI Market Brief', desc: 'Regime, risk clusters, top picks' },
+  { title: 'Finnhub Data', desc: 'News headlines + analyst ratings' },
   { title: 'Trip Planning', desc: 'AI itineraries & flights' },
   { title: 'Tax Ready', desc: 'IRS-compliant reporting' },
-  { title: 'Market Intelligence', desc: 'Real-time data from your brokerage' },
-  { title: 'AI Algo Builder', desc: 'Strategies in plain English' },
-  { title: 'Multi-Broker', desc: 'Tastytrade, Schwab, IBKR coming soon' },
+  { title: 'Multi-Broker', desc: 'Tastytrade, Schwab, IBKR' },
 ];
 
 export default function LandingPage() {
@@ -73,12 +73,11 @@ export default function LandingPage() {
           <div className="max-w-3xl">
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight mb-4">
               Track your money.<br />
-              Plan your trips.<br />
-              <span className="text-gray-400">Find your people.</span>
+              Trade smarter.<br />
+              <span className="text-gray-400">Plan your life.</span>
             </h1>
             <p className="text-gray-400 text-lg mb-8 max-w-xl">
-              Personal back office for founder-traders. Bookkeeping, trading analytics,
-              AI shopping planner, and trip planning — unified in one system.
+              Bookkeeping, AI-powered options analytics, trip planning, and budgeting &mdash; one platform.
             </p>
             <div className="flex items-center gap-4">
               <button onClick={() => setShowLogin(true)}
@@ -126,9 +125,15 @@ export default function LandingPage() {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-            {MODULES.map((mod, idx) => (
-              <div key={mod.name} className="bg-white border border-gray-200 p-4 hover:border-[#2d1b4e] transition-colors cursor-pointer group"
+            {MODULES.map((mod) => (
+              <div key={mod.name}
+                className={`bg-white p-4 hover:border-[#2d1b4e] transition-colors cursor-pointer group ${
+                  (mod as any).featured ? 'border-2 border-[#b4b237] relative' : 'border border-gray-200'
+                }`}
                 onClick={() => setShowLogin(true)}>
+                {(mod as any).featured && (
+                  <div className="absolute -top-2 right-2 bg-[#b4b237] text-white text-[8px] px-1.5 py-0.5 uppercase tracking-wider font-semibold">New</div>
+                )}
                 <div className="text-xs font-medium text-gray-900 group-hover:text-[#2d1b4e] mb-1">{mod.name}</div>
                 <div className="text-[10px] text-gray-500">{mod.desc}</div>
               </div>
@@ -169,27 +174,28 @@ export default function LandingPage() {
             </div>
 
             {/* Trading */}
-            <div className="border border-gray-200">
-              <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+            <div className="border-2 border-[#b4b237]">
+              <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
                 Trading
+                <span className="bg-[#b4b237] text-white text-[8px] px-1.5 py-0.5 uppercase tracking-wider font-semibold">New</span>
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-600 mb-4">
-                  Investment transactions match opens to closes. Track P&L by strategy, ticker, 
-                  and time period. Trade journal for analysis.
+                  AI volatility scanner. 475 stocks filtered to your best setups with strategy cards,
+                  P&L charts, and risk analysis. Finnhub news and analyst data built in.
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Options & stock tracking</span>
+                    <span className="text-gray-700">AI Market Brief + Top Picks</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Win rate, profit factor</span>
+                    <span className="text-gray-700">Auto strategy cards with Greeks</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Wash sale correctness</span>
+                    <span className="text-gray-700">P&L tracking + trade journal</span>
                   </div>
                 </div>
               </div>
@@ -244,6 +250,34 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+      {/* AI Trading Pipeline Highlight */}
+      <section className="bg-[#2d1b4e] text-white py-10">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8">
+          <div className="mb-6">
+            <div className="text-[10px] text-[#b4b237] uppercase tracking-wider mb-1">What&apos;s Inside</div>
+            <h2 className="text-xl font-light">The trading pipeline, zero clicks</h2>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="border border-gray-700 p-4">
+              <div className="text-xs font-medium text-gray-300 mb-1">Scan</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">475 stocks through institutional-grade filters. IV rank, IV-HV spread, liquidity, term structure, lendability.</div>
+            </div>
+            <div className="border border-gray-700 p-4">
+              <div className="text-xs font-medium text-gray-300 mb-1">Brief</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">AI market brief identifies regime, risk clusters, sector concentration, and top picks. Fires once per scan.</div>
+            </div>
+            <div className="border border-gray-700 p-4">
+              <div className="text-xs font-medium text-gray-300 mb-1">Strategies</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">Auto-generated strategy cards with P&L charts, Greeks, breakevens, and PoP. Delta-scanned for best risk/reward.</div>
+            </div>
+            <div className="border border-gray-700 p-4">
+              <div className="text-xs font-medium text-gray-300 mb-1">Context</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">Finnhub news headlines and analyst ratings. Per-strategy AI analysis referencing specific numbers.</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Pricing */}
       <section id="pricing" className="bg-white border-y border-gray-200 py-12">
@@ -329,23 +363,23 @@ export default function LandingPage() {
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Market Intelligence — real-time data</span>
+                  <span>AI volatility scanner (475 stocks)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI Algo Builder</span>
+                  <span>AI Market Brief + Top Picks</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Multi-broker connections</span>
+                  <span>Auto strategy cards with Greeks</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Tastytrade, Schwab, IBKR</span>
+                  <span>Finnhub news + analyst ratings</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Priority support</span>
+                  <span>Tastytrade live connection</span>
                 </div>
               </div>
               <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
