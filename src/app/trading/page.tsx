@@ -196,6 +196,11 @@ export default function TradingPage() {
     dte?: number;
     strategies?: StrategyCard[];
     analyses?: { strategy: string; analysis: string }[];
+    finnhub?: {
+      news: { count: number; articles: { headline: string; source: string; daysAgo: number; url: string }[] } | null;
+      analysts: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number; period: string } | null;
+      priceTarget: { high: number; low: number; mean: number; median: number; numberAnalysts: number } | null;
+    } | null;
     error?: string;
   }>>({});
   const [topPicksTriggered, setTopPicksTriggered] = useState(false);
@@ -524,6 +529,11 @@ export default function TradingPage() {
     (async () => {
       for (const symbol of symbols) {
         try {
+          // Start Finnhub fetch immediately (runs in parallel with TT data)
+          const finnhubPromise = fetch('/api/finnhub/ticker-context?symbol=' + encodeURIComponent(symbol))
+            .then(r => r.json())
+            .catch(() => null);
+
           // 1. Fetch quote + chain in parallel
           const [quoteRes, chainRes] = await Promise.all([
             fetch('/api/tastytrade/quotes', {
@@ -601,18 +611,22 @@ export default function TradingPage() {
 
           if (cards.length === 0) throw new Error('No strategies');
 
+          // Await Finnhub data (started earlier in parallel — adds zero latency)
+          const finnhubData = await finnhubPromise;
+
           setTopPicksData(prev => ({
             ...prev,
-            [symbol]: { status: 'analyzing', price, expDate: exp.date, dte: exp.dte, strategies: cards }
+            [symbol]: { status: 'analyzing', price, expDate: exp.date, dte: exp.dte, strategies: cards, finnhub: finnhubData?.error ? null : finnhubData }
           }));
 
-          // 5. AI analysis
+          // 5. AI analysis (includes Finnhub data if available)
           try {
             const aiRes = await fetch('/api/ai/strategy-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 symbol,
+                currentPrice: price,
                 scannerData: scannerItem ? {
                   ivHvSpread: scannerItem.ivHvSpread,
                   hvTrend: scannerItem.hv30 < scannerItem.hv60 && scannerItem.hv60 < scannerItem.hv90 ? 'declining' :
@@ -622,6 +636,7 @@ export default function TradingPage() {
                   sector: scannerItem.sector,
                   hasWideSpread: cards.some(c => c.hasWideSpread),
                 } : {},
+                finnhub: finnhubData?.error ? null : finnhubData ?? null,
                 strategies: cards.map(c => ({
                   name: c.name,
                   legs: c.legs.map(l => ({ side: l.side, type: l.type, strike: l.strike, price: l.price })),
@@ -650,20 +665,21 @@ export default function TradingPage() {
                   dte: exp.dte,
                   strategies: cards,
                   analyses: Array.isArray(aiData) ? aiData : [],
+                  finnhub: finnhubData?.error ? null : finnhubData,
                 }
               }));
             } else {
               // AI failed, still show strategies without analysis
               setTopPicksData(prev => ({
                 ...prev,
-                [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [] }
+                [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [], finnhub: finnhubData?.error ? null : finnhubData }
               }));
             }
           } catch {
             // AI failed, still show strategies
             setTopPicksData(prev => ({
               ...prev,
-              [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [] }
+              [symbol]: { status: 'done', price, expDate: exp.date, dte: exp.dte, strategies: cards, analyses: [], finnhub: finnhubData?.error ? null : finnhubData }
             }));
           }
 
@@ -1947,6 +1963,42 @@ export default function TradingPage() {
                                             {data?.expDate && data?.dte != null ? ` \u00B7 ${data.expDate} (${data.dte} DTE)` : ''}
                                           </span>
                                         </div>
+
+                                        {/* Finnhub context bar */}
+                                        {data?.finnhub && (
+                                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8, fontSize: 11, color: '#6B7280' }}>
+                                            {data.finnhub.news && (
+                                              <span>
+                                                {data.finnhub.news.count > 0
+                                                  ? `${data.finnhub.news.count} article${data.finnhub.news.count !== 1 ? 's' : ''} this week`
+                                                  : 'No recent news'
+                                                }
+                                              </span>
+                                            )}
+                                            {data.finnhub.analysts && (
+                                              <span>
+                                                Analysts:
+                                                <span style={{ color: '#10B981' }}> {data.finnhub.analysts.strongBuy + data.finnhub.analysts.buy} Buy</span>
+                                                <span> / {data.finnhub.analysts.hold} Hold</span>
+                                                <span style={{ color: '#EF4444' }}> / {data.finnhub.analysts.sell + data.finnhub.analysts.strongSell} Sell</span>
+                                              </span>
+                                            )}
+                                            {data.finnhub.priceTarget && data.price && (
+                                              <span>
+                                                Target: ${data.finnhub.priceTarget.mean.toFixed(0)}
+                                                {(() => {
+                                                  const pct = ((data.finnhub.priceTarget!.mean - data.price!) / data.price! * 100);
+                                                  if (Math.abs(pct) < 5) return null;
+                                                  return (
+                                                    <span style={{ color: pct > 0 ? '#10B981' : '#EF4444', marginLeft: 4 }}>
+                                                      ({pct > 0 ? '+' : ''}{pct.toFixed(0)}%)
+                                                    </span>
+                                                  );
+                                                })()}
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
 
                                         {/* Loading state */}
                                         {(!data || data.status === 'loading') && (
