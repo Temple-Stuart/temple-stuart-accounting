@@ -139,6 +139,9 @@ export default function TradingPage() {
   const [ttScannerSort, setTtScannerSort] = useState<string>('ivRank');
   const [ttScannerSortDir, setTtScannerSortDir] = useState<'asc' | 'desc'>('desc');
   const [ttScannerCountdown, setTtScannerCountdown] = useState(60);
+  const [ttScannerUniverse, setTtScannerUniverse] = useState<string>('popular');
+  const [ttScannerCustomInput, setTtScannerCustomInput] = useState('');
+  const [ttScannerTotalScanned, setTtScannerTotalScanned] = useState(0);
   const [ttVix, setTtVix] = useState<number | null>(null);
 
   // Check Tastytrade connection status when owner loads Market Intelligence
@@ -154,13 +157,19 @@ export default function TradingPage() {
   }, [isOwner, activeTab]);
 
   // Scanner: fetch market metrics + VIX
-  const fetchScannerData = async () => {
+  const fetchScannerData = async (universeOverride?: string) => {
     setTtScannerLoading(true);
     try {
-      const scanRes = await fetch('/api/tastytrade/scanner');
+      const uni = universeOverride ?? ttScannerUniverse;
+      const params = new URLSearchParams({ universe: uni });
+      if (uni === 'custom' && ttScannerCustomInput.trim()) {
+        params.set('customSymbols', ttScannerCustomInput.trim());
+      }
+      const scanRes = await fetch(`/api/tastytrade/scanner?${params}`);
       if (scanRes.ok) {
         const data = await scanRes.json();
         setTtScannerData(data.metrics || []);
+        setTtScannerTotalScanned(data.totalScanned || 0);
         setTtScannerFetchedAt(data.fetchedAt || new Date().toISOString());
         setTtScannerCountdown(60);
       }
@@ -187,10 +196,12 @@ export default function TradingPage() {
   // Auto-fetch scanner on connection, refresh every 60s
   useEffect(() => {
     if (!ttConnected || activeTab !== 'market-intelligence') return;
+    if (ttScannerUniverse === 'custom') return; // custom only fetches on explicit Scan click
     fetchScannerData();
-    const interval = setInterval(fetchScannerData, 60000);
+    const interval = setInterval(() => fetchScannerData(), 60000);
     return () => clearInterval(interval);
-  }, [ttConnected, activeTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttConnected, activeTab, ttScannerUniverse]);
 
   // Countdown timer
   useEffect(() => {
@@ -1224,8 +1235,56 @@ export default function TradingPage() {
                               )}
                             </div>
                           </div>
+
+                          {/* Universe selector */}
+                          <div className="flex items-center gap-2 mb-3 flex-wrap">
+                            <label className="text-[10px] text-gray-500 font-medium">Universe:</label>
+                            <select
+                              value={ttScannerUniverse}
+                              onChange={(e) => {
+                                setTtScannerUniverse(e.target.value);
+                              }}
+                              className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
+                            >
+                              <option value="popular">Popular (50)</option>
+                              <option value="nasdaq100">Nasdaq 100</option>
+                              <option value="dow30">Dow 30</option>
+                              <option value="sp500">S&P 500</option>
+                              <option value="custom">Custom</option>
+                            </select>
+                            {ttScannerUniverse === 'custom' && (
+                              <>
+                                <input
+                                  type="text"
+                                  value={ttScannerCustomInput}
+                                  onChange={(e) => setTtScannerCustomInput(e.target.value)}
+                                  placeholder="AAPL, TSLA, NVDA..."
+                                  className="text-xs border border-gray-200 rounded px-2 py-1 flex-1 min-w-[150px] focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
+                                  onKeyDown={(e) => { if (e.key === 'Enter') fetchScannerData(); }}
+                                />
+                                <button
+                                  onClick={() => fetchScannerData()}
+                                  disabled={ttScannerLoading || !ttScannerCustomInput.trim()}
+                                  className="text-xs font-medium px-3 py-1 bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e] disabled:opacity-50"
+                                >Scan</button>
+                              </>
+                            )}
+                          </div>
+
+                          {ttScannerLoading && ttScannerUniverse === 'sp500' && (
+                            <div className="flex items-center gap-2 mb-3 text-xs text-gray-400">
+                              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                              Scanning ~500 symbols...
+                            </div>
+                          )}
+
                           {sortedScannerData.length > 0 ? (
                             <div className="overflow-x-auto">
+                              {ttScannerTotalScanned > 50 && (
+                                <div className="text-[10px] text-gray-400 mb-1">
+                                  Top {Math.min(50, sortedScannerData.length)} of {ttScannerTotalScanned} scanned (sorted by {ttScannerSort === 'ivRank' ? 'IV Rank' : ttScannerSort === 'ivPercentile' ? 'IV %ile' : ttScannerSort === 'impliedVolatility' ? 'IV' : 'Liquidity'} {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'})
+                                </div>
+                              )}
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="border-b border-gray-200 text-gray-500">
@@ -1249,7 +1308,7 @@ export default function TradingPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {sortedScannerData.map((m: any) => (
+                                  {sortedScannerData.slice(0, 50).map((m: any) => (
                                     <tr key={m.symbol} className="border-b border-gray-50 hover:bg-gray-50">
                                       <td className="px-2 py-1.5 font-mono font-medium text-gray-900">{m.symbol}</td>
                                       <td className={`text-right px-2 py-1.5 font-mono ${
@@ -1284,7 +1343,7 @@ export default function TradingPage() {
                           ) : !ttScannerLoading ? (
                             <div className="text-xs text-gray-400">
                               No scanner data available.{' '}
-                              <button onClick={fetchScannerData} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                              <button onClick={() => fetchScannerData()} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
                             </div>
                           ) : (
                             <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
