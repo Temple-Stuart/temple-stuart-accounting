@@ -269,7 +269,95 @@ function buildCard(
   };
 }
 
+// ─── Delta Range Scanners ────────────────────────────────────────
+
+const IC_DELTAS = [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.25];
+const PCS_DELTAS = [0.15, 0.18, 0.20, 0.22, 0.25, 0.28, 0.30];
+const SS_DELTAS = [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25];
+
+function scanBestIronCondor(
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+): StrategyCard | null {
+  let best: StrategyCard | null = null;
+  let bestScore = -Infinity;
+  for (const d of IC_DELTAS) {
+    const sp = findByDelta(valid, -d, 'put');
+    const sc = findByDelta(valid, d, 'call');
+    if (!sp || !sc) continue;
+    const lp = nextStrikeBelow(valid, sp.strike);
+    const lc = nextStrikeAbove(valid, sc.strike);
+    if (!lp || !lc) continue;
+    const legs = [
+      makeLeg(sp, 'put', 'sell'),
+      makeLeg(lp, 'put', 'buy'),
+      makeLeg(sc, 'call', 'sell'),
+      makeLeg(lc, 'call', 'buy'),
+    ].filter((l): l is StrategyLeg => l != null);
+    if (legs.length !== 4) continue;
+    const card = buildCard('Iron Condor', label, legs, expiration, dte, currentPrice, false);
+    if (card.netCredit == null || card.netCredit <= 0) continue;
+    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) continue;
+    const mp = card.maxProfit ?? 0;
+    if (mp <= 0) continue;
+    const score = card.pop * (mp / card.maxLoss);
+    if (score > bestScore) { bestScore = score; best = card; }
+  }
+  return best;
+}
+
+function scanBestPutCreditSpread(
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+): StrategyCard | null {
+  let best: StrategyCard | null = null;
+  let bestScore = -Infinity;
+  for (const d of PCS_DELTAS) {
+    const sp = findByDelta(valid, -d, 'put');
+    if (!sp) continue;
+    const lp = nextStrikeBelow(valid, sp.strike);
+    if (!lp) continue;
+    const legs = [
+      makeLeg(sp, 'put', 'sell'),
+      makeLeg(lp, 'put', 'buy'),
+    ].filter((l): l is StrategyLeg => l != null);
+    if (legs.length !== 2) continue;
+    const card = buildCard('Put Credit Spread', label, legs, expiration, dte, currentPrice, false);
+    if (card.netCredit == null || card.netCredit <= 0) continue;
+    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) continue;
+    const mp = card.maxProfit ?? 0;
+    if (mp <= 0) continue;
+    const score = card.pop * (mp / card.maxLoss);
+    if (score > bestScore) { bestScore = score; best = card; }
+  }
+  return best;
+}
+
+function scanBestShortStrangle(
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+): StrategyCard | null {
+  let best: StrategyCard | null = null;
+  let bestScore = -Infinity;
+  for (const d of SS_DELTAS) {
+    const sp = findByDelta(valid, -d, 'put');
+    const sc = findByDelta(valid, d, 'call');
+    if (!sp || !sc) continue;
+    const legs = [
+      makeLeg(sp, 'put', 'sell'),
+      makeLeg(sc, 'call', 'sell'),
+    ].filter((l): l is StrategyLeg => l != null);
+    if (legs.length !== 2) continue;
+    const card = buildCard('Short Strangle', label, legs, expiration, dte, currentPrice, true);
+    if (card.netCredit == null || card.netCredit <= 0) continue;
+    if (card.pop == null) continue;
+    const score = card.pop * card.netCredit * 100;
+    if (score > bestScore) { bestScore = score; best = card; }
+  }
+  return best;
+}
+
 // ─── Tier 2: Full Strategy Generation ───────────────────────────────
+
+const MIN_POP_CREDIT = 0.40;
+const MIN_POP_DEBIT = 0.25;
 
 export function generateStrategies(params: GenerateParams): StrategyCard[] {
   const { strikes, currentPrice, ivRank, expiration, dte } = params;
@@ -285,59 +373,19 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
   const cards: StrategyCard[] = [];
 
   if (pct > 50) {
-    // ─── High IV: Sell Premium ─────────────────────────
-    // A) Iron Condor
-    const spIC = findByDelta(valid, -0.16, 'put');
-    const scIC = findByDelta(valid, 0.16, 'call');
-    if (spIC && scIC) {
-      const lpIC = nextStrikeBelow(valid, spIC.strike);
-      const lcIC = nextStrikeAbove(valid, scIC.strike);
-      if (lpIC && lcIC) {
-        const legs = [
-          makeLeg(spIC, 'put', 'sell'),
-          makeLeg(lpIC, 'put', 'buy'),
-          makeLeg(scIC, 'call', 'sell'),
-          makeLeg(lcIC, 'call', 'buy'),
-        ].filter((l): l is StrategyLeg => l != null);
-        if (legs.length === 4) {
-          const card = buildCard('Iron Condor', 'A', legs, expiration, dte, currentPrice, false);
-          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
-        }
-      }
-    }
+    // ─── High IV: Sell Premium — scan delta ranges ─────
+    const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice);
+    if (ic) cards.push(ic);
 
-    // B) Put Credit Spread
-    const spPCS = findByDelta(valid, -0.20, 'put');
-    if (spPCS) {
-      const lpPCS = nextStrikeBelow(valid, spPCS.strike);
-      if (lpPCS) {
-        const legs = [
-          makeLeg(spPCS, 'put', 'sell'),
-          makeLeg(lpPCS, 'put', 'buy'),
-        ].filter((l): l is StrategyLeg => l != null);
-        if (legs.length === 2) {
-          const card = buildCard('Put Credit Spread', 'B', legs, expiration, dte, currentPrice, false);
-          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
-        }
-      }
-    }
+    const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice);
+    if (pcs) cards.push(pcs);
 
-    // C) Short Strangle (high IV only > 50)
-    const spSS = findByDelta(valid, -0.16, 'put');
-    const scSS = findByDelta(valid, 0.16, 'call');
-    if (spSS && scSS) {
-      const legs = [
-        makeLeg(spSS, 'put', 'sell'),
-        makeLeg(scSS, 'call', 'sell'),
-      ].filter((l): l is StrategyLeg => l != null);
-      if (legs.length === 2) {
-        const card = buildCard('Short Strangle', 'C', legs, expiration, dte, currentPrice, true);
-        if (card.netCredit != null && card.netCredit > 0) cards.push(card);
-      }
-    }
+    const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice);
+    if (ss) cards.push(ss);
+
   } else if (pct >= 20) {
     // ─── Normal IV: Mild Directional ─────────────────────
-    // A) Bull Call Spread
+    // A) Bull Call Spread (debit — fixed delta, no scan)
     const longBCS = findByDelta(valid, 0.50, 'call');
     const shortBCS = findByDelta(valid, 0.30, 'call');
     if (longBCS && shortBCS && longBCS.strike !== shortBCS.strike) {
@@ -350,41 +398,14 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
       }
     }
 
-    // B) Iron Condor (wide wings)
-    const spICW = findByDelta(valid, -0.10, 'put');
-    const scICW = findByDelta(valid, 0.10, 'call');
-    if (spICW && scICW) {
-      const lpICW = nextStrikeBelow(valid, spICW.strike);
-      const lcICW = nextStrikeAbove(valid, scICW.strike);
-      if (lpICW && lcICW) {
-        const legs = [
-          makeLeg(spICW, 'put', 'sell'),
-          makeLeg(lpICW, 'put', 'buy'),
-          makeLeg(scICW, 'call', 'sell'),
-          makeLeg(lcICW, 'call', 'buy'),
-        ].filter((l): l is StrategyLeg => l != null);
-        if (legs.length === 4) {
-          const card = buildCard('Iron Condor (wide)', 'B', legs, expiration, dte, currentPrice, false);
-          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
-        }
-      }
-    }
+    // B) Iron Condor — scan
+    const icW = scanBestIronCondor(valid, 'B', expiration, dte, currentPrice);
+    if (icW) cards.push(icW);
 
-    // C) Put Credit Spread
-    const spPCS2 = findByDelta(valid, -0.25, 'put');
-    if (spPCS2) {
-      const lpPCS2 = nextStrikeBelow(valid, spPCS2.strike);
-      if (lpPCS2) {
-        const legs = [
-          makeLeg(spPCS2, 'put', 'sell'),
-          makeLeg(lpPCS2, 'put', 'buy'),
-        ].filter((l): l is StrategyLeg => l != null);
-        if (legs.length === 2) {
-          const card = buildCard('Put Credit Spread', 'C', legs, expiration, dte, currentPrice, false);
-          if (card.netCredit != null && card.netCredit > 0) cards.push(card);
-        }
-      }
-    }
+    // C) Put Credit Spread — scan
+    const pcs2 = scanBestPutCreditSpread(valid, 'C', expiration, dte, currentPrice);
+    if (pcs2) cards.push(pcs2);
+
   } else {
     // ─── Low IV: Buy Premium ──────────────────────────
     // A) Long Straddle
@@ -426,7 +447,12 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
     }
   }
 
-  return cards;
+  // Minimum PoP filter — credit strategies need >=40%, debit >=25%
+  return cards.filter(card => {
+    if (card.pop == null) return false;
+    if (card.netCredit != null) return card.pop >= MIN_POP_CREDIT;
+    return card.pop >= MIN_POP_DEBIT;
+  });
 }
 
 // ─── Build from strikes data ────────────────────────────────────────
