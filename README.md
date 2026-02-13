@@ -16,7 +16,7 @@
 <br>
 
 <h3>
-  <strong>Track your money. Plan your trips. Find your people.</strong>
+  <strong>Track your money. Trade smarter. Plan your life.</strong>
 </h3>
 
 <p>
@@ -113,6 +113,7 @@ principles:
 │    ╔══════════════╗   ╔══════════════╗   ╔══════════════╗   ╔══════════╗   │
 │    ║  BOOKKEEPING ║   ║   TRADING    ║   ║    TRIPS     ║   ║   HUB    ║   │
 │    ║    ENGINE    ║   ║  ANALYTICS   ║   ║   PLANNER    ║   ║ COMMAND  ║   │
+│    ║              ║   ║  + AI SCAN   ║   ║              ║   ║          ║   │
 │    ╚══════╤═══════╝   ╚══════╤═══════╝   ╚══════╤═══════╝   ╚════╤═════╝   │
 │           │                  │                  │                │         │
 │    ┌──────┴──────────────────┴──────────────────┴────────────────┴──────┐  │
@@ -122,7 +123,8 @@ principles:
 │                                 │                                          │
 │    ┌────────────────────────────┴───────────────────────────────────────┐  │
 │    │                    🔌 INTEGRATION LAYER                            │  │
-│    │       Plaid • Duffel • Google Places • xAI Grok • OpenAI           │  │
+│    │  Plaid • Duffel • Google Places • xAI Grok • OpenAI • Tastytrade   │  │
+│    │                  Claude AI • Finnhub                               │  │
 │    └────────────────────────────────────────────────────────────────────┘  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -158,6 +160,11 @@ Real accounting, not "tracking."
 
 Built by a daily options trader.
 
+- **AI Volatility Scanner** — Scans 475 S&P 500 stocks through institutional-grade filters
+- **AI Market Brief** — Claude Sonnet analyzes regime, risk clusters, sector heatmap, top picks
+- **Strategy Builder** — Auto-generates Iron Condors, Credit Spreads, Straddles with P&L charts
+- **Finnhub Integration** — News headlines, analyst ratings (Buy/Hold/Sell), per ticker
+- **Per-Strategy AI Analysis** — Plain-English explanation of every strategy card
 - **Strategy Detection** — Spreads, straddles, iron condors auto-identified
 - **Position Lifecycle** — Open → partial → closed with full audit trail
 - **Lot-Based Cost Basis** — FIFO, LIFO, HIFO, Specific ID per IRS requirements
@@ -262,6 +269,20 @@ Your financial cockpit.
 <br><sub><b>xAI Grok</b></sub>
 </td>
 </tr>
+<tr>
+<td align="center" width="96">
+<img src="https://avatars.githubusercontent.com/u/76263028" width="48" height="48" alt="Anthropic" style="border-radius: 8px" />
+<br><sub><b>Claude AI</b></sub>
+</td>
+<td align="center" width="96">
+<img src="https://avatars.githubusercontent.com/u/48205786" width="48" height="48" alt="Finnhub" style="border-radius: 8px" />
+<br><sub><b>Finnhub</b></sub>
+</td>
+<td align="center" width="96">
+<img src="https://avatars.githubusercontent.com/u/37933258" width="48" height="48" alt="Tastytrade" style="border-radius: 8px" />
+<br><sub><b>Tastytrade</b></sub>
+</td>
+</tr>
 </table>
 
 </div>
@@ -277,6 +298,9 @@ Your financial cockpit.
 | **Google Places** | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
 | **xAI Grok** | Trip AI analysis | Sentiment scoring, fit scoring, warnings, trending detection |
 | **OpenAI** | General AI | Singleton client for explanatory features |
+| **Anthropic Claude** | AI analysis | Market briefs, strategy analysis (claude-sonnet-4-20250514) |
+| **Finnhub** | Market data | Company news, analyst recommendations, price targets (free tier) |
+| **Tastytrade** | Options data | Live quotes, option chains, Greeks, IV, HV, earnings |
 | **Leaflet** | Maps | Trip visualization, destination markers, interactive popups |
 
 <br>
@@ -383,6 +407,11 @@ temple-stuart/
 │  │ Banking  │  │ Flights  │  │  Locations   │  │ Analysis │  │ Explain  │ │
 │  │  (prod)  │  │  (GDS)   │  │  (cached)    │  │(grok-3)  │  │          │ │
 │  └──────────┘  └──────────┘  └──────────────┘  └──────────┘  └──────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐                             │
+│  │Tastytrade│  │Claude AI │  │   Finnhub    │                             │
+│  │ Options  │  │  Market  │  │ News/Analyst │                             │
+│  │  (live)  │  │  Briefs  │  │  (free tier) │                             │
+│  └──────────┘  └──────────┘  └──────────────┘                             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -475,6 +504,79 @@ User selects: Destination + Activities (e.g., surf, nomad, coworking)
 
 </details>
 
+<details>
+<summary><strong>📊 Volatility Scanner Pipeline</strong></summary>
+
+```
+User opens Scanner → Selects Universe (S&P 500)
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  TASTYTRADE API                     │
+│  Live data for 475 tickers          │
+│                                     │
+│  • IV, HV (30/60/90 day)           │
+│  • IV Rank, term structure          │
+│  • Earnings dates, borrow rates     │
+│  • Sector classification            │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  INSTITUTIONAL HARD GATES           │
+│  ~26% pass rate                     │
+│                                     │
+│  • Liquidity score ≥ 3             │
+│  • IV-HV spread ≥ 5 points        │
+│  • IV Rank ≥ 25                    │
+│  • Borrow rate ≤ 10%              │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  SCORING ENGINE (0-100)             │
+│  7 factors + sector penalty         │
+│                                     │
+│  • IV-HV spread (30 pts)           │
+│  • HV trend (5 pts)               │
+│  • IV Rank (20 pts)               │
+│  • Liquidity (20 pts)             │
+│  • Term structure (10 pts)         │
+│  • Earnings proximity (10 pts)     │
+│  • Lendability (5 pts)            │
+│  • Sector diversity: -5 penalty    │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  CLAUDE AI MARKET BRIEF             │
+│  Regime + Risk + Top Picks          │
+│                                     │
+│  • Regime snapshot (avg spreads)    │
+│  • Sector heatmap                  │
+│  • Risk clusters (earnings,         │
+│    sector concentration, anomalies) │
+│  • Top 8 tickers + marginal 3      │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  TOP PICKS AUTO-ANALYSIS            │
+│  Sequential, ~25 seconds            │
+│                                     │
+│  For each of 8 tickers:            │
+│  • Fetch quote + chain + Greeks    │
+│  • Generate 2-3 strategy cards     │
+│  • Fetch Finnhub news + analysts   │
+│  • Claude AI analysis per strategy │
+│                                     │
+│  Cards show: legs, Greeks, PoP,    │
+│  P&L chart, breakevens, AI text    │
+└─────────────────────────────────────┘
+```
+
+</details>
+
 <br>
 
 ## 🚀 Quick Start
@@ -542,6 +644,22 @@ XAI_API_KEY="xai-..."
 # OPENAI — Optional
 # ═══════════════════════════════════════════════════════════════
 OPENAI_API_KEY="sk-..."
+
+# ═══════════════════════════════════════════════════════════════
+# ANTHROPIC (AI Market Brief + Strategy Analysis)
+# ═══════════════════════════════════════════════════════════════
+ANTHROPIC_API_KEY="sk-ant-..."
+
+# ═══════════════════════════════════════════════════════════════
+# FINNHUB (News + Analyst Ratings) — Free tier, 60 calls/min
+# ═══════════════════════════════════════════════════════════════
+FINNHUB_API_KEY="your-finnhub-key"
+
+# ═══════════════════════════════════════════════════════════════
+# TASTYTRADE (Options Data — Quotes, Chains, Greeks)
+# ═══════════════════════════════════════════════════════════════
+TASTYTRADE_USERNAME="your-username"
+TASTYTRADE_PASSWORD="your-password"
 ```
 
 </details>
@@ -774,7 +892,11 @@ The AGPL + Commercial model ensures:
 ✅ Google Places Integration<br>
 ✅ Grok Sentiment Analysis<br>
 ✅ Robinhood CSV Import<br>
-✅ Hub Command Center
+✅ Hub Command Center<br>
+✅ AI Volatility Scanner<br>
+✅ AI Market Brief (Claude)<br>
+✅ Strategy Builder<br>
+✅ Finnhub News + Analysts
 
 </td>
 <td valign="top">
@@ -784,7 +906,9 @@ The AGPL + Commercial model ensures:
 🔲 Onboarding Flow<br>
 🔲 Tax Export (Form 8949)<br>
 🔲 Schedule C Generation<br>
-✅ Meal Planning Module
+✅ Meal Planning Module<br>
+🔲 Results Tracking (scanner vs actuals)<br>
+🔲 Multi-Broker Support (Schwab, IBKR)
 
 </td>
 <td valign="top">
