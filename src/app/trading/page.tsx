@@ -575,7 +575,7 @@ export default function TradingPage() {
           // 3. Fetch Greeks for that expiration
           const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
           const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-          const range = price ? price * 0.15 : 50;
+          const range = Math.max(price ? price * 0.15 : 50, 5);
           const streamerSyms: string[] = [];
           for (const s of exp.strikes || []) {
             if (Math.abs(s.strike - center) > range) continue;
@@ -764,7 +764,7 @@ export default function TradingPage() {
       // 3. Fetch Greeks for that expiration
       const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
       const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-      const range = price ? price * 0.15 : 50;
+      const range = Math.max(price ? price * 0.15 : 50, 5);
       const symbols: string[] = [];
       for (const s of exp.strikes || []) {
         if (Math.abs(s.strike - center) > range) continue;
@@ -2074,7 +2074,7 @@ export default function TradingPage() {
                                                   <div style={{ borderTop: '1px solid #1F2937', paddingTop: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', fontSize: 11, color: '#9CA3AF' }}>
                                                     <div>{card.netCredit != null ? 'Credit:' : 'Debit:'} <span style={{ fontFamily: 'monospace', fontWeight: 500, color: card.netCredit != null ? '#10B981' : '#3B82F6' }}>${(card.netCredit ?? card.netDebit ?? 0).toFixed(2)}</span></div>
                                                     <div>Max Profit: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
-                                                    <div>Max Loss: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.maxLoss != null ? `$${card.maxLoss}` : <span style={{ color: '#F59E0B' }}>Undefined</span>}</span></div>
+                                                    <div>Max Loss: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.maxLoss != null ? `$${card.maxLoss}` : <span style={{ color: card.isUnlimited ? '#EF4444' : '#F59E0B' }}>{card.isUnlimited ? 'Unlimited' : 'Undefined'}</span>}</span></div>
                                                     <div>R/R: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
                                                   </div>
 
@@ -2279,7 +2279,7 @@ export default function TradingPage() {
                                                             </span>
                                                           </div>
                                                           <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
-                                                          <div className="text-gray-500">Max Loss: <span className="font-mono font-medium text-gray-700">{card.maxLoss != null ? `$${card.maxLoss}` : <span className="text-amber-600">Undefined</span>}</span></div>
+                                                          <div className="text-gray-500">Max Loss: <span className={`font-mono font-medium ${card.isUnlimited ? 'text-red-600' : 'text-gray-700'}`}>{card.maxLoss != null ? `$${card.maxLoss}` : card.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
                                                           <div className="text-gray-500">R/R: <span className="font-mono font-medium text-gray-700">{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
                                                           {card.breakevens.length > 0 && (
                                                             <div className="text-gray-500 col-span-2">BE: <span className="font-mono text-gray-700">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
@@ -2339,7 +2339,7 @@ export default function TradingPage() {
                                                             </span>
                                                           </div>
                                                           <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{sbCustomCard.maxProfit != null ? `$${sbCustomCard.maxProfit}` : 'Unlimited'}</span></div>
-                                                          <div className="text-gray-500">Max Loss: <span className="font-mono font-medium text-gray-700">{sbCustomCard.maxLoss != null ? `$${sbCustomCard.maxLoss}` : <span className="text-amber-600">Undefined</span>}</span></div>
+                                                          <div className="text-gray-500">Max Loss: <span className={`font-mono font-medium ${sbCustomCard.isUnlimited ? 'text-red-600' : 'text-gray-700'}`}>{sbCustomCard.maxLoss != null ? `$${sbCustomCard.maxLoss}` : sbCustomCard.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
                                                           <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{sbCustomCard.pop != null ? `~${Math.round(sbCustomCard.pop * 100)}%` : 'N/A'}</span></div>
                                                         </div>
                                                         {sbCustomCard.pnlPoints.length > 2 && sbQuotePrice && (
