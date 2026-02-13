@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 
-// Callback route: refresh a session using a stored remember token
+// With OAuth, the SDK auto-refreshes access tokens.
+// This endpoint validates the OAuth client still works and updates lastUsedAt.
 export async function POST() {
   try {
     const cookieStore = await cookies();
@@ -17,42 +18,30 @@ export async function POST() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get existing connection
     const connection = await prisma.tastytrade_connections.findUnique({
       where: { userId: user.id },
     });
 
-    if (!connection || !connection.rememberToken) {
+    if (!connection) {
       return NextResponse.json({ error: 'No Tastytrade connection found' }, { status: 404 });
     }
 
-    // Re-authenticate using remember token
-    const client = getTastytradeClient();
+    // Validate OAuth client still works
     try {
-      await client.sessionService.loginWithRememberToken(
-        connection.ttUsername,
-        connection.rememberToken
-      );
-    } catch (refreshErr: any) {
-      console.error('[Tastytrade] Token refresh failed:', refreshErr?.message);
-      // Mark connection as expired
+      const client = getTastytradeClient();
+      await client.accountsAndCustomersService.getCustomerResource();
+    } catch {
       await prisma.tastytrade_connections.update({
         where: { userId: user.id },
         data: { status: 'expired' },
       });
-      return NextResponse.json({ error: 'Session expired. Please reconnect.' }, { status: 401 });
+      return NextResponse.json({ error: 'OAuth session invalid. Please reconnect.' }, { status: 401 });
     }
 
-    const newSessionToken = client.session.authToken;
-    if (!newSessionToken) {
-      return NextResponse.json({ error: 'Failed to refresh session' }, { status: 500 });
-    }
-
-    // Update stored session token
+    // Update lastUsedAt
     await prisma.tastytrade_connections.update({
       where: { userId: user.id },
       data: {
-        sessionToken: newSessionToken,
         status: 'active',
         lastUsedAt: new Date(),
       },

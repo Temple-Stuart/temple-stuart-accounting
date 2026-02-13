@@ -138,8 +138,6 @@ export default function TradingPage() {
   const [ttAccounts, setTtAccounts] = useState<string[]>([]);
   const [ttConnecting, setTtConnecting] = useState(false);
   const [ttError, setTtError] = useState<string | null>(null);
-  const [ttUsername, setTtUsername] = useState('');
-  const [ttPassword, setTtPassword] = useState('');
 
   // Tastytrade live data state
   const [ttPositions, setTtPositions] = useState<any[]>([]);
@@ -836,17 +834,11 @@ export default function TradingPage() {
   };
 
   const handleTtConnect = async () => {
-    if (!ttUsername || !ttPassword) {
-      setTtError('Username and password are required');
-      return;
-    }
     setTtConnecting(true);
     setTtError(null);
     try {
       const res = await fetch('/api/tastytrade/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: ttUsername, password: ttPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -855,8 +847,6 @@ export default function TradingPage() {
       }
       setTtConnected(true);
       setTtAccounts(data.accountNumbers || []);
-      setTtUsername('');
-      setTtPassword('');
     } catch {
       setTtError('Failed to connect');
     } finally {
@@ -1758,21 +1748,6 @@ export default function TradingPage() {
                           {ttError && (
                             <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>
                           )}
-                          <input
-                            type="text"
-                            placeholder="Tastytrade username or email"
-                            value={ttUsername}
-                            onChange={e => setTtUsername(e.target.value)}
-                            className="w-full border border-gray-200 px-3 py-2 text-sm"
-                          />
-                          <input
-                            type="password"
-                            placeholder="Password"
-                            value={ttPassword}
-                            onChange={e => setTtPassword(e.target.value)}
-                            className="w-full border border-gray-200 px-3 py-2 text-sm"
-                            onKeyDown={e => e.key === 'Enter' && handleTtConnect()}
-                          />
                           <button
                             onClick={handleTtConnect}
                             disabled={ttConnecting}

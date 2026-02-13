@@ -1,32 +1,41 @@
 import TastytradeClient from '@tastytrade/api';
 import { prisma } from '@/lib/prisma';
 
-// Create a production Tastytrade client instance
+// Create an OAuth-authenticated Tastytrade client using env vars.
+// The SDK handles access-token refresh automatically via the refresh token.
 export function getTastytradeClient(): TastytradeClient {
-  return new TastytradeClient(TastytradeClient.ProdConfig);
+  return new TastytradeClient({
+    ...TastytradeClient.ProdConfig,
+    clientSecret: process.env.TASTYTRADE_CLIENT_SECRET,
+    refreshToken: process.env.TASTYTRADE_REFRESH_TOKEN,
+    oauthScopes: ['read', 'trade'],
+  });
 }
 
-// Check if a user has an active Tastytrade connection
+// Check if OAuth env vars are present AND the client can authenticate.
 export async function isTastytradeConnected(userId: string): Promise<boolean> {
+  if (!process.env.TASTYTRADE_CLIENT_SECRET || !process.env.TASTYTRADE_REFRESH_TOKEN) {
+    return false;
+  }
+
+  // Also check DB for an active connection record for this user
   const connection = await prisma.tastytrade_connections.findUnique({
     where: { userId },
-    select: { status: true, expiresAt: true },
+    select: { status: true },
   });
 
   if (!connection || connection.status !== 'active') {
     return false;
   }
 
-  // If there's an expiration and it's passed, mark as expired
-  if (connection.expiresAt && connection.expiresAt < new Date()) {
-    await prisma.tastytrade_connections.update({
-      where: { userId },
-      data: { status: 'expired' },
-    });
+  // Validate with a lightweight API call
+  try {
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    return true;
+  } catch {
     return false;
   }
-
-  return true;
 }
 
 // Get connection details for a user
@@ -36,9 +45,13 @@ export async function getTastytradeConnection(userId: string) {
   });
 }
 
-// Return a TastytradeClient authenticated with a stored session token.
-// Falls back to re-login via remember token if the stored session is stale.
+// Return an OAuth-authenticated TastytradeClient.
+// The SDK auto-refreshes access tokens using the refresh token from env vars.
 export async function getAuthenticatedClient(userId: string): Promise<TastytradeClient | null> {
+  if (!process.env.TASTYTRADE_CLIENT_SECRET || !process.env.TASTYTRADE_REFRESH_TOKEN) {
+    return null;
+  }
+
   const connection = await prisma.tastytrade_connections.findUnique({
     where: { userId },
   });
@@ -47,52 +60,9 @@ export async function getAuthenticatedClient(userId: string): Promise<Tastytrade
     return null;
   }
 
-  const client = new TastytradeClient(TastytradeClient.ProdConfig);
+  const client = getTastytradeClient();
 
-  // Set the stored session token directly (public property on TastytradeSession)
-  client.session.authToken = connection.sessionToken;
-
-  // Quick validation: try a lightweight call to see if the token still works
-  try {
-    await client.accountsAndCustomersService.getCustomerResource();
-  } catch {
-    // Token expired — try remember token refresh
-    if (!connection.rememberToken || !connection.ttUsername) {
-      await prisma.tastytrade_connections.update({
-        where: { userId },
-        data: { status: 'expired' },
-      });
-      return null;
-    }
-
-    try {
-      await client.sessionService.loginWithRememberToken(
-        connection.ttUsername,
-        connection.rememberToken
-      );
-    } catch {
-      await prisma.tastytrade_connections.update({
-        where: { userId },
-        data: { status: 'expired' },
-      });
-      return null;
-    }
-
-    const newToken = client.session.authToken;
-    if (!newToken) {
-      return null;
-    }
-
-    // Persist the refreshed token
-    await prisma.tastytrade_connections.update({
-      where: { userId },
-      data: { sessionToken: newToken, lastUsedAt: new Date() },
-    });
-
-    return client;
-  }
-
-  // Token was valid — update lastUsedAt
+  // Update lastUsedAt
   await prisma.tastytrade_connections.update({
     where: { userId },
     data: { lastUsedAt: new Date() },

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const cookieStore = await cookies();
     const userEmail = cookieStore.get('userEmail')?.value;
@@ -16,56 +16,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { username, password } = await request.json();
-    if (!username || !password) {
-      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
+    // Verify OAuth env vars are configured
+    if (!process.env.TASTYTRADE_CLIENT_SECRET || !process.env.TASTYTRADE_REFRESH_TOKEN) {
+      return NextResponse.json(
+        { error: 'Tastytrade OAuth credentials not configured on server' },
+        { status: 500 }
+      );
     }
 
-    // Login to Tastytrade
+    // Create OAuth client and validate it works
     const client = getTastytradeClient();
-    let loginResponse;
-    try {
-      loginResponse = await client.sessionService.login(username, password, true);
-    } catch (loginErr: any) {
-      console.error('[Tastytrade] Login failed:', loginErr?.message);
-      return NextResponse.json({ error: 'Invalid Tastytrade credentials' }, { status: 401 });
-    }
-
-    // Get session token from the client
-    const sessionToken = client.session.authToken;
-    if (!sessionToken) {
-      return NextResponse.json({ error: 'Failed to obtain session token' }, { status: 500 });
-    }
-
-    // Get the remember token from login response
-    const rememberToken = loginResponse?.['remember-token'] || null;
-
-    // Fetch account numbers
     let accountNumbers: string[] = [];
     try {
       const accounts = await client.accountsAndCustomersService.getCustomerAccounts();
-      accountNumbers = accounts.map((a: any) => a.account?.['account-number'] || a['account-number']).filter(Boolean);
-    } catch (accErr: any) {
-      console.error('[Tastytrade] Failed to fetch accounts:', accErr?.message);
+      accountNumbers = accounts
+        .map((a: any) => a.account?.['account-number'] || a['account-number'])
+        .filter(Boolean);
+    } catch (err: any) {
+      console.error('[Tastytrade] OAuth validation failed:', err?.message);
+      return NextResponse.json(
+        { error: 'Failed to authenticate with Tastytrade. Check server OAuth configuration.' },
+        { status: 401 }
+      );
     }
 
-    // Upsert connection record
+    // Upsert connection record (no session/remember tokens needed)
     await prisma.tastytrade_connections.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
-        ttUsername: username,
-        sessionToken,
-        rememberToken,
+        ttUsername: 'oauth',
+        sessionToken: 'oauth',
         accountNumbers,
         status: 'active',
         connectedAt: new Date(),
         lastUsedAt: new Date(),
       },
       update: {
-        ttUsername: username,
-        sessionToken,
-        rememberToken,
+        ttUsername: 'oauth',
+        sessionToken: 'oauth',
+        rememberToken: null,
         accountNumbers,
         status: 'active',
         connectedAt: new Date(),
