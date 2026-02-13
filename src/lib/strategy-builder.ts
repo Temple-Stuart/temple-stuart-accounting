@@ -173,8 +173,13 @@ function makeLeg(
 }
 
 function computePnlPoints(legs: StrategyLeg[], currentPrice: number): { price: number; pnl: number }[] {
-  const lo = currentPrice * 0.85;
-  const hi = currentPrice * 1.15;
+  // Extend range to cover all strikes with margin so diagrams show full loss tails
+  const allStrikes = legs.map(l => l.strike);
+  const minStrike = Math.min(...allStrikes);
+  const maxStrike = Math.max(...allStrikes);
+  const spread = Math.max(maxStrike - minStrike, currentPrice * 0.1);
+  const lo = Math.max(0, Math.min(currentPrice * 0.85, minStrike - spread));
+  const hi = Math.max(currentPrice * 1.15, maxStrike + spread);
   const step = (hi - lo) / 50;
   const points: { price: number; pnl: number }[] = [];
   for (let p = lo; p <= hi + 0.01; p += step) {
@@ -219,7 +224,25 @@ function buildCard(
   const pnlPoints = computePnlPoints(legs, currentPrice);
   const pnls = pnlPoints.map(p => p.pnl);
   const maxProfit = Math.round(Math.max(...pnls) * 100) / 100;
-  const maxLoss = isUnlimited ? null : Math.round(Math.abs(Math.min(...pnls)) * 100) / 100;
+
+  // Compute max loss analytically at critical prices (0, each strike, high price)
+  // rather than relying on sampled points which may miss the true worst case
+  let maxLoss: number | null = null;
+  if (!isUnlimited) {
+    const criticalPrices = [0, ...legs.map(l => l.strike), Math.max(...legs.map(l => l.strike)) * 2];
+    let worstPnl = 0;
+    for (const p of criticalPrices) {
+      let pnl = 0;
+      for (const leg of legs) {
+        const intrinsic = leg.type === 'call'
+          ? Math.max(0, p - leg.strike)
+          : Math.max(0, leg.strike - p);
+        pnl += leg.side === 'buy' ? (intrinsic - leg.price) * 100 : (leg.price - intrinsic) * 100;
+      }
+      worstPnl = Math.min(worstPnl, pnl);
+    }
+    maxLoss = Math.round(Math.abs(worstPnl) * 100) / 100;
+  }
 
   // Breakevens: where P&L crosses zero
   const breakevens: number[] = [];
@@ -454,11 +477,15 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
   }
 
   // Minimum PoP filter — credit strategies need >=40%, debit >=25%
-  return cards.filter(card => {
+  const filtered = cards.filter(card => {
     if (card.pop == null) return false;
     if (card.netCredit != null) return card.pop >= MIN_POP_CREDIT;
     return card.pop >= MIN_POP_DEBIT;
   });
+
+  // Re-label sequentially based on strategies that actually generated
+  filtered.forEach((card, i) => { card.label = String.fromCharCode(65 + i); });
+  return filtered;
 }
 
 // ─── Build from strikes data ────────────────────────────────────────
