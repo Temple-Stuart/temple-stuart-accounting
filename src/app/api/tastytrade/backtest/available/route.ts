@@ -31,12 +31,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'symbol is required' }, { status: 400 });
     }
 
-    // GET /available-dates returns all available symbols with date ranges
+    // getTastytradeAccessToken already tested this token against the backtester
     const url = `${BACKTESTER_BASE}/available-dates`;
     console.log('[Backtest] Calling:', url);
     console.log('[Backtest] Token length:', token.length, 'starts with:', token.slice(0, 30));
 
-    let resp = await fetch(url, {
+    const resp = await fetch(url, {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
@@ -45,32 +45,6 @@ export async function GET(request: Request) {
     });
 
     console.log('[Backtest] Response status:', resp.status);
-
-    // If raw token fails with 401, retry with Bearer prefix
-    if (resp.status === 401) {
-      console.log('[Backtest] Retrying with Bearer prefix...');
-      resp = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'User-Agent': TT_USER_AGENT,
-        },
-      });
-      console.log('[Backtest] Bearer retry status:', resp.status);
-    }
-
-    // If still 401, try cookie-based auth
-    if (resp.status === 401) {
-      console.log('[Backtest] Retrying with cookie auth...');
-      resp = await fetch(url, {
-        headers: {
-          'Cookie': `session_token=${token}`,
-          'Content-Type': 'application/json',
-          'User-Agent': TT_USER_AGENT,
-        },
-      });
-      console.log('[Backtest] Cookie retry status:', resp.status);
-    }
 
     if (!resp.ok) {
       const text = await resp.text();

@@ -45,105 +45,14 @@ export async function getTastytradeConnection(userId: string) {
   });
 }
 
-// Try multiple approaches to get a token the backtester will accept.
-// The backtester is a DATA service (like DXLink) — it may need the API quote token.
+// Exhaustive token+format matrix test against the backtester.
+// Collects ALL available token types, then tries each against the backtester
+// with multiple auth header formats to find what actually works.
 const TT_USER_AGENT = 'TempleStuart/1.0';
 
-async function getBacktesterToken(jwtToken: string): Promise<string | null> {
-  // Approach 1: Get an API quote token (used by data services like DXLink/backtester)
-  try {
-    const quoteResp = await fetch('https://api.tastyworks.com/api-quote-tokens', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-    });
-    if (quoteResp.ok) {
-      const quoteData = await quoteResp.json();
-      console.log('[TT Auth] Quote token response:', JSON.stringify(quoteData).slice(0, 300));
-      const quoteToken = quoteData?.data?.token || quoteData?.token || quoteData?.data?.['dxlink-url'];
-      if (quoteToken && typeof quoteToken === 'string' && quoteToken.length < 200) {
-        console.log('[TT Auth] Got quote token, length:', quoteToken.length);
-        return quoteToken;
-      }
-    } else {
-      const text = await quoteResp.text();
-      console.log('[TT Auth] Quote token failed:', quoteResp.status, text.slice(0, 200));
-    }
-  } catch (e: any) {
-    console.log('[TT Auth] Quote token error:', e.message);
-  }
-
-  // Approach 2: Get session token from validate response — check ALL fields and headers
-  try {
-    const validateResp = await fetch('https://api.tastyworks.com/sessions/validate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-    });
-    if (validateResp.ok) {
-      const vData = await validateResp.json();
-      const data = vData?.data || vData;
-      console.log('[TT Auth] Validate full keys:', Object.keys(data).join(', '));
-      const possibleToken = data?.['session-token'] || data?.['token'] || data?.['auth-token'] || data?.['api-token'];
-      if (possibleToken) {
-        console.log('[TT Auth] Found token in validate:', possibleToken.slice(0, 30));
-        return possibleToken;
-      }
-
-      // Check response headers for session token
-      const headerToken = validateResp.headers.get('session-token') ||
-                          validateResp.headers.get('authorization') ||
-                          validateResp.headers.get('x-session-token');
-      if (headerToken) {
-        console.log('[TT Auth] Found token in validate headers:', headerToken.slice(0, 30));
-        return headerToken;
-      }
-      console.log('[TT Auth] Validate response headers:', [...validateResp.headers.entries()].map(([k, v]) => `${k}=${v.slice(0, 50)}`).join(', '));
-    } else {
-      console.log('[TT Auth] Validate failed:', validateResp.status, await validateResp.text().then(t => t.slice(0, 200)));
-    }
-  } catch (e: any) {
-    console.log('[TT Auth] Validate error:', e.message);
-  }
-
-  // Approach 3: Try creating session with login field
-  try {
-    const resp = await fetch('https://api.tastyworks.com/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-      body: JSON.stringify({ login: 'stonkyoloer' }),
-    });
-    if (resp.ok) {
-      const sData = await resp.json();
-      console.log('[TT Auth] Session with login response:', JSON.stringify(sData).slice(0, 300));
-      const sessionToken = sData?.data?.['session-token'] || sData?.['session-token'];
-      if (sessionToken) return sessionToken;
-    } else {
-      console.log('[TT Auth] Session with login failed:', resp.status, await resp.text().then(t => t.slice(0, 200)));
-    }
-  } catch (e: any) {
-    console.log('[TT Auth] Session with login error:', e.message);
-  }
-
-  return null;
-}
-
-// Get a raw auth token string for use with external APIs (e.g. backtester).
-// The SDK lazily refreshes tokens, so we trigger a lightweight call first.
-// The backtester is a data service — it likely needs a quote token or session token.
-export async function getTastytradeAccessToken(userId: string): Promise<string | null> {
+export async function getTastytradeAccessToken(userId: string): Promise<string> {
   const client = await getAuthenticatedClient(userId);
-  if (!client) return null;
+  if (!client) return '';
 
   // Force the SDK to populate tokens by making a lightweight call
   try {
@@ -152,44 +61,127 @@ export async function getTastytradeAccessToken(userId: string): Promise<string |
     // Ignore — token may already be populated
   }
 
-  console.log('[TT Auth] accessToken.token length:', client.accessToken?.token?.length || 0);
-  console.log('[TT Auth] session.authToken length:', client.session?.authToken?.length || 0);
+  // Collect all available tokens
+  const tokens: { name: string; value: string }[] = [];
 
-  // If the SDK already has a session token, use it
-  const existingSession = client.session?.authToken;
-  if (existingSession && existingSession.length > 0) {
-    console.log('[TT Auth] Using existing session authToken, length:', existingSession.length);
-    return existingSession;
+  // 1. SDK session token
+  if (client.session?.authToken) {
+    tokens.push({ name: 'session', value: client.session.authToken });
   }
 
-  // Also try the SDK's built-in quote token method
+  // 2. OAuth JWT
+  const jwt = client.accessToken?.token;
+  if (jwt) {
+    tokens.push({ name: 'jwt', value: jwt });
+  }
+
+  // 3. SDK quote token
   try {
-    const quoteTokenData = await client.accountsAndCustomersService.getApiQuoteToken();
-    console.log('[TT Auth] SDK getApiQuoteToken result:', JSON.stringify(quoteTokenData).slice(0, 300));
-    const sdkQuoteToken = quoteTokenData?.token || quoteTokenData?.['dxlink-url'];
-    if (sdkQuoteToken && typeof sdkQuoteToken === 'string' && sdkQuoteToken.length < 200) {
-      console.log('[TT Auth] Using SDK quote token, length:', sdkQuoteToken.length);
-      return sdkQuoteToken;
+    const quoteResult = await client.accountsAndCustomersService.getApiQuoteToken();
+    const qt = (quoteResult as any)?.token;
+    if (qt) {
+      tokens.push({ name: 'quote', value: qt });
     }
   } catch (e: any) {
-    console.log('[TT Auth] SDK getApiQuoteToken error:', e.message);
+    console.log('[TT Auth] SDK quote token error:', e.message);
   }
 
-  // Exchange the OAuth JWT for a backtester-compatible token
-  const jwt = client.accessToken?.token;
-  if (jwt && jwt.length > 0) {
-    const backtesterToken = await getBacktesterToken(jwt);
-    if (backtesterToken) {
-      console.log('[TT Auth] Got backtester token, length:', backtesterToken.length, 'starts with:', backtesterToken.slice(0, 20));
-      return backtesterToken;
+  // 4. Try session create with JWT auth + login field
+  if (jwt) {
+    try {
+      const resp = await fetch('https://api.tastyworks.com/sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': jwt,
+          'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
+        },
+        body: JSON.stringify({
+          login: 'stonkyoloer',
+          'remember-me': true,
+        }),
+      });
+      const text = await resp.text();
+      console.log('[TT Auth] Session create (jwt auth):', resp.status, text.slice(0, 300));
+      if (resp.ok) {
+        try {
+          const sData = JSON.parse(text);
+          const st = sData?.data?.['session-token'];
+          if (st) tokens.push({ name: 'session-from-jwt', value: st });
+        } catch { /* ignore parse error */ }
+      }
+    } catch (e: any) {
+      console.log('[TT Auth] Session create error:', e.message);
     }
-    // Fall back to JWT if all approaches fail
-    console.log('[TT Auth] All token approaches failed, falling back to JWT');
-    return jwt;
   }
 
-  console.error('[TT Auth] No token available');
-  return null;
+  // 5. Try session create with Bearer JWT
+  if (jwt) {
+    try {
+      const resp = await fetch('https://api.tastyworks.com/sessions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
+        },
+        body: JSON.stringify({
+          login: 'stonkyoloer',
+          'remember-me': true,
+        }),
+      });
+      const text = await resp.text();
+      console.log('[TT Auth] Session create (bearer auth):', resp.status, text.slice(0, 300));
+      if (resp.ok) {
+        try {
+          const sData = JSON.parse(text);
+          const st = sData?.data?.['session-token'];
+          if (st) tokens.push({ name: 'session-from-bearer', value: st });
+        } catch { /* ignore parse error */ }
+      }
+    } catch (e: any) {
+      console.log('[TT Auth] Session create bearer error:', e.message);
+    }
+  }
+
+  console.log('[TT Auth] Collected tokens:', tokens.map(t => `${t.name}(${t.value.length})`).join(', '));
+
+  // Now try EACH token against the backtester with multiple auth formats
+  for (const token of tokens) {
+    const formats: { name: string; headers: Record<string, string> }[] = [
+      { name: 'raw', headers: { 'Authorization': token.value } },
+      { name: 'bearer', headers: { 'Authorization': `Bearer ${token.value}` } },
+      { name: 'cookie', headers: { 'Cookie': `session_token=${token.value}` } },
+    ];
+
+    for (const fmt of formats) {
+      try {
+        const mergedHeaders: Record<string, string> = {
+          ...fmt.headers,
+          'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
+        };
+        const resp = await fetch('https://backtester.vast.tastyworks.com/available-dates', {
+          method: 'GET',
+          headers: mergedHeaders,
+        });
+        const status = resp.status;
+        const body = await resp.text();
+        console.log(`[TT Auth] Backtester test: ${token.name}+${fmt.name} → ${status} ${body.slice(0, 100)}`);
+
+        if (status === 200) {
+          console.log(`[TT Auth] SUCCESS: ${token.name}+${fmt.name} works!`);
+          return token.value;
+        }
+      } catch (e: any) {
+        console.log(`[TT Auth] Backtester test error: ${token.name}+${fmt.name} → ${e.message}`);
+      }
+    }
+  }
+
+  // If nothing worked, return JWT as fallback so routes can report the error
+  console.log('[TT Auth] BLOCKER: No token accepted by backtester');
+  return jwt || '';
 }
 
 // Return an OAuth-authenticated TastytradeClient.
