@@ -572,10 +572,15 @@ export default function TradingPage() {
           }
           const exp = chain.expirations[bestExpIdx];
 
-          // 3. Fetch Greeks for that expiration
+          // 3. Fetch Greeks for that expiration — IV-aware range covers 2.5 SD
+          const scannerItem = passedData.find((t: any) => t.symbol === symbol);
+          const ivRank = scannerItem?.ivRank ?? 0;
+          const tpIv30 = scannerItem?.impliedVolatility ?? 0.30;
+          const tpHv30 = (scannerItem?.hv30 ?? 30) / 100;
           const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
           const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-          const range = Math.max(price ? price * 0.25 : 50, 10);
+          const tpSdMove = price ? price * tpIv30 * Math.sqrt(exp.dte / 365) : 50;
+          const range = Math.max(tpSdMove * 2.5, 10);
           const streamerSyms: string[] = [];
           for (const s of exp.strikes || []) {
             if (Math.abs(s.strike - center) > range) continue;
@@ -583,7 +588,7 @@ export default function TradingPage() {
             if (s.putStreamerSymbol) streamerSyms.push(s.putStreamerSymbol);
           }
 
-          console.log(`[TopPicks] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${streamerSyms.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)})`);
+          console.log(`[TopPicks] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${streamerSyms.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)}, IV=${(tpIv30 * 100).toFixed(1)}%)`);
 
           let greeks: Record<string, any> = {};
           if (streamerSyms.length > 0) {
@@ -604,8 +609,6 @@ export default function TradingPage() {
           }
 
           // 4. Generate strategies (same functions as handleScannerExpand)
-          const scannerItem = passedData.find((t: any) => t.symbol === symbol);
-          const ivRank = scannerItem?.ivRank ?? 0;
           const strikeData = buildStrikeData(exp.strikes || [], greeks);
           console.log(`[TopPicks] ${symbol}: strikeData built=${strikeData.length}, withGreeks=${strikeData.filter(s => s.callDelta != null || s.putDelta != null).length}, ivRank=${ivRank}`);
           const cards = generateStrategies({
@@ -615,6 +618,8 @@ export default function TradingPage() {
             expiration: exp.date,
             dte: exp.dte,
             symbol,
+            iv30: tpIv30,
+            hv30: tpHv30,
           });
 
           if (cards.length === 0) {
@@ -720,7 +725,7 @@ export default function TradingPage() {
   }, [marketBrief, passedData.length, topPicksTriggered]);
 
   // Strategy Builder: expand scanner row → fetch quote, chain, Greeks → generate strategies
-  const handleScannerExpand = async (symbol: string, ivRank: number) => {
+  const handleScannerExpand = async (symbol: string, ivRank: number, iv30Raw?: number, hv30Raw?: number) => {
     if (sbExpandedSymbol === symbol) {
       setSbExpandedSymbol(null);
       return;
@@ -770,10 +775,13 @@ export default function TradingPage() {
       setSbSelectedExp(expIdx);
       const exp = chain.expirations[expIdx];
 
-      // 3. Fetch Greeks for that expiration
+      // 3. Fetch Greeks for that expiration — IV-aware range covers 2.5 SD
+      const sbIv30 = iv30Raw ?? 0.30;
+      const sbHv30 = (hv30Raw ?? 30) / 100;
       const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
       const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-      const range = Math.max(price ? price * 0.25 : 50, 10);
+      const sbSdMove = price ? price * sbIv30 * Math.sqrt(exp.dte / 365) : 50;
+      const range = Math.max(sbSdMove * 2.5, 10);
       const symbols: string[] = [];
       for (const s of exp.strikes || []) {
         if (Math.abs(s.strike - center) > range) continue;
@@ -781,7 +789,7 @@ export default function TradingPage() {
         if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
       }
 
-      console.log(`[StrategyBuilder UI] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${symbols.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)})`);
+      console.log(`[StrategyBuilder UI] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${symbols.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)}, IV=${(sbIv30 * 100).toFixed(1)}%)`);
 
       if (symbols.length > 0) {
         const greeksRes = await fetch('/api/tastytrade/greeks', {
@@ -807,6 +815,8 @@ export default function TradingPage() {
               expiration: exp.date,
               dte: exp.dte,
               symbol,
+              iv30: sbIv30,
+              hv30: sbHv30,
             });
             setSbStrategies(cards);
           }
@@ -2097,11 +2107,12 @@ export default function TradingPage() {
                                                     <div>R/R: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
                                                   </div>
 
-                                                  {/* PoP + Greeks row */}
+                                                  {/* PoP + EV + Greeks row */}
                                                   <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 11, color: '#9CA3AF' }}>
                                                     <span>PoP: <span style={{ color: card.pop != null && card.pop >= 0.6 ? '#10B981' : card.pop != null && card.pop >= 0.45 ? '#F59E0B' : '#EF4444' }}>
                                                       {card.pop != null ? `${Math.round(card.pop * 100)}%` : 'N/A'}
                                                     </span></span>
+                                                    <span>EV: <span style={{ color: '#10B981', fontFamily: 'monospace', fontWeight: 500 }}>+${Math.round(card.ev)}</span></span>
                                                     <span>{'\u0398'}: ${card.thetaPerDay >= 0 ? '+' : ''}{card.thetaPerDay.toFixed(2)}/day</span>
                                                     <span>{'\u0394'}: {card.netDelta >= 0 ? '+' : ''}{card.netDelta.toFixed(2)}</span>
                                                     <span>{'\u03BD'}: {card.netVega >= 0 ? '+' : ''}{card.netVega.toFixed(2)}</span>
@@ -2192,7 +2203,7 @@ export default function TradingPage() {
                                       <Fragment key={m.symbol}>
                                         <tr
                                           className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-indigo-50' : ''}`}
-                                          onClick={() => handleScannerExpand(m.symbol, m.ivRank)}
+                                          onClick={() => handleScannerExpand(m.symbol, m.ivRank, m.impliedVolatility, m.hv30)}
                                         >
                                           <td className="px-2 py-1.5 font-mono font-medium text-gray-900" title={briefNoteMap[m.symbol] || undefined}>
                                             <span className="mr-1 text-[9px] text-gray-400">{isExpanded ? '\u25B2' : '\u25BC'}</span>
@@ -2304,6 +2315,7 @@ export default function TradingPage() {
                                                             <div className="text-gray-500 col-span-2">BE: <span className="font-mono text-gray-700">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
                                                           )}
                                                           <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span></div>
+                                                          <div className="text-gray-500">EV: <span className="font-mono font-medium text-emerald-600">+${Math.round(card.ev)}</span></div>
                                                           <div className="text-gray-500">{'\u0398'}: <span className={`font-mono font-medium ${card.thetaPerDay >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{card.thetaPerDay >= 0 ? '+' : ''}${card.thetaPerDay.toFixed(2)}/day</span></div>
                                                         </div>
                                                         <div className="border-t border-gray-100 pt-1 mt-1 text-[9px] font-mono text-gray-400 flex gap-3">

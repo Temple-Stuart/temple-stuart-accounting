@@ -60,6 +60,8 @@ export interface StrategyCard {
   isUnlimited: boolean;      // unlimited risk or profit
   pnlPoints: { price: number; pnl: number }[];
   hasWideSpread: boolean;
+  ev: number;                // expected value in dollars
+  evPerRisk: number;         // EV per dollar risked
 }
 
 export interface GenerateParams {
@@ -69,6 +71,8 @@ export interface GenerateParams {
   expiration: string;
   dte: number;
   symbol?: string; // for debug logging
+  iv30?: number;   // implied volatility decimal (e.g. 0.42 for 42%)
+  hv30?: number;   // 30-day HV decimal (e.g. 0.25 for 25%)
 }
 
 // ─── Tier 1: Strategy Labels ────────────────────────────────────────
@@ -296,6 +300,8 @@ function buildCard(
     isUnlimited,
     pnlPoints,
     hasWideSpread: legs.some(l => l.wideSpread),
+    ev: 0,
+    evPerRisk: 0,
   };
 }
 
@@ -440,9 +446,6 @@ function scanBestShortStrangle(
 
 // ─── Tier 2: Full Strategy Generation ───────────────────────────────
 
-const MIN_POP_CREDIT = 0.40;
-const MIN_POP_DEBIT = 0.25;
-
 export function generateStrategies(params: GenerateParams): StrategyCard[] {
   const { strikes, currentPrice, ivRank, expiration, dte, symbol } = params;
   const sym = symbol || '??';
@@ -501,11 +504,11 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
     }
 
     // B) Iron Condor — scan
-    const icW = scanBestIronCondor(valid, 'B', expiration, dte, currentPrice);
+    const icW = scanBestIronCondor(valid, 'B', expiration, dte, currentPrice, sym);
     if (icW) cards.push(icW);
 
     // C) Put Credit Spread — scan
-    const pcs2 = scanBestPutCreditSpread(valid, 'C', expiration, dte, currentPrice);
+    const pcs2 = scanBestPutCreditSpread(valid, 'C', expiration, dte, currentPrice, sym);
     if (pcs2) cards.push(pcs2);
 
   } else {
@@ -551,20 +554,70 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
 
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
 
-  // Minimum PoP filter — credit strategies need >=40%, debit >=25%
-  const filtered = cards.filter(card => {
-    const isCredit = card.netCredit != null;
-    const threshold = isCredit ? MIN_POP_CREDIT : MIN_POP_DEBIT;
-    const pass = card.pop != null && card.pop >= threshold;
-    if (!pass) {
-      console.log(`[StrategyBuilder] ${sym}: PoP FILTER removed "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
+  // ─── Compute EV for each card ───────────────────────────────────
+  const iv = params.iv30 ?? 0.30;
+  const hv = params.hv30 ?? iv;
+  for (const card of cards) {
+    const proxyML = currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100;
+    const effectiveML = card.isUnlimited ? proxyML : (card.maxLoss ?? 0);
+    const mp = card.maxProfit ?? 0;
+    if (card.pop != null && mp > 0 && effectiveML > 0) {
+      card.ev = Math.round((card.pop * mp - (1 - card.pop) * effectiveML) * 100) / 100;
+      card.evPerRisk = Math.round((card.ev / effectiveML) * 10000) / 10000;
     }
-    return pass;
+  }
+
+  // ─── 3-Tier Gate System ─────────────────────────────────────────
+  const POP_FLOORS: Record<string, number> = {
+    'Put Credit Spread': 0.55, 'Call Credit Spread': 0.55,
+    'Iron Condor': 0.50, 'Short Strangle': 0.60, 'Jade Lizard': 0.55,
+    'Bull Call Spread': 0.30, 'Bear Put Spread': 0.30, 'Debit Spread': 0.30,
+    'Calendar Spread': 0.30, 'Diagonal Spread': 0.30,
+    'Long Straddle': 0.25, 'Long Strangle': 0.25,
+  };
+
+  const filtered = cards.filter(card => {
+    // Gate A: EV must be positive
+    if (card.ev <= 0) {
+      const ml = card.isUnlimited ? `proxy $${(currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100).toFixed(0)}` : `$${card.maxLoss}`;
+      console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (pop=${card.pop}, mp=$${card.maxProfit}, ml=${ml})`);
+      return false;
+    }
+
+    // Gate B: Strategy-specific PoP floor
+    const threshold = POP_FLOORS[card.name] ?? 0.40;
+    if (card.pop == null || card.pop < threshold) {
+      console.log(`[StrategyBuilder] ${sym}: PoP GATE rejected "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
+      return false;
+    }
+
+    // Gate C: Minimum credit for credit strategies ($0.10/share = $10/contract)
+    if (card.netCredit != null && card.netCredit < 0.10) {
+      console.log(`[StrategyBuilder] ${sym}: MIN CREDIT rejected "${card.name}" — credit=$${card.netCredit.toFixed(2)} < $0.10 floor`);
+      return false;
+    }
+
+    return true;
   });
+
+  // ─── Edge-Aware Composite Scoring ───────────────────────────────
+  const edgeRatio = iv > 0 ? Math.max(0, (iv - hv)) / iv : 0;
+  filtered.sort((a, b) => {
+    const scoreA = computeCompositeScore(a);
+    const scoreB = computeCompositeScore(b);
+    return scoreB - scoreA;
+  });
+
+  function computeCompositeScore(card: StrategyCard): number {
+    const proxyML = currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100;
+    const effectiveML = card.isUnlimited ? proxyML : (card.maxLoss ?? 0);
+    const thetaEff = effectiveML > 0 ? Math.abs(card.thetaPerDay) / effectiveML * 100 : 0;
+    return (card.evPerRisk * 50) + (thetaEff * 30) + (edgeRatio * 20);
+  }
 
   // Re-label sequentially based on strategies that actually generated
   filtered.forEach((card, i) => { card.label = String.fromCharCode(65 + i); });
-  console.log(`[StrategyBuilder] ${sym}: RESULT → ${filtered.length} strategies [${filtered.map(c => `${c.label}) ${c.name}`).join(', ')}]`);
+  console.log(`[StrategyBuilder] ${sym}: RESULT → ${filtered.length} strategies [${filtered.map(c => `${c.label}) ${c.name} (EV=$${c.ev.toFixed(0)})`).join(', ')}]`);
   return filtered;
 }
 
