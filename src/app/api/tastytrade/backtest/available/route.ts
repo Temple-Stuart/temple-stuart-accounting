@@ -59,6 +59,19 @@ export async function GET(request: Request) {
       console.log('[Backtest] Bearer retry status:', resp.status);
     }
 
+    // If still 401, try cookie-based auth
+    if (resp.status === 401) {
+      console.log('[Backtest] Retrying with cookie auth...');
+      resp = await fetch(url, {
+        headers: {
+          'Cookie': `session_token=${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
+        },
+      });
+      console.log('[Backtest] Cookie retry status:', resp.status);
+    }
+
     if (!resp.ok) {
       const text = await resp.text();
       console.error('[Backtest] Available check failed:', resp.status, text.slice(0, 500));
