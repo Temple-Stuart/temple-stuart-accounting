@@ -45,26 +45,36 @@ export async function getTastytradeConnection(userId: string) {
   });
 }
 
-// Get a raw OAuth access token string for use with external APIs (e.g. backtester).
+// Get a raw auth token string for use with external APIs (e.g. backtester).
 // The SDK lazily refreshes tokens, so we trigger a lightweight call first.
 export async function getTastytradeAccessToken(userId: string): Promise<string | null> {
   const client = await getAuthenticatedClient(userId);
   if (!client) return null;
 
-  // Force the SDK to populate the access token by making a lightweight call
+  // Force the SDK to populate tokens by making a lightweight call
   try {
     await client.accountsAndCustomersService.getCustomerResource();
   } catch {
     // Ignore — token may already be populated
   }
 
-  const token = client.accessToken?.token;
-  if (token && token.length > 0) return token;
+  console.log('[TT Auth] accessToken.token length:', client.accessToken?.token?.length || 0);
+  console.log('[TT Auth] session.authToken length:', client.session?.authToken?.length || 0);
 
-  // Fallback: check session authToken
+  // Prefer session token (used by API requests) over OAuth access token
   const sessionToken = client.session?.authToken;
-  if (sessionToken && sessionToken.length > 0) return sessionToken;
+  if (sessionToken && sessionToken.length > 0) {
+    console.log('[TT Auth] Using session authToken, starts with:', sessionToken.slice(0, 20));
+    return sessionToken;
+  }
 
+  const accessTok = client.accessToken?.token;
+  if (accessTok && accessTok.length > 0) {
+    console.log('[TT Auth] Using accessToken.token, starts with:', accessTok.slice(0, 20));
+    return accessTok;
+  }
+
+  console.error('[TT Auth] No token available');
   return null;
 }
 

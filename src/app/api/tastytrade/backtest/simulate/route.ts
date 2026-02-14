@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const resp = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': token,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(reqBody),

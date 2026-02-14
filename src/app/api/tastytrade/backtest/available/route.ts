@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     const resp = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': token,
         'Content-Type': 'application/json',
       },
     });
