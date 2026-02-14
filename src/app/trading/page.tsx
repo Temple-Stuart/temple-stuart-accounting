@@ -14,6 +14,7 @@ import {
   type StrategyLabel,
   type CustomLeg,
 } from '@/lib/strategy-builder';
+import BacktestPanel from '@/components/BacktestPanel';
 
 interface TradeSummary {
   totalTrades: number;
@@ -207,6 +208,9 @@ export default function TradingPage() {
   // Click-to-build
   const [sbCustomLegs, setSbCustomLegs] = useState<CustomLeg[]>([]);
   const [sbCustomCard, setSbCustomCard] = useState<StrategyCard | null>(null);
+
+  // Backtest modal
+  const [backtestModal, setBacktestModal] = useState<{ symbol: string; card: StrategyCard } | null>(null);
 
   // Check Tastytrade connection status when owner loads Market Intelligence
   useEffect(() => {
@@ -2143,6 +2147,14 @@ export default function TradingPage() {
                                                       {analysis.analysis}
                                                     </div>
                                                   )}
+
+                                                  {/* Backtest Button */}
+                                                  <button
+                                                    onClick={() => setBacktestModal({ symbol: pick.symbol, card })}
+                                                    style={{ marginTop: 8, padding: '4px 10px', fontSize: 10, color: '#58a6ff', border: '1px solid #30363d', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}
+                                                  >
+                                                    Backtest
+                                                  </button>
                                                 </div>
                                               );
                                             })}
@@ -2342,6 +2354,13 @@ export default function TradingPage() {
                                                             {strategyAnalyses[m.symbol].find(a => a.strategy === card.name)!.analysis}
                                                           </div>
                                                         )}
+                                                        {/* Backtest Button */}
+                                                        <button
+                                                          onClick={() => setBacktestModal({ symbol: m.symbol, card })}
+                                                          className="mt-2 px-3 py-1 text-[10px] text-blue-500 border border-gray-200 rounded hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                                        >
+                                                          Backtest
+                                                        </button>
                                                       </div>
                                                     ))}
                                                     {/* Custom Strategy Card */}
@@ -2896,6 +2915,14 @@ export default function TradingPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Backtest Modal */}
+      {backtestModal && (
+        <BacktestPanel
+          symbol={backtestModal.symbol}
+          card={backtestModal.card}
+          onClose={() => setBacktestModal(null)}
+        />
       )}
     </AppLayout>
   );
