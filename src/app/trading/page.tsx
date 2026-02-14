@@ -575,7 +575,7 @@ export default function TradingPage() {
           // 3. Fetch Greeks for that expiration
           const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
           const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-          const range = Math.max(price ? price * 0.15 : 50, 5);
+          const range = Math.max(price ? price * 0.25 : 50, 10);
           const streamerSyms: string[] = [];
           for (const s of exp.strikes || []) {
             if (Math.abs(s.strike - center) > range) continue;
@@ -773,7 +773,7 @@ export default function TradingPage() {
       // 3. Fetch Greeks for that expiration
       const allStrikes: number[] = (exp.strikes || []).map((s: any) => s.strike);
       const center = price || (allStrikes.length > 0 ? (Math.min(...allStrikes) + Math.max(...allStrikes)) / 2 : 0);
-      const range = Math.max(price ? price * 0.15 : 50, 5);
+      const range = Math.max(price ? price * 0.25 : 50, 10);
       const symbols: string[] = [];
       for (const s of exp.strikes || []) {
         if (Math.abs(s.strike - center) > range) continue;
