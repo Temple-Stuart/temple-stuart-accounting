@@ -5,6 +5,7 @@ import { getTastytradeAccessToken } from '@/lib/tastytrade';
 import type { BacktestManagement } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
+const TT_USER_AGENT = 'TempleStuart/1.0';
 
 // Single trade simulation — tests one specific entry date
 export async function POST(request: Request) {
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
       },
       body: JSON.stringify(reqBody),
     });

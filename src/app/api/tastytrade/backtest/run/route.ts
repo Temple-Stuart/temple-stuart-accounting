@@ -5,6 +5,7 @@ import { getTastytradeAccessToken } from '@/lib/tastytrade';
 import { buildBacktestRequest, parseBacktestResponse, type BacktestConfig } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
+const TT_USER_AGENT = 'TempleStuart/1.0';
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 60; // Max 60 seconds
 
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
       },
       body: JSON.stringify(reqBody),
     });
@@ -82,6 +84,7 @@ export async function POST(request: Request) {
         headers: {
           'Authorization': token,
           'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
         },
       });
 

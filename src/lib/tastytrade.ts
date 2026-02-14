@@ -48,6 +48,8 @@ export async function getTastytradeConnection(userId: string) {
 // Exchange an OAuth JWT for a Tastytrade session token.
 // The backtester API requires a session token, not the OAuth JWT directly.
 // Flow: JWT → POST /sessions/validate or /sessions → session-token
+const TT_USER_AGENT = 'TempleStuart/1.0';
+
 async function getSessionToken(jwtToken: string): Promise<string | null> {
   const baseUrl = 'https://api.tastyworks.com';
 
@@ -58,6 +60,7 @@ async function getSessionToken(jwtToken: string): Promise<string | null> {
       headers: {
         'Authorization': `Bearer ${jwtToken}`,
         'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
       },
     });
 
@@ -80,6 +83,7 @@ async function getSessionToken(jwtToken: string): Promise<string | null> {
       headers: {
         'Authorization': `Bearer ${jwtToken}`,
         'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
       },
       body: JSON.stringify({}),
     });

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeAccessToken } from '@/lib/tastytrade';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
+const TT_USER_AGENT = 'TempleStuart/1.0';
 
 export async function GET(request: Request) {
   try {
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
       },
     });
 
@@ -51,6 +53,7 @@ export async function GET(request: Request) {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'User-Agent': TT_USER_AGENT,
         },
       });
       console.log('[Backtest] Bearer retry status:', resp.status);
