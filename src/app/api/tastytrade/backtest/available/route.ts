@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { getAuthenticatedClient } from '@/lib/tastytrade';
+import { getTastytradeAccessToken } from '@/lib/tastytrade';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
 
@@ -18,10 +18,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const client = await getAuthenticatedClient(user.id);
-    if (!client) {
-      return NextResponse.json({ error: 'Not connected' }, { status: 401 });
+    const token = await getTastytradeAccessToken(user.id);
+    if (!token) {
+      return NextResponse.json({ error: 'Not connected or could not retrieve access token' }, { status: 401 });
     }
+    console.log('[Backtest] Token obtained, length:', token.length);
 
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
@@ -29,42 +30,62 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'symbol is required' }, { status: 400 });
     }
 
-    // Get the access token from the authenticated client
-    const token = (client as any).accessToken?.token || (client as any).accessToken;
-    if (!token) {
-      return NextResponse.json({ error: 'Could not retrieve access token' }, { status: 500 });
-    }
+    // GET /available-dates returns all available symbols with date ranges
+    const url = `${BACKTESTER_BASE}/available-dates`;
+    console.log('[Backtest] Calling:', url);
 
-    // Query the backtester for available data range for this symbol
-    const resp = await fetch(`${BACKTESTER_BASE}/symbols/${encodeURIComponent(symbol.toUpperCase())}`, {
+    const resp = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
 
+    console.log('[Backtest] Response status:', resp.status);
+
     if (!resp.ok) {
-      // If backtester returns 404, symbol might not be available for backtesting
-      if (resp.status === 404) {
-        return NextResponse.json({
-          available: false,
-          symbol: symbol.toUpperCase(),
-          message: `${symbol.toUpperCase()} is not available for backtesting`,
-        });
-      }
       const text = await resp.text();
-      console.error('[Backtest] Available check failed:', resp.status, text);
-      return NextResponse.json({ error: 'Backtester API error', details: text }, { status: resp.status });
+      console.error('[Backtest] Available check failed:', resp.status, text.slice(0, 500));
+      return NextResponse.json({ error: 'Backtester API error', details: text.slice(0, 500) }, { status: resp.status });
     }
 
     const data = await resp.json();
+    const bodyPreview = JSON.stringify(data).slice(0, 500);
+    console.log('[Backtest] Response body preview:', bodyPreview);
+
+    // data may be an array of { symbol, start-date, end-date } or an object keyed by symbol
+    const upperSymbol = symbol.toUpperCase();
+    let match: any = null;
+
+    if (Array.isArray(data)) {
+      match = data.find((item: any) => (item.symbol || item.ticker || '').toUpperCase() === upperSymbol);
+    } else if (data.items && Array.isArray(data.items)) {
+      match = data.items.find((item: any) => (item.symbol || item.ticker || '').toUpperCase() === upperSymbol);
+    } else if (data[upperSymbol]) {
+      match = data[upperSymbol];
+    } else if (data['available-dates']) {
+      const dates = data['available-dates'];
+      if (Array.isArray(dates)) {
+        match = dates.find((item: any) => (item.symbol || item.ticker || '').toUpperCase() === upperSymbol);
+      } else if (dates[upperSymbol]) {
+        match = dates[upperSymbol];
+      }
+    }
+
+    if (!match) {
+      return NextResponse.json({
+        available: false,
+        symbol: upperSymbol,
+        message: `${upperSymbol} is not available for backtesting`,
+      });
+    }
 
     return NextResponse.json({
       available: true,
-      symbol: symbol.toUpperCase(),
-      startDate: data['start-date'] || data['earliest-date'] || '2010-01-01',
-      endDate: data['end-date'] || data['latest-date'] || new Date().toISOString().slice(0, 10),
-      strategies: data['available-strategies'] || data['strategies'] || [
+      symbol: upperSymbol,
+      startDate: match['start-date'] || match['earliest-date'] || match['startDate'] || '2010-01-01',
+      endDate: match['end-date'] || match['latest-date'] || match['endDate'] || new Date().toISOString().slice(0, 10),
+      strategies: match['available-strategies'] || match['strategies'] || [
         'iron_condor', 'short_put_vertical', 'short_call_vertical',
         'short_strangle', 'short_straddle', 'long_call_vertical',
         'long_put_vertical', 'long_straddle', 'long_strangle',

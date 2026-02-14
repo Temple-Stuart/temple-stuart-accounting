@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { getAuthenticatedClient } from '@/lib/tastytrade';
+import { getTastytradeAccessToken } from '@/lib/tastytrade';
 import { buildBacktestRequest, parseBacktestResponse, type BacktestConfig } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
@@ -21,10 +21,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const client = await getAuthenticatedClient(user.id);
-    if (!client) {
-      return NextResponse.json({ error: 'Not connected' }, { status: 401 });
+    const token = await getTastytradeAccessToken(user.id);
+    if (!token) {
+      return NextResponse.json({ error: 'Not connected or could not retrieve access token' }, { status: 401 });
     }
+    console.log('[Backtest Run] Token obtained, length:', token.length);
 
     const body = await request.json();
     const config = body.config as BacktestConfig;
@@ -32,16 +33,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid backtest configuration' }, { status: 400 });
     }
 
-    // Get the access token
-    const token = (client as any).accessToken?.token || (client as any).accessToken;
-    if (!token) {
-      return NextResponse.json({ error: 'Could not retrieve access token' }, { status: 500 });
-    }
-
     const reqBody = buildBacktestRequest(config);
 
     // Create the backtest
-    const createResp = await fetch(`${BACKTESTER_BASE}/backtests`, {
+    const createUrl = `${BACKTESTER_BASE}/backtests`;
+    console.log('[Backtest Run] Calling:', createUrl, 'body:', JSON.stringify(reqBody).slice(0, 300));
+
+    const createResp = await fetch(createUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -50,13 +48,17 @@ export async function POST(request: Request) {
       body: JSON.stringify(reqBody),
     });
 
+    console.log('[Backtest Run] Create response status:', createResp.status);
+
     if (!createResp.ok) {
       const text = await createResp.text();
-      console.error('[Backtest] Create failed:', createResp.status, text);
-      return NextResponse.json({ error: 'Failed to create backtest', details: text }, { status: createResp.status });
+      console.error('[Backtest Run] Create failed:', createResp.status, text.slice(0, 500));
+      return NextResponse.json({ error: 'Failed to create backtest', details: text.slice(0, 500) }, { status: createResp.status });
     }
 
     const createData = await createResp.json();
+    console.log('[Backtest Run] Create response body preview:', JSON.stringify(createData).slice(0, 500));
+
     const backtestId = createData['id'] || createData['backtest-id'];
 
     if (!backtestId) {
@@ -65,14 +67,18 @@ export async function POST(request: Request) {
         const result = parseBacktestResponse(createData, config);
         return NextResponse.json({ result });
       }
+      console.error('[Backtest Run] No backtest ID in response');
       return NextResponse.json({ error: 'No backtest ID returned' }, { status: 500 });
     }
+
+    console.log('[Backtest Run] Polling backtest ID:', backtestId);
 
     // Poll for completion
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
 
-      const pollResp = await fetch(`${BACKTESTER_BASE}/backtests/${backtestId}`, {
+      const pollUrl = `${BACKTESTER_BASE}/backtests/${backtestId}`;
+      const pollResp = await fetch(pollUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -80,15 +86,17 @@ export async function POST(request: Request) {
       });
 
       if (!pollResp.ok) {
-        console.error('[Backtest] Poll failed:', pollResp.status);
+        console.error('[Backtest Run] Poll failed:', pollResp.status);
         continue;
       }
 
       const pollData = await pollResp.json();
       const status = pollData['status'] || '';
+      console.log('[Backtest Run] Poll attempt', attempt + 1, 'status:', status);
 
       if (status === 'completed' || status === 'complete' || status === 'done') {
         const result = parseBacktestResponse(pollData, config);
+        console.log('[Backtest Run] Completed with', result.trades.length, 'trades');
         return NextResponse.json({ result });
       }
 
@@ -110,7 +118,7 @@ export async function POST(request: Request) {
     }, { status: 408 });
 
   } catch (error: any) {
-    console.error('[Backtest] Run error:', error);
+    console.error('[Backtest Run] Error:', error);
     return NextResponse.json({ error: 'Failed to run backtest' }, { status: 500 });
   }
 }

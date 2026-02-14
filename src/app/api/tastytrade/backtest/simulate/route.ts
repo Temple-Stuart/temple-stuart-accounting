@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { getAuthenticatedClient } from '@/lib/tastytrade';
-import type { BacktestConfig, BacktestManagement } from '@/lib/backtest-translator';
+import { getTastytradeAccessToken } from '@/lib/tastytrade';
+import type { BacktestManagement } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
 
@@ -20,10 +20,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const client = await getAuthenticatedClient(user.id);
-    if (!client) {
-      return NextResponse.json({ error: 'Not connected' }, { status: 401 });
+    const token = await getTastytradeAccessToken(user.id);
+    if (!token) {
+      return NextResponse.json({ error: 'Not connected or could not retrieve access token' }, { status: 401 });
     }
+    console.log('[Backtest Simulate] Token obtained, length:', token.length);
 
     const body = await request.json();
     const { symbol, strategyType, legs, dte, management, entryDate } = body;
@@ -32,48 +33,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'symbol, legs, and entryDate are required' }, { status: 400 });
     }
 
-    const token = (client as any).accessToken?.token || (client as any).accessToken;
-    if (!token) {
-      return NextResponse.json({ error: 'Could not retrieve access token' }, { status: 500 });
-    }
-
-    const mgmt = management as BacktestManagement || {
+    const mgmt = (management as BacktestManagement) || {
       profitTargetPercent: 50,
       stopLossPercent: 200,
       exitDte: 21,
     };
 
-    const resp = await fetch(`${BACKTESTER_BASE}/backtests/simulate`, {
+    const reqBody = {
+      symbol: symbol.toUpperCase(),
+      'strategy-type': strategyType || 'custom',
+      legs: legs.map((leg: any) => ({
+        side: leg.side,
+        'option-type': leg.type,
+        delta: leg.delta,
+      })),
+      'target-dte': dte || 45,
+      'entry-date': entryDate,
+      management: {
+        'profit-target-percent': mgmt.profitTargetPercent,
+        'stop-loss-percent': mgmt.stopLossPercent,
+        'exit-dte': mgmt.exitDte,
+      },
+    };
+
+    const url = `${BACKTESTER_BASE}/backtests/simulate`;
+    console.log('[Backtest Simulate] Calling:', url, 'body:', JSON.stringify(reqBody).slice(0, 300));
+
+    const resp = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        symbol: symbol.toUpperCase(),
-        'strategy-type': strategyType || 'custom',
-        legs: legs.map((leg: any) => ({
-          side: leg.side,
-          'option-type': leg.type,
-          delta: leg.delta,
-        })),
-        'target-dte': dte || 45,
-        'entry-date': entryDate,
-        management: {
-          'profit-target-percent': mgmt.profitTargetPercent,
-          'stop-loss-percent': mgmt.stopLossPercent,
-          'exit-dte': mgmt.exitDte,
-        },
-      }),
+      body: JSON.stringify(reqBody),
     });
+
+    console.log('[Backtest Simulate] Response status:', resp.status);
 
     if (!resp.ok) {
       const text = await resp.text();
-      console.error('[Backtest] Simulate failed:', resp.status, text);
-      return NextResponse.json({ error: 'Simulation failed', details: text }, { status: resp.status });
+      console.error('[Backtest Simulate] Failed:', resp.status, text.slice(0, 500));
+      return NextResponse.json({ error: 'Simulation failed', details: text.slice(0, 500) }, { status: resp.status });
     }
 
     const data = await resp.json();
+    console.log('[Backtest Simulate] Response body preview:', JSON.stringify(data).slice(0, 500));
 
     return NextResponse.json({
       trade: {
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('[Backtest] Simulate error:', error);
+    console.error('[Backtest Simulate] Error:', error);
     return NextResponse.json({ error: 'Failed to simulate trade' }, { status: 500 });
   }
 }

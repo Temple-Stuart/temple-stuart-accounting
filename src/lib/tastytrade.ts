@@ -45,6 +45,29 @@ export async function getTastytradeConnection(userId: string) {
   });
 }
 
+// Get a raw OAuth access token string for use with external APIs (e.g. backtester).
+// The SDK lazily refreshes tokens, so we trigger a lightweight call first.
+export async function getTastytradeAccessToken(userId: string): Promise<string | null> {
+  const client = await getAuthenticatedClient(userId);
+  if (!client) return null;
+
+  // Force the SDK to populate the access token by making a lightweight call
+  try {
+    await client.accountsAndCustomersService.getCustomerResource();
+  } catch {
+    // Ignore — token may already be populated
+  }
+
+  const token = client.accessToken?.token;
+  if (token && token.length > 0) return token;
+
+  // Fallback: check session authToken
+  const sessionToken = client.session?.authToken;
+  if (sessionToken && sessionToken.length > 0) return sessionToken;
+
+  return null;
+}
+
 // Return an OAuth-authenticated TastytradeClient.
 // The SDK auto-refreshes access tokens using the refresh token from env vars.
 export async function getAuthenticatedClient(userId: string): Promise<TastytradeClient | null> {
