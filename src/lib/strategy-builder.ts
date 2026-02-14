@@ -68,6 +68,7 @@ export interface GenerateParams {
   ivRank: number;
   expiration: string;
   dte: number;
+  symbol?: string; // for debug logging
 }
 
 // ─── Tier 1: Strategy Labels ────────────────────────────────────────
@@ -305,81 +306,135 @@ const PCS_DELTAS = [0.15, 0.18, 0.20, 0.22, 0.25, 0.28, 0.30];
 const SS_DELTAS = [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25];
 
 function scanBestIronCondor(
-  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number, sym = '??'
 ): StrategyCard | null {
   let best: StrategyCard | null = null;
   let bestScore = -Infinity;
   for (const d of IC_DELTAS) {
     const sp = findByDelta(valid, -d, 'put');
     const sc = findByDelta(valid, d, 'call');
-    if (!sp || !sc) continue;
+    if (!sp || !sc) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — findByDelta failed (shortPut=${sp?.strike ?? 'null'}, shortCall=${sc?.strike ?? 'null'})`);
+      continue;
+    }
     const lp = nextStrikeBelow(valid, sp.strike);
     const lc = nextStrikeAbove(valid, sc.strike);
-    if (!lp || !lc) continue;
+    if (!lp || !lc) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — no adjacent strike (longPut=${lp?.strike ?? 'null'}, longCall=${lc?.strike ?? 'null'})`);
+      continue;
+    }
     const legs = [
       makeLeg(sp, 'put', 'sell'),
       makeLeg(lp, 'put', 'buy'),
       makeLeg(sc, 'call', 'sell'),
       makeLeg(lc, 'call', 'buy'),
     ].filter((l): l is StrategyLeg => l != null);
-    if (legs.length !== 4) continue;
+    if (legs.length !== 4) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — makeLeg failed, only ${legs.length}/4 legs built`);
+      continue;
+    }
     const card = buildCard('Iron Condor', label, legs, expiration, dte, currentPrice, false);
-    if (card.netCredit == null || card.netCredit <= 0) continue;
-    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) continue;
+    if (card.netCredit == null || card.netCredit <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — rejected: netCredit=${card.netCredit}`);
+      continue;
+    }
+    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — rejected: pop=${card.pop}, maxLoss=${card.maxLoss}`);
+      continue;
+    }
     const mp = card.maxProfit ?? 0;
-    if (mp <= 0) continue;
+    if (mp <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — rejected: maxProfit=${mp}`);
+      continue;
+    }
     const score = card.pop * (mp / card.maxLoss);
+    console.log(`[StrategyBuilder] ${sym}: IC delta=${d} — candidate score=${score.toFixed(3)} (pop=${card.pop}, mp=$${mp}, ml=$${card.maxLoss})`);
     if (score > bestScore) { bestScore = score; best = card; }
   }
+  console.log(`[StrategyBuilder] ${sym}: IC result → ${best ? `PASS (score=${bestScore.toFixed(3)})` : 'FAIL (no valid candidate)'}`);
   return best;
 }
 
 function scanBestPutCreditSpread(
-  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number, sym = '??'
 ): StrategyCard | null {
   let best: StrategyCard | null = null;
   let bestScore = -Infinity;
   for (const d of PCS_DELTAS) {
     const sp = findByDelta(valid, -d, 'put');
-    if (!sp) continue;
+    if (!sp) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — findByDelta(put) returned null`);
+      continue;
+    }
     const lp = nextStrikeBelow(valid, sp.strike);
-    if (!lp) continue;
+    if (!lp) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — no strike below ${sp.strike}`);
+      continue;
+    }
     const legs = [
       makeLeg(sp, 'put', 'sell'),
       makeLeg(lp, 'put', 'buy'),
     ].filter((l): l is StrategyLeg => l != null);
-    if (legs.length !== 2) continue;
+    if (legs.length !== 2) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — makeLeg failed, only ${legs.length}/2 legs`);
+      continue;
+    }
     const card = buildCard('Put Credit Spread', label, legs, expiration, dte, currentPrice, false);
-    if (card.netCredit == null || card.netCredit <= 0) continue;
-    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) continue;
+    if (card.netCredit == null || card.netCredit <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — rejected: netCredit=${card.netCredit}`);
+      continue;
+    }
+    if (card.pop == null || card.maxLoss == null || card.maxLoss <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — rejected: pop=${card.pop}, maxLoss=${card.maxLoss}`);
+      continue;
+    }
     const mp = card.maxProfit ?? 0;
-    if (mp <= 0) continue;
+    if (mp <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — rejected: maxProfit=${mp}`);
+      continue;
+    }
     const score = card.pop * (mp / card.maxLoss);
+    console.log(`[StrategyBuilder] ${sym}: PCS delta=${d} — candidate score=${score.toFixed(3)} (pop=${card.pop}, mp=$${mp}, ml=$${card.maxLoss})`);
     if (score > bestScore) { bestScore = score; best = card; }
   }
+  console.log(`[StrategyBuilder] ${sym}: PCS result → ${best ? `PASS (score=${bestScore.toFixed(3)})` : 'FAIL (no valid candidate)'}`);
   return best;
 }
 
 function scanBestShortStrangle(
-  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number
+  valid: StrikeData[], label: string, expiration: string, dte: number, currentPrice: number, sym = '??'
 ): StrategyCard | null {
   let best: StrategyCard | null = null;
   let bestScore = -Infinity;
   for (const d of SS_DELTAS) {
     const sp = findByDelta(valid, -d, 'put');
     const sc = findByDelta(valid, d, 'call');
-    if (!sp || !sc) continue;
+    if (!sp || !sc) {
+      console.log(`[StrategyBuilder] ${sym}: SS delta=${d} — findByDelta failed (put=${sp?.strike ?? 'null'}, call=${sc?.strike ?? 'null'})`);
+      continue;
+    }
     const legs = [
       makeLeg(sp, 'put', 'sell'),
       makeLeg(sc, 'call', 'sell'),
     ].filter((l): l is StrategyLeg => l != null);
-    if (legs.length !== 2) continue;
+    if (legs.length !== 2) {
+      console.log(`[StrategyBuilder] ${sym}: SS delta=${d} — makeLeg failed, only ${legs.length}/2 legs`);
+      continue;
+    }
     const card = buildCard('Short Strangle', label, legs, expiration, dte, currentPrice, true);
-    if (card.netCredit == null || card.netCredit <= 0) continue;
-    if (card.pop == null) continue;
+    if (card.netCredit == null || card.netCredit <= 0) {
+      console.log(`[StrategyBuilder] ${sym}: SS delta=${d} — rejected: netCredit=${card.netCredit}`);
+      continue;
+    }
+    if (card.pop == null) {
+      console.log(`[StrategyBuilder] ${sym}: SS delta=${d} — rejected: pop=null`);
+      continue;
+    }
     const score = card.pop * card.netCredit * 100;
+    console.log(`[StrategyBuilder] ${sym}: SS delta=${d} — candidate score=${score.toFixed(3)} (pop=${card.pop}, credit=$${card.netCredit})`);
     if (score > bestScore) { bestScore = score; best = card; }
   }
+  console.log(`[StrategyBuilder] ${sym}: SS result → ${best ? `PASS (score=${bestScore.toFixed(3)})` : 'FAIL (no valid candidate)'}`);
   return best;
 }
 
@@ -389,7 +444,8 @@ const MIN_POP_CREDIT = 0.40;
 const MIN_POP_DEBIT = 0.25;
 
 export function generateStrategies(params: GenerateParams): StrategyCard[] {
-  const { strikes, currentPrice, ivRank, expiration, dte } = params;
+  const { strikes, currentPrice, ivRank, expiration, dte, symbol } = params;
+  const sym = symbol || '??';
   const pct = ivRank * 100;
 
   // Filter to strikes with at least some Greeks data
@@ -397,19 +453,36 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
     (s.callDelta != null || s.putDelta != null) &&
     (s.callBid != null || s.callAsk != null || s.putBid != null || s.putAsk != null)
   );
-  if (valid.length < 3) return [];
+
+  const noGreeks = strikes.filter(s => s.callDelta == null && s.putDelta == null).length;
+  console.log(`[StrategyBuilder] ${sym}: ENTER — price=$${currentPrice}, ivRank=${ivRank.toFixed(3)} (${pct.toFixed(1)}%), dte=${dte}, exp=${expiration}`);
+  console.log(`[StrategyBuilder] ${sym}: strikes total=${strikes.length}, valid=${valid.length}, noGreeks=${noGreeks}`);
+  if (valid.length > 0) {
+    const putDeltas = valid.map(s => s.putDelta).filter(d => d != null) as number[];
+    const callDeltas = valid.map(s => s.callDelta).filter(d => d != null) as number[];
+    console.log(`[StrategyBuilder] ${sym}: putDeltas range=[${Math.min(...putDeltas).toFixed(3)}..${Math.max(...putDeltas).toFixed(3)}] (${putDeltas.length} strikes)`);
+    console.log(`[StrategyBuilder] ${sym}: callDeltas range=[${Math.min(...callDeltas).toFixed(3)}..${Math.max(...callDeltas).toFixed(3)}] (${callDeltas.length} strikes)`);
+    console.log(`[StrategyBuilder] ${sym}: strike range=[$${Math.min(...valid.map(s => s.strike))}..$${Math.max(...valid.map(s => s.strike))}]`);
+  }
+  if (valid.length < 3) {
+    console.log(`[StrategyBuilder] ${sym}: ABORT — only ${valid.length} valid strikes (need ≥3)`);
+    return [];
+  }
+
+  const tier = pct > 50 ? 'HIGH_IV (>50)' : pct >= 20 ? 'NORMAL_IV (20-50)' : 'LOW_IV (<20)';
+  console.log(`[StrategyBuilder] ${sym}: IV tier=${tier} → generating strategies...`);
 
   const cards: StrategyCard[] = [];
 
   if (pct > 50) {
     // ─── High IV: Sell Premium — scan delta ranges ─────
-    const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice);
+    const ic = scanBestIronCondor(valid, 'A', expiration, dte, currentPrice, sym);
     if (ic) cards.push(ic);
 
-    const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice);
+    const pcs = scanBestPutCreditSpread(valid, 'B', expiration, dte, currentPrice, sym);
     if (pcs) cards.push(pcs);
 
-    const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice);
+    const ss = scanBestShortStrangle(valid, 'C', expiration, dte, currentPrice, sym);
     if (ss) cards.push(ss);
 
   } else if (pct >= 20) {
@@ -476,15 +549,22 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
     }
   }
 
+  console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
+
   // Minimum PoP filter — credit strategies need >=40%, debit >=25%
   const filtered = cards.filter(card => {
-    if (card.pop == null) return false;
-    if (card.netCredit != null) return card.pop >= MIN_POP_CREDIT;
-    return card.pop >= MIN_POP_DEBIT;
+    const isCredit = card.netCredit != null;
+    const threshold = isCredit ? MIN_POP_CREDIT : MIN_POP_DEBIT;
+    const pass = card.pop != null && card.pop >= threshold;
+    if (!pass) {
+      console.log(`[StrategyBuilder] ${sym}: PoP FILTER removed "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
+    }
+    return pass;
   });
 
   // Re-label sequentially based on strategies that actually generated
   filtered.forEach((card, i) => { card.label = String.fromCharCode(65 + i); });
+  console.log(`[StrategyBuilder] ${sym}: RESULT → ${filtered.length} strategies [${filtered.map(c => `${c.label}) ${c.name}`).join(', ')}]`);
   return filtered;
 }
 

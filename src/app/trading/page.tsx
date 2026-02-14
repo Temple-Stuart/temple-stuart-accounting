@@ -583,6 +583,8 @@ export default function TradingPage() {
             if (s.putStreamerSymbol) streamerSyms.push(s.putStreamerSymbol);
           }
 
+          console.log(`[TopPicks] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${streamerSyms.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)})`);
+
           let greeks: Record<string, any> = {};
           if (streamerSyms.length > 0) {
             const greeksRes = await fetch('/api/tastytrade/greeks', {
@@ -593,19 +595,26 @@ export default function TradingPage() {
             if (greeksRes.ok) {
               const gd = await greeksRes.json();
               greeks = gd.greeks || {};
+              console.log(`[TopPicks] ${symbol}: greeks fetched=${streamerSyms.length} symbols, returned=${Object.keys(greeks).length} entries`);
+            } else {
+              console.log(`[TopPicks] ${symbol}: greeks fetch FAILED — status=${greeksRes.status}`);
             }
+          } else {
+            console.log(`[TopPicks] ${symbol}: NO strikes in range — skipping greeks fetch`);
           }
 
           // 4. Generate strategies (same functions as handleScannerExpand)
           const scannerItem = passedData.find((t: any) => t.symbol === symbol);
           const ivRank = scannerItem?.ivRank ?? 0;
           const strikeData = buildStrikeData(exp.strikes || [], greeks);
+          console.log(`[TopPicks] ${symbol}: strikeData built=${strikeData.length}, withGreeks=${strikeData.filter(s => s.callDelta != null || s.putDelta != null).length}, ivRank=${ivRank}`);
           const cards = generateStrategies({
             strikes: strikeData,
             currentPrice: price,
             ivRank,
             expiration: exp.date,
             dte: exp.dte,
+            symbol,
           });
 
           if (cards.length === 0) {
@@ -772,6 +781,8 @@ export default function TradingPage() {
         if (s.putStreamerSymbol) symbols.push(s.putStreamerSymbol);
       }
 
+      console.log(`[StrategyBuilder UI] ${symbol}: chain expirations=${chain.expirations.length}, selected exp=${exp.date} (${exp.dte} DTE), total strikes=${(exp.strikes || []).length}, in-range=${symbols.length / 2} (±$${range.toFixed(2)} from $${center.toFixed(2)})`);
+
       if (symbols.length > 0) {
         const greeksRes = await fetch('/api/tastytrade/greeks', {
           method: 'POST',
@@ -783,19 +794,27 @@ export default function TradingPage() {
           const greeks = gd.greeks || {};
           setSbGreeksData(greeks);
 
+          console.log(`[StrategyBuilder UI] ${symbol}: greeks fetched=${symbols.length} syms, returned=${Object.keys(greeks).length} entries`);
+
           // 4. Generate strategies
           if (price) {
             const strikeData = buildStrikeData(exp.strikes || [], greeks);
+            console.log(`[StrategyBuilder UI] ${symbol}: strikeData built=${strikeData.length}, withGreeks=${strikeData.filter(s => s.callDelta != null || s.putDelta != null).length}, ivRank=${ivRank}`);
             const cards = generateStrategies({
               strikes: strikeData,
               currentPrice: price,
               ivRank,
               expiration: exp.date,
               dte: exp.dte,
+              symbol,
             });
             setSbStrategies(cards);
           }
+        } else {
+          console.log(`[StrategyBuilder UI] ${symbol}: greeks fetch FAILED — status=${greeksRes.status}`);
         }
+      } else {
+        console.log(`[StrategyBuilder UI] ${symbol}: NO strikes in range — skipping greeks fetch`);
       }
     } catch {
       // ignore — don't break scanner
