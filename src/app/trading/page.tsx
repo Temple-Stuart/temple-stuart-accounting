@@ -2111,7 +2111,7 @@ export default function TradingPage() {
                                                   <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 11, color: '#9CA3AF' }}>
                                                     <span>PoP: <span style={{ color: card.pop != null && card.pop >= 0.6 ? '#10B981' : card.pop != null && card.pop >= 0.45 ? '#F59E0B' : '#EF4444' }}>
                                                       {card.pop != null ? `${Math.round(card.pop * 100)}%` : 'N/A'}
-                                                    </span></span>
+                                                    </span>{card.hvPop != null && Math.abs(card.hvPop - (card.pop ?? 0)) > 0.02 && <span style={{ color: '#10B981', fontFamily: 'monospace' }}>{` (${Math.round(card.hvPop * 100)}% adj)`}</span>}</span>
                                                     <span>EV: <span style={{ color: '#10B981', fontFamily: 'monospace', fontWeight: 500 }}>+${Math.round(card.ev)}</span></span>
                                                     <span>{'\u0398'}: ${card.thetaPerDay >= 0 ? '+' : ''}{card.thetaPerDay.toFixed(2)}/day</span>
                                                     <span>{'\u0394'}: {card.netDelta >= 0 ? '+' : ''}{card.netDelta.toFixed(2)}</span>
@@ -2314,7 +2314,7 @@ export default function TradingPage() {
                                                           {card.breakevens.length > 0 && (
                                                             <div className="text-gray-500 col-span-2">BE: <span className="font-mono text-gray-700">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
                                                           )}
-                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span></div>
+                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span>{card.hvPop != null && Math.abs(card.hvPop - (card.pop ?? 0)) > 0.02 && <span className="font-mono text-emerald-600">{` (${Math.round(card.hvPop * 100)}% adj)`}</span>}</div>
                                                           <div className="text-gray-500">EV: <span className="font-mono font-medium text-emerald-600">+${Math.round(card.ev)}</span></div>
                                                           <div className="text-gray-500">{'\u0398'}: <span className={`font-mono font-medium ${card.thetaPerDay >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{card.thetaPerDay >= 0 ? '+' : ''}${card.thetaPerDay.toFixed(2)}/day</span></div>
                                                         </div>

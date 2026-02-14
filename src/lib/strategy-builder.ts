@@ -1,6 +1,59 @@
 // Strategy Builder — client-side option strategy generation
 // No API calls; purely computes from chain + Greeks data
 
+// ─── Math Utilities ─────────────────────────────────────────────────
+
+// Standard normal CDF — Abramowitz & Stegun approximation
+function normalCDF(x: number): number {
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  const absX = Math.abs(x) / Math.SQRT2;
+  const t = 1 / (1 + p * absX);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
+  return 0.5 * (1 + sign * y);
+}
+
+// HV-adjusted PoP for credit strategies — uses realized vol instead of IV-inflated delta
+const CREDIT_STRATEGIES = ['Iron Condor', 'Put Credit Spread', 'Call Credit Spread', 'Short Strangle', 'Short Straddle', 'Jade Lizard'];
+
+function computeHvAdjustedPoP(
+  card: StrategyCard,
+  price: number,
+  hv30: number,  // decimal (e.g. 0.247 for 24.7%)
+  dte: number
+): number {
+  if (!CREDIT_STRATEGIES.includes(card.name)) return card.pop ?? 0; // debit: keep delta PoP
+  if (!hv30 || hv30 <= 0) return card.pop ?? 0; // no HV data: keep delta PoP
+
+  const vol = price * hv30 * Math.sqrt(dte / 365);
+  if (vol <= 0) return card.pop ?? 0;
+
+  const shortPuts = card.legs.filter(l => l.side === 'sell' && l.type === 'put');
+  const shortCalls = card.legs.filter(l => l.side === 'sell' && l.type === 'call');
+  const credit = card.netCredit || 0;
+
+  if (shortPuts.length > 0 && shortCalls.length > 0) {
+    // Two-sided: iron condor, short strangle, jade lizard
+    const beLow = Math.min(...shortPuts.map(l => l.strike)) - credit;
+    const beHigh = Math.max(...shortCalls.map(l => l.strike)) + credit;
+    const zDown = (price - beLow) / vol;
+    const zUp = (beHigh - price) / vol;
+    return Math.max(0, Math.min(1, normalCDF(zDown) + normalCDF(zUp) - 1));
+  } else if (shortPuts.length > 0) {
+    // Put credit spread
+    const beLow = Math.min(...shortPuts.map(l => l.strike)) - credit;
+    const z = (price - beLow) / vol;
+    return Math.max(0, Math.min(1, normalCDF(z)));
+  } else if (shortCalls.length > 0) {
+    // Call credit spread
+    const beHigh = Math.max(...shortCalls.map(l => l.strike)) + credit;
+    const z = (beHigh - price) / vol;
+    return Math.max(0, Math.min(1, normalCDF(z)));
+  }
+  return card.pop ?? 0;
+}
+
 // ─── Types ──────────────────────────────────────────────────────────
 
 export interface StrikeData {
@@ -62,6 +115,7 @@ export interface StrategyCard {
   hasWideSpread: boolean;
   ev: number;                // expected value in dollars
   evPerRisk: number;         // EV per dollar risked
+  hvPop: number | null;      // HV-adjusted PoP for credit strategies
 }
 
 export interface GenerateParams {
@@ -302,6 +356,7 @@ function buildCard(
     hasWideSpread: legs.some(l => l.wideSpread),
     ev: 0,
     evPerRisk: 0,
+    hvPop: null,
   };
 }
 
@@ -554,15 +609,28 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
 
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
 
-  // ─── Compute EV for each card ───────────────────────────────────
+  // ─── Compute HV-Adjusted EV for each card ──────────────────────
   const iv = params.iv30 ?? 0.30;
   const hv = params.hv30 ?? iv;
+  // Safety cap: if IV/HV ratio > 4, cap at 4 to prevent unrealistic adjustments
+  const cappedHv = iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv;
+  const hvProxyML = currentPrice * cappedHv * Math.sqrt(dte / 365) * 2.5 * 100;
+
   for (const card of cards) {
-    const proxyML = currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100;
-    const effectiveML = card.isUnlimited ? proxyML : (card.maxLoss ?? 0);
+    if (card.pop == null) continue;
     const mp = card.maxProfit ?? 0;
-    if (card.pop != null && mp > 0 && effectiveML > 0) {
-      card.ev = Math.round((card.pop * mp - (1 - card.pop) * effectiveML) * 100) / 100;
+    const isCredit = CREDIT_STRATEGIES.includes(card.name);
+
+    // HV-adjusted PoP for credit strategies; delta PoP for debit
+    const hvPop = isCredit ? computeHvAdjustedPoP(card, currentPrice, cappedHv, dte) : card.pop;
+    card.hvPop = isCredit ? Math.round(hvPop * 1000) / 1000 : null;
+
+    // Use HV-based proxy for unlimited risk (actual expected movement, not inflated IV)
+    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+    const evPop = isCredit ? hvPop : card.pop;
+
+    if (mp > 0 && effectiveML > 0) {
+      card.ev = Math.round((evPop * mp - (1 - evPop) * effectiveML) * 100) / 100;
       card.evPerRisk = Math.round((card.ev / effectiveML) * 10000) / 10000;
     }
   }
@@ -577,14 +645,15 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
   };
 
   const filtered = cards.filter(card => {
-    // Gate A: EV must be positive
+    // Gate A: EV must be positive (uses hvPoP for credit, deltaPoP for debit)
     if (card.ev <= 0) {
-      const ml = card.isUnlimited ? `proxy $${(currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100).toFixed(0)}` : `$${card.maxLoss}`;
-      console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (pop=${card.pop}, mp=$${card.maxProfit}, ml=${ml})`);
+      const evPop = card.hvPop ?? card.pop;
+      const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
+      console.log(`[StrategyBuilder] ${sym}: EV GATE rejected "${card.name}" — EV=$${card.ev.toFixed(0)} (hvPoP=${card.hvPop?.toFixed(3) ?? 'n/a'}, deltaPoP=${card.pop?.toFixed(3)}, mp=$${card.maxProfit}, ml=$${effectiveML.toFixed(0)})`);
       return false;
     }
 
-    // Gate B: Strategy-specific PoP floor
+    // Gate B: Strategy-specific PoP floor (uses delta PoP — conservative)
     const threshold = POP_FLOORS[card.name] ?? 0.40;
     if (card.pop == null || card.pop < threshold) {
       console.log(`[StrategyBuilder] ${sym}: PoP GATE rejected "${card.name}" — pop=${card.pop != null ? (card.pop * 100).toFixed(1) + '%' : 'null'}, threshold=${(threshold * 100).toFixed(0)}%`);
@@ -609,8 +678,7 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
   });
 
   function computeCompositeScore(card: StrategyCard): number {
-    const proxyML = currentPrice * iv * Math.sqrt(dte / 365) * 2.5 * 100;
-    const effectiveML = card.isUnlimited ? proxyML : (card.maxLoss ?? 0);
+    const effectiveML = card.isUnlimited ? hvProxyML : (card.maxLoss ?? 0);
     const thetaEff = effectiveML > 0 ? Math.abs(card.thetaPerDay) / effectiveML * 100 : 0;
     return (card.evPerRisk * 50) + (thetaEff * 30) + (edgeRatio * 20);
   }
