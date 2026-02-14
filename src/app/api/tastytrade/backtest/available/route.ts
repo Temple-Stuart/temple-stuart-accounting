@@ -33,8 +33,9 @@ export async function GET(request: Request) {
     // GET /available-dates returns all available symbols with date ranges
     const url = `${BACKTESTER_BASE}/available-dates`;
     console.log('[Backtest] Calling:', url);
+    console.log('[Backtest] Token length:', token.length, 'starts with:', token.slice(0, 30));
 
-    const resp = await fetch(url, {
+    let resp = await fetch(url, {
       headers: {
         'Authorization': token,
         'Content-Type': 'application/json',
@@ -42,6 +43,18 @@ export async function GET(request: Request) {
     });
 
     console.log('[Backtest] Response status:', resp.status);
+
+    // If raw token fails with 401, retry with Bearer prefix
+    if (resp.status === 401) {
+      console.log('[Backtest] Retrying with Bearer prefix...');
+      resp = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('[Backtest] Bearer retry status:', resp.status);
+    }
 
     if (!resp.ok) {
       const text = await resp.text();

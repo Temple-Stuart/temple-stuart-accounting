@@ -45,8 +45,63 @@ export async function getTastytradeConnection(userId: string) {
   });
 }
 
+// Exchange an OAuth JWT for a Tastytrade session token.
+// The backtester API requires a session token, not the OAuth JWT directly.
+// Flow: JWT → POST /sessions/validate or /sessions → session-token
+async function getSessionToken(jwtToken: string): Promise<string | null> {
+  const baseUrl = 'https://api.tastyworks.com';
+
+  // Try validating existing session with the JWT
+  try {
+    const resp = await fetch(`${baseUrl}/sessions/validate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      console.log('[TT Auth] Session validate response:', JSON.stringify(data).slice(0, 300));
+      const sessionToken = data?.data?.['session-token'] || data?.['session-token'] || data?.data?.token;
+      if (sessionToken) return sessionToken;
+    } else {
+      console.log('[TT Auth] Session validate failed:', resp.status, await resp.text().then(t => t.slice(0, 200)));
+    }
+  } catch (err) {
+    console.log('[TT Auth] Session validate error:', err);
+  }
+
+  // Try creating a new session with the JWT
+  try {
+    const resp2 = await fetch(`${baseUrl}/sessions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (resp2.ok) {
+      const data2 = await resp2.json();
+      console.log('[TT Auth] Session create response:', JSON.stringify(data2).slice(0, 300));
+      const sessionToken = data2?.data?.['session-token'] || data2?.['session-token'] || data2?.data?.token;
+      if (sessionToken) return sessionToken;
+    } else {
+      console.log('[TT Auth] Session create failed:', resp2.status, await resp2.text().then(t => t.slice(0, 200)));
+    }
+  } catch (err) {
+    console.log('[TT Auth] Session create error:', err);
+  }
+
+  return null;
+}
+
 // Get a raw auth token string for use with external APIs (e.g. backtester).
 // The SDK lazily refreshes tokens, so we trigger a lightweight call first.
+// The backtester needs a session token (~44 chars), not the OAuth JWT (~1158 chars).
 export async function getTastytradeAccessToken(userId: string): Promise<string | null> {
   const client = await getAuthenticatedClient(userId);
   if (!client) return null;
@@ -61,17 +116,24 @@ export async function getTastytradeAccessToken(userId: string): Promise<string |
   console.log('[TT Auth] accessToken.token length:', client.accessToken?.token?.length || 0);
   console.log('[TT Auth] session.authToken length:', client.session?.authToken?.length || 0);
 
-  // Prefer session token (used by API requests) over OAuth access token
-  const sessionToken = client.session?.authToken;
-  if (sessionToken && sessionToken.length > 0) {
-    console.log('[TT Auth] Using session authToken, starts with:', sessionToken.slice(0, 20));
-    return sessionToken;
+  // If the SDK already has a session token, use it
+  const existingSession = client.session?.authToken;
+  if (existingSession && existingSession.length > 0) {
+    console.log('[TT Auth] Using existing session authToken, length:', existingSession.length);
+    return existingSession;
   }
 
-  const accessTok = client.accessToken?.token;
-  if (accessTok && accessTok.length > 0) {
-    console.log('[TT Auth] Using accessToken.token, starts with:', accessTok.slice(0, 20));
-    return accessTok;
+  // Exchange the OAuth JWT for a session token
+  const jwt = client.accessToken?.token;
+  if (jwt && jwt.length > 0) {
+    const sessionToken = await getSessionToken(jwt);
+    if (sessionToken) {
+      console.log('[TT Auth] Got session token from JWT exchange, length:', sessionToken.length, 'starts with:', sessionToken.slice(0, 20));
+      return sessionToken;
+    }
+    // Fall back to JWT if session token creation fails
+    console.log('[TT Auth] Session token exchange failed, falling back to JWT');
+    return jwt;
   }
 
   console.error('[TT Auth] No token available');
