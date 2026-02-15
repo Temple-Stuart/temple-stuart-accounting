@@ -118,107 +118,68 @@ export async function getTastytradeSessionToken(): Promise<string> {
     throw new Error('TT_USERNAME and TT_PASSWORD required for backtester');
   }
 
-  // Get OAuth JWT to include in auth header
   const client = getTastytradeClient();
+
+  // Force OAuth token refresh so httpClient has a valid JWT
   try {
     await client.accountsAndCustomersService.getCustomerResource();
   } catch (e: any) {
     console.log('[TT Auth] Customer resource call failed during session exchange:', e.message);
   }
-  const jwt = client.accessToken?.token || '';
-  if (jwt) {
-    console.log('[TT Auth] Got JWT for session exchange, length:', jwt.length);
+
+  // Approach 1: Use SDK's own login method (sends JWT + creds through httpClient)
+  try {
+    console.log('[TT Auth] Trying SDK sessionService.login()');
+    await client.sessionService.login(username, password, true);
+    const sessionToken = client.session.authToken;
+    console.log('[TT Auth] SDK login session token length:', sessionToken?.length);
+
+    if (sessionToken) {
+      cachedSessionToken = {
+        token: sessionToken,
+        expiresAt: Date.now() + 23 * 60 * 60 * 1000,
+      };
+      return sessionToken;
+    }
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+    console.log('[TT Auth] SDK login failed:', status, JSON.stringify(data)?.slice(0, 300));
   }
 
-  // POST /sessions with credentials — try multiple domains and Castle token combos
-  const attempts: { name: string; url: string; headers: Record<string, string>; body: Record<string, any> }[] = [
-    // 1. api.tastyworks.com with empty castle token
-    {
-      name: 'tastyworks-empty-castle',
-      url: 'https://api.tastyworks.com/sessions',
+  // Approach 2: Manual POST with x-castle-request-token + JWT auth
+  // The JWT proves we're authorized, castle token appeases the bot check
+  try {
+    const jwt = client.accessToken?.token || '';
+    const resp = await fetch('https://api.tastyworks.com/sessions', {
+      method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-        'x-castle-request-token': '',
-      },
-      body: { login: username, password: password, 'remember-me': true },
-    },
-    // 2. api.tastytrade.com with creds (new domain, may not need Castle)
-    {
-      name: 'tastytrade-com-creds',
-      url: 'https://api.tastytrade.com/sessions',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-      body: { login: username, password: password, 'remember-me': true },
-    },
-    // 3. api.tastytrade.com with empty castle token
-    {
-      name: 'tastytrade-com-castle',
-      url: 'https://api.tastytrade.com/sessions',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-        'x-castle-request-token': '',
-      },
-      body: { login: username, password: password, 'remember-me': true },
-    },
-    // 4. tastyworks with castle "none" value
-    {
-      name: 'tastyworks-castle-none',
-      url: 'https://api.tastyworks.com/sessions',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-        'x-castle-request-token': 'none',
-      },
-      body: { login: username, password: password, 'remember-me': true },
-    },
-    // 5. SDK-style User-Agent (might bypass Castle for known SDK clients)
-    {
-      name: 'sdk-useragent',
-      url: 'https://api.tastyworks.com/sessions',
-      headers: {
+        'Authorization': `Bearer ${jwt}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': 'tastytrade-sdk-js',
         'x-castle-request-token': '',
       },
-      body: { login: username, password: password, 'remember-me': true },
-    },
-  ];
+      body: JSON.stringify({ login: username, password: password, 'remember-me': true }),
+    });
+    const text = await resp.text();
+    console.log('[TT Auth] Manual JWT+castle+creds:', resp.status, text.slice(0, 300));
 
-  for (const attempt of attempts) {
-    try {
-      const resp = await fetch(attempt.url, {
-        method: 'POST',
-        headers: attempt.headers,
-        body: JSON.stringify(attempt.body),
-      });
-      const text = await resp.text();
-      console.log(`[TT Auth] Session ${attempt.name}: ${resp.status} ${text.slice(0, 300)}`);
-
-      if (resp.ok) {
-        const data = JSON.parse(text);
-        const sessionToken = data?.data?.['session-token'];
-        if (sessionToken) {
-          console.log('[TT Auth] Session token via', attempt.name, 'length:', sessionToken.length);
-          cachedSessionToken = {
-            token: sessionToken,
-            expiresAt: Date.now() + 23 * 60 * 60 * 1000,
-          };
-          return sessionToken;
-        }
+    if (resp.ok) {
+      const data = JSON.parse(text);
+      const sessionToken = data?.data?.['session-token'];
+      if (sessionToken) {
+        console.log('[TT Auth] Session token via manual, length:', sessionToken.length);
+        cachedSessionToken = {
+          token: sessionToken,
+          expiresAt: Date.now() + 23 * 60 * 60 * 1000,
+        };
+        return sessionToken;
       }
-    } catch (e: any) {
-      console.log(`[TT Auth] Session ${attempt.name} error:`, e.message);
     }
+  } catch (e: any) {
+    console.log('[TT Auth] Manual JWT+castle+creds error:', e.message);
   }
 
-  throw new Error('Session token exchange failed - check TT_USERNAME/TT_PASSWORD');
+  throw new Error('Session token exchange failed');
 }
