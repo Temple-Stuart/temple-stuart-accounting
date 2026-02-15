@@ -62,7 +62,7 @@ const TIERS = [
       'Everything in Pro+, plus:',
       'Real-time market data (stocks, options, crypto, futures)',
       'AI strategy builder — natural language algo creation',
-      'Historical backtesting engine',
+      'IV-HV spread analysis & options scanner',
       'Live signal alerts',
       'Wash sale & tax impact warnings before you trade',
       'Portfolio Greeks across all accounts',
