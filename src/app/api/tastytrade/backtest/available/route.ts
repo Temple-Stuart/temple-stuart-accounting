@@ -139,6 +139,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'symbol is required' }, { status: 400 });
     }
 
+    // Probe backtester for OpenAPI spec (no auth needed)
+    const specUrls = [
+      'https://backtester.vast.tastyworks.com/openapi.json',
+      'https://backtester.vast.tastyworks.com/swagger.json',
+      'https://backtester.vast.tastyworks.com/api-docs',
+      'https://backtester.vast.tastyworks.com/docs',
+      'https://backtester.vast.tastyworks.com/',
+    ];
+    for (const specUrl of specUrls) {
+      try {
+        const resp = await fetch(specUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json', 'User-Agent': 'TempleStuart/1.0' },
+        });
+        const body = await resp.text();
+        console.log(`[Backtest] Spec probe ${specUrl}: ${resp.status} ${body.slice(0, 500)}`);
+      } catch (e: any) {
+        console.log(`[Backtest] Spec probe ${specUrl}: error ${e.message}`);
+      }
+    }
+
     // Decode JWT to inspect claims (JWTs are base64url, not encrypted)
     try {
       const parts = token.split('.');
