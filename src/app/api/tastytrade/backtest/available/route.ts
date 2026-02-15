@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { getTastytradeAccessToken } from '@/lib/tastytrade';
+import { getTastytradeAccessToken, getAuthenticatedClient } from '@/lib/tastytrade';
 
 const TT_USER_AGENT = 'TempleStuart/1.0';
 
@@ -157,7 +157,46 @@ export async function GET(request: Request) {
       console.log('[Backtest] JWT decode error:', e.message);
     }
 
-    // Try each endpoint/header combo — first 200 wins
+    // Approach 1: Use SDK's own httpClient (axios) — exact same auth as all working API calls
+    const client = await getAuthenticatedClient(user.id);
+    if (client) {
+      try {
+        const httpClient = (client as any).httpClient;
+        console.log('[Backtest] SDK httpClient auth header:', httpClient.authHeader?.slice(0, 50));
+
+        const response = await httpClient.getData(
+          'https://backtester.vast.tastyworks.com/available-dates',
+          {},
+          {}
+        );
+        console.log('[Backtest] SDK httpClient SUCCESS:', response.status, JSON.stringify(response.data).slice(0, 200));
+        return NextResponse.json({ available: true, data: response.data, method: 'sdk-httpclient' });
+      } catch (e: any) {
+        const status = e?.response?.status;
+        const data = e?.response?.data;
+        console.log('[Backtest] SDK httpClient failed:', status, typeof data === 'string' ? data.slice(0, 200) : JSON.stringify(data).slice(0, 200));
+      }
+
+      // Approach 2: Manual axios with SDK's default headers
+      try {
+        const axios = (await import('axios')).default;
+        const httpClient = (client as any).httpClient;
+        const headers = httpClient.getDefaultHeaders();
+        console.log('[Backtest] Manual axios headers:', JSON.stringify(headers).slice(0, 300));
+
+        const response = await axios.get('https://backtester.vast.tastyworks.com/available-dates', {
+          headers: headers,
+        });
+        console.log('[Backtest] Manual axios SUCCESS:', response.status, JSON.stringify(response.data).slice(0, 200));
+        return NextResponse.json({ available: true, data: response.data, method: 'manual-axios' });
+      } catch (e: any) {
+        const status = e?.response?.status;
+        const data = e?.response?.data;
+        console.log('[Backtest] Manual axios failed:', status, typeof data === 'string' ? data.slice(0, 200) : JSON.stringify(data).slice(0, 200));
+      }
+    }
+
+    // Fallback: Try each endpoint/header combo via fetch — first 200 wins
     const attempts = buildAttempts(token);
     let data: any = null;
     let winningLabel = '';
