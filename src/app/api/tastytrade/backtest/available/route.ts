@@ -3,8 +3,60 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeAccessToken } from '@/lib/tastytrade';
 
-const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
 const TT_USER_AGENT = 'TempleStuart/1.0';
+
+// Try multiple endpoint/header combos to discover what the backtester accepts.
+// First 200 wins. Each attempt is logged for diagnostics.
+interface EndpointAttempt {
+  label: string;
+  url: string;
+  headers: Record<string, string>;
+}
+
+function buildAttempts(token: string): EndpointAttempt[] {
+  return [
+    {
+      label: 'main-api-bearer',
+      url: 'https://api.tastyworks.com/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    {
+      label: 'main-api-backtests',
+      url: 'https://api.tastyworks.com/backtests/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    {
+      label: 'backtester-sdk-ua',
+      url: 'https://backtester.vast.tastyworks.com/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    {
+      label: 'backtester-raw-accept',
+      url: 'https://backtester.vast.tastyworks.com/available-dates',
+      headers: {
+        'Authorization': token,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+  ];
+}
 
 export async function GET(request: Request) {
   try {
@@ -31,32 +83,43 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'symbol is required' }, { status: 400 });
     }
 
-    // getTastytradeAccessToken already tested this token against the backtester
-    const url = `${BACKTESTER_BASE}/available-dates`;
-    console.log('[Backtest] Calling:', url);
-    console.log('[Backtest] Token length:', token.length, 'starts with:', token.slice(0, 30));
+    // Try each endpoint/header combo — first 200 wins
+    const attempts = buildAttempts(token);
+    let data: any = null;
+    let winningLabel = '';
 
-    const resp = await fetch(url, {
-      headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-    });
+    for (const attempt of attempts) {
+      try {
+        console.log(`[Backtest] Trying ${attempt.label}: ${attempt.url}`);
+        const resp = await fetch(attempt.url, { headers: attempt.headers });
+        const bodyText = await resp.text();
+        console.log(`[Backtest] ${attempt.label} → ${resp.status}, body preview: ${bodyText.slice(0, 300)}`);
 
-    console.log('[Backtest] Response status:', resp.status);
-
-    if (!resp.ok) {
-      const text = await resp.text();
-      console.error('[Backtest] Available check failed:', resp.status, text.slice(0, 500));
-      return NextResponse.json({ error: 'Backtester API error', details: text.slice(0, 500) }, { status: resp.status });
+        if (resp.ok) {
+          try {
+            data = JSON.parse(bodyText);
+            winningLabel = attempt.label;
+            console.log(`[Backtest] SUCCESS via ${attempt.label}`);
+            break;
+          } catch {
+            console.log(`[Backtest] ${attempt.label} returned 200 but body is not JSON`);
+          }
+        }
+      } catch (e: any) {
+        console.log(`[Backtest] ${attempt.label} fetch error: ${e.message}`);
+      }
     }
 
-    const data = await resp.json();
-    const bodyPreview = JSON.stringify(data).slice(0, 500);
-    console.log('[Backtest] Response body preview:', bodyPreview);
+    if (!data) {
+      return NextResponse.json({
+        error: 'All backtester endpoints failed',
+        message: 'Could not reach backtester with any endpoint/auth combo. Check server logs for details.',
+      }, { status: 502 });
+    }
 
-    // data may be an array of { symbol, start-date, end-date } or an object keyed by symbol
+    console.log(`[Backtest] Parsing response from ${winningLabel}`);
+
+    // Parse response — handle various shapes
     const upperSymbol = symbol.toUpperCase();
     let match: any = null;
 
@@ -80,6 +143,7 @@ export async function GET(request: Request) {
         available: false,
         symbol: upperSymbol,
         message: `${upperSymbol} is not available for backtesting`,
+        endpoint: winningLabel,
       });
     }
 
@@ -93,6 +157,7 @@ export async function GET(request: Request) {
         'short_strangle', 'short_straddle', 'long_call_vertical',
         'long_put_vertical', 'long_straddle', 'long_strangle',
       ],
+      endpoint: winningLabel,
     });
   } catch (error: any) {
     console.error('[Backtest] Available error:', error);
