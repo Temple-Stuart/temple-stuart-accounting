@@ -130,37 +130,64 @@ export async function getTastytradeSessionToken(): Promise<string> {
     console.log('[TT Auth] Got JWT for session exchange, length:', jwt.length);
   }
 
-  // POST /sessions with credentials + JWT auth
-  const attempts: { name: string; headers: Record<string, string>; body: Record<string, any> }[] = [
-    // 1. Bearer JWT header + login/password body
+  // POST /sessions with credentials — try multiple domains and Castle token combos
+  const attempts: { name: string; url: string; headers: Record<string, string>; body: Record<string, any> }[] = [
+    // 1. api.tastyworks.com with empty castle token
     {
-      name: 'bearer-jwt-with-creds',
+      name: 'tastyworks-empty-castle',
+      url: 'https://api.tastyworks.com/sessions',
       headers: {
-        'Authorization': `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+        'x-castle-request-token': '',
+      },
+      body: { login: username, password: password, 'remember-me': true },
+    },
+    // 2. api.tastytrade.com with creds (new domain, may not need Castle)
+    {
+      name: 'tastytrade-com-creds',
+      url: 'https://api.tastytrade.com/sessions',
+      headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
       },
       body: { login: username, password: password, 'remember-me': true },
     },
-    // 2. No auth header, just login/password body
+    // 3. api.tastytrade.com with empty castle token
     {
-      name: 'creds-only',
+      name: 'tastytrade-com-castle',
+      url: 'https://api.tastytrade.com/sessions',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
+        'x-castle-request-token': '',
       },
       body: { login: username, password: password, 'remember-me': true },
     },
-    // 3. Raw JWT header + creds
+    // 4. tastyworks with castle "none" value
     {
-      name: 'raw-jwt-with-creds',
+      name: 'tastyworks-castle-none',
+      url: 'https://api.tastyworks.com/sessions',
       headers: {
-        'Authorization': jwt,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
+        'x-castle-request-token': 'none',
+      },
+      body: { login: username, password: password, 'remember-me': true },
+    },
+    // 5. SDK-style User-Agent (might bypass Castle for known SDK clients)
+    {
+      name: 'sdk-useragent',
+      url: 'https://api.tastyworks.com/sessions',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'tastytrade-sdk-js',
+        'x-castle-request-token': '',
       },
       body: { login: username, password: password, 'remember-me': true },
     },
@@ -168,7 +195,7 @@ export async function getTastytradeSessionToken(): Promise<string> {
 
   for (const attempt of attempts) {
     try {
-      const resp = await fetch('https://api.tastyworks.com/sessions', {
+      const resp = await fetch(attempt.url, {
         method: 'POST',
         headers: attempt.headers,
         body: JSON.stringify(attempt.body),
