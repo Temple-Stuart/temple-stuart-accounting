@@ -107,87 +107,62 @@ export async function getAuthenticatedClient(userId: string): Promise<Tastytrade
 let cachedSessionToken: { token: string; expiresAt: number } | null = null;
 
 export async function getTastytradeSessionToken(): Promise<string> {
-  // Return cached token if still valid
   if (cachedSessionToken && Date.now() < cachedSessionToken.expiresAt) {
     return cachedSessionToken.token;
   }
 
-  // Get fresh OAuth JWT first
+  const username = process.env.TT_USERNAME;
+  const password = process.env.TT_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error('TT_USERNAME and TT_PASSWORD required for backtester');
+  }
+
+  // Get OAuth JWT to include in auth header
   const client = getTastytradeClient();
   try {
     await client.accountsAndCustomersService.getCustomerResource();
   } catch (e: any) {
     console.log('[TT Auth] Customer resource call failed during session exchange:', e.message);
   }
-  const jwt = client.accessToken?.token;
-  if (!jwt) {
-    throw new Error('No OAuth JWT available for session exchange');
+  const jwt = client.accessToken?.token || '';
+  if (jwt) {
+    console.log('[TT Auth] Got JWT for session exchange, length:', jwt.length);
   }
-  console.log('[TT Auth] Got JWT for session exchange, length:', jwt.length);
 
-  // Try multiple ways to exchange JWT for session token
-  const attempts: { name: string; body: string; headers: Record<string, string> }[] = [
-    // 1. POST /sessions with JWT as request-token in body
+  // POST /sessions with credentials + JWT auth
+  const attempts: { name: string; headers: Record<string, string>; body: Record<string, any> }[] = [
+    // 1. Bearer JWT header + login/password body
     {
-      name: 'request-token-body',
-      body: JSON.stringify({ 'request-token': jwt }),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
-    },
-    // 2. POST /sessions with JWT in Authorization header
-    {
-      name: 'jwt-in-auth-header',
-      body: JSON.stringify({}),
+      name: 'bearer-jwt-with-creds',
       headers: {
         'Authorization': `Bearer ${jwt}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
       },
+      body: { login: username, password: password, 'remember-me': true },
     },
-    // 3. POST /sessions with JWT as request-token + login
+    // 2. No auth header, just login/password body
     {
-      name: 'request-token-with-login',
-      body: JSON.stringify({
-        'request-token': jwt,
-        'login': process.env.TT_USERNAME || 'stonkyoloer',
-      }),
+      name: 'creds-only',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
       },
+      body: { login: username, password: password, 'remember-me': true },
     },
-    // 4. POST /sessions with raw JWT in auth + login in body
+    // 3. Raw JWT header + creds
     {
-      name: 'auth-header-with-login',
-      body: JSON.stringify({
-        'login': process.env.TT_USERNAME || 'stonkyoloer',
-        'remember-me': true,
-      }),
+      name: 'raw-jwt-with-creds',
       headers: {
         'Authorization': jwt,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': TT_USER_AGENT,
       },
-    },
-    // 5. POST /sessions with Bearer JWT + login in body
-    {
-      name: 'bearer-auth-with-login',
-      body: JSON.stringify({
-        'login': process.env.TT_USERNAME || 'stonkyoloer',
-        'remember-me': true,
-      }),
-      headers: {
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': TT_USER_AGENT,
-      },
+      body: { login: username, password: password, 'remember-me': true },
     },
   ];
 
@@ -196,29 +171,27 @@ export async function getTastytradeSessionToken(): Promise<string> {
       const resp = await fetch('https://api.tastyworks.com/sessions', {
         method: 'POST',
         headers: attempt.headers,
-        body: attempt.body,
+        body: JSON.stringify(attempt.body),
       });
       const text = await resp.text();
-      console.log(`[TT Auth] Session exchange ${attempt.name}: ${resp.status} ${text.slice(0, 300)}`);
+      console.log(`[TT Auth] Session ${attempt.name}: ${resp.status} ${text.slice(0, 300)}`);
 
       if (resp.ok) {
-        try {
-          const data = JSON.parse(text);
-          const sessionToken = data?.data?.['session-token'];
-          if (sessionToken) {
-            console.log('[TT Auth] Session token obtained via', attempt.name, 'length:', sessionToken.length);
-            cachedSessionToken = {
-              token: sessionToken,
-              expiresAt: Date.now() + 23 * 60 * 60 * 1000,
-            };
-            return sessionToken;
-          }
-        } catch {}
+        const data = JSON.parse(text);
+        const sessionToken = data?.data?.['session-token'];
+        if (sessionToken) {
+          console.log('[TT Auth] Session token via', attempt.name, 'length:', sessionToken.length);
+          cachedSessionToken = {
+            token: sessionToken,
+            expiresAt: Date.now() + 23 * 60 * 60 * 1000,
+          };
+          return sessionToken;
+        }
       }
     } catch (e: any) {
-      console.log(`[TT Auth] Session exchange ${attempt.name} error:`, e.message);
+      console.log(`[TT Auth] Session ${attempt.name} error:`, e.message);
     }
   }
 
-  throw new Error('All session token exchange methods failed');
+  throw new Error('Session token exchange failed - check TT_USERNAME/TT_PASSWORD');
 }
