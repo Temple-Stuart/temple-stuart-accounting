@@ -15,6 +15,39 @@ interface EndpointAttempt {
 
 function buildAttempts(token: string): EndpointAttempt[] {
   return [
+    // 0a. tastytrade.com domain (new domain, OAuth-native)
+    {
+      label: 'backtester-tastytrade-bearer',
+      url: 'https://backtester.vast.tastytrade.com/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    // 0b. Main API on tastytrade.com domain
+    {
+      label: 'main-api-tastytrade-bearer',
+      url: 'https://api.tastytrade.com/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    // 0c. Main API on tastytrade.com with backtests path
+    {
+      label: 'main-api-tastytrade-backtests',
+      url: 'https://api.tastytrade.com/backtests/available-dates',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
     {
       label: 'main-api-bearer',
       url: 'https://api.tastyworks.com/available-dates',
