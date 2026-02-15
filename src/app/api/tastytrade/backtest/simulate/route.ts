@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
-import { getTastytradeAccessToken } from '@/lib/tastytrade';
+import { getTastytradeSessionToken } from '@/lib/tastytrade';
 import type { BacktestManagement } from '@/lib/backtest-translator';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
@@ -10,22 +8,8 @@ const TT_USER_AGENT = 'TempleStuart/1.0';
 // Single trade simulation — tests one specific entry date
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const token = await getTastytradeAccessToken(user.id);
-    if (!token) {
-      return NextResponse.json({ error: 'Not connected or could not retrieve access token' }, { status: 401 });
-    }
-    console.log('[Backtest Simulate] Token obtained, length:', token.length);
+    const token = await getTastytradeSessionToken();
+    console.log('[Backtest Simulate] Session token obtained, length:', token.length);
 
     const body = await request.json();
     const { symbol, strategyType, legs, dte, management, entryDate } = body;
@@ -64,6 +48,7 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: {
         'Authorization': token,
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
         'User-Agent': TT_USER_AGENT,
       },

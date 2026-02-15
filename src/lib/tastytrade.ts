@@ -100,3 +100,60 @@ export async function getAuthenticatedClient(userId: string): Promise<Tastytrade
 
   return client;
 }
+
+// Get a session token via POST /sessions using stored credentials.
+// The backtester requires session tokens (~56 chars), NOT OAuth JWTs.
+// Cached for 23 hours (sessions last 24h).
+let cachedSessionToken: { token: string; expiresAt: number } | null = null;
+
+export async function getTastytradeSessionToken(): Promise<string> {
+  // Return cached token if still valid (session tokens last 24h, refresh at 23h)
+  if (cachedSessionToken && Date.now() < cachedSessionToken.expiresAt) {
+    return cachedSessionToken.token;
+  }
+
+  const username = process.env.TT_USERNAME;
+  const password = process.env.TT_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error('TT_USERNAME and TT_PASSWORD env vars required for backtester');
+  }
+
+  const resp = await fetch('https://api.tastyworks.com/sessions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': TT_USER_AGENT,
+    },
+    body: JSON.stringify({
+      login: username,
+      password: password,
+      'remember-me': true,
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    console.log('[TT Auth] Session login failed:', resp.status, text.slice(0, 200));
+    throw new Error(`TT session login failed: ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const sessionToken = data?.data?.['session-token'];
+
+  if (!sessionToken) {
+    console.log('[TT Auth] No session-token in response:', JSON.stringify(data).slice(0, 300));
+    throw new Error('No session-token in login response');
+  }
+
+  console.log('[TT Auth] Session token obtained, length:', sessionToken.length);
+
+  // Cache for 23 hours (sessions last 24h)
+  cachedSessionToken = {
+    token: sessionToken,
+    expiresAt: Date.now() + 23 * 60 * 60 * 1000,
+  };
+
+  return sessionToken;
+}
