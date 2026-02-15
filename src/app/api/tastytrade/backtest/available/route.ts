@@ -88,6 +88,29 @@ function buildAttempts(token: string): EndpointAttempt[] {
         'User-Agent': TT_USER_AGENT,
       },
     },
+    // Try "Token" prefix (some internal APIs use this)
+    {
+      label: 'backtester-token-prefix',
+      url: 'https://backtester.vast.tastyworks.com/available-dates',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
+    // Try X-Authorization header (some proxied services)
+    {
+      label: 'backtester-x-auth',
+      url: 'https://backtester.vast.tastyworks.com/available-dates',
+      headers: {
+        'X-Authorization': token,
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': TT_USER_AGENT,
+      },
+    },
   ];
 }
 
@@ -114,6 +137,24 @@ export async function GET(request: Request) {
     const symbol = searchParams.get('symbol');
     if (!symbol) {
       return NextResponse.json({ error: 'symbol is required' }, { status: 400 });
+    }
+
+    // Decode JWT to inspect claims (JWTs are base64url, not encrypted)
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+        console.log('[Backtest] JWT header:', JSON.stringify(header));
+        console.log('[Backtest] JWT payload:', JSON.stringify(payload));
+        console.log('[Backtest] JWT aud:', payload.aud);
+        console.log('[Backtest] JWT sub:', payload.sub);
+        console.log('[Backtest] JWT scope:', payload.scope);
+        console.log('[Backtest] JWT iss:', payload.iss);
+        console.log('[Backtest] JWT exp:', payload.exp, 'iat:', payload.iat);
+      }
+    } catch (e: any) {
+      console.log('[Backtest] JWT decode error:', e.message);
     }
 
     // Try each endpoint/header combo — first 200 wins
