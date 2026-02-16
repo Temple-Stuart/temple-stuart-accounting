@@ -164,6 +164,7 @@ export default function TradingPage() {
   const [ttScannerSortDir, setTtScannerSortDir] = useState<'asc' | 'desc'>('desc');
   const [ttScannerCountdown, setTtScannerCountdown] = useState(60);
   const [ttScannerUniverse, setTtScannerUniverse] = useState<string>('popular');
+  const [ttScannerStarted, setTtScannerStarted] = useState(false);
   const [ttScannerCustomInput, setTtScannerCustomInput] = useState('');
   const [ttScannerTotalScanned, setTtScannerTotalScanned] = useState(0);
   const [ttVix, setTtVix] = useState<number | null>(null);
@@ -259,15 +260,21 @@ export default function TradingPage() {
     setTtScannerLoading(false);
   };
 
-  // Auto-fetch scanner on connection, refresh every 60s
+  const startScan = (universeOverride?: string) => {
+    setTtScannerStarted(true);
+    fetchScannerData(universeOverride);
+  };
+
+  // Auto-fetch scanner on connection, refresh every 60s (only after explicit scan)
   useEffect(() => {
     if (!ttConnected || activeTab !== 'market-intelligence') return;
+    if (!ttScannerStarted) return; // Wait for explicit scan
     if (ttScannerUniverse === 'custom') return; // custom only fetches on explicit Scan click
     fetchScannerData();
     const interval = setInterval(() => fetchScannerData(), 60000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttConnected, activeTab, ttScannerUniverse]);
+  }, [ttConnected, activeTab, ttScannerUniverse, ttScannerStarted]);
 
   // Countdown timer
   useEffect(() => {
@@ -1852,6 +1859,8 @@ export default function TradingPage() {
                               value={ttScannerUniverse}
                               onChange={(e) => {
                                 setTtScannerUniverse(e.target.value);
+                                setTtScannerStarted(false);
+                                setTtScannerData([]);
                                 setMarketBrief(null);
                                 setMarketBriefUniverse(null);
                               }}
@@ -1886,10 +1895,10 @@ export default function TradingPage() {
                                   onChange={(e) => setTtScannerCustomInput(e.target.value)}
                                   placeholder="AAPL, TSLA, NVDA..."
                                   className="text-xs border border-gray-200 rounded px-2 py-1 flex-1 min-w-[150px] focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
-                                  onKeyDown={(e) => { if (e.key === 'Enter') fetchScannerData(); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') startScan(); }}
                                 />
                                 <button
-                                  onClick={() => fetchScannerData()}
+                                  onClick={() => startScan()}
                                   disabled={ttScannerLoading || !ttScannerCustomInput.trim()}
                                   className="text-xs font-medium px-3 py-1 bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e] disabled:opacity-50"
                                 >Scan</button>
@@ -2500,10 +2509,24 @@ export default function TradingPage() {
                                 </div>
                               )}
                             </div>
+                          ) : !ttScannerStarted && !ttScannerLoading ? (
+                            <div className="flex flex-col items-center justify-center py-16 gap-4">
+                              <div className="text-4xl">{'\uD83D\uDD0D'}</div>
+                              <div className="text-lg font-semibold text-gray-700">Market Intelligence</div>
+                              <div className="text-sm text-gray-500 text-center max-w-md">
+                                Select a universe above, then scan to find options where implied volatility exceeds realized movement.
+                              </div>
+                              <button
+                                onClick={() => startScan()}
+                                className="mt-2 px-6 py-3 bg-[#2d1b4e] text-white rounded-lg font-semibold text-sm hover:bg-[#3d2b5e] transition-colors"
+                              >
+                                {'\uD83D\uDE80'} Scan Market
+                              </button>
+                            </div>
                           ) : !ttScannerLoading ? (
                             <div className="text-xs text-gray-400">
                               No scanner data available.{' '}
-                              <button onClick={() => fetchScannerData()} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                              <button onClick={() => startScan()} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
                             </div>
                           ) : (
                             <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
