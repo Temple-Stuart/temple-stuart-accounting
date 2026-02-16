@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getTastytradeClient } from '@/lib/tastytrade';
 
 interface EndpointAudit {
   source: 'finnhub' | 'fred' | 'tastytrade';
@@ -509,51 +510,228 @@ export async function GET() {
     }
   }
 
-  // ===== TASTYTRADE SCANNER FIELD VALIDATION =====
-  const ttRequiredFields = [
-    'peRatio', 'hv30', 'hv60', 'hv90', 'iv30', 'ivHvSpread',
-    'beta', 'corrSpy', 'marketCap', 'sector', 'industry',
-    'dividendYield', 'lendability', 'borrowRate', 'termStructure',
-    'earningsDate', 'liquidityRating',
-  ];
+  // ===== TASTYTRADE SCANNER FIELD VALIDATION (Direct SDK) =====
+  // Maps our camelCase field names → raw TT API kebab-case field names
+  const ttFieldMap: Record<string, string> = {
+    peRatio: 'price-earnings-ratio',
+    hv30: 'historical-volatility-30-day',
+    hv60: 'historical-volatility-60-day',
+    hv90: 'historical-volatility-90-day',
+    iv30: 'implied-volatility-30-day',
+    ivHvSpread: 'iv-hv-30-day-difference',
+    beta: 'beta',
+    corrSpy: 'corr-spy-3month',
+    marketCap: 'market-cap',
+    sector: 'sector',
+    industry: 'industry',
+    dividendYield: 'dividend-yield',
+    lendability: 'lendability',
+    borrowRate: 'borrow-rate',
+    termStructure: 'option-expiration-implied-volatilities',
+    earningsDate: 'next-earnings-date',
+    liquidityRating: 'liquidity-rating',
+    ivRank: 'implied-volatility-index-rank',
+    ivPercentile: 'implied-volatility-percentile',
+    impliedVolatility: 'implied-volatility-index',
+    eps: 'earnings-per-share',
+  };
+  const ttRequiredFields = Object.keys(ttFieldMap);
   let ttPresent: string[] = [];
   let ttMissing: string[] = [];
   let ttTermStructureAvailable = false;
   let ttTermStructureExpirationCount = 0;
+  let ttRawFieldsReturned: string[] = [];
+  let ttRawFieldsNotMapped: string[] = [];
+  let ttSdkError: string | null = null;
+  let ttTestSymbol = 'AAPL';
+  let ttResponseTimeMs = 0;
 
   try {
-    // Call our own scanner API — use the internal base URL
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const host = process.env.VERCEL_URL || process.env.NEXTAUTH_URL?.replace(/https?:\/\//, '') || 'localhost:3000';
-    const scanUrl = `${protocol}://${host}/api/tastytrade/scanner?universe=popular`;
-    const scanResp = await fetch(scanUrl, {
-      headers: { Cookie: 'userEmail=astuart@templestuart.com' },
-    });
+    const ttClient = getTastytradeClient();
+    // Force token refresh
+    await ttClient.accountsAndCustomersService.getCustomerResource();
 
-    if (scanResp.ok) {
-      const scanData = await scanResp.json();
-      const tickers = scanData?.metrics || [];
-      if (tickers.length > 0) {
-        const sample = tickers[0];
-        for (const field of ttRequiredFields) {
-          if (sample[field] !== undefined && sample[field] !== null) {
-            ttPresent.push(field);
-          } else {
-            ttMissing.push(field);
-          }
+    const ttStart = Date.now();
+    const raw = await ttClient.marketMetricsService.getMarketMetrics({
+      symbols: 'AAPL',
+    });
+    ttResponseTimeMs = Date.now() - ttStart;
+
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length > 0) {
+      const sample = items[0];
+      ttRawFieldsReturned = Object.keys(sample).sort();
+
+      // Check each required field against raw TT response
+      for (const camelName of ttRequiredFields) {
+        const rawName = ttFieldMap[camelName];
+        // Check both the kebab-case raw name and nested earnings object
+        let value: any = sample[rawName];
+        if (camelName === 'earningsDate') {
+          value = value || sample['earnings']?.['expected-report-date'];
         }
-        if (Array.isArray(sample.termStructure) && sample.termStructure.length > 0) {
-          ttTermStructureAvailable = true;
-          ttTermStructureExpirationCount = sample.termStructure.length;
+        if (value !== undefined && value !== null && value !== '') {
+          ttPresent.push(camelName);
+        } else {
+          ttMissing.push(camelName);
         }
       }
-    } else {
-      ttMissing = ttRequiredFields;
+
+      // Find raw fields we receive but don't map to anything
+      const mappedRawNames = new Set(Object.values(ttFieldMap));
+      mappedRawNames.add('symbol');
+      mappedRawNames.add('earnings');
+      ttRawFieldsNotMapped = ttRawFieldsReturned.filter(f => !mappedRawNames.has(f));
+
+      // Term structure check
+      const termData = sample['option-expiration-implied-volatilities'];
+      if (Array.isArray(termData) && termData.length > 0) {
+        ttTermStructureAvailable = true;
+        ttTermStructureExpirationCount = termData.length;
+      }
     }
   } catch (e: any) {
+    ttSdkError = e.message || String(e);
     ttMissing = ttRequiredFields;
-    console.error('[Data Audit] TT scanner test error:', e.message);
+    console.error('[Data Audit] TT SDK direct test error:', e.message);
   }
+
+  // ===== TASTYTRADE DATA INVENTORY =====
+  // Complete inventory of all TT API capabilities we have access to
+  const ttDataInventory = {
+    currentRoutes: [
+      {
+        route: '/api/tastytrade/scanner',
+        sdkMethod: 'marketMetricsService.getMarketMetrics()',
+        description: 'Scans universe of symbols for IV, HV, earnings, sector, fundamentals',
+        fieldsUsed: [
+          'symbol', 'implied-volatility-index-rank', 'implied-volatility-percentile',
+          'implied-volatility-index', 'liquidity-rating', 'next-earnings-date',
+          'historical-volatility-30-day', 'historical-volatility-60-day', 'historical-volatility-90-day',
+          'implied-volatility-30-day', 'iv-hv-30-day-difference', 'beta', 'corr-spy-3month',
+          'market-cap', 'sector', 'industry', 'price-earnings-ratio', 'earnings-per-share',
+          'dividend-yield', 'lendability', 'borrow-rate', 'option-expiration-implied-volatilities',
+          'earnings (nested: expected-report-date, actual-eps, consensus-estimate, time-of-day)',
+        ],
+        fieldsIgnored: 'See ttRawFieldsNotMapped for raw fields returned but not extracted',
+        status: 'active',
+      },
+      {
+        route: '/api/tastytrade/balances',
+        sdkMethod: 'balancesAndPositionsService.getAccountBalanceValues()',
+        description: 'Account balance snapshot',
+        fieldsUsed: ['cash-balance', 'derivative-buying-power', 'net-liquidating-value', 'maintenance-requirement', 'equity-buying-power'],
+        fieldsIgnored: 'Other balance fields (margin equity, pending cash, etc.) not extracted',
+        status: 'active',
+      },
+      {
+        route: '/api/tastytrade/positions',
+        sdkMethod: 'balancesAndPositionsService.getPositionsList()',
+        description: 'Current open positions',
+        fieldsUsed: ['symbol', 'underlying-symbol', 'instrument-type', 'quantity', 'quantity-direction', 'average-open-price', 'close-price', 'market-value', 'realized-day-gain'],
+        fieldsIgnored: 'multiplier, expiration-date, strike-price, option-type for options positions',
+        status: 'active',
+      },
+      {
+        route: '/api/tastytrade/chains',
+        sdkMethod: 'instrumentsService.getNestedOptionChain()',
+        description: 'Option chain with expirations, strikes, OCC and DXFeed symbols',
+        fieldsUsed: ['expiration-date', 'strike-price', 'call', 'put', 'call-streamer-symbol', 'put-streamer-symbol'],
+        fieldsIgnored: 'Settlement type, exercise style, chain-level metadata',
+        status: 'active',
+      },
+      {
+        route: '/api/tastytrade/greeks',
+        sdkMethod: 'QuoteStreamer.subscribe(Greeks, Quote, Trade, Summary)',
+        description: 'Real-time option greeks, quotes, volume, open interest via DXFeed WebSocket',
+        fieldsUsed: ['volatility→iv', 'delta', 'gamma', 'theta', 'vega', 'rho', 'price→theoPrice', 'bidPrice', 'askPrice', 'bidSize', 'askSize', 'dayVolume', 'openInterest'],
+        fieldsIgnored: 'Additional Greek fields, extended trade data',
+        status: 'active',
+      },
+      {
+        route: '/api/tastytrade/quotes',
+        sdkMethod: 'QuoteStreamer.subscribe(Quote, Trade)',
+        description: 'Real-time stock/ETF quotes',
+        fieldsUsed: ['bidPrice', 'askPrice', 'bidSize', 'askSize', 'price→last', 'dayVolume'],
+        fieldsIgnored: 'Extended hours data, daily OHLC from streamer',
+        status: 'active',
+      },
+    ],
+    unusedSdkCapabilities: [
+      {
+        service: 'QuoteStreamer.subscribeCandles()',
+        description: 'Historical candle data (tick/second/minute/hour/day/week/month)',
+        potentialUse: 'Intraday price charts, historical IV overlay, volume profile analysis',
+        priority: 'HIGH — enables price charts without Finnhub candle data',
+      },
+      {
+        service: 'MarketMetricsService.getHistoricalDividendData(symbol)',
+        description: 'Historical dividend dates, amounts, ex-dates',
+        potentialUse: 'Dividend risk for short options, ex-date flagging in strategy builder',
+        priority: 'MEDIUM — helps avoid early assignment risk on short calls',
+      },
+      {
+        service: 'MarketMetricsService.getHistoricalEarningsData(symbol)',
+        description: 'Historical earnings dates, EPS actual vs estimate, surprise %',
+        potentialUse: 'Earnings move analysis, historical IV crush patterns',
+        priority: 'MEDIUM — could replace Finnhub earnings endpoint',
+      },
+      {
+        service: 'WatchlistsService (CRUD)',
+        description: 'Create, read, update, delete user watchlists',
+        potentialUse: 'Sync scanner results to TT watchlists, custom universe management',
+        priority: 'LOW — nice-to-have for TT app integration',
+      },
+      {
+        service: 'NetLiquidatingValueHistoryService.getNetLiqHistory()',
+        description: 'Portfolio value history over time',
+        potentialUse: 'Portfolio performance chart, P&L tracking over time',
+        priority: 'MEDIUM — enables portfolio dashboard',
+      },
+      {
+        service: 'BalancesAndPositionsService.getBalanceSnapshots()',
+        description: 'Historical balance snapshots',
+        potentialUse: 'Capital utilization tracking, margin usage over time',
+        priority: 'LOW — supplements net liq history',
+      },
+      {
+        service: 'TransactionsService.getTransactions()',
+        description: 'Transaction history with fees, commissions, fills',
+        potentialUse: 'Trade journal, fee analysis, fill quality tracking',
+        priority: 'MEDIUM — enables trade history and P&L attribution',
+      },
+      {
+        service: 'TransactionsService.getTotalFees()',
+        description: 'Aggregate fee totals',
+        potentialUse: 'Fee dashboard, commission tracking',
+        priority: 'LOW',
+      },
+      {
+        service: 'MarginRequirementsService.getMarginRequirements()',
+        description: 'Per-position margin calculations',
+        potentialUse: 'Pre-trade margin impact, buying power analysis for strategy builder',
+        priority: 'HIGH — critical for position sizing in strategy builder',
+      },
+      {
+        service: 'RiskParametersService.getEffectiveMarginRequirements()',
+        description: 'Effective margin requirements and position limits',
+        potentialUse: 'Account risk limits, max position size calculations',
+        priority: 'MEDIUM',
+      },
+      {
+        service: 'OrderService.placeOrder() / getOrders()',
+        description: 'Order management (place, cancel, replace, list orders)',
+        potentialUse: 'One-click trade execution from strategy builder',
+        priority: 'HIGH — but requires careful implementation and user consent',
+      },
+      {
+        service: 'SymbolSearchService.search()',
+        description: 'Symbol search/autocomplete',
+        potentialUse: 'Custom universe symbol picker, ticker autocomplete',
+        priority: 'LOW — basic utility',
+      },
+    ],
+  };
 
   // ===== RATE LIMIT ANALYSIS =====
   const passingFinnhub = finnhubResults.filter(r => r.dataReturned && r.tier === 'free').length;
@@ -611,10 +789,21 @@ export async function GET() {
     },
 
     tastytrade: {
+      sdkDirectTest: {
+        testSymbol: ttTestSymbol,
+        responseTimeMs: ttResponseTimeMs,
+        error: ttSdkError,
+      },
       scannerFieldsPresent: ttPresent,
       scannerFieldsMissing: ttMissing,
+      scannerFieldsPresentCount: ttPresent.length,
+      scannerFieldsMissingCount: ttMissing.length,
+      scannerFieldsTotal: ttRequiredFields.length,
       termStructureAvailable: ttTermStructureAvailable,
       termStructureExpirationCount: ttTermStructureExpirationCount,
+      rawFieldsReturned: ttRawFieldsReturned,
+      rawFieldsNotMapped: ttRawFieldsNotMapped,
+      dataInventory: ttDataInventory,
     },
 
     rateLimits,
