@@ -181,7 +181,7 @@ function deriveStrategy(
     vol_edge_confirms: volEdgeConfirms,
     suggested_strategy: suggestedStrategy,
     suggested_dte: suggestedDte,
-    note: 'Full trade card requires chain data — Phase 4',
+    note: 'Trade cards generated from real chain data when run via pipeline',
   };
 }
 

@@ -1,6 +1,8 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
+import { fetchChainAndBuildCards } from './chain-fetcher';
+import type { ChainFetchStats } from './chain-fetcher';
 import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
 import { scoreAll } from './composite';
@@ -9,6 +11,7 @@ import type {
   TTScannerData,
   ConvergenceInput,
   FredMacroData,
+  TradeCardData,
 } from './types';
 
 // ===== TYPES =====
@@ -73,6 +76,8 @@ export interface PipelineResult {
     fred_cached: boolean;
     candle_symbols_fetched: number;
     candle_total_count: number;
+    chain_symbols_fetched: number;
+    total_trade_cards: number;
     timestamp: string;
   };
   hard_filters: HardFiltersResult;
@@ -489,6 +494,86 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   console.log('[Pipeline] Step G: Ranking and diversifying...');
   const { top8, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
 
+  // ===== STEP G2: Fetch chain data and build trade cards =====
+  console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
+  let chainStats: ChainFetchStats = {
+    chain_symbols_fetched: 0,
+    total_trade_cards: 0,
+    streamer_symbols_subscribed: 0,
+    greeks_events_received: 0,
+    elapsed_ms: 0,
+  };
+
+  try {
+    // Build input for chain fetcher from top 8 tickers
+    const chainInputs = top8.map(row => {
+      const ticker = scoredTickers.find(t => t.symbol === row.symbol);
+      if (!ticker) return null;
+
+      const s = ticker.scoring;
+      const tt = ticker.scannerData;
+
+      // Get currentPrice from technicals (latest close from candle data)
+      const latestClose = s.vol_edge.breakdown.technicals.indicators.latest_close;
+      if (latestClose == null || latestClose <= 0) return null;
+
+      return {
+        symbol: row.symbol,
+        suggested_dte: s.strategy_suggestion.suggested_dte,
+        direction: s.strategy_suggestion.direction,
+        currentPrice: latestClose,
+        ivRank: tt.ivRank,
+        iv30: tt.iv30 ?? 0.30,
+        hv30: tt.hv30 ?? 0.25,
+      };
+    }).filter((input): input is NonNullable<typeof input> => input !== null);
+
+    if (chainInputs.length > 0) {
+      const chainResult = await fetchChainAndBuildCards(chainInputs);
+      chainStats = chainResult.stats;
+
+      // Attach trade cards to each ticker's strategy_suggestion
+      for (const ticker of scoredTickers) {
+        const tickerCards = chainResult.cards.get(ticker.symbol);
+        if (tickerCards && tickerCards.length > 0) {
+          // Convert StrategyCard to serializable TradeCardData
+          const tradeCards: TradeCardData[] = tickerCards.map(card => ({
+            name: card.name,
+            legs: card.legs.map(leg => ({
+              type: leg.type,
+              side: leg.side,
+              strike: leg.strike,
+              price: leg.price,
+            })),
+            expiration: card.expiration,
+            dte: card.dte,
+            netCredit: card.netCredit,
+            netDebit: card.netDebit,
+            maxProfit: card.maxProfit,
+            maxLoss: card.maxLoss,
+            breakevens: card.breakevens,
+            pop: card.pop,
+            riskReward: card.riskReward,
+            ev: card.ev,
+          }));
+          ticker.scoring.strategy_suggestion.trade_cards = tradeCards;
+        } else if (chainResult.cards.has(ticker.symbol)) {
+          // Chain was fetched but no cards generated
+          ticker.scoring.strategy_suggestion.trade_cards = [];
+        }
+      }
+
+      console.log(`[Pipeline] Step G2: ${chainStats.chain_symbols_fetched} chains fetched, ${chainStats.total_trade_cards} trade cards in ${chainStats.elapsed_ms}ms`);
+    } else {
+      console.warn('[Pipeline] Step G2: No tickers with valid currentPrice for chain fetch');
+      dataGaps.push('trade_cards: no tickers had valid latest_close price from candle data');
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push(`Step G2 (chain fetch): ${msg}`);
+    console.error('[Pipeline] Step G2 failed:', msg);
+  }
+
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
 
@@ -512,6 +597,12 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   }
   dataGaps.push('sector_z_scores: computed per-ticker using sector peer stats from hard-filter survivors');
 
+  if (chainStats.chain_symbols_fetched > 0 && chainStats.total_trade_cards === 0) {
+    dataGaps.push('trade_cards: option chains fetched but no strategies passed quality gates');
+  } else if (chainStats.chain_symbols_fetched === 0 && top8.length > 0) {
+    dataGaps.push('trade_cards: chain fetch failed or no valid expirations found');
+  }
+
   const pipelineMs = Date.now() - pipelineStart;
 
   const result: PipelineResult = {
@@ -528,6 +619,8 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       fred_cached: fredResult.cached,
       candle_symbols_fetched: candleStats.symbols_with_data,
       candle_total_count: candleStats.total_candles,
+      chain_symbols_fetched: chainStats.chain_symbols_fetched,
+      total_trade_cards: chainStats.total_trade_cards,
       timestamp: new Date().toISOString(),
     },
     hard_filters: hardFilters,

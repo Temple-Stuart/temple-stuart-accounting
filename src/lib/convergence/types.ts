@@ -329,6 +329,28 @@ export interface CompositeResult {
 
 // -- Strategy Suggestion --
 
+export interface TradeCardLeg {
+  type: string;
+  side: string;
+  strike: number;
+  price: number;
+}
+
+export interface TradeCardData {
+  name: string;
+  legs: TradeCardLeg[];
+  expiration: string;
+  dte: number;
+  netCredit: number | null;
+  netDebit: number | null;
+  maxProfit: number | null;
+  maxLoss: number | null;
+  breakevens: number[];
+  pop: number | null;
+  riskReward: number | null;
+  ev: number;
+}
+
 export interface StrategySuggestion {
   direction: string;
   regime_preferred: string;
@@ -336,6 +358,7 @@ export interface StrategySuggestion {
   suggested_strategy: string;
   suggested_dte: number;
   note: string;
+  trade_cards?: TradeCardData[];
 }
 
 // -- Full Pipeline Response --
