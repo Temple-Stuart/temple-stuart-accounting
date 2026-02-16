@@ -562,15 +562,47 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   const mispricing = scoreMispricing(input);
   const termStructure = scoreTermStructure(input);
-  const technicals = scoreTechnicals(input);
+  const hasCandles = input.candles.length >= 20;
 
-  // Weighted combination: 50% mispricing, 30% term structure, 20% technicals
-  const score = round(
-    mispricing.weight * mispricing.score +
-    termStructure.weight * termStructure.score +
-    technicals.weight * technicals.score,
-    1,
-  );
+  let technicals: TechnicalsTrace;
+  let score: number;
+
+  if (hasCandles) {
+    // Real candle data available — use full 3-component weighting
+    technicals = scoreTechnicals(input);
+    score = round(
+      mispricing.weight * mispricing.score +
+      termStructure.weight * termStructure.score +
+      technicals.weight * technicals.score,
+      1,
+    );
+  } else {
+    // No candle data — EXCLUDE technicals entirely, renormalize remaining weights
+    // mispricing 0.50 / 0.80 = 0.625, term structure 0.30 / 0.80 = 0.375
+    const mispricingW = 0.625;
+    const termW = 0.375;
+    score = round(
+      mispricingW * mispricing.score +
+      termW * termStructure.score,
+      1,
+    );
+
+    technicals = {
+      score: 0,
+      weight: 0,
+      inputs: { candles_available: input.candles.length },
+      formula: 'EXCLUDED — no candle data available. Vol edge scored from mispricing (62.5%) + term structure (37.5%) only.',
+      notes: 'Technicals excluded. No fabricated scores.',
+      sub_scores: { rsi_score: 0, trend_score: 0, bollinger_score: 0, volume_score: 0, macd_score: 0 },
+      indicators: {
+        rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
+        bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
+        macd_line: null, macd_signal: null, macd_histogram: null,
+        avg_volume_5d: null, avg_volume_20d: null, volume_ratio: null,
+      },
+      candles_used: 0,
+    };
+  }
 
   return {
     score,

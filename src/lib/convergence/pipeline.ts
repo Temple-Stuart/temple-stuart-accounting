@@ -1,6 +1,6 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro } from './data-fetchers';
-import type { FinnhubData } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch } from './data-fetchers';
+import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
 import { scoreAll } from './composite';
@@ -71,6 +71,8 @@ export interface PipelineResult {
     finnhub_calls_made: number;
     finnhub_errors: number;
     fred_cached: boolean;
+    candle_symbols_fetched: number;
+    candle_total_count: number;
     timestamp: string;
   };
   hard_filters: HardFiltersResult;
@@ -416,7 +418,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     const convergenceInput: ConvergenceInput = {
       symbol,
       ttScanner: scannerData,
-      candles: [], // No candles in pipeline mode (too expensive for batch)
+      candles: [], // Candles added in Step F2 after initial scoring
       finnhubFundamentals: finnhubData.fundamentals,
       finnhubRecommendations: finnhubData.recommendations,
       finnhubInsiderSentiment: finnhubData.insiderSentiment,
@@ -435,6 +437,50 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   }
 
   console.log(`[Pipeline] Step F: Scored ${scoredTickers.length} tickers`);
+
+  // ===== STEP F2: Fetch candle data and re-score with real technicals =====
+  console.log('[Pipeline] Step F2: Fetching candle data for scored tickers...');
+  let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
+  const scoredSymbols = scoredTickers.map(t => t.symbol);
+
+  try {
+    const candleResult = await fetchTTCandlesBatch(scoredSymbols, 90);
+    candleStats = candleResult.stats;
+
+    // Re-score tickers that got candle data
+    let reScored = 0;
+    for (const ticker of scoredTickers) {
+      const candles = candleResult.data.get(ticker.symbol);
+      if (!candles || candles.length < 20) continue;
+
+      // Rebuild input with real candles and re-score
+      const convergenceInput: ConvergenceInput = {
+        symbol: ticker.symbol,
+        ttScanner: ticker.scannerData,
+        candles,
+        finnhubFundamentals: ticker.finnhubData.fundamentals,
+        finnhubRecommendations: ticker.finnhubData.recommendations,
+        finnhubInsiderSentiment: ticker.finnhubData.insiderSentiment,
+        finnhubEarnings: ticker.finnhubData.earnings,
+        fredMacro: fredResult.data,
+        sectorStats,
+      };
+
+      try {
+        ticker.scoring = scoreAll(convergenceInput);
+        reScored++;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`Step F2 (re-score ${ticker.symbol}): ${msg}`);
+      }
+    }
+
+    console.log(`[Pipeline] Step F2: Fetched candles for ${candleStats.symbols_with_data}/${scoredSymbols.length} symbols (${candleStats.total_candles} candles) in ${candleStats.elapsed_ms}ms, re-scored ${reScored}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push(`Step F2 (candle fetch): ${msg}`);
+    console.error('[Pipeline] Step F2 failed:', msg);
+  }
 
   // Build ranked rows
   const rankedRows = buildRankedRows(scoredTickers);
@@ -456,7 +502,14 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   }
 
   // Data gaps
-  dataGaps.push('candle_technicals: not available in pipeline mode (batch optimization — technicals scored at default 50)');
+  if (candleStats.symbols_with_data === scoredSymbols.length) {
+    // All symbols got candles — no gap
+  } else if (candleStats.symbols_with_data > 0) {
+    const noData = scoredSymbols.length - candleStats.symbols_with_data;
+    dataGaps.push(`candle_technicals: fetched for ${candleStats.symbols_with_data}/${scoredSymbols.length} symbols, ${noData} symbols had insufficient data (technicals excluded for those, weights renormalized)`);
+  } else {
+    dataGaps.push('candle_technicals: TastyTrade connection failed — technicals excluded from scoring (no fake data)');
+  }
   dataGaps.push('sector_z_scores: computed per-ticker using sector peer stats from hard-filter survivors');
 
   const pipelineMs = Date.now() - pipelineStart;
@@ -473,6 +526,8 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       finnhub_calls_made: finnhubResult.stats.calls_made,
       finnhub_errors: finnhubResult.stats.errors,
       fred_cached: fredResult.cached,
+      candle_symbols_fetched: candleStats.symbols_with_data,
+      candle_total_count: candleStats.total_candles,
       timestamp: new Date().toISOString(),
     },
     hard_filters: hardFilters,

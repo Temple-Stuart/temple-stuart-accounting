@@ -1,10 +1,13 @@
 import type {
+  CandleData,
   FinnhubFundamentals,
   FinnhubRecommendation,
   FinnhubInsiderSentiment,
   FinnhubEarnings,
   FredMacroData,
 } from './types';
+import { getTastytradeClient } from '@/lib/tastytrade';
+import { CandleType } from '@tastytrade/api';
 
 // ===== TYPES =====
 
@@ -225,4 +228,126 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
   fredCache = { data: result, fetchedAt: Date.now() };
 
   return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
+}
+
+// ===== TASTYTRADE CANDLE BATCH FETCHER =====
+
+export interface CandleBatchStats {
+  total_candles: number;
+  symbols_with_data: number;
+  symbols_failed: string[];
+  elapsed_ms: number;
+}
+
+export async function fetchTTCandlesBatch(
+  symbols: string[],
+  days = 90,
+): Promise<{ data: Map<string, CandleData[]>; stats: CandleBatchStats }> {
+  const start = Date.now();
+  const data = new Map<string, CandleData[]>();
+  const stats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
+
+  if (symbols.length === 0) {
+    stats.elapsed_ms = Date.now() - start;
+    return { data, stats };
+  }
+
+  const fromTime = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  // Pre-populate map so every symbol has an array
+  for (const sym of symbols) {
+    data.set(sym, []);
+  }
+
+  try {
+    const client = getTastytradeClient();
+    // Force token refresh before WebSocket
+    await client.accountsAndCustomersService.getCustomerResource();
+
+    const removeListener = client.quoteStreamer.addEventListener((events: any[]) => {
+      for (const evt of events) {
+        const type = (evt['eventType'] as string) || '';
+        if (type !== 'Candle') continue;
+
+        // eventSymbol format: "AAPL{=d}" for daily candles — parse symbol
+        const eventSymbol = (evt['eventSymbol'] as string) || '';
+        const sym = eventSymbol.replace(/\{.*\}$/, '');
+        if (!sym || !data.has(sym)) continue;
+
+        const time = Number(evt['time'] || 0);
+        const open = evt['open'] != null ? Number(evt['open']) : 0;
+        const close = evt['close'] != null ? Number(evt['close']) : 0;
+        if (open <= 0 || close <= 0) continue;
+
+        data.get(sym)!.push({
+          time,
+          date: new Date(time).toISOString().slice(0, 10),
+          open,
+          high: evt['high'] != null ? Number(evt['high']) : open,
+          low: evt['low'] != null ? Number(evt['low']) : open,
+          close,
+          volume: evt['volume'] != null ? Number(evt['volume']) : 0,
+        });
+      }
+    });
+
+    try {
+      await client.quoteStreamer.connect();
+      console.log(`[CandleBatch] Connected, subscribing ${symbols.length} symbols...`);
+
+      // Subscribe all symbols on the same connection
+      for (const sym of symbols) {
+        client.quoteStreamer.subscribeCandles(sym, fromTime, 1, CandleType.Day);
+      }
+
+      // Stability-check loop: wait until candle count stops increasing
+      const deadline = Date.now() + 15000; // 15s total timeout
+      let lastCount = 0;
+      let stableFor = 0;
+
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 500));
+        let totalCount = 0;
+        for (const arr of data.values()) totalCount += arr.length;
+
+        if (totalCount > 0 && totalCount === lastCount) {
+          stableFor += 500;
+          if (stableFor >= 3000) break; // stable for 3s
+        } else {
+          stableFor = 0;
+        }
+        lastCount = totalCount;
+      }
+    } finally {
+      removeListener();
+      client.quoteStreamer.disconnect();
+    }
+
+    // Sort each symbol's candles by time ascending and deduplicate by date
+    for (const [sym, candles] of data.entries()) {
+      candles.sort((a, b) => a.time - b.time);
+      // Deduplicate by date (keep last occurrence for each date)
+      const byDate = new Map<string, CandleData>();
+      for (const c of candles) byDate.set(c.date, c);
+      const deduped = Array.from(byDate.values());
+      data.set(sym, deduped);
+
+      if (deduped.length > 0) {
+        stats.symbols_with_data++;
+        stats.total_candles += deduped.length;
+      } else {
+        stats.symbols_failed.push(sym);
+      }
+    }
+
+    console.log(`[CandleBatch] Done: ${stats.symbols_with_data}/${symbols.length} symbols, ${stats.total_candles} total candles`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[CandleBatch] Connection failed:`, msg);
+    // All symbols failed
+    stats.symbols_failed = [...symbols];
+  }
+
+  stats.elapsed_ms = Date.now() - start;
+  return { data, stats };
 }
