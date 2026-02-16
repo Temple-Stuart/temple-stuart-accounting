@@ -2,7 +2,7 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards } from './chain-fetcher';
-import type { ChainFetchStats } from './chain-fetcher';
+import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
 import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
 import { scoreAll } from './composite';
@@ -78,6 +78,8 @@ export interface PipelineResult {
     candle_total_count: number;
     chain_symbols_fetched: number;
     total_trade_cards: number;
+    market_open: boolean;
+    market_note?: string;
     timestamp: string;
   };
   hard_filters: HardFiltersResult;
@@ -503,6 +505,8 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     greeks_events_received: 0,
     elapsed_ms: 0,
   };
+  let chainMarketOpen = true;
+  let chainMarketNote: string | undefined;
 
   try {
     // Build input for chain fetcher from top 8 tickers
@@ -531,6 +535,12 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     if (chainInputs.length > 0) {
       const chainResult = await fetchChainAndBuildCards(chainInputs);
       chainStats = chainResult.stats;
+      chainMarketOpen = chainResult.marketOpen;
+      chainMarketNote = chainResult.marketNote;
+
+      if (!chainResult.marketOpen) {
+        dataGaps.push(`trade_cards: priced from exchange theo values (${chainResult.marketNote}) — rerun during market hours for live quotes`);
+      }
 
       // Attach trade cards to each ticker's strategy_suggestion
       for (const ticker of scoredTickers) {
@@ -621,6 +631,8 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       candle_total_count: candleStats.total_candles,
       chain_symbols_fetched: chainStats.chain_symbols_fetched,
       total_trade_cards: chainStats.total_trade_cards,
+      market_open: chainMarketOpen,
+      market_note: chainMarketNote,
       timestamp: new Date().toISOString(),
     },
     hard_filters: hardFilters,

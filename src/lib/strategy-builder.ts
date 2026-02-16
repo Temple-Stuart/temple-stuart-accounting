@@ -76,6 +76,9 @@ export interface StrikeData {
   putVolume: number | null;
   callOI: number | null;
   putOI: number | null;
+  callTheoPrice: number | null;
+  putTheoPrice: number | null;
+  priceSource: 'live' | 'theo' | 'mixed'; // audit trail
   callWideSpread: boolean;
   putWideSpread: boolean;
 }
@@ -711,6 +714,28 @@ export function buildStrikeData(
     if (putBid === 0 && putAsk != null && putAsk > 0) putBid = putAsk * 0.4;
     if (putAsk === 0 && putBid != null && putBid > 0) putAsk = putBid * 2.5;
 
+    // Track price source for audit trail
+    const callHasLive = (callBid != null && callBid > 0) || (callAsk != null && callAsk > 0);
+    const putHasLive = (putBid != null && putBid > 0) || (putAsk != null && putAsk > 0);
+
+    // Exchange theo price — real Black-Scholes valuation from vol surface (industry standard: TOS, Schwab, IBKR)
+    const callTheo = cg.theoPrice > 0 ? cg.theoPrice : null;
+    const putTheo = pg.theoPrice > 0 ? pg.theoPrice : null;
+
+    // When live quotes unavailable, use exchange theo with standard spread model
+    if (!callHasLive && callTheo != null) {
+      callBid = callTheo * 0.85;
+      callAsk = callTheo * 1.15;
+    }
+    if (!putHasLive && putTheo != null) {
+      putBid = putTheo * 0.85;
+      putAsk = putTheo * 1.15;
+    }
+
+    const priceSource: 'live' | 'theo' | 'mixed' =
+      (callHasLive && putHasLive) ? 'live' :
+      (!callHasLive && !putHasLive) ? 'theo' : 'mixed';
+
     // Inverted quotes — null out that side entirely
     if (callBid != null && callAsk != null && callBid > callAsk) {
       callBid = null; callAsk = null;
@@ -742,6 +767,9 @@ export function buildStrikeData(
       putVolume: pg.volume ?? null,
       callOI: cg.openInterest ?? null,
       putOI: pg.openInterest ?? null,
+      callTheoPrice: callTheo,
+      putTheoPrice: putTheo,
+      priceSource,
       callWideSpread,
       putWideSpread,
     });

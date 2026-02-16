@@ -23,7 +23,35 @@ export interface ChainFetchStats {
   elapsed_ms: number;
 }
 
+export interface ChainFetchResult {
+  cards: Map<string, StrategyCard[]>;
+  stats: ChainFetchStats;
+  marketOpen: boolean;
+  marketNote?: string;
+}
+
 // ===== HELPERS =====
+
+function isMarketOpen(): { open: boolean; reason?: string } {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const hour = et.getHours();
+  const minute = et.getMinutes();
+  const timeNum = hour * 100 + minute;
+
+  if (day === 0 || day === 6) return { open: false, reason: 'weekend' };
+
+  const holidays2026 = [
+    '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
+    '2026-05-25','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
+  ];
+  const dateStr = et.toISOString().slice(0, 10);
+  if (holidays2026.includes(dateStr)) return { open: false, reason: `market holiday (${dateStr})` };
+  if (timeNum < 930 || timeNum >= 1600) return { open: false, reason: `outside market hours (${hour}:${String(minute).padStart(2, '0')} ET)` };
+
+  return { open: true };
+}
 
 // Convert OCC symbol to DXFeed format (same logic as chains/route.ts)
 function occToDxFeed(occ: string): string | null {
@@ -41,7 +69,7 @@ function occToDxFeed(occ: string): string | null {
 
 export async function fetchChainAndBuildCards(
   tickers: ChainTickerInput[],
-): Promise<{ cards: Map<string, StrategyCard[]>; stats: ChainFetchStats }> {
+): Promise<ChainFetchResult> {
   const cards = new Map<string, StrategyCard[]>();
   const stats: ChainFetchStats = {
     chain_symbols_fetched: 0,
@@ -52,9 +80,16 @@ export async function fetchChainAndBuildCards(
   };
   const start = Date.now();
 
+  const market = isMarketOpen();
+  const marketOpen = market.open;
+  const marketNote = market.reason;
+  if (!marketOpen) {
+    console.log(`[ChainFetcher] Market closed: ${marketNote}. Will use exchange theo prices where available.`);
+  }
+
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, stats };
+    return { cards, stats, marketOpen, marketNote };
   }
 
   try {
@@ -178,7 +213,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, stats };
+      return { cards, stats, marketOpen, marketNote };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -292,9 +327,11 @@ export async function fetchChainAndBuildCards(
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ChainFetcher] Fatal error:', msg);
     // Return empty map — pipeline continues without trade cards
+    stats.elapsed_ms = Date.now() - start;
+    return { cards, stats, marketOpen, marketNote };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, stats };
+  return { cards, stats, marketOpen, marketNote };
 }
