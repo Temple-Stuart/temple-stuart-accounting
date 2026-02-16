@@ -43,7 +43,8 @@ function computeRSI(candles: CandleData[], period = 14): {
 
   const changes: number[] = [];
   for (let i = 1; i < candles.length; i++) {
-    changes.push(candles[i].close - candles[i - 1].close);
+    const diff = candles[i].close - candles[i - 1].close;
+    changes.push(Number.isFinite(diff) ? diff : 0);
   }
 
   // Initial averages from first `period` changes
@@ -420,7 +421,15 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
 // ===== TECHNICALS SUB-SCORE =====
 
 function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
-  const candles = input.candles;
+  // Sanitize: filter out candles with non-finite OHLCV values
+  const rawCandles = input.candles;
+  const candles = rawCandles.filter(c =>
+    Number.isFinite(c.open) && c.open > 0 &&
+    Number.isFinite(c.close) && c.close > 0 &&
+    Number.isFinite(c.high) && c.high > 0 &&
+    Number.isFinite(c.low) && c.low > 0 &&
+    Number.isFinite(c.volume) && c.volume >= 0
+  );
 
   if (candles.length < 20) {
     return {
