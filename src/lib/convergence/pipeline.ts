@@ -88,6 +88,134 @@ export interface PipelineResult {
   errors: string[];
 }
 
+// ===== SYMBOL UNIVERSE (same lists as scanner/route.ts) =====
+
+const POPULAR_SYMBOLS = [
+  'SPY','QQQ','IWM','AAPL','MSFT','GOOGL','AMZN','TSLA','NVDA','META',
+  'AMD','NFLX','JPM','BAC','GS','XOM','CVX','PFE','JNJ','UNH',
+  'DIS','BA','COST','HD','LOW','CRM','ORCL','ADBE','INTC','MU',
+  'COIN','MARA','SQ','SHOP','SNAP','PLTR','SOFI','RIVN','LCID','NIO',
+  'ARM','SMCI','AVGO','MRVL','PANW','CRWD','NET','DKNG','ABNB','UBER',
+];
+
+const MEGA_CAP = [
+  'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','BRK.B','AVGO','LLY',
+  'JPM','V','WMT','MA','UNH','XOM','COST','HD','PG','JNJ',
+  'ORCL','BAC','NFLX','ABBV','CRM','AMD','CVX','MRK','KO','PEP',
+];
+
+const ETFS = [
+  'SPY','QQQ','IWM','DIA','XLF','XLE','XLK','XLV','XLI','XLP',
+  'XLU','XLB','XLRE','XLC','GDX','GDXJ','SLV','GLD','TLT','HYG',
+  'EEM','EFA','ARKK','VXX','KWEB',
+];
+
+const SECTOR_TECH = [
+  'AAPL','MSFT','NVDA','GOOGL','META','AMD','AVGO','CRM','ORCL','ADBE',
+  'INTC','MU','QCOM','TXN','AMAT','LRCX','KLAC','SNPS','CDNS','NOW',
+  'PANW','CRWD','NET','DDOG','ZS',
+];
+
+const SECTOR_FINANCE = [
+  'JPM','BAC','GS','MS','WFC','C','BLK','SCHW','AXP','USB',
+  'PNC','TFC','COF','ICE','CME','SPGI','MCO','MSCI','FIS','PYPL',
+  'SQ','COIN','SOFI','HOOD','AFRM',
+];
+
+const SECTOR_ENERGY = [
+  'XOM','CVX','COP','EOG','SLB','MPC','PSX','VLO','OXY','PXD',
+  'DVN','HES','FANG','HAL','BKR','KMI','WMB','OKE','TRGP','ET',
+];
+
+const SECTOR_HEALTHCARE = [
+  'UNH','JNJ','LLY','PFE','ABBV','MRK','TMO','ABT','DHR','BMY',
+  'AMGN','GILD','VRTX','REGN','ISRG','MDT','SYK','BDX','ZTS','CI',
+];
+
+const RETAIL_FAVORITES = [
+  'GME','AMC','PLTR','SOFI','RIVN','LCID','NIO','MARA','COIN','HOOD',
+  'BBBY','WISH','CLOV','BB','DKNG','RBLX','SNAP','PINS','ABNB','UBER',
+];
+
+const DOW_30 = [
+  'AAPL','AMGN','AMZN','AXP','BA','CAT','CRM','CSCO','CVX','DIS',
+  'GS','HD','HON','IBM','JNJ','JPM','KO','MCD','MMM','MRK',
+  'MSFT','NKE','NVDA','PG','SHW','TRV','UNH','V','VZ','WMT',
+];
+
+const NASDAQ_100 = [
+  'AAPL','ABNB','ADBE','ADI','ADP','ADSK','AEP','ALNY','AMAT','AMGN',
+  'AMZN','APP','ARM','ASML','AVGO','AXON','BKR','BKNG','CCEP','CDNS',
+  'CEG','CHTR','CMCSA','COST','CPRT','CRWD','CSGP','CSCO','CSX','CTAS',
+  'CTSH','DASH','DDOG','DXCM','EA','EXC','FANG','FAST','FER','FTNT',
+  'GEHC','GILD','GOOG','GOOGL','HON','IDXX','INSM','INTC','INTU','ISRG',
+  'KDP','KHC','KLAC','LIN','LRCX','MAR','MCHP','MDLZ','MELI','META',
+  'MNST','MPWR','MRVL','MSFT','MSTR','MU','NFLX','NVDA','NXPI','ODFL',
+  'ORLY','PANW','PAYX','PCAR','PDD','PEP','PLTR','PYPL','QCOM','REGN',
+  'ROP','ROST','SBUX','SHOP','SNPS','STX','TEAM','TMUS','TRI','TSLA',
+  'TTWO','TXN','VRSK','VRTX','WBD','WDC','WDAY','WMT','XEL','ZS',
+  'AMD',
+];
+
+const SP500 = [
+  'A','AAPL','ABBV','ABNB','ABT','ACGL','ACN','ADBE','ADI','ADM',
+  'ADP','ADSK','AEE','AEP','AES','AFL','AIG','AIZ','AJG','AKAM',
+  'ALB','ALGN','ALL','ALLE','AMAT','AMCR','AMD','AME','AMGN','AMP',
+  'AMT','AMZN','ANET','ANSS','AOS','APA','APD','APH','APO','APP',
+  'ARE','ATO','AVGO','AVB','AVY','AWK','AXON','AXP','BA','BAC',
+  'BALL','BAX','BBWI','BBY','BDX','BEN','BFB','BG','BIIB','BK',
+  'BKNG','BKR','BLDR','BLK','BMY','BR','BRO','BRKB','BSX','BX',
+  'BXP','C','CAG','CAH','CARR','CAT','CB','CBOE','CCI','CCL',
+  'CDNS','CDW','CEG','CF','CFG','CHD','CHRW','CHTR','CI','CIEN',
+  'CINF','CL','CLX','CMS','CNC','CNP','COF','COO','COP','COR',
+  'COST','CPRT','CPB','CPT','CRH','CRL','CRM','CRWD','CSCO','CSGP',
+  'CSX','CTAS','CTSH','CTRA','CTVA','CVNA','CVS','CVX','D','DAL',
+  'DASH','DDOG','DD','DE','DECK','DELL','DG','DGX','DHI','DHR',
+  'DIS','DLTR','DOV','DOW','DPZ','DRI','DTE','DUK','DVA','DVN',
+  'DXCM','EA','EBAY','ECL','ED','EFX','EG','EIX','EL','EME',
+  'EMN','EMR','EQIX','EQR','EQT','ERIE','ES','ESS','ETN','ETR',
+  'EW','EXC','EXE','EXPE','EXR','F','FANG','FAST','FSLR','FBHS',
+  'FCX','FDS','FDX','FE','FFIV','FICO','FI','FIS','FITB','FIX',
+  'FLT','FMC','FOX','FOXA','FRT','FTV','GD','GDDY','GE','GEHC',
+  'GEN','GEV','GILD','GIS','GL','GLW','GM','GNRC','GOOG','GOOGL',
+  'GPC','GPN','GRMN','GS','GWW','HAL','HAS','HBAN','HCA','HD',
+  'HOLX','HON','HOOD','HPE','HPQ','HRL','HSIC','HST','HSY','HUBB',
+  'HWM','IBM','ICE','IDXX','IEX','IFF','INCY','INTC','INTU','INVH',
+  'IP','IQV','IR','IRM','ISRG','IT','ITW','IVZ','JBHT','JBL',
+  'JCI','JKHY','JNJ','JPM','K','KDP','KEY','KHC','KIM','KKR',
+  'KLAC','KMB','KMI','KO','KR','KVUE','L','LDOS','LEN','LH',
+  'LHX','LII','LIN','LLY','LMT','LOW','LRCX','LULU','LUV','LVS',
+  'LW','LYB','LYV','MA','MAA','MAR','MCD','MCHP','MCK','MCO',
+  'MDLZ','MDT','MET','META','MGM','MKC','MLM','MMM','MNST','MO',
+  'MOH','MOS','MPC','MPWR','MRNA','MRSH','MRVL','MS','MSCI','MSFT',
+  'MSI','MTB','MTD','MU','NCLH','NDAQ','NDSN','NEE','NEM','NFLX',
+  'NI','NKE','NOC','NOW','NRG','NSC','NTAP','NTRS','NUE','NVDA',
+  'NVR','NWS','NWSA','NXPI','O','ODFL','OKE','OMC','ON','ORCL',
+  'ORLY','OTIS','OXY','PANW','PARA','PAYC','PAYX','PCAR','PCG','PEG',
+  'PEP','PFE','PFG','PG','PGR','PH','PHM','PKG','PLD','PLTR',
+  'PM','PNC','PNR','PNW','PODD','POOL','PPG','PPL','PRU','PSA',
+  'PSX','PTC','PVH','PWR','PYPL','QCOM','RCL','REG','REGN','RF',
+  'RJF','RL','RMD','ROK','ROL','ROP','ROST','RSG','RTX','RVTY',
+  'SBAC','SBUX','SCHW','SHW','SJM','SLB','SMCI','SNA','SNDK','SNPS',
+  'SO','SOLV','SPG','SPGI','SRE','STE','STLD','STT','STZ','SWK',
+  'SWKS','SYF','SYK','SYY','T','TAP','TDG','TDY','TER','TFC',
+  'TGT','TJX','TKO','TMUS','TPL','TPR','TRGP','TRMB','TRV','TSCO',
+  'TSLA','TSN','TT','TTD','TTWO','TXN','TXT','TYL','UAL','UBER',
+  'UDR','UHS','ULTA','UNH','UNP','UPS','URI','USB','V','VICI',
+  'VLO','VLTO','VMC','VRSK','VRSN','VRTX','VTR','VTRS','VZ','WAB',
+  'WAT','WBA','WBD','WDC','WEC','WELL','WFC','WM','WMB','WMT',
+  'WRB','WRK','WSM','WST','WTW','WY','WYNN','XEL','XOM','XYL',
+  'XYZ','YUM','ZBH','ZBRA','ZTS',
+];
+
+function getAllSymbols(): string[] {
+  return [...new Set([
+    ...POPULAR_SYMBOLS, ...MEGA_CAP, ...ETFS, ...SECTOR_TECH,
+    ...SECTOR_FINANCE, ...SECTOR_ENERGY, ...SECTOR_HEALTHCARE,
+    ...RETAIL_FAVORITES, ...DOW_30, ...NASDAQ_100, ...SP500,
+  ])];
+}
+
 // ===== HELPERS =====
 
 function round(v: number, decimals = 2): number {
@@ -178,16 +306,39 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   const errors: string[] = [];
   const dataGaps: string[] = [];
 
-  // ===== STEP A: Fetch TT Scanner (all tickers) =====
+  // ===== STEP A: Fetch TT Scanner (all tickers, batched) =====
   console.log('[Pipeline] Step A: Fetching TT scanner data...');
   let allScannerData: TTScannerData[] = [];
   try {
     const client = getTastytradeClient();
     await client.accountsAndCustomersService.getCustomerResource();
 
-    // Fetch all market metrics (no symbol filter = all watchlist tickers)
-    const raw = await client.marketMetricsService.getMarketMetrics();
-    const items = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+    const allSymbols = getAllSymbols();
+    console.log(`[Pipeline] Step A: Fetching ${allSymbols.length} symbols in batches of ${BATCH_SIZE}...`);
+
+    // Batch symbols into chunks and fetch (same pattern as scanner/route.ts)
+    const batches: string[][] = [];
+    for (let i = 0; i < allSymbols.length; i += BATCH_SIZE) {
+      batches.push(allSymbols.slice(i, i + BATCH_SIZE));
+    }
+
+    const batchResults = await Promise.all(
+      batches.map(async (batch) => {
+        try {
+          const raw = await client.marketMetricsService.getMarketMetrics({
+            symbols: batch.join(','),
+          });
+          return Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[Pipeline] Step A batch error:`, msg);
+          errors.push(`Step A batch error: ${msg}`);
+          return [];
+        }
+      }),
+    );
+
+    const items = batchResults.flat();
     allScannerData = parseMarketMetrics(items);
     console.log(`[Pipeline] Step A: Got ${allScannerData.length} tickers from TT scanner`);
   } catch (e: unknown) {
