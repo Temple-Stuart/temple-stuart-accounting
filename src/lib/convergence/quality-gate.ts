@@ -65,13 +65,26 @@ function scoreLiquidity(input: ConvergenceInput): LiquidityTrace {
     else lendabilityScore = 55;
   }
 
-  // Weighted: liquidity_rating 35%, market_cap 25%, volume 25%, lendability 15%
-  const score = round(
-    0.35 * liquidityRatingScore + 0.25 * marketCapScore + 0.25 * volumeScore + 0.15 * lendabilityScore,
-    1,
-  );
-
-  const formula = `0.35×LiqRating(${round(liquidityRatingScore)}) + 0.25×MktCap(${round(marketCapScore)}) + 0.25×Volume(${round(volumeScore)}) + 0.15×Lend(${round(lendabilityScore)}) = ${score}`;
+  let score: number;
+  let formula: string;
+  const hasCandles = candles.length >= 20;
+  if (hasCandles) {
+    // Full 4-component weighting
+    score = round(
+      0.35 * liquidityRatingScore + 0.25 * marketCapScore + 0.25 * volumeScore + 0.15 * lendabilityScore,
+      1,
+    );
+    formula = `0.35×LiqRating(${round(liquidityRatingScore)}) + 0.25×MktCap(${round(marketCapScore)}) + 0.25×Volume(${round(volumeScore)}) + 0.15×Lend(${round(lendabilityScore)}) = ${score}`;
+  } else {
+    // No candle data — exclude volume, renormalize remaining weights (75% → 100%)
+    volumeScore = 0;
+    avgVol20d = null;
+    score = round(
+      (0.35 / 0.75) * liquidityRatingScore + (0.25 / 0.75) * marketCapScore + (0.15 / 0.75) * lendabilityScore,
+      1,
+    );
+    formula = `Volume EXCLUDED (no candles). ${round(0.35/0.75, 3)}×LiqRating(${round(liquidityRatingScore)}) + ${round(0.25/0.75, 3)}×MktCap(${round(marketCapScore)}) + ${round(0.15/0.75, 3)}×Lend(${round(lendabilityScore)}) = ${score}`;
+  }
 
   return {
     score: round(score),
@@ -84,7 +97,7 @@ function scoreLiquidity(input: ConvergenceInput): LiquidityTrace {
       borrow_rate: tt?.borrowRate ?? null,
     },
     formula,
-    notes: `Liquidity rating: ${liqRating ?? 'N/A'}, Mkt cap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}`,
+    notes: `Liquidity rating: ${liqRating ?? 'N/A'}, Mkt cap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}${!hasCandles ? '. Volume excluded — no candle data, no fabricated scores' : ''}`,
     sub_scores: {
       liquidity_rating_score: round(liquidityRatingScore),
       market_cap_score: round(marketCapScore),
