@@ -78,7 +78,7 @@ export interface StrikeData {
   putOI: number | null;
   callTheoPrice: number | null;
   putTheoPrice: number | null;
-  priceSource: 'live' | 'theo' | 'mixed'; // audit trail
+  priceSource: 'live' | 'theo' | 'mixed' | 'none'; // audit trail
   callWideSpread: boolean;
   putWideSpread: boolean;
 }
@@ -732,8 +732,12 @@ export function buildStrikeData(
       putAsk = putTheo * 1.15;
     }
 
-    const priceSource: 'live' | 'theo' | 'mixed' =
+    const callHasTheo = !callHasLive && callTheo != null;
+    const putHasTheo = !putHasLive && putTheo != null;
+
+    const priceSource: 'live' | 'theo' | 'mixed' | 'none' =
       (callHasLive && putHasLive) ? 'live' :
+      (!callHasLive && !putHasLive && !callHasTheo && !putHasTheo) ? 'none' :
       (!callHasLive && !putHasLive) ? 'theo' : 'mixed';
 
     // Inverted quotes — null out that side entirely

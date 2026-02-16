@@ -1,7 +1,7 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
-import { fetchChainAndBuildCards } from './chain-fetcher';
+import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
 import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
@@ -78,6 +78,7 @@ export interface PipelineResult {
     candle_total_count: number;
     chain_symbols_fetched: number;
     total_trade_cards: number;
+    greeks_events_received: number;
     market_open: boolean;
     market_note?: string;
     timestamp: string;
@@ -508,7 +509,13 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   let chainMarketOpen = true;
   let chainMarketNote: string | undefined;
 
-  try {
+  const marketStatus = isMarketOpen();
+  if (!marketStatus.open) {
+    chainMarketOpen = false;
+    chainMarketNote = marketStatus.reason;
+    dataGaps.push('trade_cards: market closed. Rerun during market hours (Mon-Fri 9:30-16:00 ET).');
+    console.log(`[Pipeline] Step G2: Market closed (${marketStatus.reason}), skipping chain fetch`);
+  } else try {
     // Build input for chain fetcher from top 8 tickers
     const chainInputs = top8.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
@@ -631,6 +638,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       candle_total_count: candleStats.total_candles,
       chain_symbols_fetched: chainStats.chain_symbols_fetched,
       total_trade_cards: chainStats.total_trade_cards,
+      greeks_events_received: chainStats.greeks_events_received,
       market_open: chainMarketOpen,
       market_note: chainMarketNote,
       timestamp: new Date().toISOString(),

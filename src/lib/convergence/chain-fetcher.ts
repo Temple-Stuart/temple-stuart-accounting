@@ -32,7 +32,7 @@ export interface ChainFetchResult {
 
 // ===== HELPERS =====
 
-function isMarketOpen(): { open: boolean; reason?: string } {
+export function isMarketOpen(): { open: boolean; reason?: string } {
   const now = new Date();
   const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const day = et.getDay();
