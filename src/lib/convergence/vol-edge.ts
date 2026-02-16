@@ -148,8 +148,11 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   const hv30 = tt?.hv30 ?? null;
   const hv60 = tt?.hv60 ?? null;
   const hv90 = tt?.hv90 ?? null;
-  const ivp = tt?.ivPercentile ?? null;
-  const ivr = tt?.ivRank ?? null;
+  let ivp = tt?.ivPercentile ?? null;
+  let ivr = tt?.ivRank ?? null;
+  // TastyTrade returns IVP/IVR as decimals (0.693 = 69.3%); normalize to 0-100 scale
+  if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
+  if (ivr !== null && ivr <= 1.0) ivr = round(ivr * 100, 1);
   const ivHvSpread = tt?.ivHvSpread ?? null;
 
   // VRP = IV30² - HV30² (variance risk premium)
@@ -266,10 +269,30 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
   const richest = sorted[richestIdx];
   const cheapest = sorted[cheapestIdx];
 
-  // Compute DTE for richest tenor
+  // Compute DTE for all tenors
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const richestDte = Math.round((new Date(richest.date + 'T00:00:00').getTime() - now.getTime()) / 86400000);
+  const nowMs = now.getTime();
+  const sortedWithDte = sorted.map(exp => ({
+    ...exp,
+    dte: Math.round((new Date(exp.date + 'T00:00:00').getTime() - nowMs) / 86400000),
+  }));
+  const richestDte = sortedWithDte[richestIdx].dte;
+
+  // Find optimal expiration within theta-efficient DTE range (25-60, fallback 20-90)
+  let optCandidates = sortedWithDte.filter(e => e.dte >= 25 && e.dte <= 60);
+  let optRangeUsed = '25-60';
+  if (optCandidates.length === 0) {
+    optCandidates = sortedWithDte.filter(e => e.dte >= 20 && e.dte <= 90);
+    optRangeUsed = '20-90';
+  }
+  let optimalExpirationStr: string;
+  if (optCandidates.length > 0) {
+    const best = optCandidates.reduce((a, b) => a.iv > b.iv ? a : b);
+    optimalExpirationStr = `${best.date} (${best.dte} DTE, IV=${round(best.iv, 3)}) — within ${optRangeUsed} DTE sweet spot`;
+  } else {
+    optimalExpirationStr = `${richest.date} — highest IV tenor at ${richestDte} DTE (no expirations in 20-90 DTE range)`;
+  }
 
   // Shape classification
   let shape: string;
@@ -335,7 +358,7 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     shape,
     richest_tenor: `${richest.date} (${richestDte} DTE, IV=${round(richest.iv, 2)})`,
     cheapest_tenor: `${cheapest.date} (IV=${round(cheapest.iv, 2)})`,
-    optimal_expiration: `${richest.date} — highest IV tenor at ${richestDte} DTE`,
+    optimal_expiration: optimalExpirationStr,
     expirations_analyzed: sorted.length,
     earnings_kink_detected: earningsKinkDetected,
   };

@@ -109,7 +109,9 @@ function deriveStrategy(
 ): StrategySuggestion {
   const regimeScore = regime.score;
   const volScore = volEdge.score;
-  const ivp = volEdge.breakdown.mispricing.inputs.IV_percentile as number | null;
+  let ivp = volEdge.breakdown.mispricing.inputs.IV_percentile as number | null;
+  // Guard: normalize IVP from decimal (0-1) to percentage (0-100) if needed
+  if (ivp !== null && ivp <= 1.0) ivp = Math.round(ivp * 1000) / 10;
   const termShape = volEdge.breakdown.term_structure.shape;
 
   // Regime-based preference
