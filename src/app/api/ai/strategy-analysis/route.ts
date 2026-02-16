@@ -1,6 +1,23 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
+async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await client.messages.create(params);
+    } catch (e: any) {
+      if (e.status === 429 && i < maxRetries - 1) {
+        const retryAfter = parseInt(e.headers?.get?.('retry-after') || '10');
+        const wait = Math.min(retryAfter, 30) * 1000;
+        console.log(`[Strategy Analysis] Rate limited, retry ${i + 1}/${maxRetries} in ${wait / 1000}s`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 const SYSTEM_PROMPT = `You analyze specific options strategies for Temple Stuart, an institutional-grade analytics platform.
 
 You receive: a symbol with its scanner data (IV-HV spread, HV trend, earnings timing, sector) plus 1-3 generated strategy cards with full details (legs, strikes, prices, max profit/loss, breakevens, PoP, Greeks, DTE). You may also receive Finnhub data (news count, analyst ratings, price targets).
@@ -90,7 +107,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const client = new Anthropic({ apiKey });
 
-    const msg = await client.messages.create({
+    const msg = await callWithRetry(client, {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       temperature: 0.2,

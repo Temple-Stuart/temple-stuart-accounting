@@ -451,6 +451,8 @@ export default function TradingPage() {
     setStrategyAnalysisLoading(prev => ({ ...prev, [symbol]: true }));
     (async () => {
       try {
+        // Stagger AI calls to avoid 30k input token/min rate limit
+        await new Promise(r => setTimeout(r, 3000));
         const res = await fetch('/api/ai/strategy-analysis', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -651,6 +653,8 @@ export default function TradingPage() {
           }));
 
           // 5. AI analysis (includes Finnhub data if available)
+          // Stagger AI calls to avoid 30k input token/min rate limit
+          await new Promise(r => setTimeout(r, 3000));
           try {
             const aiRes = await fetch('/api/ai/strategy-analysis', {
               method: 'POST',
