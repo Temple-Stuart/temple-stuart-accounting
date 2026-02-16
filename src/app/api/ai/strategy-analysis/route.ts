@@ -8,7 +8,7 @@ async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Pr
     } catch (e: any) {
       if (e.status === 429 && i < maxRetries - 1) {
         const retryAfter = parseInt(e.headers?.get?.('retry-after') || '10');
-        const wait = Math.min(retryAfter, 30) * 1000;
+        const wait = Math.min(retryAfter, 120) * 1000;
         console.log(`[Strategy Analysis] Rate limited, retry ${i + 1}/${maxRetries} in ${wait / 1000}s`);
         await new Promise(r => setTimeout(r, wait));
         continue;

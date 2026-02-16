@@ -8,7 +8,7 @@ async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Pr
     } catch (e: any) {
       if (e.status === 429 && i < maxRetries - 1) {
         const retryAfter = parseInt(e.headers?.get?.('retry-after') || '10');
-        const wait = Math.min(retryAfter, 30) * 1000;
+        const wait = Math.min(retryAfter, 120) * 1000;
         console.log(`[Market Brief] Rate limited, retry ${i + 1}/${maxRetries} in ${wait / 1000}s`);
         await new Promise(r => setTimeout(r, wait));
         continue;
@@ -131,12 +131,50 @@ export async function POST(request: Request) {
     const body = await request.json();
     const client = new Anthropic({ apiKey });
 
+    // Trim to top 20 symbols by score to stay under 30k token limit
+    let trimmedBody = body;
+    if (Array.isArray(body) && body.length > 20) {
+      const sorted = [...body].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+      const top20 = sorted.slice(0, 20);
+      const rest = sorted.slice(20);
+      // Strip term structure details to reduce tokens
+      top20.forEach((t: any) => {
+        if (t.termStructure) t.termStructure = t.termStructure.slice(0, 3);
+      });
+      trimmedBody = {
+        qualifyingTickers: top20,
+        totalScanned: body.length,
+        trimmedCount: rest.length,
+        trimmedAvgScore: Math.round(rest.reduce((s: number, t: any) => s + (t.score || 0), 0) / rest.length),
+        trimmedSectors: [...new Set(rest.map((t: any) => t.sector).filter(Boolean))],
+      };
+    } else if (body && typeof body === 'object' && !Array.isArray(body)) {
+      // Body might be an object with a tickers array
+      const tickers = body.tickers || body.results || body.data;
+      if (Array.isArray(tickers) && tickers.length > 20) {
+        const sorted = [...tickers].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+        const top20 = sorted.slice(0, 20);
+        // Strip term structure details to reduce tokens
+        top20.forEach((t: any) => {
+          if (t.termStructure) t.termStructure = t.termStructure.slice(0, 3);
+        });
+        trimmedBody = {
+          ...body,
+          tickers: top20,
+          totalScanned: tickers.length,
+          trimmedCount: tickers.length - 20,
+        };
+      }
+    }
+
+    console.log('[Market Brief] Input tokens estimate:', Math.round(JSON.stringify(trimmedBody).length / 4));
+
     const msg = await callWithRetry(client, {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2500,
       temperature: 0.2,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: JSON.stringify(body) }],
+      messages: [{ role: 'user', content: JSON.stringify(trimmedBody) }],
     });
 
     const text = msg.content[0].type === 'text' ? msg.content[0].text : '';
