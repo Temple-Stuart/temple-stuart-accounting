@@ -169,9 +169,16 @@ function computeZScores(
   }
 
   const m = stats.metrics;
-  const ivpStats = m['iv_percentile'];
+  const rawIvpStats = m['iv_percentile'];
   const ivHvStats = m['iv_hv_spread'];
   const hv30Stats = m['hv30'];
+
+  // Sector stats for IVP are computed from raw scanner data (0-1 scale),
+  // but the scorer normalizes IVP to 0-100. Align scales before z-score.
+  let ivpStats = rawIvpStats;
+  if (rawIvpStats && rawIvpStats.mean <= 1.0) {
+    ivpStats = { mean: rawIvpStats.mean * 100, std: rawIvpStats.std * 100 };
+  }
 
   const ivpZ = ivpStats ? zScore(ivp, ivpStats.mean, ivpStats.std) : null;
   const ivHvZ = ivHvStats ? zScore(ivHvSpread, ivHvStats.mean, ivHvStats.std) : null;
@@ -180,8 +187,8 @@ function computeZScores(
   const hvAccel = (hv30 !== null && hv60 !== null) ? hv30 - hv60 : null;
   const hvAccelZ = hv30Stats ? zScore(hvAccel, 0, hv30Stats.std) : null;
 
-  // VRP z-score: use iv_hv_spread stats as proxy (VRP ≈ IV-HV spread direction)
-  const vrpZ = ivHvStats ? zScore(vrp, ivHvStats.mean * (ivHvStats.mean + hv30Stats?.mean || 0), ivHvStats.std * 10) : null;
+  // VRP z-score: use iv_hv_spread stats as proxy for VRP distribution
+  const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
 
   return {
     vrp_z: vrpZ,

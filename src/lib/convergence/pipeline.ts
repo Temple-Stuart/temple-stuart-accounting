@@ -369,9 +369,12 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
   const preScores = computePreScores(survivors);
-  const topN = preScores.slice(0, limit);
+  // Overfetch: fetch 2x the desired final count so convergence gate + quality floor
+  // exclusions don't leave us short on tickers for the final 8
+  const fetchCount = Math.min(limit * 2, preScores.length);
+  const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
-  console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch`);
+  console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
 
   // ===== STEP E: Fetch Finnhub + FRED =====
   console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
@@ -760,43 +763,59 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
 
   const final: RankedRow[] = [];
   const sectorCounts: Record<string, number> = {};
-  const skipped: RankedRow[] = [];
+  const finalSyms = new Set<string>();
 
+  // Pass 1: fill from eligible, respecting sector cap, deferring capped tickers
   for (const row of eligible) {
-    if (final.length >= TOP_N) break;
-
     const sector = row.sector || 'Unknown';
     const count = sectorCounts[sector] || 0;
 
     if (count >= MAX_PER_SECTOR) {
-      skipped.push(row);
-      continue;
+      continue; // skip sector-capped tickers
     }
 
+    if (final.length >= TOP_N) break;
     sectorCounts[sector] = count + 1;
     final.push(row);
+    finalSyms.add(row.symbol);
   }
 
-  // BUG 1 fix: If we haven't filled 8 slots, promote from skipped rows
-  // (accept sector cap violation rather than leaving slots empty)
+  // Pass 2: if still short, scan entire eligible for any uncapped-sector tickers
+  // that weren't reached (e.g., ranked lower but from a fresh sector)
   if (final.length < TOP_N) {
-    for (const row of skipped) {
+    for (const row of eligible) {
       if (final.length >= TOP_N) break;
+      if (finalSyms.has(row.symbol)) continue;
+      const sector = row.sector || 'Unknown';
+      if ((sectorCounts[sector] || 0) < MAX_PER_SECTOR) {
+        sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+        final.push(row);
+        finalSyms.add(row.symbol);
+      }
+    }
+  }
+
+  // Pass 3 (absolute last resort): relax sector cap ONLY if no uncapped options remain
+  if (final.length < TOP_N) {
+    for (const row of eligible) {
+      if (final.length >= TOP_N) break;
+      if (finalSyms.has(row.symbol)) continue;
       const sector = row.sector || 'Unknown';
       sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
       final.push(row);
+      finalSyms.add(row.symbol);
       adjustments.push(
-        `Promoted ${row.symbol} (rank ${row.rank}, ${sector}, composite=${row.composite}) — sector cap relaxed to fill top 8.`,
+        `Promoted ${row.symbol} (rank ${row.rank}, ${sector}, composite=${row.composite}) — sector cap relaxed, no uncapped-sector candidates remain.`,
       );
     }
   }
 
-  // Log sector-cap diversification adjustments for rows that stayed skipped
-  for (const dropped of skipped) {
-    if (final.some(f => f.symbol === dropped.symbol)) continue; // already promoted
-    const sector = dropped.sector || 'Unknown';
+  // Log sector-cap drops for tickers that didn't make it
+  for (const row of eligible) {
+    if (finalSyms.has(row.symbol)) continue;
+    const sector = row.sector || 'Unknown';
     adjustments.push(
-      `Dropped ${dropped.symbol} (rank ${dropped.rank}, ${sector}, composite=${dropped.composite}) — sector cap of ${MAX_PER_SECTOR} reached.`,
+      `Dropped ${row.symbol} (rank ${row.rank}, ${sector}, composite=${row.composite}) — sector cap of ${MAX_PER_SECTOR} reached.`,
     );
   }
 
