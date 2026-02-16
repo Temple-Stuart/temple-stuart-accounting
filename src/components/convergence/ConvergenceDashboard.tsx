@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 /* ===== TYPES ===== */
 
@@ -299,18 +299,20 @@ function TradeCard({
 /* ===== MAIN DASHBOARD ===== */
 
 export default function ConvergenceDashboard() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SynthesisResponse | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [exclusionsExpanded, setExclusionsExpanded] = useState(false);
   const [cacheHit, setCacheHit] = useState<boolean | null>(null);
+  const [universe, setUniverse] = useState<string>('sp500');
+  const [started, setStarted] = useState(false);
 
   const fetchData = useCallback(async (refresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const url = `/api/ai/convergence-synthesis?limit=8${refresh ? '&refresh=true' : ''}`;
+      const url = `/api/ai/convergence-synthesis?limit=8&universe=${universe}${refresh ? '&refresh=true' : ''}`;
       const res = await fetch(url);
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -324,11 +326,7 @@ export default function ConvergenceDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  }, [universe]);
 
   /* ===== LOADING STATE ===== */
   if (loading) {
@@ -368,6 +366,61 @@ export default function ConvergenceDashboard() {
         >
           Retry
         </button>
+      </div>
+    );
+  }
+
+  /* ===== IDLE STATE ===== */
+  if (!started && !data) {
+    return (
+      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: 0 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Market Intelligence
+          </div>
+        </div>
+        {/* Universe selector */}
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: C.tertiary }}>Universe:</span>
+          <select
+            value={universe}
+            onChange={(e) => setUniverse(e.target.value)}
+            style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: `1px solid ${C.border}`, background: C.bg, color: C.primary }}
+          >
+            <option value="popular">Popular (50)</option>
+            <option value="megacap">Mega Cap (30)</option>
+            <option value="nasdaq100">Nasdaq 100</option>
+            <option value="dow30">Dow 30</option>
+            <option value="sp500">S&amp;P 500</option>
+            <option value="etfs">ETFs (25)</option>
+            <option value="tech">Tech</option>
+            <option value="finance">Finance</option>
+            <option value="energy">Energy</option>
+            <option value="healthcare">Healthcare</option>
+            <option value="retail">Retail Favorites</option>
+          </select>
+        </div>
+        {/* Empty state with scan button */}
+        <div style={{ padding: '60px 40px', textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>&#128269;</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.primary, marginBottom: 8 }}>
+            Market Intelligence
+          </div>
+          <div style={{ fontSize: 13, color: C.tertiary, marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
+            Select a universe above, then scan to find options where implied volatility exceeds realized movement.
+          </div>
+          <button
+            onClick={() => { setStarted(true); fetchData(true); }}
+            style={{
+              padding: '10px 24px', fontSize: 14, fontWeight: 600,
+              background: '#4f46e5', color: 'white', border: 'none',
+              borderRadius: 8, cursor: 'pointer',
+            }}
+          >
+            &#128640; Scan Market
+          </button>
+        </div>
       </div>
     );
   }
