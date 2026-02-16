@@ -14,6 +14,7 @@ import {
   type StrategyLabel,
   type CustomLeg,
 } from '@/lib/strategy-builder';
+import ConvergenceDashboard from '@/components/convergence/ConvergenceDashboard';
 
 
 interface TradeSummary {
@@ -1836,6 +1837,9 @@ export default function TradingPage() {
                             </div>
                           </div>
                         )}
+
+                        {/* Convergence Pipeline */}
+                        <ConvergenceDashboard />
 
                         {/* Volatility Scanner */}
                         <div className="bg-white border border-gray-200 p-6">
