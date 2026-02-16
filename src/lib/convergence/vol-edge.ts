@@ -140,6 +140,58 @@ function computeBollinger(candles: CandleData[], period = 20, mult = 2): {
   };
 }
 
+// ===== Z-SCORE COMPUTATION =====
+
+function zScore(value: number | null, m: number, s: number): number | null {
+  if (value === null || s < 0.001) return null;
+  return round((value - m) / s, 2);
+}
+
+function computeZScores(
+  input: ConvergenceInput,
+  ivp: number | null,
+  ivHvSpread: number | null,
+  vrp: number | null,
+  hv30: number | null,
+  hv60: number | null,
+): MispricingTrace['z_scores'] {
+  const sector = input.ttScanner?.sector;
+  const stats = sector ? input.sectorStats?.[sector] : undefined;
+
+  if (!stats?.metrics) {
+    return {
+      vrp_z: null,
+      ivp_z: null,
+      iv_hv_z: null,
+      hv_accel_z: null,
+      note: 'sector_z: null (no sector peer data available)',
+    };
+  }
+
+  const m = stats.metrics;
+  const ivpStats = m['iv_percentile'];
+  const ivHvStats = m['iv_hv_spread'];
+  const hv30Stats = m['hv30'];
+
+  const ivpZ = ivpStats ? zScore(ivp, ivpStats.mean, ivpStats.std) : null;
+  const ivHvZ = ivHvStats ? zScore(ivHvSpread, ivHvStats.mean, ivHvStats.std) : null;
+
+  // HV acceleration z-score: how unusual is HV30-HV60 spread vs peers' HV30 spread
+  const hvAccel = (hv30 !== null && hv60 !== null) ? hv30 - hv60 : null;
+  const hvAccelZ = hv30Stats ? zScore(hvAccel, 0, hv30Stats.std) : null;
+
+  // VRP z-score: use iv_hv_spread stats as proxy (VRP ≈ IV-HV spread direction)
+  const vrpZ = ivHvStats ? zScore(vrp, ivHvStats.mean * (ivHvStats.mean + hv30Stats?.mean || 0), ivHvStats.std * 10) : null;
+
+  return {
+    vrp_z: vrpZ,
+    ivp_z: ivpZ,
+    iv_hv_z: ivHvZ,
+    hv_accel_z: hvAccelZ,
+    note: `sector z-scores vs ${sector} peers`,
+  };
+}
+
 // ===== MISPRICING SUB-SCORE =====
 
 function scoreMispricing(input: ConvergenceInput): MispricingTrace {
@@ -215,13 +267,7 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       IV_HV_spread: ivHvSpread,
       VRP: vrpStr,
     },
-    z_scores: {
-      vrp_z: null,
-      ivp_z: null,
-      iv_hv_z: null,
-      hv_accel_z: null,
-      note: 'sector_z: null (requires peer data — will be computed in pipeline mode)',
-    },
+    z_scores: computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60),
     formula,
     notes: `IVP=${ivpScore}, IVR=${ivrScore}, VRP=${round(vrpScore)}, HV_trend=${round(hvTrendScore)}`,
     hv_trend: hvTrend,

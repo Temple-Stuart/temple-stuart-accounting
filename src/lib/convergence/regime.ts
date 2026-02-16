@@ -184,7 +184,9 @@ function scoreVolatilityRegime(input: ConvergenceInput): VolatilityRegimeTrace {
   const vix = macro.vix;
   const iv30 = tt?.iv30 ?? null;
   const hv30 = tt?.hv30 ?? null;
-  const ivp = tt?.ivPercentile ?? null;
+  let ivp = tt?.ivPercentile ?? null;
+  // TastyTrade returns IVP as decimal (0.693 = 69.3%); normalize to 0-100 scale
+  if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
 
   // VIX level score (same logic as macro but for vol regime context)
   let vixLevelScore = 50;

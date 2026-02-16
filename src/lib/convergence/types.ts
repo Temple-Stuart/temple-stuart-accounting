@@ -93,6 +93,7 @@ export interface ConvergenceInput {
   finnhubInsiderSentiment: FinnhubInsiderSentiment[];
   finnhubEarnings: FinnhubEarnings[];
   fredMacro: FredMacroData;
+  sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
 }
 
 // ===== SCORING TRACES =====

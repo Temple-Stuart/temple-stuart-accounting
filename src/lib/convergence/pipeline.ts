@@ -419,6 +419,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       finnhubInsiderSentiment: finnhubData.insiderSentiment,
       finnhubEarnings: finnhubData.earnings,
       fredMacro: fredResult.data,
+      sectorStats,
     };
 
     try {
@@ -453,7 +454,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
 
   // Data gaps
   dataGaps.push('candle_technicals: not available in pipeline mode (batch optimization — technicals scored at default 50)');
-  dataGaps.push('sector_z_scores: computed at sector level, individual z-scores available via sector_stats');
+  dataGaps.push('sector_z_scores: computed per-ticker using sector peer stats from hard-filter survivors');
 
   const pipelineMs = Date.now() - pipelineStart;
 
@@ -728,19 +729,46 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
   const TOP_N = 8;
   const adjustments: string[] = [];
 
+  // BUG 4 fix: Enforce convergence gate — exclude tickers with < 3/4 categories above 50
+  // BUG 5 fix: Enforce quality floor — exclude quality < 40, or quality 40-50 with 3+ miss streak
+  const eligible: RankedRow[] = [];
+  for (const row of rankedRows) {
+    const catAbove50 = parseInt(row.convergence.split('/')[0], 10);
+    if (catAbove50 < 3) {
+      adjustments.push(
+        `Excluded ${row.symbol} (rank ${row.rank}, composite=${row.composite}) — convergence ${row.convergence}, below 3/4 minimum.`,
+      );
+      continue;
+    }
+    if (row.quality < 40) {
+      adjustments.push(
+        `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}) — quality below 40 floor.`,
+      );
+      continue;
+    }
+    if (row.quality < 50 && /\d+Q MISS STREAK/.test(row.beat_streak)) {
+      const missCount = parseInt(row.beat_streak, 10);
+      if (missCount >= 3) {
+        adjustments.push(
+          `Excluded ${row.symbol} (rank ${row.rank}, quality=${row.quality}, ${row.beat_streak}) — quality <50 with consecutive miss streak ≥3.`,
+        );
+        continue;
+      }
+    }
+    eligible.push(row);
+  }
+
   const final: RankedRow[] = [];
   const sectorCounts: Record<string, number> = {};
-  const remaining = [...rankedRows];
   const skipped: RankedRow[] = [];
 
-  for (const row of remaining) {
+  for (const row of eligible) {
     if (final.length >= TOP_N) break;
 
     const sector = row.sector || 'Unknown';
     const count = sectorCounts[sector] || 0;
 
     if (count >= MAX_PER_SECTOR) {
-      // Find next ticker from a different sector that hasn't been added yet
       skipped.push(row);
       continue;
     }
@@ -749,33 +777,27 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
     final.push(row);
   }
 
-  // If we haven't filled 8 slots due to skipping, promote from remaining
+  // BUG 1 fix: If we haven't filled 8 slots, promote from skipped rows
+  // (accept sector cap violation rather than leaving slots empty)
   if (final.length < TOP_N) {
-    const notYetAdded = remaining.filter(
-      r => !final.some(f => f.symbol === r.symbol) && !skipped.some(s => s.symbol === r.symbol),
-    );
-    for (const row of notYetAdded) {
+    for (const row of skipped) {
       if (final.length >= TOP_N) break;
       const sector = row.sector || 'Unknown';
-      const count = sectorCounts[sector] || 0;
-      if (count < MAX_PER_SECTOR) {
-        sectorCounts[sector] = count + 1;
-        final.push(row);
-      }
+      sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+      final.push(row);
+      adjustments.push(
+        `Promoted ${row.symbol} (rank ${row.rank}, ${sector}, composite=${row.composite}) — sector cap relaxed to fill top 8.`,
+      );
     }
   }
 
-  // Log diversification adjustments
+  // Log sector-cap diversification adjustments for rows that stayed skipped
   for (const dropped of skipped) {
-    if (final.length >= TOP_N) {
-      const sector = dropped.sector || 'Unknown';
-      const promoted = final[final.length - 1];
-      if (promoted && promoted.symbol !== dropped.symbol) {
-        adjustments.push(
-          `Dropped ${dropped.symbol} (rank ${dropped.rank}, ${sector}, composite=${dropped.composite}) — sector cap of ${MAX_PER_SECTOR} reached. Promoted ${promoted.symbol} (rank ${promoted.rank}, ${promoted.sector || 'Unknown'}).`,
-        );
-      }
-    }
+    if (final.some(f => f.symbol === dropped.symbol)) continue; // already promoted
+    const sector = dropped.sector || 'Unknown';
+    adjustments.push(
+      `Dropped ${dropped.symbol} (rank ${dropped.rank}, ${sector}, composite=${dropped.composite}) — sector cap of ${MAX_PER_SECTOR} reached.`,
+    );
   }
 
   // Re-rank final
