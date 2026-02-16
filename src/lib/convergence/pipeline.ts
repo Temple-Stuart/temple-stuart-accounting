@@ -522,7 +522,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
         suggested_dte: s.strategy_suggestion.suggested_dte,
         direction: s.strategy_suggestion.direction,
         currentPrice: latestClose,
-        ivRank: tt.ivRank,
+        ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number ?? 50) / 100,
         iv30: tt.iv30 ?? 0.30,
         hv30: tt.hv30 ?? 0.25,
       };
