@@ -79,6 +79,7 @@ export interface FredMacroData {
   gdp: number | null;
   consumerConfidence: number | null;
   nonfarmPayrolls: number | null;
+  cpiMom: number | null;
   sofr: number | null;
 }
 

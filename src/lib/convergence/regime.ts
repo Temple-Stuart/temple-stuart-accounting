@@ -96,8 +96,7 @@ function computeGrowthSignal(input: ConvergenceInput): SignalResult {
 function computeInflationSignal(input: ConvergenceInput): SignalResult {
   const m = input.fredMacro;
   const cpiYoyScore = normalizeCpiYoy(m.cpi);
-  // FredMacroData doesn't carry cpiMoM yet — defaults to 50 (neutral)
-  const cpiMomScore = normalizeCpiMom(null);
+  const cpiMomScore = normalizeCpiMom(m.cpiMom ?? null);
   const fedFundsScore = normalizeFedFunds(m.fedFunds);
   const t10yScore = normalizeTreasury10y(m.treasury10y);
 

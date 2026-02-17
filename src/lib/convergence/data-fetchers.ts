@@ -180,7 +180,7 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
   if (!key) {
     const empty: FredMacroData = {
       vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-      cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, sofr: null,
+      cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
     };
     return { data: empty, cached: false, error: 'FRED_API_KEY not configured' };
   }
@@ -199,7 +199,7 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
 
   const result: FredMacroData = {
     vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, sofr: null,
+    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
   };
 
   const errors: string[] = [];
@@ -259,7 +259,7 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
 
         // CPI MoM %
         if (current !== null && prevMonth !== null && prevMonth !== 0) {
-          (result as any).cpiMom = parseFloat((((current - prevMonth) / prevMonth) * 100).toFixed(2));
+          result.cpiMom = parseFloat((((current - prevMonth) / prevMonth) * 100).toFixed(2));
         }
 
         // CPI YoY % (need 13 observations for 12-month lookback)
