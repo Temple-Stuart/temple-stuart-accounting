@@ -1,9 +1,10 @@
 import type {
   ConvergenceInput,
   QualityGateResult,
-  LiquidityTrace,
-  FundamentalsTrace,
-  EarningsQualityTrace,
+  SafetyTrace,
+  ProfitabilityTrace,
+  GrowthTrace,
+  EfficiencyTrace,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -15,322 +16,268 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
-// ===== LIQUIDITY SUB-SCORE (40%) =====
+// ===== Z-SCORE HELPERS =====
 
-function scoreLiquidity(input: ConvergenceInput): LiquidityTrace {
-  const tt = input.ttScanner;
-  const candles = input.candles;
-
-  // TT liquidity rating (0-5 scale from TT, 5 is best)
-  const liqRating = tt?.liquidityRating ?? null;
-  let liquidityRatingScore = 50;
-  if (liqRating !== null) {
-    // TT uses ~1-5 scale. Map: 5→95, 4→80, 3→60, 2→40, 1→20
-    liquidityRatingScore = clamp(liqRating * 20 - 5, 0, 100);
-  }
-
-  // Market cap score
-  const marketCap = tt?.marketCap ?? null;
-  let marketCapScore = 50;
-  if (marketCap !== null) {
-    // Mega cap (>200B)=90, Large (>10B)=75, Mid (>2B)=60, Small (>300M)=40, Micro=20
-    if (marketCap > 200_000_000_000) marketCapScore = 90;
-    else if (marketCap > 10_000_000_000) marketCapScore = 75;
-    else if (marketCap > 2_000_000_000) marketCapScore = 60;
-    else if (marketCap > 300_000_000) marketCapScore = 40;
-    else marketCapScore = 20;
-  }
-
-  // Volume score from candles
-  let volumeScore = 50;
-  let avgVol20d: number | null = null;
-  if (candles.length >= 20) {
-    const vols = candles.slice(-20).map(c => c.volume);
-    avgVol20d = round(vols.reduce((a, b) => a + b, 0) / vols.length);
-    // >50M = 90, >10M = 75, >1M = 60, >100K = 40, less = 20
-    if (avgVol20d > 50_000_000) volumeScore = 90;
-    else if (avgVol20d > 10_000_000) volumeScore = 75;
-    else if (avgVol20d > 1_000_000) volumeScore = 60;
-    else if (avgVol20d > 100_000) volumeScore = 40;
-    else volumeScore = 20;
-  }
-
-  // Lendability score (HTB risk)
-  const lendability = tt?.lendability ?? null;
-  let lendabilityScore = 60; // Default: assume easy to borrow
-  if (lendability !== null) {
-    const lend = lendability.toLowerCase();
-    if (lend === 'easy to borrow' || lend === 'easy') lendabilityScore = 80;
-    else if (lend === 'locate required' || lend === 'hard to borrow') lendabilityScore = 30;
-    else lendabilityScore = 55;
-  }
-
-  let score: number;
-  let formula: string;
-  const hasCandles = candles.length >= 20;
-  if (hasCandles) {
-    // Full 4-component weighting
-    score = round(
-      0.35 * liquidityRatingScore + 0.25 * marketCapScore + 0.25 * volumeScore + 0.15 * lendabilityScore,
-      1,
-    );
-    formula = `0.35×LiqRating(${round(liquidityRatingScore)}) + 0.25×MktCap(${round(marketCapScore)}) + 0.25×Volume(${round(volumeScore)}) + 0.15×Lend(${round(lendabilityScore)}) = ${score}`;
-  } else {
-    // No candle data — exclude volume, renormalize remaining weights (75% → 100%)
-    volumeScore = 0;
-    avgVol20d = null;
-    score = round(
-      (0.35 / 0.75) * liquidityRatingScore + (0.25 / 0.75) * marketCapScore + (0.15 / 0.75) * lendabilityScore,
-      1,
-    );
-    formula = `Volume EXCLUDED (no candles). ${round(0.35/0.75, 3)}×LiqRating(${round(liquidityRatingScore)}) + ${round(0.25/0.75, 3)}×MktCap(${round(marketCapScore)}) + ${round(0.15/0.75, 3)}×Lend(${round(lendabilityScore)}) = ${score}`;
-  }
-
-  return {
-    score: round(score),
-    weight: 0.40,
-    inputs: {
-      liquidity_rating: liqRating,
-      market_cap: marketCap,
-      avg_volume_20d: avgVol20d,
-      lendability: lendability,
-      borrow_rate: tt?.borrowRate ?? null,
-    },
-    formula,
-    notes: `Liquidity rating: ${liqRating ?? 'N/A'}, Mkt cap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}${!hasCandles ? '. Volume excluded — no candle data, no fabricated scores' : ''}`,
-    sub_scores: {
-      liquidity_rating_score: round(liquidityRatingScore),
-      market_cap_score: round(marketCapScore),
-      volume_score: round(volumeScore),
-      lendability_score: round(lendabilityScore),
-    },
-  };
+interface MetricDef {
+  /** Key used to look up sector stats */
+  key: string;
+  /** If true, lower values are better (e.g. debt, beta) */
+  invert: boolean;
 }
 
-// ===== FUNDAMENTALS SUB-SCORE (30%) =====
-
-function scoreFundamentals(input: ConvergenceInput): FundamentalsTrace {
-  const tt = input.ttScanner;
-  const fh = input.finnhubFundamentals;
-  const metric = fh?.metric ?? {};
-
-  // P/E score: moderate P/E (10-25) = highest, extreme = lower
-  const pe = tt?.peRatio ?? (typeof metric['peNormalizedAnnual'] === 'number' ? metric['peNormalizedAnnual'] : null);
-  let peScore = 50;
-  if (pe !== null && typeof pe === 'number') {
-    if (pe < 0) peScore = 20;           // Negative earnings
-    else if (pe < 5) peScore = 35;      // Suspiciously cheap
-    else if (pe < 10) peScore = 60;     // Value
-    else if (pe <= 25) peScore = 75;    // Fair value
-    else if (pe <= 40) peScore = 55;    // Growth premium
-    else if (pe <= 60) peScore = 40;    // Expensive
-    else peScore = 25;                  // Extremely expensive
-  }
-
-  // Dividend yield score: having a dividend = stability indicator
-  const divYield = tt?.dividendYield ?? (typeof metric['dividendYieldIndicatedAnnual'] === 'number' ? metric['dividendYieldIndicatedAnnual'] : null);
-  let dividendScore = 50;
-  if (divYield !== null && typeof divYield === 'number') {
-    if (divYield > 6) dividendScore = 40;     // Unsustainably high
-    else if (divYield > 2) dividendScore = 75; // Healthy yield
-    else if (divYield > 0.5) dividendScore = 65;
-    else if (divYield > 0) dividendScore = 55;
-    else dividendScore = 45;                   // No dividend (not necessarily bad for options)
-  }
-
-  // Gross margin score (from Finnhub)
-  const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let marginScore = 50;
-  if (grossMargin !== null) {
-    if (grossMargin > 60) marginScore = 85;
-    else if (grossMargin > 40) marginScore = 70;
-    else if (grossMargin > 20) marginScore = 55;
-    else if (grossMargin > 0) marginScore = 35;
-    else marginScore = 20;
-  }
-
-  // FCF yield (from Finnhub)
-  const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
-  const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
-    ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
-    : null;
-  let fcfScore = 50;
-  if (fcfShareTTM !== null && currentPrice !== null && currentPrice > 0) {
-    const fcfYield = (fcfShareTTM / currentPrice) * 100;
-    if (fcfYield > 8) fcfScore = 85;
-    else if (fcfYield > 4) fcfScore = 70;
-    else if (fcfYield > 1) fcfScore = 55;
-    else if (fcfYield > 0) fcfScore = 40;
-    else fcfScore = 25; // Negative FCF
-  }
-
-  // Partial Piotroski F-Score (computable signals from available data)
-  const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
-  const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
-  const cfoa = typeof metric['currentRatioQuarterly'] === 'number' ? metric['currentRatioQuarterly'] as number : null;
-
-  const piotroski: Record<string, boolean | null> = {
-    positive_net_income: roe !== null ? roe > 0 : null,
-    positive_roa: roa !== null ? roa > 0 : null,
-    positive_fcf: fcfShareTTM !== null ? fcfShareTTM > 0 : null,
-    fcf_exceeds_net_income: null, // Requires net income comparison
-    current_ratio_improving: cfoa !== null ? cfoa > 1 : null, // Proxy: current ratio > 1
-    gross_margin_expanding: null, // Requires YoY trend
-    asset_turnover_improving: null, // Requires YoY trend
-    no_equity_issuance: null, // Requires shares outstanding trend
-    leverage_decreasing: null, // Requires YoY debt comparison
-  };
-
-  const computedSignals = Object.values(piotroski).filter(v => v !== null);
-  const passedSignals = computedSignals.filter(v => v === true).length;
-
-  // Weighted: PE 30%, dividend 20%, margin 25%, FCF 25%
-  const score = round(0.30 * peScore + 0.20 * dividendScore + 0.25 * marginScore + 0.25 * fcfScore, 1);
-
-  const formula = `0.30×PE(${round(peScore)}) + 0.20×Div(${round(dividendScore)}) + 0.25×Margin(${round(marginScore)}) + 0.25×FCF(${round(fcfScore)}) = ${score}`;
-
-  return {
-    score: round(score),
-    weight: 0.30,
-    inputs: {
-      pe_ratio: pe as number | null,
-      dividend_yield: divYield as number | null,
-      gross_margin_ttm: grossMargin,
-      fcf_per_share_ttm: fcfShareTTM,
-      roe_ttm: roe,
-      roa_ttm: roa,
-    },
-    formula,
-    notes: `PE=${pe ?? 'N/A'}, Div=${divYield ?? 'N/A'}%, Margin=${grossMargin ?? 'N/A'}%, FCF/sh=${fcfShareTTM ?? 'N/A'}`,
-    sub_scores: {
-      pe_score: round(peScore),
-      dividend_score: round(dividendScore),
-      margin_score: round(marginScore),
-      fcf_score: round(fcfScore),
-    },
-    piotroski: {
-      available_signals: computedSignals.length,
-      total_signals: 9,
-      computable: piotroski,
-      note: `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} require YoY trend data)`,
-    },
-  };
+/**
+ * Extract a numeric value from Finnhub metrics by key.
+ */
+function getMetric(metric: Record<string, number | string | null>, key: string): number | null {
+  const v = metric[key];
+  return typeof v === 'number' ? v : null;
 }
 
-// ===== EARNINGS QUALITY SUB-SCORE (30%) =====
+/**
+ * Score a single metric using z-score transform when sector stats are available.
+ * Returns 50 (neutral) when the raw value or sector stats are missing.
+ *
+ * Formula: 50 + clamp(z * 15, -50, 50)  where z = (value - mean) / std
+ * For inverted metrics (lower = better), z is negated before scoring.
+ */
+function zScore(
+  value: number | null,
+  def: MetricDef,
+  sectorMetrics: Record<string, { mean: number; std: number }> | undefined,
+): number {
+  if (value === null) return 50;
+  const stats = sectorMetrics?.[def.key];
+  if (!stats || stats.std === 0) return 50;
+  let z = (value - stats.mean) / stats.std;
+  if (def.invert) z = -z;
+  return round(50 + clamp(z * 15, -50, 50), 1);
+}
 
-function scoreEarningsQuality(input: ConvergenceInput): EarningsQualityTrace {
-  const earnings = input.finnhubEarnings;
-  const tt = input.ttScanner;
-  const daysTillEarnings = tt?.daysTillEarnings ?? null;
+/**
+ * Average an array of sub-scores into a single component score.
+ */
+function avgScore(scores: number[]): number {
+  if (scores.length === 0) return 50;
+  return round(scores.reduce((a, b) => a + b, 0) / scores.length, 1);
+}
 
-  if (earnings.length === 0) {
-    return {
-      score: 50,
-      weight: 0.30,
-      inputs: { quarters_available: 0, days_till_earnings: daysTillEarnings },
-      formula: 'No earnings data available → default 50',
-      notes: 'No Finnhub earnings history',
-      sub_scores: { surprise_consistency: 50, days_to_earnings_score: 50, beat_rate: 0 },
-      earnings_detail: {
-        total_quarters: 0, beats: 0, misses: 0, in_line: 0,
-        avg_surprise_pct: null, streak: 'UNKNOWN',
-      },
-    };
-  }
+/**
+ * Look up sector metrics from the input's sectorStats.
+ */
+function getSectorMetrics(
+  input: ConvergenceInput,
+): Record<string, { mean: number; std: number }> | undefined {
+  const sector = input.ttScanner?.sector;
+  if (!sector || !input.sectorStats) return undefined;
+  return input.sectorStats[sector]?.metrics;
+}
 
-  // Classify each quarter
-  let beats = 0;
-  let misses = 0;
-  let inLine = 0;
-  const surprises: number[] = [];
+// ===== SAFETY SUB-SCORE (40%) =====
 
-  for (const e of earnings) {
-    const surp = e.surprisePercent;
-    surprises.push(surp);
-    if (surp > 2) beats++;
-    else if (surp < -2) misses++;
-    else inLine++;
-  }
+const SAFETY_METRICS: MetricDef[] = [
+  { key: 'totalDebt/totalEquityQuarterly', invert: true },
+  { key: 'beta', invert: true },
+  { key: 'currentRatioQuarterly', invert: false },
+  { key: 'returnVariability', invert: true },
+];
 
-  const totalQ = earnings.length;
-  const beatRate = round(beats / totalQ * 100, 1);
+function scoreSafety(input: ConvergenceInput): SafetyTrace {
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const sectorMetrics = getSectorMetrics(input);
 
-  // Average surprise %
-  const avgSurprise = surprises.length > 0
-    ? round(surprises.reduce((a, b) => a + b, 0) / surprises.length, 2)
-    : null;
+  // Extract raw values
+  const debtToEquity = getMetric(metric, 'totalDebt/totalEquityQuarterly');
+  const beta = getMetric(metric, 'beta');
+  const currentRatio = getMetric(metric, 'currentRatioQuarterly');
 
-  // Streak detection (most recent first)
-  let consecutiveBeats = 0;
-  let consecutiveMisses = 0;
-  for (const e of earnings) {
-    if (e.surprisePercent > 2) {
-      if (consecutiveMisses === 0) consecutiveBeats++;
-      else break;
-    } else if (e.surprisePercent < -2) {
-      if (consecutiveBeats === 0) consecutiveMisses++;
-      else break;
-    } else {
-      break;
+  // Return variability: std dev of daily returns from candles
+  let returnVariability: number | null = null;
+  if (input.candles.length >= 20) {
+    const closes = input.candles.slice(-60).map(c => c.close);
+    if (closes.length >= 2) {
+      const returns: number[] = [];
+      for (let i = 1; i < closes.length; i++) {
+        if (closes[i - 1] > 0) {
+          returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+        }
+      }
+      if (returns.length > 1) {
+        const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+        const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / (returns.length - 1);
+        returnVariability = round(Math.sqrt(variance) * 100, 4); // as percentage
+      }
     }
   }
 
-  let streak = 'MIXED';
-  if (consecutiveBeats >= 4) streak = `${consecutiveBeats}Q BEAT STREAK`;
-  else if (consecutiveBeats >= 2) streak = `${consecutiveBeats}Q BEATS`;
-  else if (consecutiveMisses >= 2) streak = `${consecutiveMisses}Q MISS STREAK`;
+  const deScore = zScore(debtToEquity, SAFETY_METRICS[0], sectorMetrics);
+  const betaScore = zScore(beta, SAFETY_METRICS[1], sectorMetrics);
+  const crScore = zScore(currentRatio, SAFETY_METRICS[2], sectorMetrics);
+  const rvScore = zScore(returnVariability, SAFETY_METRICS[3], sectorMetrics);
 
-  // Surprise consistency score: high beat rate + consistent beats = high score
-  let surpriseConsistency = 50;
-  if (totalQ > 0) {
-    // Beat rate directly maps: 100% beats = 90, 75% = 72, 50% = 55, 25% = 38, 0% = 20
-    surpriseConsistency = clamp(20 + beatRate * 0.7, 0, 100);
-    // Bonus for streak
-    if (consecutiveBeats >= 4) surpriseConsistency = Math.min(surpriseConsistency + 10, 100);
-    // Penalty for miss streak
-    if (consecutiveMisses >= 2) surpriseConsistency = Math.max(surpriseConsistency - 15, 0);
-  }
+  const score = avgScore([deScore, betaScore, crScore, rvScore]);
 
-  // Days to earnings score: for options traders, proximity matters
-  let dteScore = 50;
-  if (daysTillEarnings !== null) {
-    if (daysTillEarnings < 0) dteScore = 60;      // Just passed → IV crush opportunity
-    else if (daysTillEarnings <= 7) dteScore = 30; // Too close → binary risk
-    else if (daysTillEarnings <= 14) dteScore = 45;
-    else if (daysTillEarnings <= 30) dteScore = 55;
-    else if (daysTillEarnings <= 45) dteScore = 65; // Sweet spot for premium selling
-    else dteScore = 60;                             // Far away → less event risk
-  }
-
-  // Weighted: consistency 50%, DTE 30%, beat_rate_bonus 20%
-  const beatRateScore = clamp(beatRate, 0, 100);
-  const score = round(0.50 * surpriseConsistency + 0.30 * dteScore + 0.20 * beatRateScore, 1);
-
-  const formula = `0.50×Consistency(${round(surpriseConsistency)}) + 0.30×DTE(${round(dteScore)}) + 0.20×BeatRate(${round(beatRateScore)}) = ${score}`;
+  const parts = [
+    `D/E(${deScore})`,
+    `Beta(${betaScore})`,
+    `CR(${crScore})`,
+    `RetVar(${rvScore})`,
+  ];
+  const formula = `avg(${parts.join(', ')}) = ${score}`;
 
   return {
-    score: round(score),
-    weight: 0.30,
+    score,
+    weight: 0.40,
     inputs: {
-      quarters_available: totalQ,
-      days_till_earnings: daysTillEarnings,
-      earnings_date: tt?.earningsDate ?? null,
+      debt_to_equity: debtToEquity,
+      beta,
+      current_ratio: currentRatio,
+      return_variability: returnVariability,
     },
     formula,
-    notes: `${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q. Avg surprise: ${avgSurprise ?? 'N/A'}%`,
+    notes: `D/E=${debtToEquity ?? 'N/A'}, Beta=${beta ?? 'N/A'}, CR=${currentRatio ?? 'N/A'}, RetVar=${returnVariability ?? 'N/A'}%${sectorMetrics ? '' : ' (no sector stats)'}`,
     sub_scores: {
-      surprise_consistency: round(surpriseConsistency),
-      days_to_earnings_score: round(dteScore),
-      beat_rate: beatRate,
+      debt_to_equity_score: deScore,
+      beta_score: betaScore,
+      current_ratio_score: crScore,
+      return_variability_score: rvScore,
     },
-    earnings_detail: {
-      total_quarters: totalQ,
-      beats,
-      misses,
-      in_line: inLine,
-      avg_surprise_pct: avgSurprise,
-      streak,
+  };
+}
+
+// ===== PROFITABILITY SUB-SCORE (30%) =====
+
+const PROFITABILITY_METRICS: MetricDef[] = [
+  { key: 'grossMarginTTM', invert: false },
+  { key: 'roeTTM', invert: false },
+  { key: 'roaTTM', invert: false },
+  { key: 'fcfYield', invert: false },
+];
+
+function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const sectorMetrics = getSectorMetrics(input);
+
+  const grossMargin = getMetric(metric, 'grossMarginTTM');
+  const roe = getMetric(metric, 'roeTTM');
+  const roa = getMetric(metric, 'roaTTM');
+
+  // FCF yield: freeCashFlowPerShare / price
+  const fcfPerShare = getMetric(metric, 'freeCashFlowPerShareTTM');
+  const mktCap = getMetric(metric, 'marketCapitalization');
+  const sharesOut = getMetric(metric, 'shareOutstanding');
+  let fcfYield: number | null = null;
+  if (fcfPerShare !== null && mktCap !== null && sharesOut !== null && sharesOut > 0) {
+    const price = (mktCap * 1e6) / (sharesOut * 1e6);
+    if (price > 0) {
+      fcfYield = round((fcfPerShare / price) * 100, 2);
+    }
+  }
+
+  const gmScore = zScore(grossMargin, PROFITABILITY_METRICS[0], sectorMetrics);
+  const roeScore = zScore(roe, PROFITABILITY_METRICS[1], sectorMetrics);
+  const roaScore = zScore(roa, PROFITABILITY_METRICS[2], sectorMetrics);
+  const fcfScore = zScore(fcfYield, PROFITABILITY_METRICS[3], sectorMetrics);
+
+  const score = avgScore([gmScore, roeScore, roaScore, fcfScore]);
+
+  const parts = [
+    `GM(${gmScore})`,
+    `ROE(${roeScore})`,
+    `ROA(${roaScore})`,
+    `FCF(${fcfScore})`,
+  ];
+  const formula = `avg(${parts.join(', ')}) = ${score}`;
+
+  return {
+    score,
+    weight: 0.30,
+    inputs: {
+      gross_margin_ttm: grossMargin,
+      roe_ttm: roe,
+      roa_ttm: roa,
+      fcf_yield: fcfYield,
+    },
+    formula,
+    notes: `GM=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, FCFy=${fcfYield ?? 'N/A'}%${sectorMetrics ? '' : ' (no sector stats)'}`,
+    sub_scores: {
+      gross_margin_score: gmScore,
+      roe_score: roeScore,
+      roa_score: roaScore,
+      fcf_yield_score: fcfScore,
+    },
+  };
+}
+
+// ===== GROWTH SUB-SCORE (15%) =====
+
+const GROWTH_METRICS: MetricDef[] = [
+  { key: 'revenueGrowthTTMYoy', invert: false },
+  { key: 'epsGrowthTTMYoy', invert: false },
+];
+
+function scoreGrowth(input: ConvergenceInput): GrowthTrace {
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const sectorMetrics = getSectorMetrics(input);
+
+  const revenueGrowth = getMetric(metric, 'revenueGrowthTTMYoy');
+  const epsGrowth = getMetric(metric, 'epsGrowthTTMYoy');
+
+  const revScore = zScore(revenueGrowth, GROWTH_METRICS[0], sectorMetrics);
+  const epsScore = zScore(epsGrowth, GROWTH_METRICS[1], sectorMetrics);
+
+  const score = avgScore([revScore, epsScore]);
+
+  const formula = `avg(RevGr(${revScore}), EPSGr(${epsScore})) = ${score}`;
+
+  return {
+    score,
+    weight: 0.15,
+    inputs: {
+      revenue_growth_ttm_yoy: revenueGrowth,
+      eps_growth_ttm_yoy: epsGrowth,
+    },
+    formula,
+    notes: `RevGr=${revenueGrowth ?? 'N/A'}%, EPSGr=${epsGrowth ?? 'N/A'}%${sectorMetrics ? '' : ' (no sector stats)'}`,
+    sub_scores: {
+      revenue_growth_score: revScore,
+      eps_growth_score: epsScore,
+    },
+  };
+}
+
+// ===== EFFICIENCY SUB-SCORE (15%) =====
+
+const EFFICIENCY_METRICS: MetricDef[] = [
+  { key: 'assetTurnoverTTM', invert: false },
+  { key: 'inventoryTurnoverTTM', invert: false },
+];
+
+function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const sectorMetrics = getSectorMetrics(input);
+
+  const assetTurnover = getMetric(metric, 'assetTurnoverTTM');
+  const inventoryTurnover = getMetric(metric, 'inventoryTurnoverTTM');
+
+  const atScore = zScore(assetTurnover, EFFICIENCY_METRICS[0], sectorMetrics);
+  const itScore = zScore(inventoryTurnover, EFFICIENCY_METRICS[1], sectorMetrics);
+
+  const score = avgScore([atScore, itScore]);
+
+  const formula = `avg(AT(${atScore}), IT(${itScore})) = ${score}`;
+
+  return {
+    score,
+    weight: 0.15,
+    inputs: {
+      asset_turnover_ttm: assetTurnover,
+      inventory_turnover_ttm: inventoryTurnover,
+    },
+    formula,
+    notes: `AT=${assetTurnover ?? 'N/A'}, IT=${inventoryTurnover ?? 'N/A'}${sectorMetrics ? '' : ' (no sector stats)'}`,
+    sub_scores: {
+      asset_turnover_score: atScore,
+      inventory_turnover_score: itScore,
     },
   };
 }
@@ -338,23 +285,26 @@ function scoreEarningsQuality(input: ConvergenceInput): EarningsQualityTrace {
 // ===== MAIN QUALITY GATE SCORER =====
 
 export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
-  const liquidity = scoreLiquidity(input);
-  const fundamentals = scoreFundamentals(input);
-  const earningsQuality = scoreEarningsQuality(input);
+  const safety = scoreSafety(input);
+  const profitability = scoreProfitability(input);
+  const growth = scoreGrowth(input);
+  const efficiency = scoreEfficiency(input);
 
   const score = round(
-    liquidity.weight * liquidity.score +
-    fundamentals.weight * fundamentals.score +
-    earningsQuality.weight * earningsQuality.score,
+    safety.weight * safety.score +
+    profitability.weight * profitability.score +
+    growth.weight * growth.score +
+    efficiency.weight * efficiency.score,
     1,
   );
 
   return {
     score,
     breakdown: {
-      liquidity,
-      fundamentals,
-      earnings_quality: earningsQuality,
+      safety,
+      profitability,
+      growth,
+      efficiency,
     },
   };
 }

@@ -192,24 +192,9 @@ function computeDataGaps(
 ): string[] {
   const gaps: string[] = [];
 
-  // Z-score gap
-  gaps.push('sector_z_scores: requires peer data (pipeline mode)');
-
-  // Piotroski gap
-  const piotroski = quality.breakdown.fundamentals.piotroski;
-  const missing = 9 - piotroski.available_signals;
-  if (missing > 0) {
-    gaps.push(`piotroski_f_score: ${piotroski.available_signals}/9 signals computable, ${missing} require YoY trend data`);
-  }
-
-  // Altman Z partial
-  const metric = input.finnhubFundamentals?.metric ?? {};
-  const hasWorkingCapital = typeof metric['currentRatioQuarterly'] === 'number';
-  const hasRetainedEarnings = typeof metric['roeTTM'] === 'number';
-  const hasEBIT = typeof metric['operatingMarginTTM'] === 'number';
-  const computedAltman = [hasWorkingCapital, hasRetainedEarnings, hasEBIT].filter(Boolean).length;
-  if (computedAltman < 5) {
-    gaps.push(`altman_z: ${computedAltman}/5 components computable from available Finnhub fields`);
+  // Sector z-score gap
+  if (!input.sectorStats || !input.ttScanner?.sector) {
+    gaps.push('sector_z_scores: requires peer data (pipeline mode)');
   }
 
   // Scanner data
