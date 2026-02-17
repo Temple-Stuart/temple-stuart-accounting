@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
+import { fetchFredMacro } from '@/lib/convergence/data-fetchers';
 import type {
   CandleData,
   TTScannerData,
@@ -15,10 +16,6 @@ import type {
 } from '@/lib/convergence/types';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-// ===== FRED CACHE (1 hour) =====
-let fredCache: { data: FredMacroData; fetchedAt: number } | null = null;
-const FRED_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 // ===== DATA FETCHERS =====
 
@@ -194,56 +191,6 @@ async function fetchFinnhubEarnings(symbol: string, apiKey: string): Promise<{ d
   }
 }
 
-async function fetchFredMacro(apiKey: string): Promise<{ data: FredMacroData; error: string | null }> {
-  // Check cache
-  if (fredCache && Date.now() - fredCache.fetchedAt < FRED_CACHE_TTL) {
-    return { data: fredCache.data, error: null };
-  }
-
-  const seriesMap: { key: keyof FredMacroData; id: string }[] = [
-    { key: 'vix', id: 'VIXCLS' },
-    { key: 'treasury10y', id: 'DGS10' },
-    { key: 'fedFunds', id: 'FEDFUNDS' },
-    { key: 'unemployment', id: 'UNRATE' },
-    { key: 'cpi', id: 'CPIAUCSL' },
-    { key: 'gdp', id: 'GDP' },
-    { key: 'consumerConfidence', id: 'UMCSENT' },
-    { key: 'nonfarmPayrolls', id: 'PAYEMS' },
-    { key: 'sofr', id: 'SOFR' },
-  ];
-
-  const result: FredMacroData = {
-    vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
-  };
-
-  const errors: string[] = [];
-
-  for (const series of seriesMap) {
-    try {
-      const resp = await fetch(
-        `https://api.stlouisfed.org/fred/series/observations?series_id=${series.id}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`,
-      );
-      if (resp.ok) {
-        const json = await resp.json();
-        const obs = json?.observations;
-        if (Array.isArray(obs) && obs.length > 0 && obs[0].value !== '.') {
-          result[series.key] = parseFloat(obs[0].value);
-        }
-      } else {
-        errors.push(`${series.id}: HTTP ${resp.status}`);
-      }
-    } catch (e: unknown) {
-      errors.push(`${series.id}: ${e instanceof Error ? e.message : String(e)}`);
-    }
-    await delay(100); // Rate limit respect
-  }
-
-  // Cache successful result
-  fredCache = { data: result, fetchedAt: Date.now() };
-
-  return { data: result, error: errors.length > 0 ? errors.join('; ') : null };
-}
 
 // ===== MAIN ROUTE =====
 
@@ -293,10 +240,12 @@ export async function GET(request: Request) {
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
           data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
+          cached: false,
           error: String(e),
         }))
       : Promise.resolve({
           data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
+          cached: false,
           error: 'FRED_API_KEY not configured',
         }),
   ]);
