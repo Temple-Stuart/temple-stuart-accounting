@@ -196,20 +196,17 @@ function computeDataGaps(
   gaps.push('sector_z_scores: requires peer data (pipeline mode)');
 
   // Piotroski gap
-  const piotroski = quality.breakdown.fundamentals.piotroski;
+  const piotroski = quality.breakdown.safety.piotroski;
   const missing = 9 - piotroski.available_signals;
   if (missing > 0) {
     gaps.push(`piotroski_f_score: ${piotroski.available_signals}/9 signals computable, ${missing} require YoY trend data`);
   }
 
-  // Altman Z partial
-  const metric = input.finnhubFundamentals?.metric ?? {};
-  const hasWorkingCapital = typeof metric['currentRatioQuarterly'] === 'number';
-  const hasRetainedEarnings = typeof metric['roeTTM'] === 'number';
-  const hasEBIT = typeof metric['operatingMarginTTM'] === 'number';
-  const computedAltman = [hasWorkingCapital, hasRetainedEarnings, hasEBIT].filter(Boolean).length;
-  if (computedAltman < 5) {
-    gaps.push(`altman_z: ${computedAltman}/5 components computable from available Finnhub fields`);
+  // Altman Z gap
+  const altmanZ = quality.breakdown.safety.altman_z;
+  if (altmanZ.components_available < altmanZ.components_total) {
+    const altmanMissing = altmanZ.components_total - altmanZ.components_available;
+    gaps.push(`altman_z: ${altmanZ.components_available}/${altmanZ.components_total} components computable, ${altmanMissing} missing from Finnhub fields${altmanZ.capped ? ' (CAPPED: Z < 1.8)' : ''}`);
   }
 
   // Scanner data
