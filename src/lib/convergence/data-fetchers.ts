@@ -173,7 +173,12 @@ const FRED_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacroData; cached: boolean; error: string | null }> {
   // Check cache
   if (fredCache && Date.now() - fredCache.fetchedAt < FRED_CACHE_TTL) {
-    return { data: fredCache.data, cached: true, error: null };
+    // Bust stale cache if GDP looks like a raw level instead of a growth rate
+    if (fredCache.data.gdp !== null && fredCache.data.gdp > 100) {
+      fredCache = null;
+    } else {
+      return { data: fredCache.data, cached: true, error: null };
+    }
   }
 
   const key = apiKey || process.env.FRED_API_KEY;
