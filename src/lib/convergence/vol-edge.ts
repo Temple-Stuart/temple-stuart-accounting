@@ -209,10 +209,8 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   const hv60 = tt?.hv60 ?? null;
   const hv90 = tt?.hv90 ?? null;
   let ivp = tt?.ivPercentile ?? null;
-  let ivr = tt?.ivRank ?? null;
-  // TastyTrade returns IVP/IVR as decimals (0.693 = 69.3%); normalize to 0-100 scale
+  // TastyTrade returns IVP as decimal (0.693 = 69.3%); normalize to 0-100 scale
   if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
-  if (ivr !== null && ivr <= 1.0) ivr = round(ivr * 100, 1);
   const ivHvSpread = tt?.ivHvSpread ?? null;
 
   // VRP = IV30² - HV30² (variance risk premium)
@@ -223,44 +221,86 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     vrpStr = `${iv30}² − ${hv30}² = ${round(vrp, 2)} (${vrp > 0 ? 'positive = IV overpricing RV' : 'negative = IV underpricing RV'})`;
   }
 
-  // IVP component (30%): IVP directly maps 0-100
-  const ivpScore = ivp !== null ? clamp(ivp, 0, 100) : 50;
+  // Compute z-scores for sector-relative comparison
+  const zScores = computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60);
+  const sector = tt?.sector ?? null;
+  const sectorEntry = sector ? input.sectorStats?.[sector] : undefined;
+  const hasZScores = zScores.vrp_z !== null || zScores.ivp_z !== null ||
+                     zScores.iv_hv_z !== null || zScores.hv_accel_z !== null;
+  const peerCount = sectorEntry
+    ? (sectorEntry as unknown as { ticker_count?: number }).ticker_count ?? 0
+    : 0;
 
-  // IVR component (15%): IVR directly maps 0-100
-  const ivrScore = ivr !== null ? clamp(ivr, 0, 100) : 50;
+  // --- Raw scores (baseline, always computed) ---
 
-  // VRP component (30%): normalized VRP ratio
-  let vrpScore = 50;
+  // VRP component (0.30): normalized VRP ratio
+  let vrpScoreRaw = 50;
   if (iv30 !== null && hv30 !== null && iv30 > 0) {
     const vrpRatio = (iv30 - hv30) / iv30; // -1 to +1 range
-    vrpScore = clamp(50 + vrpRatio * 50, 0, 100);
+    vrpScoreRaw = clamp(50 + vrpRatio * 50, 0, 100);
   }
 
-  // HV trend component (25%)
-  let hvTrendScore = 50;
+  // IVP component (0.30): IVP directly maps 0-100
+  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 50;
+
+  // IV-HV spread component (0.25): higher absolute spread = more mispricing
+  let ivHvSpreadScoreRaw = 50;
+  if (ivHvSpread !== null) {
+    ivHvSpreadScoreRaw = clamp((Math.abs(ivHvSpread) / 20) * 100, 0, 100);
+  }
+
+  // HV acceleration component (0.15): HV30 vs HV60 vs HV90 trend
+  let hvAccelScoreRaw = 50;
   let hvTrend = 'UNKNOWN (missing HV data)';
   if (hv30 !== null && hv60 !== null && hv90 !== null) {
     if (hv30 < hv60 && hv60 < hv90) {
       hvTrend = `FALLING (HV30=${hv30} < HV60=${hv60} < HV90=${hv90}) → bullish for premium selling`;
-      hvTrendScore = 80;
+      hvAccelScoreRaw = 80;
     } else if (hv30 < hv60) {
       hvTrend = `DECLINING (HV30=${hv30} < HV60=${hv60}, HV90=${hv90}) → moderately bullish`;
-      hvTrendScore = 65;
+      hvAccelScoreRaw = 65;
     } else if (hv30 > hv60 && hv60 > hv90) {
       hvTrend = `RISING (HV30=${hv30} > HV60=${hv60} > HV90=${hv90}) → bearish for premium selling`;
-      hvTrendScore = 20;
+      hvAccelScoreRaw = 20;
     } else if (hv30 > hv60) {
       hvTrend = `ACCELERATING (HV30=${hv30} > HV60=${hv60}, HV90=${hv90}) → caution`;
-      hvTrendScore = 35;
+      hvAccelScoreRaw = 35;
     } else {
       hvTrend = `FLAT (HV30=${hv30}, HV60=${hv60}, HV90=${hv90})`;
-      hvTrendScore = 50;
+      hvAccelScoreRaw = 50;
     }
   }
 
-  // Weighted combination: 0.30×IVP + 0.15×IVR + 0.30×VRP + 0.25×HV_trend
-  const score = round(0.30 * ivpScore + 0.15 * ivrScore + 0.30 * vrpScore + 0.25 * hvTrendScore, 1);
-  const formula = `0.30×${round(ivpScore, 1)} + 0.15×${round(ivrScore, 1)} + 0.30×${round(vrpScore, 1)} + 0.25×${round(hvTrendScore, 1)} = ${score}`;
+  // --- Apply z-score transform when sector peers available (pipeline mode) ---
+  // Transform: score = 50 + clip(z × 15, -50, 50)
+  //   z=0 → 50 (sector average), z=+3.33 → 100, z=-3.33 → 0
+  let vrpScore = vrpScoreRaw;
+  let ivpScore = ivpScoreRaw;
+  let ivHvSpreadScore = ivHvSpreadScoreRaw;
+  let hvAccelScore = hvAccelScoreRaw;
+
+  if (hasZScores) {
+    if (zScores.vrp_z !== null) {
+      vrpScore = round(50 + clamp(zScores.vrp_z * 15, -50, 50), 1);
+    }
+    if (zScores.ivp_z !== null) {
+      ivpScore = round(50 + clamp(zScores.ivp_z * 15, -50, 50), 1);
+    }
+    if (zScores.iv_hv_z !== null) {
+      ivHvSpreadScore = round(50 + clamp(zScores.iv_hv_z * 15, -50, 50), 1);
+    }
+    if (zScores.hv_accel_z !== null) {
+      hvAccelScore = round(50 + clamp(zScores.hv_accel_z * 15, -50, 50), 1);
+    }
+  }
+
+  // Spec-compliant weights: 0.30×VRP + 0.30×IVP + 0.25×IV_HV_spread + 0.15×HV_accel
+  const score = round(0.30 * vrpScore + 0.30 * ivpScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
+
+  const mode = hasZScores
+    ? `z-score mode (sector: ${sector}, n=${peerCount})`
+    : 'raw mode (single ticker, no sector peers)';
+  const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVP(${round(ivpScore, 1)}) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${score} [${mode}]`;
 
   return {
     score: round(score),
@@ -271,13 +311,14 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       HV_60: hv60,
       HV_90: hv90,
       IV_percentile: ivp,
-      IV_rank: ivr,
       IV_HV_spread: ivHvSpread,
       VRP: vrpStr,
     },
-    z_scores: computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60),
+    z_scores: zScores,
     formula,
-    notes: `IVP=${ivpScore}, IVR=${ivrScore}, VRP=${round(vrpScore)}, HV_trend=${round(hvTrendScore)}`,
+    notes: hasZScores
+      ? `VRP=${round(vrpScore)}(raw=${round(vrpScoreRaw)},z=${zScores.vrp_z}), IVP=${round(ivpScore)}(raw=${round(ivpScoreRaw)},z=${zScores.ivp_z}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
+      : `VRP=${round(vrpScore)}, IVP=${round(ivpScore)}, IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
     hv_trend: hvTrend,
   };
 }
