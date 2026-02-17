@@ -93,6 +93,9 @@ export interface AnnualFinancialPeriod {
   totalAssets: number | null;
   longTermDebt: number | null;
   sharesOutstanding: number | null;
+  operatingCashFlow: number | null;
+  capitalExpenditure: number | null;
+  netIncome: number | null;
   year: number;
 }
 

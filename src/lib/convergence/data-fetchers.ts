@@ -178,9 +178,13 @@ function findConcept(items: { concept: string; value: number }[], ...names: stri
   return null;
 }
 
-function parseAnnualReport(report: { bs: { concept: string; value: number }[]; ic: { concept: string; value: number }[] }, year: number): AnnualFinancialPeriod {
+type ReportSection = { concept: string; value: number }[];
+interface ReportData { bs: ReportSection; ic: ReportSection; cf: ReportSection }
+
+function parseAnnualReport(report: ReportData, year: number): AnnualFinancialPeriod {
   const bs = report.bs || [];
   const ic = report.ic || [];
+  const cf = report.cf || [];
   return {
     grossProfit: findConcept(ic, 'GrossProfit'),
     revenue: findConcept(ic, 'Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet', 'RevenueFromContractWithCustomerIncludingAssessedTax'),
@@ -189,6 +193,9 @@ function parseAnnualReport(report: { bs: { concept: string; value: number }[]; i
     totalAssets: findConcept(bs, 'Assets'),
     longTermDebt: findConcept(bs, 'LongTermDebt', 'LongTermDebtNoncurrent'),
     sharesOutstanding: findConcept(bs, 'CommonStockSharesOutstanding', 'EntityCommonStockSharesOutstanding'),
+    operatingCashFlow: findConcept(cf, 'NetCashProvidedByUsedInOperatingActivities', 'NetCashProvidedByOperatingActivities'),
+    capitalExpenditure: findConcept(cf, 'PaymentsToAcquirePropertyPlantAndEquipment', 'PurchaseOfPropertyPlantAndEquipment', 'CapitalExpenditure'),
+    netIncome: findConcept(ic, 'NetIncomeLoss'),
     year,
   };
 }
@@ -209,7 +216,7 @@ export async function fetchAnnualFinancials(
     }
 
     const json = await resp.json();
-    const reports: { year: number; report: { bs: { concept: string; value: number }[]; ic: { concept: string; value: number }[] } }[] = json?.data || [];
+    const reports: { year: number; report: ReportData }[] = json?.data || [];
 
     if (reports.length < 2) {
       return { data: null, error: `financials-reported: only ${reports.length} annual report(s) available` };

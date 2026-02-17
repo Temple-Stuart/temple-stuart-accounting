@@ -103,8 +103,14 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const piotroskiSignals: Record<string, boolean | null> = {
     positive_net_income: roe !== null ? roe > 0 : null,
     positive_roa: roa !== null ? roa > 0 : null,
-    positive_fcf: fcfShareTTM !== null ? fcfShareTTM > 0 : null,
-    fcf_exceeds_net_income: fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null,
+    positive_fcf:
+      cur?.operatingCashFlow != null && cur?.capitalExpenditure != null
+        ? (cur.operatingCashFlow - cur.capitalExpenditure) > 0
+        : fcfShareTTM !== null ? fcfShareTTM > 0 : null,
+    fcf_exceeds_net_income:
+      cur?.operatingCashFlow != null && cur?.capitalExpenditure != null && cur?.netIncome != null
+        ? (cur.operatingCashFlow - cur.capitalExpenditure) > cur.netIncome
+        : fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null,
     current_ratio_improving:
       cur?.currentAssets != null && cur?.currentLiabilities != null && cur.currentLiabilities > 0 &&
       pri?.currentAssets != null && pri?.currentLiabilities != null && pri.currentLiabilities > 0
@@ -222,7 +228,9 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       available_signals: computedSignals.length,
       total_signals: 9,
       computable: piotroskiSignals,
-      note: `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} require YoY trend data)`,
+      note: computedSignals.length === 9
+        ? `${passedSignals}/9 signals passing (all computable)`
+        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable — missing annual financial data)`,
     },
     altman_z: {
       score: altmanScore,

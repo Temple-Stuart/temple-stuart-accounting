@@ -199,7 +199,7 @@ function computeDataGaps(
   const piotroski = quality.breakdown.safety.piotroski;
   const missing = 9 - piotroski.available_signals;
   if (missing > 0) {
-    gaps.push(`piotroski_f_score: ${piotroski.available_signals}/9 signals computable, ${missing} require YoY trend data`);
+    gaps.push(`piotroski_f_score: ${piotroski.available_signals}/9 signals computable, ${missing} missing annual financial data`);
   }
 
   // Altman Z gap
