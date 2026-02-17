@@ -168,45 +168,52 @@ export interface VolEdgeResult {
 
 // -- Quality Gate --
 
-export interface SafetyTrace extends SubScoreTrace {
+export interface LiquidityTrace extends SubScoreTrace {
   sub_scores: {
-    debt_to_equity_score: number;
-    beta_score: number;
-    current_ratio_score: number;
-    return_variability_score: number;
+    liquidity_rating_score: number;
+    market_cap_score: number;
+    volume_score: number;
+    lendability_score: number;
   };
 }
 
-export interface ProfitabilityTrace extends SubScoreTrace {
+export interface FundamentalsTrace extends SubScoreTrace {
   sub_scores: {
-    gross_margin_score: number;
-    roe_score: number;
-    roa_score: number;
-    fcf_yield_score: number;
+    pe_score: number;
+    dividend_score: number;
+    margin_score: number;
+    fcf_score: number;
+  };
+  piotroski: {
+    available_signals: number;
+    total_signals: number;
+    computable: Record<string, boolean | null>;
+    note: string;
   };
 }
 
-export interface GrowthTrace extends SubScoreTrace {
+export interface EarningsQualityTrace extends SubScoreTrace {
   sub_scores: {
-    revenue_growth_score: number;
-    eps_growth_score: number;
+    surprise_consistency: number;
+    days_to_earnings_score: number;
+    beat_rate: number;
   };
-}
-
-export interface EfficiencyTrace extends SubScoreTrace {
-  sub_scores: {
-    asset_turnover_score: number;
-    inventory_turnover_score: number;
+  earnings_detail: {
+    total_quarters: number;
+    beats: number;
+    misses: number;
+    in_line: number;
+    avg_surprise_pct: number | null;
+    streak: string;
   };
 }
 
 export interface QualityGateResult {
   score: number;
   breakdown: {
-    safety: SafetyTrace;
-    profitability: ProfitabilityTrace;
-    growth: GrowthTrace;
-    efficiency: EfficiencyTrace;
+    liquidity: LiquidityTrace;
+    fundamentals: FundamentalsTrace;
+    earnings_quality: EarningsQualityTrace;
   };
 }
 

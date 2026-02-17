@@ -54,7 +54,7 @@ interface RankedRow {
   iv_hv_spread: number | null;
   hv_trend: string;
   mspr: number | null;
-  beat_streak: string | null;
+  beat_streak: string;
   key_signal: string;
 }
 
@@ -841,8 +841,8 @@ function buildRankedRows(
     // Extract MSPR from info_edge breakdown
     const mspr = s.info_edge.breakdown.insider_activity.insider_detail.latest_mspr;
 
-    // Beat streak removed — earnings quality component replaced by Safety/Profitability/Growth/Efficiency
-    const beatStreak = null as string | null;
+    // Extract beat streak from quality breakdown
+    const beatStreak = s.quality.breakdown.earnings_quality.earnings_detail.streak;
 
     // Build convergence string
     const convergence = `${s.composite.categories_above_50}/4`;
@@ -858,7 +858,7 @@ function buildRankedRows(
       const hvLabel = hvTrend.split(' ')[0];
       signals.push(`HV ${hvLabel.toLowerCase()}`);
     }
-    if (beatStreak != null && beatStreak !== 'UNKNOWN' && beatStreak !== 'MIXED') {
+    if (beatStreak && beatStreak !== 'UNKNOWN' && beatStreak !== 'MIXED') {
       signals.push(beatStreak.toLowerCase());
     }
     if (mspr != null) {
@@ -917,7 +917,7 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
       );
       continue;
     }
-    if (row.quality < 50 && row.beat_streak != null && /\d+Q MISS STREAK/.test(row.beat_streak)) {
+    if (row.quality < 50 && /\d+Q MISS STREAK/.test(row.beat_streak)) {
       const missCount = parseInt(row.beat_streak, 10);
       if (missCount >= 3) {
         adjustments.push(
