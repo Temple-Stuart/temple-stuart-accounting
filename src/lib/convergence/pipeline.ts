@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -12,6 +12,7 @@ import type {
   ConvergenceInput,
   FredMacroData,
   TradeCardData,
+  AnnualFinancials,
 } from './types';
 
 // ===== TYPES =====
@@ -402,6 +403,18 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     errors.push(`Step E (FRED): ${fredResult.error}`);
   }
 
+  // Fetch annual financials per symbol (for Piotroski YoY signals)
+  const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchAnnualFinancials(symbol);
+      annualFinancialsMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E (annual-financials ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      annualFinancialsMap.set(symbol, null);
+    }
+  }
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -432,6 +445,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       finnhubInsiderSentiment: finnhubData.insiderSentiment,
       finnhubEarnings: finnhubData.earnings,
       fredMacro: fredResult.data,
+      annualFinancials: annualFinancialsMap.get(symbol) ?? null,
       sectorStats,
     };
 
@@ -471,6 +485,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
         finnhubInsiderSentiment: ticker.finnhubData.insiderSentiment,
         finnhubEarnings: ticker.finnhubData.earnings,
         fredMacro: fredResult.data,
+        annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
         sectorStats,
       };
 

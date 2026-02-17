@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchAnnualFinancials } from '@/lib/convergence/data-fetchers';
 import type {
   CandleData,
   TTScannerData,
@@ -216,6 +216,7 @@ export async function GET(request: Request) {
     fhInsiderResult,
     fhEarningsResult,
     fredResult,
+    annualFinancialsResult,
   ] = await Promise.all([
     fetchTTScanner(symbol).catch(e => {
       fetchErrors.tt_scanner = e instanceof Error ? e.message : String(e);
@@ -248,6 +249,9 @@ export async function GET(request: Request) {
           cached: false,
           error: 'FRED_API_KEY not configured',
         }),
+    finnhubKey
+      ? delay(800).then(() => fetchAnnualFinancials(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
   ]);
 
   // Collect fetch errors
@@ -258,6 +262,7 @@ export async function GET(request: Request) {
   if (fhInsiderResult.error) fetchErrors.finnhub_insider_sentiment = fhInsiderResult.error;
   if (fhEarningsResult.error) fetchErrors.finnhub_earnings = fhEarningsResult.error;
   if (fredResult.error) fetchErrors.fred_macro = fredResult.error;
+  if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
 
   // ===== ASSEMBLE INPUT =====
   const convergenceInput: ConvergenceInput = {
@@ -269,6 +274,7 @@ export async function GET(request: Request) {
     finnhubInsiderSentiment: fhInsiderResult.data,
     finnhubEarnings: fhEarningsResult.data,
     fredMacro: fredResult.data,
+    annualFinancials: annualFinancialsResult.data,
   };
 
   // ===== RUN SCORING =====

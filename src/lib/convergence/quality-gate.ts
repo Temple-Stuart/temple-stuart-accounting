@@ -88,24 +88,47 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     else debtToEquityScore = 25;
   }
 
-  // --- Piotroski F-Score (partial, from available data) ---
+  // --- Piotroski F-Score ---
   const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
   const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
   const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
   const netIncomePerShare = typeof metric['netIncomePerShareTTM'] === 'number' ? metric['netIncomePerShareTTM'] as number : null;
   const cfoa = typeof metric['currentRatioQuarterly'] === 'number' ? metric['currentRatioQuarterly'] as number : null;
 
+  // YoY signals from annual financial statements
+  const af = input.annualFinancials;
+  const cur = af?.currentYear ?? null;
+  const pri = af?.priorYear ?? null;
+
   const piotroskiSignals: Record<string, boolean | null> = {
     positive_net_income: roe !== null ? roe > 0 : null,
     positive_roa: roa !== null ? roa > 0 : null,
     positive_fcf: fcfShareTTM !== null ? fcfShareTTM > 0 : null,
     fcf_exceeds_net_income: fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null,
-    // TODO: requires prior-year current ratio from /stock/financials-reported
-    current_ratio_improving: null,
-    gross_margin_expanding: null, // Requires YoY trend
-    asset_turnover_improving: null, // Requires YoY trend
-    no_equity_issuance: null, // Requires shares outstanding trend
-    leverage_decreasing: null, // Requires YoY debt comparison
+    current_ratio_improving:
+      cur?.currentAssets != null && cur?.currentLiabilities != null && cur.currentLiabilities > 0 &&
+      pri?.currentAssets != null && pri?.currentLiabilities != null && pri.currentLiabilities > 0
+        ? (cur.currentAssets / cur.currentLiabilities) > (pri.currentAssets / pri.currentLiabilities)
+        : null,
+    gross_margin_expanding:
+      cur?.grossProfit != null && cur?.revenue != null && cur.revenue > 0 &&
+      pri?.grossProfit != null && pri?.revenue != null && pri.revenue > 0
+        ? (cur.grossProfit / cur.revenue) > (pri.grossProfit / pri.revenue)
+        : null,
+    asset_turnover_improving:
+      cur?.revenue != null && cur?.totalAssets != null && cur.totalAssets > 0 &&
+      pri?.revenue != null && pri?.totalAssets != null && pri.totalAssets > 0
+        ? (cur.revenue / cur.totalAssets) > (pri.revenue / pri.totalAssets)
+        : null,
+    no_equity_issuance:
+      cur?.sharesOutstanding != null && pri?.sharesOutstanding != null
+        ? cur.sharesOutstanding <= pri.sharesOutstanding
+        : null,
+    leverage_decreasing:
+      cur?.longTermDebt != null && cur?.totalAssets != null && cur.totalAssets > 0 &&
+      pri?.longTermDebt != null && pri?.totalAssets != null && pri.totalAssets > 0
+        ? (cur.longTermDebt / cur.totalAssets) < (pri.longTermDebt / pri.totalAssets)
+        : null,
   };
 
   const computedSignals = Object.values(piotroskiSignals).filter(v => v !== null);

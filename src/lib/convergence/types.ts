@@ -83,6 +83,24 @@ export interface FredMacroData {
   sofr: number | null;
 }
 
+// ===== ANNUAL FINANCIALS (for Piotroski YoY signals) =====
+
+export interface AnnualFinancialPeriod {
+  grossProfit: number | null;
+  revenue: number | null;
+  currentAssets: number | null;
+  currentLiabilities: number | null;
+  totalAssets: number | null;
+  longTermDebt: number | null;
+  sharesOutstanding: number | null;
+  year: number;
+}
+
+export interface AnnualFinancials {
+  currentYear: AnnualFinancialPeriod;
+  priorYear: AnnualFinancialPeriod;
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -94,6 +112,7 @@ export interface ConvergenceInput {
   finnhubInsiderSentiment: FinnhubInsiderSentiment[];
   finnhubEarnings: FinnhubEarnings[];
   fredMacro: FredMacroData;
+  annualFinancials: AnnualFinancials | null;
   sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
 }
 

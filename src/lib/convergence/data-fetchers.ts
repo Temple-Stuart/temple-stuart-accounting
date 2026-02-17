@@ -5,6 +5,8 @@ import type {
   FinnhubInsiderSentiment,
   FinnhubEarnings,
   FredMacroData,
+  AnnualFinancials,
+  AnnualFinancialPeriod,
 } from './types';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
@@ -163,6 +165,66 @@ export async function fetchFinnhubBatch(
   }
 
   return { data, stats };
+}
+
+// ===== ANNUAL FINANCIALS FETCHER (for Piotroski YoY signals) =====
+
+/** Search XBRL report items for a value matching any of the given concept names. */
+function findConcept(items: { concept: string; value: number }[], ...names: string[]): number | null {
+  for (const name of names) {
+    const item = items.find(i => i.concept === name || i.concept === `us-gaap_${name}`);
+    if (item && typeof item.value === 'number') return item.value;
+  }
+  return null;
+}
+
+function parseAnnualReport(report: { bs: { concept: string; value: number }[]; ic: { concept: string; value: number }[] }, year: number): AnnualFinancialPeriod {
+  const bs = report.bs || [];
+  const ic = report.ic || [];
+  return {
+    grossProfit: findConcept(ic, 'GrossProfit'),
+    revenue: findConcept(ic, 'Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet', 'RevenueFromContractWithCustomerIncludingAssessedTax'),
+    currentAssets: findConcept(bs, 'AssetsCurrent'),
+    currentLiabilities: findConcept(bs, 'LiabilitiesCurrent'),
+    totalAssets: findConcept(bs, 'Assets'),
+    longTermDebt: findConcept(bs, 'LongTermDebt', 'LongTermDebtNoncurrent'),
+    sharesOutstanding: findConcept(bs, 'CommonStockSharesOutstanding', 'EntityCommonStockSharesOutstanding'),
+    year,
+  };
+}
+
+export async function fetchAnnualFinancials(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: AnnualFinancials | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `financials-reported: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    const reports: { year: number; report: { bs: { concept: string; value: number }[]; ic: { concept: string; value: number }[] } }[] = json?.data || [];
+
+    if (reports.length < 2) {
+      return { data: null, error: `financials-reported: only ${reports.length} annual report(s) available` };
+    }
+
+    // Sort descending by year to get the two most recent
+    reports.sort((a, b) => b.year - a.year);
+
+    const currentYear = parseAnnualReport(reports[0].report, reports[0].year);
+    const priorYear = parseAnnualReport(reports[1].report, reports[1].year);
+
+    return { data: { currentYear, priorYear }, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `financials-reported: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // ===== FRED MACRO FETCHER (with 1-hour cache) =====
