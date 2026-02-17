@@ -15,7 +15,7 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
-// ===== ANALYST CONSENSUS SUB-SCORE (40%) =====
+// ===== ANALYST CONSENSUS SUB-SCORE (20%) =====
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const recs = input.finnhubRecommendations;
@@ -23,7 +23,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   if (recs.length === 0) {
     return {
       score: 50,
-      weight: 0.40,
+      weight: 0.20,
       inputs: { periods_available: 0 },
       formula: 'No analyst recommendation data → default 50',
       notes: 'No Finnhub recommendation data available',
@@ -32,14 +32,17 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     };
   }
 
-  const latest = recs[0]; // Most recent period
+  // Sort by period descending to ensure latest first
+  const sorted = [...recs].sort((a, b) => b.period.localeCompare(a.period));
+
+  const latest = sorted[0];
   const total = latest.strongBuy + latest.buy + latest.hold + latest.sell + latest.strongSell;
 
   if (total === 0) {
     return {
       score: 50,
-      weight: 0.40,
-      inputs: { periods_available: recs.length, total_analysts: 0 },
+      weight: 0.20,
+      inputs: { periods_available: sorted.length, total_analysts: 0 },
       formula: 'Zero analyst coverage → default 50',
       notes: 'Latest period has 0 analysts',
       sub_scores: { buy_sell_ratio_score: 50, strong_conviction_score: 50, coverage_score: 50 },
@@ -47,25 +50,25 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     };
   }
 
-  // Buy/Sell ratio score: bullish consensus = higher score
+  // Consensus score (35%): ratio of bullish to total analysts
   const bullish = latest.strongBuy + latest.buy;
   const bearish = latest.sell + latest.strongSell;
   const bullishPct = bullish / total;
   // Map: 100% bullish = 85, 50% = 50, 0% = 15
-  const buySellScore = clamp(15 + bullishPct * 70, 0, 100);
+  const consensusScore = clamp(15 + bullishPct * 70, 0, 100);
 
-  // Strong conviction score: high proportion of strong ratings = clearer signal
-  const strongPct = (latest.strongBuy + latest.strongSell) / total;
-  // Higher conviction = more informative (both directions)
-  // Strong buy heavy = bullish, strong sell heavy = bearish
-  let strongConvictionScore = 50;
-  if (latest.strongBuy > latest.strongSell) {
-    strongConvictionScore = clamp(50 + (latest.strongBuy / total) * 60, 50, 85);
-  } else if (latest.strongSell > latest.strongBuy) {
-    strongConvictionScore = clamp(50 - (latest.strongSell / total) * 60, 15, 50);
+  // Momentum score (65%): compare current vs previous period bullish count
+  let momentumScore = 50;
+  if (sorted.length >= 2) {
+    const previous = sorted[1];
+    const bullishCurrent = latest.strongBuy + latest.buy;
+    const bullishPrevious = previous.strongBuy + previous.buy;
+    if (bullishCurrent > bullishPrevious) momentumScore = 75;
+    else if (bullishCurrent === bullishPrevious) momentumScore = 50;
+    else momentumScore = 35;
   }
 
-  // Coverage score: more analysts = more reliable signal
+  // Coverage score: kept as trace field, not in weighted formula
   let coverageScore = 50;
   if (total >= 30) coverageScore = 80;
   else if (total >= 20) coverageScore = 70;
@@ -73,27 +76,26 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   else if (total >= 5) coverageScore = 50;
   else coverageScore = 35;
 
-  // Weighted: buy_sell 50%, conviction 30%, coverage 20%
-  const score = round(0.50 * buySellScore + 0.30 * strongConvictionScore + 0.20 * coverageScore, 1);
+  // Weighted: consensus 35%, momentum 65%
+  const score = round(0.35 * consensusScore + 0.65 * momentumScore, 1);
 
-  const formula = `0.50×BuySell(${round(buySellScore)}) + 0.30×Conviction(${round(strongConvictionScore)}) + 0.20×Coverage(${round(coverageScore)}) = ${score}`;
+  const formula = `0.35×Consensus(${round(consensusScore)}) + 0.65×Momentum(${round(momentumScore)}) = ${score}`;
 
   return {
     score: round(score),
-    weight: 0.40,
+    weight: 0.20,
     inputs: {
-      periods_available: recs.length,
+      periods_available: sorted.length,
       latest_period: latest.period,
       total_analysts: total,
       bullish_pct: round(bullishPct * 100, 1),
       bearish_count: bearish,
-      strong_conviction_pct: round(strongPct * 100, 1),
     },
     formula,
     notes: `${latest.strongBuy} StrongBuy, ${latest.buy} Buy, ${latest.hold} Hold, ${latest.sell} Sell, ${latest.strongSell} StrongSell (${total} analysts)`,
     sub_scores: {
-      buy_sell_ratio_score: round(buySellScore),
-      strong_conviction_score: round(strongConvictionScore),
+      buy_sell_ratio_score: round(consensusScore),
+      strong_conviction_score: round(momentumScore),
       coverage_score: round(coverageScore),
     },
     raw_counts: {
@@ -328,17 +330,57 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   };
 }
 
+// ===== FLOW SIGNAL SUB-SCORE (20%) =====
+
+interface FlowSignalTrace {
+  score: number;
+  weight: number;
+  inputs: Record<string, number | string | boolean | null>;
+  formula: string;
+  notes: string;
+  sub_scores: {
+    put_call_ratio_score: number;
+    unusual_activity_score: number;
+    volume_bias_score: number;
+  };
+  flow_detail: {
+    data_available: boolean;
+    note: string;
+  };
+}
+
+function scoreFlowSignal(_input: ConvergenceInput): FlowSignalTrace {
+  return {
+    score: 50,
+    weight: 0.20,
+    inputs: { data_available: false },
+    formula: 'No options flow data → neutral 50',
+    notes: 'Options flow feed not connected. Score neutral until bid/ask volume API integrated.',
+    sub_scores: {
+      put_call_ratio_score: 50,
+      unusual_activity_score: 50,
+      volume_bias_score: 50,
+    },
+    flow_detail: {
+      data_available: false,
+      note: 'Options flow feed not connected. Score neutral until bid/ask volume API integrated.',
+    },
+  };
+}
+
 // ===== MAIN INFO EDGE SCORER =====
 
 export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const analystConsensus = scoreAnalystConsensus(input);
   const insiderActivity = scoreInsiderActivity(input);
   const earningsMomentum = scoreEarningsMomentum(input);
+  const flowSignal = scoreFlowSignal(input);
 
   const score = round(
     analystConsensus.weight * analystConsensus.score +
     insiderActivity.weight * insiderActivity.score +
-    earningsMomentum.weight * earningsMomentum.score,
+    earningsMomentum.weight * earningsMomentum.score +
+    flowSignal.weight * flowSignal.score,
     1,
   );
 
@@ -348,6 +390,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       analyst_consensus: analystConsensus,
       insider_activity: insiderActivity,
       earnings_momentum: earningsMomentum,
-    },
+      flow_signal: flowSignal,
+    } as InfoEdgeResult['breakdown'],
   };
 }
