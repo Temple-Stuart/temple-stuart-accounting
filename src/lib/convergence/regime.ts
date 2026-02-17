@@ -291,7 +291,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         },
         raw_values: {
           cpi_yoy: macro.cpi,
-          cpi_mom: null, // FredMacroData doesn't carry MoM yet
+          cpi_mom: macro.cpiMom,
           fed_funds: macro.fedFunds,
           treasury_10y: macro.treasury10y,
         },
