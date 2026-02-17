@@ -192,8 +192,10 @@ function computeDataGaps(
 ): string[] {
   const gaps: string[] = [];
 
-  // Z-score gap
-  gaps.push('sector_z_scores: requires peer data (pipeline mode)');
+  // Z-score gap — only if sectorStats not provided
+  if (!input.sectorStats || Object.keys(input.sectorStats).length === 0) {
+    gaps.push('sector_z_scores: requires peer data (pipeline mode)');
+  }
 
   // Piotroski gap
   const piotroski = quality.breakdown.safety.piotroski;
