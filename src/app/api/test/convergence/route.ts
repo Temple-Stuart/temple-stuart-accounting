@@ -280,18 +280,6 @@ export async function GET(request: Request) {
   // ===== RUN SCORING =====
   const scoringResult = scoreAll(convergenceInput);
 
-  // Detect TT/Finnhub earnings data conflict (Bug 3: TT scanner earnings may be stale)
-  const fhLatestEarnings = fhEarningsResult.data.length > 0 ? fhEarningsResult.data[0] : null;
-  if (ttScannerResult.data?.earningsActualEps != null && fhLatestEarnings) {
-    const ttActual = ttScannerResult.data.earningsActualEps;
-    const fhActual = fhLatestEarnings.actual;
-    if (Math.abs(ttActual! - fhActual) > 0.01) {
-      scoringResult.data_gaps.push(
-        `earnings_source: Finnhub (TT scanner shows stale data: actual=${ttScannerResult.data.earningsActualEps} vs estimate=${ttScannerResult.data.earningsEstimate})`
-      );
-    }
-  }
-
   const pipelineMs = Date.now() - pipelineStart;
 
   // ===== BUILD RESPONSE =====
