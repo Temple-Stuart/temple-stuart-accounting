@@ -185,15 +185,15 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     return { data: empty, cached: false, error: 'FRED_API_KEY not configured' };
   }
 
+  // Simple series: single latest observation is the correct value
+  // GDP, NFP, and CPI are handled separately below (need rate-of-change computation)
   const seriesMap: { key: keyof FredMacroData; id: string }[] = [
     { key: 'vix', id: 'VIXCLS' },
     { key: 'treasury10y', id: 'DGS10' },
     { key: 'fedFunds', id: 'FEDFUNDS' },
     { key: 'unemployment', id: 'UNRATE' },
-    { key: 'cpi', id: 'CPIAUCSL' },
-    { key: 'gdp', id: 'GDP' },
+    { key: 'gdp', id: 'A191RL1Q225SBEA' },  // Real GDP growth rate (quarterly annualized %)
     { key: 'consumerConfidence', id: 'UMCSENT' },
-    { key: 'nonfarmPayrolls', id: 'PAYEMS' },
     { key: 'sofr', id: 'SOFR' },
   ];
 
@@ -223,6 +223,60 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     }
     await delay(100); // Rate limit respect
   }
+
+  // FIX 2: NFP — fetch last 2 observations, compute monthly change (thousands)
+  try {
+    const resp = await fetch(
+      `https://api.stlouisfed.org/fred/series/observations?series_id=PAYEMS&api_key=${key}&file_type=json&sort_order=desc&limit=2`,
+    );
+    if (resp.ok) {
+      const json = await resp.json();
+      const obs = json?.observations;
+      if (Array.isArray(obs) && obs.length >= 2 && obs[0].value !== '.' && obs[1].value !== '.') {
+        // sort_order=desc: obs[0] = most recent, obs[1] = previous month
+        result.nonfarmPayrolls = parseFloat(obs[0].value) - parseFloat(obs[1].value);
+      }
+    } else {
+      errors.push(`PAYEMS: HTTP ${resp.status}`);
+    }
+  } catch (e: unknown) {
+    errors.push(`PAYEMS: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  await delay(100);
+
+  // FIX 3 & 4: CPI — fetch last 13 observations, compute YoY % and MoM %
+  try {
+    const resp = await fetch(
+      `https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=${key}&file_type=json&sort_order=desc&limit=13`,
+    );
+    if (resp.ok) {
+      const json = await resp.json();
+      const obs = json?.observations;
+      if (Array.isArray(obs) && obs.length >= 2) {
+        // sort_order=desc: obs[0] = most recent, obs[1] = previous month, obs[12] = 12 months ago
+        const current = obs[0].value !== '.' ? parseFloat(obs[0].value) : null;
+        const prevMonth = obs[1].value !== '.' ? parseFloat(obs[1].value) : null;
+
+        // CPI MoM %
+        if (current !== null && prevMonth !== null && prevMonth !== 0) {
+          (result as any).cpiMom = parseFloat((((current - prevMonth) / prevMonth) * 100).toFixed(2));
+        }
+
+        // CPI YoY % (need 13 observations for 12-month lookback)
+        if (obs.length >= 13) {
+          const yearAgo = obs[12].value !== '.' ? parseFloat(obs[12].value) : null;
+          if (current !== null && yearAgo !== null && yearAgo !== 0) {
+            result.cpi = parseFloat((((current - yearAgo) / yearAgo) * 100).toFixed(2));
+          }
+        }
+      }
+    } else {
+      errors.push(`CPIAUCSL: HTTP ${resp.status}`);
+    }
+  } catch (e: unknown) {
+    errors.push(`CPIAUCSL: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  await delay(100);
 
   // Cache the result
   fredCache = { data: result, fetchedAt: Date.now() };
