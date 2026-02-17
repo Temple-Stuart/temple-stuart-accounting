@@ -92,14 +92,16 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
   const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
   const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+  const netIncomePerShare = typeof metric['netIncomePerShareTTM'] === 'number' ? metric['netIncomePerShareTTM'] as number : null;
   const cfoa = typeof metric['currentRatioQuarterly'] === 'number' ? metric['currentRatioQuarterly'] as number : null;
 
   const piotroskiSignals: Record<string, boolean | null> = {
     positive_net_income: roe !== null ? roe > 0 : null,
     positive_roa: roa !== null ? roa > 0 : null,
     positive_fcf: fcfShareTTM !== null ? fcfShareTTM > 0 : null,
-    fcf_exceeds_net_income: null, // Requires net income comparison
-    current_ratio_improving: cfoa !== null ? cfoa > 1 : null, // Proxy: current ratio > 1
+    fcf_exceeds_net_income: fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null,
+    // TODO: requires prior-year current ratio from /stock/financials-reported
+    current_ratio_improving: null,
     gross_margin_expanding: null, // Requires YoY trend
     asset_turnover_improving: null, // Requires YoY trend
     no_equity_issuance: null, // Requires shares outstanding trend
