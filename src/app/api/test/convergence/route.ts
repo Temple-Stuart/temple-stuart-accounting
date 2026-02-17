@@ -214,7 +214,7 @@ async function fetchFredMacro(apiKey: string): Promise<{ data: FredMacroData; er
 
   const result: FredMacroData = {
     vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, sofr: null,
+    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
   };
 
   const errors: string[] = [];
@@ -292,11 +292,11 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [] as FinnhubEarnings[], error: 'FINNHUB_API_KEY not configured' }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
-          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, sofr: null } as FredMacroData,
+          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
           error: String(e),
         }))
       : Promise.resolve({
-          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, sofr: null } as FredMacroData,
+          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
           error: 'FRED_API_KEY not configured',
         }),
   ]);
