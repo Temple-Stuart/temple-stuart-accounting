@@ -842,7 +842,7 @@ function buildRankedRows(
     const mspr = s.info_edge.breakdown.insider_activity.insider_detail.latest_mspr;
 
     // Extract beat streak from quality breakdown
-    const beatStreak = s.quality.breakdown.earnings_quality.earnings_detail.streak;
+    const beatStreak = s.quality.breakdown.profitability.earnings_quality.earnings_detail.streak;
 
     // Build convergence string
     const convergence = `${s.composite.categories_above_50}/4`;
