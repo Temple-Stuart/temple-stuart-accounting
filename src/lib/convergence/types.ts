@@ -219,39 +219,59 @@ export interface QualityGateResult {
 
 // -- Regime --
 
-export interface MacroEnvironmentTrace extends SubScoreTrace {
-  sub_scores: {
-    vix_score: number;
-    yield_curve_score: number;
-    monetary_score: number;
-    employment_score: number;
-  };
-  vix_regime: string;
-}
-
-export interface CorrelationContextTrace extends SubScoreTrace {
-  sub_scores: {
-    beta_score: number;
-    correlation_score: number;
-    diversification_value: number;
-  };
-}
-
-export interface VolatilityRegimeTrace extends SubScoreTrace {
-  sub_scores: {
-    vix_level_score: number;
-    iv_regime_score: number;
-    hv_regime_score: number;
-  };
-  regime_classification: string;
+export interface StrategyRegimeScore {
+  strategy: string;
+  raw_score: number;
+  vix_adjustment: number;
+  final_score: number;
 }
 
 export interface RegimeResult {
   score: number;
   breakdown: {
-    macro_environment: MacroEnvironmentTrace;
-    correlation_context: CorrelationContextTrace;
-    volatility_regime: VolatilityRegimeTrace;
+    growth_signal: {
+      score: number;
+      sub_scores: {
+        gdp_score: number;
+        unemployment_score: number;
+        nfp_score: number;
+        consumer_confidence_score: number;
+      };
+      raw_values: {
+        gdp: number | null;
+        unemployment: number | null;
+        nfp: number | null;
+        consumer_confidence: number | null;
+      };
+    };
+    inflation_signal: {
+      score: number;
+      sub_scores: {
+        cpi_yoy_score: number;
+        cpi_mom_score: number;
+        fed_funds_score: number;
+        treasury_10y_score: number;
+      };
+      raw_values: {
+        cpi_yoy: number | null;
+        cpi_mom: number | null;
+        fed_funds: number | null;
+        treasury_10y: number | null;
+      };
+    };
+    regime_probabilities: {
+      goldilocks: number;
+      reflation: number;
+      stagflation: number;
+      deflation: number;
+    };
+    dominant_regime: string;
+    vix_overlay: {
+      vix: number | null;
+      adjustment_type: string;
+    };
+    strategy_scores: StrategyRegimeScore[];
+    best_strategy: string;
   };
 }
 
