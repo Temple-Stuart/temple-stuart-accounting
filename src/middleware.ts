@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
   '/favicon.ico',
   '/pricing',
   '/api/stripe/webhook',
+  '/api/test/convergence',
   '/opengraph-image',
   '/terms',
   '/privacy',
