@@ -548,18 +548,18 @@ export interface StrategySuggestion {
 // -- Trade Card (unified output: setup + rationale + key stats) --
 
 export interface TradeCardSetup {
-  strategy: string;
+  strategy_name: string;
   legs: { type: string; side: string; strike: number; price: number }[];
-  expiration: string;
+  expiration_date: string;
   dte: number;
   net_credit: number | null;
   net_debit: number | null;
   max_profit: number | null;
   max_loss: number | null;
   breakevens: number[];
-  pop: number | null;
+  probability_of_profit: number | null;
   hv_pop: number | null;
-  risk_reward: number | null;
+  risk_reward_ratio: number | null;
   greeks: {
     delta: number;
     gamma: number;

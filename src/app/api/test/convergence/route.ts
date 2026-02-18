@@ -308,14 +308,18 @@ export async function GET(request: Request) {
 
   if (currentPrice > 0 && ttScannerResult.data) {
     try {
+      // TT scanner returns iv30/hv30 as percentages (e.g. 27.16 for 27.16%)
+      // Chain fetcher / strategy builder expects decimals (e.g. 0.2716)
+      const rawIv30 = ttScannerResult.data.iv30 ?? 30;
+      const rawHv30 = ttScannerResult.data.hv30 ?? 25;
       const chainInput: ChainTickerInput[] = [{
         symbol,
         suggested_dte: scoringResult.strategy_suggestion.suggested_dte,
         direction: scoringResult.composite.direction,
         currentPrice,
         ivRank: ttScannerResult.data.ivRank,
-        iv30: ttScannerResult.data.iv30 ?? 0.30,
-        hv30: ttScannerResult.data.hv30 ?? 0.25,
+        iv30: rawIv30 / 100,
+        hv30: rawHv30 / 100,
       }];
 
       const chainResult = await fetchChainAndBuildCards(chainInput);

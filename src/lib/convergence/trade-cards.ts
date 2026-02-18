@@ -51,9 +51,9 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
   if (iv30 !== null && hv30 !== null && hv30 > 0) {
     const ratio = iv30 / hv30;
     if (ratio > 1.3) {
-      signals.push(`The market expects ${Math.round(ratio * 100 - 100)}% more movement than actually happens — implied vol (${(iv30 * 100).toFixed(0)}%) is well above realized vol (${(hv30 * 100).toFixed(0)}%). Edge for sellers.`);
+      signals.push(`The market is pricing in ${ratio.toFixed(1)}x more movement than actually happens — implied vol (${iv30.toFixed(1)}%) is well above realized vol (${hv30.toFixed(1)}%). Edge for sellers.`);
     } else if (ratio < 0.85) {
-      signals.push(`Unusual: the market underestimates this stock's actual movement. Realized vol (${(hv30 * 100).toFixed(0)}%) exceeds implied (${(iv30 * 100).toFixed(0)}%).`);
+      signals.push(`Unusual: the market underestimates this stock's actual movement. Realized vol (${hv30.toFixed(1)}%) exceeds implied (${iv30.toFixed(1)}%).`);
     }
   }
 
@@ -192,6 +192,13 @@ function computeRiskFlags(
     flags.push(`WEAK CONVERGENCE (${above50}/4 categories above 50) — signals are not well-aligned.`);
   }
 
+  // Insider selling pressure
+  const insiderTrace = scoring.info_edge.breakdown.insider_activity;
+  const avgMspr3m = insiderTrace.insider_detail.avg_mspr_3m;
+  if (avgMspr3m !== null && avgMspr3m < -20) {
+    flags.push(`INSIDER SELLING (MSPR ${avgMspr3m.toFixed(1)}) — insiders have been net sellers recently. 3-month trend is bearish.`);
+  }
+
   return flags;
 }
 
@@ -274,23 +281,23 @@ export function generateTradeCards(
 
   return strategyCards.map((card) => {
     const setup: TradeCardSetup = {
-      strategy: card.name,
+      strategy_name: card.name,
       legs: card.legs.map(l => ({
         type: l.type,
         side: l.side,
         strike: l.strike,
         price: l.price,
       })),
-      expiration: card.expiration,
+      expiration_date: card.expiration,
       dte: card.dte,
       net_credit: card.netCredit,
       net_debit: card.netDebit,
       max_profit: card.maxProfit,
       max_loss: card.maxLoss,
       breakevens: card.breakevens,
-      pop: card.pop,
+      probability_of_profit: card.pop,
       hv_pop: card.hvPop,
-      risk_reward: card.riskReward,
+      risk_reward_ratio: card.riskReward,
       greeks: {
         delta: card.netDelta,
         gamma: card.netGamma,
