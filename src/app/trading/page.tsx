@@ -15,6 +15,7 @@ import {
   type CustomLeg,
 } from '@/lib/strategy-builder';
 import ConvergenceDashboard from '@/components/convergence/ConvergenceDashboard';
+import ConvergenceAnalyzer from '@/components/convergence/ConvergenceAnalyzer';
 
 
 interface TradeSummary {
@@ -1837,6 +1838,9 @@ export default function TradingPage() {
                             </div>
                           </div>
                         )}
+
+                        {/* Single-Ticker Convergence Analyzer */}
+                        <ConvergenceAnalyzer />
 
                         {/* Convergence Pipeline */}
                         <ConvergenceDashboard />
