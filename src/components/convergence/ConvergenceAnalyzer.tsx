@@ -244,7 +244,7 @@ export default function ConvergenceAnalyzer() {
         {data && (
           <div className="ml-auto flex items-center gap-3 text-xs text-slate-400">
             <span className="font-mono font-bold text-white text-sm">{data.symbol}</span>
-            {scanner?.['sector'] && (
+            {scanner && scanner['sector'] != null && (
               <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
                 {String(scanner['sector'])}
               </span>
@@ -561,7 +561,7 @@ export default function ConvergenceAnalyzer() {
               {data._chain_stats && (
                 <div className="text-[10px] text-slate-600 mt-1">
                   Chain: {String(data._chain_stats.chain_symbols_fetched)} fetched, {String(data._chain_stats.total_strategy_cards)} cards, {String(data._chain_stats.greeks_events_received)} greeks, {String(data._chain_stats.chain_elapsed_ms)}ms
-                  {data._chain_stats.market_note && <span className="ml-1 text-amber-500/60">({String(data._chain_stats.market_note)})</span>}
+                  {data._chain_stats.market_note != null && <span className="ml-1 text-amber-500/60">({String(data._chain_stats.market_note)})</span>}
                 </div>
               )}
             </div>
