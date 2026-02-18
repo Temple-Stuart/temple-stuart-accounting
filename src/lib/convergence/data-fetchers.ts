@@ -7,6 +7,7 @@ import type {
   FredMacroData,
   AnnualFinancials,
   AnnualFinancialPeriod,
+  OptionsFlowData,
 } from './types';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
@@ -356,6 +357,180 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
   fredCache = { data: result, fetchedAt: Date.now() };
 
   return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
+}
+
+// ===== FINNHUB OPTIONS FLOW FETCHER (with 1-hour cache) =====
+
+interface FinnhubOptionEntry {
+  contractName?: string;
+  strike?: number;
+  lastPrice?: number;
+  volume?: number;
+  openInterest?: number;
+  impliedVolatility?: number;
+}
+
+interface FinnhubOptionChainExpiration {
+  expirationDate: string;
+  options: {
+    CALL?: FinnhubOptionEntry[];
+    PUT?: FinnhubOptionEntry[];
+  };
+}
+
+const optionsFlowCache = new Map<string, { data: OptionsFlowData; fetchedAt: number }>();
+const OPTIONS_FLOW_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchOptionsFlow(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: OptionsFlowData | null; error: string | null }> {
+  // Check cache
+  const cached = optionsFlowCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < OPTIONS_FLOW_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/option-chain?symbol=${symbol}&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `option-chain: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    const expirations: FinnhubOptionChainExpiration[] = json?.data || [];
+
+    if (expirations.length === 0) {
+      return { data: null, error: 'option-chain: no expirations returned' };
+    }
+
+    // Filter to expirations within 60 days (exclude LEAPS)
+    const now = new Date();
+    const maxDate = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    const nearTermExps = expirations.filter(exp => {
+      const expDate = new Date(exp.expirationDate);
+      return expDate >= now && expDate <= maxDate;
+    });
+
+    if (nearTermExps.length === 0) {
+      return { data: null, error: 'option-chain: no expirations within 60 DTE' };
+    }
+
+    // Determine underlying price from ATM strikes
+    // Use the first expiration's smallest |call - put| price as ATM proxy
+    let underlyingPrice: number | null = null;
+    for (const exp of nearTermExps) {
+      const calls = exp.options.CALL || [];
+      const puts = exp.options.PUT || [];
+      let bestStrike: number | null = null;
+      let smallestDiff = Infinity;
+      for (const call of calls) {
+        if (call.strike == null || call.lastPrice == null) continue;
+        const matchingPut = puts.find(p => p.strike === call.strike);
+        if (!matchingPut?.lastPrice) continue;
+        const diff = Math.abs(call.lastPrice - matchingPut.lastPrice);
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          bestStrike = call.strike;
+        }
+      }
+      if (bestStrike !== null) {
+        underlyingPrice = bestStrike;
+        break;
+      }
+    }
+
+    // Aggregate across all near-term expirations
+    let totalCallVolume = 0;
+    let totalPutVolume = 0;
+    let totalCallOI = 0;
+    let totalPutOI = 0;
+    let otmCallVolume = 0;
+    let otmPutVolume = 0;
+    let highActivityStrikes = 0;
+    let strikesWithOI = 0;
+    let strikesAnalyzed = 0;
+
+    for (const exp of nearTermExps) {
+      const calls = exp.options.CALL || [];
+      const puts = exp.options.PUT || [];
+
+      for (const call of calls) {
+        const vol = call.volume || 0;
+        const oi = call.openInterest || 0;
+        totalCallVolume += vol;
+        totalCallOI += oi;
+        strikesAnalyzed++;
+
+        if (underlyingPrice !== null && call.strike != null && call.strike > underlyingPrice) {
+          otmCallVolume += vol;
+        }
+
+        if (oi > 0) {
+          strikesWithOI++;
+          if (vol > 2 * oi) highActivityStrikes++;
+        }
+      }
+
+      for (const put of puts) {
+        const vol = put.volume || 0;
+        const oi = put.openInterest || 0;
+        totalPutVolume += vol;
+        totalPutOI += oi;
+        strikesAnalyzed++;
+
+        if (underlyingPrice !== null && put.strike != null && put.strike < underlyingPrice) {
+          otmPutVolume += vol;
+        }
+
+        if (oi > 0) {
+          strikesWithOI++;
+          if (vol > 2 * oi) highActivityStrikes++;
+        }
+      }
+    }
+
+    // Put/Call Ratio
+    const putCallRatio = totalCallVolume > 0
+      ? Math.round((totalPutVolume / totalCallVolume) * 1000) / 1000
+      : null;
+
+    // Volume Bias: (otmCallVol - otmPutVol) / (otmCallVol + otmPutVol) * 100
+    const totalOtm = otmCallVolume + otmPutVolume;
+    const volumeBias = totalOtm > 0
+      ? Math.round(((otmCallVolume - otmPutVolume) / totalOtm) * 10000) / 100
+      : null;
+
+    // Unusual Activity Ratio: high_activity_count / total_strikes_with_oi
+    const unusualActivityRatio = strikesWithOI > 0
+      ? Math.round((highActivityStrikes / strikesWithOI) * 1000) / 1000
+      : null;
+
+    const result: OptionsFlowData = {
+      put_call_ratio: putCallRatio,
+      volume_bias: volumeBias,
+      unusual_activity_ratio: unusualActivityRatio,
+      total_call_volume: totalCallVolume,
+      total_put_volume: totalPutVolume,
+      total_call_oi: totalCallOI,
+      total_put_oi: totalPutOI,
+      strikes_analyzed: strikesAnalyzed,
+      high_activity_strikes: highActivityStrikes,
+      expirations_analyzed: nearTermExps.length,
+    };
+
+    // Cache
+    optionsFlowCache.set(symbol, { data: result, fetchedAt: Date.now() });
+
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `option-chain: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // ===== TASTYTRADE CANDLE BATCH FETCHER =====

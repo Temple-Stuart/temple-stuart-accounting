@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -13,6 +13,7 @@ import type {
   FredMacroData,
   TradeCardData,
   AnnualFinancials,
+  OptionsFlowData,
 } from './types';
 
 // ===== TYPES =====
@@ -415,6 +416,21 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     }
   }
 
+  // Fetch options flow per symbol (for Flow Signal in info-edge)
+  console.log('[Pipeline] Step E2: Fetching options flow data...');
+  const optionsFlowMap = new Map<string, OptionsFlowData | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchOptionsFlow(symbol);
+      optionsFlowMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E2 (options-flow ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      optionsFlowMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E2: Options flow fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -446,6 +462,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       finnhubEarnings: finnhubData.earnings,
       fredMacro: fredResult.data,
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
+      optionsFlow: optionsFlowMap.get(symbol) ?? null,
       sectorStats,
     };
 
@@ -486,6 +503,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
         finnhubEarnings: ticker.finnhubData.earnings,
         fredMacro: fredResult.data,
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
+        optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
         sectorStats,
       };
 

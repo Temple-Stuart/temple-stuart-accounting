@@ -4,6 +4,7 @@ import type {
   AnalystConsensusTrace,
   InsiderActivityTrace,
   EarningsMomentumTrace,
+  FlowSignalTrace,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -332,38 +333,115 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
 
 // ===== FLOW SIGNAL SUB-SCORE (20%) =====
 
-interface FlowSignalTrace {
-  score: number;
-  weight: number;
-  inputs: Record<string, number | string | boolean | null>;
-  formula: string;
-  notes: string;
-  sub_scores: {
-    put_call_ratio_score: number;
-    unusual_activity_score: number;
-    volume_bias_score: number;
-  };
-  flow_detail: {
-    data_available: boolean;
-    note: string;
-  };
+/** Linear interpolation: map value in [inLow, inHigh] to [outLow, outHigh], clamped. */
+function lerp(value: number, inLow: number, inHigh: number, outLow: number, outHigh: number): number {
+  if (inHigh === inLow) return (outLow + outHigh) / 2;
+  const t = (value - inLow) / (inHigh - inLow);
+  return clamp(outLow + t * (outHigh - outLow), Math.min(outLow, outHigh), Math.max(outLow, outHigh));
 }
 
-function scoreFlowSignal(_input: ConvergenceInput): FlowSignalTrace {
+function scorePutCallRatio(pcr: number): number {
+  // PCR < 0.7 → 80 (bullish), 0.7-0.9 → 65, 0.9-1.1 → 50, 1.1-1.3 → 35, > 1.3 → 20
+  if (pcr <= 0.7) return lerp(pcr, 0.3, 0.7, 90, 80);
+  if (pcr <= 0.9) return lerp(pcr, 0.7, 0.9, 80, 65);
+  if (pcr <= 1.1) return lerp(pcr, 0.9, 1.1, 65, 35);
+  if (pcr <= 1.3) return lerp(pcr, 1.1, 1.3, 35, 20);
+  return lerp(pcr, 1.3, 1.6, 20, 10);
+}
+
+function scoreVolumeBias(bias: number): number {
+  // bias > 50 → 80+, 20-50 → 65, -20 to 20 → 50, -50 to -20 → 35, < -50 → 20
+  if (bias >= 50) return lerp(bias, 50, 100, 80, 90);
+  if (bias >= 20) return lerp(bias, 20, 50, 65, 80);
+  if (bias >= -20) return lerp(bias, -20, 20, 35, 65);
+  if (bias >= -50) return lerp(bias, -50, -20, 20, 35);
+  return lerp(bias, -100, -50, 10, 20);
+}
+
+function scoreUnusualActivity(ratio: number): number {
+  // ratio > 0.3 → 80 (lots of new positioning = conviction)
+  // 0.15-0.3 → 65, 0.05-0.15 → 50, < 0.05 → 35 (quiet)
+  if (ratio >= 0.3) return lerp(ratio, 0.3, 0.5, 80, 90);
+  if (ratio >= 0.15) return lerp(ratio, 0.15, 0.3, 65, 80);
+  if (ratio >= 0.05) return lerp(ratio, 0.05, 0.15, 50, 65);
+  return lerp(ratio, 0.0, 0.05, 35, 50);
+}
+
+function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
+  const flow = input.optionsFlow;
+
+  if (!flow) {
+    return {
+      score: 50,
+      weight: 0.20,
+      inputs: { data_available: false },
+      formula: 'No options flow data → neutral 50',
+      notes: 'Finnhub option chain fetch failed or returned no data.',
+      sub_scores: {
+        put_call_ratio_score: 50,
+        unusual_activity_score: 50,
+        volume_bias_score: 50,
+      },
+      flow_detail: {
+        data_available: false,
+        note: 'Finnhub option chain fetch failed or returned no data.',
+      },
+    };
+  }
+
+  // Score each sub-component
+  const pcrScore = flow.put_call_ratio !== null
+    ? round(scorePutCallRatio(flow.put_call_ratio))
+    : 50;
+
+  const biasScore = flow.volume_bias !== null
+    ? round(scoreVolumeBias(flow.volume_bias))
+    : 50;
+
+  const activityScore = flow.unusual_activity_ratio !== null
+    ? round(scoreUnusualActivity(flow.unusual_activity_ratio))
+    : 50;
+
+  // Weighted: PCR 40%, volume bias 35%, unusual activity 25%
+  const score = round(0.40 * pcrScore + 0.35 * biasScore + 0.25 * activityScore, 1);
+
+  const formula = `0.40×PCR(${pcrScore}) + 0.35×Bias(${biasScore}) + 0.25×Activity(${activityScore}) = ${score}`;
+
+  const notes = [
+    `PCR=${flow.put_call_ratio ?? 'N/A'}`,
+    `bias=${flow.volume_bias ?? 'N/A'}`,
+    `unusual=${flow.unusual_activity_ratio ?? 'N/A'}`,
+    `${flow.strikes_analyzed} strikes across ${flow.expirations_analyzed} exps`,
+    `call_vol=${flow.total_call_volume} put_vol=${flow.total_put_volume}`,
+    `${flow.high_activity_strikes} high-activity strikes`,
+  ].join(', ');
+
   return {
-    score: 50,
+    score: round(score),
     weight: 0.20,
-    inputs: { data_available: false },
-    formula: 'No options flow data → neutral 50',
-    notes: 'Options flow feed not connected. Score neutral until bid/ask volume API integrated.',
+    inputs: {
+      data_available: true,
+      put_call_ratio: flow.put_call_ratio,
+      volume_bias: flow.volume_bias,
+      unusual_activity_ratio: flow.unusual_activity_ratio,
+      total_call_volume: flow.total_call_volume,
+      total_put_volume: flow.total_put_volume,
+      total_call_oi: flow.total_call_oi,
+      total_put_oi: flow.total_put_oi,
+      strikes_analyzed: flow.strikes_analyzed,
+      high_activity_strikes: flow.high_activity_strikes,
+      expirations_analyzed: flow.expirations_analyzed,
+    },
+    formula,
+    notes,
     sub_scores: {
-      put_call_ratio_score: 50,
-      unusual_activity_score: 50,
-      volume_bias_score: 50,
+      put_call_ratio_score: pcrScore,
+      unusual_activity_score: activityScore,
+      volume_bias_score: biasScore,
     },
     flow_detail: {
-      data_available: false,
-      note: 'Options flow feed not connected. Score neutral until bid/ask volume API integrated.',
+      data_available: true,
+      note: `Finnhub option chain: ${flow.expirations_analyzed} expirations, ${flow.strikes_analyzed} strikes analyzed.`,
     },
   };
 }
@@ -391,6 +469,6 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       insider_activity: insiderActivity,
       earnings_momentum: earningsMomentum,
       flow_signal: flowSignal,
-    } as InfoEdgeResult['breakdown'],
+    },
   };
 }

@@ -104,6 +104,21 @@ export interface AnnualFinancials {
   priorYear: AnnualFinancialPeriod;
 }
 
+// ===== OPTIONS FLOW DATA (from Finnhub option chain) =====
+
+export interface OptionsFlowData {
+  put_call_ratio: number | null;
+  volume_bias: number | null;
+  unusual_activity_ratio: number | null;
+  total_call_volume: number;
+  total_put_volume: number;
+  total_call_oi: number;
+  total_put_oi: number;
+  strikes_analyzed: number;
+  high_activity_strikes: number;
+  expirations_analyzed: number;
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -116,6 +131,7 @@ export interface ConvergenceInput {
   finnhubEarnings: FinnhubEarnings[];
   fredMacro: FredMacroData;
   annualFinancials: AnnualFinancials | null;
+  optionsFlow: OptionsFlowData | null;
   sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
 }
 
@@ -385,12 +401,30 @@ export interface EarningsMomentumTrace extends SubScoreTrace {
   };
 }
 
+export interface FlowSignalTrace {
+  score: number;
+  weight: number;
+  inputs: Record<string, number | string | boolean | null>;
+  formula: string;
+  notes: string;
+  sub_scores: {
+    put_call_ratio_score: number;
+    unusual_activity_score: number;
+    volume_bias_score: number;
+  };
+  flow_detail: {
+    data_available: boolean;
+    note: string;
+  };
+}
+
 export interface InfoEdgeResult {
   score: number;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
     insider_activity: InsiderActivityTrace;
     earnings_momentum: EarningsMomentumTrace;
+    flow_signal: FlowSignalTrace;
   };
 }
 
