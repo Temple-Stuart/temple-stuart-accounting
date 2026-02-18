@@ -14,8 +14,7 @@ import {
   type StrategyLabel,
   type CustomLeg,
 } from '@/lib/strategy-builder';
-import ConvergenceDashboard from '@/components/convergence/ConvergenceDashboard';
-import ConvergenceAnalyzer from '@/components/convergence/ConvergenceAnalyzer';
+import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 
 
 interface TradeSummary {
@@ -1839,11 +1838,8 @@ export default function TradingPage() {
                           </div>
                         )}
 
-                        {/* Single-Ticker Convergence Analyzer */}
-                        <ConvergenceAnalyzer />
-
-                        {/* Convergence Pipeline */}
-                        <ConvergenceDashboard />
+                        {/* Market Intelligence — unified scanner + trade cards */}
+                        <ConvergenceIntelligence />
 
                         {/* Volatility Scanner */}
                         <div className="bg-white border border-gray-200 p-6">
