@@ -542,6 +542,81 @@ export interface StrategySuggestion {
   suggested_dte: number;
   note: string;
   trade_cards?: TradeCardData[];
+  full_trade_cards?: TradeCard[];
+}
+
+// -- Trade Card (unified output: setup + rationale + key stats) --
+
+export interface TradeCardSetup {
+  strategy: string;
+  legs: { type: string; side: string; strike: number; price: number }[];
+  expiration: string;
+  dte: number;
+  net_credit: number | null;
+  net_debit: number | null;
+  max_profit: number | null;
+  max_loss: number | null;
+  breakevens: number[];
+  pop: number | null;
+  hv_pop: number | null;
+  risk_reward: number | null;
+  greeks: {
+    delta: number;
+    gamma: number;
+    theta: number;
+    vega: number;
+    theta_per_day: number;
+  };
+  ev: number;
+  ev_per_risk: number;
+  has_wide_spread: boolean;
+  is_unlimited_risk: boolean;
+}
+
+export interface TradeCardWhy {
+  composite_score: number;
+  letter_grade: string;
+  direction: string;
+  convergence_gate: string;
+  category_scores: {
+    vol_edge: number;
+    quality: number;
+    regime: number;
+    info_edge: number;
+  };
+  plain_english_signals: string[];
+  regime_context: string;
+  risk_flags: string[];
+}
+
+export interface TradeCardKeyStats {
+  iv_rank: number | null;
+  iv_percentile: number | null;
+  iv30: number | null;
+  hv30: number | null;
+  iv_hv_spread: number | null;
+  earnings_date: string | null;
+  days_to_earnings: number | null;
+  market_cap: number | null;
+  sector: string | null;
+  beta: number | null;
+  spy_correlation: number | null;
+  pe_ratio: number | null;
+  dividend_yield: number | null;
+  liquidity_rating: number | null;
+  lendability: string | null;
+  buzz_ratio: number | null;
+  sentiment_momentum: number | null;
+  analyst_consensus: string | null;
+}
+
+export interface TradeCard {
+  symbol: string;
+  generated_at: string;
+  label: string;
+  setup: TradeCardSetup;
+  why: TradeCardWhy;
+  key_stats: TradeCardKeyStats;
 }
 
 // -- Full Pipeline Response --

@@ -3,6 +3,9 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
 import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from '@/lib/convergence/data-fetchers';
+import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
+import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
+import { generateTradeCards } from '@/lib/convergence/trade-cards';
 import type {
   CandleData,
   TTScannerData,
@@ -13,6 +16,7 @@ import type {
   FredMacroData,
   ConvergenceInput,
   ConvergenceResponse,
+  TradeCard,
 } from '@/lib/convergence/types';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -292,6 +296,58 @@ export async function GET(request: Request) {
   // ===== RUN SCORING =====
   const scoringResult = scoreAll(convergenceInput);
 
+  // ===== FETCH CHAIN & BUILD TRADE CARDS =====
+  let tradeCards: TradeCard[] = [];
+  let chainStats: Record<string, unknown> | null = null;
+
+  // Derive current price from latest candle
+  const latestCandle = ttCandleResult.candles.length > 0
+    ? ttCandleResult.candles[ttCandleResult.candles.length - 1]
+    : null;
+  const currentPrice = latestCandle?.close ?? 0;
+
+  if (currentPrice > 0 && ttScannerResult.data) {
+    try {
+      const chainInput: ChainTickerInput[] = [{
+        symbol,
+        suggested_dte: scoringResult.strategy_suggestion.suggested_dte,
+        direction: scoringResult.composite.direction,
+        currentPrice,
+        ivRank: ttScannerResult.data.ivRank,
+        iv30: ttScannerResult.data.iv30 ?? 0.30,
+        hv30: ttScannerResult.data.hv30 ?? 0.25,
+      }];
+
+      const chainResult = await fetchChainAndBuildCards(chainInput);
+      const strategyCards = chainResult.cards.get(symbol) || [];
+
+      chainStats = {
+        chain_symbols_fetched: chainResult.stats.chain_symbols_fetched,
+        total_strategy_cards: chainResult.stats.total_trade_cards,
+        streamer_symbols_subscribed: chainResult.stats.streamer_symbols_subscribed,
+        greeks_events_received: chainResult.stats.greeks_events_received,
+        chain_elapsed_ms: chainResult.stats.elapsed_ms,
+        market_open: chainResult.marketOpen,
+        market_note: chainResult.marketNote ?? null,
+      };
+
+      if (strategyCards.length > 0) {
+        tradeCards = generateTradeCards(strategyCards, scoringResult, convergenceInput);
+        scoringResult.strategy_suggestion.full_trade_cards = tradeCards;
+        console.log(`[TestRoute] Generated ${tradeCards.length} trade cards for ${symbol}`);
+      } else {
+        console.log(`[TestRoute] No strategy cards generated for ${symbol} (chain fetch returned 0 cards)`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      fetchErrors.chain_fetch = msg;
+      console.error(`[TestRoute] Chain fetch failed for ${symbol}:`, msg);
+    }
+  } else {
+    if (currentPrice <= 0) fetchErrors.chain_fetch = 'No candle data available for current price';
+    if (!ttScannerResult.data) fetchErrors.chain_fetch = 'No TT scanner data for IV/HV parameters';
+  }
+
   const pipelineMs = Date.now() - pipelineStart;
 
   // ===== BUILD RESPONSE =====
@@ -355,6 +411,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ...response,
+    trade_cards: tradeCards.length > 0 ? tradeCards : undefined,
+    _chain_stats: chainStats ?? undefined,
     _fetch_errors: Object.keys(fetchErrors).length > 0 ? fetchErrors : undefined,
     _raw_tt_fields: ttScannerResult.raw ? Object.keys(ttScannerResult.raw as object).sort() : undefined,
   });
