@@ -171,6 +171,12 @@ Built by a daily options trader.
 - **Wash Sale Tracking** — Disallowed loss + cost basis adjustment fields
 - **Trade Journal** — Link thesis, emotion, mistakes to each trade number
 - **Robinhood CSV Import** — Parse history, match to Plaid transactions
+- **Convergence Pipeline** — Scores 500 stocks across 4 categories (Vol-Edge, Quality, Regime, Info-Edge)
+- **Convergence Gate** — 3/4 categories must score above 50 to qualify for trade generation
+- **Trade Card Generation** — Real strikes, premiums, max profit/loss, PoP, risk/reward from live chains
+- **Plain English Signals** — AI translates scores into sentences anyone can understand
+- **Risk Flags** — Insider selling (MSPR), earnings proximity, low liquidity warnings
+- **Market Intelligence Dashboard** — Universe scanner + progressive trade card enrichment
 
 </td>
 </tr>
@@ -327,8 +333,21 @@ temple-stuart/
 │   │   └── layout.tsx          # Root layout
 │   ├── components/             # React components
 │   │   ├── ui/                 # Shared UI primitives
+│   │   ├── convergence/        # Market Intelligence dashboard
 │   │   └── trips/              # Trip-specific (TripMap, etc.)
 │   ├── lib/                    # Core libraries
+│   │   ├── convergence/        # Convergence pipeline (12 modules)
+│   │   │   ├── pipeline.ts     # Full scan orchestrator
+│   │   │   ├── composite.ts    # 4-category composite + gate
+│   │   │   ├── vol-edge.ts     # IV vs HV scoring
+│   │   │   ├── quality-gate.ts # Finnhub fundamentals
+│   │   │   ├── regime.ts       # FRED macro + SPY correlation
+│   │   │   ├── info-edge.ts    # News + insider + analyst
+│   │   │   ├── trade-cards.ts  # Plain English trade cards
+│   │   │   ├── chain-fetcher.ts # TT option chains + Greeks
+│   │   │   ├── data-fetchers.ts # Finnhub + FRED APIs
+│   │   │   └── types.ts        # Pipeline type definitions
+│   │   ├── strategy-builder.ts # Delta-based strategy generation
 │   │   ├── plaid.ts            # Plaid client (production)
 │   │   ├── duffel.ts           # Duffel GDS client
 │   │   ├── grok.ts             # xAI Grok client
@@ -574,6 +593,139 @@ User opens Scanner → Selects Universe (S&P 500)
 │  P&L chart, breakevens, AI text    │
 └─────────────────────────────────────┘
 ```
+
+</details>
+
+<details>
+<summary><strong>🧠 Convergence Pipeline</strong></summary>
+
+```
+User selects Universe → Scan Market
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  TASTYTRADE SCANNER                 │
+│  41 fields per ticker               │
+│                                     │
+│  • IV30, HV30, IV60, HV60, IV90    │
+│  • IV Rank, IV Percentile           │
+│  • Term structure, liquidity score  │
+│  • Earnings date, borrow rate       │
+│  • 475 S&P 500 stocks               │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  HARD FILTERS                       │
+│  Quick elimination                  │
+│                                     │
+│  • Liquidity ≥ 3                    │
+│  • IV-HV spread ≥ 5                │
+│  • IV Rank ≥ 25                     │
+│  • Borrow rate ≤ 10%               │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  4-CATEGORY SCORING (0-100 each)    │
+│  Convergence = all categories agree │
+│                                     │
+│  Vol-Edge (IV vs HV)                │
+│  • IV-HV spread magnitude           │
+│  • HV trend direction               │
+│  • Term structure slope              │
+│  • IV Rank percentile               │
+│                                     │
+│  Quality Gate (fundamentals)         │
+│  • Profitability & margins           │
+│  • Earnings surprise history         │
+│  • Analyst consensus vs price        │
+│  • Financial health ratios           │
+│                                     │
+│  Regime (macro + correlation)        │
+│  • VIX level & percentile           │
+│  • Credit spreads (HY-IG)           │
+│  • Yield curve slope                 │
+│  • SPY correlation modifier          │
+│  • FRED macro indicators (9)         │
+│                                     │
+│  Info-Edge (news + insiders)         │
+│  • News sentiment (Finnhub)          │
+│  • Insider activity (MSPR)           │
+│  • Analyst rating changes            │
+│  • Earnings proximity                │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  CONVERGENCE GATE                   │
+│  3/4 categories must score > 50     │
+│                                     │
+│  Only tickers where volatility,     │
+│  fundamentals, macro regime, AND    │
+│  information flow all agree get     │
+│  promoted to trade card generation  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  TRADE CARD GENERATION              │
+│  Real strikes from live chains      │
+│                                     │
+│  • Fetch TastyTrade option chains   │
+│  • Delta-based strike selection     │
+│  • Generate 2-3 strategies:         │
+│    Iron Condor, Credit Spread,      │
+│    Straddle, etc.                   │
+│  • Calculate: max profit, max loss, │
+│    breakevens, PoP, risk/reward     │
+│  • 3-tier gate: EV > 0, PoP floor, │
+│    minimum credit                   │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  PLAIN ENGLISH OUTPUT               │
+│  Everything explained, no jargon    │
+│                                     │
+│  • Score explanations per category  │
+│  • Risk flags: insider selling,     │
+│    earnings proximity, low volume   │
+│  • Regime context: what macro means │
+│  • Key stats with explanations      │
+│    "Beta: 1.1 — moves slightly      │
+│     more than the market"           │
+│  • Top headlines from Finnhub       │
+└─────────────────────────────────────┘
+```
+
+**Data Sources:**
+
+| Source | Fields | Purpose |
+|--------|--------|---------|
+| **Tastytrade** | 41 fields per ticker | IV, HV, Greeks, chains, liquidity, earnings |
+| **Finnhub** | 132 fundamentals + news + insider + analyst + earnings | Quality scores, sentiment, insider activity |
+| **FRED** | 9 macro indicators | VIX, credit spreads, yield curve, unemployment |
+| **SPY** | Correlation coefficient | Regime modifier — adjusts for market-wide moves |
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `pipeline.ts` | Orchestrates full scan: TT fetch → hard filters → scoring → ranking |
+| `composite.ts` | Combines 4 category scores into composite + convergence gate |
+| `vol-edge.ts` | IV vs HV analysis, term structure, rank scoring |
+| `quality-gate.ts` | Fundamental analysis from Finnhub (132 metrics) |
+| `regime.ts` | Macro regime from FRED + SPY correlation modifier |
+| `info-edge.ts` | News sentiment + insider MSPR + analyst changes |
+| `trade-cards.ts` | Wraps strategy cards with plain English signals |
+| `strategy-builder.ts` | Delta-based strike selection, PoP, EV, P&L |
+| `chain-fetcher.ts` | TastyTrade option chain fetch + WebSocket Greeks |
+| `data-fetchers.ts` | Finnhub + FRED API integration |
+| `types.ts` | All pipeline types and interfaces |
+| `ConvergenceIntelligence.tsx` | Unified Market Intelligence dashboard |
+
+**Stress Tested:** 20/20 tickers passed — AAPL, NVDA, TSLA, JPM, XOM, PFE, PLTR, GME, MSFT, AMZN, META, GOOGL, KO, WMT, BAC, AMD, COIN, SOFI, IWM, SPY
 
 </details>
 
@@ -896,7 +1048,16 @@ The AGPL + Commercial model ensures:
 ✅ AI Volatility Scanner<br>
 ✅ AI Market Brief (Claude)<br>
 ✅ Strategy Builder<br>
-✅ Finnhub News + Analysts
+✅ Finnhub News + Analysts<br>
+✅ Convergence Pipeline (4-cat scoring)<br>
+✅ Convergence Gate (3/4 > 50)<br>
+✅ Trade Card Generation (live chains)<br>
+✅ Plain English Signals<br>
+✅ Risk Flags (insider, earnings, liquidity)<br>
+✅ Market Intelligence Dashboard<br>
+✅ SPY Correlation Modifier<br>
+✅ FRED Macro Integration (9 indicators)<br>
+✅ Stress Tested (20/20 tickers)
 
 </td>
 <td valign="top">
