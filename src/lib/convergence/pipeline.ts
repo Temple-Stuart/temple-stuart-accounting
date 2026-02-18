@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -14,6 +14,7 @@ import type {
   TradeCardData,
   AnnualFinancials,
   OptionsFlowData,
+  NewsSentimentData,
 } from './types';
 
 // ===== TYPES =====
@@ -431,6 +432,21 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   }
   console.log(`[Pipeline] Step E2: Options flow fetched for ${topSymbols.length} symbols`);
 
+  // Fetch news sentiment per symbol (for News Sentiment in info-edge)
+  console.log('[Pipeline] Step E3: Fetching news sentiment data...');
+  const newsSentimentMap = new Map<string, NewsSentimentData | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchNewsSentiment(symbol);
+      newsSentimentMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      newsSentimentMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E3: News sentiment fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -463,6 +479,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       fredMacro: fredResult.data,
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
+      newsSentiment: newsSentimentMap.get(symbol) ?? null,
       sectorStats,
     };
 
@@ -504,6 +521,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
         fredMacro: fredResult.data,
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
+        newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
         sectorStats,
       };
 

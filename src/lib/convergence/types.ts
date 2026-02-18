@@ -119,6 +119,37 @@ export interface OptionsFlowData {
   expirations_analyzed: number;
 }
 
+// ===== NEWS SENTIMENT DATA (from Finnhub company-news + keyword matching) =====
+
+export interface NewsHeadlineEntry {
+  datetime: number;
+  headline: string;
+  source: string;
+  url: string;
+  sentiment_keywords: string[];
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+}
+
+export interface NewsSentimentPeriod {
+  bullish_matches: number;
+  bearish_matches: number;
+  neutral: number;
+  score: number;
+}
+
+export interface NewsSentimentData {
+  total_articles_30d: number;
+  articles_7d: number;
+  articles_8_30d: number;
+  buzz_ratio: number | null;
+  sentiment_7d: NewsSentimentPeriod;
+  sentiment_8_30d: NewsSentimentPeriod;
+  sentiment_momentum: number;
+  source_distribution: Record<string, number>;
+  tier1_ratio: number;
+  headlines: NewsHeadlineEntry[];
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -132,6 +163,7 @@ export interface ConvergenceInput {
   fredMacro: FredMacroData;
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
+  newsSentiment: NewsSentimentData | null;
   sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
 }
 
@@ -418,6 +450,30 @@ export interface FlowSignalTrace {
   };
 }
 
+export interface NewsSentimentTrace {
+  score: number;
+  weight: number;
+  inputs: Record<string, number | string | boolean | null>;
+  formula: string;
+  notes: string;
+  sub_scores: {
+    buzz_score: number;
+    sentiment_score: number;
+    source_quality_score: number;
+  };
+  news_detail: {
+    data_available: boolean;
+    total_articles_30d: number;
+    articles_7d: number;
+    buzz_ratio: number | null;
+    sentiment_7d_score: number | null;
+    sentiment_momentum: number | null;
+    tier1_ratio: number | null;
+    source_distribution: Record<string, number>;
+    headlines: NewsHeadlineEntry[];
+  };
+}
+
 export interface InfoEdgeResult {
   score: number;
   breakdown: {
@@ -425,6 +481,7 @@ export interface InfoEdgeResult {
     insider_activity: InsiderActivityTrace;
     earnings_momentum: EarningsMomentumTrace;
     flow_signal: FlowSignalTrace;
+    news_sentiment: NewsSentimentTrace;
   };
 }
 

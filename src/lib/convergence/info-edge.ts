@@ -5,6 +5,7 @@ import type {
   InsiderActivityTrace,
   EarningsMomentumTrace,
   FlowSignalTrace,
+  NewsSentimentTrace,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -16,7 +17,7 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
-// ===== ANALYST CONSENSUS SUB-SCORE (20%) =====
+// ===== ANALYST CONSENSUS SUB-SCORE (15%) =====
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const recs = input.finnhubRecommendations;
@@ -24,7 +25,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   if (recs.length === 0) {
     return {
       score: 50,
-      weight: 0.20,
+      weight: 0.15,
       inputs: { periods_available: 0 },
       formula: 'No analyst recommendation data → default 50',
       notes: 'No Finnhub recommendation data available',
@@ -42,7 +43,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   if (total === 0) {
     return {
       score: 50,
-      weight: 0.20,
+      weight: 0.15,
       inputs: { periods_available: sorted.length, total_analysts: 0 },
       formula: 'Zero analyst coverage → default 50',
       notes: 'Latest period has 0 analysts',
@@ -84,7 +85,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   return {
     score: round(score),
-    weight: 0.20,
+    weight: 0.15,
     inputs: {
       periods_available: sorted.length,
       latest_period: latest.period,
@@ -110,7 +111,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   };
 }
 
-// ===== INSIDER ACTIVITY SUB-SCORE (30%) =====
+// ===== INSIDER ACTIVITY SUB-SCORE (25%) =====
 
 function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   const sentiment = input.finnhubInsiderSentiment;
@@ -118,7 +119,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   if (sentiment.length === 0) {
     return {
       score: 50,
-      weight: 0.30,
+      weight: 0.25,
       inputs: { months_available: 0 },
       formula: 'No insider sentiment data → default 50',
       notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
@@ -189,7 +190,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
 
   return {
     score: round(score),
-    weight: 0.30,
+    weight: 0.25,
     inputs: {
       months_available: sorted.length,
       latest_mspr: latestMspr,
@@ -210,7 +211,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   };
 }
 
-// ===== EARNINGS MOMENTUM SUB-SCORE (30%) =====
+// ===== EARNINGS MOMENTUM SUB-SCORE (25%) =====
 
 function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   const earnings = input.finnhubEarnings;
@@ -218,7 +219,7 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   if (earnings.length === 0) {
     return {
       score: 50,
-      weight: 0.30,
+      weight: 0.25,
       inputs: { quarters_available: 0 },
       formula: 'No earnings data → default 50',
       notes: 'No Finnhub earnings history available',
@@ -308,7 +309,7 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
 
   return {
     score: round(score),
-    weight: 0.30,
+    weight: 0.25,
     inputs: {
       quarters_available: recent.length,
       consecutive_beats: consecutiveBeats,
@@ -446,6 +447,114 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
   };
 }
 
+// ===== NEWS SENTIMENT SUB-SCORE (15%) =====
+
+function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
+  const news = input.newsSentiment;
+
+  if (!news) {
+    return {
+      score: 50,
+      weight: 0.15,
+      inputs: { data_available: false },
+      formula: 'No news sentiment data → neutral 50',
+      notes: 'Finnhub company-news fetch failed or returned no data.',
+      sub_scores: { buzz_score: 50, sentiment_score: 50, source_quality_score: 50 },
+      news_detail: {
+        data_available: false,
+        total_articles_30d: 0,
+        articles_7d: 0,
+        buzz_ratio: null,
+        sentiment_7d_score: null,
+        sentiment_momentum: null,
+        tier1_ratio: null,
+        source_distribution: {},
+        headlines: [],
+      },
+    };
+  }
+
+  // --- Buzz score (30%) ---
+  let buzzScore: number;
+  if (news.articles_7d === 0) {
+    buzzScore = 20;
+  } else if (news.buzz_ratio !== null) {
+    if (news.buzz_ratio >= 1.5) buzzScore = lerp(news.buzz_ratio, 1.5, 3.0, 80, 90);
+    else if (news.buzz_ratio >= 0.8) buzzScore = lerp(news.buzz_ratio, 0.8, 1.5, 50, 80);
+    else if (news.buzz_ratio >= 0.5) buzzScore = lerp(news.buzz_ratio, 0.5, 0.8, 35, 50);
+    else buzzScore = lerp(news.buzz_ratio, 0.0, 0.5, 20, 35);
+  } else {
+    // No baseline (0 articles in 8-30d range), but have 7d articles
+    buzzScore = news.articles_7d >= 5 ? 65 : news.articles_7d >= 1 ? 50 : 20;
+  }
+  buzzScore = round(buzzScore);
+
+  // --- Sentiment score (40%) ---
+  let sentimentScore = round(news.sentiment_7d.score);
+  // Apply momentum bonus/penalty
+  if (news.sentiment_momentum > 10) {
+    sentimentScore = round(clamp(sentimentScore + 5, 0, 100));
+  } else if (news.sentiment_momentum < -10) {
+    sentimentScore = round(clamp(sentimentScore - 5, 0, 100));
+  }
+
+  // --- Source quality score (30%) ---
+  let sourceQualityScore: number;
+  if (news.tier1_ratio > 0.5) sourceQualityScore = lerp(news.tier1_ratio, 0.5, 1.0, 80, 90);
+  else if (news.tier1_ratio > 0.3) sourceQualityScore = lerp(news.tier1_ratio, 0.3, 0.5, 65, 80);
+  else if (news.tier1_ratio > 0.1) sourceQualityScore = lerp(news.tier1_ratio, 0.1, 0.3, 50, 65);
+  else if (news.tier1_ratio > 0) sourceQualityScore = lerp(news.tier1_ratio, 0.0, 0.1, 35, 50);
+  else sourceQualityScore = 25;
+  sourceQualityScore = round(sourceQualityScore);
+
+  // Weighted: buzz 30%, sentiment 40%, source quality 30%
+  const score = round(0.30 * buzzScore + 0.40 * sentimentScore + 0.30 * sourceQualityScore, 1);
+
+  const formula = `0.30×Buzz(${buzzScore}) + 0.40×Sentiment(${sentimentScore}) + 0.30×SourceQuality(${sourceQualityScore}) = ${score}`;
+
+  const notes = [
+    `${news.articles_7d} articles (7d), ${news.articles_8_30d} articles (8-30d)`,
+    `buzz_ratio=${news.buzz_ratio ?? 'N/A'}`,
+    `sentiment_7d=${news.sentiment_7d.score}`,
+    `momentum=${news.sentiment_momentum}`,
+    `tier1=${round(news.tier1_ratio * 100, 1)}%`,
+    `7d: ${news.sentiment_7d.bullish_matches}B/${news.sentiment_7d.bearish_matches}b/${news.sentiment_7d.neutral}N`,
+  ].join(', ');
+
+  return {
+    score: round(score),
+    weight: 0.15,
+    inputs: {
+      data_available: true,
+      total_articles_30d: news.total_articles_30d,
+      articles_7d: news.articles_7d,
+      articles_8_30d: news.articles_8_30d,
+      buzz_ratio: news.buzz_ratio,
+      sentiment_7d_score: news.sentiment_7d.score,
+      sentiment_momentum: news.sentiment_momentum,
+      tier1_ratio: news.tier1_ratio,
+    },
+    formula,
+    notes,
+    sub_scores: {
+      buzz_score: buzzScore,
+      sentiment_score: sentimentScore,
+      source_quality_score: sourceQualityScore,
+    },
+    news_detail: {
+      data_available: true,
+      total_articles_30d: news.total_articles_30d,
+      articles_7d: news.articles_7d,
+      buzz_ratio: news.buzz_ratio,
+      sentiment_7d_score: news.sentiment_7d.score,
+      sentiment_momentum: news.sentiment_momentum,
+      tier1_ratio: news.tier1_ratio,
+      source_distribution: news.source_distribution,
+      headlines: news.headlines,
+    },
+  };
+}
+
 // ===== MAIN INFO EDGE SCORER =====
 
 export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
@@ -453,12 +562,14 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const insiderActivity = scoreInsiderActivity(input);
   const earningsMomentum = scoreEarningsMomentum(input);
   const flowSignal = scoreFlowSignal(input);
+  const newsSentiment = scoreNewsSentiment(input);
 
   const score = round(
     analystConsensus.weight * analystConsensus.score +
     insiderActivity.weight * insiderActivity.score +
     earningsMomentum.weight * earningsMomentum.score +
-    flowSignal.weight * flowSignal.score,
+    flowSignal.weight * flowSignal.score +
+    newsSentiment.weight * newsSentiment.score,
     1,
   );
 
@@ -469,6 +580,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       insider_activity: insiderActivity,
       earnings_momentum: earningsMomentum,
       flow_signal: flowSignal,
+      news_sentiment: newsSentiment,
     },
   };
 }

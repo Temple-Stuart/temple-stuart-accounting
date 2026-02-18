@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from '@/lib/convergence/data-fetchers';
 import type {
   CandleData,
   TTScannerData,
@@ -218,6 +218,7 @@ export async function GET(request: Request) {
     fredResult,
     annualFinancialsResult,
     optionsFlowResult,
+    newsSentimentResult,
   ] = await Promise.all([
     fetchTTScanner(symbol).catch(e => {
       fetchErrors.tt_scanner = e instanceof Error ? e.message : String(e);
@@ -256,6 +257,9 @@ export async function GET(request: Request) {
     finnhubKey
       ? delay(1000).then(() => fetchOptionsFlow(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
+    finnhubKey
+      ? delay(1200).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
   ]);
 
   // Collect fetch errors
@@ -268,6 +272,7 @@ export async function GET(request: Request) {
   if (fredResult.error) fetchErrors.fred_macro = fredResult.error;
   if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
   if (optionsFlowResult.error) fetchErrors.options_flow = optionsFlowResult.error;
+  if (newsSentimentResult.error) fetchErrors.news_sentiment = newsSentimentResult.error;
 
   // ===== ASSEMBLE INPUT =====
   const convergenceInput: ConvergenceInput = {
@@ -281,6 +286,7 @@ export async function GET(request: Request) {
     fredMacro: fredResult.data,
     annualFinancials: annualFinancialsResult.data,
     optionsFlow: optionsFlowResult.data,
+    newsSentiment: newsSentimentResult.data,
   };
 
   // ===== RUN SCORING =====

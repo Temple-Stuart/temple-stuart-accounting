@@ -8,6 +8,9 @@ import type {
   AnnualFinancials,
   AnnualFinancialPeriod,
   OptionsFlowData,
+  NewsSentimentData,
+  NewsHeadlineEntry,
+  NewsSentimentPeriod,
 } from './types';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
@@ -530,6 +533,218 @@ export async function fetchOptionsFlow(
     return { data: result, error: null };
   } catch (e: unknown) {
     return { data: null, error: `option-chain: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB NEWS SENTIMENT FETCHER (with 30-minute cache) =====
+
+const BULLISH_KEYWORDS = [
+  'upgrade', 'upgrades', 'upgraded', 'raises', 'raised', 'record', 'record-breaking',
+  'beats', 'beat', 'surpass', 'surpasses', 'growth', 'expands', 'expansion',
+  'approved', 'approval', 'partnership', 'deal', 'acquisition', 'acquires',
+  'outperform', 'buy', 'bullish', 'strong', 'exceeds', 'exceeded',
+  'positive', 'optimistic', 'breakthrough', 'innovation', 'launch', 'launches',
+];
+
+const BEARISH_KEYWORDS = [
+  'downgrade', 'downgrades', 'downgraded', 'lawsuit', 'sued', 'investigation', 'probe',
+  'recall', 'layoffs', 'layoff', 'restructuring', 'misses', 'missed',
+  'warning', 'warns', 'fraud', 'scandal', 'violation', 'penalty', 'fine', 'fined',
+  'decline', 'declining', 'weak', 'bearish', 'underperform', 'sell',
+  'negative', 'risk', 'concern', 'fears', 'crisis', 'cuts', 'slashes',
+];
+
+const TIER1_SOURCES = [
+  'reuters', 'bloomberg', 'cnbc', 'wall street journal', 'wsj',
+  'financial times', 'ft', "barron's", 'marketwatch', 'ap news',
+  'associated press', 'new york times', 'nyt', 'washington post',
+];
+
+function classifyHeadline(headline: string): { sentiment: 'bullish' | 'bearish' | 'neutral'; keywords: string[] } {
+  const lower = headline.toLowerCase();
+  const matchedKeywords: string[] = [];
+  let bullishCount = 0;
+  let bearishCount = 0;
+
+  for (const kw of BULLISH_KEYWORDS) {
+    // Word boundary matching: keyword must appear as a whole word
+    const pattern = new RegExp(`\\b${kw}\\b`, 'i');
+    if (pattern.test(lower)) {
+      bullishCount++;
+      matchedKeywords.push(kw);
+    }
+  }
+
+  for (const kw of BEARISH_KEYWORDS) {
+    const pattern = new RegExp(`\\b${kw}\\b`, 'i');
+    if (pattern.test(lower)) {
+      bearishCount++;
+      matchedKeywords.push(kw);
+    }
+  }
+
+  let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+  if (bullishCount > bearishCount) sentiment = 'bullish';
+  else if (bearishCount > bullishCount) sentiment = 'bearish';
+
+  return { sentiment, keywords: matchedKeywords };
+}
+
+function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPeriod {
+  let bullish = 0;
+  let bearish = 0;
+  let neutral = 0;
+
+  for (const h of headlines) {
+    if (h.sentiment === 'bullish') bullish++;
+    else if (h.sentiment === 'bearish') bearish++;
+    else neutral++;
+  }
+
+  const total = headlines.length;
+  // Score: ((bullish - bearish + total) / (2 * total)) * 100
+  // All bullish → (total + total) / (2*total) → 100
+  // All bearish → (0 - total + total) / (2*total) → 0 ... wait, (-total + total) = 0, so 0/(2*total) = 0
+  // Actually: (bullish - bearish + total) / (2 * total) * 100
+  // All bearish: (0 - total + total) / (2*total) * 100 = 0
+  // All bullish: (total - 0 + total) / (2*total) * 100 = 100
+  // Neutral: (0 - 0 + total) / (2*total) * 100 = 50
+  const score = total > 0
+    ? Math.round(((bullish - bearish + total) / (2 * total)) * 10000) / 100
+    : 50;
+
+  return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
+}
+
+const newsSentimentCache = new Map<string, { data: NewsSentimentData; fetchedAt: number }>();
+const NEWS_SENTIMENT_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+export async function fetchNewsSentiment(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: NewsSentimentData | null; error: string | null }> {
+  // Check cache
+  const cached = newsSentimentCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < NEWS_SENTIMENT_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const toDate = now.toISOString().slice(0, 10);
+    const fromDate = thirtyDaysAgo.toISOString().slice(0, 10);
+
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${fromDate}&to=${toDate}&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `company-news: HTTP ${resp.status}` };
+    }
+
+    const articles: Array<{
+      headline?: string;
+      source?: string;
+      datetime?: number;
+      url?: string;
+      summary?: string;
+    }> = await resp.json();
+
+    if (!Array.isArray(articles)) {
+      return { data: null, error: 'company-news: invalid response format' };
+    }
+
+    // Sort by datetime descending (most recent first)
+    articles.sort((a, b) => (b.datetime || 0) - (a.datetime || 0));
+
+    const nowUnix = Math.floor(now.getTime() / 1000);
+    const sevenDaysAgoUnix = nowUnix - 7 * 24 * 60 * 60;
+
+    // Classify and split into 7d vs 8-30d
+    const headlines7d: NewsHeadlineEntry[] = [];
+    const headlines8_30d: NewsHeadlineEntry[] = [];
+    const allHeadlines: NewsHeadlineEntry[] = [];
+    const sourceDistribution: Record<string, number> = {};
+
+    for (const article of articles) {
+      const headline = article.headline || '';
+      const source = article.source || '';
+      const datetime = article.datetime || 0;
+      const url = article.url || '';
+
+      const { sentiment, keywords } = classifyHeadline(headline);
+
+      const entry: NewsHeadlineEntry = {
+        datetime,
+        headline,
+        source,
+        url,
+        sentiment_keywords: keywords,
+        sentiment,
+      };
+
+      allHeadlines.push(entry);
+      sourceDistribution[source] = (sourceDistribution[source] || 0) + 1;
+
+      if (datetime >= sevenDaysAgoUnix) {
+        headlines7d.push(entry);
+      } else {
+        headlines8_30d.push(entry);
+      }
+    }
+
+    const totalArticles = articles.length;
+    const articles7d = headlines7d.length;
+    const articles8_30d = headlines8_30d.length;
+
+    // Buzz ratio: articles_7d / (articles_8_30d / 3.29) — normalized weekly rate comparison
+    // 3.29 = 23 days / 7 days (the 8-30d period is ~3.29 weeks)
+    const weeklyBaseline = articles8_30d > 0 ? articles8_30d / 3.29 : null;
+    const buzzRatio = weeklyBaseline !== null && weeklyBaseline > 0
+      ? Math.round((articles7d / weeklyBaseline) * 100) / 100
+      : null;
+
+    // Compute sentiment per period
+    const sentiment7d = computePeriodSentiment(headlines7d);
+    const sentiment8_30d = computePeriodSentiment(headlines8_30d);
+
+    // Sentiment momentum: 7d score - 8-30d score
+    const sentimentMomentum = Math.round((sentiment7d.score - sentiment8_30d.score) * 100) / 100;
+
+    // Tier-1 source ratio
+    let tier1Count = 0;
+    for (const [source, count] of Object.entries(sourceDistribution)) {
+      const sourceLower = source.toLowerCase();
+      if (TIER1_SOURCES.some(t1 => sourceLower.includes(t1))) {
+        tier1Count += count;
+      }
+    }
+    const tier1Ratio = totalArticles > 0
+      ? Math.round((tier1Count / totalArticles) * 1000) / 1000
+      : 0;
+
+    const result: NewsSentimentData = {
+      total_articles_30d: totalArticles,
+      articles_7d: articles7d,
+      articles_8_30d: articles8_30d,
+      buzz_ratio: buzzRatio,
+      sentiment_7d: sentiment7d,
+      sentiment_8_30d: sentiment8_30d,
+      sentiment_momentum: sentimentMomentum,
+      source_distribution: sourceDistribution,
+      tier1_ratio: tier1Ratio,
+      headlines: allHeadlines,
+    };
+
+    // Cache
+    newsSentimentCache.set(symbol, { data: result, fetchedAt: Date.now() });
+
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `company-news: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
