@@ -634,71 +634,86 @@ export async function fetchNewsSentiment(
 
   try {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const toDate = now.toISOString().slice(0, 10);
-    const fromDate = thirtyDaysAgo.toISOString().slice(0, 10);
 
-    const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${fromDate}&to=${toDate}&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `company-news: HTTP ${resp.status}` };
-    }
+    // Split into two API calls to avoid Finnhub's per-request result cap.
+    // High-volume tickers (AAPL, TSLA) can return 200+ articles in 7 days alone,
+    // filling the entire response and leaving zero articles for the 8-30d period.
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const articles: Array<{
+    const from7d = sevenDaysAgo.toISOString().slice(0, 10);
+    const from30d = thirtyDaysAgo.toISOString().slice(0, 10);
+    const to8d = eightDaysAgo.toISOString().slice(0, 10);
+
+    type RawArticle = {
       headline?: string;
       source?: string;
       datetime?: number;
       url?: string;
       summary?: string;
-    }> = await resp.json();
+    };
 
-    if (!Array.isArray(articles)) {
+    // Fetch both periods in parallel
+    const [resp7d, resp8_30d] = await Promise.all([
+      fetchWithRetry(
+        `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from7d}&to=${toDate}&token=${key}`,
+      ),
+      fetchWithRetry(
+        `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${from30d}&to=${to8d}&token=${key}`,
+      ),
+    ]);
+
+    if (!resp7d.ok) {
+      return { data: null, error: `company-news 7d: HTTP ${resp7d.status}` };
+    }
+    if (!resp8_30d.ok) {
+      return { data: null, error: `company-news 8-30d: HTTP ${resp8_30d.status}` };
+    }
+
+    const articles7dRaw: RawArticle[] = await resp7d.json();
+    const articles8_30dRaw: RawArticle[] = await resp8_30d.json();
+
+    if (!Array.isArray(articles7dRaw) || !Array.isArray(articles8_30dRaw)) {
       return { data: null, error: 'company-news: invalid response format' };
     }
 
-    // Sort by datetime descending (most recent first)
-    articles.sort((a, b) => (b.datetime || 0) - (a.datetime || 0));
-
-    const nowUnix = Math.floor(now.getTime() / 1000);
-    const sevenDaysAgoUnix = nowUnix - 7 * 24 * 60 * 60;
-
-    // Classify and split into 7d vs 8-30d
+    // Classify articles into headline entries, split by period
     const headlines7d: NewsHeadlineEntry[] = [];
     const headlines8_30d: NewsHeadlineEntry[] = [];
     const allHeadlines: NewsHeadlineEntry[] = [];
     const sourceDistribution: Record<string, number> = {};
 
-    for (const article of articles) {
+    function classifyArticle(article: RawArticle): NewsHeadlineEntry {
       const headline = article.headline || '';
       const source = article.source || '';
       const datetime = article.datetime || 0;
       const url = article.url || '';
-
       const { sentiment, keywords } = classifyHeadline(headline);
-
-      const entry: NewsHeadlineEntry = {
-        datetime,
-        headline,
-        source,
-        url,
-        sentiment_keywords: keywords,
-        sentiment,
-      };
-
-      allHeadlines.push(entry);
-      sourceDistribution[source] = (sourceDistribution[source] || 0) + 1;
-
-      if (datetime >= sevenDaysAgoUnix) {
-        headlines7d.push(entry);
-      } else {
-        headlines8_30d.push(entry);
-      }
+      return { datetime, headline, source, url, sentiment_keywords: keywords, sentiment };
     }
 
-    const totalArticles = articles.length;
+    for (const article of articles7dRaw) {
+      const entry = classifyArticle(article);
+      headlines7d.push(entry);
+      allHeadlines.push(entry);
+      sourceDistribution[entry.source] = (sourceDistribution[entry.source] || 0) + 1;
+    }
+
+    for (const article of articles8_30dRaw) {
+      const entry = classifyArticle(article);
+      headlines8_30d.push(entry);
+      allHeadlines.push(entry);
+      sourceDistribution[entry.source] = (sourceDistribution[entry.source] || 0) + 1;
+    }
+
+    // Sort all headlines by datetime descending (most recent first)
+    allHeadlines.sort((a, b) => b.datetime - a.datetime);
+
     const articles7d = headlines7d.length;
     const articles8_30d = headlines8_30d.length;
+    const totalArticles = articles7d + articles8_30d;
 
     // Buzz ratio: articles_7d / (articles_8_30d / 3.29) — normalized weekly rate comparison
     // 3.29 = 23 days / 7 days (the 8-30d period is ~3.29 weeks)
