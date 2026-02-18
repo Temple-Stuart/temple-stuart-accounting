@@ -384,6 +384,14 @@ export interface RegimeResult {
     };
     strategy_scores: StrategyRegimeScore[];
     best_strategy: string;
+    spy_correlation_modifier: {
+      corr_spy: number | null;
+      multiplier: number;
+      base_regime_score: number;
+      adjusted_regime_score: number;
+      formula: string;
+      note: string;
+    };
   };
 }
 

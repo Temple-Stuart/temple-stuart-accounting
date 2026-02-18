@@ -259,9 +259,28 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   // Steps C + D: Strategy scoring with VIX overlay
   const { scores: strategyScores, adjustmentType } = scoreStrategies(probabilities, macro.vix);
 
-  // Step E: Best strategy's final_score is the category score
+  // Step E: Best strategy's final_score is the base regime score
   const best = strategyScores[0];
-  const score = best.final_score;
+  const baseScore = best.final_score;
+
+  // Step F: SPY correlation modifier — scales regime influence per-ticker
+  // corrSpy = 1.0 → multiplier = 1.0 (full regime signal)
+  // corrSpy = 0.5 → multiplier = 0.75 (dampened)
+  // corrSpy = 0.0 → multiplier = 0.5 (regime halved toward neutral)
+  const corrSpy = input.ttScanner?.corrSpy ?? null;
+  let score: number;
+  let multiplier: number;
+  let modifierNote: string;
+
+  if (corrSpy != null) {
+    multiplier = round(0.5 + 0.5 * corrSpy, 4);
+    score = round(baseScore * multiplier, 1);
+    modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${baseScore} * ${multiplier} = ${score}`;
+  } else {
+    multiplier = 1.0;
+    score = baseScore;
+    modifierNote = 'spy_correlation: not_available — using base regime score unmodified';
+  }
 
   return {
     score,
@@ -304,6 +323,14 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       },
       strategy_scores: strategyScores,
       best_strategy: best.strategy,
+      spy_correlation_modifier: {
+        corr_spy: corrSpy,
+        multiplier,
+        base_regime_score: baseScore,
+        adjusted_regime_score: score,
+        formula: 'adjusted_regime = base_regime * (0.5 + 0.5 * corrSpy)',
+        note: modifierNote,
+      },
     },
   };
 }
