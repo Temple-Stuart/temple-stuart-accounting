@@ -43,3 +43,23 @@ next-env.d.ts
 
 /src/generated/prisma
 /src/scripts/
+
+# backup/temp files
+*.bak
+*.bak[0-9]
+*.backup
+*.backup[0-9]
+
+# accidental binary/command-name files in repo root
+/cat
+/curl
+/find
+/git
+/grep
+/head
+/ls
+/mkdir
+/node
+/npm
+/npx
+/sed
