@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStripe, getTierFromPriceId } from '@/lib/stripe';
 
-const OWNER_EMAIL = 'stuart.alexander.phi@gmail.com';
+const OWNER_EMAIL = process.env.OWNER_EMAIL;
 
 export async function POST(request: NextRequest) {
   try {

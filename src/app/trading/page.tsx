@@ -105,7 +105,8 @@ const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings'
 export default function TradingPage() {
   const { data: session } = useSession();
   const userEmail = session?.user?.email || null;
-  const isOwner = userEmail?.toLowerCase() === 'stuart.alexander.phi@gmail.com';
+  const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL;
+  const isOwner = !!ownerEmail && userEmail?.toLowerCase() === ownerEmail.toLowerCase();
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tradesData, setTradesData] = useState<TradesData | null>(null);
