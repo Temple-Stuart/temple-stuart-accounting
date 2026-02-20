@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
@@ -199,6 +201,18 @@ async function fetchFinnhubEarnings(symbol: string, apiKey: string): Promise<{ d
 // ===== MAIN ROUTE =====
 
 export async function GET(request: Request) {
+  const cookieStore = await cookies();
+  const userEmail = cookieStore.get('userEmail')?.value;
+  if (!userEmail) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const user = await prisma.users.findFirst({
+    where: { email: { equals: userEmail, mode: 'insensitive' } }
+  });
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
   const pipelineStart = Date.now();
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get('symbol') || 'AAPL').toUpperCase();
