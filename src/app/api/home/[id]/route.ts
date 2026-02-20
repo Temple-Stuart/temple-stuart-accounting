@@ -21,13 +21,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Handle UNCOMMIT
     if (body.action === 'uncommit') {
       // Delete calendar events for this expense
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
-      
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id} AND user_id = ${user.id}`;
+
       // Reset status
       await prisma.$queryRaw`
-        UPDATE home_expenses 
+        UPDATE home_expenses
         SET status = 'draft', committed_at = NULL, updated_at = NOW()
-        WHERE id = ${id}::uuid
+        WHERE id = ${id}::uuid AND user_id = ${user.id}
       `;
       return NextResponse.json({ success: true });
     }
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Handle COMMIT
     if (body.action === 'commit') {
       const expenses = await prisma.$queryRaw`
-        SELECT * FROM home_expenses WHERE id = ${id}::uuid
+        SELECT * FROM home_expenses WHERE id = ${id}::uuid AND user_id = ${user.id}
       ` as any[];
 
       if (!expenses.length) {
@@ -45,8 +45,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       const expense = expenses[0];
       
       // FIRST: Delete any existing calendar events for this expense (prevents duplicates)
-      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
-      
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id} AND user_id = ${user.id}`;
+
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
@@ -141,9 +141,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
       // Update expense status
       await prisma.$queryRaw`
-        UPDATE home_expenses 
+        UPDATE home_expenses
         SET status = 'committed', committed_at = NOW(), updated_at = NOW()
-        WHERE id = ${id}::uuid
+        WHERE id = ${id}::uuid AND user_id = ${user.id}
       `;
 
       return NextResponse.json({ success: true, eventsCreated: eventsToCreate.length });
@@ -159,8 +159,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
-    await prisma.$queryRaw`DELETE FROM home_expenses WHERE id = ${id}::uuid`;
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id} AND user_id = ${user.id}`;
+    await prisma.$queryRaw`DELETE FROM home_expenses WHERE id = ${id}::uuid AND user_id = ${user.id}`;
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete home expense error:', error);

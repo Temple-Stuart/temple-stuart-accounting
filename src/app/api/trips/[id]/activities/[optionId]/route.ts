@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string; optionId: string }> }) {
   try {
-    const { optionId } = await params;
+    const { id, optionId } = await params;
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+
     const body = await request.json();
     
     if (body.action === 'vote_up') {
@@ -43,7 +53,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string; optionId: string }> }) {
   try {
-    const { optionId } = await params;
+    const { id, optionId } = await params;
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     await prisma.$queryRaw`DELETE FROM trip_activity_expenses WHERE id = ${optionId}::uuid`;
     return NextResponse.json({ success: true });
   } catch (error) {

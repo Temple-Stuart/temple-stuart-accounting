@@ -17,7 +17,7 @@ export async function POST() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const result = await autoCategorizationService.categorizePendingTransactions();
+    const result = await autoCategorizationService.categorizePendingTransactions(user.id);
 
     return NextResponse.json({
       success: true,

@@ -15,25 +15,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user exists in Azure
+    const genericMessage = 'If this email is valid, you will receive a confirmation.';
+
+    // Check if user exists — return same response to prevent enumeration
     const existingUser = await prisma.users.findUnique({
       where: { email }
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email already registered' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: genericMessage });
     }
 
-    // Hash password with bcrypt (bank-level security)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate unique ID
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Save to Azure database with all required fields
     const user = await prisma.users.create({
       data: {
         id: userId,
@@ -53,10 +49,7 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });
 
-    return NextResponse.json({ 
-      success: true,
-      user: { email: user.email, name: user.name }
-    });
+    return NextResponse.json({ message: genericMessage });
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(

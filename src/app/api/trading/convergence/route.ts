@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export const maxDuration = 300;
 
@@ -39,6 +40,11 @@ function setCache(limit: number, data: PipelineResult): void {
 
 export async function GET(request: Request) {
   try {
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
 
     // Parse query params

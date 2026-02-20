@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     
     const accounts = await prisma.chart_of_accounts.findMany({
       where: {
-        // userId: user.id, // COA is shared
+        userId: user.id,
         is_archived: false,
         ...(entity_type && { entity_type })
       },

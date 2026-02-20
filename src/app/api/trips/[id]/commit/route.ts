@@ -21,9 +21,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     
     console.log('Commit received:', { startDay, budgetItems });
 
-    // Get the trip
-    const trip = await prisma.trips.findUnique({
-      where: { id }
+    // Get the trip (verify ownership)
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id }
     });
 
     if (!trip) {
@@ -255,9 +255,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get trip with budget items
-    const trip = await prisma.trips.findUnique({
-      where: { id },
+    // Get trip with budget items (verify ownership)
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id },
       include: { budget_line_items: true }
     });
 

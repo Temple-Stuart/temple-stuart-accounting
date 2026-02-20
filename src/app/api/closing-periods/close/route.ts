@@ -95,6 +95,7 @@ export async function POST(request: Request) {
 
     if (lines.length >= 2) {
       const entry = await journalEntryService.createJournalEntry({
+        userId: user.id,
         date: new Date(periodEnd),
         description: `Closing entry for ${periodType} period ending ${periodEnd}`,
         lines

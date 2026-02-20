@@ -31,7 +31,7 @@ export async function GET() {
     }
 
     const incomeCodes = await prisma.chart_of_accounts.findMany({
-      where: { module: 'income' },
+      where: { userId: user.id, module: 'income' },
       select: { code: true, name: true }
     });
 

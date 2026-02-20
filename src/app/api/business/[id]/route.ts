@@ -23,12 +23,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         AND source = ${MODULE} 
         AND description LIKE ${'expense:' + id + '%'}
       `;
-      await prisma.$queryRaw`UPDATE module_expenses SET status = 'draft', committed_at = NULL WHERE id = ${id}::uuid`;
+      await prisma.$queryRaw`UPDATE module_expenses SET status = 'draft', committed_at = NULL WHERE id = ${id}::uuid AND user_id = ${user.id}`;
       return NextResponse.json({ success: true });
     }
 
     if (action === 'commit') {
-      const expenses = await prisma.$queryRaw`SELECT * FROM module_expenses WHERE id = ${id}::uuid` as any[];
+      const expenses = await prisma.$queryRaw`SELECT * FROM module_expenses WHERE id = ${id}::uuid AND user_id = ${user.id}` as any[];
       if (!expenses.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       const expense = expenses[0];
 
@@ -111,7 +111,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
       }
 
-      await prisma.$queryRaw`UPDATE module_expenses SET status = 'committed', committed_at = NOW() WHERE id = ${id}::uuid`;
+      await prisma.$queryRaw`UPDATE module_expenses SET status = 'committed', committed_at = NOW() WHERE id = ${id}::uuid AND user_id = ${user.id}`;
       return NextResponse.json({ success: true, itemsCreated: dates.length });
     }
 
@@ -138,7 +138,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       AND source = ${MODULE} 
       AND description LIKE ${'expense:' + id + '%'}
     `;
-    await prisma.$queryRaw`DELETE FROM module_expenses WHERE id = ${id}::uuid`;
+    await prisma.$queryRaw`DELETE FROM module_expenses WHERE id = ${id}::uuid AND user_id = ${user.id}`;
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Business DELETE error:', error);

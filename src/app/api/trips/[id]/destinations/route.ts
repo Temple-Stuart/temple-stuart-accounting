@@ -208,11 +208,20 @@ export async function GET(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Get trip to determine activity
-    const trip = await prisma.trips.findUnique({
-      where: { id },
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Get trip to determine activity (verify ownership)
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id },
       select: { activity: true }
     });
+
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+    }
 
     const activity = trip?.activity || 'snowboard';
     const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
@@ -249,6 +258,11 @@ export async function POST(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     const body = await request.json();
     const { resortId } = body;
 
@@ -256,11 +270,15 @@ export async function POST(
       return NextResponse.json({ error: 'Missing resortId' }, { status: 400 });
     }
 
-    // Get trip to determine activity
-    const trip = await prisma.trips.findUnique({
-      where: { id },
+    // Get trip to determine activity (verify ownership)
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id },
       select: { activity: true }
     });
+
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+    }
 
     const activity = trip?.activity || 'snowboard';
     const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
@@ -297,6 +315,16 @@ export async function DELETE(
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
     const body = await request.json();

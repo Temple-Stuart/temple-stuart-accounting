@@ -10,6 +10,7 @@ interface JournalEntryLine {
 }
 
 interface CreateJournalEntryParams {
+  userId: string;
   date: Date;
   description: string;
   lines: JournalEntryLine[];
@@ -24,7 +25,7 @@ interface CreateJournalEntryParams {
 export class JournalEntryService {
   
   async createJournalEntry(params: CreateJournalEntryParams) {
-    const { date, description, lines, plaidTransactionId, externalTransactionId, accountCode, amount, strategy, tradeNum } = params;
+    const { userId, date, description, lines, plaidTransactionId, externalTransactionId, accountCode, amount, strategy, tradeNum } = params;
     
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
@@ -35,7 +36,7 @@ export class JournalEntryService {
     
     const accountCodes = lines.map(l => l.accountCode);
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { code: { in: accountCodes } }
+      where: { code: { in: accountCodes }, userId }
     });
     
     if (accounts.length !== accountCodes.length) {
@@ -96,7 +97,8 @@ export class JournalEntryService {
   async convertPlaidTransaction(
     plaidTxnId: string,
     bankAccountCode: string,
-    expenseOrIncomeCode: string
+    expenseOrIncomeCode: string,
+    userId: string
   ) {
     const plaidTxn = await prisma.transactions.findUnique({
       where: { transactionId: plaidTxnId }
@@ -122,6 +124,7 @@ export class JournalEntryService {
         ];
     
     return this.createJournalEntry({
+      userId,
       date: new Date(plaidTxn.date),
       description: plaidTxn.name,
       lines,

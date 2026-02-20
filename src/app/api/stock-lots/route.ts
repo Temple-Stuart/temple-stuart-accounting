@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     let actualTradeNum = tradeNum;
     if (!actualTradeNum) {
       const maxResult = await prisma.investment_transactions.findMany({
-        where: { tradeNum: { not: null } },
+        where: { tradeNum: { not: null }, accounts: { userId: user.id } },
         select: { tradeNum: true }
       });
       const maxNum = maxResult.reduce((max, t) => {
@@ -88,12 +88,16 @@ export async function POST(request: Request) {
 
     // Fetch the investment transactions
     const transactions = await prisma.investment_transactions.findMany({
-      where: { id: { in: transactionIds } },
+      where: { id: { in: transactionIds }, accounts: { userId: user.id } },
       include: { security: true }
     });
 
     if (transactions.length === 0) {
       return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
+    }
+
+    if (transactions.length !== transactionIds.length) {
+      return NextResponse.json({ error: 'Forbidden: not all transactions belong to user' }, { status: 403 });
     }
 
 

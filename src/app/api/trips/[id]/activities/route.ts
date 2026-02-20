@@ -5,6 +5,15 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const userEmail = await getVerifiedEmail();
+    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+
     const options = await prisma.$queryRaw`
       SELECT * FROM trip_activity_expenses 
       WHERE trip_id = ${id}
@@ -21,6 +30,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
     const { category, title, vendor, url, price, is_per_person, per_person, notes } = await request.json();
 

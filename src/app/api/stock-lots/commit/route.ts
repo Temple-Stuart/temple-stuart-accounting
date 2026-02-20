@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
       // Get next trade number
       const maxResult = await tx.investment_transactions.findMany({
-        where: { tradeNum: { not: null } },
+        where: { tradeNum: { not: null }, accounts: { userId: user.id } },
         select: { tradeNum: true }
       });
       const maxNum = maxResult.reduce((max, t) => {

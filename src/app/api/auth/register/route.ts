@@ -22,16 +22,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user already exists
+    const genericMessage = 'If this email is valid, you will receive a confirmation.';
+
+    // Check if user already exists — return same response to prevent enumeration
     const existing = await prisma.users.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } }
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'An account with this email already exists' },
-        { status: 409 }
-      );
+      return NextResponse.json({ message: genericMessage });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -48,10 +47,7 @@ export async function POST(request: Request) {
     });
 
     // Set auth cookie
-    const response = NextResponse.json({
-      success: true,
-      user: { email: user.email, name: user.name }
-    });
+    const response = NextResponse.json({ message: genericMessage });
 
     response.cookies.set('userEmail', signCookie(user.email), {
       httpOnly: true,

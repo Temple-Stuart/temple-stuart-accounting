@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     }
 
     await journalEntryService.createJournalEntry({
+      userId: user.id,
       date: new Date(date),
       description,
       lines: lines.map((l: any) => ({
