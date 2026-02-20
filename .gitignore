@@ -39,6 +39,12 @@ yarn-error.log*
 .env*
 !.env.example
 
+# claude code
+CLAUDE.md
+
+# lockfiles (project uses npm — ignore other managers)
+pnpm-lock.yaml
+
 # vercel
 .vercel
 

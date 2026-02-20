@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
 import type { BacktestManagement } from '@/lib/backtest-translator';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 const BACKTESTER_BASE = 'https://backtester.vast.tastyworks.com';
 const TT_USER_AGENT = 'TempleStuart/1.0';
@@ -8,6 +9,8 @@ const TT_USER_AGENT = 'TempleStuart/1.0';
 // Single trade simulation — tests one specific entry date
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const token = await getTastytradeSessionToken();
     console.log('[Backtest Simulate] Session token obtained, length:', token.length);
 

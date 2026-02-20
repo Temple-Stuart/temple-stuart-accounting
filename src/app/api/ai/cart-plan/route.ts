@@ -1,8 +1,6 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTier, getCurrentUser} from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
-import OpenAI from 'openai';
+import { openai, models } from '@/lib/ai';
 
 type CartCategory = 'clothing' | 'hygiene' | 'cleaning' | 'kitchen';
 
@@ -74,24 +72,11 @@ Do NOT include: appliances (blender, toaster, etc.), cookware (pots, pans), dinn
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const tierGate = requireTier(user.tier, 'ai');
     if (tierGate) return tierGate;
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     const body = await request.json() as CartRequest;
 
@@ -164,7 +149,7 @@ Generate a comprehensive but realistic list — typically 10-20 items for monthl
 FINAL CHECK: sum all estimatedPrice values, multiply by 1.15 = totalEstimated. This MUST be ≤ $${budgetCeiling}. If over, revise.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: models.primary,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 8000,

@@ -1,6 +1,8 @@
-// xAI Grok client - with x_search and web_search for real-time intelligence
+// LLM client for trip analysis (xAI Grok, OpenAI-compatible)
 
-const XAI_API_URL = 'https://api.x.ai/v1';
+import { models } from '@/lib/ai';
+
+const XAI_BASE_URL = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
 
 interface GrokMessage {
   role: 'system' | 'user' | 'assistant';
@@ -36,13 +38,13 @@ export async function grokChat(options: {
   }
 
   const body = {
-    model: options.model || 'grok-4-1-fast-non-reasoning',
+    model: options.model || models.xai,
     messages: options.messages,
     temperature: options.temperature ?? 0.3,
     max_tokens: options.max_tokens ?? 8000,
   };
 
-  const response = await fetch(XAI_API_URL + '/chat/completions', {
+  const response = await fetch(XAI_BASE_URL + '/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -53,8 +55,8 @@ export async function grokChat(options: {
 
   if (!response.ok) {
     const error = await response.text();
-    console.error('[Grok] API error:', response.status, error);
-    throw new Error('Grok API error: ' + response.status);
+    console.error('[TripAI] API error:', response.status, error);
+    throw new Error('Trip AI API error: ' + response.status);
   }
 
   return response.json();
@@ -155,7 +157,7 @@ Return ONLY a valid JSON array, no markdown:
 
   try {
     const response = await grokChat({
-      model: 'grok-4-1-fast-non-reasoning',
+      model: models.xai,
       messages: [
         { 
           role: 'system', 

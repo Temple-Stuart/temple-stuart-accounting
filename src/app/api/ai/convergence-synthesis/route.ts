@@ -1,28 +1,10 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
+import { getCurrentUser } from '@/lib/auth-helpers';
+import { anthropic, callAnthropicWithRetry, models } from '@/lib/ai';
 
 export const maxDuration = 300;
-
-// ===== RETRY LOGIC (same pattern as market-brief) =====
-
-async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await client.messages.create(params);
-    } catch (e: any) {
-      if (e.status === 429 && i < maxRetries - 1) {
-        const retryAfter = parseInt(e.headers?.get?.('retry-after') || '10');
-        const wait = Math.min(retryAfter, 120) * 1000;
-        console.log(`[Convergence Synthesis] Rate limited, retry ${i + 1}/${maxRetries} in ${wait / 1000}s`);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
-      }
-      throw e;
-    }
-  }
-}
 
 // ===== 30-MINUTE CACHE =====
 
@@ -161,12 +143,10 @@ function prepareSynthesisPayload(pipeline: PipelineResult): object {
 // ===== ROUTE =====
 
 export async function GET(request: Request) {
-  try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
-    }
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  try {
     const { searchParams } = new URL(request.url);
     let limit = parseInt(searchParams.get('limit') || '20', 10);
     if (isNaN(limit) || limit < 4) limit = 4;
@@ -202,11 +182,11 @@ export async function GET(request: Request) {
     console.log(`[Convergence Synthesis] Payload size: ${payloadStr.length} chars (~${Math.round(payloadStr.length / 4)} tokens)`);
 
     // Step 3: Call Anthropic
-    const client = new Anthropic({ apiKey });
+    const client = anthropic();
     const aiStart = Date.now();
 
-    const msg = await callWithRetry(client, {
-      model: 'claude-sonnet-4-20250514',
+    const msg = await callAnthropicWithRetry(client, {
+      model: models.anthropic,
       max_tokens: 4000,
       temperature: 0.2,
       system: SYSTEM_PROMPT,

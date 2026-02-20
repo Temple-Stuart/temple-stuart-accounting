@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 // POST: Fix orphaned transactions that were processed but not marked
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { transactionId, tradeNum, strategy, accountCode } = await request.json();
 
     if (!transactionId || !tradeNum) {
       return NextResponse.json({ error: 'Required: transactionId, tradeNum' }, { status: 400 });
+    }
+
+    // Verify the transaction belongs to this user
+    const existing = await prisma.investment_transactions.findFirst({
+      where: { id: transactionId, accounts: { userId: user.id } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
     const result = await prisma.investment_transactions.update({

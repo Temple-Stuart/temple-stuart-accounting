@@ -343,6 +343,7 @@ model users {
   accountCode          String?
   subAccount           String?
   tier                 String                 @default("free") @db.VarChar(20)
+  role                 String                 @default("user") @db.VarChar(20)
   stripeCustomerId     String?
   stripeSubscriptionId String?
   accounts             accounts[]
