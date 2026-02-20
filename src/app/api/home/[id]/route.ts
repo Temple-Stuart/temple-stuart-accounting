@@ -11,6 +11,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const body = await request.json();
 
+    // Verify ownership
+    const existing = await prisma.$queryRaw`
+      SELECT user_id FROM home_expenses WHERE id = ${id}::uuid
+    ` as any[];
+    if (!existing.length || existing[0].user_id !== user.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
     // Handle UNCOMMIT
     if (body.action === 'uncommit') {
       // Delete calendar events for this expense

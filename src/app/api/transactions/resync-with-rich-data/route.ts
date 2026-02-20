@@ -20,18 +20,31 @@ export async function POST() {
     const startDate = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 2 years
 
     for (const item of plaidItems) {
-      const response = await plaidClient.transactionsGet({
-        access_token: item.accessToken,
-        start_date: startDate,
-        end_date: endDate,
-        options: {
-          count: 500,
-          offset: 0,
-          include_personal_finance_category: true
-        }
-      });
+      let offset = 0;
+      const count = 500;
+      let totalTransactions = Infinity;
+      const allTransactions: any[] = [];
 
-      for (const txn of response.data.transactions) {
+      while (offset < totalTransactions) {
+        const response = await plaidClient.transactionsGet({
+          access_token: item.accessToken,
+          start_date: startDate,
+          end_date: endDate,
+          options: {
+            count,
+            offset,
+            include_personal_finance_category: true
+          }
+        });
+
+        allTransactions.push(...response.data.transactions);
+        totalTransactions = response.data.total_transactions;
+        offset += response.data.transactions.length;
+
+        if (response.data.transactions.length === 0) break;
+      }
+
+      for (const txn of allTransactions) {
         const transaction: any = txn;
 
         await prisma.$executeRaw`

@@ -57,10 +57,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
   }
 
-  const { password } = await request.json();
+  let password: unknown;
+  try {
+    ({ password } = await request.json());
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  if (typeof password !== 'string') {
+    return NextResponse.json({ error: 'Invalid password' }, { status: 400 });
+  }
 
   // Timing-safe comparison
-  const inputBuf = Buffer.from(password ?? '');
+  const inputBuf = Buffer.from(password);
   const expectedBuf = Buffer.from(adminPassword);
   // Pad to same length before comparison to avoid length oracle
   const maxLen = Math.max(inputBuf.length, expectedBuf.length);
