@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
+import { requireTier } from '@/lib/auth-helpers';
 import Anthropic from '@anthropic-ai/sdk';
 
 async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
@@ -99,6 +102,20 @@ No markdown. No code blocks. No preamble. Just the JSON array.`;
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const userEmail = cookieStore.get('userEmail')?.value;
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = await prisma.users.findFirst({
+      where: { email: { equals: userEmail, mode: 'insensitive' } }
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const tierGate = requireTier(user.tier, 'ai');
+    if (tierGate) return tierGate;
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
