@@ -57,7 +57,7 @@ interface SpendingTabProps {
   onReload: () => Promise<void>;
 }
 
-type SortField = 'date' | 'merchantName' | 'name' | 'amount' | 'payment_channel' | 'category' | 'accountName' | 'institutionName' | 'predicted_coa_code';
+type SortField = 'date' | 'merchantName' | 'name' | 'amount' | 'accountName' | 'institutionName';
 type SortDir = 'asc' | 'desc';
 
 interface ActiveFilters {
@@ -99,11 +99,8 @@ const COLUMN_FILTER_TYPE: Record<SortField, 'checkbox' | 'dateRange' | 'amountRa
   merchantName: 'checkbox',
   name: 'search',
   amount: 'amountRange',
-  payment_channel: 'checkbox',
-  category: 'checkbox',
   accountName: 'checkbox',
   institutionName: 'checkbox',
-  predicted_coa_code: 'checkbox',
 };
 
 const EMPTY_COL_FILTERS: ColumnFilters = {};
@@ -117,27 +114,6 @@ function formatDate(d: string) {
 
 function formatMoney(n: number) {
   return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function channelLabel(ch: string | null): string {
-  if (!ch) return 'Other';
-  if (ch === 'in store') return 'In Store';
-  if (ch === 'online') return 'Online';
-  return ch.charAt(0).toUpperCase() + ch.slice(1);
-}
-
-function channelColor(ch: string | null): string {
-  if (!ch) return 'bg-gray-100 text-gray-600';
-  if (ch === 'in store') return 'bg-blue-100 text-blue-700';
-  if (ch === 'online') return 'bg-purple-100 text-purple-700';
-  return 'bg-gray-100 text-gray-600';
-}
-
-function confidenceDot(conf: number | null): string {
-  if (conf === null) return '';
-  if (conf >= 0.7) return 'bg-green-500';
-  if (conf >= 0.4) return 'bg-yellow-500';
-  return 'bg-red-500';
 }
 
 function matchesSearch(txn: SpendingTransaction, term: string): boolean {
@@ -193,11 +169,8 @@ function getFieldValue(txn: SpendingTransaction, field: SortField): string {
     case 'merchantName': return txn.merchantName || txn.name;
     case 'name': return txn.name;
     case 'amount': return String(Math.abs(txn.amount));
-    case 'payment_channel': return txn.payment_channel || 'other';
-    case 'category': return txn.personal_finance_category?.primary || 'Other';
     case 'accountName': return txn.accountName || 'Unknown';
     case 'institutionName': return txn.institutionName || 'Unknown';
-    case 'predicted_coa_code': return txn.predicted_coa_code || '';
   }
 }
 
@@ -259,11 +232,8 @@ function columnFilterLabel(field: SortField): string {
     case 'merchantName': return 'Merchant';
     case 'name': return 'Description';
     case 'amount': return 'Amount';
-    case 'payment_channel': return 'Channel';
-    case 'category': return 'Category';
     case 'accountName': return 'Account';
     case 'institutionName': return 'Institution';
-    case 'predicted_coa_code': return 'AI Suggestion';
   }
 }
 
@@ -297,11 +267,8 @@ function sortTransactions(txns: SpendingTransaction[], field: SortField, dir: So
       case 'merchantName': cmp = (a.merchantName || a.name).localeCompare(b.merchantName || b.name); break;
       case 'name': cmp = a.name.localeCompare(b.name); break;
       case 'amount': cmp = Math.abs(a.amount) - Math.abs(b.amount); break;
-      case 'payment_channel': cmp = (a.payment_channel || '').localeCompare(b.payment_channel || ''); break;
-      case 'category': cmp = (a.personal_finance_category?.primary || '').localeCompare(b.personal_finance_category?.primary || ''); break;
       case 'accountName': cmp = (a.accountName || '').localeCompare(b.accountName || ''); break;
       case 'institutionName': cmp = (a.institutionName || '').localeCompare(b.institutionName || ''); break;
-      case 'predicted_coa_code': cmp = (a.predicted_coa_code || '').localeCompare(b.predicted_coa_code || ''); break;
     }
     return dir === 'asc' ? cmp : -cmp;
   });
@@ -566,8 +533,6 @@ function ColumnFilterDropdown({
   const isSortedDesc = sortField === field && sortDir === 'desc';
 
   const displayVal = (val: string) => {
-    if (field === 'payment_channel') return channelLabel(val);
-    if (field === 'predicted_coa_code' && coaLookup.has(val)) return `${val} - ${coaLookup.get(val)!.name}`;
     return val;
   };
 
@@ -822,7 +787,7 @@ function VirtualTable({
 
   return (
     <div ref={parentRef} className="overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className="w-full text-xs border-collapse min-w-[1200px]">
+      <table className="w-full text-xs border-collapse min-w-[900px]">
         <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
           <tr>
             <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
@@ -832,17 +797,9 @@ function VirtualTable({
             <FilterableHeader label="Merchant" field="merchantName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.merchantName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[130px]" />
             <FilterableHeader label="Description" field="name" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="search" allTransactions={allTransactions} columnFilter={columnFilters.name} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[200px]" />
             <FilterableHeader label="Amount" field="amount" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="amountRange" allTransactions={allTransactions} columnFilter={columnFilters.amount} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24 text-right" />
-            <FilterableHeader label="Channel" field="payment_channel" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.payment_channel} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-20" />
-            <FilterableHeader label="Category" field="category" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.category} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             <FilterableHeader label="Account" field="accountName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.accountName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             <FilterableHeader label="Institution" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
-            {variant === 'pending' && (
-              <FilterableHeader label="AI Suggestion" field="predicted_coa_code" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.predicted_coa_code} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-32" />
-            )}
-            <th className="px-2 py-2.5 text-xs font-semibold min-w-[180px]">
-              {variant === 'pending' ? 'COA' : 'COA'}
-            </th>
-            <th className="px-2 py-2.5 text-xs font-semibold w-28">Sub-Account</th>
+            <th className="px-2 py-2.5 text-xs font-semibold min-w-[180px]">COA</th>
             {variant === 'committed' && (
               <th className="px-2 py-2.5 text-xs font-semibold w-24">Committed</th>
             )}
@@ -852,7 +809,7 @@ function VirtualTable({
           {/* spacer for virtual scroll offset */}
           {virtualizer.getVirtualItems().length > 0 && (
             <tr style={{ height: virtualizer.getVirtualItems()[0]?.start || 0 }}>
-              <td colSpan={variant === 'pending' ? 12 : 13} />
+              <td colSpan={variant === 'pending' ? 8 : 9} />
             </tr>
           )}
           {virtualizer.getVirtualItems().map(vRow => {
@@ -863,7 +820,6 @@ function VirtualTable({
               : vRow.index % 2 === 0
                 ? 'bg-white'
                 : 'bg-gray-50/50';
-            const predicted = txn.predicted_coa_code ? coaLookup.get(txn.predicted_coa_code) : null;
 
             return (
               <tr
@@ -893,44 +849,10 @@ function VirtualTable({
                     {txn.amount > 0 ? '-' : '+'}{formatMoney(txn.amount)}
                   </span>
                 </td>
-                {/* Channel */}
-                <td className="px-2 py-1">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${channelColor(txn.payment_channel)}`}>
-                    {channelLabel(txn.payment_channel)}
-                  </span>
-                </td>
-                {/* Category */}
-                <td className="px-2 py-1">
-                  {txn.personal_finance_category?.primary ? (
-                    <span
-                      className="text-gray-700 truncate block"
-                      title={txn.personal_finance_category?.detailed || ''}
-                    >
-                      {txn.personal_finance_category.primary}
-                    </span>
-                  ) : (
-                    <span className="text-gray-300">&mdash;</span>
-                  )}
-                </td>
                 {/* Account */}
                 <td className="px-2 py-1 text-gray-600 truncate">{txn.accountName || '\u2014'}</td>
                 {/* Institution */}
                 <td className="px-2 py-1 text-gray-600 truncate">{txn.institutionName || '\u2014'}</td>
-                {/* AI Suggestion (pending only) */}
-                {variant === 'pending' && (
-                  <td className="px-2 py-1">
-                    {predicted ? (
-                      <div className="flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${confidenceDot(txn.prediction_confidence)}`} />
-                        <span className="text-gray-600 truncate text-[11px]" title={`${predicted.code} - ${predicted.name}`}>
-                          {predicted.code}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-300">&mdash;</span>
-                    )}
-                  </td>
-                )}
                 {/* COA dropdown */}
                 <td className="px-2 py-1">
                   {variant === 'pending' ? (
@@ -956,20 +878,6 @@ function VirtualTable({
                     </span>
                   )}
                 </td>
-                {/* Sub-Account */}
-                <td className="px-2 py-1">
-                  {variant === 'pending' ? (
-                    <input
-                      type="text"
-                      value={rowChanges[txn.id]?.sub || ''}
-                      onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), sub: e.target.value } }))}
-                      placeholder="..."
-                      className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-1 bg-white focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e] outline-none"
-                    />
-                  ) : (
-                    <span className="text-gray-600 text-[11px]">{txn.subAccount || '\u2014'}</span>
-                  )}
-                </td>
                 {/* Committed date */}
                 {variant === 'committed' && (
                   <td className="px-2 py-1 text-gray-500 font-mono whitespace-nowrap">{formatDate(txn.updatedAt)}</td>
@@ -982,7 +890,7 @@ function VirtualTable({
             <tr style={{
               height: virtualizer.getTotalSize() - (virtualizer.getVirtualItems()[virtualizer.getVirtualItems().length - 1]?.end || 0)
             }}>
-              <td colSpan={variant === 'pending' ? 12 : 13} />
+              <td colSpan={variant === 'pending' ? 8 : 9} />
             </tr>
           )}
         </tbody>
@@ -1191,21 +1099,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [transactions]);
 
-  const pendingCategories = useMemo(() => {
-    const m = new Map<string, number>();
-    transactions.forEach(t => { const k = t.personal_finance_category?.primary || 'Other'; m.set(k, (m.get(k) || 0) + 1); });
-    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  }, [transactions]);
-
   const pendingAccounts = useMemo(() => {
     const m = new Map<string, number>();
     transactions.forEach(t => { const k = t.accountName || 'Unknown'; m.set(k, (m.get(k) || 0) + 1); });
-    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  }, [transactions]);
-
-  const pendingChannels = useMemo(() => {
-    const m = new Map<string, number>();
-    transactions.forEach(t => { const k = t.payment_channel || 'other'; m.set(k, (m.get(k) || 0) + 1); });
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [transactions]);
 
@@ -1427,22 +1323,10 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'merchants', val)}
             />
             <MultiSelectFilter
-              label="Category"
-              options={pendingCategories}
-              selected={pendingFilters.categories}
-              onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'categories', val)}
-            />
-            <MultiSelectFilter
               label="Account"
               options={pendingAccounts}
               selected={pendingFilters.accounts}
               onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'accounts', val)}
-            />
-            <MultiSelectFilter
-              label="Channel"
-              options={pendingChannels}
-              selected={pendingFilters.channels}
-              onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'channels', val)}
             />
           </div>
           <div className="flex flex-wrap gap-2 items-center">
@@ -1501,22 +1385,10 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                   <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
-              {pendingFilters.categories.map(c => (
-                <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px]">
-                  {c}
-                  <button onClick={() => removeFilterPill('categories', c)} className="hover:text-red-500">{'\u00D7'}</button>
-                </span>
-              ))}
               {pendingFilters.accounts.map(a => (
                 <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">
                   {a}
                   <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-red-500">{'\u00D7'}</button>
-                </span>
-              ))}
-              {pendingFilters.channels.map(ch => (
-                <span key={ch} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px]">
-                  {channelLabel(ch)}
-                  <button onClick={() => removeFilterPill('channels', ch)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.dateFrom && (
