@@ -122,15 +122,16 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const uncommitSelected = async () => {
     if (selectedCommitted.length === 0) return;
     try {
-      for (const id of selectedCommitted) {
-        await fetch('/api/transactions/assign-coa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transactionIds: [id], accountCode: null, subAccount: null })
-        });
+      const res = await fetch('/api/transactions/uncommit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionIds: selectedCommitted })
+      });
+      const result = await res.json();
+      if (result.success) {
+        await onReload();
+        setSelectedCommitted([]);
       }
-      await onReload();
-      setSelectedCommitted([]);
     } catch (error) {
       console.error('Error:', error);
     }
