@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { randomUUID } from 'crypto';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
 
@@ -160,6 +152,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Verify ownership before deleting
+    const existing = await prisma.$queryRaw`
+      SELECT user_id FROM home_expenses WHERE id = ${id}::uuid
+    ` as any[];
+    if (!existing.length || existing[0].user_id !== user.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
     await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'home' AND source_id::text = ${id}`;
     await prisma.$queryRaw`DELETE FROM home_expenses WHERE id = ${id}::uuid`;
     return NextResponse.json({ success: true });

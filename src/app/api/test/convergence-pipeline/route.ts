@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/convergence/pipeline';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const rawLimit = searchParams.get('limit');
     let limit = rawLimit ? parseInt(rawLimit, 10) : 20;

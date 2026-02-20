@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 interface EndpointAudit {
   source: 'finnhub' | 'fred' | 'tastytrade';
@@ -172,7 +173,10 @@ async function testFredEndpoint(
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const finnhubKey = process.env.FINNHUB_API_KEY;
   const fredKey = process.env.FRED_API_KEY;
 

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeSessionToken } from '@/lib/tastytrade';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function GET(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const token = await getTastytradeSessionToken();
 
     const resp = await fetch('https://backtester.vast.tastyworks.com/available-dates', {

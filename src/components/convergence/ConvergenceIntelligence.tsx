@@ -383,20 +383,20 @@ function TickerCard({ detail }: { detail: TickerDetail }) {
             <div>
               <span className="text-slate-500 font-medium">Volatility: </span>
               <span className="text-slate-200 font-mono">
-                IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '\u2014'}
-                {ks.iv_rank != null && <span className="text-slate-500"> \u2014 {statExplain('iv_rank', ks.iv_rank)}</span>}
-                {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '\u2014'}
-                {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '\u2014'}
+                IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}
+                {ks.iv_rank != null && <span className="text-slate-500"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
+                {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}
+                {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}
               </span>
             </div>
             {/* Company row */}
             <div>
               <span className="text-slate-500 font-medium">Company: </span>
               <span className="text-slate-200 font-mono">
-                P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '\u2014'}
-                {ks.pe_ratio != null && <span className="text-slate-500"> \u2014 {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+                P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}
+                {ks.pe_ratio != null && <span className="text-slate-500"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
                 {' | '}Cap {fmtMcap(ks.market_cap)}
-                {' | '}Earnings {ks.earnings_date ?? '\u2014'}
+                {' | '}Earnings {ks.earnings_date ?? '—'}
                 {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-amber-400"> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
@@ -404,22 +404,22 @@ function TickerCard({ detail }: { detail: TickerDetail }) {
             <div>
               <span className="text-slate-500 font-medium">Market: </span>
               <span className="text-slate-200 font-mono">
-                Beta {ks.beta != null ? ks.beta.toFixed(2) : '\u2014'}
-                {ks.beta != null && <span className="text-slate-500"> \u2014 {statExplain('beta', ks.beta)}</span>}
-                {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '\u2014'}
-                {ks.spy_correlation != null && <span className="text-slate-500"> \u2014 {statExplain('spy_correlation', ks.spy_correlation)}</span>}
-                {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '\u2014'}
+                Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}
+                {ks.beta != null && <span className="text-slate-500"> — {statExplain('beta', ks.beta)}</span>}
+                {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}
+                {ks.spy_correlation != null && <span className="text-slate-500"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+                {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}
               </span>
             </div>
             {/* Sentiment row */}
             <div>
               <span className="text-slate-500 font-medium">Sentiment: </span>
               <span className="text-slate-200 font-mono">
-                Analysts: {ks.analyst_consensus ?? '\u2014'}
-                {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '\u2014'}
-                {ks.buzz_ratio != null && <span className="text-slate-500"> \u2014 {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
-                {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '\u2014'}
-                {ks.sentiment_momentum != null && <span className="text-slate-500"> \u2014 {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
+                Analysts: {ks.analyst_consensus ?? '—'}
+                {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}
+                {ks.buzz_ratio != null && <span className="text-slate-500"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
+                {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
+                {ks.sentiment_momentum != null && <span className="text-slate-500"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
           </div>
@@ -610,7 +610,7 @@ export default function ConvergenceIntelligence() {
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%`, background: '#4F46E5' }} />
           </div>
           <div className="text-[10px] text-slate-500 font-mono shrink-0">
-            {enrichProgress.done}/{enrichProgress.total} \u2014 loading {enrichProgress.current}
+            {enrichProgress.done}/{enrichProgress.total} — loading {enrichProgress.current}
           </div>
         </div>
       )}

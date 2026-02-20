@@ -6,16 +6,19 @@ import { getToken } from 'next-auth/jwt';
  * Middleware: Protect app routes.
  * Public: /, /api/auth/*, static assets
  * Protected: /hub, /dashboard, /trading, /business, etc.
+ *
+ * NOTE: Middleware runs in Edge Runtime — only checks cookie presence.
+ * Actual signature verification happens in getCurrentUser() (Node.js).
  */
 
 const PUBLIC_PATHS = [
   '/',
+  '/login',
   '/api/auth',
   '/_next',
   '/favicon.ico',
   '/pricing',
   '/api/stripe/webhook',
-  '/api/test/convergence',
   '/opengraph-image',
   '/terms',
   '/privacy',
@@ -33,13 +36,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check cookie auth (custom login)
-  const userEmail = request.cookies.get('userEmail')?.value;
+  // Check cookie auth (presence only — signature verified in API routes)
+  const hasSessionCookie = !!request.cookies.get('userEmail')?.value;
 
   // Check NextAuth session
   const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
 
-  if (!userEmail && !token) {
+  if (!hasSessionCookie && !token) {
     // Not authenticated — redirect to landing
     const loginUrl = new URL('/', request.url);
     return NextResponse.redirect(loginUrl);

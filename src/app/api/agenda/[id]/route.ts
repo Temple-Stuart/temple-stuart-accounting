@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const items = await prisma.$queryRaw`
-      SELECT * FROM agenda_items WHERE id = ${id}::uuid
+      SELECT * FROM agenda_items WHERE id = ${id}::uuid AND user_id = ${user.id}
     ` as any[];
 
     if (!items.length) {
@@ -36,30 +33,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
 
     // Handle commit action
     if (body.action === 'commit') {
       await prisma.$queryRaw`
-        UPDATE agenda_items 
+        UPDATE agenda_items
         SET status = 'committed', committed_at = NOW(), updated_at = NOW()
-        WHERE id = ${id}::uuid
+        WHERE id = ${id}::uuid AND user_id = ${user.id}
       `;
 
       // Get the item
       const items = await prisma.$queryRaw`
-        SELECT * FROM agenda_items WHERE id = ${id}::uuid
+        SELECT * FROM agenda_items WHERE id = ${id}::uuid AND user_id = ${user.id}
       ` as any[];
 
       if (items.length) {
@@ -161,7 +150,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         coa_code = COALESCE(${coaCode}, coa_code),
         budget_amount = COALESCE(${budgetAmount}, budget_amount),
         updated_at = NOW()
-      WHERE id = ${id}::uuid
+      WHERE id = ${id}::uuid AND user_id = ${user.id}
     `;
 
     return NextResponse.json({ success: true });
@@ -174,15 +163,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Verify ownership before deleting
+    const items = await prisma.$queryRaw`
+      SELECT id FROM agenda_items WHERE id = ${id}::uuid AND user_id = ${user.id}
+    ` as any[];
+    if (!items.length) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     // Delete calendar events
-    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'agenda' AND source_id = ${id}::uuid`;
-    
+    await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'agenda' AND source_id = ${id}::uuid AND user_id = ${user.id}`;
+
     // Delete checkins
     await prisma.$queryRaw`DELETE FROM agenda_checkins WHERE agenda_item_id = ${id}::uuid`;
-    
+
     // Delete the item
-    await prisma.$queryRaw`DELETE FROM agenda_items WHERE id = ${id}::uuid`;
+    await prisma.$queryRaw`DELETE FROM agenda_items WHERE id = ${id}::uuid AND user_id = ${user.id}`;
 
     return NextResponse.json({ success: true });
   } catch (error) {

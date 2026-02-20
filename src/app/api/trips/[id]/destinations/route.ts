@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 // Map activity to table name
 const ACTIVITY_TABLE_MAP: Record<string, string> = {
@@ -202,20 +202,17 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    // Get trip to determine activity
-    const trip = await prisma.trips.findUnique({
-      where: { id },
+    // Get trip (scoped to user) to determine activity
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id },
       select: { activity: true }
     });
+    if (!trip) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const activity = trip?.activity || 'snowboard';
+    const activity = trip.activity || 'snowboard';
     const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
 
     const destinations = await prisma.trip_destinations.findMany({
@@ -244,12 +241,8 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     const { resortId } = body;
@@ -258,13 +251,14 @@ export async function POST(
       return NextResponse.json({ error: 'Missing resortId' }, { status: 400 });
     }
 
-    // Get trip to determine activity
-    const trip = await prisma.trips.findUnique({
-      where: { id },
+    // Get trip (scoped to user) to determine activity
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id },
       select: { activity: true }
     });
+    if (!trip) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const activity = trip?.activity || 'snowboard';
+    const activity = trip.activity || 'snowboard';
     const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
 
     const destination = await prisma.trip_destinations.upsert({
@@ -295,12 +289,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    // Verify trip ownership
+    const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
+    if (!trip) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     const { resortId } = body;

@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 // GET: List open lots for a symbol (or all symbols)
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
@@ -59,14 +53,8 @@ export async function GET(request: Request) {
 // POST: Create lots from investment transactions WITH journal entries
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { transactionIds, strategy = 'stock-long', tradeNum } = await request.json();
 

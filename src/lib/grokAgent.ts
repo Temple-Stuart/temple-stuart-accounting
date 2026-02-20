@@ -1,6 +1,8 @@
 // Grok Agent with LIVE X and Web Search via REST API
 // Uses the /v1/responses endpoint with Agent Tools
 
+import { models } from '@/lib/ai';
+
 interface TravelerProfile {
   tripType: string;
   budget: string;
@@ -193,14 +195,15 @@ IMPORTANT:
     console.log(`[GrokAgent] Analyzing ${places.length} ${category} places (prompt: ${promptLen} chars)...`);
     const startTime = Date.now();
 
-    const response = await fetch('https://api.x.ai/v1/responses', {
+    const baseUrl = process.env.XAI_BASE_URL || 'https://api.x.ai/v1';
+    const response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'grok-4-1-fast',
+        model: models.xai,
         input: [{ role: 'user', content: prompt }],
         tools: [
           { type: 'web_search' },

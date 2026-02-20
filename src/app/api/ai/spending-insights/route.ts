@@ -1,30 +1,14 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTier, getCurrentUser} from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
-import OpenAI from 'openai';
+import { openai, models } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const tierGate = requireTier(user.tier, 'ai');
     if (tierGate) return tierGate;
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     const { thisMonthTotal, thisYearTotal, thisMonthCount, categories, merchants, trends, entity } = await req.json();
 
@@ -46,7 +30,7 @@ Top Merchants: ${merchantsText}
 Provide actionable insights about spending patterns, notable changes, and suggestions. Be conversational but professional.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-nano',
+      model: models.light,
       messages: [
         { role: 'system', content: 'You are a helpful financial advisor providing spending insights.' },
         { role: 'user', content: prompt }

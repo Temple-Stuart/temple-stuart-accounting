@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { signSession } from '@/lib/session';
+import { logAuth } from '@/lib/audit-log';
 
 export async function POST(request: Request) {
+  const ip = (request as any).headers?.get?.('x-forwarded-for') ?? undefined;
   try {
     const { email, password, name } = await request.json();
 
@@ -21,15 +24,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user already exists
+    // Check if user already exists — return generic error to prevent enumeration
     const existing = await prisma.users.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } }
     });
 
     if (existing) {
+      logAuth('register_duplicate', email, ip);
       return NextResponse.json(
-        { error: 'An account with this email already exists' },
-        { status: 409 }
+        { error: 'Registration failed' },
+        { status: 400 }
       );
     }
 
@@ -46,13 +50,16 @@ export async function POST(request: Request) {
       }
     });
 
-    // Set auth cookie
+    logAuth('register_success', user.email, ip);
+
+    const signedCookie = signSession(user.email);
+
     const response = NextResponse.json({
       success: true,
       user: { email: user.email, name: user.name }
     });
 
-    response.cookies.set('userEmail', user.email, {
+    response.cookies.set('userEmail', signedCookie, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
@@ -64,7 +71,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[REGISTER] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to create account' },
+      { error: 'Registration failed' },
       { status: 500 }
     );
   }

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { signSession } from '@/lib/session';
+import { logAuth } from '@/lib/audit-log';
 
 export async function POST(request: Request) {
+  const ip = (request as any).headers?.get?.('x-forwarded-for') ?? undefined;
   try {
     const { email, password, name } = await request.json();
 
@@ -14,52 +16,73 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user exists in Azure
-    const existingUser = await prisma.users.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { error: 'Password must be at least 8 characters' },
         { status: 400 }
       );
     }
 
-    // Hash password with bcrypt (bank-level security)
+    // Check if user exists (case-insensitive) — return generic error to prevent enumeration
+    const existingUser = await prisma.users.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } }
+    });
+
+    if (existingUser) {
+      logAuth('signup_duplicate', email, ip);
+      return NextResponse.json(
+        { error: 'Registration failed' },
+        { status: 400 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate unique ID
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Save to Azure database with all required fields
     const user = await prisma.users.create({
       data: {
         id: userId,
-        email,
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
-        name,
+        name: name.trim(),
         updatedAt: new Date()
       }
     });
 
-    // Set secure cookie
-    const cookieStore = await cookies();
-    cookieStore.set('userEmail', user.email, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7 // 7 days
-    });
+    logAuth('signup_success', user.email, ip);
 
-    return NextResponse.json({ 
+    const signedCookie = signSession(user.email);
+
+    const response = NextResponse.json({
       success: true,
       user: { email: user.email, name: user.name }
     });
+
+    response.cookies.set('userEmail', signedCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    // Non-httpOnly cookie: client components read email for display/owner checks only.
+    // XSS risk accepted: value is the user's own email (not a secret token), and all
+    // mutations require the signed httpOnly userEmail cookie verified server-side.
+    response.cookies.set('userEmailPublic', user.email, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(
-      { error: 'Failed to create account' },
+      { error: 'Registration failed' },
       { status: 500 }
     );
   }

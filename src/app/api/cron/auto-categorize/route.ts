@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { autoCategorizationService } from '@/lib/auto-categorization-service';
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
-    
+
     if (!cronSecret) {
       console.error('CRON_SECRET not configured');
       return NextResponse.json(
@@ -13,8 +14,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+
+    const expected = `Bearer ${cronSecret}`;
+    const inputBuf = Buffer.from(authHeader ?? '');
+    const expectedBuf = Buffer.from(expected);
+    if (inputBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(inputBuf, expectedBuf)) {
       console.error('Unauthorized cron attempt');
       return NextResponse.json(
         { error: 'Unauthorized' },

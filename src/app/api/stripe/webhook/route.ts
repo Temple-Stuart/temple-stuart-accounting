@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getStripe, getTierFromPriceId } from '@/lib/stripe';
 
-const OWNER_EMAIL = process.env.OWNER_EMAIL;
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
@@ -32,7 +30,7 @@ export async function POST(request: NextRequest) {
           const tier = priceId ? getTierFromPriceId(priceId) : 'pro';
 
           const checkoutUser = await prisma.users.findUnique({ where: { id: userId } });
-          if (checkoutUser?.email !== OWNER_EMAIL) {
+          if (checkoutUser?.role !== 'admin') {
             await prisma.users.update({
               where: { id: userId },
               data: {
@@ -57,7 +55,7 @@ export async function POST(request: NextRequest) {
           where: { stripeCustomerId: customerId },
         });
 
-        if (user && user.email !== OWNER_EMAIL) {
+        if (user && user.role !== 'admin') {
           await prisma.users.update({
             where: { id: user.id },
             data: {
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
           where: { stripeCustomerId: customerId },
         });
 
-        if (user && user.email !== OWNER_EMAIL) {
+        if (user && user.role !== 'admin') {
           await prisma.users.update({
             where: { id: user.id },
             data: {

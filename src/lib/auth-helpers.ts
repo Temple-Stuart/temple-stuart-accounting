@@ -2,15 +2,19 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { canAccess, TierConfig } from '@/lib/tiers';
+import { verifySession } from '@/lib/session';
 
 /**
- * Get current authenticated user from cookie.
- * Returns null if not authenticated.
+ * Get current authenticated user from signed cookie.
+ * Returns null if not authenticated or if cookie signature is invalid.
  */
 export async function getCurrentUser() {
   const cookieStore = await cookies();
-  const userEmail = cookieStore.get('userEmail')?.value;
+  const raw = cookieStore.get('userEmail')?.value;
 
+  if (!raw) return null;
+
+  const userEmail = verifySession(raw);
   if (!userEmail) return null;
 
   const user = await prisma.users.findFirst({

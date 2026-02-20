@@ -1,25 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Get user to filter transactions
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     // Fetch transactions pending review
     const pendingTransactions = await prisma.transactions.findMany({
       where: {
