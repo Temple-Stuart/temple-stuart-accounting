@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button, Badge } from '@/components/ui';
 
@@ -83,6 +84,30 @@ const EMPTY_FILTERS: ActiveFilters = {
   amountMax: '',
 };
 
+// ─── Column Filter Types ────────────────────────────────────────────────────
+
+type ColumnFilterValue =
+  | { type: 'checkbox'; selected: string[] }
+  | { type: 'dateRange'; from: string; to: string }
+  | { type: 'amountRange'; min: string; max: string }
+  | { type: 'search'; term: string };
+
+type ColumnFilters = Partial<Record<SortField, ColumnFilterValue>>;
+
+const COLUMN_FILTER_TYPE: Record<SortField, 'checkbox' | 'dateRange' | 'amountRange' | 'search'> = {
+  date: 'dateRange',
+  merchantName: 'checkbox',
+  name: 'search',
+  amount: 'amountRange',
+  payment_channel: 'checkbox',
+  category: 'checkbox',
+  accountName: 'checkbox',
+  institutionName: 'checkbox',
+  predicted_coa_code: 'checkbox',
+};
+
+const EMPTY_COL_FILTERS: ColumnFilters = {};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(d: string) {
@@ -160,6 +185,107 @@ function applyFilters(txns: SpendingTransaction[], filters: ActiveFilters): Spen
     if (!isNaN(max)) result = result.filter(t => Math.abs(t.amount) <= max);
   }
   return result;
+}
+
+function getFieldValue(txn: SpendingTransaction, field: SortField): string {
+  switch (field) {
+    case 'date': return txn.date;
+    case 'merchantName': return txn.merchantName || txn.name;
+    case 'name': return txn.name;
+    case 'amount': return String(Math.abs(txn.amount));
+    case 'payment_channel': return txn.payment_channel || 'other';
+    case 'category': return txn.personal_finance_category?.primary || 'Other';
+    case 'accountName': return txn.accountName || 'Unknown';
+    case 'institutionName': return txn.institutionName || 'Unknown';
+    case 'predicted_coa_code': return txn.predicted_coa_code || '';
+  }
+}
+
+function getUniqueValues(txns: SpendingTransaction[], field: SortField): [string, number][] {
+  const m = new Map<string, number>();
+  txns.forEach(t => {
+    const v = getFieldValue(t, field);
+    if (v) m.set(v, (m.get(v) || 0) + 1);
+  });
+  return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function applyColumnFilters(txns: SpendingTransaction[], colFilters: ColumnFilters): SpendingTransaction[] {
+  let result = txns;
+  for (const [field, filter] of Object.entries(colFilters) as [SortField, ColumnFilterValue][]) {
+    if (!filter) continue;
+    switch (filter.type) {
+      case 'checkbox':
+        if (filter.selected.length > 0) {
+          result = result.filter(t => filter.selected.includes(getFieldValue(t, field)));
+        }
+        break;
+      case 'dateRange':
+        if (filter.from) {
+          const from = new Date(filter.from);
+          result = result.filter(t => new Date(t.date) >= from);
+        }
+        if (filter.to) {
+          const to = new Date(filter.to);
+          to.setHours(23, 59, 59, 999);
+          result = result.filter(t => new Date(t.date) <= to);
+        }
+        break;
+      case 'amountRange': {
+        if (filter.min) {
+          const min = parseFloat(filter.min);
+          if (!isNaN(min)) result = result.filter(t => Math.abs(t.amount) >= min);
+        }
+        if (filter.max) {
+          const max = parseFloat(filter.max);
+          if (!isNaN(max)) result = result.filter(t => Math.abs(t.amount) <= max);
+        }
+        break;
+      }
+      case 'search':
+        if (filter.term) {
+          const lower = filter.term.toLowerCase();
+          result = result.filter(t => getFieldValue(t, field).toLowerCase().includes(lower));
+        }
+        break;
+    }
+  }
+  return result;
+}
+
+function columnFilterLabel(field: SortField): string {
+  switch (field) {
+    case 'date': return 'Date';
+    case 'merchantName': return 'Merchant';
+    case 'name': return 'Description';
+    case 'amount': return 'Amount';
+    case 'payment_channel': return 'Channel';
+    case 'category': return 'Category';
+    case 'accountName': return 'Account';
+    case 'institutionName': return 'Institution';
+    case 'predicted_coa_code': return 'AI Suggestion';
+  }
+}
+
+function columnFilterSummary(filter: ColumnFilterValue): string {
+  switch (filter.type) {
+    case 'checkbox': return filter.selected.slice(0, 2).join(', ') + (filter.selected.length > 2 ? ` +${filter.selected.length - 2}` : '');
+    case 'dateRange': return [filter.from, filter.to].filter(Boolean).join(' – ');
+    case 'amountRange': return ['$' + filter.min, '$' + filter.max].filter(v => v !== '$').join(' – ');
+    case 'search': return `"${filter.term}"`;
+  }
+}
+
+function countActiveColumnFilters(colFilters: ColumnFilters): number {
+  return Object.values(colFilters).filter(f => {
+    if (!f) return false;
+    switch (f.type) {
+      case 'checkbox': return f.selected.length > 0;
+      case 'dateRange': return !!(f.from || f.to);
+      case 'amountRange': return !!(f.min || f.max);
+      case 'search': return f.term.length > 0;
+    }
+  }).length;
 }
 
 function sortTransactions(txns: SpendingTransaction[], field: SortField, dir: SortDir): SpendingTransaction[] {
@@ -322,6 +448,307 @@ function CreateCoaModal({ onClose, onCreate }: {
   );
 }
 
+// ─── Column Filter Dropdown ──────────────────────────────────────────────────
+
+function ColumnFilterDropdown({
+  field,
+  filterType,
+  allTransactions,
+  currentFilter,
+  onApply,
+  onCancel,
+  anchorEl,
+  sortField,
+  sortDir,
+  onSortWithDir,
+  coaLookup,
+}: {
+  field: SortField;
+  filterType: 'checkbox' | 'dateRange' | 'amountRange' | 'search';
+  allTransactions: SpendingTransaction[];
+  currentFilter: ColumnFilterValue | undefined;
+  onApply: (filter: ColumnFilterValue | undefined) => void;
+  onCancel: () => void;
+  anchorEl: HTMLElement | null;
+  sortField: SortField;
+  sortDir: SortDir;
+  onSortWithDir: (field: SortField, dir: SortDir) => void;
+  coaLookup: Map<string, CoaOption>;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Local state
+  const [localSearch, setLocalSearch] = useState('');
+  const [localSelected, setLocalSelected] = useState<Set<string>>(() => {
+    if (currentFilter?.type === 'checkbox') return new Set(currentFilter.selected);
+    return new Set();
+  });
+  const [localFrom, setLocalFrom] = useState(() =>
+    currentFilter?.type === 'dateRange' ? currentFilter.from : ''
+  );
+  const [localTo, setLocalTo] = useState(() =>
+    currentFilter?.type === 'dateRange' ? currentFilter.to : ''
+  );
+  const [localMin, setLocalMin] = useState(() =>
+    currentFilter?.type === 'amountRange' ? currentFilter.min : ''
+  );
+  const [localMax, setLocalMax] = useState(() =>
+    currentFilter?.type === 'amountRange' ? currentFilter.max : ''
+  );
+  const [localTerm, setLocalTerm] = useState(() =>
+    currentFilter?.type === 'search' ? currentFilter.term : ''
+  );
+
+  // Unique values for checkbox type
+  const uniqueValues = useMemo(() => {
+    if (filterType !== 'checkbox') return [];
+    return getUniqueValues(allTransactions, field);
+  }, [allTransactions, field, filterType]);
+
+  const filteredValues = useMemo(() => {
+    if (!localSearch) return uniqueValues;
+    const lower = localSearch.toLowerCase();
+    return uniqueValues.filter(([val]) => val.toLowerCase().includes(lower));
+  }, [uniqueValues, localSearch]);
+
+  // Position
+  const [pos, setPos] = useState({ top: 0, left: 0, alignRight: false });
+
+  useEffect(() => {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const alignRight = rect.left > window.innerWidth * 0.6;
+    setPos({
+      top: rect.bottom + 4,
+      left: alignRight ? 0 : rect.left,
+      alignRight,
+    });
+  }, [anchorEl]);
+
+  // Auto-focus search
+  useEffect(() => {
+    const t = setTimeout(() => searchRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onCancel();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onCancel]);
+
+  const handleApply = () => {
+    switch (filterType) {
+      case 'checkbox':
+        onApply(localSelected.size > 0 ? { type: 'checkbox', selected: Array.from(localSelected) } : undefined);
+        break;
+      case 'dateRange':
+        onApply(localFrom || localTo ? { type: 'dateRange', from: localFrom, to: localTo } : undefined);
+        break;
+      case 'amountRange':
+        onApply(localMin || localMax ? { type: 'amountRange', min: localMin, max: localMax } : undefined);
+        break;
+      case 'search':
+        onApply(localTerm ? { type: 'search', term: localTerm } : undefined);
+        break;
+    }
+  };
+
+  const sortAscLabel = field === 'date' ? 'Sort Oldest First' : field === 'amount' ? 'Sort Low \u2192 High' : 'Sort A \u2192 Z';
+  const sortDescLabel = field === 'date' ? 'Sort Newest First' : field === 'amount' ? 'Sort High \u2192 Low' : 'Sort Z \u2192 A';
+  const isSortedAsc = sortField === field && sortDir === 'asc';
+  const isSortedDesc = sortField === field && sortDir === 'desc';
+
+  const displayVal = (val: string) => {
+    if (field === 'payment_channel') return channelLabel(val);
+    if (field === 'predicted_coa_code' && coaLookup.has(val)) return `${val} - ${coaLookup.get(val)!.name}`;
+    return val;
+  };
+
+  const panelStyle: React.CSSProperties = {
+    top: pos.top,
+    ...(pos.alignRight && anchorEl
+      ? { right: window.innerWidth - anchorEl.getBoundingClientRect().right }
+      : { left: pos.left }),
+  };
+
+  return createPortal(
+    <div ref={panelRef} className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[100] w-64" style={panelStyle}>
+      {/* Sort controls */}
+      <div className="border-b border-gray-100 p-2 space-y-1">
+        <button
+          onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}
+        >
+          <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
+        </button>
+        <button
+          onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}
+        >
+          <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
+        </button>
+      </div>
+
+      {/* Filter content */}
+      <div className="p-2">
+        {filterType === 'checkbox' && (
+          <>
+            {uniqueValues.length > 6 && (
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search..."
+                value={localSearch}
+                onChange={e => setLocalSearch(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-[#2d1b4e]"
+              />
+            )}
+            <div className="flex items-center justify-between mb-1 px-1">
+              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-[#2d1b4e] hover:underline">Select All</button>
+              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
+            </div>
+            <div className="max-h-[300px] overflow-auto border rounded">
+              {filteredValues.map(([val, count]) => (
+                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={localSelected.has(val)}
+                    onChange={() => {
+                      setLocalSelected(prev => {
+                        const next = new Set(prev);
+                        if (next.has(val)) next.delete(val); else next.add(val);
+                        return next;
+                      });
+                    }}
+                    className="w-3.5 h-3.5 rounded flex-shrink-0"
+                  />
+                  <span className="truncate flex-1">{displayVal(val)}</span>
+                  <span className="text-gray-400 text-[10px] flex-shrink-0">({count})</span>
+                </label>
+              ))}
+              {filteredValues.length === 0 && (
+                <div className="px-2 py-3 text-center text-gray-400 text-xs">No values found</div>
+              )}
+            </div>
+          </>
+        )}
+
+        {filterType === 'dateRange' && (
+          <div className="space-y-2">
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-1">From</label>
+              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-1">To</label>
+              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            </div>
+          </div>
+        )}
+
+        {filterType === 'amountRange' && (
+          <div className="space-y-2">
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-1">Min ($)</label>
+              <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-1">Max ($)</label>
+              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            </div>
+          </div>
+        )}
+
+        {filterType === 'search' && (
+          <input ref={searchRef} type="text" placeholder="Search descriptions..." value={localTerm} onChange={e => setLocalTerm(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+        )}
+      </div>
+
+      {/* Apply / Cancel */}
+      <div className="border-t border-gray-100 p-2 flex justify-between gap-2">
+        <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
+          <button onClick={handleApply} className="px-3 py-1 text-xs bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e]">Apply</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ─── Filterable Header ──────────────────────────────────────────────────────
+
+function FilterableHeader({
+  label, field, sortField, sortDir, onSort,
+  filterType, allTransactions, columnFilter, onApplyColumnFilter,
+  className, coaLookup,
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+  onSort: (f: SortField, dir?: SortDir) => void;
+  filterType: 'checkbox' | 'dateRange' | 'amountRange' | 'search';
+  allTransactions: SpendingTransaction[];
+  columnFilter: ColumnFilterValue | undefined;
+  onApplyColumnFilter: (field: SortField, value: ColumnFilterValue | undefined) => void;
+  className?: string;
+  coaLookup: Map<string, CoaOption>;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const isSortActive = sortField === field;
+  const hasFilter = !!columnFilter;
+
+  return (
+    <th className={`px-2 py-2.5 text-xs font-semibold select-none ${className || ''}`}>
+      <span className="flex items-center gap-0.5">
+        <span
+          className="cursor-pointer hover:underline truncate"
+          onClick={() => onSort(field)}
+        >
+          {label}
+          {isSortActive && <span className="text-[10px] ml-0.5">{sortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
+        </span>
+        <button
+          ref={btnRef}
+          onClick={e => { e.stopPropagation(); setOpen(!open); }}
+          className={`ml-auto w-4 h-4 flex items-center justify-center rounded text-[9px] flex-shrink-0 ${
+            hasFilter
+              ? 'text-amber-400 bg-amber-400/20'
+              : 'text-white/40 hover:text-white/80 hover:bg-white/10'
+          }`}
+        >
+          {'\u25BC'}
+        </button>
+      </span>
+      {open && (
+        <ColumnFilterDropdown
+          field={field}
+          filterType={filterType}
+          allTransactions={allTransactions}
+          currentFilter={columnFilter}
+          onApply={(val) => { onApplyColumnFilter(field, val); setOpen(false); }}
+          onCancel={() => setOpen(false)}
+          anchorEl={btnRef.current}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSortWithDir={(f, d) => onSort(f, d)}
+          coaLookup={coaLookup}
+        />
+      )}
+    </th>
+  );
+}
+
 // ─── Virtualized Table ───────────────────────────────────────────────────────
 
 function VirtualTable({
@@ -337,6 +764,9 @@ function VirtualTable({
   onSort,
   variant,
   coaLookup,
+  allTransactions,
+  columnFilters,
+  onApplyColumnFilter,
 }: {
   rows: SpendingTransaction[];
   coaOptions: CoaOption[];
@@ -347,9 +777,12 @@ function VirtualTable({
   setRowChanges: React.Dispatch<React.SetStateAction<Record<string, { coa: string; sub: string }>>>;
   sortField: SortField;
   sortDir: SortDir;
-  onSort: (f: SortField) => void;
+  onSort: (f: SortField, dir?: SortDir) => void;
   variant: 'pending' | 'committed';
   coaLookup: Map<string, CoaOption>;
+  allTransactions: SpendingTransaction[];
+  columnFilters: ColumnFilters;
+  onApplyColumnFilter: (field: SortField, value: ColumnFilterValue | undefined) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const ROW_HEIGHT = 48;
@@ -395,16 +828,16 @@ function VirtualTable({
             <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3.5 h-3.5 rounded" />
             </th>
-            <SortHeader label="Date" field="date" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-24" />
-            <SortHeader label="Merchant" field="merchantName" currentField={sortField} currentDir={sortDir} onSort={onSort} className="min-w-[130px]" />
-            <SortHeader label="Description" field="name" currentField={sortField} currentDir={sortDir} onSort={onSort} className="min-w-[200px]" />
-            <SortHeader label="Amount" field="amount" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-24 text-right" />
-            <SortHeader label="Channel" field="payment_channel" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-20" />
-            <SortHeader label="Category" field="category" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-28" />
-            <SortHeader label="Account" field="accountName" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-28" />
-            <SortHeader label="Institution" field="institutionName" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-28" />
+            <FilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="dateRange" allTransactions={allTransactions} columnFilter={columnFilters.date} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24" />
+            <FilterableHeader label="Merchant" field="merchantName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.merchantName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[130px]" />
+            <FilterableHeader label="Description" field="name" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="search" allTransactions={allTransactions} columnFilter={columnFilters.name} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="min-w-[200px]" />
+            <FilterableHeader label="Amount" field="amount" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="amountRange" allTransactions={allTransactions} columnFilter={columnFilters.amount} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24 text-right" />
+            <FilterableHeader label="Channel" field="payment_channel" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.payment_channel} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-20" />
+            <FilterableHeader label="Category" field="category" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.category} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
+            <FilterableHeader label="Account" field="accountName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.accountName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
+            <FilterableHeader label="Institution" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             {variant === 'pending' && (
-              <SortHeader label="AI Suggestion" field="predicted_coa_code" currentField={sortField} currentDir={sortDir} onSort={onSort} className="w-32" />
+              <FilterableHeader label="AI Suggestion" field="predicted_coa_code" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.predicted_coa_code} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-32" />
             )}
             <th className="px-2 py-2.5 text-xs font-semibold min-w-[180px]">
               {variant === 'pending' ? 'COA' : 'COA'}
@@ -717,6 +1150,8 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const [toast, setToast] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTable, setActiveTable] = useState<'pending' | 'committed'>('pending');
+  const [pendingColFilters, setPendingColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
+  const [committedColFilters, setCommittedColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
 
   // Sync coaOptions from parent
   useEffect(() => { setLocalCoaOptions(coaOptions); }, [coaOptions]);
@@ -774,19 +1209,26 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [transactions]);
 
-  // Filtered + sorted rows
+  // Filtered + sorted rows (top-level filters AND column filters stacked)
   const pendingRows = useMemo(() => {
-    const filtered = applyFilters(transactions, pendingFilters);
+    let filtered = applyFilters(transactions, pendingFilters);
+    filtered = applyColumnFilters(filtered, pendingColFilters);
     return sortTransactions(filtered, pendingSort.field, pendingSort.dir);
-  }, [transactions, pendingFilters, pendingSort]);
+  }, [transactions, pendingFilters, pendingColFilters, pendingSort]);
 
   const committedRows = useMemo(() => {
-    const filtered = applyFilters(committedTransactions, committedFilters);
+    let filtered = applyFilters(committedTransactions, committedFilters);
+    filtered = applyColumnFilters(filtered, committedColFilters);
     return sortTransactions(filtered, committedSort.field, committedSort.dir);
-  }, [committedTransactions, committedFilters, committedSort]);
+  }, [committedTransactions, committedFilters, committedColFilters, committedSort]);
 
   const hasActiveFilters = (f: ActiveFilters) =>
     f.search || f.merchants.length || f.categories.length || f.accounts.length || f.channels.length || f.dateFrom || f.dateTo || f.amountMin || f.amountMax;
+
+  const pendingColFilterCount = countActiveColumnFilters(pendingColFilters);
+  const committedColFilterCount = countActiveColumnFilters(committedColFilters);
+  const hasPendingColFilters = pendingColFilterCount > 0;
+  const hasCommittedColFilters = committedColFilterCount > 0;
 
   // Selection totals
   const selectedPendingAmount = useMemo(() =>
@@ -795,19 +1237,35 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   );
 
   // Handlers
-  const handlePendingSort = (field: SortField) => {
+  const handlePendingSort = (field: SortField, forcedDir?: SortDir) => {
     setPendingSort(prev => ({
       field,
-      dir: prev.field === field && prev.dir === 'asc' ? 'desc' : 'asc'
+      dir: forcedDir ?? (prev.field === field && prev.dir === 'asc' ? 'desc' : 'asc')
     }));
   };
 
-  const handleCommittedSort = (field: SortField) => {
+  const handleCommittedSort = (field: SortField, forcedDir?: SortDir) => {
     setCommittedSort(prev => ({
       field,
-      dir: prev.field === field && prev.dir === 'asc' ? 'desc' : 'asc'
+      dir: forcedDir ?? (prev.field === field && prev.dir === 'asc' ? 'desc' : 'asc')
     }));
   };
+
+  const handlePendingColFilter = useCallback((field: SortField, value: ColumnFilterValue | undefined) => {
+    setPendingColFilters(prev => {
+      const next = { ...prev };
+      if (value) next[field] = value; else delete next[field];
+      return next;
+    });
+  }, []);
+
+  const handleCommittedColFilter = useCallback((field: SortField, value: ColumnFilterValue | undefined) => {
+    setCommittedColFilters(prev => {
+      const next = { ...prev };
+      if (value) next[field] = value; else delete next[field];
+      return next;
+    });
+  }, []);
 
   const toggleFilter = (filters: ActiveFilters, setFilters: (f: ActiveFilters) => void, key: 'merchants' | 'categories' | 'accounts' | 'channels', val: string) => {
     const arr = filters[key];
@@ -915,11 +1373,17 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         <div className="flex items-center gap-2">
           <Badge variant="warning">{transactions.length} pending</Badge>
           <Badge variant="success">{committedTransactions.length} committed</Badge>
-          {hasActiveFilters(pendingFilters) && activeTable === 'pending' && (
+          {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && activeTable === 'pending' && (
             <Badge variant="info">Showing {pendingRows.length} of {transactions.length}</Badge>
           )}
-          {hasActiveFilters(committedFilters) && activeTable === 'committed' && (
+          {(hasActiveFilters(committedFilters) || hasCommittedColFilters) && activeTable === 'committed' && (
             <Badge variant="info">Showing {committedRows.length} of {committedTransactions.length}</Badge>
+          )}
+          {hasPendingColFilters && activeTable === 'pending' && (
+            <Badge variant="warning">{pendingColFilterCount} column filter{pendingColFilterCount !== 1 ? 's' : ''}</Badge>
+          )}
+          {hasCommittedColFilters && activeTable === 'committed' && (
+            <Badge variant="warning">{committedColFilterCount} column filter{committedColFilterCount !== 1 ? 's' : ''}</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -1023,49 +1487,61 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           </div>
 
           {/* Active filter pills */}
-          {hasActiveFilters(pendingFilters) && (
+          {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && (
             <div className="flex flex-wrap gap-1.5">
               {pendingFilters.search && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2d1b4e]/10 text-[#2d1b4e] rounded-full text-[10px]">
                   Search: &quot;{pendingFilters.search}&quot;
-                  <button onClick={() => removeFilterPill('search')} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('search')} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               )}
               {pendingFilters.merchants.map(m => (
                 <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px]">
                   {m.slice(0, 20)}
-                  <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.categories.map(c => (
                 <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px]">
                   {c}
-                  <button onClick={() => removeFilterPill('categories', c)} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('categories', c)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.accounts.map(a => (
                 <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">
                   {a}
-                  <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.channels.map(ch => (
                 <span key={ch} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px]">
                   {channelLabel(ch)}
-                  <button onClick={() => removeFilterPill('channels', ch)} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('channels', ch)} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.dateFrom && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-[10px]">
                   From: {pendingFilters.dateFrom}
-                  <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
               )}
               {pendingFilters.dateTo && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-[10px]">
                   To: {pendingFilters.dateTo}
-                  <button onClick={() => removeFilterPill('dateTo')} className="hover:text-red-500">×</button>
+                  <button onClick={() => removeFilterPill('dateTo')} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
+              )}
+              {/* Column filter pills */}
+              {(Object.entries(pendingColFilters) as [SortField, ColumnFilterValue][]).map(([field, filter]) => filter && (
+                <span key={`col-${field}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px]">
+                  {columnFilterLabel(field)}: {columnFilterSummary(filter)}
+                  <button onClick={() => handlePendingColFilter(field, undefined)} className="hover:text-red-500">{'\u00D7'}</button>
+                </span>
+              ))}
+              {hasPendingColFilters && (
+                <button onClick={() => setPendingColFilters(EMPTY_COL_FILTERS)} className="text-[10px] text-amber-700 hover:text-red-500 underline">
+                  Clear column filters
+                </button>
               )}
             </div>
           )}
@@ -1082,7 +1558,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          Pending ({pendingRows.length}{hasActiveFilters(pendingFilters) ? ` of ${transactions.length}` : ''})
+          Pending ({pendingRows.length}{hasActiveFilters(pendingFilters) || hasPendingColFilters ? ` of ${transactions.length}` : ''})
         </button>
         <button
           onClick={() => setActiveTable('committed')}
@@ -1092,7 +1568,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          Committed ({committedRows.length}{hasActiveFilters(committedFilters) ? ` of ${committedTransactions.length}` : ''})
+          Committed ({committedRows.length}{hasActiveFilters(committedFilters) || hasCommittedColFilters ? ` of ${committedTransactions.length}` : ''})
         </button>
       </div>
 
@@ -1109,7 +1585,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               ) : (
                 <>
                   <p className="text-sm">No transactions match current filters</p>
-                  <button onClick={() => setPendingFilters(EMPTY_FILTERS)} className="text-xs text-[#2d1b4e] mt-2 underline">Clear filters</button>
+                  <button onClick={() => { setPendingFilters(EMPTY_FILTERS); setPendingColFilters(EMPTY_COL_FILTERS); }} className="text-xs text-[#2d1b4e] mt-2 underline">Clear filters</button>
                 </>
               )}
             </div>
@@ -1127,6 +1603,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               onSort={handlePendingSort}
               variant="pending"
               coaLookup={coaLookup}
+              allTransactions={transactions}
+              columnFilters={pendingColFilters}
+              onApplyColumnFilter={handlePendingColFilter}
             />
           ) : (
             <MerchantGroupTable
@@ -1147,7 +1626,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       {activeTable === 'committed' && (
         <>
           {/* Committed filter bar */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               type="text"
               placeholder="Search committed..."
@@ -1156,9 +1635,23 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               className="flex-1 max-w-xs px-3 py-1.5 text-xs border rounded-lg bg-white focus:border-[#2d1b4e] outline-none"
             />
             {hasActiveFilters(committedFilters) && (
-              <button onClick={() => setCommittedFilters(EMPTY_FILTERS)} className="text-xs text-red-500">Clear</button>
+              <button onClick={() => setCommittedFilters(EMPTY_FILTERS)} className="text-xs text-red-500">Clear search</button>
+            )}
+            {hasCommittedColFilters && (
+              <button onClick={() => setCommittedColFilters(EMPTY_COL_FILTERS)} className="text-xs text-amber-700 hover:text-red-500">Clear column filters</button>
             )}
           </div>
+          {/* Committed column filter pills */}
+          {hasCommittedColFilters && (
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.entries(committedColFilters) as [SortField, ColumnFilterValue][]).map(([field, filter]) => filter && (
+                <span key={`col-${field}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px]">
+                  {columnFilterLabel(field)}: {columnFilterSummary(filter)}
+                  <button onClick={() => handleCommittedColFilter(field, undefined)} className="hover:text-red-500">{'\u00D7'}</button>
+                </span>
+              ))}
+            </div>
+          )}
           {committedRows.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">{committedTransactions.length === 0 ? 'No committed transactions yet' : 'No matches'}</p>
@@ -1177,6 +1670,9 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               onSort={handleCommittedSort}
               variant="committed"
               coaLookup={coaLookup}
+              allTransactions={committedTransactions}
+              columnFilters={committedColFilters}
+              onApplyColumnFilter={handleCommittedColFilter}
             />
           )}
         </>
