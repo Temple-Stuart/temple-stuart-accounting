@@ -7,7 +7,7 @@ export async function POST() {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const result = await autoCategorizationService.categorizePendingTransactions();
+    const result = await autoCategorizationService.categorizePendingTransactions(user.id);
 
     return NextResponse.json({
       success: true,

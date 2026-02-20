@@ -16,9 +16,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 8) {
+    if (password.length < 8 || password.length > 128) {
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters' },
+        { error: password.length < 8 ? 'Password must be at least 8 characters' : 'Password must be no more than 128 characters' },
         { status: 400 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const userId = crypto.randomUUID();
 
     const user = await prisma.users.create({
       data: {

@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth-only: user identity verified but not persisted to Duffel order
+    // (Duffel manages passenger identity separately via GDS)
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

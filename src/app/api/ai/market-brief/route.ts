@@ -106,9 +106,10 @@ Respond with ONLY valid JSON, no markdown, no code blocks, no preamble:
 }`;
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
-    const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await request.json();
     const client = anthropic();
 
