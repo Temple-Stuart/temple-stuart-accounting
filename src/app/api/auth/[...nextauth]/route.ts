@@ -4,6 +4,7 @@ import GitHubProvider from 'next-auth/providers/github';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
 import { cookies } from 'next/headers';
+import { signCookie } from '@/lib/cookie-auth';
 
 const prisma = new PrismaClient();
 
@@ -45,7 +46,7 @@ const handler = NextAuth({
         
         // Set the userEmail cookie for API routes
         const cookieStore = await cookies();
-        cookieStore.set('userEmail', user.email, {
+        cookieStore.set('userEmail', signCookie(user.email), {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',

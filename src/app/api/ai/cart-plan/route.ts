@@ -1,8 +1,8 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 type CartCategory = 'clothing' | 'hygiene' | 'cleaning' | 'kitchen';
 
@@ -74,8 +74,7 @@ Do NOT include: appliances (blender, toaster, etc.), cookware (pots, pans), dinn
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

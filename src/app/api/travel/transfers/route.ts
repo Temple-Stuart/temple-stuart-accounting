@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { searchTransfers } from '@/lib/amadeus';
 import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // Map resort names to their nearest town/city for Amadeus API
 const RESORT_CITY_MAP: Record<string, string> = {
@@ -51,8 +51,7 @@ const RESORT_CITY_MAP: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // With OAuth, the SDK auto-refreshes access tokens.
 // This endpoint validates the OAuth client still works and updates lastUsedAt.
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

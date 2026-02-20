@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { requireTier } from '@/lib/auth-helpers';
 import Anthropic from '@anthropic-ai/sdk';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
   for (let i = 0; i < maxRetries; i++) {
@@ -102,8 +102,7 @@ No markdown. No code blocks. No preamble. Just the JSON array.`;
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

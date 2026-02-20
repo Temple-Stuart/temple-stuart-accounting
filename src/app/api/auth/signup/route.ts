@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { signCookie } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
     // Set secure cookie
     const cookieStore = await cookies();
-    cookieStore.set('userEmail', user.email, {
+    cookieStore.set('userEmail', signCookie(user.email), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

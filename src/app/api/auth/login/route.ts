@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { signCookie } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
   try {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
       user: { email: user.email, name: user.name }
     });
 
-    response.cookies.set('userEmail', user.email, {
+    response.cookies.set('userEmail', signCookie(user.email), {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',

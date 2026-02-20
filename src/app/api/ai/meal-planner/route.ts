@@ -1,8 +1,8 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 const SYSTEM_PROMPT = `You are a personalized shopping assistant for Temple Stuart, a financial OS. Your job is to help users create smart shopping lists across ALL categories with appropriate purchase frequencies.
 
@@ -71,8 +71,7 @@ Be conversational, helpful, and budget-conscious. Focus on quality essentials ov
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

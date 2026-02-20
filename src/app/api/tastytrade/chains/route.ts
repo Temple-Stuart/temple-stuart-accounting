@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // Convert OCC symbol (e.g. "SPY   260221P00690000") to DXFeed format (".SPY260221P690")
 function occToDxFeed(occ: string): string | null {
@@ -18,8 +18,7 @@ function occToDxFeed(occ: string): string | null {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

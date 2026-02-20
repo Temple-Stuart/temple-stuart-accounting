@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
@@ -8,6 +7,7 @@ import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSenti
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
 import { generateTradeCards } from '@/lib/convergence/trade-cards';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 import type {
   CandleData,
   TTScannerData,
@@ -201,8 +201,7 @@ async function fetchFinnhubEarnings(symbol: string, apiKey: string): Promise<{ d
 // ===== MAIN ROUTE =====
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const userEmail = cookieStore.get('userEmail')?.value;
+  const userEmail = await getVerifiedEmail();
   if (!userEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
