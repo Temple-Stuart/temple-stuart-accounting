@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
         const journalEntry = await journalEntryService.convertPlaidTransaction(
           plaidTxn.transactionId,
           bankAccountCode,
-          accountCode
+          accountCode,
+          user.id
         );
 
         const wasOverridden = !!(plaidTxn.predicted_coa_code &&

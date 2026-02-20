@@ -19,6 +19,7 @@ export async function GET() {
     // Also get available business COA codes
     const coaAccounts = await prisma.chart_of_accounts.findMany({
       where: {
+        userId: user.id,
         code: { startsWith: 'B-' },
         account_type: 'expense',
         is_archived: false

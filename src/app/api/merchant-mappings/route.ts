@@ -21,6 +21,9 @@ export async function GET(request: Request) {
     const merchantName = searchParams.get('merchantName');
     const categoryPrimary = searchParams.get('categoryPrimary');
 
+    // TODO: Known multi-tenant issue — merchant_coa_mappings table has no userId column.
+    // All mappings are globally shared across users. A userId column should be added
+    // to this table and all queries below should be scoped by userId for proper tenant isolation.
     let mappings;
 
     if (merchantName) {

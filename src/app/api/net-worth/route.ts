@@ -31,7 +31,8 @@ export async function GET() {
     }
 
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { 
+      where: {
+        userId: user.id,
         module: { in: ['assets', 'debt', 'equity'] },
         entity_type: 'personal'
       },

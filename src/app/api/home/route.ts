@@ -23,7 +23,7 @@ export async function GET() {
 
     // Get historical transactions for home COA codes
     const homeCodes = await prisma.chart_of_accounts.findMany({
-      where: { module: 'home' },
+      where: { userId: user.id, module: 'home' },
       select: { code: true, name: true }
     });
 

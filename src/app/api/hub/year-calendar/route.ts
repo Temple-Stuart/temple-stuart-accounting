@@ -65,7 +65,8 @@ export async function GET(request: Request) {
     
     // Get COA codes grouped by module
     const coaByModule = await prisma.chart_of_accounts.findMany({
-      where: { 
+      where: {
+        userId: user.id,
         module: { in: modules },
         is_archived: false
       },

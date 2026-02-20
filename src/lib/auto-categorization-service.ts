@@ -75,14 +75,15 @@ export class AutoCategorizationService {
   /**
    * Categorize all pending transactions
    */
-  async categorizePendingTransactions(): Promise<{
+  async categorizePendingTransactions(userId?: string): Promise<{
     categorized: number;
     failed: number;
   }> {
     const pendingTransactions = await prisma.transactions.findMany({
       where: {
         accountCode: null,
-        predicted_coa_code: null
+        predicted_coa_code: null,
+        ...(userId ? { accounts: { userId } } : {})
       }
     });
     
