@@ -125,20 +125,20 @@ Respond with ONLY valid JSON, no markdown, no code blocks, no preamble:
 }`;
 
 export async function POST(request: Request) {
-  try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const tierGate = requireTier(user.tier, 'ai');
-    if (tierGate) return tierGate;
+  const userEmail = await getVerifiedEmail();
+  if (!userEmail) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const user = await prisma.users.findFirst({
+    where: { email: { equals: userEmail, mode: 'insensitive' } }
+  });
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+  const tierGate = requireTier(user.tier, 'ai');
+  if (tierGate) return tierGate;
 
+  try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
