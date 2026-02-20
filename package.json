@@ -14,6 +14,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.15.0",
     "@stripe/stripe-js": "^8.7.0",
+    "@tanstack/react-virtual": "^3.13.18",
     "@tastytrade/api": "^6.0.1",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",

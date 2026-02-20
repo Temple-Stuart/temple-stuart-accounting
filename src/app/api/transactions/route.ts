@@ -31,6 +31,7 @@ export async function GET() {
           select: {
             name: true,
             type: true,
+            entityType: true,
             plaid_items: {
               select: {
                 institutionName: true
@@ -46,18 +47,36 @@ export async function GET() {
 
     const transformedTransactions = transactions.map(txn => ({
       id: txn.id,
+      transactionId: txn.transactionId,
       date: txn.date,
       name: txn.name,
       merchantName: txn.merchantName,
       amount: txn.amount,
       category: txn.category,
+      pending: txn.pending,
+      authorized_date: txn.authorized_date,
+      payment_channel: txn.payment_channel,
       personal_finance_category: txn.personal_finance_category,
+      personal_finance_category_icon_url: txn.personal_finance_category_icon_url,
+      transaction_code: txn.transaction_code,
+      transaction_type: txn.transaction_type,
+      logo_url: txn.logo_url,
+      website: txn.website,
+      counterparties: txn.counterparties,
+      location: txn.location,
       accountId: txn.accountId,
       accountName: txn.accounts?.name,
       accountType: txn.accounts?.type,
+      entityType: txn.accounts?.entityType,
       institutionName: txn.accounts?.plaid_items?.institutionName,
       accountCode: txn.accountCode,
       subAccount: txn.subAccount,
+      predicted_coa_code: txn.predicted_coa_code,
+      prediction_confidence: txn.prediction_confidence ? Number(txn.prediction_confidence) : null,
+      review_status: txn.review_status,
+      manually_overridden: txn.manually_overridden,
+      createdAt: txn.createdAt,
+      updatedAt: txn.updatedAt,
     }));
 
     return NextResponse.json({ transactions: transformedTransactions });

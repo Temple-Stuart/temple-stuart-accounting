@@ -15,13 +15,36 @@ import CPAExport from '@/components/dashboard/CPAExport';
 
 interface Transaction {
   id: string;
+  transactionId: string;
   date: string;
   name: string;
   merchantName: string | null;
   amount: number;
+  category: string | null;
+  pending: boolean;
+  authorized_date: string | null;
+  payment_channel: string | null;
+  personal_finance_category: { primary?: string; detailed?: string } | null;
+  personal_finance_category_icon_url: string | null;
+  transaction_code: string | null;
+  transaction_type: string | null;
+  logo_url: string | null;
+  website: string | null;
+  counterparties: any;
+  location: any;
+  accountId: string;
+  accountName: string | null;
+  accountType: string | null;
+  entityType: string | null;
+  institutionName: string | null;
   accountCode: string | null;
   subAccount: string | null;
-  plaidAccountId: string;
+  predicted_coa_code: string | null;
+  prediction_confidence: number | null;
+  review_status: string;
+  manually_overridden: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 interface Account {
   id: string;
@@ -38,6 +61,7 @@ interface CoaOption {
   name: string;
   accountType: string;
   balanceType: string;
+  entity_type?: string | null;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
