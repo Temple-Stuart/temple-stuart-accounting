@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { requireTier } from '@/lib/auth-helpers';
 import Anthropic from '@anthropic-ai/sdk';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export const maxDuration = 300;
 
@@ -165,8 +165,7 @@ function prepareSynthesisPayload(pipeline: PipelineResult): object {
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

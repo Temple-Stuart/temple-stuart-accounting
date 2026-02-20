@@ -1,8 +1,8 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 const plaidConfig = new Configuration({
   basePath: PlaidEnvironments.production,
@@ -18,8 +18,7 @@ const plaidClient = new PlaidApi(plaidConfig);
 export async function POST(request: NextRequest) {
   try {
     // Verify user
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

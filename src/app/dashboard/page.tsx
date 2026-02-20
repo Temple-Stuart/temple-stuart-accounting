@@ -67,11 +67,8 @@ export default function Dashboard() {
   const [isAssigning, setIsAssigning] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('accounts');
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      document.cookie = `userEmail=${session.user.email}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
-    }
-  }, [session]);
+  // Cookie is now HMAC-signed server-side (login/register/nextauth).
+  // Client-side writes removed to prevent overwriting signed cookies.
 
   const loadData = useCallback(async () => {
     try {

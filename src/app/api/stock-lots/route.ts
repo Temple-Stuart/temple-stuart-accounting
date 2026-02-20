@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // GET: List open lots for a symbol (or all symbols)
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({
@@ -59,8 +58,7 @@ export async function GET(request: Request) {
 // POST: Create lots from investment transactions WITH journal entries
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({

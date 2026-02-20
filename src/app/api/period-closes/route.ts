@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({
@@ -30,8 +29,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({

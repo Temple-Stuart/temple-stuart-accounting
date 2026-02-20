@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // GET all trips for current user
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -56,8 +55,7 @@ export async function GET() {
 // POST create new trip
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

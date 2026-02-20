@@ -1,10 +1,10 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { analyzeWithLiveSearch } from '@/lib/grokAgent';
 import { searchPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // Trip-type focused profile
 interface TravelerProfile {
@@ -52,8 +52,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

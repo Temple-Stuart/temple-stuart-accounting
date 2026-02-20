@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // GET all participants for a trip
 export async function GET(
@@ -10,8 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -74,8 +73,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -155,8 +153,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

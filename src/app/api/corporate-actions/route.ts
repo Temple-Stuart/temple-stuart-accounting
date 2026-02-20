@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // GET: List corporate actions for a symbol or all
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({
@@ -39,8 +38,7 @@ export async function GET(request: Request) {
 // POST: Record a corporate action (split, dividend, etc.)
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.users.findFirst({

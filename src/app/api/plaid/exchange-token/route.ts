@@ -1,14 +1,13 @@
 import { requireTier } from '@/lib/auth-helpers';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { CountryCode } from 'plaid';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

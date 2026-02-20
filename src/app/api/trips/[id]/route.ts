@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // GET single trip
 export async function GET(
@@ -9,8 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -95,8 +94,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -158,8 +156,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
+    const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

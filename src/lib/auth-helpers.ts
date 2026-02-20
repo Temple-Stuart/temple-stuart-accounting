@@ -1,15 +1,14 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { canAccess, TierConfig } from '@/lib/tiers';
+import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 /**
- * Get current authenticated user from cookie.
- * Returns null if not authenticated.
+ * Get current authenticated user from HMAC-verified cookie.
+ * Returns null if not authenticated or cookie signature is invalid.
  */
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const userEmail = cookieStore.get('userEmail')?.value;
+  const userEmail = await getVerifiedEmail();
 
   if (!userEmail) return null;
 
