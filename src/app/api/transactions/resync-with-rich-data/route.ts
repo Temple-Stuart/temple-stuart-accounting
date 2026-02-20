@@ -1,43 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth-helpers';
 import { plaidClient } from '@/lib/plaid';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const userId = await verifyAuth(request);
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const plaidItems = await prisma.plaid_items.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: { accounts: true }
     });
-    
+
     let updated = 0;
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 2 years
-    
+
     for (const item of plaidItems) {
       const response = await plaidClient.transactionsGet({
         access_token: item.accessToken,
         start_date: startDate,
         end_date: endDate,
-        options: { 
-          count: 500, 
+        options: {
+          count: 500,
           offset: 0,
           include_personal_finance_category: true
         }
       });
-      
+
       for (const txn of response.data.transactions) {
-        // Use 'any' type to bypass TypeScript checking for Plaid response
         const transaction: any = txn;
-        
+
         await prisma.$executeRaw`
-          UPDATE transactions 
-          SET 
+          UPDATE transactions
+          SET
             personal_finance_category = ${JSON.stringify(transaction.personal_finance_category || null)}::jsonb,
             payment_channel = ${transaction.payment_channel || null},
             location = ${JSON.stringify(transaction.location || null)}::jsonb,
@@ -47,8 +46,8 @@ export async function POST(request: NextRequest) {
         updated++;
       }
     }
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       updated,
       message: `Updated ${updated} transactions with rich data!`

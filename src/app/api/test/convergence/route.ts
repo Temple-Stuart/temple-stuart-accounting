@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
+import { getCurrentUser } from '@/lib/auth-helpers';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
 import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from '@/lib/convergence/data-fetchers';
@@ -199,6 +200,9 @@ async function fetchFinnhubEarnings(symbol: string, apiKey: string): Promise<{ d
 // ===== MAIN ROUTE =====
 
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const pipelineStart = Date.now();
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get('symbol') || 'AAPL').toUpperCase();

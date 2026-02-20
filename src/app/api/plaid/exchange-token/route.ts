@@ -1,26 +1,13 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTier, getCurrentUser} from '@/lib/auth-helpers';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { CountryCode } from 'plaid';
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findUnique({
-      where: { email: userEmail }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const tierGate = requireTier(user.tier, 'plaid');
     if (tierGate) return tierGate;

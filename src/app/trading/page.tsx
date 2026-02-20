@@ -104,9 +104,24 @@ const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings'
 
 export default function TradingPage() {
   const { data: session } = useSession();
-  const userEmail = session?.user?.email || null;
-  const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL;
-  const isOwner = !!ownerEmail && userEmail?.toLowerCase() === ownerEmail.toLowerCase();
+  const cookieEmail = typeof document !== 'undefined'
+    ? (() => {
+        const match = document.cookie.split('; ').find(c => c.startsWith('userEmailPublic='));
+        if (!match) return null;
+        const val = decodeURIComponent(match.substring('userEmailPublic='.length));
+        return val || null;
+      })()
+    : null;
+  const userEmail = session?.user?.email || cookieEmail;
+  const [userRole, setUserRole] = useState<string>('user');
+  const isOwner = userRole === 'admin';
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.user?.role) setUserRole(data.user.role); })
+      .catch(() => {});
+  }, []);
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tradesData, setTradesData] = useState<TradesData | null>(null);

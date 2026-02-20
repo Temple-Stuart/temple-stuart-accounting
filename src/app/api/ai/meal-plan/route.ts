@@ -1,8 +1,6 @@
-import { requireTier } from '@/lib/auth-helpers';
+import { requireTier, getCurrentUser} from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
-import OpenAI from 'openai';
+import { openai, models } from '@/lib/ai';
 
 interface MealProfile {
   peopleCount: number;
@@ -40,24 +38,11 @@ const COMPLEXITY_TIME: Record<string, { prep: number; cook: number }> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const tierGate = requireTier(user.tier, 'ai');
     if (tierGate) return tierGate;
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
 
     const { profile } = await request.json() as { profile: MealProfile };
 
@@ -336,7 +321,7 @@ FINAL CHECK: totalEstimated = sum(shoppingList estimatedPrices) * 1.15. Verify t
 ${profile.cookingStyle === 'meal-prep' ? 'Include prepSchedule array showing what to cook each prep day.' : ''}`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: models.primary,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 16000,

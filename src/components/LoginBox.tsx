@@ -40,7 +40,8 @@ export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub' }: Lo
         if (onSuccess) {
           onSuccess();
         } else {
-          router.push(redirectTo);
+          // Hard redirect to ensure the new signed cookie is picked up by middleware
+          window.location.href = redirectTo;
         }
         onClose?.();
       } else {

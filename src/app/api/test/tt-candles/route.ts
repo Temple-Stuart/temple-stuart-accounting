@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function GET(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get('symbol') || 'AAPL';
   const days = parseInt(searchParams.get('days') || '90', 10);

@@ -1,22 +1,6 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
-
-async function callWithRetry(client: Anthropic, params: any, maxRetries = 3): Promise<any> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await client.messages.create(params);
-    } catch (e: any) {
-      if (e.status === 429 && i < maxRetries - 1) {
-        const retryAfter = parseInt(e.headers?.get?.('retry-after') || '10');
-        const wait = Math.min(retryAfter, 120) * 1000;
-        console.log(`[Market Brief] Rate limited, retry ${i + 1}/${maxRetries} in ${wait / 1000}s`);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
-      }
-      throw e;
-    }
-  }
-}
+import { getCurrentUser } from '@/lib/auth-helpers';
+import { anthropic, callAnthropicWithRetry, models } from '@/lib/ai';
 
 const SYSTEM_PROMPT = `You are the quantitative market analyst for Temple Stuart, an institutional-grade options analytics platform. You receive scanner data for tickers that passed hard filters: Liquidity >= 3, IV-HV spread >= 5, IV Rank >= 15%, borrow rate <= 10%.
 
@@ -123,13 +107,10 @@ Respond with ONLY valid JSON, no markdown, no code blocks, no preamble:
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
-    }
-
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await request.json();
-    const client = new Anthropic({ apiKey });
+    const client = anthropic();
 
     // Trim to top 20 symbols by score to stay under 30k token limit
     let trimmedBody = body;
@@ -169,8 +150,8 @@ export async function POST(request: Request) {
 
     console.log('[Market Brief] Input tokens estimate:', Math.round(JSON.stringify(trimmedBody).length / 4));
 
-    const msg = await callWithRetry(client, {
-      model: 'claude-sonnet-4-20250514',
+    const msg = await callAnthropicWithRetry(client, {
+      model: models.anthropic,
       max_tokens: 2500,
       temperature: 0.2,
       system: SYSTEM_PROMPT,

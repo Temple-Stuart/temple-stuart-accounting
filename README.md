@@ -753,6 +753,8 @@ npm install
 
 # Configure environment
 cp .env.example .env.local
+# Prisma reads .env (not .env.local) — create a symlink so both work
+ln -sf .env.local .env
 ```
 
 <details>
@@ -826,6 +828,11 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) 🎉
+
+> **Activate admin access:** Create your account at the signup page, then promote it to admin (unlocks Market Intelligence and bypasses Stripe tier overrides):
+> ```bash
+> npx tsx scripts/make-admin.ts your@email.com
+> ```
 
 <br>
 

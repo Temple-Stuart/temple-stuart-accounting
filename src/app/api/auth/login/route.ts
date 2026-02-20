@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { signSession } from '@/lib/session';
+import { logAuth } from '@/lib/audit-log';
 
 export async function POST(request: Request) {
+  const ip = (request as any).headers?.get?.('x-forwarded-for') ?? undefined;
   try {
     const { email, password } = await request.json();
-    console.log('[LOGIN] Attempt for:', email);
 
     if (!email || !password) {
-      console.log('[LOGIN] Missing email or password');
       return NextResponse.json(
         { error: 'Missing email or password' },
         { status: 400 }
@@ -16,15 +17,13 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.users.findFirst({
-      where: { 
+      where: {
         email: { equals: email, mode: 'insensitive' }
       }
     });
 
-    console.log('[LOGIN] User found:', user?.email, 'ID:', user?.id);
-
     if (!user) {
-      console.log('[LOGIN] No user found for email:', email);
+      logAuth('login_failed_no_user', email, ip);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -32,31 +31,43 @@ export async function POST(request: Request) {
     }
 
     const isValid = await bcrypt.compare(password, user.password);
-    console.log('[LOGIN] Password valid:', isValid);
-    
+
     if (!isValid) {
-      console.log('[LOGIN] Invalid password for:', email);
+      logAuth('login_failed_bad_password', email, ip);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Create response with cookie set via headers (more reliable on Vercel)
-    const response = NextResponse.json({ 
+    logAuth('login_success', user.email, ip);
+
+    const signedCookie = signSession(user.email);
+
+    const response = NextResponse.json({
       success: true,
       user: { email: user.email, name: user.name }
     });
 
-    response.cookies.set('userEmail', user.email, {
+    response.cookies.set('userEmail', signedCookie, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
 
-    console.log('[LOGIN] Cookie set for:', user.email);
+    // Non-httpOnly cookie: client components read email for display/owner checks only.
+    // XSS risk accepted: value is the user's own email (not a secret token), and all
+    // mutations require the signed httpOnly userEmail cookie verified server-side.
+    response.cookies.set('userEmailPublic', user.email, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    });
+
     return response;
   } catch (error) {
     console.error('[LOGIN] Error:', error);

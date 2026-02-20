@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { transactionIds, subAccount } = await request.json();
 

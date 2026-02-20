@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-helpers';
 
 const MODULE = 'shopping';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const expenses = await prisma.$queryRaw`
       SELECT * FROM module_expenses WHERE user_id = ${user.id} AND module = ${MODULE} ORDER BY created_at DESC
@@ -24,12 +20,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const userEmail = cookieStore.get('userEmail')?.value;
-    if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
-    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { name, coa_code, amount, cadence, target_date } = await request.json();
     
