@@ -152,6 +152,9 @@ model journal_transactions {
   amount                     Int?
   strategy                   String?                @db.VarChar(50)
   trade_num                  String?                @db.VarChar(20)
+  is_reversal                Boolean                @default(false)
+  reverses_journal_id        String?                @db.Uuid
+  reversal_date              DateTime?
   journal_transactions       journal_transactions?  @relation("journal_transactionsTojournal_transactions", fields: [reversed_by_transaction_id], references: [id])
   other_journal_transactions journal_transactions[] @relation("journal_transactionsTojournal_transactions")
   ledger_entries             ledger_entries[]

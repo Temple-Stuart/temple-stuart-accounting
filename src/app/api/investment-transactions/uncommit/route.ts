@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -32,7 +33,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Some transactions do not belong to your account' }, { status: 403 });
     }
 
+    const now = new Date();
+    const reversalIds: string[] = [];
+
     await prisma.$transaction(async (tx) => {
+      // Clean up trading positions and stock lots (these are operational, not accounting records)
       const positions = await tx.trading_positions.findMany({
         where: {
           OR: [
@@ -56,6 +61,7 @@ export async function POST(request: Request) {
         });
       }
 
+      // Collect all related transaction IDs to find journal entries
       const allTxnIds = new Set<string>();
       for (const position of positions) {
         if (position.open_investment_txn_id) allTxnIds.add(position.open_investment_txn_id);
@@ -64,30 +70,89 @@ export async function POST(request: Request) {
       for (const lot of stockLots) {
         allTxnIds.add(lot.investment_txn_id);
       }
-      transactionIds.forEach(id => allTxnIds.add(id));
+      transactionIds.forEach((id: string) => allTxnIds.add(id));
 
+      // Find original (non-reversed, non-reversal) journal entries
       const journals = await tx.journal_transactions.findMany({
-        where: { external_transaction_id: { in: Array.from(allTxnIds) } },
-        select: { id: true }
+        where: {
+          external_transaction_id: { in: Array.from(allTxnIds) },
+          is_reversal: false,
+          reversed_by_transaction_id: null,
+        },
+        include: {
+          ledger_entries: {
+            include: { chart_of_accounts: { select: { id: true, balance_type: true, code: true } } }
+          }
+        }
       });
 
-      const journalIds = journals.map(j => j.id);
+      // Create reversing entries for each original journal entry
+      for (const original of journals) {
+        const reversalId = randomUUID();
+        reversalIds.push(reversalId);
 
-      if (journalIds.length > 0) {
-        await tx.ledger_entries.deleteMany({
-          where: { transaction_id: { in: journalIds } }
+        // Create the reversing journal entry
+        await tx.journal_transactions.create({
+          data: {
+            id: reversalId,
+            transaction_date: now,
+            description: `REVERSAL: ${original.description || 'No description'}`,
+            plaid_transaction_id: original.plaid_transaction_id,
+            external_transaction_id: original.external_transaction_id,
+            account_code: original.account_code,
+            amount: original.amount,
+            strategy: original.strategy,
+            trade_num: original.trade_num,
+            posted_at: now,
+            is_reversal: true,
+            reverses_journal_id: original.id,
+            reversal_date: now,
+          }
         });
-        await tx.journal_transactions.deleteMany({
-          where: { id: { in: journalIds } }
+
+        // Create reversing ledger entries (opposite debit/credit)
+        for (const entry of original.ledger_entries) {
+          const oppositeType = entry.entry_type === 'D' ? 'C' : 'D';
+
+          await tx.ledger_entries.create({
+            data: {
+              id: randomUUID(),
+              transaction_id: reversalId,
+              account_id: entry.account_id,
+              amount: entry.amount,
+              entry_type: oppositeType,
+            }
+          });
+
+          // Update COA balance: opposite direction from original
+          const balanceChange = oppositeType === entry.chart_of_accounts.balance_type
+            ? entry.amount
+            : -entry.amount;
+
+          await tx.chart_of_accounts.update({
+            where: { id: entry.chart_of_accounts.id },
+            data: {
+              settled_balance: { increment: balanceChange },
+              version: { increment: 1 }
+            }
+          });
+        }
+
+        // Link original to its reversal
+        await tx.journal_transactions.update({
+          where: { id: original.id },
+          data: { reversed_by_transaction_id: reversalId }
         });
       }
 
+      // Clean up trading positions
       if (positions.length > 0) {
         await tx.trading_positions.deleteMany({
           where: { id: { in: positions.map(p => p.id) } }
         });
       }
 
+      // Clear accounting fields on investment transactions
       await tx.investment_transactions.updateMany({
         where: { id: { in: transactionIds } },
         data: {
@@ -100,7 +165,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Uncommitted ${transactionIds.length} transactions`
+      uncommitted: transactionIds.length,
+      reversalEntryIds: reversalIds,
+      message: `Uncommitted ${transactionIds.length} transaction(s) with ${reversalIds.length} reversing journal entr${reversalIds.length === 1 ? 'y' : 'ies'} created`
     });
   } catch (error) {
     console.error('Uncommit error:', error);
