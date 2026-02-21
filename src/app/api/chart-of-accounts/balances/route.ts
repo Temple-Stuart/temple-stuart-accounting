@@ -16,12 +16,9 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Include user's COA + shared trading accounts (userId null, e.g. T-xxxx)
+    // SECURITY: Scoped to user's COA only
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: {
-        OR: [{ userId: user.id }, { userId: null }],
-        is_archived: false
-      },
+      where: { userId: user.id, is_archived: false },
       orderBy: { code: 'asc' }
     });
 
