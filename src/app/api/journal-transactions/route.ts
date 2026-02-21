@@ -16,13 +16,15 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // SECURITY: journal_transactions don't have userId directly.
     // Scope via ledger_entries -> chart_of_accounts.userId.
+    // Include shared trading accounts (userId null, e.g. T-xxxx)
     const transactions = await prisma.journal_transactions.findMany({
       where: {
         ledger_entries: {
           some: {
-            chart_of_accounts: { userId: user.id }
+            chart_of_accounts: {
+              OR: [{ userId: user.id }, { userId: null }]
+            }
           }
         }
       },
