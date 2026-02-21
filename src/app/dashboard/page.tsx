@@ -12,6 +12,7 @@ import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import PeriodClose from '@/components/dashboard/PeriodClose';
 import CPAExport from '@/components/dashboard/CPAExport';
+import PositionReportTab from '@/components/dashboard/PositionReportTab';
 
 interface Transaction {
   id: string;
@@ -327,6 +328,7 @@ export default function Dashboard() {
                 { key: 'journal', label: 'Journal' },
                 { key: 'reconcile', label: 'Reconcile' },
                 { key: 'close', label: 'Period Close' },
+                { key: 'positions', label: 'Positions' },
                 { key: 'export', label: 'Export' },
               ].map(tab => (
                 <button key={tab.key} onClick={() => setActiveSection(tab.key)}
@@ -631,6 +633,11 @@ export default function Dashboard() {
                     <PeriodClose transactions={transactions} reconciliations={reconciliations} periodCloses={periodCloses} selectedYear={selectedYear} onClose={closePeriod} onReopen={reopenPeriod} onReload={loadData} />
                   </div>
                 </div>
+              )}
+
+              {/* Position Report */}
+              {activeSection === 'positions' && (
+                <PositionReportTab />
               )}
 
               {/* CPA Export */}
