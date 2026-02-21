@@ -21,13 +21,14 @@ interface InvestmentLeg {
 type TransactionContext = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
 export class PositionTrackerService {
-  async commitOptionsTrade(params: { 
-    legs: InvestmentLeg[]; 
-    strategy: string; 
+  async commitOptionsTrade(params: {
+    legs: InvestmentLeg[];
+    strategy: string;
     tradeNum: string;
-    tx?: TransactionContext; 
+    userId: string;
+    tx?: TransactionContext;
   }) {
-    const { legs, strategy, tradeNum, tx } = params;
+    const { legs, strategy, tradeNum, userId, tx } = params;
     const db = tx || prisma;
     const results = [];
     const skipped = [];
@@ -38,7 +39,7 @@ export class PositionTrackerService {
     for (const leg of legs) {
       if (leg.positionEffect === 'open') {
         console.log(`  [OPEN] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        const result = await this.openPosition(leg, strategy, tradeNum, db);
+        const result = await this.openPosition(leg, strategy, tradeNum, userId, db);
         results.push(result);
       }
     }
@@ -107,9 +108,10 @@ export class PositionTrackerService {
         console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
         // For exercise/assignment, pass the matched position info to closePosition
         const result = await this.closePosition(
-          isExerciseOrAssignment ? { ...leg, matchedPosition: openPosition } : leg, 
-          strategy, 
-          tradeNum, 
+          isExerciseOrAssignment ? { ...leg, matchedPosition: openPosition } : leg,
+          strategy,
+          tradeNum,
+          userId,
           db
         );
         results.push(result);
@@ -139,9 +141,10 @@ export class PositionTrackerService {
   }
 
   private async openPosition(
-    leg: InvestmentLeg, 
-    strategy: string, 
+    leg: InvestmentLeg,
+    strategy: string,
     tradeNum: string,
+    userId: string,
     db: TransactionContext
   ) {
     const TRADING_CASH = 'T-1010';
@@ -171,7 +174,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `OPEN ${positionType}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} ${leg.expiry?.toLocaleDateString()}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis,
-      db
+      userId, db
     });
     await db.trading_positions.create({
       data: {
@@ -185,9 +188,10 @@ export class PositionTrackerService {
   }
 
   private async closePosition(
-    leg: InvestmentLeg & { matchedPosition?: any }, 
-    strategy: string, 
+    leg: InvestmentLeg & { matchedPosition?: any },
+    strategy: string,
     tradeNum: string,
+    userId: string,
     db: TransactionContext
   ) {
     const TRADING_CASH = 'T-1010';
@@ -303,7 +307,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `${isFullClose ? 'CLOSE' : 'PARTIAL CLOSE'} ${openPosition.position_type}: ${closeQty}x ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
-      db
+      userId, db
     });
     
     // Update position with new remaining quantity
@@ -326,14 +330,15 @@ export class PositionTrackerService {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
-    db: TransactionContext;
+    userId: string; db: TransactionContext;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount, db } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount, userId, db } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
     const accountCodes = lines.map(l => l.accountCode);
-    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes } } });
+    // SECURITY: Scope account lookup to user's accounts only
+    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes }, userId } });
     if (accounts.length !== accountCodes.length) {
       const missing = accountCodes.filter(code => !accounts.find(a => a.code === code));
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
@@ -379,9 +384,9 @@ export class PositionTrackerService {
   }
 
   async handleAssignmentExercise(params: {
-    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string;
+    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string; userId: string;
   }) {
-    const { exerciseTransfer, stockTransaction, strategy, tradeNum } = params;
+    const { exerciseTransfer, stockTransaction, strategy, tradeNum, userId } = params;
     const nameMatch = exerciseTransfer.name.match(/(\d+\.?\d*)\s*call|put/i);
     const strike = nameMatch ? parseFloat(nameMatch[1]) : null;
     if (!strike) throw new Error(`Cannot extract strike from: ${exerciseTransfer.name}`);
@@ -411,7 +416,7 @@ export class PositionTrackerService {
       date: exerciseTransfer.date,
       description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
       lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
-      db: prisma
+      userId, db: prisma
     });
     await prisma.trading_positions.update({
       where: { id: openPosition.id },
@@ -483,7 +488,7 @@ export class PositionTrackerService {
           strategy,
           tradeNum,
           amount: costBasis,
-          db
+          userId, db
         });
 
         // Update investment transaction

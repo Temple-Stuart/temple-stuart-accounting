@@ -80,6 +80,7 @@ export async function POST(request: Request) {
           legs,
           strategy,
           tradeNum,
+          userId: user.id,
           tx
         });
       },

@@ -9,7 +9,8 @@ import { PrismaClient } from '@prisma/client';
  * 1. Finds all chart_of_accounts with userId = NULL
  * 2. Traces ownership through ledger_entries → journal_transactions → sibling COA
  * 3. Assigns userId to orphaned accounts
- * 4. Runs full data isolation verification
+ * 4. Recalculates settled_balance from ledger_entries (fixes Balance Sheet)
+ * 5. Runs full data isolation verification
  */
 
 const prisma = new PrismaClient();
@@ -143,6 +144,47 @@ async function main() {
 
   console.log(`\n  Summary: ${assigned} assigned, ${unresolved} unresolved out of ${orphanedAccounts.length} orphaned\n`);
 
+  // ── PHASE 2B: Recalculate settled_balance from ledger_entries ─
+  console.log('\n═══════════════════════════════════════════════════════');
+  console.log('  PHASE 2B: RECALCULATING SETTLED BALANCES');
+  console.log('═══════════════════════════════════════════════════════\n');
+
+  const allAccounts = await prisma.chart_of_accounts.findMany({
+    where: { userId: { not: null } }
+  });
+
+  let balancesFixed = 0;
+  let balancesCorrect = 0;
+
+  for (const account of allAccounts) {
+    const entries = await prisma.ledger_entries.findMany({
+      where: { account_id: account.id }
+    });
+
+    let computedBalance = BigInt(0);
+    for (const entry of entries) {
+      const isNormalBalance = entry.entry_type === account.balance_type;
+      if (isNormalBalance) {
+        computedBalance += entry.amount;
+      } else {
+        computedBalance -= entry.amount;
+      }
+    }
+
+    if (account.settled_balance !== computedBalance) {
+      await prisma.chart_of_accounts.update({
+        where: { id: account.id },
+        data: { settled_balance: computedBalance }
+      });
+      console.log(`  ✓ ${account.code}: ${account.settled_balance} → ${computedBalance} (${entries.length} entries)`);
+      balancesFixed++;
+    } else {
+      balancesCorrect++;
+    }
+  }
+
+  console.log(`\n  Summary: ${balancesFixed} corrected, ${balancesCorrect} already correct out of ${allAccounts.length} accounts\n`);
+
   // ── PHASE 3: Data isolation verification ─────────────────────
   console.log('\n═══════════════════════════════════════════════════════');
   console.log('  PHASE 3: DATA ISOLATION VERIFICATION');
@@ -235,7 +277,7 @@ async function main() {
   }
   console.log('═══════════════════════════════════════════════════════\n');
 
-  return { orphanedAccounts: orphanedAccounts.length, assigned, unresolved, allPassed, nullCoaCount };
+  return { orphanedAccounts: orphanedAccounts.length, assigned, unresolved, balancesFixed, allPassed, nullCoaCount };
 }
 
 main()
