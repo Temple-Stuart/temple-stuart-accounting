@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+export const maxDuration = 300; // 5 minutes for Pro plan
+
 export async function POST() {
   try {
     const userEmail = await getVerifiedEmail();
@@ -27,15 +29,33 @@ export async function POST() {
     let totalTransactions = 0;
     let totalInvestmentTransactions = 0;
     let totalSecurities = 0;
+    let skippedTransactions = 0;
+    let skippedInvestmentTransactions = 0;
 
     for (const item of plaidItems) {
       console.log(`Syncing ${item.institutionName || 'Bank'}...`);
-      
+
       // Sync regular transactions
       try {
+        // Batch lookup: fetch all existing transactions for this item's accounts
+        const accountIds = item.accounts.map(acc => acc.id);
+        const existingTxns = await prisma.transactions.findMany({
+          where: { accountId: { in: accountIds } },
+          select: {
+            transactionId: true,
+            personal_finance_category: true,
+            amount: true,
+            name: true,
+            date: true
+          }
+        });
+        const existingMap = new Map(
+          existingTxns.map(t => [t.transactionId, t])
+        );
+
         let hasMore = true;
         let offset = 0;
-        
+
         while (hasMore) {
           const response = await plaidClient.transactionsGet({
             access_token: item.accessToken,
@@ -68,53 +88,46 @@ export async function POST() {
             const account = item.accounts.find(acc => acc.accountId === txn.account_id);
             if (!account) continue;
 
+            const existing = existingMap.get(txn.transaction_id);
+
+            if (existing && existing.personal_finance_category !== null) {
+              // Already has complete data — skip expensive update
+              skippedTransactions++;
+              totalTransactions++;
+              continue;
+            }
+
+            const txnData = {
+              amount: txn.amount,
+              date: new Date(txn.date),
+              name: txn.name,
+              merchantName: txn.merchant_name,
+              category: txn.category?.join(', ') || null,
+              pending: txn.pending || false,
+              authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
+              authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
+              counterparties: (txn as any).counterparties || null,
+              location: (txn as any).location || null,
+              payment_channel: txn.payment_channel,
+              payment_meta: (txn as any).payment_meta || null,
+              personal_finance_category: (txn as any).personal_finance_category || null,
+              personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
+              transaction_code: txn.transaction_code,
+              transaction_type: (txn as any).transaction_type,
+              logo_url: (txn as any).logo_url,
+              website: (txn as any).website,
+              updatedAt: new Date()
+            };
+
             await prisma.transactions.upsert({
               where: { transactionId: txn.transaction_id },
               create: {
                 id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 transactionId: txn.transaction_id,
                 accountId: account.id,
-                amount: txn.amount,
-                date: new Date(txn.date),
-                name: txn.name,
-                merchantName: txn.merchant_name,
-                category: txn.category?.join(', '),
-                pending: txn.pending || false,
-                authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
-                authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
-                counterparties: (txn as any).counterparties || null,
-                location: (txn as any).location || null,
-                payment_channel: txn.payment_channel,
-                payment_meta: (txn as any).payment_meta || null,
-                personal_finance_category: (txn as any).personal_finance_category || null,
-                personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
-                transaction_code: txn.transaction_code,
-                transaction_type: (txn as any).transaction_type,
-                logo_url: (txn as any).logo_url,
-                website: (txn as any).website,
-                updatedAt: new Date()
+                ...txnData
               },
-              update: {
-                amount: txn.amount,
-                date: new Date(txn.date),
-                name: txn.name,
-                merchantName: txn.merchant_name,
-                category: txn.category?.join(', ') || null,
-                pending: txn.pending || false,
-                authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
-                authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
-                counterparties: (txn as any).counterparties || null,
-                location: (txn as any).location || null,
-                payment_channel: txn.payment_channel,
-                payment_meta: (txn as any).payment_meta || null,
-                personal_finance_category: (txn as any).personal_finance_category || null,
-                personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
-                transaction_code: txn.transaction_code,
-                transaction_type: (txn as any).transaction_type,
-                logo_url: (txn as any).logo_url,
-                website: (txn as any).website,
-                updatedAt: new Date()
-              }
+              update: txnData
             });
             totalTransactions++;
 
@@ -124,7 +137,7 @@ export async function POST() {
               twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
               const twoDaysAfter = new Date(txn.date);
               twoDaysAfter.setDate(twoDaysAfter.getDate() + 2);
-              
+
               await prisma.transactions.deleteMany({
                 where: {
                   accountId: account.id,
@@ -139,9 +152,9 @@ export async function POST() {
 
           offset += response.data.transactions.length;
           hasMore = response.data.total_transactions > offset;
-          
+
           if (!hasMore) {
-            console.log(`Synced ${response.data.total_transactions} transactions for ${item.institutionName}`);
+            console.log(`Synced ${response.data.total_transactions} transactions for ${item.institutionName} (${skippedTransactions} skipped — already complete)`);
           }
         }
       } catch (error) {
@@ -150,9 +163,19 @@ export async function POST() {
 
       // Sync investment transactions + securities
       try {
+        // Batch lookup: fetch all existing investment transaction IDs for this item's accounts
+        const accountIds = item.accounts.map(acc => acc.id);
+        const existingInvTxns = await prisma.investment_transactions.findMany({
+          where: { accountId: { in: accountIds } },
+          select: { investment_transaction_id: true }
+        });
+        const existingInvSet = new Set(
+          existingInvTxns.map(t => t.investment_transaction_id)
+        );
+
         let offset = 0;
         let hasMore = true;
-        
+
         while (hasMore) {
           const investResponse = await plaidClient.investmentsTransactionsGet({
             access_token: item.accessToken,
@@ -167,7 +190,7 @@ export async function POST() {
           // STORE SECURITIES DATA (includes option contract details)
           for (const security of investResponse.data.securities) {
             const optionContract = (security as any).option_contract;
-            
+
             await prisma.securities.upsert({
               where: { securityId: security.security_id },
               create: {
@@ -204,9 +227,15 @@ export async function POST() {
             const account = item.accounts.find(acc => acc.accountId === txn.account_id);
             if (!account) continue;
 
-            await prisma.investment_transactions.upsert({
-              where: { investment_transaction_id: txn.investment_transaction_id },
-              create: {
+            if (existingInvSet.has(txn.investment_transaction_id)) {
+              // Already exists — the original update clause was empty anyway, skip
+              skippedInvestmentTransactions++;
+              totalInvestmentTransactions++;
+              continue;
+            }
+
+            await prisma.investment_transactions.create({
+              data: {
                 id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 investment_transaction_id: txn.investment_transaction_id,
                 accountId: account.id,
@@ -223,8 +252,7 @@ export async function POST() {
                 type: txn.type,
                 unofficial_currency_code: txn.unofficial_currency_code,
                 updatedAt: new Date()
-              },
-              update: {}
+              }
             });
             totalInvestmentTransactions++;
           }
@@ -243,6 +271,10 @@ export async function POST() {
         transactions: totalTransactions,
         investmentTransactions: totalInvestmentTransactions,
         securities: totalSecurities
+      },
+      skipped: {
+        transactions: skippedTransactions,
+        investmentTransactions: skippedInvestmentTransactions
       }
     });
   } catch (error) {
