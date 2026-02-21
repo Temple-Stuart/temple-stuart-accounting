@@ -113,7 +113,7 @@ export default function Dashboard() {
       }
       if (invRes.ok) { const data = await invRes.json(); setInvestmentTransactions(data.transactions || data.investments || data || []); }
       
-      const jeRes = await fetch('/api/journal-entries');
+      const jeRes = await fetch('/api/journal-transactions');
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
       const reconRes = await fetch("/api/bank-reconciliations");
       if (reconRes.ok) { const reconData = await reconRes.json(); setReconciliations(reconData.reconciliations || []); }
@@ -605,21 +605,15 @@ export default function Dashboard() {
 
               {/* General Ledger */}
               {activeSection === 'ledger' && (
-                <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">General Ledger</div>
-                  <div className="p-4">
-                    <GeneralLedger transactions={transactions} coaOptions={coaOptions} onUpdate={handleLedgerUpdate} />
-                  </div>
+                <div className="p-4">
+                  <GeneralLedger coaOptions={coaOptions} onReload={loadData} />
                 </div>
               )}
 
               {/* Journal Entries */}
               {activeSection === 'journal' && (
-                <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Journal Entries</div>
-                  <div className="p-4">
-                    <JournalEntryEngine entries={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={loadData} />
-                  </div>
+                <div className="p-4">
+                  <JournalEntryEngine journalTransactions={journalEntries} coaOptions={coaOptions} onSave={saveJournalEntry} onReload={loadData} />
                 </div>
               )}
 
