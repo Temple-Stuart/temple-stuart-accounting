@@ -199,9 +199,9 @@ export async function POST(request: Request) {
       const costBasisCents = Math.round(totalCostBasis * 100);
       const plCents = Math.round(totalGainLoss * 100);
 
-      // Fetch accounts
+      // SECURITY: Fetch accounts scoped to user
       const accounts = await tx.chart_of_accounts.findMany({
-        where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] } }
+        where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] }, userId: user.id }
       });
       
       const cashAccount = accounts.find(a => a.code === TRADING_CASH);

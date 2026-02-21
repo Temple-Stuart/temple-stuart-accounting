@@ -181,6 +181,7 @@ model ledger_entries {
 
 model merchant_coa_mappings {
   id                      String   @id @db.Uuid
+  userId                  String
   merchant_name           String   @db.VarChar(255)
   plaid_category_primary  String?  @db.VarChar(100)
   plaid_category_detailed String?  @db.VarChar(100)
@@ -191,10 +192,12 @@ model merchant_coa_mappings {
   last_used_at            DateTime @default(now())
   created_at              DateTime @default(now())
   created_by              String?  @db.Uuid
+  user                    users    @relation(fields: [userId], references: [id])
 
-  @@unique([merchant_name, plaid_category_primary])
+  @@unique([userId, merchant_name, plaid_category_primary])
   @@index([plaid_category_primary], map: "idx_category_lookup")
   @@index([merchant_name], map: "idx_merchant_lookup")
+  @@index([userId], map: "idx_merchant_user")
 }
 
 model plaid_items {
@@ -364,6 +367,7 @@ model users {
   corporate_actions   corporate_actions[]
   trade_journal_entries trade_journal_entries[]
   tastytrade_connections tastytrade_connections[]
+  merchant_coa_mappings merchant_coa_mappings[]
 }
 
 model budgets {

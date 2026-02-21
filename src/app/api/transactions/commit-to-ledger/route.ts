@@ -77,9 +77,11 @@ export async function POST(request: NextRequest) {
           const merchantName = plaidTxn.merchantName;
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
 
+          // SECURITY: Scoped to user's mappings only
           const wrongMapping = await prisma.merchant_coa_mappings.findUnique({
             where: {
-              merchant_name_plaid_category_primary: {
+              userId_merchant_name_plaid_category_primary: {
+                userId: user.id,
                 merchant_name: merchantName,
                 plaid_category_primary: categoryPrimary || ''
               }
@@ -120,9 +122,11 @@ export async function POST(request: NextRequest) {
           const categoryPrimary = (plaidTxn.personal_finance_category as any)?.primary || null;
           const categoryDetailed = (plaidTxn.personal_finance_category as any)?.detailed || null;
 
+          // SECURITY: Scoped to user's mappings only
           const existing = await prisma.merchant_coa_mappings.findUnique({
             where: {
-              merchant_name_plaid_category_primary: {
+              userId_merchant_name_plaid_category_primary: {
+                userId: user.id,
                 merchant_name: merchantName,
                 plaid_category_primary: categoryPrimary || ''
               }
@@ -142,6 +146,7 @@ export async function POST(request: NextRequest) {
             await prisma.merchant_coa_mappings.create({
               data: {
                 id: randomUUID(),
+                userId: user.id,
                 merchant_name: merchantName,
                 plaid_category_primary: categoryPrimary,
                 plaid_category_detailed: categoryDetailed,

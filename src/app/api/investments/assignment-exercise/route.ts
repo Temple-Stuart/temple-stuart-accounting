@@ -47,7 +47,8 @@ export async function POST(request: Request) {
         exerciseTransfer: transferTxn,
         stockTransaction: stockTxn,
         strategy: strategy || 'ITM Spread Expiration',
-        tradeNum: tradeNum || 'AUTO'
+        tradeNum: tradeNum || 'AUTO',
+        userId: user.id
       });
 
       results.push(result);

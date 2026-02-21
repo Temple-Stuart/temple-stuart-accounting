@@ -28,8 +28,9 @@ export class InvestmentLedgerService {
     legs: InvestmentLeg[];
     strategy: string;
     tradeNum: string;
+    userId: string;
   }) {
-    const { legs, strategy, tradeNum } = params;
+    const { legs, strategy, tradeNum, userId } = params;
     
     // Validate all legs are from same trade date (or 7 days apart max for weekly options)
     const dates = legs.map(l => l.date.getTime());
@@ -47,13 +48,13 @@ export class InvestmentLedgerService {
     
     // Process opening legs (establish positions)
     for (const leg of openLegs) {
-      const result = await this.processOpeningLeg(leg, strategy, tradeNum);
+      const result = await this.processOpeningLeg(leg, strategy, tradeNum, userId);
       results.push(result);
     }
     
     // Process closing legs (realize P/L)
     for (const leg of closeLegs) {
-      const result = await this.processClosingLeg(leg, openLegs, strategy, tradeNum);
+      const result = await this.processClosingLeg(leg, openLegs, strategy, tradeNum, userId);
       results.push(result);
     }
     
@@ -80,7 +81,8 @@ export class InvestmentLedgerService {
   private async processOpeningLeg(
     leg: InvestmentLeg,
     strategy: string,
-    tradeNum: string
+    tradeNum: string,
+    userId: string
   ) {
     const TRADING_CASH = 'T-1010';
     
@@ -113,7 +115,8 @@ export class InvestmentLedgerService {
       externalTransactionId: leg.id,
       strategy,
       tradeNum,
-      amount: costBasis
+      amount: costBasis,
+      userId
     });
     
     return {
@@ -131,7 +134,8 @@ export class InvestmentLedgerService {
     leg: InvestmentLeg,
     openLegs: InvestmentLeg[],
     strategy: string,
-    tradeNum: string
+    tradeNum: string,
+    userId: string
   ) {
     const TRADING_CASH = 'T-1010';
     
@@ -200,7 +204,8 @@ export class InvestmentLedgerService {
       externalTransactionId: leg.id,
       strategy,
       tradeNum,
-      amount: proceeds
+      amount: proceeds,
+      userId
     });
     
     return {
@@ -224,21 +229,22 @@ export class InvestmentLedgerService {
     strategy?: string;
     tradeNum?: string;
     amount?: number;
+    userId: string;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount } = params;
-    
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount, userId } = params;
+
     // Validate balanced
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
-    
+
     if (debits !== credits) {
       throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
     }
-    
-    // Get accounts
+
+    // SECURITY: Scope account lookup to user's accounts only
     const accountCodes = lines.map(l => l.accountCode);
     const accounts = await prisma.chart_of_accounts.findMany({
-      where: { code: { in: accountCodes } }
+      where: { code: { in: accountCodes }, userId }
     });
     
     if (accounts.length !== accountCodes.length) {
