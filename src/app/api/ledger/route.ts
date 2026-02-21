@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountCode = searchParams.get('accountCode');
 
-    // Include user's COA + shared trading accounts (userId null, e.g. T-xxxx)
+    // SECURITY: Scoped to user's COA only
     const ledgerEntries = await prisma.ledger_entries.findMany({
       where: {
         chart_of_accounts: {
-          OR: [{ userId: user.id }, { userId: null }],
+          userId: user.id,
           ...(accountCode ? { code: accountCode } : {})
         }
       },
