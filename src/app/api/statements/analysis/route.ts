@@ -18,8 +18,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'monthly';
+    const yearParam = searchParams.get('year');
+    const selectedYear = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
 
-    // SECURITY: Scoped to user's COA only
+    const BS_TYPES = new Set(['asset', 'liability', 'equity']);
+
+    // SECURITY: Scoped to user's COA only — fetch ALL journal entries
     const journalEntries = await prisma.journal_transactions.findMany({
       where: {
         ledger_entries: {
@@ -38,60 +42,87 @@ export async function GET(request: Request) {
       orderBy: { transaction_date: 'asc' }
     });
 
-    // Build per-account activity by period
-    // Key: accountCode, Value: { name, type, balanceType, periods: { periodKey: netChange } }
-    const accountActivity = new Map<string, {
+    // Determine the year boundary
+    const yearStart = new Date(selectedYear, 0, 1);  // Jan 1 of selected year
+    const yearEnd = new Date(selectedYear + 1, 0, 1); // Jan 1 of next year
+
+    // Track available years for the year selector
+    const availableYears = new Set<number>();
+
+    // Per-account data:
+    //   openingBalance: sum of all BS entries BEFORE selectedYear
+    //   periods: activity within selectedYear grouped by period key
+    const accountData = new Map<string, {
       name: string;
       type: string;
       balanceType: string;
+      openingBalance: number; // only used for BS accounts
       periods: Map<string, number>;
     }>();
 
-    // Track all period keys for ordering
-    const allPeriodKeys = new Set<string>();
+    // Period keys within the selected year
+    const yearPeriodKeys = new Set<string>();
 
     journalEntries.forEach(je => {
       const date = new Date(je.transaction_date);
-      let periodKey = '';
+      availableYears.add(date.getFullYear());
 
-      if (period === 'monthly') {
-        periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      } else if (period === 'quarterly') {
-        const quarter = Math.floor(date.getMonth() / 3) + 1;
-        periodKey = `${date.getFullYear()}-Q${quarter}`;
-      } else {
-        periodKey = `${date.getFullYear()}`;
-      }
+      const isBeforeYear = date < yearStart;
+      const isWithinYear = date >= yearStart && date < yearEnd;
 
-      allPeriodKeys.add(periodKey);
+      // Skip entries after selected year entirely
+      if (!isBeforeYear && !isWithinYear) return;
 
       je.ledger_entries.forEach(le => {
         if (le.chart_of_accounts.userId !== user.id) return;
 
         const code = le.chart_of_accounts.code;
-        if (!accountActivity.has(code)) {
-          accountActivity.set(code, {
+        const acctType = le.chart_of_accounts.account_type.toLowerCase();
+
+        if (!accountData.has(code)) {
+          accountData.set(code, {
             name: le.chart_of_accounts.name,
-            type: le.chart_of_accounts.account_type.toLowerCase(),
+            type: acctType,
             balanceType: le.chart_of_accounts.balance_type,
+            openingBalance: 0,
             periods: new Map()
           });
         }
 
-        const account = accountActivity.get(code)!;
+        const account = accountData.get(code)!;
         const amount = Number(le.amount) / 100;
         const isNormalBalance = le.entry_type === le.chart_of_accounts.balance_type;
         const effectiveAmount = isNormalBalance ? amount : -amount;
 
-        const current = account.periods.get(periodKey) || 0;
-        account.periods.set(periodKey, current + effectiveAmount);
+        if (isBeforeYear) {
+          // Prior-year entry: only accumulate for BS accounts
+          if (BS_TYPES.has(acctType)) {
+            account.openingBalance += effectiveAmount;
+          }
+          // I/S accounts: skip prior-year entries (periodic, resets each year)
+        } else {
+          // Within selected year: compute period key and accumulate
+          let periodKey = '';
+          if (period === 'monthly') {
+            periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          } else if (period === 'quarterly') {
+            const quarter = Math.floor(date.getMonth() / 3) + 1;
+            periodKey = `${date.getFullYear()}-Q${quarter}`;
+          } else {
+            periodKey = `${date.getFullYear()}`;
+          }
+
+          yearPeriodKeys.add(periodKey);
+          const current = account.periods.get(periodKey) || 0;
+          account.periods.set(periodKey, current + effectiveAmount);
+        }
       });
     });
 
     // Sort period keys chronologically
-    const sortedPeriods = Array.from(allPeriodKeys).sort();
+    const sortedPeriods = Array.from(yearPeriodKeys).sort();
 
-    // Build type-level period summaries (for backwards compat)
+    // Build type-level period summaries
     const periodMap = new Map<string, {
       period: string;
       revenue: number;
@@ -112,9 +143,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // Build account-level output with running balances for B/S accounts
-    const BS_TYPES = new Set(['asset', 'liability', 'equity']);
-
+    // Build account-level output
     const accounts: Array<{
       code: string;
       name: string;
@@ -122,20 +151,27 @@ export async function GET(request: Request) {
       periods: Record<string, number>;
     }> = [];
 
-    for (const [code, acct] of accountActivity) {
+    for (const [code, acct] of accountData) {
       const isBSAccount = BS_TYPES.has(acct.type);
       const periodsOut: Record<string, number> = {};
 
+      // Skip accounts with no activity in the year AND no opening balance
+      const hasYearActivity = acct.periods.size > 0;
+      if (!isBSAccount && !hasYearActivity) continue;
+      if (isBSAccount && !hasYearActivity && Math.abs(acct.openingBalance) < 0.005) continue;
+
       if (isBSAccount) {
-        // Running balance: cumulative sum through each period
-        let cumulative = 0;
+        // Cumulative running balance: opening + activity through each period
+        let cumulative = acct.openingBalance;
         for (const pk of sortedPeriods) {
           const activity = acct.periods.get(pk) || 0;
           cumulative += activity;
           periodsOut[pk] = Math.round(cumulative * 100) / 100;
         }
+        // If no periods exist but account has an opening balance,
+        // we still need it to show — handled by the filter above
       } else {
-        // Income/Expense: activity per period
+        // Income/Expense: activity per period within selected year only
         for (const pk of sortedPeriods) {
           periodsOut[pk] = Math.round((acct.periods.get(pk) || 0) * 100) / 100;
         }
@@ -148,7 +184,7 @@ export async function GET(request: Request) {
         periods: periodsOut
       });
 
-      // Also aggregate type-level summaries
+      // Aggregate type-level summaries
       for (const pk of sortedPeriods) {
         const pd = periodMap.get(pk)!;
         const val = periodsOut[pk] || 0;
@@ -157,6 +193,35 @@ export async function GET(request: Request) {
         else if (acct.type === 'asset') pd.assets += val;
         else if (acct.type === 'liability') pd.liabilities += val;
         else if (acct.type === 'equity') pd.equity += val;
+      }
+    }
+
+    // Handle BS accounts that have opening balances but NO activity in selected year.
+    // They need to appear with their opening balance carried forward into every period.
+    for (const [code, acct] of accountData) {
+      if (!BS_TYPES.has(acct.type)) continue;
+      if (acct.periods.size > 0) continue; // already handled above
+      if (Math.abs(acct.openingBalance) < 0.005) continue; // no meaningful balance
+
+      const periodsOut: Record<string, number> = {};
+      const balance = Math.round(acct.openingBalance * 100) / 100;
+      for (const pk of sortedPeriods) {
+        periodsOut[pk] = balance;
+      }
+
+      accounts.push({
+        code,
+        name: acct.name,
+        type: acct.type,
+        periods: periodsOut
+      });
+
+      // Add to type-level summaries
+      for (const pk of sortedPeriods) {
+        const pd = periodMap.get(pk)!;
+        if (acct.type === 'asset') pd.assets += balance;
+        else if (acct.type === 'liability') pd.liabilities += balance;
+        else if (acct.type === 'equity') pd.equity += balance;
       }
     }
 
@@ -175,7 +240,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       periods,
       accounts: accounts.sort((a, b) => a.code.localeCompare(b.code)),
-      periodKeys: sortedPeriods
+      periodKeys: sortedPeriods,
+      availableYears: Array.from(availableYears).sort((a, b) => b - a),
+      selectedYear
     });
   } catch (error) {
     console.error('Analysis error:', error);

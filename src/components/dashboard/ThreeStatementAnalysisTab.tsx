@@ -23,23 +23,28 @@ export default function ThreeStatementAnalysisTab() {
   const [periods, setPeriods] = useState<PeriodData[]>([]);
   const [accounts, setAccounts] = useState<AccountData[]>([]);
   const [periodKeys, setPeriodKeys] = useState<string[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [periodType, setPeriodType] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [activeTab, setActiveTab] = useState<'income' | 'balance'>('balance');
 
   useEffect(() => {
     loadAnalysis();
-  }, [periodType]);
+  }, [periodType, selectedYear]);
 
   const loadAnalysis = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/statements/analysis?period=${periodType}`);
+      const res = await fetch(`/api/statements/analysis?period=${periodType}&year=${selectedYear}`);
       if (res.ok) {
         const result = await res.json();
         setPeriods(result.periods || []);
         setAccounts(result.accounts || []);
         setPeriodKeys(result.periodKeys || []);
+        if (result.availableYears?.length) {
+          setAvailableYears(result.availableYears);
+        }
       }
     } catch (error) {
       console.error('Error loading analysis:', error);
@@ -136,6 +141,15 @@ export default function ThreeStatementAnalysisTab() {
           <p className="text-sm text-gray-600 mt-1">Comparative financial statement analysis</p>
         </div>
         <div className="flex gap-2">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-4 py-2 border rounded-lg text-sm font-medium"
+          >
+            {(availableYears.length > 0 ? availableYears : [new Date().getFullYear()]).map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
           <select
             value={periodType}
             onChange={(e) => setPeriodType(e.target.value as any)}
