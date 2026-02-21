@@ -209,11 +209,7 @@ export default function Dashboard() {
 
   const syncAccounts = async () => {
     setSyncing(true);
-    const itemsRes = await fetch('/api/plaid/items');
-    const items = await itemsRes.json();
-    for (const item of items) {
-      await fetch('/api/plaid/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: item.id }) });
-    }
+    await fetch('/api/transactions/sync-complete', { method: 'POST' });
     await loadData();
     setSyncing(false);
   };

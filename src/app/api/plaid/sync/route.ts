@@ -1,3 +1,7 @@
+// DEPRECATED: Use /api/transactions/sync-complete instead
+// This route is kept for backwards compatibility but should not be called
+// All sync operations should go through the canonical pipeline
+
 import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -16,6 +20,7 @@ const plaidConfig = new Configuration({
 const plaidClient = new PlaidApi(plaidConfig);
 
 export async function POST(request: NextRequest) {
+  console.warn('DEPRECATED: /api/plaid/sync called — use /api/transactions/sync-complete');
   try {
     // Verify user
     const userEmail = await getVerifiedEmail();

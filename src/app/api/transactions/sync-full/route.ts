@@ -1,9 +1,14 @@
+// DEPRECATED: Use /api/transactions/sync-complete instead
+// This route is kept for backwards compatibility but should not be called
+// All sync operations should go through the canonical pipeline
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { plaidClient } from '@/lib/plaid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export async function POST() {
+  console.warn('DEPRECATED: /api/transactions/sync-full called — use /api/transactions/sync-complete');
   try {
     const userEmail = await getVerifiedEmail();
 
