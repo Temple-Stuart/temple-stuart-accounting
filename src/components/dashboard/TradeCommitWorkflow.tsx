@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface Transaction {
   id: string;
@@ -18,6 +19,9 @@ interface Transaction {
   price: number;
   amount: number;
 }
+
+type TxnSortField = 'date' | 'ticker' | 'action' | 'quantity' | 'price' | 'amount';
+type TxnSortDir = 'asc' | 'desc';
 
 interface OpenTrade {
   id: string;
@@ -72,11 +76,38 @@ const STRATEGY_OPTIONS = [
   { value: 'crypto', label: 'Cryptocurrency', positionAccount: 'T-1300' },
 ];
 
+function sortTransactions(txns: Transaction[], field: TxnSortField, dir: TxnSortDir): Transaction[] {
+  const sorted = [...txns];
+  sorted.sort((a, b) => {
+    let cmp = 0;
+    switch (field) {
+      case 'date': cmp = new Date(a.date).getTime() - new Date(b.date).getTime(); break;
+      case 'ticker': cmp = (a.underlying || a.ticker || '').localeCompare(b.underlying || b.ticker || ''); break;
+      case 'action': cmp = a.action.localeCompare(b.action); break;
+      case 'quantity': cmp = a.quantity - b.quantity; break;
+      case 'price': cmp = a.price - b.price; break;
+      case 'amount': cmp = Math.abs(a.amount) - Math.abs(b.amount); break;
+    }
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function matchTxnSearch(t: Transaction, term: string): boolean {
+  const lower = term.toLowerCase();
+  return (
+    t.name.toLowerCase().includes(lower) ||
+    (t.ticker || '').toLowerCase().includes(lower) ||
+    (t.underlying || '').toLowerCase().includes(lower) ||
+    t.action.toLowerCase().includes(lower)
+  );
+}
+
 export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowProps) {
   const [activeTab, setActiveTab] = useState<'opens' | 'closes' | 'trades' | 'corporate-actions'>('opens');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Data
   const [opens, setOpens] = useState<Transaction[]>([]);
   const [closes, setCloses] = useState<Transaction[]>([]);
@@ -99,7 +130,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     lot_acquired_date: ''
   });
   const [nextTradeNum, setNextTradeNum] = useState(1);
-  
+
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [strategy, setStrategy] = useState('');
@@ -107,6 +138,18 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   const [linkedTradeId, setLinkedTradeId] = useState('');
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
+
+  // Search + Sort state
+  const [txnSearch, setTxnSearch] = useState('');
+  const [txnSortField, setTxnSortField] = useState<TxnSortField>('date');
+  const [txnSortDir, setTxnSortDir] = useState<TxnSortDir>('asc');
+  const opensScrollRef = useRef<HTMLDivElement>(null);
+  const closesScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleTxnSort = (field: TxnSortField) => {
+    if (txnSortField === field) setTxnSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setTxnSortField(field); setTxnSortDir(field === 'date' ? 'asc' : 'asc'); }
+  };
 
   useEffect(() => {
     fetchData();
@@ -179,7 +222,19 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     }
   };
 
-  // Group transactions by ticker
+  // Filter + Sort transactions, then group by ticker
+  const filteredOpens = useMemo(() => {
+    let result = opens;
+    if (txnSearch) result = result.filter(t => matchTxnSearch(t, txnSearch));
+    return sortTransactions(result, txnSortField, txnSortDir);
+  }, [opens, txnSearch, txnSortField, txnSortDir]);
+
+  const filteredCloses = useMemo(() => {
+    let result = closes;
+    if (txnSearch) result = result.filter(t => matchTxnSearch(t, txnSearch));
+    return sortTransactions(result, txnSortField, txnSortDir);
+  }, [closes, txnSearch, txnSortField, txnSortDir]);
+
   const groupByTicker = (txns: Transaction[]) => {
     const groups: { [ticker: string]: Transaction[] } = {};
     txns.forEach(t => {
@@ -187,14 +242,11 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
       if (!groups[key]) groups[key] = [];
       groups[key].push(t);
     });
-    Object.keys(groups).forEach(key => {
-      groups[key].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    });
     return groups;
   };
 
-  const groupedOpens = useMemo(() => groupByTicker(opens), [opens]);
-  const groupedCloses = useMemo(() => groupByTicker(closes), [closes]);
+  const groupedOpens = useMemo(() => groupByTicker(filteredOpens), [filteredOpens]);
+  const groupedCloses = useMemo(() => groupByTicker(filteredCloses), [filteredCloses]);
   const sortedOpenTickers = useMemo(() => Object.keys(groupedOpens).sort(), [groupedOpens]);
   const sortedCloseTickers = useMemo(() => Object.keys(groupedCloses).sort(), [groupedCloses]);
 
@@ -459,51 +511,17 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     }
   };
 
-  // Render transaction row
-  const renderTransaction = (t: Transaction) => {
-    const isSelected = selectedIds.has(t.id);
+  // Sort header helper for transaction tables
+  const TxnSortHeader = ({ label, field, className = '' }: { label: string; field: TxnSortField; className?: string }) => {
+    const isActive = txnSortField === field;
     return (
-      <div
-        key={t.id}
-        onClick={() => toggleSelect(t.id)}
-        className={`flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors ${
-          isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-gray-50'
-        }`}
-      >
-        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(t.id)} className="w-4 h-4" />
-        
-        <span className="text-xs text-gray-500 w-20">
-          {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+      <th className={`px-2 py-2 text-xs font-semibold cursor-pointer select-none hover:bg-[#3d2b5e] transition-colors ${className}`}
+        onClick={() => handleTxnSort(field)}>
+        <span className="flex items-center gap-1">
+          {label}
+          {isActive && <span className="text-[10px]">{txnSortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
         </span>
-        
-        <span className={`text-xs font-medium px-2 py-0.5 rounded w-12 text-center ${
-          t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
-        }`}>
-          {t.action.includes('sell') ? 'SELL' : 'BUY'}
-        </span>
-        
-        {t.isOption && (
-          <>
-            <span className="text-sm font-mono w-16 text-right">${t.strike}</span>
-            <span className={`text-xs px-2 py-0.5 rounded ${
-              t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
-            }`}>
-              {t.optionType?.toUpperCase()}
-            </span>
-            <span className="text-xs text-gray-400 w-24">{t.expiration}</span>
-          </>
-        )}
-        
-        <span className="text-sm w-12 text-right">{t.quantity}</span>
-        <span className="text-sm w-20 text-right">${t.price?.toFixed(2)}</span>
-        
-        <span className={`text-sm font-medium w-24 text-right ${
-          t.amount < 0 ? 'text-green-600' : 'text-red-600'
-        }`}>
-          ${Math.abs(t.amount).toFixed(2)}
-          <span className="text-xs text-gray-400 ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
-        </span>
-      </div>
+      </th>
     );
   };
 
@@ -533,7 +551,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         
         <div className="flex gap-1 bg-white rounded-lg p-1 border">
           <button
-            onClick={() => { setActiveTab('opens'); clearSelection(); }}
+            onClick={() => { setActiveTab('opens'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'opens' ? 'bg-green-100 text-green-700' : 'text-gray-600 hover:bg-gray-100'
             }`}
@@ -541,7 +559,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             1. Opens ({opens.length})
           </button>
           <button
-            onClick={() => { setActiveTab('closes'); clearSelection(); }}
+            onClick={() => { setActiveTab('closes'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'closes' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100'
             }`}
@@ -549,7 +567,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             2. Closes ({closes.length})
           </button>
           <button
-            onClick={() => { setActiveTab('trades'); clearSelection(); }}
+            onClick={() => { setActiveTab('trades'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'trades' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
             }`}
@@ -557,7 +575,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             3. Trades ({openTrades.length})
           </button>
           <button
-            onClick={() => { setActiveTab('corporate-actions'); clearSelection(); }}
+            onClick={() => { setActiveTab('corporate-actions'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'corporate-actions' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'
             }`}
@@ -605,44 +623,90 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             </div>
           )}
 
-          {/* Opens List */}
-          <div className="space-y-2">
-            {sortedOpenTickers.map(ticker => {
-              const txns = groupedOpens[ticker];
-              const isExpanded = expandedTicker === ticker;
-              const selectedCount = txns.filter(t => selectedIds.has(t.id)).length;
-              
-              return (
-                <div key={ticker} className="border rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => setExpandedTicker(isExpanded ? null : ticker)}
-                    className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-gray-100"
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="font-bold text-lg">{ticker}</span>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{txns.length} opens</span>
-                      {selectedCount > 0 && (
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">✓ {selectedCount}</span>
-                      )}
-                    </span>
-                    <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                  </button>
-                  
-                  {isExpanded && (
-                    <div className="border-t divide-y">
-                      {txns.map(renderTransaction)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            
-            {opens.length === 0 && (
-              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
-                No uncommitted opening transactions.
+          {/* Search */}
+          <div className="mb-2">
+            <input type="text" placeholder="Search by symbol, name, action..."
+              value={txnSearch} onChange={e => setTxnSearch(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]" />
+          </div>
+
+          {/* Opens Table */}
+          <div ref={opensScrollRef} className="overflow-auto border border-gray-200 rounded-lg" style={{ maxHeight: '500px' }}>
+            <table className="w-full text-xs border-collapse min-w-[800px]">
+              <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+                <tr>
+                  <th className="px-2 py-2 w-10"></th>
+                  <TxnSortHeader label="Date" field="date" className="w-24" />
+                  <TxnSortHeader label="Symbol" field="ticker" className="w-20" />
+                  <TxnSortHeader label="Action" field="action" className="w-20" />
+                  <th className="px-2 py-2 text-xs font-semibold text-left">Details</th>
+                  <TxnSortHeader label="Qty" field="quantity" className="w-16 text-right" />
+                  <TxnSortHeader label="Price" field="price" className="w-20 text-right" />
+                  <TxnSortHeader label="Amount" field="amount" className="w-24 text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOpens.map((t, i) => {
+                  const isSelected = selectedIds.has(t.id);
+                  const ticker = t.underlying || t.ticker || 'UNKNOWN';
+                  const rowBg = isSelected ? 'bg-[#2d1b4e]/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+                  return (
+                    <tr key={t.id} className={`${rowBg} hover:bg-[#2d1b4e]/[.07] cursor-pointer transition-colors`}
+                      style={{ height: 40 }}
+                      onClick={() => toggleSelect(t.id)}>
+                      <td className="px-2 py-1">
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(t.id)} className="w-3.5 h-3.5 rounded" />
+                      </td>
+                      <td className="px-2 py-1 font-mono text-gray-600 whitespace-nowrap">
+                        {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </td>
+                      <td className="px-2 py-1 font-medium text-gray-900">{ticker}</td>
+                      <td className="px-2 py-1">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {t.action.includes('sell') ? 'SELL' : 'BUY'}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-gray-700">
+                        {t.isOption ? (
+                          <span className="flex items-center gap-1">
+                            <span className="font-mono">${t.strike}</span>
+                            <span className={`text-[9px] px-1 rounded ${
+                              t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                            }`}>{t.optionType?.toUpperCase()}</span>
+                            <span className="text-gray-400 text-[10px]">{t.expiration}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 truncate text-[11px]">{t.name}</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono text-gray-700">{t.quantity}</td>
+                      <td className="px-2 py-1 text-right font-mono text-gray-700">${t.price?.toFixed(2)}</td>
+                      <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
+                        <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
+                          ${Math.abs(t.amount).toFixed(2)}
+                          <span className="text-[10px] text-gray-400 ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredOpens.length === 0 && (
+              <div className="p-8 text-center text-gray-400 text-xs">
+                {txnSearch ? 'No opens match your search.' : 'No uncommitted opening transactions.'}
               </div>
             )}
           </div>
+          {filteredOpens.length > 0 && (
+            <div className="text-[10px] text-gray-500 mt-1 px-1">
+              {filteredOpens.length}{filteredOpens.length !== opens.length ? ` of ${opens.length}` : ''} transactions
+              {' \u00B7 '}
+              {sortedOpenTickers.length} symbols
+            </div>
+          )}
         </>
       )}
 
@@ -694,80 +758,163 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
             </div>
           )}
 
-          {/* Closes List */}
-          <div className="space-y-2">
-            {sortedCloseTickers.map(ticker => {
-              const txns = groupedCloses[ticker];
-              const isExpanded = expandedTicker === ticker;
-              const selectedCount = txns.filter(t => selectedIds.has(t.id)).length;
-              
-              return (
-                <div key={ticker} className="border rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => setExpandedTicker(isExpanded ? null : ticker)}
-                    className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-gray-100"
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="font-bold text-lg">{ticker}</span>
-                      <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{txns.length} closes</span>
-                      {selectedCount > 0 && (
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">✓ {selectedCount}</span>
-                      )}
-                    </span>
-                    <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                  </button>
-                  
-                  {isExpanded && (
-                    <div className="border-t divide-y">
-                      {txns.map(renderTransaction)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            
-            {closes.length === 0 && (
-              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
-                No uncommitted closing transactions.
+          {/* Search */}
+          <div className="mb-2">
+            <input type="text" placeholder="Search by symbol, name, action..."
+              value={txnSearch} onChange={e => setTxnSearch(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]" />
+          </div>
+
+          {/* Closes Table */}
+          <div ref={closesScrollRef} className="overflow-auto border border-gray-200 rounded-lg" style={{ maxHeight: '500px' }}>
+            <table className="w-full text-xs border-collapse min-w-[800px]">
+              <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+                <tr>
+                  <th className="px-2 py-2 w-10"></th>
+                  <TxnSortHeader label="Date" field="date" className="w-24" />
+                  <TxnSortHeader label="Symbol" field="ticker" className="w-20" />
+                  <TxnSortHeader label="Action" field="action" className="w-20" />
+                  <th className="px-2 py-2 text-xs font-semibold text-left">Details</th>
+                  <TxnSortHeader label="Qty" field="quantity" className="w-16 text-right" />
+                  <TxnSortHeader label="Price" field="price" className="w-20 text-right" />
+                  <TxnSortHeader label="Amount" field="amount" className="w-24 text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCloses.map((t, i) => {
+                  const isSelected = selectedIds.has(t.id);
+                  const ticker = t.underlying || t.ticker || 'UNKNOWN';
+                  const rowBg = isSelected ? 'bg-[#2d1b4e]/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+                  return (
+                    <tr key={t.id} className={`${rowBg} hover:bg-[#2d1b4e]/[.07] cursor-pointer transition-colors`}
+                      style={{ height: 40 }}
+                      onClick={() => toggleSelect(t.id)}>
+                      <td className="px-2 py-1">
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(t.id)} className="w-3.5 h-3.5 rounded" />
+                      </td>
+                      <td className="px-2 py-1 font-mono text-gray-600 whitespace-nowrap">
+                        {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </td>
+                      <td className="px-2 py-1 font-medium text-gray-900">{ticker}</td>
+                      <td className="px-2 py-1">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          t.action.includes('sell') ? 'bg-orange-100 text-orange-700' :
+                          t.action.includes('exercise') || t.action.includes('assignment') ? 'bg-purple-100 text-purple-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {t.action.includes('sell') ? 'SELL' :
+                           t.action.includes('exercise') ? 'EXERCISE' :
+                           t.action.includes('assignment') ? 'ASSIGN' : 'BUY'}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-gray-700">
+                        {t.isOption ? (
+                          <span className="flex items-center gap-1">
+                            <span className="font-mono">${t.strike}</span>
+                            <span className={`text-[9px] px-1 rounded ${
+                              t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                            }`}>{t.optionType?.toUpperCase()}</span>
+                            <span className="text-gray-400 text-[10px]">{t.expiration}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 truncate text-[11px]">{t.name}</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono text-gray-700">{t.quantity}</td>
+                      <td className="px-2 py-1 text-right font-mono text-gray-700">${t.price?.toFixed(2)}</td>
+                      <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
+                        <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
+                          ${Math.abs(t.amount).toFixed(2)}
+                          <span className="text-[10px] text-gray-400 ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredCloses.length === 0 && (
+              <div className="p-8 text-center text-gray-400 text-xs">
+                {txnSearch ? 'No closes match your search.' : 'No uncommitted closing transactions.'}
               </div>
             )}
           </div>
+          {filteredCloses.length > 0 && (
+            <div className="text-[10px] text-gray-500 mt-1 px-1">
+              {filteredCloses.length}{filteredCloses.length !== closes.length ? ` of ${closes.length}` : ''} transactions
+              {' \u00B7 '}
+              {sortedCloseTickers.length} symbols
+            </div>
+          )}
         </>
       )}
 
       {/* TRADES TAB */}
       {activeTab === 'trades' && (
-        <div className="space-y-2">
+        <div>
           {openTrades.length === 0 ? (
             <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
               No open trades. Commit some opening positions first.
             </div>
           ) : (
-            openTrades.map(trade => (
-              <div key={trade.id} className="border rounded-lg p-4 bg-white">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-bold text-lg">Trade #{trade.trade_num}</span>
-                    <span className="ml-3 text-sm text-gray-600">{trade.symbol}</span>
-                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{trade.strategy}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-sm font-medium ${trade.status === 'OPEN' ? 'text-green-600' : 'text-gray-500'}`}>
-                      {trade.status}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Opened: {new Date(trade.open_date).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2 text-sm text-gray-600">
-                  Cost Basis: <span className="font-medium">${trade.cost_basis.toFixed(2)}</span>
-                  {trade.legs && trade.legs.length > 0 && (
-                    <span className="ml-4">{trade.legs.length} legs</span>
-                  )}
-                </div>
-              </div>
-            ))
+            <div className="overflow-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-xs border-collapse min-w-[700px]">
+                <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left font-semibold">Trade #</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Symbol</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Strategy</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Status</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Opened</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">Cost Basis</th>
+                    <th className="px-3 py-2.5 text-center font-semibold">Legs</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Leg Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {openTrades.map((trade, i) => (
+                    <tr key={trade.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-[#2d1b4e]/[.07] transition-colors`}>
+                      <td className="px-3 py-2 font-mono font-bold text-[#2d1b4e]">#{trade.trade_num}</td>
+                      <td className="px-3 py-2 font-medium text-gray-900">{trade.symbol}</td>
+                      <td className="px-3 py-2">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                          {trade.strategy}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        }`}>{trade.status}</span>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-gray-600">
+                        {new Date(trade.open_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-medium">
+                        ${trade.cost_basis.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-center font-mono text-gray-600">
+                        {trade.legs?.length || 0}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600">
+                        {trade.legs && trade.legs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {trade.legs.map((leg, li) => (
+                              <span key={li} className={`text-[9px] px-1.5 py-0.5 rounded ${
+                                leg.option_type === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                              }`}>
+                                {leg.quantity}x ${leg.strike_price} {leg.option_type?.toUpperCase()} {leg.expiration_date ? new Date(leg.expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">{'\u2014'}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
