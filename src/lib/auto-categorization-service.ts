@@ -9,20 +9,23 @@ interface CategoryPrediction {
 }
 
 export class AutoCategorizationService {
-  
+
   /**
    * Predict COA code for a transaction based on merchant mappings
    */
   async predictCategory(
     merchantName: string | null,
     categoryPrimary: string | null,
-    amount: number
+    amount: number,
+    userId: string
   ): Promise<CategoryPrediction | null> {
-    
+
     // Try merchant mapping first (highest confidence)
+    // SECURITY: Scoped to user's mappings only
     if (merchantName && categoryPrimary) {
       const merchantMapping = await prisma.merchant_coa_mappings.findFirst({
         where: {
+          userId,
           merchant_name: {
             contains: merchantName,
             mode: 'insensitive'
@@ -33,7 +36,7 @@ export class AutoCategorizationService {
           confidence_score: 'desc'
         }
       });
-      
+
       if (merchantMapping && merchantMapping.confidence_score.toNumber() > 0.5) {
         return {
           coaCode: merchantMapping.coa_code,
@@ -42,12 +45,12 @@ export class AutoCategorizationService {
         };
       }
     }
-    
+
     // Fallback to category mapping
     if (categoryPrimary) {
       const categoryMap: Record<string, string> = {
         'FOOD_AND_DRINK': 'P-6100',
-        'TRANSPORTATION': 'P-6400', 
+        'TRANSPORTATION': 'P-6400',
         'RENT_AND_UTILITIES': 'P-8100',
         'GENERAL_MERCHANDISE': 'P-8900',
         'GENERAL_SERVICES': 'P-8900',
@@ -57,7 +60,7 @@ export class AutoCategorizationService {
         'MEDICAL': 'P-8130',
         'TRAVEL': 'P-6200'
       };
-      
+
       const coaCode = categoryMap[categoryPrimary];
       if (coaCode) {
         return {
@@ -67,15 +70,15 @@ export class AutoCategorizationService {
         };
       }
     }
-    
+
     // No prediction available
     return null;
   }
-  
+
   /**
    * Categorize all pending transactions
    */
-  async categorizePendingTransactions(userId?: string): Promise<{
+  async categorizePendingTransactions(userId: string): Promise<{
     categorized: number;
     failed: number;
   }> {
@@ -83,23 +86,24 @@ export class AutoCategorizationService {
       where: {
         accountCode: null,
         predicted_coa_code: null,
-        ...(userId ? { accounts: { userId } } : {})
+        accounts: { userId }
       }
     });
-    
+
     let categorized = 0;
     let failed = 0;
-    
+
     for (const txn of pendingTransactions) {
       try {
         const categoryPrimary = (txn.personal_finance_category as any)?.primary;
-        
+
         const prediction = await this.predictCategory(
           txn.merchantName,
           categoryPrimary,
-          txn.amount
+          txn.amount,
+          userId
         );
-        
+
         if (prediction) {
           await prisma.transactions.update({
             where: { id: txn.id },
@@ -118,10 +122,10 @@ export class AutoCategorizationService {
         failed++;
       }
     }
-    
+
     return { categorized, failed };
   }
-  
+
   /**
    * Commit reviewed transactions to ledger
    */
@@ -134,30 +138,30 @@ export class AutoCategorizationService {
   }> {
     const errors: Array<{ id: string; error: string }> = [];
     let committed = 0;
-    
+
     for (const txnId of transactionIds) {
       try {
         const txn = await prisma.transactions.findUnique({
           where: { id: txnId }
         });
-        
+
         if (!txn) {
           errors.push({ id: txnId, error: 'Transaction not found' });
           continue;
         }
-        
+
         // Use accountCode if set (user edited), otherwise use predicted
         const finalCoaCode = txn.accountCode || txn.predicted_coa_code;
-        
+
         if (!finalCoaCode) {
           errors.push({ id: txnId, error: 'No COA code available' });
           continue;
         }
-        
+
         // Check if user overrode the prediction
-        const wasOverridden = !!(txn.accountCode && 
+        const wasOverridden = !!(txn.accountCode &&
           txn.accountCode !== txn.predicted_coa_code);
-        
+
         // Call existing commit API
         const response = await fetch('/api/transactions/commit-to-ledger', {
           method: 'POST',
@@ -168,13 +172,13 @@ export class AutoCategorizationService {
             subAccount: txn.subAccount
           })
         });
-        
+
         if (!response.ok) {
           const data = await response.json();
           errors.push({ id: txnId, error: data.error || 'Commit failed' });
           continue;
         }
-        
+
         // Update review status
         await prisma.transactions.update({
           where: { id: txnId },
@@ -185,15 +189,15 @@ export class AutoCategorizationService {
             overridden_by: wasOverridden ? userId : null
           }
         });
-        
+
         committed++;
-        
+
       } catch (error: any) {
         console.error(`Error committing transaction ${txnId}:`, error);
         errors.push({ id: txnId, error: error.message });
       }
     }
-    
+
     return { committed, errors };
   }
 }

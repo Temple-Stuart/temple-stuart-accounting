@@ -21,14 +21,15 @@ export async function GET(request: Request) {
     const merchantName = searchParams.get('merchantName');
     const categoryPrimary = searchParams.get('categoryPrimary');
 
-    // TODO: Known multi-tenant issue — merchant_coa_mappings table has no userId column.
-    // All mappings are globally shared across users. A userId column should be added
-    // to this table and all queries below should be scoped by userId for proper tenant isolation.
+    // SECURITY: All queries scoped to authenticated user
     let mappings;
 
     if (merchantName) {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        where: { merchant_name: { contains: merchantName, mode: 'insensitive' } },
+        where: {
+          userId: user.id,
+          merchant_name: { contains: merchantName, mode: 'insensitive' }
+        },
         orderBy: [
           { confidence_score: 'desc' },
           { usage_count: 'desc' }
@@ -37,7 +38,10 @@ export async function GET(request: Request) {
       });
     } else if (categoryPrimary) {
       mappings = await prisma.merchant_coa_mappings.findMany({
-        where: { plaid_category_primary: categoryPrimary },
+        where: {
+          userId: user.id,
+          plaid_category_primary: categoryPrimary
+        },
         orderBy: [
           { confidence_score: 'desc' },
           { usage_count: 'desc' }
@@ -46,6 +50,7 @@ export async function GET(request: Request) {
       });
     } else {
       mappings = await prisma.merchant_coa_mappings.findMany({
+        where: { userId: user.id },
         orderBy: { last_used_at: 'desc' },
         take: 50
       });
@@ -82,9 +87,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'merchantName and coaCode required' }, { status: 400 });
     }
 
+    // SECURITY: Lookup scoped to user's mappings only
     const existing = await prisma.merchant_coa_mappings.findUnique({
       where: {
-        merchant_name_plaid_category_primary: {
+        userId_merchant_name_plaid_category_primary: {
+          userId: user.id,
           merchant_name,
           plaid_category_primary: plaidCategoryPrimary || ''
         }
@@ -95,7 +102,8 @@ export async function POST(request: Request) {
       const updated = await prisma.merchant_coa_mappings.update({
         where: { id: existing.id },
         data: {
-          id: randomUUID(),
+          coa_code: coaCode,
+          sub_account: subAccount || null,
           usage_count: { increment: 1 },
           confidence_score: Math.min(0.99, existing.confidence_score.toNumber() + 0.1),
           last_used_at: new Date()
@@ -106,6 +114,7 @@ export async function POST(request: Request) {
       const created = await prisma.merchant_coa_mappings.create({
         data: {
           id: randomUUID(),
+          userId: user.id,
           merchant_name,
           plaid_category_primary: plaidCategoryPrimary,
           plaid_category_detailed: plaidCategoryDetailed,
