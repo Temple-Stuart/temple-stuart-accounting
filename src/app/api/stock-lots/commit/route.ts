@@ -192,12 +192,13 @@ export async function POST(request: Request) {
       // Create journal entry for the sale
       const TRADING_CASH = 'T-1010';
       const STOCK_POSITION = 'T-1100';
-      const PL_ACCOUNT = shortTermGain + longTermGain >= 0 ? 'T-4100' : 'T-5100';
-      
-      const totalGainLoss = shortTermGain + longTermGain;
+
       const proceedsCents = Math.round(totalProceeds * 100);
       const costBasisCents = Math.round(totalCostBasis * 100);
-      const plCents = Math.round(totalGainLoss * 100);
+      // Derive P&L from already-rounded values to guarantee balance
+      const plCents = proceedsCents - costBasisCents;
+      const totalGainLoss = plCents / 100;
+      const PL_ACCOUNT = plCents >= 0 ? 'T-4100' : 'T-5100';
 
       // SECURITY: Fetch accounts scoped to user
       const accounts = await tx.chart_of_accounts.findMany({
@@ -229,7 +230,14 @@ export async function POST(request: Request) {
       // Journal entry: DR Cash (proceeds), CR Stock Position (cost basis), DR/CR P&L (difference)
       // If gain: DR Cash, CR Stock, CR P&L (T-4100)
       // If loss: DR Cash, DR P&L (T-5100), CR Stock
-      
+
+      // Balance guard: verify debits === credits before writing any ledger entries
+      const totalDebits = proceedsCents + (plCents < 0 ? Math.abs(plCents) : 0);
+      const totalCredits = costBasisCents + (plCents >= 0 ? plCents : 0);
+      if (totalDebits !== totalCredits) {
+        throw new Error(`UNBALANCED JOURNAL ENTRY: debits=${totalDebits} credits=${totalCredits} — refusing to commit`);
+      }
+
       // DR Trading Cash (proceeds received)
       await tx.ledger_entries.create({
         data: {
