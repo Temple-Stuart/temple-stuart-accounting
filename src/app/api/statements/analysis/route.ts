@@ -19,12 +19,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'monthly';
 
-    // SECURITY: Scoped journals to user's COA
+    // Include user's COA + shared trading accounts (userId null)
     const journalEntries = await prisma.journal_transactions.findMany({
       where: {
         ledger_entries: {
           some: {
-            chart_of_accounts: { userId: user.id }
+            chart_of_accounts: {
+              OR: [{ userId: user.id }, { userId: null }]
+            }
           }
         }
       },
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
       const periodData = periodMap.get(periodKey);
 
       je.ledger_entries.forEach(le => {
-        if (le.chart_of_accounts.userId !== user.id) return;
+        if (le.chart_of_accounts.userId !== user.id && le.chart_of_accounts.userId !== null) return;
         const amount = Number(le.amount) / 100;
         const accountType = le.chart_of_accounts.account_type.toLowerCase();
         const isNormalBalance = le.entry_type === le.chart_of_accounts.balance_type;
