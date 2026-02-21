@@ -96,11 +96,24 @@ export async function POST() {
               },
               update: {
                 amount: txn.amount,
+                date: new Date(txn.date),
+                name: txn.name,
                 merchantName: txn.merchant_name,
-                personal_finance_category: (txn as any).personal_finance_category || null,
+                category: txn.category?.join(', ') || null,
+                pending: txn.pending || false,
+                authorized_date: txn.authorized_date ? new Date(txn.authorized_date) : null,
+                authorized_datetime: txn.authorized_datetime ? new Date(txn.authorized_datetime) : null,
                 counterparties: (txn as any).counterparties || null,
                 location: (txn as any).location || null,
-                payment_channel: txn.payment_channel
+                payment_channel: txn.payment_channel,
+                payment_meta: (txn as any).payment_meta || null,
+                personal_finance_category: (txn as any).personal_finance_category || null,
+                personal_finance_category_icon_url: (txn as any).personal_finance_category_icon_url,
+                transaction_code: txn.transaction_code,
+                transaction_type: (txn as any).transaction_type,
+                logo_url: (txn as any).logo_url,
+                website: (txn as any).website,
+                updatedAt: new Date()
               }
             });
             totalTransactions++;
