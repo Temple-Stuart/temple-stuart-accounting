@@ -109,13 +109,13 @@ export default function ModulesSection() {
                 <div className="text-3xl mb-4">📚</div>
                 <h4 className="text-xl font-medium text-white mb-3">Bookkeeping</h4>
                 <p className="text-gray-400 mb-4">
-                  Spending queue commits to your Chart of Accounts — assets, liabilities, equity, income, expenses. When you're done, you get an income statement and balance sheet.
+                  Plaid-synced transactions flow into a spending queue. Map to your Chart of Accounts, commit to the ledger. Full financial statements with monthly breakdowns and prior-year carry-forward.
                 </p>
                 <ul className="space-y-2 text-sm text-gray-300">
                   <li>• Plaid bank sync</li>
-                  <li>• Chart of Accounts mapping</li>
-                  <li>• Income statement & balance sheet</li>
-                  <li>• Full audit trail</li>
+                  <li>• Double-entry with audit trail</li>
+                  <li>• Balance sheet + income statement</li>
+                  <li>• Schedule D, Form 8949 + CSV export</li>
                 </ul>
               </div>
 
@@ -137,13 +137,13 @@ export default function ModulesSection() {
                 <div className="text-3xl mb-4">📈</div>
                 <h4 className="text-xl font-medium text-white mb-3">Trading</h4>
                 <p className="text-gray-400 mb-4">
-                  Investing queue matches opens and closes into positions. See your P/L, win rate, and performance by strategy or ticker.
+                  AI volatility scanner filters 475 stocks to your best setups. Queue trade cards, link them to real positions, and grade your thesis against actual results. Full P&L tracking with trade journal.
                 </p>
                 <ul className="space-y-2 text-sm text-gray-300">
-                  <li>• Number of trades, win rate</li>
-                  <li>• Total P/L, avg win vs avg loss</li>
-                  <li>• P/L by strategy and ticker</li>
-                  <li>• FIFO vs LIFO comparison</li>
+                  <li>• AI scanner + strategy cards with Greeks</li>
+                  <li>• Trade Lab: queue, link, and grade trades</li>
+                  <li>• P&L by strategy and ticker</li>
+                  <li>• Wash sale detection + tax compliance</li>
                 </ul>
               </div>
             </div>
