@@ -1092,7 +1092,7 @@ The AGPL + Commercial model ensures:
 
 <div align="center">
 
-**All plans include:** 14-day free trial • No credit card required • Your data, always exportable
+**All plans include:** Your data, always exportable
 
 </div>
 
