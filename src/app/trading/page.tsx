@@ -15,6 +15,7 @@ import {
   type CustomLeg,
 } from '@/lib/strategy-builder';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
+import TradeLabPanel from '@/components/trading/TradeLabPanel';
 
 
 interface TradeSummary {
@@ -97,7 +98,7 @@ interface TradesData {
   byTicker: TickerBreakdown[];
 }
 
-type TabType = 'overview' | 'positions' | 'market-intelligence';
+type TabType = 'overview' | 'positions' | 'trade-lab' | 'market-intelligence';
 
 const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy', 'fearful'];
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
@@ -1393,6 +1394,7 @@ export default function TradingPage() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'positions', label: 'Open Positions' },
+              { key: 'trade-lab', label: 'Trade Lab' },
               { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
@@ -1741,6 +1743,11 @@ export default function TradingPage() {
                   </table>
                 </div>
               </div>
+            )}
+
+            {/* Trade Lab Tab */}
+            {activeTab === 'trade-lab' && (
+              <TradeLabPanel />
             )}
 
             {/* Market Intelligence Tab */}

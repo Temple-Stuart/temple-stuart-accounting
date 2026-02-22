@@ -293,6 +293,7 @@ model trading_positions {
   realized_pl             Float?
   trade_num               String?   @db.VarChar(20)
   strategy                String?   @db.VarChar(50)
+  source                  String    @default("legacy") @db.VarChar(20)
   created_at              DateTime  @default(now())
   updated_at              DateTime  @updatedAt
 
@@ -368,6 +369,7 @@ model users {
   trade_journal_entries trade_journal_entries[]
   tastytrade_connections tastytrade_connections[]
   merchant_coa_mappings merchant_coa_mappings[]
+  trade_cards           trade_cards[]
 }
 
 model budgets {
@@ -1281,4 +1283,56 @@ model tastytrade_connections {
 
   @@unique([userId])
   @@index([status])
+}
+
+// ============================================
+// TRADE CARD PERSISTENCE & QUEUE
+// ============================================
+
+model trade_cards {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String
+  symbol            String    @db.VarChar(20)
+  strategy_name     String    @db.VarChar(100)
+  direction         String    @db.VarChar(20)
+  legs              Json                           // [{action, type, strike, price}]
+  entry_price       Decimal?  @db.Decimal(12, 2)
+  max_profit        Decimal?  @db.Decimal(12, 2)
+  max_loss          Decimal?  @db.Decimal(12, 2)
+  win_rate          Decimal?  @db.Decimal(5, 2)
+  risk_reward       Decimal?  @db.Decimal(8, 4)
+  thesis_points     Json?                          // ["point 1", "point 2", ...]
+  key_stats         Json?                          // {iv_rank, hv, pe, beta, spy_corr, ...}
+  macro_regime      String?   @db.VarChar(100)
+  sentiment         String?   @db.VarChar(50)
+  insider_activity  String?   @db.Text
+  headlines         Json?                          // [{title, source, sentiment}]
+  dte               Int?
+  expiration_date   DateTime? @db.Date
+  generated_at      DateTime  @default(now())
+  status            String    @default("queued") @db.VarChar(20)
+
+  user              users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link              trade_card_links?
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([symbol])
+}
+
+model trade_card_links {
+  id                 String    @id @default(uuid()) @db.Uuid
+  trade_card_id      String    @unique @db.Uuid
+  trade_num          String    @db.VarChar(50)
+  linked_at          DateTime  @default(now())
+  actual_entry_price Decimal?  @db.Decimal(12, 2)
+  actual_exit_price  Decimal?  @db.Decimal(12, 2)
+  actual_pl          Decimal?  @db.Decimal(12, 2)
+  grade              String?   @db.VarChar(2)
+  thesis_results     Json?                         // [true, false, true, ...] per thesis point
+  notes              String?   @db.Text
+
+  trade_card         trade_cards @relation(fields: [trade_card_id], references: [id], onDelete: Cascade)
+
+  @@index([trade_num])
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /* ===================================================================
    ConvergenceIntelligence — unified market intelligence dashboard
@@ -219,7 +219,12 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-function TickerCard({ detail }: { detail: TickerDetail }) {
+function TickerCard({ detail, savedCards, onSave, onRemove }: {
+  detail: TickerDetail;
+  savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onRemove: (cardKey: string, savedId: string) => Promise<void>;
+}) {
   const comp = detail.scores.composite;
   const cards = detail.trade_cards ?? [];
   const why = cards[0]?.why;
@@ -323,6 +328,36 @@ function TickerCard({ detail }: { detail: TickerDetail }) {
                     <span className="text-xs font-bold text-white">Pay ${(card.setup.net_debit * 100).toFixed(0)} to enter per contract</span>
                   ) : null}
                 </div>
+
+                {/* Enter Trade / Queued button */}
+                {(() => {
+                  const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+                  const savedId = savedCards.get(cardKey);
+                  if (savedId) {
+                    return (
+                      <div className="flex items-center justify-center gap-3 mt-3">
+                        <span className="px-4 py-1.5 rounded text-xs font-bold" style={{ background: '#065F46', color: '#34D399' }}>
+                          Queued &#10003;
+                        </span>
+                        <button
+                          onClick={() => onRemove(cardKey, savedId)}
+                          className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                        >
+                          &#10005; Remove
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <button
+                      onClick={() => onSave(detail, card)}
+                      className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-white transition-colors hover:opacity-90"
+                      style={{ background: '#4F46E5' }}
+                    >
+                      Enter Trade
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           ))}
@@ -469,6 +504,87 @@ export default function ConvergenceIntelligence() {
   const [lookupData, setLookupData] = useState<TickerDetail | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+
+  // Trade card queue — Map<"SYMBOL|strategy_name", savedCardId>
+  const [savedCards, setSavedCards] = useState<Map<string, string>>(new Map());
+
+  // Load existing queued cards on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/trade-cards?status=queued');
+        if (!res.ok) return;
+        const { cards } = await res.json();
+        const map = new Map<string, string>();
+        for (const c of cards) {
+          map.set(`${c.symbol}|${c.strategy_name}`, c.id);
+        }
+        setSavedCards(map);
+      } catch { /* ignore auth errors on non-owner pages */ }
+    })();
+  }, []);
+
+  // Save a card to queue
+  const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData) => {
+    const comp = detail.scores.composite;
+    const ks = card.key_stats;
+    const why = card.why;
+    const headlines: Headline[] = detail.scores.info_edge?.breakdown?.news_sentiment?.news_detail?.headlines?.slice(0, 5) ?? [];
+
+    const body = {
+      symbol: detail.symbol,
+      strategy_name: card.setup.strategy_name,
+      direction: comp.direction,
+      legs: card.setup.legs,
+      entry_price: card.setup.net_credit ?? card.setup.net_debit ?? null,
+      max_profit: card.setup.max_profit,
+      max_loss: card.setup.max_loss,
+      win_rate: card.setup.probability_of_profit != null ? Math.round(card.setup.probability_of_profit * 10000) / 100 : null,
+      risk_reward: card.setup.risk_reward_ratio,
+      thesis_points: why?.plain_english_signals ?? null,
+      key_stats: ks ?? null,
+      macro_regime: why?.regime_context ?? null,
+      sentiment: ks?.analyst_consensus ?? null,
+      insider_activity: null,
+      headlines: headlines.length > 0 ? headlines.map(h => ({ title: h.headline, source: h.source, sentiment: h.sentiment })) : null,
+      dte: card.setup.dte,
+      expiration_date: card.setup.expiration_date,
+    };
+
+    try {
+      const res = await fetch('/api/trade-cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const { card: saved } = await res.json();
+        setSavedCards(prev => {
+          const next = new Map(prev);
+          next.set(`${detail.symbol}|${card.setup.strategy_name}`, saved.id);
+          return next;
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Remove a card from queue
+  const removeCard = useCallback(async (cardKey: string, savedId: string) => {
+    try {
+      const res = await fetch('/api/trade-cards', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: savedId }),
+      });
+      if (res.ok) {
+        setSavedCards(prev => {
+          const next = new Map(prev);
+          next.delete(cardKey);
+          return next;
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   // Scan market — fetch batch, then enrich each winner
   const scanMarket = useCallback(async () => {
@@ -619,7 +735,7 @@ export default function ConvergenceIntelligence() {
       {enriched.length > 0 && (
         <div className="px-5 py-4 space-y-4">
           {enriched.map((detail) => (
-            <TickerCard key={detail.symbol} detail={detail} />
+            <TickerCard key={detail.symbol} detail={detail} savedCards={savedCards} onSave={saveCard} onRemove={removeCard} />
           ))}
         </div>
       )}
@@ -658,7 +774,7 @@ export default function ConvergenceIntelligence() {
         {lookupError && <div className="text-red-400 text-xs mt-2">{lookupError}</div>}
         {lookupData && (
           <div className="mt-3">
-            <TickerCard detail={lookupData} />
+            <TickerCard detail={lookupData} savedCards={savedCards} onSave={saveCard} onRemove={removeCard} />
           </div>
         )}
       </div>
