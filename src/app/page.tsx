@@ -288,7 +288,7 @@ export default function LandingPage() {
             <h2 className="text-2xl font-light text-gray-900">Start free. Upgrade when you need more.</h2>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-4">
+          <div className="grid lg:grid-cols-4 gap-4">
             {/* Free */}
             <div className="border border-gray-200 p-6">
               <div className="text-xs font-medium text-gray-900 mb-1">Free</div>
@@ -297,15 +297,15 @@ export default function LandingPage() {
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Personal bookkeeping</span>
+                  <span>Manual transaction entry</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Expense tracking</span>
+                  <span>Budgeting across all modules</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Budget tools</span>
+                  <span>Trip planning & flight search</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -331,11 +331,7 @@ export default function LandingPage() {
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Trip planning & AI itineraries</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Business accounting</span>
+                  <span>Plaid bank sync (10 accounts)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -343,7 +339,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Plaid bank sync</span>
+                  <span>Auto-categorization</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -351,7 +347,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Schedule D + Form 8949 export</span>
+                  <span>Bank reconciliation</span>
                 </div>
               </div>
               <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
@@ -360,40 +356,78 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* Trader Pro */}
+            {/* Pro+ */}
             <div className="border border-gray-200 p-6">
-              <div className="text-xs font-medium text-gray-900 mb-1">Trader Pro</div>
+              <div className="text-xs font-medium text-gray-900 mb-1">Pro+</div>
               <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$40<span className="text-sm font-normal text-gray-500">/mo</span></div>
               <div className="text-[10px] text-gray-500 mb-4">Everything in Pro, plus</div>
               <div className="space-y-2 text-xs text-gray-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI volatility scanner (475 stocks)</span>
+                  <span>AI spending insights</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>AI Market Brief + Top Picks</span>
+                  <span>AI meal planning</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Auto strategy cards with Greeks</span>
+                  <span>Trip AI recommendations</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Finnhub news + analyst ratings</span>
+                  <span>Up to 25 linked accounts</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Trade Lab + position grading</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Tastytrade live connection</span>
+                  <span>Priority support</span>
                 </div>
               </div>
               <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">
                 Subscribe
+              </button>
+            </div>
+
+            {/* Trader Pro */}
+            <div className="border border-gray-200 p-6 relative">
+              <div className="absolute -top-2.5 left-4 bg-[#b4b237] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Coming Soon</div>
+              <div className="text-xs font-medium text-gray-900 mb-1">Trader Pro</div>
+              <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">$60<span className="text-sm font-normal text-gray-500">/mo</span></div>
+              <div className="text-[10px] text-gray-500 mb-4">Everything in Pro+, plus</div>
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Real-time market data (stocks, options, crypto, futures)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>AI strategy builder — natural language algo creation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>IV-HV spread analysis & options scanner</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Live signal alerts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Wash sale & tax impact warnings before you trade</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Portfolio Greeks across all accounts</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                  <span>Budget-aware position sizing</span>
+                </div>
+              </div>
+              <button disabled
+                className="mt-6 w-full px-4 py-2 text-xs border border-gray-300 text-gray-400 font-medium cursor-not-allowed">
+                Coming Soon
               </button>
             </div>
           </div>
