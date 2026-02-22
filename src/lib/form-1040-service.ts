@@ -237,7 +237,7 @@ export async function generateForm1040(
 
   // Schedule SE
   const scheduleSE = generateScheduleSE(line8);
-  const seTaxDeduction = scheduleSE.line13;
+  const seTaxDeduction = Math.max(0, scheduleSE.line13);
 
   // Line 11: AGI
   const line11 = round2(line9 - seTaxDeduction);
