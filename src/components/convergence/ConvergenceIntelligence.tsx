@@ -219,9 +219,11 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-function TickerCard({ detail, savedCards, onSave, onRemove }: {
+function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRemove }: {
   detail: TickerDetail;
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
+  savingCards: Set<string>;
+  saveErrors: Map<string, string>;
   onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
@@ -333,6 +335,8 @@ function TickerCard({ detail, savedCards, onSave, onRemove }: {
                 {(() => {
                   const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
                   const savedId = savedCards.get(cardKey);
+                  const saving = savingCards.has(cardKey);
+                  const error = saveErrors.get(cardKey);
                   if (savedId) {
                     return (
                       <div className="flex items-center justify-center gap-3 mt-3">
@@ -348,14 +352,31 @@ function TickerCard({ detail, savedCards, onSave, onRemove }: {
                       </div>
                     );
                   }
+                  if (saving) {
+                    return (
+                      <div className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-center" style={{ background: '#334155' }}>
+                        <span className="inline-flex items-center gap-2 text-slate-300">
+                          <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                          Saving...
+                        </span>
+                      </div>
+                    );
+                  }
                   return (
-                    <button
-                      onClick={() => onSave(detail, card)}
-                      className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-white transition-colors hover:opacity-90"
-                      style={{ background: '#4F46E5' }}
-                    >
-                      Enter Trade
-                    </button>
+                    <div>
+                      <button
+                        onClick={() => onSave(detail, card)}
+                        className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-white transition-colors hover:opacity-90"
+                        style={{ background: '#4F46E5' }}
+                      >
+                        Enter Trade
+                      </button>
+                      {error && (
+                        <div className="mt-1 px-2 py-1 rounded text-[10px] text-red-300" style={{ background: '#7F1D1D30' }}>
+                          Failed: {error}
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
               </div>
@@ -507,6 +528,8 @@ export default function ConvergenceIntelligence() {
 
   // Trade card queue — Map<"SYMBOL|strategy_name", savedCardId>
   const [savedCards, setSavedCards] = useState<Map<string, string>>(new Map());
+  const [savingCards, setSavingCards] = useState<Set<string>>(new Set());
+  const [saveErrors, setSaveErrors] = useState<Map<string, string>>(new Map());
 
   // Load existing queued cards on mount
   useEffect(() => {
@@ -526,6 +549,10 @@ export default function ConvergenceIntelligence() {
 
   // Save a card to queue
   const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData) => {
+    const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+    setSavingCards(prev => { const next = new Set(prev); next.add(cardKey); return next; });
+    setSaveErrors(prev => { const next = new Map(prev); next.delete(cardKey); return next; });
+
     const comp = detail.scores.composite;
     const ks = card.key_stats;
     const why = card.why;
@@ -551,39 +578,57 @@ export default function ConvergenceIntelligence() {
       expiration_date: card.setup.expiration_date,
     };
 
+    console.log('[TradeCard] Saving:', cardKey, body);
+
     try {
       const res = await fetch('/api/trade-cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const data = await res.json();
+      console.log('[TradeCard] Response:', res.status, data);
       if (res.ok) {
-        const { card: saved } = await res.json();
         setSavedCards(prev => {
           const next = new Map(prev);
-          next.set(`${detail.symbol}|${card.setup.strategy_name}`, saved.id);
+          next.set(cardKey, data.card.id);
           return next;
         });
+      } else {
+        console.error('[TradeCard] Save failed:', res.status, data);
+        setSaveErrors(prev => new Map(prev).set(cardKey, data.error || `HTTP ${res.status}`));
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('[TradeCard] Save error:', err);
+      setSaveErrors(prev => new Map(prev).set(cardKey, 'Network error — check console'));
+    } finally {
+      setSavingCards(prev => { const next = new Set(prev); next.delete(cardKey); return next; });
+    }
   }, []);
 
   // Remove a card from queue
   const removeCard = useCallback(async (cardKey: string, savedId: string) => {
+    console.log('[TradeCard] Removing:', cardKey, savedId);
     try {
       const res = await fetch('/api/trade-cards', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: savedId }),
       });
+      const data = await res.json();
+      console.log('[TradeCard] Remove response:', res.status, data);
       if (res.ok) {
         setSavedCards(prev => {
           const next = new Map(prev);
           next.delete(cardKey);
           return next;
         });
+      } else {
+        console.error('[TradeCard] Remove failed:', res.status, data);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('[TradeCard] Remove error:', err);
+    }
   }, []);
 
   // Scan market — fetch batch, then enrich each winner
@@ -735,7 +780,7 @@ export default function ConvergenceIntelligence() {
       {enriched.length > 0 && (
         <div className="px-5 py-4 space-y-4">
           {enriched.map((detail) => (
-            <TickerCard key={detail.symbol} detail={detail} savedCards={savedCards} onSave={saveCard} onRemove={removeCard} />
+            <TickerCard key={detail.symbol} detail={detail} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
           ))}
         </div>
       )}
@@ -774,7 +819,7 @@ export default function ConvergenceIntelligence() {
         {lookupError && <div className="text-red-400 text-xs mt-2">{lookupError}</div>}
         {lookupData && (
           <div className="mt-3">
-            <TickerCard detail={lookupData} savedCards={savedCards} onSave={saveCard} onRemove={removeCard} />
+            <TickerCard detail={lookupData} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
           </div>
         )}
       </div>
