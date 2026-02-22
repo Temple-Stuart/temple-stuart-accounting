@@ -14,6 +14,7 @@ import PeriodClose from '@/components/dashboard/PeriodClose';
 import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
+import TaxReportTab from '@/components/dashboard/TaxReportTab';
 
 interface Transaction {
   id: string;
@@ -331,6 +332,7 @@ export default function Dashboard() {
                 { key: 'close', label: 'Period Close' },
                 { key: 'positions', label: 'Positions' },
                 { key: 'wash-sales', label: 'Wash Sales' },
+                { key: 'tax', label: 'Tax Forms' },
                 { key: 'export', label: 'Export' },
               ].map(tab => (
                 <button key={tab.key} onClick={() => setActiveSection(tab.key)}
@@ -645,6 +647,11 @@ export default function Dashboard() {
               {/* Wash Sale Report */}
               {activeSection === 'wash-sales' && (
                 <WashSaleReportTab />
+              )}
+
+              {/* Tax Forms (Schedule D + Form 8949) */}
+              {activeSection === 'tax' && (
+                <TaxReportTab />
               )}
 
               {/* CPA Export */}
