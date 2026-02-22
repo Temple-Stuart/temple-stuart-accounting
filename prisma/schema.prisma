@@ -370,6 +370,7 @@ model users {
   tastytrade_connections tastytrade_connections[]
   merchant_coa_mappings merchant_coa_mappings[]
   trade_cards           trade_cards[]
+  tax_overrides         tax_overrides[]
 }
 
 model budgets {
@@ -1335,4 +1336,22 @@ model trade_card_links {
   trade_card         trade_cards @relation(fields: [trade_card_id], references: [id], onDelete: Cascade)
 
   @@index([trade_num])
+}
+
+// ============================================
+// TAX OVERRIDES — Manual tax data entry
+// ============================================
+
+model tax_overrides {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.VarChar(255)
+  tax_year    Int
+  field_key   String   @db.VarChar(100)
+  field_value String   @db.Text
+  updated_at  DateTime @default(now()) @updatedAt
+
+  user        users    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, tax_year, field_key])
+  @@index([userId, tax_year])
 }

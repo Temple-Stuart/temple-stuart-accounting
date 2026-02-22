@@ -5,6 +5,10 @@ const DEFAULT_COA = [
   { code: 'P-4000', name: 'Wages & Salary', account_type: 'revenue', entity_type: 'personal' },
   { code: 'P-4200', name: 'Other Income', account_type: 'revenue', entity_type: 'personal' },
   { code: 'P-4500', name: 'Side Hustle Income', account_type: 'revenue', entity_type: 'personal' },
+  { code: 'P-4600', name: 'Retirement Distribution', account_type: 'revenue', entity_type: 'personal' },
+
+  // TAX-SPECIFIC
+  { code: 'P-8950', name: 'Early Withdrawal Penalty', account_type: 'expense', entity_type: 'personal' },
   
   // FIXED EXPENSES
   { code: 'P-8100', name: 'Rent/Mortgage', account_type: 'expense', entity_type: 'personal' },
