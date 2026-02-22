@@ -1293,8 +1293,8 @@ model trade_cards {
   id                String    @id @default(uuid()) @db.Uuid
   userId            String
   symbol            String    @db.VarChar(20)
-  strategy_name     String    @db.VarChar(100)
-  direction         String    @db.VarChar(20)
+  strategy_name     String    @db.Text
+  direction         String    @db.VarChar(50)
   legs              Json                           // [{action, type, strike, price}]
   entry_price       Decimal?  @db.Decimal(12, 2)
   max_profit        Decimal?  @db.Decimal(12, 2)
@@ -1303,8 +1303,8 @@ model trade_cards {
   risk_reward       Decimal?  @db.Decimal(8, 4)
   thesis_points     Json?                          // ["point 1", "point 2", ...]
   key_stats         Json?                          // {iv_rank, hv, pe, beta, spy_corr, ...}
-  macro_regime      String?   @db.VarChar(100)
-  sentiment         String?   @db.VarChar(50)
+  macro_regime      String?   @db.Text
+  sentiment         String?   @db.Text
   insider_activity  String?   @db.Text
   headlines         Json?                          // [{title, source, sentiment}]
   dte               Int?
