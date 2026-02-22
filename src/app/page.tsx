@@ -10,12 +10,12 @@ const MODULES = [
   { name: 'Books', desc: 'Double-entry accounting', href: '/dashboard' },
   { name: 'Business', desc: 'Business expenses', href: '/business' },
   { name: 'Trading', desc: 'AI scanner + strategy builder', href: '/trading', featured: true },
-  { name: 'Home', desc: 'Rent, utilities', href: '/home' },
+  { name: 'Home', desc: 'Rent, mortgage, utilities, household', href: '/home' },
   { name: 'Auto', desc: 'Gas, insurance', href: '/auto' },
-  { name: 'Shopping', desc: 'AI shopping planner', href: '/shopping' },
+  { name: 'Shopping', desc: 'AI grocery carts + meal planning', href: '/shopping' },
   { name: 'Personal', desc: 'Subscriptions, dining', href: '/personal' },
-  { name: 'Health', desc: 'Gym, medical', href: '/health' },
-  { name: 'Growth', desc: 'Education, courses', href: '/growth' },
+  { name: 'Health', desc: 'Gym, medical, wellness', href: '/health' },
+  { name: 'Growth', desc: 'Education, courses, self-development', href: '/growth' },
   { name: 'Trips', desc: 'AI trips & flights', href: '/budgets/trips' },
   { name: 'Income', desc: 'Income tracking', href: '/income' },
 ];
@@ -27,7 +27,7 @@ const FEATURES = [
   { title: 'Strategy Builder', desc: 'Auto-generated option spreads' },
   { title: 'AI Market Brief', desc: 'Regime, risk clusters, top picks' },
   { title: 'Finnhub Data', desc: 'News headlines + analyst ratings' },
-  { title: 'Trip Planning', desc: 'AI itineraries & flights' },
+  { title: 'AI Budget Tools', desc: 'Meal planning, grocery carts, spending analysis' },
   { title: 'Tax Engine', desc: 'Form 1040, Schedule C, D, SE, Form 8949' },
   { title: 'Trade Lab', desc: 'Queue cards, link positions, grade results' },
 ];
@@ -145,7 +145,7 @@ export default function LandingPage() {
       {/* Three Pillars */}
       <section className="bg-white border-y border-gray-200 py-12">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Bookkeeping */}
             <div className="border border-gray-200">
               <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
@@ -202,6 +202,34 @@ export default function LandingPage() {
               </div>
             </div>
 
+            {/* Budgeting */}
+            <div className="border border-gray-200">
+              <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                Budgeting
+              </div>
+              <div className="p-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Six spending modules built from your real transaction
+                  history. AI-powered meal planning, grocery carts, and spending
+                  analysis across every category of your life.
+                </p>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                    <span className="text-gray-700">Home, Auto, Shopping, Personal, Health, Growth</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                    <span className="text-gray-700">AI meal planning + grocery cart builder</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
+                    <span className="text-gray-700">Budget templates from real spending patterns</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Trips */}
             <div className="border border-gray-200">
               <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
@@ -209,8 +237,9 @@ export default function LandingPage() {
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-600 mb-4">
-                  Two-tab workflow: Overview (crew, day-by-day itinerary, settlement matrix) and
-                  Budget (destinations map, AI recommendations per category, real flight search).
+                  Plan trips with AI-generated itineraries, real flight
+                  quotes from 300+ airlines, and automatic crew expense splitting
+                  with a settlement matrix.
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
@@ -223,7 +252,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">Crew splits & settlement matrix</span>
+                    <span className="text-gray-700">Crew splits + settlement matrix</span>
                   </div>
                 </div>
               </div>
