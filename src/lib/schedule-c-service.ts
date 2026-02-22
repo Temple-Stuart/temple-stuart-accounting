@@ -150,8 +150,8 @@ export async function generateScheduleC(
   });
 
   // Separate revenue vs expense accounts
-  const revenueAccounts = bAccounts.filter(a => a.account_type === 'revenue');
-  const expenseAccounts = bAccounts.filter(a => a.account_type === 'expense');
+  const revenueAccounts = bAccounts.filter((a: { account_type: string }) => a.account_type === 'revenue');
+  const expenseAccounts = bAccounts.filter((a: { account_type: string }) => a.account_type === 'expense');
 
   // Calculate year balances for revenue accounts
   const revenueItems: { code: string; name: string; amount: number }[] = [];
