@@ -108,26 +108,26 @@ principles:
 <div align="center">
 
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                                                                            │
-│    ╔══════════════╗   ╔══════════════╗   ╔══════════════╗   ╔══════════╗   │
-│    ║  BOOKKEEPING ║   ║   TRADING    ║   ║    TRIPS     ║   ║   HUB    ║   │
-│    ║    ENGINE    ║   ║  ANALYTICS   ║   ║   PLANNER    ║   ║ COMMAND  ║   │
-│    ║              ║   ║  + AI SCAN   ║   ║              ║   ║          ║   │
-│    ╚══════╤═══════╝   ╚══════╤═══════╝   ╚══════╤═══════╝   ╚════╤═════╝   │
-│           │                  │                  │                │         │
-│    ┌──────┴──────────────────┴──────────────────┴────────────────┴──────┐  │
-│    │              🔒 UNIFIED DOUBLE-ENTRY LEDGER                        │  │
-│    │                    Full Audit Trail                                │  │
-│    └────────────────────────────┬───────────────────────────────────────┘  │
-│                                 │                                          │
-│    ┌────────────────────────────┴───────────────────────────────────────┐  │
-│    │                    🔌 INTEGRATION LAYER                            │  │
-│    │  Plaid • Duffel • Google Places • xAI Grok • OpenAI • Tastytrade   │  │
-│    │                  Claude AI • Finnhub                               │  │
-│    └────────────────────────────────────────────────────────────────────┘  │
-│                                                                            │
-└────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                      │
+│  ╔════════════╗ ╔════════════╗ ╔════════════╗ ╔════════════╗ ╔══════════╗ ╔════════╗ │
+│  ║ BOOKKEEPING║ ║  TRADING   ║ ║   TRIPS    ║ ║ BUDGETING  ║ ║   TAX    ║ ║  HUB   ║ │
+│  ║   ENGINE   ║ ║ ANALYTICS  ║ ║  PLANNER   ║ ║  6 MODULES ║ ║REPORTING ║ ║COMMAND ║ │
+│  ║            ║ ║ + AI SCAN  ║ ║            ║ ║ + AI MEALS ║ ║ + 1040   ║ ║        ║ │
+│  ╚═════╤══════╝ ╚═════╤══════╝ ╚═════╤══════╝ ╚═════╤══════╝ ╚════╤═════╝ ╚═══╤════╝ │
+│        │              │              │              │              │            │      │
+│  ┌─────┴──────────────┴──────────────┴──────────────┴──────────────┴────────────┴───┐ │
+│  │                    🔒 UNIFIED DOUBLE-ENTRY LEDGER                                │ │
+│  │                          Full Audit Trail                                        │ │
+│  └──────────────────────────────────┬───────────────────────────────────────────────┘ │
+│                                     │                                                 │
+│  ┌──────────────────────────────────┴───────────────────────────────────────────────┐ │
+│  │                          🔌 INTEGRATION LAYER                                    │ │
+│  │    Plaid • Duffel • Google Places • xAI Grok • OpenAI • Tastytrade • Stripe      │ │
+│  │                        Claude AI • Finnhub                                       │ │
+│  └──────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 </div>
@@ -150,6 +150,10 @@ Real accounting, not "tracking."
 - **Journal Entries** — Every transaction creates balanced debits/credits
 - **Merchant Learning** — Override once, categorize forever
 - **Bank Reconciliation** — Month-end verification against statements
+- **Balance Sheet** — Monthly view with prior-year carry-forward
+- **Income Statement** — Year selector with revenue/expense breakdown
+- **Three-Statement View** — Balance Sheet + Income Statement combined analysis
+- **Period Close** — Month-end close workflow with locked periods
 
 </td>
 <td width="50%" valign="top">
@@ -177,6 +181,9 @@ Built by a daily options trader.
 - **Plain English Signals** — AI translates scores into sentences anyone can understand
 - **Risk Flags** — Insider selling (MSPR), earnings proximity, low liquidity warnings
 - **Market Intelligence Dashboard** — Universe scanner + progressive trade card enrichment
+- **Trade Lab** — Queue scanner cards, link to real positions, grade results
+- **Trade Card Persistence** — Save, link, and grade trades (A/B/C/D/F system)
+- **Position Reporting** — Realized/unrealized P&L with ST/LT classification
 
 </td>
 </tr>
@@ -211,6 +218,42 @@ Your financial cockpit.
 - **Trip Cards** — Destination photos, nomad metrics, budget summaries
 - **Committed Trips** — Map view with coordinates and itineraries
 - **Wall Street Style** — Dense, data-rich tables, no fluff
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 💰 Budgeting
+
+<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+
+Six spending modules built from real transaction history.
+
+- **Budget Templates** — Built from real spending patterns across modules
+- **Six Modules** — Home, Auto, Shopping, Personal, Health, Growth
+- **AI Meal Planning** — Weekly meal plans with grocery cart builder
+- **AI Spending Insights** — Pattern detection and optimization suggestions
+- **Module-Level Tracking** — Per-category expense monitoring and comparison
+
+</td>
+<td width="50%" valign="top">
+
+### 🧾 Tax Reporting
+
+<img src="https://img.shields.io/badge/Status-Production%20Ready-success?style=flat-square" alt="Production Ready">
+
+Full tax estimation pipeline from ledger data to Form 1040.
+
+- **Form 1040 Estimator** — Bracket breakdown with line item mapping
+- **Schedule C** — Business profit/loss with expense line mapping
+- **Schedule SE** — Self-employment tax calculation
+- **Schedule D + Form 8949** — Capital gains with CSV export
+- **Wash Sale Detection** — IRS Publication 550 compliant (30-day window)
+- **Manual Overrides** — W-2 / 1099-R data entry for complete picture
+- **CPA Disclaimer** — Prominent disclaimer on all tax output
+
+> ⚠️ **All tax reports include a prominent disclaimer:** Temple Stuart is not a CPA firm or tax preparer. All estimates must be verified by a licensed professional before filing.
 
 </td>
 </tr>
@@ -307,6 +350,7 @@ Your financial cockpit.
 | **Anthropic Claude** | AI analysis | Market briefs, strategy analysis (claude-sonnet-4-20250514) |
 | **Finnhub** | Market data | Company news, analyst recommendations, price targets (free tier) |
 | **Tastytrade** | Options data | Live quotes, option chains, Greeks, IV, HV, earnings |
+| **Stripe** | Payments | Subscription management, tier gating (Free/Pro/Pro+/Trader Pro) |
 | **Leaflet** | Maps | Trip visualization, destination markers, interactive popups |
 
 <br>
@@ -319,7 +363,7 @@ temple-stuart/
 ├── src/
 │   ├── app/                    # Next.js App Router (flat routes)
 │   │   ├── accounts/           # Plaid account management
-│   │   ├── api/                # API routes (120 endpoints)
+│   │   ├── api/                # API routes (160 endpoints)
 │   │   │   ├── plaid/          # Plaid webhooks + sync
 │   │   │   ├── flights/        # Duffel search + booking
 │   │   │   ├── trips/          # Trip CRUD + participants
@@ -336,7 +380,7 @@ temple-stuart/
 │   │   ├── convergence/        # Market Intelligence dashboard
 │   │   └── trips/              # Trip-specific (TripMap, etc.)
 │   ├── lib/                    # Core libraries
-│   │   ├── convergence/        # Convergence pipeline (12 modules)
+│   │   ├── convergence/        # Convergence pipeline (11 modules)
 │   │   │   ├── pipeline.ts     # Full scan orchestrator
 │   │   │   ├── composite.ts    # 4-category composite + gate
 │   │   │   ├── vol-edge.ts     # IV vs HV scoring
@@ -354,11 +398,16 @@ temple-stuart/
 │   │   ├── placesSearch.ts     # Google Places with caching
 │   │   ├── auto-categorization-service.ts
 │   │   ├── investment-ledger-service.ts
+│   │   ├── journal-entry-service.ts
+│   │   ├── form-1040-service.ts
+│   │   ├── schedule-c-service.ts
+│   │   ├── tax-report-service.ts
+│   │   ├── wash-sale-service.ts
 │   │   ├── robinhood-parser.ts # CSV import
 │   │   └── prisma.ts           # Database client
 │   └── types/                  # TypeScript types
 ├── prisma/
-│   ├── schema.prisma           # 50+ models, full audit trail
+│   ├── schema.prisma           # 61 models, full audit trail
 │   └── migrations/             # Migration history
 └── public/                     # Static assets
 ```
@@ -390,16 +439,16 @@ temple-stuart/
                                              ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                              APPLICATION LAYER                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
-│  │ Bookkeeping │  │   Trading   │  │    Trips    │  │     Hub     │       │
-│  │   Service   │  │   Service   │  │   Service   │  │   Service   │       │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘       │
-│         │                │                │                │               │
-│  ┌──────┴────────────────┴────────────────┴────────────────┴──────┐       │
-│  │                  AUTO-CATEGORIZATION ENGINE                     │       │
-│  │    Merchant Mapping (high confidence) → Category Fallback       │       │
-│  │    Learning Loop: User corrections → Future predictions         │       │
-│  └─────────────────────────────┬──────────────────────────────────┘       │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────┐│
+│  │Bookkeeping│ │  Trading  │ │   Trips   │ │ Budgeting │ │    Tax    │ │  Hub  ││
+│  │  Service  │ │  Service  │ │  Service  │ │  Service  │ │ Reporting │ │Service││
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └───┬───┘│
+│        │              │              │              │              │            │      │
+│  ┌─────┴──────────────┴──────────────┴──────────────┴──────────────┴────────────┴───┐│
+│  │                  AUTO-CATEGORIZATION ENGINE                              ││
+│  │    Merchant Mapping (high confidence) → Category Fallback               ││
+│  │    Learning Loop: User corrections → Future predictions                 ││
+│  └──────────────────────────────────┬──────────────────────────────────────┘│
 │                                │                                           │
 │                    ┌───────────┴───────────┐                               │
 │                    │   Double-Entry        │                               │
@@ -413,7 +462,7 @@ temple-stuart/
 │                                DATA LAYER                                  │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                     Prisma ORM + PostgreSQL (Azure)                  │   │
-│  │  • 50+ models          • Entity separation (P/B/T)    • Audit trail  │   │
+│  │  • 61 models            • Entity separation (P/B/T)    • Audit trail  │   │
 │  │  • stock_lots          • trading_positions            • trip RSVP    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -928,17 +977,13 @@ The AGPL + Commercial model ensures:
 <tr>
 <th></th>
 <th align="center">🆓 Free<br><sub>$0/mo</sub></th>
-<th align="center">🚀 Pro<br><sub>$19/mo</sub></th>
-<th align="center">⚡ Pro+<br><sub>$39/mo</sub></th>
+<th align="center">🚀 Pro<br><sub>$20/mo</sub></th>
+<th align="center">⚡ Pro+<br><sub>$40/mo</sub></th>
+<th align="center">📈 Trader Pro<br><sub>$60/mo</sub></th>
 </tr>
 <tr>
 <td><strong>Manual Entry & Budgeting</strong></td>
 <td align="center">✅</td>
-<td align="center">✅</td>
-<td align="center">✅</td>
-</tr>
-<tr>
-<td><strong>Trip Planning & Flights</strong></td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
@@ -948,9 +993,11 @@ The AGPL + Commercial model ensures:
 <td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
+<td align="center">✅</td>
 </tr>
 <tr>
 <td><strong>Hub Command Center</strong></td>
+<td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
@@ -960,10 +1007,12 @@ The AGPL + Commercial model ensures:
 <td align="center">—</td>
 <td align="center">✅ (10 accounts)</td>
 <td align="center">✅ (25 accounts)</td>
+<td align="center">✅ (25 accounts)</td>
 </tr>
 <tr>
 <td><strong>Trading P&L Analytics</strong></td>
 <td align="center">—</td>
+<td align="center">✅</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
 </tr>
@@ -972,11 +1021,27 @@ The AGPL + Commercial model ensures:
 <td align="center">—</td>
 <td align="center">✅</td>
 <td align="center">✅</td>
+<td align="center">✅</td>
 </tr>
 <tr>
-<td><strong>AI Insights & Meal Planning</strong></td>
+<td><strong>Tax Estimator (1040, C, D, SE)</strong></td>
+<td align="center">—</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>AI Spending Insights</strong></td>
 <td align="center">—</td>
 <td align="center">—</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>AI Meal Planning</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">✅</td>
 <td align="center">✅</td>
 </tr>
 <tr>
@@ -984,11 +1049,41 @@ The AGPL + Commercial model ensures:
 <td align="center">—</td>
 <td align="center">—</td>
 <td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>AI Volatility Scanner</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Strategy Builder</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Trade Lab + Grading</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td><strong>Live Signals + Portfolio Greeks</strong></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">🔜</td>
 </tr>
 <tr>
 <td><strong>Support</strong></td>
 <td align="center">Community</td>
 <td align="center">Email</td>
+<td align="center">Priority</td>
 <td align="center">Priority</td>
 </tr>
 </table>
@@ -1005,15 +1100,15 @@ The AGPL + Commercial model ensures:
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [**Getting Started**](docs/getting-started.md) | Installation, first sync, initial setup |
-| [**Bookkeeping Guide**](docs/bookkeeping.md) | Double-entry system, Chart of Accounts |
-| [**Trading Analytics**](docs/trading.md) | P&L calculation, wash sales, tax lots |
-| [**Trip Planning**](docs/trips.md) | Itinerary building, cost splitting |
-| [**Self-Hosting**](docs/self-hosting.md) | Production deployment on Azure/Vercel |
-| [**API Reference**](docs/api.md) | REST endpoints, authentication |
-| [**Contributing**](CONTRIBUTING.md) | How to contribute, CLA |
+Documentation is maintained in-app and in code comments. See `src/lib/` for service-level documentation.
+
+| Area | Key Files |
+|------|-----------|
+| **Bookkeeping** | `journal-entry-service.ts`, `investment-ledger-service.ts`, `auto-categorization-service.ts` |
+| **Tax Reporting** | `form-1040-service.ts`, `schedule-c-service.ts`, `tax-report-service.ts`, `wash-sale-service.ts` |
+| **Trading** | `strategy-builder.ts`, `convergence/pipeline.ts`, `convergence/composite.ts` |
+| **Integrations** | `plaid.ts`, `duffel.ts`, `tastytrade.ts`, `grok.ts` |
+| **Contributing** | See [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 <br>
 
@@ -1064,10 +1159,18 @@ The AGPL + Commercial model ensures:
 
 ✅ Auth + Account Creation<br>
 ✅ Free & Paid Tiers (tier gating)<br>
-🔲 Onboarding Flow<br>
-🔲 Tax Export (Form 8949)<br>
-🔲 Schedule C Generation<br>
+✅ Tax Export (Form 8949)<br>
+✅ Schedule C Generation<br>
+✅ Form 1040 Tax Estimator<br>
+✅ Schedule SE (Self-Employment Tax)<br>
+✅ Tax Overrides (Manual W-2/1099-R Entry)<br>
+✅ Wash Sale Detection<br>
+✅ Trade Card Queue + Linking + Grading<br>
+✅ Balance Sheet Carry-Forward<br>
+✅ Position Reporting (P&L, ST/LT)<br>
+✅ CPA Disclaimer on Tax Forms<br>
 ✅ Meal Planning Module<br>
+🔲 Onboarding Flow<br>
 🔲 Results Tracking (scanner vs actuals)<br>
 🔲 Multi-Broker Support (Schwab, IBKR)
 
@@ -1142,7 +1245,7 @@ Security is critical for financial software.
 
 | Measure | Implementation |
 |---------|----------------|
-| **Authentication** | Cookie-based auth on 110/120 API routes |
+| **Authentication** | Cookie-based auth on 150/160 API routes |
 | **Data Isolation** | All financial queries scoped to userId |
 | **Tier Gating** | Paid API access (Plaid, AI) restricted by plan |
 | **Transport Security** | TLS via Vercel (HTTPS enforced) |
