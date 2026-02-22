@@ -13,6 +13,7 @@ import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import PeriodClose from '@/components/dashboard/PeriodClose';
 import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
+import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
 
 interface Transaction {
   id: string;
@@ -329,6 +330,7 @@ export default function Dashboard() {
                 { key: 'reconcile', label: 'Reconcile' },
                 { key: 'close', label: 'Period Close' },
                 { key: 'positions', label: 'Positions' },
+                { key: 'wash-sales', label: 'Wash Sales' },
                 { key: 'export', label: 'Export' },
               ].map(tab => (
                 <button key={tab.key} onClick={() => setActiveSection(tab.key)}
@@ -638,6 +640,11 @@ export default function Dashboard() {
               {/* Position Report */}
               {activeSection === 'positions' && (
                 <PositionReportTab />
+              )}
+
+              {/* Wash Sale Report */}
+              {activeSection === 'wash-sales' && (
+                <WashSaleReportTab />
               )}
 
               {/* CPA Export */}
