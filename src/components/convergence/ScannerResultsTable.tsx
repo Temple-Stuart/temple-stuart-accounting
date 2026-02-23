@@ -139,17 +139,17 @@ function dirBadge(d: string) {
 }
 
 function fmtDollar(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   return v >= 0 ? `$${v.toLocaleString()}` : `-$${Math.abs(v).toLocaleString()}`;
 }
 
 function fmtPct(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   return `${(v * 100).toFixed(1)}%`;
 }
 
 function fmtMcap(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
@@ -242,27 +242,27 @@ function ExpandedDetail({ detail, card }: { detail: TickerDetail; card: TradeCar
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
             <div>
               <span className="text-gray-500">IV Rank: </span>
-              <span className="text-gray-200 font-mono">{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '—'}</span>
               {ks.iv_rank != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('iv_rank', ks.iv_rank)}</span>}
             </div>
             <div>
               <span className="text-gray-500">P/E: </span>
-              <span className="text-gray-200 font-mono">{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
               {ks.pe_ratio != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('pe_ratio', ks.pe_ratio)}</span>}
             </div>
             <div>
               <span className="text-gray-500">Beta: </span>
-              <span className="text-gray-200 font-mono">{ks.beta != null ? ks.beta.toFixed(2) : '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
               {ks.beta != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('beta', ks.beta)}</span>}
             </div>
             <div>
               <span className="text-gray-500">SPY Corr: </span>
-              <span className="text-gray-200 font-mono">{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
               {ks.spy_correlation != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('spy_correlation', ks.spy_correlation)}</span>}
             </div>
             <div>
               <span className="text-gray-500">Liquidity: </span>
-              <span className="text-gray-200 font-mono">{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
               {ks.liquidity_rating != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('liquidity_rating', ks.liquidity_rating)}</span>}
             </div>
             <div>
@@ -271,11 +271,11 @@ function ExpandedDetail({ detail, card }: { detail: TickerDetail; card: TradeCar
             </div>
             <div>
               <span className="text-gray-500">Sector: </span>
-              <span className="text-gray-200">{ks.sector ?? '\u2014'}</span>
+              <span className="text-gray-200">{ks.sector ?? '—'}</span>
             </div>
             <div>
               <span className="text-gray-500">Earnings: </span>
-              <span className="text-gray-200 font-mono">{ks.earnings_date ?? '\u2014'}</span>
+              <span className="text-gray-200 font-mono">{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
                 <span className="text-amber-400 text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
@@ -384,7 +384,7 @@ export default function ScannerResultsTable({
           const legsText = s.legs
             .map(l => `${l.side.toUpperCase()} ${l.strike}${l.type[0].toUpperCase()}`)
             .join(' / ');
-          let entryText = '\u2014';
+          let entryText = '—';
           if (s.net_credit != null && s.net_credit > 0) {
             entryText = `Collect $${(s.net_credit * 100).toFixed(0)}`;
           } else if (s.net_debit != null) {
@@ -595,7 +595,7 @@ export default function ScannerResultsTable({
                     </td>
                     {/* Legs */}
                     <td className="px-2 py-2 text-gray-300 font-mono text-[10px] max-w-[200px]" onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                      {row.legsText || '\u2014'}
+                      {row.legsText || '—'}
                     </td>
                     {/* Entry */}
                     <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
@@ -615,11 +615,11 @@ export default function ScannerResultsTable({
                     </td>
                     {/* R:R */}
                     <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
-                      {row.riskReward != null ? row.riskReward.toFixed(2) : '\u2014'}
+                      {row.riskReward != null ? row.riskReward.toFixed(2) : '—'}
                     </td>
                     {/* DTE */}
                     <td className="px-2 py-2 text-right font-mono text-gray-300" onClick={() => toggleRow(row.id)}>
-                      {row.dte ?? '\u2014'}
+                      {row.dte ?? '—'}
                     </td>
                   </tr>
 

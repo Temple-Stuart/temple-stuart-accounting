@@ -72,21 +72,21 @@ Composite = weighted average of all 4. Convergence gate requires 3/4 categories 
 
 You receive:
 - pipeline_summary: universe size, filter counts, timing
-- rankings.top_8: the final selected tickers with all scores, convergence rating, strategy suggestion, sector, IVP, IV-HV spread, HV trend, insider MSPR, beat streak, key signals
-- rankings.also_scored: runners-up that were scored but didn't make the final 8
+- rankings.top_9: the final selected tickers with all scores, convergence rating, strategy suggestion, sector, IVP, IV-HV spread, HV trend, insider MSPR, beat streak, key signals
+- rankings.also_scored: runners-up that were scored but didn't make the final 9
 - diversification.adjustments: any tickers excluded (convergence gate, quality floor, sector cap)
 - sector_stats: per-sector mean/std for key metrics
-- scoring_details: full scoring breakdown for each top-8 ticker (sub-scores, formulas, z-scores, regime classification)
+- scoring_details: full scoring breakdown for each top-9 ticker (sub-scores, formulas, z-scores, regime classification)
 - data_gaps and errors
 
 You perform FOUR analyses. Every claim must be directly computable from the data provided.
 
 1. PIPELINE SUMMARY
-Summarize the funnel: how many tickers entered, how many survived hard filters, how many were scored, and which 8 made it through. Note pipeline runtime. If there were Finnhub errors or data gaps, mention them.
+Summarize the funnel: how many tickers entered, how many survived hard filters, how many were scored, and which 9 made it through. Note pipeline runtime. If there were Finnhub errors or data gaps, mention them.
 Write 2-3 sentences. Every sentence must contain a number.
 
 2. CONVERGENCE ANALYSIS
-For each of the top 8 tickers:
+For each of the top 9 tickers:
 - State the composite score and convergence rating (e.g., "4/4 — all categories aligned")
 - Identify the STRONGEST category and the WEAKEST category with their scores
 - If vol_edge is the strongest, explain WHY (look at mispricing z-scores, term structure shape, IV-HV spread)
@@ -97,8 +97,8 @@ Write 2-3 sentences per ticker. Reference specific sub-scores and numbers.
 
 3. RISK FLAGS
 Scan the data for:
-a) Sector concentration: Are multiple top-8 tickers from the same sector? What's the sector distribution?
-b) Regime misalignment: Any top-8 ticker with regime < 45? What's dragging it down?
+a) Sector concentration: Are multiple top-9 tickers from the same sector? What's the sector distribution?
+b) Regime misalignment: Any top-9 ticker with regime < 45? What's dragging it down?
 c) Quality concerns: Any ticker with quality between 40-50 that barely passed the floor?
 d) Convergence weakness: Any ticker at exactly 3/4? Which category failed?
 e) Insider selling: Any ticker where MSPR is negative (insider selling)?
@@ -106,7 +106,7 @@ f) Exclusions: Summarize why tickers were excluded (convergence gate failures, q
 List each risk found. If none for a category, omit it.
 
 4. CROSS-TICKER INSIGHTS
-Look across all 8 tickers for patterns:
+Look across all 9 tickers for patterns:
 - Is there a dominant regime classification? What does it mean for premium selling?
 - What's the average composite score? Is the cohort strong or marginal?
 - Are the strategies all the same direction, or is there a mix of bullish/bearish/neutral?
@@ -143,7 +143,7 @@ function prepareSynthesisPayload(pipeline: PipelineResult): object {
     pipeline_summary: pipeline.pipeline_summary,
     rankings: {
       scored_count: pipeline.rankings.scored_count,
-      top_8: pipeline.rankings.top_8,
+      top_9: pipeline.rankings.top_9,
       // Include top 10 of also_scored for context
       also_scored_sample: pipeline.rankings.also_scored.slice(0, 10),
       sector_distribution: pipeline.rankings.sector_distribution,
@@ -156,6 +156,21 @@ function prepareSynthesisPayload(pipeline: PipelineResult): object {
       ]),
     ),
     scoring_details: pipeline.scoring_details,
+    pre_filter_summary: {
+      total: pipeline.pre_filter.length,
+      included: pipeline.pre_filter.filter(r => !r.excluded).length,
+      excluded: pipeline.pre_filter.filter(r => r.excluded).length,
+      earnings_warnings: pipeline.pre_filter.filter(r => r.earningsWarning != null).map(r => ({
+        symbol: r.symbol,
+        warning: r.earningsWarning,
+      })),
+      top_10_by_preScore: pipeline.pre_filter.filter(r => !r.excluded).slice(0, 10).map(r => ({
+        symbol: r.symbol,
+        preScore: r.preScore,
+        ivRank: r.ivRank,
+        liquidityRating: r.liquidityRating,
+      })),
+    },
     data_gaps: pipeline.data_gaps,
     errors: pipeline.errors,
   };
@@ -247,7 +262,8 @@ export async function GET(request: Request) {
     const result = {
       synthesis,
       pipeline_summary: pipeline.pipeline_summary,
-      top_8: pipeline.rankings.top_8,
+      top_9: pipeline.rankings.top_9,
+      pre_filter: pipeline.pre_filter,
       sector_distribution: pipeline.rankings.sector_distribution,
       timing: {
         pipeline_ms: pipelineMs,

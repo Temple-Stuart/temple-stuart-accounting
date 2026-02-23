@@ -31,14 +31,14 @@ interface PipelineSummary {
   after_hard_filters: number;
   pre_scored: number;
   scored: number;
-  final_8: string[];
+  final_9: string[];
   pipeline_runtime_ms: number;
   timestamp: string;
 }
 
 interface BatchResponse {
   pipeline_summary: PipelineSummary;
-  top_8: RankedRow[];
+  top_9: RankedRow[];
   timing: { pipeline_ms: number; ai_ms: number; total_ms: number };
 }
 
@@ -162,17 +162,17 @@ function dirBadge(d: string) {
 }
 
 function fmtDollar(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   return v >= 0 ? `$${v.toLocaleString()}` : `-$${Math.abs(v).toLocaleString()}`;
 }
 
 function fmtPct(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   return `${(v * 100).toFixed(1)}%`;
 }
 
 function fmtMcap(v: number | null): string {
-  if (v == null) return '\u2014';
+  if (v == null) return '—';
   if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
   if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
@@ -195,7 +195,7 @@ function statExplain(key: string, val: number | string | null): string {
     case 'beta': return n > 1.2 ? 'moves more than the market' : n > 0.8 ? 'moves roughly with the market' : 'less volatile than the market';
     case 'spy_correlation': return n > 0.7 ? 'strongly follows the S&P 500' : n > 0.4 ? 'somewhat follows the market' : 'marches to its own beat';
     case 'liquidity_rating': return n >= 4 ? 'easy to get in and out' : n >= 3 ? 'decent liquidity' : 'may be hard to fill';
-    case 'pe_ratio': return n > 40 ? 'high valuation \u2014 growth priced in' : n > 15 ? 'moderate valuation' : 'cheap on earnings';
+    case 'pe_ratio': return n > 40 ? 'high valuation — growth priced in' : n > 15 ? 'moderate valuation' : 'cheap on earnings';
     case 'buzz_ratio': return n > 2 ? 'much more coverage than normal' : n > 1 ? 'normal coverage' : 'below-average attention';
     case 'sentiment_momentum': return n > 20 ? 'sentiment improving recently' : n < -20 ? 'sentiment declining' : 'stable sentiment';
     default: return '';
@@ -319,7 +319,7 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
                   </div>
                   <div className="text-center">
                     <div className="text-[9px] text-slate-500 uppercase">Risk/Reward</div>
-                    <div className="text-sm font-mono font-black text-white">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '\u2014'}</div>
+                    <div className="text-sm font-mono font-black text-white">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
 
@@ -387,7 +387,7 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
       ) : (
         <div className="px-5 py-4 text-center border-b" style={{ borderColor: '#334155' }}>
           <div className="text-slate-500 text-xs">
-            {detail._fetch_errors?.chain_fetch ? `No trade cards \u2014 ${detail._fetch_errors.chain_fetch}` : 'No strategies passed quality gates for this ticker'}
+            {detail._fetch_errors?.chain_fetch ? `No trade cards — ${detail._fetch_errors.chain_fetch}` : 'No strategies passed quality gates for this ticker'}
           </div>
         </div>
       )}
@@ -440,20 +440,20 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
             <div>
               <span className="text-slate-500 font-medium">Volatility: </span>
               <span className="text-slate-200 font-mono">
-                IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '\u2014'}
-                {ks.iv_rank != null && <span className="text-slate-500"> \u2014 {statExplain('iv_rank', ks.iv_rank)}</span>}
-                {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '\u2014'}
-                {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '\u2014'}
+                IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}
+                {ks.iv_rank != null && <span className="text-slate-500"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
+                {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}
+                {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}
               </span>
             </div>
             {/* Company row */}
             <div>
               <span className="text-slate-500 font-medium">Company: </span>
               <span className="text-slate-200 font-mono">
-                P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '\u2014'}
-                {ks.pe_ratio != null && <span className="text-slate-500"> \u2014 {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+                P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}
+                {ks.pe_ratio != null && <span className="text-slate-500"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
                 {' | '}Cap {fmtMcap(ks.market_cap)}
-                {' | '}Earnings {ks.earnings_date ?? '\u2014'}
+                {' | '}Earnings {ks.earnings_date ?? '—'}
                 {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-amber-400"> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
@@ -461,22 +461,22 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
             <div>
               <span className="text-slate-500 font-medium">Market: </span>
               <span className="text-slate-200 font-mono">
-                Beta {ks.beta != null ? ks.beta.toFixed(2) : '\u2014'}
-                {ks.beta != null && <span className="text-slate-500"> \u2014 {statExplain('beta', ks.beta)}</span>}
-                {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '\u2014'}
-                {ks.spy_correlation != null && <span className="text-slate-500"> \u2014 {statExplain('spy_correlation', ks.spy_correlation)}</span>}
-                {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '\u2014'}
+                Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}
+                {ks.beta != null && <span className="text-slate-500"> — {statExplain('beta', ks.beta)}</span>}
+                {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}
+                {ks.spy_correlation != null && <span className="text-slate-500"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+                {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}
               </span>
             </div>
             {/* Sentiment row */}
             <div>
               <span className="text-slate-500 font-medium">Sentiment: </span>
               <span className="text-slate-200 font-mono">
-                Analysts: {ks.analyst_consensus ?? '\u2014'}
-                {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '\u2014'}
-                {ks.buzz_ratio != null && <span className="text-slate-500"> \u2014 {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
-                {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '\u2014'}
-                {ks.sentiment_momentum != null && <span className="text-slate-500"> \u2014 {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
+                Analysts: {ks.analyst_consensus ?? '—'}
+                {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}
+                {ks.buzz_ratio != null && <span className="text-slate-500"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
+                {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
+                {ks.sentiment_momentum != null && <span className="text-slate-500"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
           </div>
@@ -640,7 +640,7 @@ export default function ConvergenceIntelligence() {
     setEnriched([]);
     setEnriching(false);
     try {
-      const resp = await fetch(`/api/ai/convergence-synthesis?limit=8&universe=${universe}&refresh=true`);
+      const resp = await fetch(`/api/ai/convergence-synthesis?limit=9&universe=${universe}&refresh=true`);
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
         throw new Error(body.error || `HTTP ${resp.status}`);
@@ -650,7 +650,7 @@ export default function ConvergenceIntelligence() {
       setScanning(false);
 
       // Now enrich each top ticker sequentially
-      const symbols = json.top_8.map(r => r.symbol);
+      const symbols = json.top_9.map(r => r.symbol);
       if (symbols.length > 0) {
         setEnriching(true);
         setEnrichProgress({ done: 0, total: symbols.length, current: symbols[0] });
@@ -741,7 +741,7 @@ export default function ConvergenceIntelligence() {
             {batchData.pipeline_summary.total_universe} scanned
             {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
             {' \u2192 '}{batchData.pipeline_summary.scored} scored
-            {' \u2192 '}{batchData.top_8.length} selected
+            {' \u2192 '}{batchData.top_9.length} selected
             {' ('}
             {(batchData.timing.total_ms / 1000).toFixed(1)}s)
           </div>
@@ -772,7 +772,7 @@ export default function ConvergenceIntelligence() {
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%`, background: '#4F46E5' }} />
           </div>
           <div className="text-[10px] text-slate-500 font-mono shrink-0">
-            {enrichProgress.done}/{enrichProgress.total} \u2014 loading {enrichProgress.current}
+            {enrichProgress.done}/{enrichProgress.total} — loading {enrichProgress.current}
           </div>
         </div>
       )}
