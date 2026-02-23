@@ -105,7 +105,7 @@ export interface TickerDetail {
   data_gaps: string[];
   _chain_stats?: Record<string, unknown>;
   _fetch_errors?: Record<string, string>;
-  _rejection_reasons?: { strategy: string; reason: string; gate: string; details?: Record<string, unknown> }[];
+  _rejection_reasons?: { strategy: string; reason: string; gate: string; details?: { value: number; threshold: number; spreadWidth?: number } }[];
 }
 
 // ── Filter result ───────────────────────────────────────────────────
