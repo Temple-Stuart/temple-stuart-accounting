@@ -7,6 +7,8 @@ import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
 import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
+import { computePreFilter } from './pre-filter';
+import type { PreFilterResult } from './pre-filter';
 import type {
   TTScannerData,
   ConvergenceInput,
@@ -72,7 +74,7 @@ export interface PipelineResult {
     pre_scored: number;
     finnhub_fetched: number;
     scored: number;
-    final_8: string[];
+    final_9: string[];
     pipeline_runtime_ms: number;
     finnhub_calls_made: number;
     finnhub_errors: number;
@@ -91,12 +93,13 @@ export interface PipelineResult {
   pre_scores: PreScoreRow[];
   rankings: {
     scored_count: number;
-    top_8: RankedRow[];
+    top_9: RankedRow[];
     also_scored: RankedRow[];
     sector_distribution: Record<string, number>;
   };
   diversification: DiversificationResult;
   scoring_details: Record<string, FullScoringResult>;
+  pre_filter: PreFilterResult[];
   data_gaps: string[];
   errors: string[];
 }
@@ -362,9 +365,25 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
 
   const totalUniverse = allScannerData.length;
 
+  // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
+  console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
+  const preFilterResults = computePreFilter(allScannerData);
+  const preFilterIncluded = preFilterResults.filter(r => !r.excluded);
+  const preFilterExcluded = preFilterResults.filter(r => r.excluded);
+  console.log(`[Pipeline] Step A2: ${preFilterIncluded.length} included, ${preFilterExcluded.length} excluded by pre-filter`);
+
+  // Use pre-filter to narrow the candidate set: take top (limit * 4) non-excluded
+  // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
+  const preFilterTopN = Math.min(limit * 4, preFilterIncluded.length);
+  const preFilterCandidates = new Set(
+    preFilterIncluded.slice(0, preFilterTopN).map(r => r.symbol)
+  );
+  const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
+  console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+
   // ===== STEP B: Hard Filters =====
   console.log('[Pipeline] Step B: Applying hard filters...');
-  const hardFilters = applyHardFilters(allScannerData);
+  const hardFilters = applyHardFilters(preFilteredScannerData);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
 
   // Build a map for quick lookup
@@ -383,7 +402,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
   const preScores = computePreScores(survivors);
   // Overfetch: fetch 2x the desired final count so convergence gate + quality floor
-  // exclusions don't leave us short on tickers for the final 8
+  // exclusions don't leave us short on tickers for the final 9
   const fetchCount = Math.min(limit * 2, preScores.length);
   const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
@@ -546,7 +565,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
 
   // ===== STEP G: Rank and Diversify =====
   console.log('[Pipeline] Step G: Ranking and diversifying...');
-  const { top8, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
+  const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
 
   // ===== STEP G2: Fetch chain data and build trade cards =====
   console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
@@ -567,8 +586,8 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     dataGaps.push('trade_cards: market closed. Rerun during market hours (Mon-Fri 9:30-16:00 ET).');
     console.log(`[Pipeline] Step G2: Market closed (${marketStatus.reason}), skipping chain fetch`);
   } else try {
-    // Build input for chain fetcher from top 8 tickers
-    const chainInputs = top8.map(row => {
+    // Build input for chain fetcher from top 9 tickers
+    const chainInputs = top9.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
       if (!ticker) return null;
 
@@ -645,9 +664,9 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
 
-  // Build scoring details for top 8 only
+  // Build scoring details for top 9 only
   const scoringDetails: Record<string, FullScoringResult> = {};
-  for (const row of top8) {
+  for (const row of top9) {
     const ticker = scoredTickers.find(t => t.symbol === row.symbol);
     if (ticker) {
       scoringDetails[row.symbol] = ticker.scoring;
@@ -667,7 +686,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
 
   if (chainStats.chain_symbols_fetched > 0 && chainStats.total_trade_cards === 0) {
     dataGaps.push('trade_cards: option chains fetched but no strategies passed quality gates');
-  } else if (chainStats.chain_symbols_fetched === 0 && top8.length > 0) {
+  } else if (chainStats.chain_symbols_fetched === 0 && top9.length > 0) {
     dataGaps.push('trade_cards: chain fetch failed or no valid expirations found');
   }
 
@@ -680,7 +699,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       pre_scored: preScores.length,
       finnhub_fetched: topSymbols.length,
       scored: scoredTickers.length,
-      final_8: top8.map(r => r.symbol),
+      final_9: top9.map(r => r.symbol),
       pipeline_runtime_ms: pipelineMs,
       finnhub_calls_made: finnhubResult.stats.calls_made,
       finnhub_errors: finnhubResult.stats.errors,
@@ -699,17 +718,18 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     pre_scores: preScores,
     rankings: {
       scored_count: scoredTickers.length,
-      top_8: top8,
+      top_9: top9,
       also_scored: alsoScored,
       sector_distribution: sectorDistribution,
     },
     diversification,
     scoring_details: scoringDetails,
+    pre_filter: preFilterResults,
     data_gaps: dataGaps,
     errors,
   };
 
-  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Final 8: ${top8.map(r => r.symbol).join(', ')}`);
+  console.log(`[Pipeline] Complete in ${pipelineMs}ms. Final 9: ${top9.map(r => r.symbol).join(', ')}`);
   return result;
 }
 
@@ -942,13 +962,13 @@ function buildRankedRows(
 // ===== STEP G: Rank and Diversify =====
 
 function rankAndDiversify(rankedRows: RankedRow[]): {
-  top8: RankedRow[];
+  top9: RankedRow[];
   alsoScored: RankedRow[];
   diversification: DiversificationResult;
   sectorDistribution: Record<string, number>;
 } {
   const MAX_PER_SECTOR = 2;
-  const TOP_N = 8;
+  const TOP_N = 9;
   const adjustments: string[] = [];
 
   // BUG 4 fix: Enforce convergence gate — exclude tickers with < 3/4 categories above 50
@@ -1049,7 +1069,7 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
     .filter(r => !finalSymbols.has(r.symbol))
     .map((r, i) => ({ ...r, rank: TOP_N + 1 + i }));
 
-  // Sector distribution of final 8
+  // Sector distribution of final 9
   const sectorDistribution: Record<string, number> = {};
   for (const row of final) {
     const sector = row.sector || 'Unknown';
@@ -1057,7 +1077,7 @@ function rankAndDiversify(rankedRows: RankedRow[]): {
   }
 
   return {
-    top8: final,
+    top9: final,
     alsoScored,
     diversification: { adjustments },
     sectorDistribution,
