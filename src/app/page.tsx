@@ -23,9 +23,10 @@ const MODULES = [
 const FEATURES = [
   { title: 'Plaid Integration', desc: 'Bank sync for all accounts' },
   { title: 'Double-Entry', desc: 'CPA-grade bookkeeping' },
-  { title: 'AI Vol Scanner', desc: '475 stocks scored and filtered' },
-  { title: 'Strategy Builder', desc: 'Auto-generated option spreads' },
+  { title: 'AI Vol Scanner', desc: 'Institutional pre-filter, 3-tier filter panel' },
+  { title: 'Strategy Builder', desc: 'N(d2) PoP, three-outcome EV, auto-spreads' },
   { title: 'AI Market Brief', desc: 'Regime, risk clusters, top picks' },
+  { title: 'Social Sentiment', desc: 'Real-time X/Twitter via xAI Grok' },
   { title: 'Finnhub Data', desc: 'News headlines + analyst ratings' },
   { title: 'AI Budget Tools', desc: 'Meal planning, grocery carts, spending analysis' },
   { title: 'Tax Engine', desc: 'Form 1040, Schedule C, D, SE, Form 8949' },
@@ -181,14 +182,14 @@ export default function LandingPage() {
               </div>
               <div className="p-4">
                 <p className="text-sm text-gray-600 mb-4">
-                  AI volatility scanner filters 475 stocks to your best setups.
-                  Queue trade cards, link them to real positions, and grade your
-                  thesis against actual results. Full P&L tracking with trade journal.
+                  AI volatility scanner filters 475 stocks through institutional pre-filters
+                  and a 3-tier filter panel. N(d2) breakeven PoP, three-outcome EV model,
+                  real-time X/Twitter sentiment. Queue cards, link to positions, grade results.
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-gray-700">AI scanner + strategy cards with Greeks</span>
+                    <span className="text-gray-700">Institutional pre-filter + 3-tier filter panel</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -291,7 +292,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="border border-gray-700 p-4">
               <div className="text-xs font-medium text-gray-300 mb-1">Scan</div>
-              <div className="text-[11px] text-gray-500 leading-relaxed">475 stocks through institutional-grade filters. IV rank, IV-HV spread, liquidity, term structure, lendability.</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">475 stocks through institutional pre-filter, then a 3-tier filter panel: liquidity gates, risk profile, edge metrics. Social sentiment via xAI Grok.</div>
             </div>
             <div className="border border-gray-700 p-4">
               <div className="text-xs font-medium text-gray-300 mb-1">Brief</div>
@@ -299,7 +300,7 @@ export default function LandingPage() {
             </div>
             <div className="border border-gray-700 p-4">
               <div className="text-xs font-medium text-gray-300 mb-1">Strategies</div>
-              <div className="text-[11px] text-gray-500 leading-relaxed">Auto-generated strategy cards with P&L charts, Greeks, breakevens, and PoP. Delta-scanned for best risk/reward.</div>
+              <div className="text-[11px] text-gray-500 leading-relaxed">Auto-generated strategy cards with P&L charts, Greeks, breakevens, N(d2) PoP, and three-outcome EV. Delta-scanned for best risk/reward.</div>
             </div>
             <div className="border border-gray-700 p-4">
               <div className="text-xs font-medium text-gray-300 mb-1">Context</div>
