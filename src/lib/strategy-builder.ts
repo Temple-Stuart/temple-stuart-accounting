@@ -132,6 +132,58 @@ export interface GenerateParams {
   hv30?: number;   // 30-day HV decimal (e.g. 0.25 for 25%)
 }
 
+// ─── Three-Outcome EV Model ─────────────────────────────────────────
+
+/**
+ * Three-outcome Expected Value model for spread strategies.
+ *
+ * Accounts for the partial P/L zone between short and long strikes
+ * that binary EV ignores.
+ *
+ * @param pop - Estimated probability of profit (0-1, from delta approximation)
+ * @param maxProfit - Maximum profit in dollars (positive number)
+ * @param maxLoss - Maximum loss in dollars (positive number, absolute value)
+ * @param shortDelta - Absolute delta of the short strike (e.g., 0.30)
+ * @param longDelta - Absolute delta of the long strike (e.g., 0.16)
+ * @returns { ev: number, evPerRisk: number }
+ */
+function calculateThreeOutcomeEV(
+  pop: number,
+  maxProfit: number,
+  maxLoss: number,
+  shortDelta: number | null,
+  longDelta: number | null,
+): { ev: number; evPerRisk: number } {
+  const absMaxLoss = Math.abs(maxLoss);
+
+  // If we don't have both deltas, fall back to binary model
+  if (shortDelta == null || longDelta == null || shortDelta <= longDelta) {
+    // Binary model: EV = PoP × MaxProfit - (1-PoP) × |MaxLoss|
+    const ev = pop * maxProfit - (1 - pop) * absMaxLoss;
+    const evPerRisk = absMaxLoss > 0 ? ev / absMaxLoss : 0;
+    return { ev: Math.round(ev * 100) / 100, evPerRisk: Math.round(evPerRisk * 1000) / 1000 };
+  }
+
+  // Three-outcome model
+  const pFullProfit = 1 - shortDelta;                    // probability price stays safe
+  const pPartial = Math.abs(shortDelta - longDelta);     // probability in partial zone
+  const pFullLoss = longDelta;                           // probability beyond long strike
+
+  // Partial P/L approximation: midpoint between max profit and max loss
+  const partialPL = (maxProfit - absMaxLoss) / 2;
+
+  const ev = pFullProfit * maxProfit
+           + pPartial * partialPL
+           + pFullLoss * (-absMaxLoss);
+
+  const evPerRisk = absMaxLoss > 0 ? ev / absMaxLoss : 0;
+
+  return {
+    ev: Math.round(ev * 100) / 100,
+    evPerRisk: Math.round(evPerRisk * 1000) / 1000
+  };
+}
+
 // ─── Tier 1: Strategy Labels ────────────────────────────────────────
 
 export interface StrategyLabel {
@@ -633,8 +685,24 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
     const evPop = isCredit ? hvPop : card.pop;
 
     if (mp > 0 && effectiveML > 0) {
-      card.ev = Math.round((evPop * mp - (1 - evPop) * effectiveML) * 100) / 100;
-      card.evPerRisk = Math.round((card.ev / effectiveML) * 10000) / 10000;
+      // Extract short/long deltas for three-outcome model
+      const shortLegs = card.legs.filter(l => l.side === 'sell');
+      const longLegs = card.legs.filter(l => l.side === 'buy');
+
+      // For spreads: use absolute deltas of short and long strikes
+      const shortDelta = shortLegs.length > 0 ? Math.max(...shortLegs.map(l => Math.abs(l.delta))) : null;
+      const longDelta = longLegs.length > 0 ? Math.max(...longLegs.map(l => Math.abs(l.delta))) : null;
+
+      // Three-outcome EV for defined-risk spreads; binary for unlimited/single-leg
+      if (!card.isUnlimited && shortLegs.length > 0 && longLegs.length > 0) {
+        const result = calculateThreeOutcomeEV(evPop, mp, effectiveML, shortDelta, longDelta);
+        card.ev = result.ev;
+        card.evPerRisk = result.evPerRisk;
+      } else {
+        // Binary model for unlimited-risk or single-leg strategies
+        card.ev = Math.round((evPop * mp - (1 - evPop) * effectiveML) * 100) / 100;
+        card.evPerRisk = Math.round((card.ev / effectiveML) * 10000) / 10000;
+      }
     }
   }
 

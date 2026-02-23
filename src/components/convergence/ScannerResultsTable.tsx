@@ -184,11 +184,14 @@ interface TableRow {
   maxProfit: number | null;
   maxLoss: number | null;
   winPct: number | null;
+  ev: number | null;
+  evPerRisk: number | null;
   riskReward: number | null;
   dte: number | null;
+  hasWideSpread: boolean;
 }
 
-type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' | 'maxLoss' | 'winPct' | 'riskReward' | 'dte';
+type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' | 'maxLoss' | 'winPct' | 'ev' | 'evPerRisk' | 'riskReward' | 'dte';
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
@@ -375,8 +378,11 @@ export default function ScannerResultsTable({
           maxProfit: null,
           maxLoss: null,
           winPct: null,
+          ev: null,
+          evPerRisk: null,
           riskReward: null,
           dte: null,
+          hasWideSpread: false,
         });
       } else {
         for (const card of cards) {
@@ -404,8 +410,11 @@ export default function ScannerResultsTable({
             maxProfit: s.max_profit,
             maxLoss: s.max_loss,
             winPct: s.probability_of_profit,
+            ev: s.ev ?? null,
+            evPerRisk: s.ev_per_risk ?? null,
             riskReward: s.risk_reward_ratio,
             dte: s.dte,
+            hasWideSpread: s.has_wide_spread,
           });
         }
       }
@@ -427,6 +436,8 @@ export default function ScannerResultsTable({
         case 'maxProfit': aVal = a.maxProfit ?? -Infinity; bVal = b.maxProfit ?? -Infinity; break;
         case 'maxLoss': aVal = a.maxLoss ?? -Infinity; bVal = b.maxLoss ?? -Infinity; break;
         case 'winPct': aVal = a.winPct ?? -Infinity; bVal = b.winPct ?? -Infinity; break;
+        case 'ev': aVal = a.ev ?? -Infinity; bVal = b.ev ?? -Infinity; break;
+        case 'evPerRisk': aVal = a.evPerRisk ?? -Infinity; bVal = b.evPerRisk ?? -Infinity; break;
         case 'riskReward': aVal = a.riskReward ?? -Infinity; bVal = b.riskReward ?? -Infinity; break;
         case 'dte': aVal = a.dte ?? Infinity; bVal = b.dte ?? Infinity; break;
       }
@@ -532,7 +543,9 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-right'}>Entry</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('maxProfit')}>Max P{sortIndicator('maxProfit')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('maxLoss')}>Max L{sortIndicator('maxLoss')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')}>Win%{sortIndicator('winPct')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title="Estimated Probability of Profit based on option deltas. Actual results will vary.">Est. PoP{sortIndicator('winPct')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title="Expected Value — estimated profit/loss per trade using three-outcome model">Est. EV{sortIndicator('ev')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('evPerRisk')} title="Expected Value per dollar risked — higher is better">EV/Risk{sortIndicator('evPerRisk')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('riskReward')}>R:R{sortIndicator('riskReward')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('dte')}>DTE{sortIndicator('dte')}</th>
             </tr>
@@ -587,7 +600,14 @@ export default function ScannerResultsTable({
                     </td>
                     {/* Strategy */}
                     <td className="px-2 py-2 text-gray-200" onClick={() => toggleRow(row.id)}>
-                      {row.card ? row.strategyName : (
+                      {row.card ? (
+                        <>
+                          {row.strategyName}
+                          {row.hasWideSpread && (
+                            <span className="ml-1 text-amber-400 cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
+                          )}
+                        </>
+                      ) : (
                         <span className="text-gray-500 italic">
                           {row.detail._fetch_errors?.chain_fetch || 'No strategies available'}
                         </span>
@@ -609,9 +629,17 @@ export default function ScannerResultsTable({
                     <td className="px-2 py-2 text-right font-mono text-red-400" onClick={() => toggleRow(row.id)}>
                       {fmtDollar(row.maxLoss)}
                     </td>
-                    {/* Win% */}
+                    {/* Est. PoP */}
                     <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
                       {fmtPct(row.winPct)}
+                    </td>
+                    {/* Est. EV */}
+                    <td className="px-2 py-2 text-right font-mono" onClick={() => toggleRow(row.id)} style={{ color: row.ev == null ? '#6B7280' : row.ev > 0 ? '#10B981' : row.ev < 0 ? '#EF4444' : '#6B7280' }}>
+                      {row.ev != null ? `${row.ev >= 0 ? '+' : ''}$${Math.round(row.ev)}` : '—'}
+                    </td>
+                    {/* EV/Risk */}
+                    <td className="px-2 py-2 text-right font-mono" onClick={() => toggleRow(row.id)} style={{ color: row.evPerRisk == null ? '#6B7280' : row.evPerRisk > 0 ? '#10B981' : row.evPerRisk < 0 ? '#EF4444' : '#6B7280' }}>
+                      {row.evPerRisk != null ? row.evPerRisk.toFixed(3) : '—'}
                     </td>
                     {/* R:R */}
                     <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
@@ -626,7 +654,7 @@ export default function ScannerResultsTable({
                   {/* Error row */}
                   {error && (
                     <tr style={{ background: '#7F1D1D15' }}>
-                      <td colSpan={12} className="px-4 py-1 text-[10px] text-red-300">
+                      <td colSpan={14} className="px-4 py-1 text-[10px] text-red-300">
                         Failed to save: {error}
                       </td>
                     </tr>
@@ -635,7 +663,7 @@ export default function ScannerResultsTable({
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={12} style={{ background: '#0F172A', padding: 0 }}>
+                      <td colSpan={14} style={{ background: '#0F172A', padding: 0 }}>
                         <ExpandedDetail detail={row.detail} card={row.card} />
                       </td>
                     </tr>

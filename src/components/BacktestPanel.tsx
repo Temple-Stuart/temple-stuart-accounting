@@ -29,7 +29,7 @@ interface BacktestState {
 function HeroStats({ result }: { result: BacktestResult }) {
   const s = result.summary;
   const stats = [
-    { label: 'Win Rate', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#10B981' : '#EF4444' },
+    { label: 'Est. PoP', value: `${Math.round(s.winRate * 100)}%`, color: s.winRate >= 0.5 ? '#10B981' : '#EF4444' },
     { label: 'Total P&L', value: `$${s.totalPnl.toLocaleString()}`, color: s.totalPnl >= 0 ? '#10B981' : '#EF4444' },
     { label: 'Avg P&L', value: `$${s.avgPnl.toFixed(0)}`, color: s.avgPnl >= 0 ? '#10B981' : '#EF4444' },
     { label: 'Max Drawdown', value: `$${s.maxDrawdown.toFixed(0)}`, color: '#EF4444' },
