@@ -36,6 +36,8 @@ function countActiveFilters(filters: ScannerFilters): number {
   if (filters.risk.strategies.length > 0) count++;
   if (filters.risk.minDte !== d.risk.minDte) count++;
   if (filters.risk.maxDte !== d.risk.maxDte) count++;
+  if (filters.risk.minSpreadWidth !== d.risk.minSpreadWidth) count++;
+  if (filters.risk.maxSpreadWidth !== d.risk.maxSpreadWidth) count++;
   // Tier 3
   if (filters.edge.minPop !== d.edge.minPop) count++;
   if (filters.edge.minEv !== d.edge.minEv) count++;
@@ -272,6 +274,18 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                     min={0} max={180} step={5}
                     format={v => `${v}d`}
                     onChange={v => setRisk({ maxDte: v })}
+                  />
+                  <SliderRow
+                    label="Min Width" value={filters.risk.minSpreadWidth}
+                    min={0.5} max={20} step={0.5}
+                    format={v => `$${v}`}
+                    onChange={v => setRisk({ minSpreadWidth: v })}
+                  />
+                  <SliderRow
+                    label="Max Width" value={filters.risk.maxSpreadWidth}
+                    min={1} max={50} step={1}
+                    format={v => `$${v}`}
+                    onChange={v => setRisk({ maxSpreadWidth: v })}
                   />
                   {/* Strategy checkboxes */}
                   <div>

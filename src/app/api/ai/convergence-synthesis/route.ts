@@ -372,6 +372,7 @@ export async function GET(request: Request) {
       pre_filter: pipeline.pre_filter,
       sector_distribution: pipeline.rankings.sector_distribution,
       social_sentiment: pipeline.social_sentiment,
+      rejection_reasons: pipeline.rejection_reasons,
       timing: {
         pipeline_ms: pipelineMs,
         ai_ms: aiMs,

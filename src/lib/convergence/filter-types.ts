@@ -25,6 +25,8 @@ export interface RiskProfile {
   strategies: string[];         // empty = all strategies allowed
   minDte: number;               // default 30
   maxDte: number;               // default 60
+  minSpreadWidth: number;       // dollars, default 1
+  maxSpreadWidth: number;       // dollars, default 10
 }
 
 // ── TIER 3: Edge Metrics (quantitative filters) ─────────────────────
@@ -62,6 +64,8 @@ export const DEFAULT_FILTERS: ScannerFilters = {
     strategies: [],
     minDte: 30,
     maxDte: 60,
+    minSpreadWidth: 1,
+    maxSpreadWidth: 10,
   },
   edge: {
     minPop: 50,

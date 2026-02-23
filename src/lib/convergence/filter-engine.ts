@@ -105,6 +105,7 @@ export interface TickerDetail {
   data_gaps: string[];
   _chain_stats?: Record<string, unknown>;
   _fetch_errors?: Record<string, string>;
+  _rejection_reasons?: { strategy: string; reason: string; gate: string; details?: { value: number; threshold: number; spreadWidth?: number } }[];
 }
 
 // ── Filter result ───────────────────────────────────────────────────
@@ -254,6 +255,21 @@ function filterCard(
     reasons.push(`DTE ${s.dte} above max ${filters.risk.maxDte}`);
   }
 
+  // Spread width filter
+  if (s.legs && s.legs.length >= 2) {
+    const strikes = s.legs.map(l => l.strike).sort((a, b) => a - b);
+    // For spreads/IC: width = difference between first two strikes
+    const spreadWidth = Math.round((strikes[1] - strikes[0]) * 100) / 100;
+    if (spreadWidth > 0) {
+      if (spreadWidth < filters.risk.minSpreadWidth) {
+        reasons.push(`Spread $${spreadWidth} below min $${filters.risk.minSpreadWidth}`);
+      }
+      if (spreadWidth > filters.risk.maxSpreadWidth) {
+        reasons.push(`Spread $${spreadWidth} above max $${filters.risk.maxSpreadWidth}`);
+      }
+    }
+  }
+
   // ── TIER 3: Edge Metrics ──────────────────────────────────────────
 
   // Min PoP
@@ -325,6 +341,8 @@ export function describeActiveFilters(filters: ScannerFilters): string[] {
     parts.push(`${filters.risk.strategies.length} strategies selected`);
   if (filters.risk.minDte !== d.risk.minDte || filters.risk.maxDte !== d.risk.maxDte)
     parts.push(`DTE ${filters.risk.minDte}-${filters.risk.maxDte}`);
+  if (filters.risk.minSpreadWidth !== d.risk.minSpreadWidth || filters.risk.maxSpreadWidth !== d.risk.maxSpreadWidth)
+    parts.push(`Width $${filters.risk.minSpreadWidth}-$${filters.risk.maxSpreadWidth}`);
 
   if (filters.edge.minPop !== d.edge.minPop)
     parts.push(`Min PoP \u2265 ${filters.edge.minPop}%`);

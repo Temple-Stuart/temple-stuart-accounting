@@ -55,10 +55,18 @@ interface SocialSentimentData {
   error?: string;
 }
 
+interface RejectionReason {
+  strategy: string;
+  reason: string;
+  gate: string;
+  details?: { value: number; threshold: number; spreadWidth?: number };
+}
+
 interface BatchResponse {
   pipeline_summary: PipelineSummary;
   top_9: RankedRow[];
   social_sentiment?: Record<string, SocialSentimentData>;
+  rejection_reasons?: Record<string, RejectionReason[]>;
   timing: { pipeline_ms: number; ai_ms: number; total_ms: number };
 }
 
@@ -159,6 +167,7 @@ interface TickerDetail {
   data_gaps: string[];
   _chain_stats?: Record<string, unknown>;
   _fetch_errors?: Record<string, string>;
+  _rejection_reasons?: RejectionReason[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -568,12 +577,13 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
 // ── Filtered Results Section ────────────────────────────────────────
 
 function FilteredResultsSection({
-  enriched, filters, sentimentMap, onResetFilters,
+  enriched, filters, sentimentMap, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
 }: {
   enriched: TickerDetail[];
   filters: ScannerFilters;
   sentimentMap?: Record<string, SocialSentimentData>;
+  rejectionMap?: Record<string, RejectionReason[]>;
   onResetFilters: () => void;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
@@ -636,6 +646,7 @@ function FilteredResultsSection({
       <ScannerResultsTable
         results={passed}
         sentimentMap={sentimentMap}
+        rejectionMap={rejectionMap}
         savedCards={savedCards}
         savingCards={savingCards}
         saveErrors={saveErrors}
@@ -931,9 +942,7 @@ export default function ConvergenceIntelligence() {
       )}
 
       {/* ═══ FILTER PANEL ═══ */}
-      {enriched.length > 1 && (
-        <FilterPanel filters={filters} onChange={handleFiltersChange} />
-      )}
+      <FilterPanel filters={filters} onChange={handleFiltersChange} />
 
       {/* ═══ SECTION 2: FULL TRADE CARDS ═══ */}
       {enriched.length > 1 && (
@@ -941,6 +950,7 @@ export default function ConvergenceIntelligence() {
           enriched={enriched}
           filters={filters}
           sentimentMap={batchData?.social_sentiment}
+          rejectionMap={batchData?.rejection_reasons}
           onResetFilters={() => handleFiltersChange(DEFAULT_FILTERS)}
           savedCards={savedCards}
           savingCards={savingCards}
@@ -958,8 +968,8 @@ export default function ConvergenceIntelligence() {
       {/* Empty state — no scan yet */}
       {!scanning && !batchData && !batchError && enriched.length === 0 && (
         <div className="px-5 py-16 text-center">
-          <div className="text-slate-500 text-sm">Select a universe and click Scan Market</div>
-          <div className="text-slate-600 text-xs mt-1">Finds top opportunities with full trade cards and plain English analysis</div>
+          <div className="text-slate-500 text-sm">Set your preferences above, then click Scan Market</div>
+          <div className="text-slate-600 text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>
         </div>
       )}
 

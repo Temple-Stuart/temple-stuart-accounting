@@ -3,6 +3,7 @@ import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFina
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
+import type { RejectionReason } from '@/lib/strategy-builder';
 import { fetchSentimentBatch } from './sentiment';
 import type { SentimentResult } from './sentiment';
 import { computeSectorStats } from './sector-stats';
@@ -103,6 +104,7 @@ export interface PipelineResult {
   scoring_details: Record<string, FullScoringResult>;
   pre_filter: PreFilterResult[];
   social_sentiment: Record<string, SentimentResult>;
+  rejection_reasons: Record<string, RejectionReason[]>;
   data_gaps: string[];
   errors: string[];
 }
@@ -593,6 +595,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
 
   // ===== STEP G2: Fetch chain data and build trade cards =====
   console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
+  let chainRejections = new Map<string, RejectionReason[]>();
   let chainStats: ChainFetchStats = {
     chain_symbols_fetched: 0,
     total_trade_cards: 0,
@@ -636,6 +639,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     if (chainInputs.length > 0) {
       const chainResult = await fetchChainAndBuildCards(chainInputs);
       chainStats = chainResult.stats;
+      chainRejections = chainResult.rejections;
       chainMarketOpen = chainResult.marketOpen;
       chainMarketNote = chainResult.marketNote;
 
@@ -765,6 +769,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     scoring_details: scoringDetails,
     pre_filter: preFilterResults,
     social_sentiment: socialSentiment,
+    rejection_reasons: Object.fromEntries(chainRejections),
     data_gaps: dataGaps,
     errors,
   };
