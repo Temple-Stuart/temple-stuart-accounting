@@ -625,7 +625,7 @@ export default function TradingPage() {
           // 4. Generate strategies (same functions as handleScannerExpand)
           const strikeData = buildStrikeData(exp.strikes || [], greeks);
           console.log(`[TopPicks] ${symbol}: strikeData built=${strikeData.length}, withGreeks=${strikeData.filter(s => s.callDelta != null || s.putDelta != null).length}, ivRank=${ivRank}`);
-          const cards = generateStrategies({
+          const { strategies: cards } = generateStrategies({
             strikes: strikeData,
             currentPrice: price,
             ivRank,
@@ -824,7 +824,7 @@ export default function TradingPage() {
           if (price) {
             const strikeData = buildStrikeData(exp.strikes || [], greeks);
             console.log(`[StrategyBuilder UI] ${symbol}: strikeData built=${strikeData.length}, withGreeks=${strikeData.filter(s => s.callDelta != null || s.putDelta != null).length}, ivRank=${ivRank}`);
-            const cards = generateStrategies({
+            const { strategies: cards } = generateStrategies({
               strikes: strikeData,
               currentPrice: price,
               ivRank,
