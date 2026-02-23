@@ -1,7 +1,12 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import ScannerResultsTable from './ScannerResultsTable';
+import FilterPanel from './FilterPanel';
+import { countActiveFilters } from './FilterPanel';
+import type { ScannerFilters } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
+import { applyFilters, describeActiveFilters } from '@/lib/convergence/filter-engine';
 
 /* ===================================================================
    ConvergenceIntelligence — unified market intelligence dashboard
@@ -518,6 +523,85 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
   );
 }
 
+// ── Filtered Results Section ────────────────────────────────────────
+
+function FilteredResultsSection({
+  enriched, filters, onResetFilters,
+  savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
+}: {
+  enriched: TickerDetail[];
+  filters: ScannerFilters;
+  onResetFilters: () => void;
+  savedCards: Map<string, string>;
+  savingCards: Set<string>;
+  saveErrors: Map<string, string>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
+}) {
+  const { passed, filtered, totalStrategies, passedStrategies } = useMemo(
+    () => applyFilters(enriched, filters),
+    [enriched, filters],
+  );
+  const [showFiltered, setShowFiltered] = useState(false);
+  const activeFilters = useMemo(() => describeActiveFilters(filters), [filters]);
+  const activeCount = countActiveFilters(filters);
+  const filteredCount = totalStrategies - passedStrategies;
+
+  return (
+    <>
+      {/* Active filter summary bar */}
+      {activeCount > 0 && (
+        <div className="px-5 py-1.5 flex items-center gap-3 flex-wrap text-[10px]" style={{ background: '#1E293B', borderBottom: '1px solid #334155' }}>
+          <span className="text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
+          <span className="text-slate-300">{activeFilters.join(' \u2022 ')}</span>
+          <button onClick={onResetFilters} className="text-indigo-400 hover:text-indigo-300 ml-auto shrink-0">
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Filter counts */}
+      {totalStrategies > 0 && (
+        <div className="px-5 py-1.5 flex items-center gap-3 text-[10px]" style={{ background: '#0F172A' }}>
+          <span className="text-slate-400">
+            Showing <span className="text-white font-bold">{passedStrategies}</span> of <span className="text-white font-bold">{totalStrategies}</span> strategies across <span className="text-white font-bold">{passed.length}</span> tickers
+          </span>
+          {filteredCount > 0 && (
+            <button
+              onClick={() => setShowFiltered(!showFiltered)}
+              className="text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              {filteredCount} filtered out {showFiltered ? '\u25B2' : '\u25BC'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filtered-out reasons */}
+      {showFiltered && filtered.length > 0 && (
+        <div className="px-5 py-2 space-y-1 max-h-[150px] overflow-y-auto" style={{ background: '#0F172A' }}>
+          {filtered.map((f, i) => (
+            <div key={i} className="text-[10px]">
+              <span className="text-slate-400 font-mono font-bold">{f.result.symbol}</span>
+              <span className="text-slate-600"> — </span>
+              <span className="text-slate-500">{f.reasons.join(' | ')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ScannerResultsTable
+        results={passed}
+        savedCards={savedCards}
+        savingCards={savingCards}
+        saveErrors={saveErrors}
+        onSaveCard={onSaveCard}
+        onRemoveCard={onRemoveCard}
+      />
+    </>
+  );
+}
+
 // ── Main Component ──────────────────────────────────────────────────
 
 export default function ConvergenceIntelligence() {
@@ -537,6 +621,20 @@ export default function ConvergenceIntelligence() {
   const [lookupData, setLookupData] = useState<TickerDetail | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+
+  // Filter state — persisted in localStorage
+  const [filters, setFilters] = useState<ScannerFilters>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_FILTERS;
+  });
+
+  const handleFiltersChange = useCallback((next: ScannerFilters) => {
+    setFilters(next);
+    try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
+  }, []);
 
   // Trade card queue — Map<"SYMBOL|strategy_name", savedCardId>
   const [savedCards, setSavedCards] = useState<Map<string, string>>(new Map());
@@ -788,10 +886,17 @@ export default function ConvergenceIntelligence() {
         </div>
       )}
 
+      {/* ═══ FILTER PANEL ═══ */}
+      {enriched.length > 1 && (
+        <FilterPanel filters={filters} onChange={handleFiltersChange} />
+      )}
+
       {/* ═══ SECTION 2: FULL TRADE CARDS ═══ */}
       {enriched.length > 1 && (
-        <ScannerResultsTable
-          results={enriched}
+        <FilteredResultsSection
+          enriched={enriched}
+          filters={filters}
+          onResetFilters={() => handleFiltersChange(DEFAULT_FILTERS)}
           savedCards={savedCards}
           savingCards={savingCards}
           saveErrors={saveErrors}
