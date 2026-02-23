@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import ScannerResultsTable from './ScannerResultsTable';
 
 /* ===================================================================
    ConvergenceIntelligence — unified market intelligence dashboard
@@ -777,11 +778,19 @@ export default function ConvergenceIntelligence() {
       )}
 
       {/* ═══ SECTION 2: FULL TRADE CARDS ═══ */}
-      {enriched.length > 0 && (
+      {enriched.length > 1 && (
+        <ScannerResultsTable
+          results={enriched}
+          savedCards={savedCards}
+          savingCards={savingCards}
+          saveErrors={saveErrors}
+          onSaveCard={saveCard}
+          onRemoveCard={removeCard}
+        />
+      )}
+      {enriched.length === 1 && (
         <div className="px-5 py-4 space-y-4">
-          {enriched.map((detail) => (
-            <TickerCard key={detail.symbol} detail={detail} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
-          ))}
+          <TickerCard detail={enriched[0]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
         </div>
       )}
 

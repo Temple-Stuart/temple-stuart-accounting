@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedClient } from '@/lib/tastytrade';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+export const maxDuration = 300;
+
 const POPULAR_SYMBOLS = [
   'SPY','QQQ','IWM','AAPL','MSFT','GOOGL','AMZN','TSLA','NVDA','META',
   'AMD','NFLX','JPM','BAC','GS','XOM','CVX','PFE','JNJ','UNH',
