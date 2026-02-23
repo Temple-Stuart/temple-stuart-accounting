@@ -180,6 +180,11 @@ Built by a daily options trader.
 - **Trade Card Generation** — Real strikes, premiums, max profit/loss, PoP, risk/reward from live chains
 - **Plain English Signals** — AI translates scores into sentences anyone can understand
 - **Risk Flags** — Insider selling (MSPR), earnings proximity, low liquidity warnings
+- **Institutional Pre-Filter** — Market-metrics hard gates before full convergence pipeline
+- **Three-Outcome EV Model** — Win/loss/breakeven expected value with honest "Est. PoP" labels
+- **N(d2) Breakeven PoP** — Black-Scholes probability at actual breakeven prices (Abramowitz & Stegun normalCDF)
+- **3-Tier Filter Panel** — Liquidity gates, risk profile, edge metrics — 15 configurable parameters
+- **Social Sentiment** — Real-time X/Twitter analysis via xAI Grok x_search (two-stage pipeline)
 - **Market Intelligence Dashboard** — Universe scanner + progressive trade card enrichment
 - **Trade Lab** — Queue scanner cards, link to real positions, grade results
 - **Trade Card Persistence** — Save, link, and grade trades (A/B/C/D/F system)
@@ -345,7 +350,7 @@ Full tax estimation pipeline from ledger data to Form 1040.
 | **Plaid** | Banking data sync | Production environment, transactions + investments + balances |
 | **Duffel** | Flight booking | GDS access: search → offers → passenger details → order creation |
 | **Google Places** | Location intelligence | Geocoding, text search (60 results/category), photos, price levels |
-| **xAI Grok** | Trip AI analysis | Sentiment scoring, fit scoring, warnings, trending detection |
+| **xAI Grok** | Trip AI + Social Sentiment | Trip analysis, X/Twitter sentiment via x_search (grok-4-1-fast) |
 | **OpenAI** | General AI | Singleton client for explanatory features |
 | **Anthropic Claude** | AI analysis | Market briefs, strategy analysis (claude-sonnet-4-20250514) |
 | **Finnhub** | Market data | Company news, analyst recommendations, price targets (free tier) |
@@ -380,7 +385,7 @@ temple-stuart/
 │   │   ├── convergence/        # Market Intelligence dashboard
 │   │   └── trips/              # Trip-specific (TripMap, etc.)
 │   ├── lib/                    # Core libraries
-│   │   ├── convergence/        # Convergence pipeline (11 modules)
+│   │   ├── convergence/        # Convergence pipeline (15 modules)
 │   │   │   ├── pipeline.ts     # Full scan orchestrator
 │   │   │   ├── composite.ts    # 4-category composite + gate
 │   │   │   ├── vol-edge.ts     # IV vs HV scoring
@@ -390,6 +395,10 @@ temple-stuart/
 │   │   │   ├── trade-cards.ts  # Plain English trade cards
 │   │   │   ├── chain-fetcher.ts # TT option chains + Greeks
 │   │   │   ├── data-fetchers.ts # Finnhub + FRED APIs
+│   │   │   ├── probability.ts  # N(d2) normalCDF (Abramowitz & Stegun)
+│   │   │   ├── filter-types.ts # 3-tier filter definitions
+│   │   │   ├── filter-engine.ts # Client-side filter engine
+│   │   │   ├── sentiment.ts    # xAI Grok social sentiment
 │   │   │   └── types.ts        # Pipeline type definitions
 │   │   ├── strategy-builder.ts # Delta-based strategy generation
 │   │   ├── plaid.ts            # Plaid client (production)
@@ -726,8 +735,9 @@ User selects Universe → Scan Market
 │  • Generate 2-3 strategies:         │
 │    Iron Condor, Credit Spread,      │
 │    Straddle, etc.                   │
+│  • N(d2) breakeven PoP, 3-outcome EV│
 │  • Calculate: max profit, max loss, │
-│    breakevens, PoP, risk/reward     │
+│    breakevens, risk/reward          │
 │  • 3-tier gate: EV > 0, PoP floor, │
 │    minimum credit                   │
 └──────────────┬──────────────────────┘
@@ -745,6 +755,38 @@ User selects Universe → Scan Market
 │    "Beta: 1.1 — moves slightly      │
 │     more than the market"           │
 │  • Top headlines from Finnhub       │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  3-TIER FILTER PANEL               │
+│  15 configurable parameters         │
+│                                     │
+│  Tier 1: Liquidity Gates           │
+│  • Min OI, max spread, volume,     │
+│    liquidity rating                 │
+│                                     │
+│  Tier 2: Risk Profile              │
+│  • Defined/unlimited, direction,   │
+│    premium stance, DTE, strategies  │
+│                                     │
+│  Tier 3: Edge Metrics              │
+│  • Min PoP, min EV, EV/Risk,      │
+│    vol edge, IV rank, sentiment    │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  SOCIAL SENTIMENT (xAI Grok)       │
+│  Optional, runs in parallel         │
+│                                     │
+│  Stage 1: Grok 4.1 Fast + x_search │
+│  • Fetch 10-20 X/Twitter posts     │
+│  • Classify bullish/bearish/neutral│
+│                                     │
+│  Stage 2: Grok 4.1 Fast (scoring)  │
+│  • Numerical score (-1 to +1)      │
+│  • Confidence magnitude (0-1)      │
 └─────────────────────────────────────┘
 ```
 
@@ -756,6 +798,7 @@ User selects Universe → Scan Market
 | **Finnhub** | 132 fundamentals + news + insider + analyst + earnings | Quality scores, sentiment, insider activity |
 | **FRED** | 9 macro indicators | VIX, credit spreads, yield curve, unemployment |
 | **SPY** | Correlation coefficient | Regime modifier — adjusts for market-wide moves |
+| **xAI Grok** | X/Twitter posts via x_search | Social sentiment scoring (two-stage pipeline) |
 
 **Key Files:**
 
@@ -768,7 +811,11 @@ User selects Universe → Scan Market
 | `regime.ts` | Macro regime from FRED + SPY correlation modifier |
 | `info-edge.ts` | News sentiment + insider MSPR + analyst changes |
 | `trade-cards.ts` | Wraps strategy cards with plain English signals |
-| `strategy-builder.ts` | Delta-based strike selection, PoP, EV, P&L |
+| `strategy-builder.ts` | Delta-based strike selection, N(d2) PoP, three-outcome EV, P&L |
+| `probability.ts` | Abramowitz & Stegun normalCDF for N(d2) breakeven PoP |
+| `filter-types.ts` | 3-tier filter type definitions (15 parameters) |
+| `filter-engine.ts` | Client-side filter engine (liquidity → risk → edge) |
+| `sentiment.ts` | xAI Grok two-stage social sentiment pipeline |
 | `chain-fetcher.ts` | TastyTrade option chain fetch + WebSocket Greeks |
 | `data-fetchers.ts` | Finnhub + FRED API integration |
 | `types.ts` | All pipeline types and interfaces |
@@ -1170,6 +1217,11 @@ Documentation is maintained in-app and in code comments. See `src/lib/` for serv
 ✅ Position Reporting (P&L, ST/LT)<br>
 ✅ CPA Disclaimer on Tax Forms<br>
 ✅ Meal Planning Module<br>
+✅ Institutional Pre-Filter (Market Metrics)<br>
+✅ Three-Outcome EV Model + Honest Labels<br>
+✅ N(d2) Breakeven PoP (Abramowitz &amp; Stegun)<br>
+✅ 3-Tier Filter Panel (15 Parameters)<br>
+✅ Social Sentiment (xAI Grok x_search)<br>
 🔲 Onboarding Flow<br>
 🔲 Results Tracking (scanner vs actuals)<br>
 🔲 Multi-Broker Support (Schwab, IBKR)
