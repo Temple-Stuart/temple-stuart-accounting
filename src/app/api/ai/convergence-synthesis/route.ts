@@ -137,38 +137,125 @@ Respond with ONLY valid JSON, no markdown, no code blocks, no preamble:
 
 // ===== PREPARE PAYLOAD =====
 
-function prepareSynthesisPayload(pipeline: PipelineResult): object {
-  // Send enough data for analysis but trim to stay under token limits
+/**
+ * Condense a FullScoringResult into a compact summary for the AI prompt.
+ * Keeps scores, key sub-scores, and diagnostic signals. Strips raw inputs,
+ * formulas, notes, full indicator arrays, news headlines, and trade card legs.
+ */
+function condenseScoringDetail(detail: any): any {
+  const vol = detail.vol_edge?.breakdown;
+  const qual = detail.quality?.breakdown;
+  const reg = detail.regime?.breakdown;
+  const info = detail.info_edge?.breakdown;
+  const strat = detail.strategy_suggestion;
+
+  return {
+    vol_edge: {
+      score: detail.vol_edge?.score,
+      z_scores: vol?.mispricing?.z_scores,
+      hv_trend: vol?.mispricing?.hv_trend,
+      term_shape: vol?.term_structure?.shape,
+      richest_tenor: vol?.term_structure?.richest_tenor,
+      earnings_kink: vol?.term_structure?.earnings_kink_detected,
+      technicals_sub: vol?.technicals?.sub_scores,
+    },
+    quality: {
+      score: detail.quality?.score,
+      mspr_adjustment: detail.quality?.mspr_adjustment,
+      safety_sub: qual?.safety?.sub_scores,
+      profitability_sub: qual?.profitability?.sub_scores,
+      earnings_quality: qual?.profitability?.earnings_quality,
+      growth_sub: qual?.growth?.sub_scores,
+      efficiency_sub: qual?.efficiency?.sub_scores,
+    },
+    regime: {
+      score: detail.regime?.score,
+      dominant_regime: reg?.dominant_regime,
+      regime_probabilities: reg?.regime_probabilities,
+      vix: reg?.vix_overlay?.vix,
+      vix_adjustment: reg?.vix_overlay?.adjustment_type,
+      best_strategy: reg?.best_strategy,
+      spy_corr: reg?.spy_correlation_modifier?.corr_spy,
+      spy_multiplier: reg?.spy_correlation_modifier?.multiplier,
+    },
+    info_edge: {
+      score: detail.info_edge?.score,
+      analyst_sub: info?.analyst_consensus?.sub_scores,
+      analyst_counts: info?.analyst_consensus?.raw_counts,
+      insider_detail: info?.insider_activity?.insider_detail,
+      earnings_momentum: info?.earnings_momentum?.momentum_detail,
+      flow_sub: info?.flow_signal?.sub_scores,
+      news_sub: info?.news_sentiment?.sub_scores,
+      news_articles_30d: info?.news_sentiment?.news_detail?.total_articles_30d,
+      news_sentiment_7d: info?.news_sentiment?.news_detail?.sentiment_7d_score,
+      // Headlines intentionally omitted — too large for synthesis prompt
+    },
+    composite: detail.composite,
+    strategy_suggestion: {
+      direction: strat?.direction,
+      suggested_strategy: strat?.suggested_strategy,
+      suggested_dte: strat?.suggested_dte,
+      regime_preferred: strat?.regime_preferred,
+      vol_edge_confirms: strat?.vol_edge_confirms,
+      // Condense trade cards: top card summary only, no legs/greeks/breakevens
+      top_trade_card: strat?.trade_cards?.[0] ? {
+        name: strat.trade_cards[0].name,
+        dte: strat.trade_cards[0].dte,
+        maxProfit: strat.trade_cards[0].maxProfit,
+        maxLoss: strat.trade_cards[0].maxLoss,
+        pop: strat.trade_cards[0].pop,
+        ev: strat.trade_cards[0].ev,
+        riskReward: strat.trade_cards[0].riskReward,
+        netCredit: strat.trade_cards[0].netCredit,
+        netDebit: strat.trade_cards[0].netDebit,
+      } : null,
+      trade_card_count: strat?.trade_cards?.length ?? 0,
+    },
+    data_gaps: detail.data_gaps,
+  };
+}
+
+function prepareSynthesisPayload(pipeline: PipelineResult, maxTickers = 9): object {
+  // Condense scoring details — the main source of prompt bloat
+  const condensedScoring: Record<string, any> = {};
+  const top9Symbols = pipeline.rankings.top_9.slice(0, maxTickers).map(r => r.symbol);
+  for (const symbol of top9Symbols) {
+    const detail = pipeline.scoring_details[symbol];
+    if (detail) {
+      condensedScoring[symbol] = condenseScoringDetail(detail);
+    }
+  }
+
   return {
     pipeline_summary: pipeline.pipeline_summary,
     rankings: {
       scored_count: pipeline.rankings.scored_count,
-      top_9: pipeline.rankings.top_9,
-      // Include top 10 of also_scored for context
-      also_scored_sample: pipeline.rankings.also_scored.slice(0, 10),
+      top_9: pipeline.rankings.top_9.slice(0, maxTickers),
+      // Limit also_scored to top 5 for context (down from 10)
+      also_scored_sample: pipeline.rankings.also_scored.slice(0, 5).map(r => ({
+        symbol: r.symbol, composite: r.composite, convergence: r.convergence,
+        sector: r.sector, direction: r.direction,
+      })),
       sector_distribution: pipeline.rankings.sector_distribution,
     },
-    diversification: pipeline.diversification,
+    diversification: {
+      // Limit adjustment strings to 20 to cap verbosity
+      adjustments: pipeline.diversification.adjustments.slice(0, 20),
+    },
     sector_stats_summary: Object.fromEntries(
       Object.entries(pipeline.sector_stats).map(([sector, stats]) => [
         sector,
         { ticker_count: stats.ticker_count, insufficient_peers: stats.insufficient_peers || false },
       ]),
     ),
-    scoring_details: pipeline.scoring_details,
+    scoring_details: condensedScoring,
     pre_filter_summary: {
       total: pipeline.pre_filter.length,
       included: pipeline.pre_filter.filter(r => !r.excluded).length,
       excluded: pipeline.pre_filter.filter(r => r.excluded).length,
-      earnings_warnings: pipeline.pre_filter.filter(r => r.earningsWarning != null).map(r => ({
+      earnings_warnings: pipeline.pre_filter.filter(r => r.earningsWarning != null).slice(0, 10).map(r => ({
         symbol: r.symbol,
         warning: r.earningsWarning,
-      })),
-      top_10_by_preScore: pipeline.pre_filter.filter(r => !r.excluded).slice(0, 10).map(r => ({
-        symbol: r.symbol,
-        preScore: r.preScore,
-        ivRank: r.ivRank,
-        liquidityRating: r.liquidityRating,
       })),
     },
     data_gaps: pipeline.data_gaps,
@@ -227,10 +314,29 @@ export async function GET(request: Request) {
     const pipelineMs = Date.now() - pipelineStart;
     console.log(`[Convergence Synthesis] Pipeline done in ${pipelineMs}ms`);
 
-    // Step 2: Prepare payload for Claude
-    const payload = prepareSynthesisPayload(pipeline);
-    const payloadStr = JSON.stringify(payload);
-    console.log(`[Convergence Synthesis] Payload size: ${payloadStr.length} chars (~${Math.round(payloadStr.length / 4)} tokens)`);
+    // Step 2: Prepare payload for Claude (trimmed to stay under token limits)
+    let maxTickers = 9;
+    let payload = prepareSynthesisPayload(pipeline, maxTickers);
+    let payloadStr = JSON.stringify(payload);
+
+    // Rough token estimate: ~4 chars per token
+    const MAX_PROMPT_TOKENS = 150000; // Leave 50K headroom below 200K limit
+    let estimatedTokens = Math.ceil(payloadStr.length / 4);
+
+    if (estimatedTokens > MAX_PROMPT_TOKENS) {
+      console.warn(`[Convergence Synthesis] Prompt estimated at ${estimatedTokens} tokens (${payloadStr.length} chars), trimming to 5 tickers...`);
+      maxTickers = 5;
+      payload = prepareSynthesisPayload(pipeline, maxTickers);
+      payloadStr = JSON.stringify(payload);
+      estimatedTokens = Math.ceil(payloadStr.length / 4);
+    }
+
+    if (estimatedTokens > MAX_PROMPT_TOKENS) {
+      console.warn(`[Convergence Synthesis] Still at ${estimatedTokens} tokens after ticker trim, truncating payload...`);
+      payloadStr = payloadStr.slice(0, MAX_PROMPT_TOKENS * 4);
+    }
+
+    console.log(`[Convergence Synthesis] Payload size: ${payloadStr.length} chars (~${estimatedTokens} tokens, ${maxTickers} tickers)`);
 
     // Step 3: Call Anthropic
     const client = new Anthropic({ apiKey });
