@@ -23,6 +23,7 @@ interface TradeCardSetup {
   max_loss: number | null;
   breakevens: number[];
   probability_of_profit: number | null;
+  pop_method: 'breakeven_d2' | 'delta_approx';
   hv_pop: number | null;
   risk_reward_ratio: number | null;
   greeks: { delta: number; gamma: number; theta: number; vega: number; theta_per_day: number };
@@ -184,6 +185,7 @@ interface TableRow {
   maxProfit: number | null;
   maxLoss: number | null;
   winPct: number | null;
+  popMethod: 'breakeven_d2' | 'delta_approx';
   ev: number | null;
   evPerRisk: number | null;
   riskReward: number | null;
@@ -378,6 +380,7 @@ export default function ScannerResultsTable({
           maxProfit: null,
           maxLoss: null,
           winPct: null,
+          popMethod: 'delta_approx' as const,
           ev: null,
           evPerRisk: null,
           riskReward: null,
@@ -410,6 +413,7 @@ export default function ScannerResultsTable({
             maxProfit: s.max_profit,
             maxLoss: s.max_loss,
             winPct: s.probability_of_profit,
+            popMethod: s.pop_method ?? 'delta_approx',
             ev: s.ev ?? null,
             evPerRisk: s.ev_per_risk ?? null,
             riskReward: s.risk_reward_ratio,
@@ -543,7 +547,7 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-right'}>Entry</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('maxProfit')}>Max P{sortIndicator('maxProfit')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('maxLoss')}>Max L{sortIndicator('maxLoss')}</th>
-              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title="Estimated Probability of Profit based on option deltas. Actual results will vary.">Est. PoP{sortIndicator('winPct')}</th>
+              <th className={thBase + ' text-right'} onClick={() => toggleSort('winPct')} title="Estimated Probability of Profit — N(d2) at breakeven when available, delta approximation otherwise. Actual results will vary.">Est. PoP{sortIndicator('winPct')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('ev')} title="Expected Value — estimated profit/loss per trade using three-outcome model">Est. EV{sortIndicator('ev')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('evPerRisk')} title="Expected Value per dollar risked — higher is better">EV/Risk{sortIndicator('evPerRisk')}</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('riskReward')}>R:R{sortIndicator('riskReward')}</th>
@@ -630,7 +634,13 @@ export default function ScannerResultsTable({
                       {fmtDollar(row.maxLoss)}
                     </td>
                     {/* Est. PoP */}
-                    <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
+                    <td
+                      className="px-2 py-2 text-right font-mono text-gray-200"
+                      onClick={() => toggleRow(row.id)}
+                      title={row.popMethod === 'breakeven_d2'
+                        ? 'PoP via N(d2) at breakeven price'
+                        : 'PoP estimated from option deltas (approximate)'}
+                    >
                       {fmtPct(row.winPct)}
                     </td>
                     {/* Est. EV */}

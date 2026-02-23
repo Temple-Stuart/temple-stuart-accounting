@@ -296,6 +296,7 @@ export function generateTradeCards(
       max_loss: card.maxLoss,
       breakevens: card.breakevens,
       probability_of_profit: card.pop,
+      pop_method: card.popMethod,
       hv_pop: card.hvPop,
       risk_reward_ratio: card.riskReward,
       greeks: {
