@@ -312,6 +312,7 @@ export async function GET(request: Request) {
   // ===== FETCH CHAIN & BUILD TRADE CARDS =====
   let tradeCards: TradeCard[] = [];
   let chainStats: Record<string, unknown> | null = null;
+  let chainRejections: unknown[] = [];
 
   // Derive current price from latest candle
   const latestCandle = ttCandleResult.candles.length > 0
@@ -337,6 +338,7 @@ export async function GET(request: Request) {
 
       const chainResult = await fetchChainAndBuildCards(chainInput);
       const strategyCards = chainResult.cards.get(symbol) || [];
+      chainRejections = chainResult.rejections.get(symbol) || [];
 
       chainStats = {
         chain_symbols_fetched: chainResult.stats.chain_symbols_fetched,
@@ -431,6 +433,7 @@ export async function GET(request: Request) {
     trade_cards: tradeCards.length > 0 ? tradeCards : undefined,
     _chain_stats: chainStats ?? undefined,
     _fetch_errors: Object.keys(fetchErrors).length > 0 ? fetchErrors : undefined,
+    _rejection_reasons: chainRejections.length > 0 ? chainRejections : undefined,
     _raw_tt_fields: ttScannerResult.raw ? Object.keys(ttScannerResult.raw as object).sort() : undefined,
   });
 }

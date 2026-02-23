@@ -1,7 +1,7 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
-import type { StrategyCard } from '@/lib/strategy-builder';
+import type { StrategyCard, RejectionReason } from '@/lib/strategy-builder';
 
 // ===== TYPES =====
 
@@ -25,6 +25,7 @@ export interface ChainFetchStats {
 
 export interface ChainFetchResult {
   cards: Map<string, StrategyCard[]>;
+  rejections: Map<string, RejectionReason[]>;
   stats: ChainFetchStats;
   marketOpen: boolean;
   marketNote?: string;
@@ -71,6 +72,7 @@ export async function fetchChainAndBuildCards(
   tickers: ChainTickerInput[],
 ): Promise<ChainFetchResult> {
   const cards = new Map<string, StrategyCard[]>();
+  const rejections = new Map<string, RejectionReason[]>();
   const stats: ChainFetchStats = {
     chain_symbols_fetched: 0,
     total_trade_cards: 0,
@@ -89,7 +91,7 @@ export async function fetchChainAndBuildCards(
 
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, stats, marketOpen, marketNote };
+    return { cards, rejections, stats, marketOpen, marketNote };
   }
 
   try {
@@ -213,7 +215,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, stats, marketOpen, marketNote };
+      return { cards, rejections, stats, marketOpen, marketNote };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -304,7 +306,7 @@ export async function fetchChainAndBuildCards(
 
       try {
         const strikeData = buildStrikeData(chain.strikes, greeksData);
-        const generated = generateStrategies({
+        const result = generateStrategies({
           strikes: strikeData,
           currentPrice: ticker.currentPrice,
           ivRank: ticker.ivRank,
@@ -314,9 +316,12 @@ export async function fetchChainAndBuildCards(
           iv30: ticker.iv30,
           hv30: ticker.hv30,
         });
-        cards.set(ticker.symbol, generated);
-        stats.total_trade_cards += generated.length;
-        console.log(`[ChainFetcher] ${ticker.symbol}: ${generated.length} trade cards generated`);
+        cards.set(ticker.symbol, result.strategies);
+        if (result.rejections.length > 0) {
+          rejections.set(ticker.symbol, result.rejections);
+        }
+        stats.total_trade_cards += result.strategies.length;
+        console.log(`[ChainFetcher] ${ticker.symbol}: ${result.strategies.length} trade cards generated, ${result.rejections.length} rejections`);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[ChainFetcher] ${ticker.symbol}: Strategy generation failed:`, msg);
@@ -328,10 +333,10 @@ export async function fetchChainAndBuildCards(
     console.error('[ChainFetcher] Fatal error:', msg);
     // Return empty map — pipeline continues without trade cards
     stats.elapsed_ms = Date.now() - start;
-    return { cards, stats, marketOpen, marketNote };
+    return { cards, rejections, stats, marketOpen, marketNote };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, stats, marketOpen, marketNote };
+  return { cards, rejections, stats, marketOpen, marketNote };
 }

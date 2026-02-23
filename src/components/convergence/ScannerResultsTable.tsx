@@ -105,6 +105,7 @@ interface TickerDetail {
   data_gaps: string[];
   _chain_stats?: Record<string, unknown>;
   _fetch_errors?: Record<string, string>;
+  _rejection_reasons?: { strategy: string; reason: string; gate: string; details?: { value: number; threshold: number; spreadWidth?: number } }[];
 }
 
 // ── Props ────────────────────────────────────────────────────────────
@@ -123,9 +124,17 @@ interface SocialSentimentData {
   error?: string;
 }
 
+interface RejectionReason {
+  strategy: string;
+  reason: string;
+  gate: string;
+  details?: { value: number; threshold: number; spreadWidth?: number };
+}
+
 interface ScannerResultsTableProps {
   results: TickerDetail[];
   sentimentMap?: Record<string, SocialSentimentData>;
+  rejectionMap?: Record<string, RejectionReason[]>;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
@@ -212,14 +221,40 @@ type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' |
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
-function ExpandedDetail({ detail, card, sentiment }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData }) {
+function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData; rejections?: RejectionReason[] }) {
   const comp = detail.scores.composite;
   const why = card?.why;
   const ks = card?.key_stats;
   const headlines: Headline[] = detail.scores.info_edge?.breakdown?.news_sentiment?.news_detail?.headlines?.slice(0, 3) ?? [];
+  const allRejections = rejections || detail._rejection_reasons;
 
   return (
     <div className="px-6 py-4 space-y-4" style={{ borderTop: '1px solid #334155' }}>
+      {/* Rejection reasons (when no strategies passed) */}
+      {allRejections && allRejections.length > 0 && !card && (
+        <div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Why No Strategies Passed</div>
+          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+            {allRejections.map((rej, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1" style={{ background: '#1E293B' }}>
+                <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-bold" style={{
+                  background: rej.gate === 'construction' ? '#78350F30' : '#7F1D1D30',
+                  color: rej.gate === 'construction' ? '#FDE68A' : '#FCA5A5',
+                }}>
+                  {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
+                </span>
+                <span className="text-gray-300 flex-1">
+                  <span className="text-gray-400 font-mono">{rej.strategy}:</span> {rej.reason}
+                  {rej.details?.spreadWidth != null && (
+                    <span className="text-gray-500"> (width: ${rej.details.spreadWidth})</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Score bars */}
       <div className="grid grid-cols-4 gap-3">
         {(['vol_edge', 'quality', 'regime', 'info_edge'] as const).map(cat => {
@@ -415,6 +450,7 @@ function ExpandedDetail({ detail, card, sentiment }: { detail: TickerDetail; car
 export default function ScannerResultsTable({
   results,
   sentimentMap,
+  rejectionMap,
   savedCards,
   savingCards,
   saveErrors,
@@ -700,7 +736,15 @@ export default function ScannerResultsTable({
                         </>
                       ) : (
                         <span className="text-gray-500 italic">
-                          {row.detail._fetch_errors?.chain_fetch || 'No strategies available'}
+                          {row.detail._fetch_errors?.chain_fetch || (() => {
+                            const rej = row.detail._rejection_reasons || rejectionMap?.[row.symbol];
+                            if (rej && rej.length > 0) {
+                              const top = rej[0];
+                              const extra = rej.length > 1 ? ` (+${rej.length - 1} more)` : '';
+                              return `No strategies — ${top.reason}${extra}`;
+                            }
+                            return 'No strategies available';
+                          })()}
                         </span>
                       )}
                     </td>
@@ -761,7 +805,7 @@ export default function ScannerResultsTable({
                   {isExpanded && (
                     <tr>
                       <td colSpan={15} style={{ background: '#0F172A', padding: 0 }}>
-                        <ExpandedDetail detail={row.detail} card={row.card} sentiment={sentimentMap?.[row.symbol]} />
+                        <ExpandedDetail detail={row.detail} card={row.card} sentiment={sentimentMap?.[row.symbol]} rejections={rejectionMap?.[row.symbol]} />
                       </td>
                     </tr>
                   )}
