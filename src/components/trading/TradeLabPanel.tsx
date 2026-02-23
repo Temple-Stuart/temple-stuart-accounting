@@ -340,7 +340,7 @@ export default function TradeLabPanel() {
                         <div className="font-mono font-bold text-green-700">{fmtDollar(card.max_profit)}</div>
                         <div className="text-gray-400">Max Loss</div>
                         <div className="font-mono font-bold text-red-700">{fmtDollar(card.max_loss)}</div>
-                        <div className="text-gray-400">Win Rate</div>
+                        <div className="text-gray-400" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                         <div className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
                         <div className="text-gray-400">R:R</div>
                         <div className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
@@ -464,7 +464,7 @@ export default function TradeLabPanel() {
                             <span className="font-mono font-bold text-red-700">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Win Rate</span>
+                            <span className="text-gray-500" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
                             <span className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">

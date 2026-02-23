@@ -304,7 +304,7 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
                 </table>
 
                 {/* Key numbers row */}
-                <div className="grid grid-cols-4 gap-3 mb-2">
+                <div className="grid grid-cols-5 gap-3 mb-2">
                   <div className="text-center">
                     <div className="text-[9px] text-slate-500 uppercase">Max Profit</div>
                     <div className="text-sm font-mono font-black text-green-400">{fmtDollar(card.setup.max_profit)}</div>
@@ -314,14 +314,25 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
                     <div className="text-sm font-mono font-black text-red-400">{fmtDollar(card.setup.max_loss)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase">Win Rate</div>
+                    <div className="text-[9px] text-slate-500 uppercase" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                     <div className="text-sm font-mono font-black text-white">{fmtPct(card.setup.probability_of_profit)}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[9px] text-slate-500 uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns.">Est. EV</div>
+                    <div className="text-sm font-mono font-black" style={{ color: card.setup.ev > 0 ? '#10B981' : card.setup.ev < 0 ? '#EF4444' : '#94A3B8' }}>
+                      {card.setup.ev !== 0 ? `${card.setup.ev >= 0 ? '+' : ''}$${Math.round(card.setup.ev)}` : '—'}
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-[9px] text-slate-500 uppercase">Risk/Reward</div>
                     <div className="text-sm font-mono font-black text-white">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
+                {card.setup.has_wide_spread && (
+                  <div className="text-[10px] text-amber-400 text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
+                    &#x26A0; Wide bid-ask spread — prices estimated from theoretical model
+                  </div>
+                )}
 
                 {/* Premium line */}
                 <div className="text-center rounded py-1.5" style={{ background: '#0F172A' }}>
