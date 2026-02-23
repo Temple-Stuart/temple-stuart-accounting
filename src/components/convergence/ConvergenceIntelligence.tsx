@@ -62,6 +62,7 @@ interface TradeCardSetup {
   max_loss: number | null;
   breakevens: number[];
   probability_of_profit: number | null;
+  pop_method: 'breakeven_d2' | 'delta_approx';
   hv_pop: number | null;
   risk_reward_ratio: number | null;
   greeks: { delta: number; gamma: number; theta: number; vega: number; theta_per_day: number };
@@ -319,7 +320,7 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
                     <div className="text-sm font-mono font-black text-red-400">{fmtDollar(card.setup.max_loss)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                    <div className="text-[9px] text-slate-500 uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price' : 'PoP estimated from option deltas (approximate)'}>Est. PoP</div>
                     <div className="text-sm font-mono font-black text-white">{fmtPct(card.setup.probability_of_profit)}</div>
                   </div>
                   <div className="text-center">

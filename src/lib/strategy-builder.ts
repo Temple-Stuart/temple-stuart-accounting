@@ -1,6 +1,8 @@
 // Strategy Builder — client-side option strategy generation
 // No API calls; purely computes from chain + Greeks data
 
+import { probAbove, probBetween } from './convergence/probability';
+
 // ─── Math Utilities ─────────────────────────────────────────────────
 
 // Standard normal CDF — Abramowitz & Stegun approximation
@@ -52,6 +54,90 @@ function computeHvAdjustedPoP(
     return Math.max(0, Math.min(1, normalCDF(z)));
   }
   return card.pop ?? 0;
+}
+
+// ─── Breakeven-Based PoP (N(d2)) ────────────────────────────────────
+
+/**
+ * Calculate Probability of Profit using N(d2) at breakeven prices.
+ *
+ * More accurate than delta approximation because:
+ * 1. Uses N(d2) not N(d1) — true expiration probability, not hedge ratio
+ * 2. Evaluates at actual breakeven prices, not strike prices
+ * 3. For credit spreads, breakevens account for premium received
+ *
+ * IV source: params.iv30 — the underlying's 30-day implied volatility
+ * from TastyTrade market metrics (GenerateParams.iv30).
+ *
+ * @param breakevens - calculated breakeven price(s) from P&L curve
+ * @param spotPrice - current underlying price
+ * @param iv - implied volatility (annualized decimal, e.g. 0.25 for 25%)
+ * @param dte - days to expiration
+ * @param isCredit - true if strategy receives credit
+ * @returns { pop, method } or null if calculation not possible
+ */
+function calculateBreakevenPoP(
+  breakevens: number[],
+  spotPrice: number,
+  iv: number,
+  dte: number,
+  isCredit: boolean,
+): { pop: number; method: 'breakeven_d2' } | null {
+  if (breakevens.length === 0 || spotPrice <= 0 || iv <= 0 || dte <= 0) return null;
+
+  const dteYears = dte / 365;
+  const sorted = [...breakevens].sort((a, b) => a - b);
+
+  if (sorted.length === 1) {
+    // Single breakeven: credit spread or debit spread
+    const be = sorted[0];
+    if (isCredit) {
+      // Credit spread: profit if price stays on the "safe" side of breakeven
+      // Put credit spread: breakeven is below spot → profit if price ABOVE breakeven
+      // Call credit spread: breakeven is above spot → profit if price BELOW breakeven
+      if (be < spotPrice) {
+        const p = probAbove(spotPrice, be, iv, dteYears);
+        if (p === null) return null;
+        return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
+      } else {
+        const p = probAbove(spotPrice, be, iv, dteYears);
+        if (p === null) return null;
+        // Price needs to stay below breakeven
+        return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
+      }
+    } else {
+      // Debit spread: profit if price moves past breakeven
+      // Bull call spread: breakeven above spot → profit if price ABOVE breakeven
+      // Bear put spread: breakeven below spot → profit if price BELOW breakeven
+      if (be > spotPrice) {
+        const p = probAbove(spotPrice, be, iv, dteYears);
+        if (p === null) return null;
+        return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
+      } else {
+        const p = probAbove(spotPrice, be, iv, dteYears);
+        if (p === null) return null;
+        return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
+      }
+    }
+  }
+
+  if (sorted.length === 2) {
+    const [lowerBE, upperBE] = sorted;
+    if (isCredit) {
+      // Iron condor, short strangle, short straddle: profit if price stays BETWEEN breakevens
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears);
+      if (p === null) return null;
+      return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
+    } else {
+      // Long straddle, long strangle: profit if price goes OUTSIDE breakevens
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears);
+      if (p === null) return null;
+      return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
+    }
+  }
+
+  // 3+ breakevens: unusual strategy, skip
+  return null;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -107,6 +193,7 @@ export interface StrategyCard {
   maxLoss: number | null;    // dollars per contract (null = unlimited)
   breakevens: number[];
   pop: number | null;        // probability of profit 0-1
+  popMethod: 'breakeven_d2' | 'delta_approx'; // which calculation produced pop
   riskReward: number | null;
   netDelta: number;
   netGamma: number;
@@ -400,6 +487,7 @@ function buildCard(
     maxLoss,
     breakevens,
     pop: pop != null ? Math.round(pop * 100) / 100 : null,
+    popMethod: 'delta_approx',
     riskReward,
     netDelta: Math.round(netDelta * 1000) / 1000,
     netGamma: Math.round(netGamma * 10000) / 10000,
@@ -664,8 +752,22 @@ export function generateStrategies(params: GenerateParams): StrategyCard[] {
 
   console.log(`[StrategyBuilder] ${sym}: pre-filter cards=${cards.length} [${cards.map(c => c.name).join(', ')}]`);
 
-  // ─── Compute HV-Adjusted EV for each card ──────────────────────
+  // ─── Upgrade PoP: delta approximation → N(d2) at breakeven ────
   const iv = params.iv30 ?? 0.30;
+
+  for (const card of cards) {
+    if (card.breakevens.length === 0 || card.pop == null) continue;
+    const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
+    const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit);
+    if (bePoP) {
+      const deltaPop = card.pop;
+      card.pop = Math.round(bePoP.pop * 100) / 100;
+      card.popMethod = bePoP.method;
+      console.log(`[StrategyBuilder] ${sym}: PoP upgrade "${card.name}" — delta=${(deltaPop * 100).toFixed(1)}% → N(d2)=${(bePoP.pop * 100).toFixed(1)}% (IV=${(iv * 100).toFixed(1)}%, DTE=${dte}, BEs=[${card.breakevens.join(', ')}])`);
+    }
+  }
+
+  // ─── Compute HV-Adjusted EV for each card ──────────────────────
   const hv = params.hv30 ?? iv;
   // Safety cap: if IV/HV ratio > 4, cap at 4 to prevent unrealistic adjustments
   const cappedHv = iv > 0 && hv > 0 && iv / hv > 4 ? iv / 4 : hv;

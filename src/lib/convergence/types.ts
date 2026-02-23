@@ -558,6 +558,7 @@ export interface TradeCardSetup {
   max_loss: number | null;
   breakevens: number[];
   probability_of_profit: number | null;
+  pop_method: 'breakeven_d2' | 'delta_approx';
   hv_pop: number | null;
   risk_reward_ratio: number | null;
   greeks: {
