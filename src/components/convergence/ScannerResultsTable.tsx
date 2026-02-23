@@ -109,8 +109,23 @@ interface TickerDetail {
 
 // ── Props ────────────────────────────────────────────────────────────
 
+interface SocialSentimentData {
+  symbol: string;
+  score: number;
+  magnitude: number;
+  postCount: number;
+  bullishCount: number;
+  bearishCount: number;
+  neutralCount: number;
+  themes: string[];
+  samplePosts: { text: string; sentiment: 'bullish' | 'bearish' | 'neutral'; author: string }[];
+  dataAge: string;
+  error?: string;
+}
+
 interface ScannerResultsTableProps {
   results: TickerDetail[];
+  sentimentMap?: Record<string, SocialSentimentData>;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
@@ -197,7 +212,7 @@ type SortKey = 'symbol' | 'score' | 'direction' | 'strategyName' | 'maxProfit' |
 
 // ── Expanded Detail ──────────────────────────────────────────────────
 
-function ExpandedDetail({ detail, card }: { detail: TickerDetail; card: TradeCardData | null }) {
+function ExpandedDetail({ detail, card, sentiment }: { detail: TickerDetail; card: TradeCardData | null; sentiment?: SocialSentimentData }) {
   const comp = detail.scores.composite;
   const why = card?.why;
   const ks = card?.key_stats;
@@ -337,6 +352,60 @@ function ExpandedDetail({ detail, card }: { detail: TickerDetail; card: TradeCar
           </div>
         </div>
       )}
+
+      {/* Social Pulse — from xAI x_search */}
+      {sentiment && !sentiment.error && sentiment.postCount > 0 && (
+        <div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">
+            Social Pulse
+            <span className="ml-2 text-[9px] text-gray-600 normal-case font-normal">
+              Based on {sentiment.postCount} X posts in last 24h
+            </span>
+          </div>
+          <div className="rounded px-3 py-2 text-xs space-y-2" style={{ background: '#1E293B' }}>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-400">Score:</span>
+              <span
+                className="font-mono font-bold"
+                style={{ color: sentiment.score > 0.2 ? '#10B981' : sentiment.score < -0.2 ? '#EF4444' : '#94A3B8' }}
+              >
+                {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
+              </span>
+              <span className="text-gray-400">
+                ({sentiment.bullishCount} bullish / {sentiment.bearishCount} bearish / {sentiment.neutralCount} neutral)
+              </span>
+            </div>
+            {sentiment.themes.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 shrink-0">Themes:</span>
+                <div className="flex flex-wrap gap-1">
+                  {sentiment.themes.slice(0, 5).map((t, i) => (
+                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sentiment.samplePosts.length > 0 && (
+              <div className="space-y-1 mt-1">
+                {sentiment.samplePosts.slice(0, 3).map((post, i) => {
+                  const sentColor = post.sentiment === 'bullish' ? '#34D399' : post.sentiment === 'bearish' ? '#F87171' : '#94A3B8';
+                  return (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
+                        {post.sentiment.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="text-gray-300 leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
+                      <span className="shrink-0 text-[9px] text-gray-500 font-mono">{post.author}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -345,6 +414,7 @@ function ExpandedDetail({ detail, card }: { detail: TickerDetail; card: TradeCar
 
 export default function ScannerResultsTable({
   results,
+  sentimentMap,
   savedCards,
   savingCards,
   saveErrors,
@@ -540,6 +610,7 @@ export default function ScannerResultsTable({
             <tr style={{ background: '#1E293B' }}>
               <th className="px-2 py-2 w-8">{/* checkbox col */}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Symbol{sortIndicator('symbol')}</th>
+              <th className={thBase + ' text-center w-6'} title="Social Sentiment from X/Twitter (via xAI Grok)">X</th>
               <th className={thBase + ' text-right'} onClick={() => toggleSort('score')}>Score{sortIndicator('score')}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('direction')}>Direction{sortIndicator('direction')}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('strategyName')}>Strategy{sortIndicator('strategyName')}</th>
@@ -591,6 +662,22 @@ export default function ScannerResultsTable({
                     {/* Symbol */}
                     <td className="px-2 py-2 font-mono font-bold text-white" onClick={() => toggleRow(row.id)}>
                       {row.symbol}
+                    </td>
+                    {/* Sentiment dot */}
+                    <td className="px-1 py-2 text-center" onClick={() => toggleRow(row.id)}>
+                      {(() => {
+                        const s = sentimentMap?.[row.symbol];
+                        if (!s || s.error || s.postCount === 0) return null;
+                        const color = s.score > 0.2 ? '#10B981' : s.score < -0.2 ? '#EF4444' : '#6B7280';
+                        const label = s.score > 0.2 ? 'bullish' : s.score < -0.2 ? 'bearish' : 'neutral';
+                        return (
+                          <span
+                            className="inline-block w-2 h-2 rounded-full"
+                            style={{ background: color }}
+                            title={`Social Sentiment: ${s.score > 0 ? '+' : ''}${s.score.toFixed(2)} (${label}) — ${s.postCount} posts. ${s.themes.length > 0 ? 'Themes: ' + s.themes.slice(0, 3).join(', ') : ''}`}
+                          />
+                        );
+                      })()}
                     </td>
                     {/* Score */}
                     <td className="px-2 py-2 text-right font-mono font-bold" onClick={() => toggleRow(row.id)} style={{ color: gradeColor(row.score) }}>
@@ -664,7 +751,7 @@ export default function ScannerResultsTable({
                   {/* Error row */}
                   {error && (
                     <tr style={{ background: '#7F1D1D15' }}>
-                      <td colSpan={14} className="px-4 py-1 text-[10px] text-red-300">
+                      <td colSpan={15} className="px-4 py-1 text-[10px] text-red-300">
                         Failed to save: {error}
                       </td>
                     </tr>
@@ -673,8 +760,8 @@ export default function ScannerResultsTable({
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={14} style={{ background: '#0F172A', padding: 0 }}>
-                        <ExpandedDetail detail={row.detail} card={row.card} />
+                      <td colSpan={15} style={{ background: '#0F172A', padding: 0 }}>
+                        <ExpandedDetail detail={row.detail} card={row.card} sentiment={sentimentMap?.[row.symbol]} />
                       </td>
                     </tr>
                   )}

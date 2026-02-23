@@ -590,6 +590,21 @@ export interface TradeCardWhy {
   risk_flags: string[];
 }
 
+export interface SocialSentiment {
+  score: number;          // -1 to +1
+  magnitude: number;      // 0 to 1
+  postCount: number;
+  themes: string[];
+  bullishPct: number;     // 0-100
+  bearishPct: number;     // 0-100
+  samplePosts?: {
+    text: string;
+    sentiment: 'bullish' | 'bearish' | 'neutral';
+    author: string;
+  }[];
+  dataAge: string;        // ISO timestamp
+}
+
 export interface TradeCardKeyStats {
   iv_rank: number | null;
   iv_percentile: number | null;
@@ -609,6 +624,7 @@ export interface TradeCardKeyStats {
   buzz_ratio: number | null;
   sentiment_momentum: number | null;
   analyst_consensus: string | null;
+  social_sentiment?: SocialSentiment;
 }
 
 export interface TradeCard {

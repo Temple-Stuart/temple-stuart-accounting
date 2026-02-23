@@ -3,6 +3,8 @@ import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFina
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
+import { fetchSentimentBatch } from './sentiment';
+import type { SentimentResult } from './sentiment';
 import { computeSectorStats } from './sector-stats';
 import type { SectorStatsMap } from './sector-stats';
 import { scoreAll } from './composite';
@@ -100,6 +102,7 @@ export interface PipelineResult {
   diversification: DiversificationResult;
   scoring_details: Record<string, FullScoringResult>;
   pre_filter: PreFilterResult[];
+  social_sentiment: Record<string, SentimentResult>;
   data_gaps: string[];
   errors: string[];
 }
@@ -567,6 +570,27 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   console.log('[Pipeline] Step G: Ranking and diversifying...');
   const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
 
+  // ===== STEP G1.5: Fetch social sentiment (parallel with G2) =====
+  const top9Symbols = top9.map(r => r.symbol);
+  const sentimentPromise = (async (): Promise<Map<string, SentimentResult>> => {
+    if (!process.env.XAI_API_KEY) {
+      console.log('[Pipeline] Step G1.5: XAI_API_KEY not set — skipping social sentiment');
+      return new Map();
+    }
+    try {
+      console.log(`[Pipeline] Step G1.5: Fetching social sentiment for ${top9Symbols.length} symbols...`);
+      const startMs = Date.now();
+      const results = await fetchSentimentBatch(top9Symbols, 5);
+      console.log(`[Pipeline] Step G1.5: Sentiment fetched in ${Date.now() - startMs}ms`);
+      return results;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`Step G1.5 (sentiment): ${msg}`);
+      console.error('[Pipeline] Step G1.5 sentiment failed:', msg);
+      return new Map();
+    }
+  })();
+
   // ===== STEP G2: Fetch chain data and build trade cards =====
   console.log('[Pipeline] Step G2: Fetching option chains and building trade cards...');
   let chainStats: ChainFetchStats = {
@@ -661,6 +685,21 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     console.error('[Pipeline] Step G2 failed:', msg);
   }
 
+  // Await sentiment (launched in parallel with G2)
+  const sentimentMap = await sentimentPromise;
+  const socialSentiment: Record<string, SentimentResult> = Object.fromEntries(sentimentMap);
+  if (sentimentMap.size > 0) {
+    const withData = [...sentimentMap.values()].filter(s => !s.error).length;
+    console.log(`[Pipeline] Sentiment: ${withData}/${sentimentMap.size} symbols with data`);
+    if (withData === 0) {
+      dataGaps.push('social_sentiment: xAI returned no results (API may be unavailable or no posts found)');
+    }
+  } else if (process.env.XAI_API_KEY) {
+    dataGaps.push('social_sentiment: fetch failed or returned empty');
+  } else {
+    dataGaps.push('social_sentiment: XAI_API_KEY not configured — social sentiment disabled');
+  }
+
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
 
@@ -725,6 +764,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
     diversification,
     scoring_details: scoringDetails,
     pre_filter: preFilterResults,
+    social_sentiment: socialSentiment,
     data_gaps: dataGaps,
     errors,
   };

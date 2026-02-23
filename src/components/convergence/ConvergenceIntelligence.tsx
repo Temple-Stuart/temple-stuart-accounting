@@ -41,9 +41,24 @@ interface PipelineSummary {
   timestamp: string;
 }
 
+interface SocialSentimentData {
+  symbol: string;
+  score: number;
+  magnitude: number;
+  postCount: number;
+  bullishCount: number;
+  bearishCount: number;
+  neutralCount: number;
+  themes: string[];
+  samplePosts: { text: string; sentiment: 'bullish' | 'bearish' | 'neutral'; author: string }[];
+  dataAge: string;
+  error?: string;
+}
+
 interface BatchResponse {
   pipeline_summary: PipelineSummary;
   top_9: RankedRow[];
+  social_sentiment?: Record<string, SocialSentimentData>;
   timing: { pipeline_ms: number; ai_ms: number; total_ms: number };
 }
 
@@ -226,8 +241,9 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRemove }: {
+function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: {
   detail: TickerDetail;
+  sentiment?: SocialSentimentData;
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
@@ -496,6 +512,31 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
                 {ks.sentiment_momentum != null && <span className="text-slate-500"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
+            {/* Social Pulse row — from xAI x_search */}
+            {sentiment && !sentiment.error && sentiment.postCount > 0 && (
+              <div>
+                <span className="text-slate-500 font-medium">Social Pulse: </span>
+                <span
+                  className="font-mono font-bold"
+                  style={{ color: sentiment.score > 0.2 ? '#10B981' : sentiment.score < -0.2 ? '#EF4444' : '#94A3B8' }}
+                >
+                  {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
+                </span>
+                <span className="text-slate-400 font-mono">
+                  {' '}({sentiment.postCount} posts
+                  {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N)
+                </span>
+                {sentiment.themes.length > 0 && (
+                  <span className="ml-2">
+                    {sentiment.themes.slice(0, 3).map((t, i) => (
+                      <span key={i} className="inline-block px-1.5 py-0.5 mr-1 rounded text-[9px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -527,11 +568,12 @@ function TickerCard({ detail, savedCards, savingCards, saveErrors, onSave, onRem
 // ── Filtered Results Section ────────────────────────────────────────
 
 function FilteredResultsSection({
-  enriched, filters, onResetFilters,
+  enriched, filters, sentimentMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
 }: {
   enriched: TickerDetail[];
   filters: ScannerFilters;
+  sentimentMap?: Record<string, SocialSentimentData>;
   onResetFilters: () => void;
   savedCards: Map<string, string>;
   savingCards: Set<string>;
@@ -540,8 +582,8 @@ function FilteredResultsSection({
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
 }) {
   const { passed, filtered, totalStrategies, passedStrategies } = useMemo(
-    () => applyFilters(enriched, filters),
-    [enriched, filters],
+    () => applyFilters(enriched, filters, sentimentMap),
+    [enriched, filters, sentimentMap],
   );
   const [showFiltered, setShowFiltered] = useState(false);
   const activeFilters = useMemo(() => describeActiveFilters(filters), [filters]);
@@ -593,6 +635,7 @@ function FilteredResultsSection({
 
       <ScannerResultsTable
         results={passed}
+        sentimentMap={sentimentMap}
         savedCards={savedCards}
         savingCards={savingCards}
         saveErrors={saveErrors}
@@ -897,6 +940,7 @@ export default function ConvergenceIntelligence() {
         <FilteredResultsSection
           enriched={enriched}
           filters={filters}
+          sentimentMap={batchData?.social_sentiment}
           onResetFilters={() => handleFiltersChange(DEFAULT_FILTERS)}
           savedCards={savedCards}
           savingCards={savingCards}
@@ -907,7 +951,7 @@ export default function ConvergenceIntelligence() {
       )}
       {enriched.length === 1 && (
         <div className="px-5 py-4 space-y-4">
-          <TickerCard detail={enriched[0]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
+          <TickerCard detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
         </div>
       )}
 
