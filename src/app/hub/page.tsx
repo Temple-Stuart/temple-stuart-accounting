@@ -373,12 +373,18 @@ export default function HubPage() {
                     >
                       {/* Image */}
                       <div className="relative h-[120px] overflow-hidden">
-                        {trip.destinationPhoto ? (
-                          <img src={trip.destinationPhoto} alt={trip.destination || trip.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#2d1b4e] to-[#4a3a6e] flex items-center justify-center">
-                            <span className="text-white/50 text-3xl font-mono">{(trip.destination || trip.name || '?').charAt(0)}</span>
-                          </div>
+                        {/* Gradient placeholder - always rendered, visible when image fails or no destination */}
+                        <div className="w-full h-full bg-gradient-to-br from-[#2d1b4e] to-[#4a3a6e] flex items-center justify-center">
+                          <span className="text-white/50 text-3xl font-mono">{(trip.destination || trip.name || '?').charAt(0)}</span>
+                        </div>
+                        {/* Photo from proxy - overlays placeholder, hides on error */}
+                        {trip.destination && (
+                          <img
+                            src={`/api/places/photo?destination=${encodeURIComponent(trip.destination)}`}
+                            alt={trip.destination || trip.name}
+                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
                         )}
                         {/* Overlay with destination name */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
