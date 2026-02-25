@@ -33,11 +33,11 @@ export async function POST() {
         ledger_entries: {
           take: 1,
           include: {
-            journal_transactions: {
+            journal_entry: {
               include: {
                 ledger_entries: {
                   include: {
-                    chart_of_accounts: {
+                    account: {
                       select: { userId: true }
                     }
                   }
@@ -54,11 +54,11 @@ export async function POST() {
     for (const account of orphanedAccounts) {
       let resolvedUserId: string | null = null;
 
-      // Strategy 1: Trace through ledger_entries → journal_transaction → sibling ledger_entries → COA userId
+      // Strategy 1: Trace through ledger_entries → journal_entry → sibling ledger_entries → COA userId
       for (const le of account.ledger_entries) {
-        for (const siblingEntry of le.journal_transactions.ledger_entries) {
-          if (siblingEntry.chart_of_accounts.userId) {
-            resolvedUserId = siblingEntry.chart_of_accounts.userId;
+        for (const siblingEntry of le.journal_entry.ledger_entries) {
+          if (siblingEntry.account.userId) {
+            resolvedUserId = siblingEntry.account.userId;
             break;
           }
         }

@@ -14,7 +14,7 @@ export async function GET() {
 
     const entries = await prisma.journal_entries.findMany({
       where: { userId: user.id },
-      include: { lines: true },
+      include: { ledger_entries: { include: { account: true } } },
       orderBy: { date: 'desc' }
     });
 
@@ -36,42 +36,51 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const body = await request.json();
-    const { date, type, memo, lines, status } = body;
+    const { date, description, entityId, lines, status: entryStatus } = body;
+
+    if (!entityId) {
+      return NextResponse.json({ error: 'entityId is required' }, { status: 400 });
+    }
 
     // Validate debits = credits
     const totalDebits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.debit) || 0), 0);
     const totalCredits = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.credit) || 0), 0);
-    
+
     if (Math.abs(totalDebits - totalCredits) > 0.01) {
       return NextResponse.json({ error: 'Entry must be balanced (debits must equal credits)' }, { status: 400 });
     }
 
-    // Get next entry number
-    const lastEntry = await prisma.journal_entries.findFirst({
-      where: { userId: user.id },
-      orderBy: { entryNumber: 'desc' }
+    // Verify entity belongs to user
+    const entity = await prisma.entities.findFirst({
+      where: { id: entityId, userId: user.id }
     });
-    const entryNumber = (lastEntry?.entryNumber || 0) + 1;
+    if (!entity) {
+      return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
+    }
 
     const entry = await prisma.journal_entries.create({
       data: {
         userId: user.id,
-        entryNumber,
+        entity_id: entityId,
         date: new Date(date),
-        type,
-        memo,
-        status: status || 'draft',
-        postedAt: status === 'posted' ? new Date() : null,
-        lines: {
-          create: lines.map((l: any) => ({
-            accountCode: l.accountCode,
-            description: l.description || null,
-            debit: l.debit ? parseFloat(l.debit) : null,
-            credit: l.credit ? parseFloat(l.credit) : null
-          }))
+        description: description || 'Manual journal entry',
+        source_type: 'manual',
+        status: entryStatus || 'posted',
+        ledger_entries: {
+          create: lines.map((l: any) => {
+            const debitAmt = parseFloat(l.debit) || 0;
+            const creditAmt = parseFloat(l.credit) || 0;
+            const isDebit = debitAmt > 0;
+            const amountCents = Math.round((isDebit ? debitAmt : creditAmt) * 100);
+            return {
+              account_id: l.accountId,
+              entry_type: isDebit ? 'D' : 'C',
+              amount: BigInt(amountCents)
+            };
+          })
         }
       },
-      include: { lines: true }
+      include: { ledger_entries: { include: { account: true } } }
     });
 
     return NextResponse.json({ entry });

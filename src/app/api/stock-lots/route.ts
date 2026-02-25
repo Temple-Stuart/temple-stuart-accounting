@@ -66,10 +66,22 @@ export async function POST(request: Request) {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { transactionIds, strategy = 'stock-long', tradeNum } = await request.json();
+    const { transactionIds, strategy = 'stock-long', tradeNum, entityId } = await request.json();
 
     if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
       return NextResponse.json({ error: 'No transaction IDs provided' }, { status: 400 });
+    }
+
+    if (!entityId) {
+      return NextResponse.json({ error: 'entityId is required' }, { status: 400 });
+    }
+
+    // Verify entity belongs to user
+    const entity = await prisma.entities.findFirst({
+      where: { id: entityId, userId: user.id }
+    });
+    if (!entity) {
+      return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
     }
 
     // Get next trade number if not provided
@@ -100,34 +112,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: not all transactions belong to user' }, { status: 403 });
     }
 
-
     // Validate: all must be BUY transactions for stocks (not options)
-    // Use security metadata to detect options (same as opens API), not name string matching
-    console.log('Stock lots validation - received txn count:', transactions.length);
     const invalidTxns = transactions.filter(t => {
       const name = (t.name || '').toLowerCase();
       const isBuy = name.startsWith('buy');
-      // Detect options via security metadata, not name substring
       const sec = t.security;
       const isOption = !!(sec?.option_contract_type || sec?.option_strike_price);
-      
-      console.log('Validating:', { 
-        id: t.id, 
-        nameSample: t.name?.substring(0, 40),
-        isBuy, 
-        isOption,
-        hasSec: !!sec,
-        optType: sec?.option_contract_type,
-        strike: sec?.option_strike_price
-      });
-      
       return !isBuy || isOption;
     });
 
-    console.log('Invalid count:', invalidTxns.length);
     if (invalidTxns.length > 0) {
-      console.log('Rejected:', invalidTxns.map(t => t.name?.substring(0, 50)));
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Invalid transactions: must be stock BUY transactions (not options)',
         invalid: invalidTxns.map(t => ({ id: t.id, name: t.name }))
       }, { status: 400 });
@@ -144,7 +139,7 @@ export async function POST(request: Request) {
 
     // Transform to legs format
     const legs = transactions.map(txn => {
-      const symbol = txn.security?.ticker_symbol || 
+      const symbol = txn.security?.ticker_symbol ||
                     txn.security?.option_underlying_ticker ||
                     extractSymbol(txn.name);
       return {
@@ -167,6 +162,7 @@ export async function POST(request: Request) {
           strategy,
           tradeNum: actualTradeNum,
           userId: user.id,
+          entityId,
           tx
         });
       },
@@ -180,8 +176,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Stock lots create error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create lots' 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Failed to create lots'
     }, { status: 500 });
   }
 }
