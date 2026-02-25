@@ -157,7 +157,7 @@ export async function generateForm8949(
         const holdingDays = Math.floor(
           (closeDate.getTime() - pos.open_date.getTime()) / MS_PER_DAY
         );
-        const isLongTerm = holdingDays >= 365;
+        const isLongTerm = holdingDays >= 366;
         const proceeds = pos.proceeds || 0;
         const costBasis = pos.cost_basis;
         const gainOrLoss = proceeds - costBasis;

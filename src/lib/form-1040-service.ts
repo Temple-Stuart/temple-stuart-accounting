@@ -37,6 +37,20 @@ const STANDARD_DEDUCTION: Record<string, Record<number, number>> = {
   head_of_household: { 2025: 21900, 2026: 22500 },
 };
 
+// ─── LTCG Tax Brackets (2025 Single) ───────────────────────────
+
+const LTCG_BRACKETS_2025 = [
+  { min: 0, max: 48350, rate: 0.00 },
+  { min: 48350, max: 533400, rate: 0.15 },
+  { min: 533400, max: Infinity, rate: 0.20 },
+];
+
+const LTCG_BRACKETS_2026 = [
+  { min: 0, max: 49850, rate: 0.00 },
+  { min: 49850, max: 549250, rate: 0.15 },
+  { min: 549250, max: Infinity, rate: 0.20 },
+];
+
 // ─── Interfaces ────────────────────────────────────────────────
 
 export interface TaxBracketBreakdown {
@@ -57,6 +71,8 @@ export interface Form1040 {
   line5a: number;  // 403(b) gross distribution
   line5b: number;  // 403(b) taxable amount
   line7: number;   // Capital gain/loss (from Schedule D)
+  line7_stcg: number;  // Short-term component
+  line7_ltcg: number;  // Long-term component
   line8: number;   // Schedule C net profit
   line9: number;   // Total income
 
@@ -71,6 +87,8 @@ export interface Form1040 {
   // TAX COMPUTATION
   incomeTax: number;
   bracketBreakdown: TaxBracketBreakdown[];
+  ltcgTax: number;
+  ltcgBracketBreakdown: TaxBracketBreakdown[];
   earlyWithdrawalPenalty: number;  // 10% of 403(b) - Schedule 2 Line 8
   selfEmploymentTax: number;       // From Schedule SE
   totalTax: number;
@@ -118,25 +136,60 @@ function overrideNum(overrides: Record<string, string>, key: string, fallback: n
   return { value: fallback, used: false };
 }
 
-// ─── W-2 wages from COA ───────────────────────────────────────
+// ─── W-2 wages from COA (across all user entities via account_tax_mappings) ──
 
 async function getW2Wages(userId: string, taxYear: number): Promise<number> {
   const yearStart = new Date(`${taxYear}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${taxYear + 1}-01-01T00:00:00.000Z`);
 
-  // Find P-4000 (Wages & Salary) account
+  // Find wage accounts via account_tax_mappings for form_1040 line 1
+  const taxMappedWages = await prisma.account_tax_mappings.findMany({
+    where: {
+      tax_form: 'form_1040',
+      form_line: '1',
+      tax_year: taxYear,
+      account: { userId, is_archived: false },
+    },
+    include: { account: true },
+  });
+
+  if (taxMappedWages.length > 0) {
+    let totalWages = 0;
+    for (const tm of taxMappedWages) {
+      const acct = tm.account;
+      const entries = await prisma.ledger_entries.findMany({
+        where: {
+          account_id: acct.id,
+          journal_entry: {
+            date: { gte: yearStart, lt: yearEnd },
+            status: 'posted',
+          },
+        },
+        select: { amount: true, entry_type: true },
+      });
+
+      let net = BigInt(0);
+      for (const e of entries) {
+        net += e.entry_type === 'C' ? e.amount : -e.amount;
+      }
+      totalWages += Math.abs(Number(net) / 100) * tm.multiplier.toNumber();
+    }
+    if (totalWages > 0) return round2(totalWages);
+  }
+
+  // Fallback: find wage account by code 4000 across all user entities
   const wageAccount = await prisma.chart_of_accounts.findFirst({
-    where: { userId, code: 'P-4000', is_archived: false },
+    where: { userId, code: '4000', is_archived: false },
   });
 
   if (!wageAccount) return 0;
 
-  // Get year-specific ledger entries
   const entries = await prisma.ledger_entries.findMany({
     where: {
       account_id: wageAccount.id,
-      journal_transactions: {
-        transaction_date: { gte: yearStart, lt: yearEnd },
+      journal_entry: {
+        date: { gte: yearStart, lt: yearEnd },
+        status: 'posted',
       },
     },
     select: { amount: true, entry_type: true },
@@ -145,17 +198,15 @@ async function getW2Wages(userId: string, taxYear: number): Promise<number> {
   if (entries.length > 0) {
     let net = BigInt(0);
     for (const e of entries) {
-      // Revenue account (credit-normal): credits increase
       net += e.entry_type === 'C' ? e.amount : -e.amount;
     }
     return Math.abs(Number(net) / 100);
   }
 
-  // Fallback to settled_balance
   return Math.abs(Number(wageAccount.settled_balance) / 100);
 }
 
-// ─── Compute tax from brackets ─────────────────────────────────
+// ─── Compute ordinary income tax from brackets ──────────────────
 
 function computeIncomeTax(
   taxableIncome: number,
@@ -188,6 +239,48 @@ function computeIncomeTax(
   return { tax: round2(totalTax), breakdown };
 }
 
+// ─── Compute LTCG tax from 0%/15%/20% brackets ─────────────────
+
+function computeLtcgTax(
+  ltcg: number,
+  taxableOrdinaryIncome: number,
+  taxYear: number
+): { tax: number; breakdown: TaxBracketBreakdown[] } {
+  if (ltcg <= 0) return { tax: 0, breakdown: [] };
+
+  const brackets = taxYear >= 2026 ? LTCG_BRACKETS_2026 : LTCG_BRACKETS_2025;
+  const breakdown: TaxBracketBreakdown[] = [];
+
+  // LTCG stacks on top of ordinary income for bracket purposes
+  let filled = taxableOrdinaryIncome;
+  let remaining = ltcg;
+  let totalTax = 0;
+
+  for (const b of brackets) {
+    if (remaining <= 0) break;
+    // How much room is left in this bracket after ordinary income?
+    const bracketRoom = Math.max(0, b.max - Math.max(filled, b.min));
+    const taxableInBracket = Math.min(remaining, bracketRoom);
+    if (taxableInBracket <= 0) continue;
+
+    const taxForBracket = round2(taxableInBracket * b.rate);
+    totalTax += taxForBracket;
+    remaining -= taxableInBracket;
+    filled += taxableInBracket;
+
+    breakdown.push({
+      bracket: b.max === Infinity
+        ? `$${b.min.toLocaleString()}+`
+        : `$${b.min.toLocaleString()} – $${b.max.toLocaleString()}`,
+      rate: b.rate,
+      taxableInBracket: round2(taxableInBracket),
+      taxForBracket,
+    });
+  }
+
+  return { tax: round2(totalTax), breakdown };
+}
+
 // ─── Main Form 1040 generator ──────────────────────────────────
 
 export async function generateForm1040(
@@ -205,7 +298,7 @@ export async function generateForm1040(
   const coaWages = await getW2Wages(userId, taxYear);
   const w2 = overrideNum(overrides, 'w2_gross_wages', coaWages);
   const line1 = w2.value;
-  const line1Source = w2.used ? 'manual override' : (coaWages > 0 ? 'COA P-4000' : 'not set');
+  const line1Source = w2.used ? 'manual override' : (coaWages > 0 ? 'COA 4000' : 'not set');
   if (w2.used) overridesUsed.push('w2_gross_wages');
 
   // Line 5a/5b: 403(b) distribution
@@ -219,9 +312,13 @@ export async function generateForm1040(
 
   // Line 7: Capital gain/loss from Schedule D
   let line7 = 0;
+  let line7_stcg = 0;
+  let line7_ltcg = 0;
   try {
     const taxReport = await generateTaxReport(userId, taxYear);
     line7 = taxReport.scheduleD.line16.gainOrLoss;
+    line7_stcg = taxReport.scheduleD.partI.line7.gainOrLoss;
+    line7_ltcg = taxReport.scheduleD.partII.line15.gainOrLoss;
   } catch (e) {
     console.log('[Form 1040] Schedule D generation failed, using 0:', (e as Error).message);
   }
@@ -252,14 +349,22 @@ export async function generateForm1040(
 
   // ── TAX COMPUTATION ──
 
-  const { tax: incomeTax, breakdown: bracketBreakdown } = computeIncomeTax(line15, taxYear);
+  // Separate ordinary income from LTCG for preferential rate treatment
+  const ltcgForTax = Math.max(0, line7_ltcg);
+  const ordinaryTaxable = round2(Math.max(0, line15 - ltcgForTax));
+
+  // Ordinary income tax (excludes LTCG)
+  const { tax: incomeTax, breakdown: bracketBreakdown } = computeIncomeTax(ordinaryTaxable, taxYear);
+
+  // LTCG tax at preferential 0%/15%/20% rates
+  const { tax: ltcgTax, breakdown: ltcgBracketBreakdown } = computeLtcgTax(ltcgForTax, ordinaryTaxable, taxYear);
 
   // Early withdrawal penalty (10% of 403(b) if code is '1' — early distribution)
   const retCode = overrides['retirement_distribution_code'] || '1';
   const earlyWithdrawalPenalty = retCode === '1' ? round2(line5b * 0.10) : 0;
 
   const selfEmploymentTax = scheduleSE.line12;
-  const totalTax = round2(incomeTax + earlyWithdrawalPenalty + selfEmploymentTax);
+  const totalTax = round2(incomeTax + ltcgTax + earlyWithdrawalPenalty + selfEmploymentTax);
 
   // ── CREDITS & PAYMENTS ──
 
@@ -291,6 +396,8 @@ export async function generateForm1040(
     line5a,
     line5b,
     line7,
+    line7_stcg,
+    line7_ltcg,
     line8,
     line9,
 
@@ -302,6 +409,8 @@ export async function generateForm1040(
 
     incomeTax,
     bracketBreakdown,
+    ltcgTax,
+    ltcgBracketBreakdown,
     earlyWithdrawalPenalty,
     selfEmploymentTax,
     totalTax,

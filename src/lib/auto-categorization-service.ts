@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 interface CategoryPrediction {
   coaCode: string;
@@ -17,21 +16,27 @@ export class AutoCategorizationService {
     merchantName: string | null,
     categoryPrimary: string | null,
     amount: number,
-    userId: string
+    userId: string,
+    entityId?: string
   ): Promise<CategoryPrediction | null> {
 
     // Try merchant mapping first (highest confidence)
-    // SECURITY: Scoped to user's mappings only
+    // SECURITY: Scoped to user's mappings only, optionally entity-scoped
     if (merchantName && categoryPrimary) {
-      const merchantMapping = await prisma.merchant_coa_mappings.findFirst({
-        where: {
-          userId,
-          merchant_name: {
-            contains: merchantName,
-            mode: 'insensitive'
-          },
-          plaid_category_primary: categoryPrimary
+      const merchantWhere: any = {
+        userId,
+        merchant_name: {
+          contains: merchantName,
+          mode: 'insensitive'
         },
+        plaid_category_primary: categoryPrimary
+      };
+      if (entityId) {
+        merchantWhere.entity_id = entityId;
+      }
+
+      const merchantMapping = await prisma.merchant_coa_mappings.findFirst({
+        where: merchantWhere,
         orderBy: {
           confidence_score: 'desc'
         }
@@ -49,22 +54,26 @@ export class AutoCategorizationService {
     // Fallback to category mapping
     if (categoryPrimary) {
       const categoryMap: Record<string, string> = {
-        'FOOD_AND_DRINK': 'P-6100',
-        'TRANSPORTATION': 'P-6400',
-        'RENT_AND_UTILITIES': 'P-8100',
-        'GENERAL_MERCHANDISE': 'P-8900',
-        'GENERAL_SERVICES': 'P-8900',
-        'ENTERTAINMENT': 'P-8170',
-        'PERSONAL_CARE': 'P-8150',
-        'BANK_FEES': 'P-6300',
-        'MEDICAL': 'P-8130',
-        'TRAVEL': 'P-6200'
+        'FOOD_AND_DRINK': '6100',
+        'TRANSPORTATION': '6400',
+        'RENT_AND_UTILITIES': '8100',
+        'GENERAL_MERCHANDISE': '8900',
+        'GENERAL_SERVICES': '8900',
+        'ENTERTAINMENT': '8170',
+        'PERSONAL_CARE': '8150',
+        'BANK_FEES': '6300',
+        'MEDICAL': '8130',
+        'TRAVEL': '6200',
+        'INCOME': '4200',
+        'LOAN_PAYMENTS': '2020',
+        'TRANSFER_IN': '3100',
+        'TRANSFER_OUT': '3100',
       };
 
       const coaCode = categoryMap[categoryPrimary];
       if (coaCode) {
         return {
-          coaCode: coaCode,
+          coaCode,
           confidence: 0.6,
           source: 'category_mapping'
         };
@@ -78,7 +87,7 @@ export class AutoCategorizationService {
   /**
    * Categorize all pending transactions
    */
-  async categorizePendingTransactions(userId: string): Promise<{
+  async categorizePendingTransactions(userId: string, entityId?: string): Promise<{
     categorized: number;
     failed: number;
   }> {
@@ -101,7 +110,8 @@ export class AutoCategorizationService {
           txn.merchantName,
           categoryPrimary,
           txn.amount,
-          userId
+          userId,
+          entityId || txn.entity_id || undefined
         );
 
         if (prediction) {
@@ -199,6 +209,46 @@ export class AutoCategorizationService {
     }
 
     return { committed, errors };
+  }
+
+  /**
+   * Record a merchant mapping with entity scope for future predictions
+   */
+  async recordMerchantMapping(params: {
+    userId: string;
+    entityId: string;
+    merchantName: string;
+    categoryPrimary: string;
+    coaCode: string;
+  }): Promise<void> {
+    const { userId, entityId, merchantName, categoryPrimary, coaCode } = params;
+
+    await prisma.merchant_coa_mappings.upsert({
+      where: {
+        userId_merchant_name_plaid_category_primary: {
+          userId,
+          merchant_name: merchantName,
+          plaid_category_primary: categoryPrimary,
+        }
+      },
+      update: {
+        coa_code: coaCode,
+        entity_id: entityId,
+        usage_count: { increment: 1 },
+        last_used_at: new Date(),
+        confidence_score: new Prisma.Decimal(1.0),
+      },
+      create: {
+        id: crypto.randomUUID(),
+        userId,
+        entity_id: entityId,
+        merchant_name: merchantName,
+        plaid_category_primary: categoryPrimary,
+        coa_code: coaCode,
+        usage_count: 1,
+        confidence_score: new Prisma.Decimal(1.0),
+      }
+    });
   }
 }
 
