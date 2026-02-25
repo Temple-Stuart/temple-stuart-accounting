@@ -1,7 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 interface InvestmentLeg {
   id: string;
@@ -26,31 +24,32 @@ export class PositionTrackerService {
     strategy: string;
     tradeNum: string;
     userId: string;
+    entityId: string;
     tx?: TransactionContext;
   }) {
-    const { legs, strategy, tradeNum, userId, tx } = params;
+    const { legs, strategy, tradeNum, userId, entityId, tx } = params;
     const db = tx || prisma;
     const results = [];
     const skipped = [];
-    
+
     console.log(`[Commit] Processing ${legs.length} legs for Trade #${tradeNum}`);
-    
+
     // CRITICAL: Process ALL opens first to ensure positions exist in DB
     for (const leg of legs) {
       if (leg.positionEffect === 'open') {
         console.log(`  [OPEN] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        const result = await this.openPosition(leg, strategy, tradeNum, userId, db);
+        const result = await this.openPosition(leg, strategy, tradeNum, userId, entityId, db);
         results.push(result);
       }
     }
-    
+
     // Then process ALL closes (can now find the opens we just created)
     for (const leg of legs) {
       if (leg.positionEffect === 'close') {
         // Check if this is an exercise/assignment transaction
         const legName = (leg as any).name?.toLowerCase() || '';
         const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
-        
+
         // Skip $0 transfer legs - only process stock transactions with real amounts
         if (isExerciseOrAssignment && (leg.amount === 0 || leg.price === 0)) {
           console.log(`  [SKIP] $0 transfer leg for exercise/assignment: ${legName.slice(0, 50)}`);
@@ -63,35 +62,35 @@ export class PositionTrackerService {
           });
           continue;
         }
-        
+
         let openPosition = null;
-        
+
         if (isExerciseOrAssignment) {
           // For exercise/assignment: find open position by TRADE NUMBER
           // These transactions close options but have stock symbol, not option details
           openPosition = await db.trading_positions.findFirst({
-            where: { 
+            where: {
               trade_num: tradeNum,
-              status: 'OPEN' 
+              status: 'OPEN'
             }
           });
-          
+
           if (openPosition) {
             console.log(`  [EXERCISE/ASSIGN CLOSE] Found position by trade #${tradeNum}: ${openPosition.symbol} $${openPosition.strike_price}`);
           }
         } else {
           // Normal option close: match by symbol/strike/type/expiry
           openPosition = await db.trading_positions.findFirst({
-            where: { 
-              symbol: leg.symbol, 
-              strike_price: leg.strike, 
+            where: {
+              symbol: leg.symbol,
+              strike_price: leg.strike,
               option_type: leg.contractType?.toUpperCase(),
-              expiration_date: leg.expiry, 
-              status: 'OPEN' 
+              expiration_date: leg.expiry,
+              status: 'OPEN'
             }
           });
         }
-        
+
         if (!openPosition) {
           console.warn(`  [SKIP CLOSE] No open position for ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
           skipped.push({
@@ -104,7 +103,7 @@ export class PositionTrackerService {
           });
           continue; // Skip this close, don't crash
         }
-        
+
         console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
         // For exercise/assignment, pass the matched position info to closePosition
         const result = await this.closePosition(
@@ -112,12 +111,13 @@ export class PositionTrackerService {
           strategy,
           tradeNum,
           userId,
+          entityId,
           db
         );
         results.push(result);
       }
     }
-    
+
     // Update investment_transactions table with COA codes
     for (const leg of legs) {
       const result = results.find(r => r.legId === leg.id);
@@ -134,9 +134,9 @@ export class PositionTrackerService {
         });
       }
     }
-    
+
     console.log(`[Commit] SUCCESS: ${results.length} committed, ${skipped.length} skipped`);
-    
+
     return { success: true, results, skipped };
   }
 
@@ -145,9 +145,10 @@ export class PositionTrackerService {
     strategy: string,
     tradeNum: string,
     userId: string,
+    entityId: string,
     db: TransactionContext
   ) {
-    const TRADING_CASH = 'T-1010';
+    const TRADING_CASH = '1010';
     const multiplier = 100;
     let costBasis: number;
     if (leg.action === 'buy') {
@@ -158,9 +159,9 @@ export class PositionTrackerService {
     let positionAccount: string;
     const positionType = leg.action === 'buy' ? 'LONG' : 'SHORT';
     if (leg.action === 'buy') {
-      positionAccount = leg.contractType === 'call' ? 'T-1200' : 'T-1210';
+      positionAccount = leg.contractType === 'call' ? '1200' : '1210';
     } else {
-      positionAccount = leg.contractType === 'call' ? 'T-2100' : 'T-2110';
+      positionAccount = leg.contractType === 'call' ? '2100' : '2110';
     }
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (leg.action === 'buy') {
@@ -174,7 +175,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `OPEN ${positionType}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} ${leg.expiry?.toLocaleDateString()}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis,
-      userId, db
+      userId, entityId, db
     });
     await db.trading_positions.create({
       data: {
@@ -192,29 +193,30 @@ export class PositionTrackerService {
     strategy: string,
     tradeNum: string,
     userId: string,
+    entityId: string,
     db: TransactionContext
   ) {
-    const TRADING_CASH = 'T-1010';
-    
+    const TRADING_CASH = '1010';
+
     // Use pre-matched position (for exercise/assignment) or lookup by option details
     let openPosition = leg.matchedPosition;
-    
+
     if (!openPosition) {
       // Find position with remaining quantity > 0
       openPosition = await db.trading_positions.findFirst({
-        where: { 
-          symbol: leg.symbol, 
-          strike_price: leg.strike, 
+        where: {
+          symbol: leg.symbol,
+          strike_price: leg.strike,
           option_type: leg.contractType?.toUpperCase(),
-          expiration_date: leg.expiry, 
+          expiration_date: leg.expiry,
           remaining_quantity: { gt: 0 }
         },
         orderBy: { open_date: 'asc' }
       });
     }
-    
+
     if (!openPosition) throw new Error(`No open position found for ${leg.symbol} ${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-    
+
 
     // Check if this is an exercise/assignment FIRST (stock transaction closing an option)
     const legName = (leg as any).name?.toLowerCase() || '';
@@ -242,33 +244,33 @@ export class PositionTrackerService {
     const isFullClose = newRemainingQty <= 0;
     let proceeds: number;
     let realizedPL: number;
-    
+
     if (isExerciseOrAssignment) {
       // For exercise/assignment, skip journal entry creation entirely.
       // P&L is calculated at the trade level from transaction amounts.
-      
+
       // Update position (partial or full close)
       await db.trading_positions.update({
         where: { id: openPosition.id },
-        data: { 
+        data: {
           remaining_quantity: Math.max(0, newRemainingQty),
-          status: isFullClose ? 'CLOSED' : 'OPEN', 
-          close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id, 
+          status: isFullClose ? 'CLOSED' : 'OPEN',
+          close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id,
           close_price: isFullClose ? leg.price : openPosition.close_price,
-          close_fees: (openPosition.close_fees || 0) + (leg.fees || 0), 
-          close_date: isFullClose ? leg.date : openPosition.close_date, 
-          proceeds: (openPosition.proceeds || 0) + leg.amount, 
+          close_fees: (openPosition.close_fees || 0) + (leg.fees || 0),
+          close_date: isFullClose ? leg.date : openPosition.close_date,
+          proceeds: (openPosition.proceeds || 0) + leg.amount,
           realized_pl: 0 // Will be calculated at trade level
         }
       });
-      
-      return { 
-        legId: leg.id, 
-        journalId: null, 
-        coaCode: null, 
-        realizedPL: 0, 
-        proceeds: Math.round(leg.amount * 100), 
-        originalCost, 
+
+      return {
+        legId: leg.id,
+        journalId: null,
+        coaCode: null,
+        realizedPL: 0,
+        proceeds: Math.round(leg.amount * 100),
+        originalCost,
         action: isFullClose ? 'CLOSE_EXERCISE' : 'PARTIAL_CLOSE_EXERCISE'
       };
     } else {
@@ -279,7 +281,7 @@ export class PositionTrackerService {
       } else {
         proceeds = Math.round((leg.price * closeQty * multiplier + leg.fees) * 100);
       }
-      
+
       if (openPosition.position_type === 'LONG') {
         realizedPL = proceeds - originalCost;
       } else {
@@ -287,10 +289,10 @@ export class PositionTrackerService {
       }
     }
     const isGain = realizedPL > 0;
-    const plAccount = isGain ? 'T-4100' : 'T-5100';
-    const positionAccount = openPosition.position_type === 'LONG' 
-      ? (openPosition.option_type === 'CALL' ? 'T-1200' : 'T-1210')
-      : (openPosition.option_type === 'CALL' ? 'T-2100' : 'T-2110');
+    const plAccount = isGain ? '4100' : '5100';
+    const positionAccount = openPosition.position_type === 'LONG'
+      ? (openPosition.option_type === 'CALL' ? '1200' : '1210')
+      : (openPosition.option_type === 'CALL' ? '2100' : '2110');
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (openPosition.position_type === 'LONG') {
       lines.push({ accountCode: TRADING_CASH, amount: proceeds, entryType: 'D' });
@@ -307,86 +309,86 @@ export class PositionTrackerService {
       date: leg.date,
       description: `${isFullClose ? 'CLOSE' : 'PARTIAL CLOSE'} ${openPosition.position_type}: ${closeQty}x ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
-      userId, db
+      userId, entityId, db
     });
-    
+
     // Update position with new remaining quantity
     await db.trading_positions.update({
       where: { id: openPosition.id },
-      data: { 
+      data: {
         remaining_quantity: Math.max(0, newRemainingQty),
         status: isFullClose ? 'CLOSED' : 'OPEN',
-        close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id, 
+        close_investment_txn_id: isFullClose ? leg.id : openPosition.close_investment_txn_id,
         close_price: isFullClose ? leg.price : openPosition.close_price,
-        close_fees: (openPosition.close_fees || 0) + (leg.fees || 0), 
-        close_date: isFullClose ? leg.date : openPosition.close_date, 
-        proceeds: ((openPosition.proceeds || 0) * 100 + proceeds) / 100, 
-        realized_pl: ((openPosition.realized_pl || 0) * 100 + realizedPL) / 100 
+        close_fees: (openPosition.close_fees || 0) + (leg.fees || 0),
+        close_date: isFullClose ? leg.date : openPosition.close_date,
+        proceeds: ((openPosition.proceeds || 0) * 100 + proceeds) / 100,
+        realized_pl: ((openPosition.realized_pl || 0) * 100 + realizedPL) / 100
       }
     });
     return { legId: leg.id, journalId: journalEntry.id, coaCode: plAccount, realizedPL, proceeds, originalCost, action: isFullClose ? 'CLOSE' : 'PARTIAL_CLOSE' };
   }
+
   private async createJournalEntry(params: {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
-    userId: string; db: TransactionContext;
+    userId: string; entityId: string; db: TransactionContext;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, amount, userId, db } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
     const accountCodes = lines.map(l => l.accountCode);
-    // SECURITY: Scope account lookup to user's accounts only
-    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes }, userId } });
+    // SECURITY: Scope account lookup to user's accounts within the entity
+    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes }, userId, entity_id: entityId } });
     if (accounts.length !== accountCodes.length) {
       const missing = accountCodes.filter(code => !accounts.find(a => a.code === code));
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
     }
-    
-    // Create journal transaction
-    const journalTxn = await db.journal_transactions.create({
-      data: { 
-        id: uuidv4(), 
-        transaction_date: date, 
-        description, 
-        external_transaction_id: externalTransactionId,
-        strategy, 
-        trade_num: tradeNum, 
-        amount, 
-        posted_at: new Date() 
+
+    // Create journal entry
+    const journalEntry = await db.journal_entries.create({
+      data: {
+        userId,
+        entity_id: entityId,
+        date,
+        description,
+        source_type: 'investment_txn',
+        source_id: externalTransactionId || null,
+        status: 'posted',
+        metadata: (strategy || tradeNum) ? { strategy, trade_num: tradeNum } : undefined,
       }
     });
-    
+
     // Create ledger entries and update account balances
     for (const line of lines) {
       const account = accounts.find(a => a.code === line.accountCode)!;
       await db.ledger_entries.create({
-        data: { 
-          id: uuidv4(), 
-          transaction_id: journalTxn.id, 
+        data: {
+          journal_entry_id: journalEntry.id,
           account_id: account.id,
-          amount: BigInt(line.amount), 
-          entry_type: line.entryType 
+          amount: BigInt(line.amount),
+          entry_type: line.entryType
         }
       });
       const balanceChange = line.entryType === account.balance_type ? BigInt(line.amount) : BigInt(-line.amount);
       await db.chart_of_accounts.update({
         where: { id: account.id },
-        data: { 
-          settled_balance: { increment: balanceChange }, 
-          version: { increment: 1 } 
+        data: {
+          settled_balance: { increment: balanceChange },
+          version: { increment: 1 }
         }
       });
     }
-    
-    return journalTxn;
+
+    return journalEntry;
   }
 
   async handleAssignmentExercise(params: {
-    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string; userId: string;
+    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string; userId: string; entityId: string;
   }) {
-    const { exerciseTransfer, stockTransaction, strategy, tradeNum, userId } = params;
+    const { exerciseTransfer, stockTransaction, strategy, tradeNum, userId, entityId } = params;
     const nameMatch = exerciseTransfer.name.match(/(\d+\.?\d*)\s*call|put/i);
     const strike = nameMatch ? parseFloat(nameMatch[1]) : null;
     if (!strike) throw new Error(`Cannot extract strike from: ${exerciseTransfer.name}`);
@@ -400,10 +402,10 @@ export class PositionTrackerService {
     const originalCost = Math.round(openPosition.cost_basis * 100);
     const realizedPL = isExercise ? -originalCost : originalCost;
     const isGain = realizedPL > 0;
-    const plAccount = isGain ? 'T-4100' : 'T-5100';
+    const plAccount = isGain ? '4100' : '5100';
     const positionAccount = openPosition.position_type === 'LONG'
-      ? (openPosition.option_type === 'CALL' ? 'T-1200' : 'T-1210')
-      : (openPosition.option_type === 'CALL' ? 'T-2100' : 'T-2110');
+      ? (openPosition.option_type === 'CALL' ? '1200' : '1210')
+      : (openPosition.option_type === 'CALL' ? '2100' : '2110');
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (isExercise) {
       lines.push({ accountCode: positionAccount, amount: originalCost, entryType: 'C' });
@@ -416,7 +418,7 @@ export class PositionTrackerService {
       date: exerciseTransfer.date,
       description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
       lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
-      userId, db: prisma
+      userId, entityId, db: prisma
     });
     await prisma.trading_positions.update({
       where: { id: openPosition.id },
@@ -427,7 +429,7 @@ export class PositionTrackerService {
       where: { id: exerciseTransfer.id }, data: { strategy, tradeNum, accountCode: plAccount }
     });
     await prisma.investment_transactions.update({
-      where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: 'T-1100' }
+      where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: '1100' }
     });
     return { type: isExercise ? 'EXERCISE' : 'ASSIGNMENT', symbol, strike, journalId: journalEntry.id, realizedPL };
   }
@@ -447,13 +449,14 @@ export class PositionTrackerService {
     strategy: string;
     tradeNum: string;
     userId: string;
+    entityId: string;
     tx?: TransactionContext;
   }) {
-    const { legs, strategy, tradeNum, userId, tx } = params;
+    const { legs, strategy, tradeNum, userId, entityId, tx } = params;
     const db = tx || prisma;
     const results = [];
-    const TRADING_CASH = 'T-1010';
-    const STOCK_POSITION = 'T-1100';
+    const TRADING_CASH = '1010';
+    const STOCK_POSITION = '1100';
 
     for (const leg of legs) {
       // Calculate cost basis (no multiplier for stocks)
@@ -488,7 +491,7 @@ export class PositionTrackerService {
           strategy,
           tradeNum,
           amount: costBasis,
-          userId, db
+          userId, entityId, db
         });
 
         // Update investment transaction
