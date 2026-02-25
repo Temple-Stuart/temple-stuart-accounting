@@ -17,13 +17,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { transactionIds, strategy, tradeNum } = await request.json();
+    const { transactionIds, strategy, tradeNum, entityId } = await request.json();
 
-    if (!transactionIds || !strategy || !tradeNum) {
+    if (!transactionIds || !strategy || !tradeNum || !entityId) {
       return NextResponse.json(
-        { error: 'transactionIds, strategy, and tradeNum required' },
+        { error: 'transactionIds, strategy, tradeNum, and entityId required' },
         { status: 400 }
       );
+    }
+
+    // Verify entity belongs to this user
+    const entity = await prisma.entities.findFirst({
+      where: { id: entityId, userId: user.id }
+    });
+    if (!entity) {
+      return NextResponse.json({ error: 'Entity not found or does not belong to user' }, { status: 404 });
     }
 
     // SECURITY: Only fetch transactions belonging to user's accounts
@@ -81,6 +89,7 @@ export async function POST(request: Request) {
           strategy,
           tradeNum,
           userId: user.id,
+          entityId,
           tx
         });
       },
@@ -100,6 +109,15 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Investment commit error:', error);
+
+    // Duplicate commit (unique constraint violation)
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Transaction already committed' },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: error.message || 'Failed to commit investments' },
       { status: 500 }

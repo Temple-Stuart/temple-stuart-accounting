@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -73,42 +72,38 @@ export async function POST(request: Request) {
       transactionIds.forEach((id: string) => allTxnIds.add(id));
 
       // Find original (non-reversed, non-reversal) journal entries
-      const journals = await tx.journal_transactions.findMany({
+      const journals = await tx.journal_entries.findMany({
         where: {
-          external_transaction_id: { in: Array.from(allTxnIds) },
+          source_id: { in: Array.from(allTxnIds) },
+          source_type: 'investment_txn',
           is_reversal: false,
-          reversed_by_transaction_id: null,
+          reversed_by_entry_id: null,
         },
         include: {
           ledger_entries: {
-            include: { chart_of_accounts: { select: { id: true, balance_type: true, code: true } } }
+            include: { account: { select: { id: true, balance_type: true, code: true } } }
           }
         }
       });
 
       // Create reversing entries for each original journal entry
       for (const original of journals) {
-        const reversalId = randomUUID();
-        reversalIds.push(reversalId);
-
         // Create the reversing journal entry
-        await tx.journal_transactions.create({
+        const reversalEntry = await tx.journal_entries.create({
           data: {
-            id: reversalId,
-            transaction_date: now,
-            description: `REVERSAL: ${original.description || 'No description'}`,
-            plaid_transaction_id: original.plaid_transaction_id,
-            external_transaction_id: original.external_transaction_id,
-            account_code: original.account_code,
-            amount: original.amount,
-            strategy: original.strategy,
-            trade_num: original.trade_num,
-            posted_at: now,
+            userId: user.id,
+            entity_id: original.entity_id,
+            date: now,
+            description: `REVERSAL: ${original.description}`,
+            source_type: 'reversal',
+            source_id: null,
+            status: 'posted',
             is_reversal: true,
-            reverses_journal_id: original.id,
-            reversal_date: now,
+            reverses_entry_id: original.id,
           }
         });
+
+        reversalIds.push(reversalEntry.id);
 
         // Create reversing ledger entries (opposite debit/credit)
         for (const entry of original.ledger_entries) {
@@ -116,8 +111,7 @@ export async function POST(request: Request) {
 
           await tx.ledger_entries.create({
             data: {
-              id: randomUUID(),
-              transaction_id: reversalId,
+              journal_entry_id: reversalEntry.id,
               account_id: entry.account_id,
               amount: entry.amount,
               entry_type: oppositeType,
@@ -125,12 +119,12 @@ export async function POST(request: Request) {
           });
 
           // Update COA balance: opposite direction from original
-          const balanceChange = oppositeType === entry.chart_of_accounts.balance_type
+          const balanceChange = oppositeType === entry.account.balance_type
             ? entry.amount
             : -entry.amount;
 
           await tx.chart_of_accounts.update({
-            where: { id: entry.chart_of_accounts.id },
+            where: { id: entry.account.id },
             data: {
               settled_balance: { increment: balanceChange },
               version: { increment: 1 }
@@ -138,10 +132,13 @@ export async function POST(request: Request) {
           });
         }
 
-        // Link original to its reversal
-        await tx.journal_transactions.update({
+        // Mark original as reversed
+        await tx.journal_entries.update({
           where: { id: original.id },
-          data: { reversed_by_transaction_id: reversalId }
+          data: {
+            status: 'reversed',
+            reversed_by_entry_id: reversalEntry.id,
+          }
         });
       }
 
