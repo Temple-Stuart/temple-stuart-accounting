@@ -1,6 +1,6 @@
-import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { reversePlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -26,119 +26,69 @@ export async function POST(request: Request) {
     // SECURITY: Verify all transactions belong to this user
     const owned = await prisma.transactions.findMany({
       where: { id: { in: transactionIds }, accounts: { userId: user.id } },
-      select: { id: true, transactionId: true }
+      select: { id: true, transactionId: true },
     });
 
     if (owned.length !== transactionIds.length) {
-      return NextResponse.json({ error: 'Some transactions do not belong to your account' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Some transactions do not belong to your account' },
+        { status: 403 }
+      );
     }
 
-    // Get Plaid transaction IDs to find linked journal entries
-    const plaidTxnIds = owned.map(t => t.transactionId);
-    const now = new Date();
-    const reversalIds: string[] = [];
+    const results = [];
+    const errors = [];
 
-    await prisma.$transaction(async (tx) => {
-      // Find journal entries linked to these transactions (only non-reversed, non-reversal originals)
-      const journals = await tx.journal_transactions.findMany({
-        where: {
-          OR: [
-            { plaid_transaction_id: { in: plaidTxnIds } },
-            { external_transaction_id: { in: plaidTxnIds } }
-          ],
-          is_reversal: false,
-          reversed_by_transaction_id: null,
-        },
-        include: {
-          ledger_entries: {
-            include: { chart_of_accounts: { select: { id: true, balance_type: true, code: true } } }
-          }
-        }
-      });
-
-      // Create reversing entries for each original journal entry
-      for (const original of journals) {
-        const reversalId = randomUUID();
-        reversalIds.push(reversalId);
-
-        // Create the reversing journal entry
-        await tx.journal_transactions.create({
-          data: {
-            id: reversalId,
-            transaction_date: now,
-            description: `REVERSAL: ${original.description || 'No description'}`,
-            plaid_transaction_id: original.plaid_transaction_id,
-            external_transaction_id: original.external_transaction_id,
-            account_code: original.account_code,
-            amount: original.amount,
-            strategy: original.strategy,
-            trade_num: original.trade_num,
-            posted_at: now,
-            is_reversal: true,
-            reverses_journal_id: original.id,
-            reversal_date: now,
-          }
+    for (const txn of owned) {
+      try {
+        // Find the original (non-reversed, non-reversal) journal entry for this transaction
+        const originalEntry = await prisma.journal_entries.findFirst({
+          where: {
+            source_type: 'plaid_txn',
+            source_id: txn.transactionId,
+            is_reversal: false,
+            reversed_by_entry_id: null,
+          },
         });
 
-        // Create reversing ledger entries (opposite debit/credit)
-        for (const entry of original.ledger_entries) {
-          const oppositeType = entry.entry_type === 'D' ? 'C' : 'D';
-
-          await tx.ledger_entries.create({
-            data: {
-              id: randomUUID(),
-              transaction_id: reversalId,
-              account_id: entry.account_id,
-              amount: entry.amount,
-              entry_type: oppositeType,
-            }
+        if (!originalEntry) {
+          errors.push({
+            txnId: txn.id,
+            error: 'No committed journal entry found for this transaction',
           });
-
-          // Update COA balance: opposite direction from original
-          // If opposite type matches account's balance_type, balance goes up; otherwise down
-          const balanceChange = oppositeType === entry.chart_of_accounts.balance_type
-            ? entry.amount
-            : -entry.amount;
-
-          await tx.chart_of_accounts.update({
-            where: { id: entry.chart_of_accounts.id },
-            data: {
-              settled_balance: { increment: balanceChange },
-              version: { increment: 1 }
-            }
-          });
+          continue;
         }
 
-        // Link original to its reversal
-        await tx.journal_transactions.update({
-          where: { id: original.id },
-          data: { reversed_by_transaction_id: reversalId }
+        const result = await reversePlaidTransaction(prisma, {
+          userId: user.id,
+          journalEntryId: originalEntry.id,
+          transactionId: txn.transactionId,
         });
+
+        results.push({
+          txnId: txn.id,
+          originalEntryId: result.originalId,
+          reversalEntryId: result.reversalId,
+          success: true,
+        });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Error uncommitting transaction:', txn.id, error);
+        errors.push({ txnId: txn.id, error: message });
       }
-
-      // Clear accountCode, subAccount, and reset review status
-      await tx.transactions.updateMany({
-        where: { id: { in: transactionIds } },
-        data: {
-          accountCode: null,
-          subAccount: null,
-          review_status: 'pending_review',
-          manually_overridden: false,
-          overridden_at: null
-        }
-      });
-    });
+    }
 
     return NextResponse.json({
-      success: true,
-      uncommitted: transactionIds.length,
-      reversalEntryIds: reversalIds,
-      message: `Uncommitted ${transactionIds.length} transaction(s) with ${reversalIds.length} reversing journal entr${reversalIds.length === 1 ? 'y' : 'ies'} created`
+      success: results.length > 0,
+      uncommitted: results.length,
+      errorCount: errors.length,
+      results,
+      errors,
+      message: `Uncommitted ${results.length} transaction(s) with reversal entries created`,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Uncommit error:', error);
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : 'Failed to uncommit'
-    }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to uncommit';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
