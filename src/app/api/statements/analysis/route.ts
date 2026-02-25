@@ -23,85 +23,66 @@ export async function GET(request: Request) {
 
     const BS_TYPES = new Set(['asset', 'liability', 'equity']);
 
-    // SECURITY: Scoped to user's COA only — fetch ALL journal entries
-    const journalEntries = await prisma.journal_transactions.findMany({
-      where: {
-        ledger_entries: {
-          some: {
-            chart_of_accounts: { userId: user.id }
-          }
-        }
-      },
+    const journalEntries = await prisma.journal_entries.findMany({
+      where: { userId: user.id, status: 'posted' },
       include: {
         ledger_entries: {
-          include: {
-            chart_of_accounts: true
-          }
+          include: { account: true }
         }
       },
-      orderBy: { transaction_date: 'asc' }
+      orderBy: { date: 'asc' }
     });
 
-    // Determine the year boundary
-    const yearStart = new Date(selectedYear, 0, 1);  // Jan 1 of selected year
-    const yearEnd = new Date(selectedYear + 1, 0, 1); // Jan 1 of next year
-
-    // Track available years for the year selector
+    const yearStart = new Date(selectedYear, 0, 1);
+    const yearEnd = new Date(selectedYear + 1, 0, 1);
     const availableYears = new Set<number>();
 
-    // Per-account data:
-    //   openingBalance: sum of all BS entries BEFORE selectedYear
-    //   periods: activity within selectedYear grouped by period key
     const accountData = new Map<string, {
+      code: string;
       name: string;
       type: string;
       balanceType: string;
-      openingBalance: number; // only used for BS accounts
+      openingBalance: number;
       periods: Map<string, number>;
     }>();
 
-    // Period keys within the selected year
     const yearPeriodKeys = new Set<string>();
 
-    journalEntries.forEach(je => {
-      const date = new Date(je.transaction_date);
+    for (const je of journalEntries) {
+      const date = new Date(je.date);
       availableYears.add(date.getFullYear());
 
       const isBeforeYear = date < yearStart;
       const isWithinYear = date >= yearStart && date < yearEnd;
+      if (!isBeforeYear && !isWithinYear) continue;
 
-      // Skip entries after selected year entirely
-      if (!isBeforeYear && !isWithinYear) return;
+      for (const le of je.ledger_entries) {
+        if (le.account.userId !== user.id) continue;
 
-      je.ledger_entries.forEach(le => {
-        if (le.chart_of_accounts.userId !== user.id) return;
+        const code = le.account.code;
+        const acctType = le.account.account_type.toLowerCase();
 
-        const code = le.chart_of_accounts.code;
-        const acctType = le.chart_of_accounts.account_type.toLowerCase();
-
-        if (!accountData.has(code)) {
-          accountData.set(code, {
-            name: le.chart_of_accounts.name,
+        if (!accountData.has(le.account_id)) {
+          accountData.set(le.account_id, {
+            code,
+            name: le.account.name,
             type: acctType,
-            balanceType: le.chart_of_accounts.balance_type,
+            balanceType: le.account.balance_type,
             openingBalance: 0,
             periods: new Map()
           });
         }
 
-        const account = accountData.get(code)!;
+        const account = accountData.get(le.account_id)!;
         const amount = Number(le.amount) / 100;
-        const isNormalBalance = le.entry_type === le.chart_of_accounts.balance_type;
+        const isNormalBalance = le.entry_type === le.account.balance_type;
         const effectiveAmount = isNormalBalance ? amount : -amount;
 
         if (isBeforeYear) {
-          // Prior-year entry: only accumulate for BS accounts
           if (BS_TYPES.has(acctType)) {
             account.openingBalance += effectiveAmount;
           }
-          // I/S accounts: skip prior-year entries (periodic, resets each year)
         } else {
-          // Within selected year: compute period key and accumulate
           let periodKey = '';
           if (period === 'monthly') {
             periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -111,80 +92,46 @@ export async function GET(request: Request) {
           } else {
             periodKey = `${date.getFullYear()}`;
           }
-
           yearPeriodKeys.add(periodKey);
           const current = account.periods.get(periodKey) || 0;
           account.periods.set(periodKey, current + effectiveAmount);
         }
-      });
-    });
-
-    // Sort period keys chronologically
-    const sortedPeriods = Array.from(yearPeriodKeys).sort();
-
-    // Build type-level period summaries
-    const periodMap = new Map<string, {
-      period: string;
-      revenue: number;
-      expenses: number;
-      assets: number;
-      liabilities: number;
-      equity: number;
-    }>();
-
-    for (const pk of sortedPeriods) {
-      periodMap.set(pk, {
-        period: pk,
-        revenue: 0,
-        expenses: 0,
-        assets: 0,
-        liabilities: 0,
-        equity: 0
-      });
+      }
     }
 
-    // Build account-level output
-    const accounts: Array<{
-      code: string;
-      name: string;
-      type: string;
-      periods: Record<string, number>;
-    }> = [];
+    const sortedPeriods = Array.from(yearPeriodKeys).sort();
 
-    for (const [code, acct] of accountData) {
+    const periodMap = new Map<string, {
+      period: string; revenue: number; expenses: number;
+      assets: number; liabilities: number; equity: number;
+    }>();
+    for (const pk of sortedPeriods) {
+      periodMap.set(pk, { period: pk, revenue: 0, expenses: 0, assets: 0, liabilities: 0, equity: 0 });
+    }
+
+    const accounts: Array<{ code: string; name: string; type: string; periods: Record<string, number> }> = [];
+
+    for (const [, acct] of accountData) {
       const isBSAccount = BS_TYPES.has(acct.type);
       const periodsOut: Record<string, number> = {};
-
-      // Skip accounts with no activity in the year AND no opening balance
       const hasYearActivity = acct.periods.size > 0;
       if (!isBSAccount && !hasYearActivity) continue;
       if (isBSAccount && !hasYearActivity && Math.abs(acct.openingBalance) < 0.005) continue;
 
       if (isBSAccount) {
-        // Cumulative running balance: opening + activity through each period
         let cumulative = acct.openingBalance;
         for (const pk of sortedPeriods) {
-          const activity = acct.periods.get(pk) || 0;
-          cumulative += activity;
+          cumulative += acct.periods.get(pk) || 0;
           periodsOut[pk] = Math.round(cumulative * 100) / 100;
         }
-        // If no periods exist but account has an opening balance,
-        // we still need it to show — handled by the filter above
       } else {
-        // Income/Expense: activity per period within selected year only
         for (const pk of sortedPeriods) {
           periodsOut[pk] = Math.round((acct.periods.get(pk) || 0) * 100) / 100;
         }
       }
 
-      accounts.push({
-        code,
-        name: acct.name,
-        type: acct.type,
-        periods: periodsOut
-      });
+      accounts.push({ code: acct.code, name: acct.name, type: acct.type, periods: periodsOut });
 
-      // Aggregate type-level summaries
       for (const pk of sortedPeriods) {
         const pd = periodMap.get(pk)!;
         const val = periodsOut[pk] || 0;
@@ -196,45 +143,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // Handle BS accounts that have opening balances but NO activity in selected year.
-    // They need to appear with their opening balance carried forward into every period.
-    for (const [code, acct] of accountData) {
-      if (!BS_TYPES.has(acct.type)) continue;
-      if (acct.periods.size > 0) continue; // already handled above
-      if (Math.abs(acct.openingBalance) < 0.005) continue; // no meaningful balance
-
-      const periodsOut: Record<string, number> = {};
-      const balance = Math.round(acct.openingBalance * 100) / 100;
-      for (const pk of sortedPeriods) {
-        periodsOut[pk] = balance;
-      }
-
-      accounts.push({
-        code,
-        name: acct.name,
-        type: acct.type,
-        periods: periodsOut
-      });
-
-      // Add to type-level summaries
-      for (const pk of sortedPeriods) {
-        const pd = periodMap.get(pk)!;
-        if (acct.type === 'asset') pd.assets += balance;
-        else if (acct.type === 'liability') pd.liabilities += balance;
-        else if (acct.type === 'equity') pd.equity += balance;
-      }
-    }
-
     const periods = Array.from(periodMap.values())
-      .map(p => ({
-        ...p,
-        revenue: Math.round(p.revenue * 100) / 100,
-        expenses: Math.round(p.expenses * 100) / 100,
-        assets: Math.round(p.assets * 100) / 100,
-        liabilities: Math.round(p.liabilities * 100) / 100,
-        equity: Math.round(p.equity * 100) / 100,
-        netIncome: Math.round((p.revenue - p.expenses) * 100) / 100
-      }))
+      .map(p => ({ ...p, netIncome: Math.round((p.revenue - p.expenses) * 100) / 100 }))
       .sort((a, b) => b.period.localeCompare(a.period));
 
     return NextResponse.json({

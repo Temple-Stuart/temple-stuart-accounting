@@ -53,10 +53,10 @@ export async function POST() {
 
     for (const journalId of TARGET_IDS) {
       // Verify the journal entry exists
-      const journalTxn = await prisma.journal_transactions.findUnique({
+      const journalEntry = await prisma.journal_entries.findUnique({
         where: { id: journalId }
       });
-      if (!journalTxn) {
+      if (!journalEntry) {
         return NextResponse.json({
           error: `Journal entry ${journalId} not found`
         }, { status: 404 });
@@ -64,13 +64,13 @@ export async function POST() {
 
       // Get all ledger entries for this journal
       const entries = await prisma.ledger_entries.findMany({
-        where: { transaction_id: journalId },
-        include: { chart_of_accounts: true }
+        where: { journal_entry_id: journalId },
+        include: { account: true }
       });
 
       // Verify user owns these accounts
       const allOwnedByUser = entries.every(
-        e => e.chart_of_accounts.userId === user.id
+        e => e.account.userId === user.id
       );
       if (!allOwnedByUser) {
         return NextResponse.json({
@@ -89,7 +89,7 @@ export async function POST() {
       if (debits === credits) {
         fixes.push({
           journalId,
-          description: journalTxn.description || '',
+          description: journalEntry.description || '',
           beforeDebits: debits.toString(),
           beforeCredits: credits.toString(),
           afterDebits: debits.toString(),
@@ -101,10 +101,10 @@ export async function POST() {
         continue; // Already balanced
       }
 
-      // Identify the P&L leg (T-4100 or T-5100) — that's the plug
+      // Identify the P&L leg (4100 or 5100) — that's the plug
       const plEntry = entries.find(
-        e => e.chart_of_accounts.code === 'T-4100' ||
-             e.chart_of_accounts.code === 'T-5100'
+        e => e.account.code === '4100' ||
+             e.account.code === '5100'
       );
       if (!plEntry) {
         return NextResponse.json({
@@ -114,16 +114,11 @@ export async function POST() {
 
       // The cash leg (DR) and stock leg (CR) are the source of truth.
       // P&L must be adjusted to make debits === credits.
-      // For a gain (P&L is credit): proceeds(DR) = costBasis(CR) + pl(CR)
-      //   → pl should be proceeds - costBasis
-      // For a loss (P&L is debit): proceeds(DR) + pl(DR) = costBasis(CR)
-      //   → pl should be costBasis - proceeds
-
       const cashEntry = entries.find(
-        e => e.chart_of_accounts.code === 'T-1010' && e.entry_type === 'D'
+        e => e.account.code === '1010' && e.entry_type === 'D'
       );
       const stockEntry = entries.find(
-        e => e.chart_of_accounts.code === 'T-1100' && e.entry_type === 'C'
+        e => e.account.code === '1100' && e.entry_type === 'C'
       );
 
       if (!cashEntry || !stockEntry) {
@@ -161,12 +156,12 @@ export async function POST() {
       // Adjust the COA settled_balance for the difference
       const amountDelta = correctPlAmount - oldAmount;
       if (amountDelta !== BigInt(0)) {
-        const balanceChange = plEntry.entry_type === plEntry.chart_of_accounts.balance_type
+        const balanceChange = plEntry.entry_type === plEntry.account.balance_type
           ? amountDelta
           : -amountDelta;
 
         await prisma.chart_of_accounts.update({
-          where: { id: plEntry.chart_of_accounts.id },
+          where: { id: plEntry.account.id },
           data: {
             settled_balance: { increment: balanceChange },
             version: { increment: 1 }
@@ -176,7 +171,7 @@ export async function POST() {
 
       // Verify it's now balanced
       const updatedEntries = await prisma.ledger_entries.findMany({
-        where: { transaction_id: journalId }
+        where: { journal_entry_id: journalId }
       });
       const newDebits = updatedEntries
         .filter(e => e.entry_type === 'D')
@@ -193,7 +188,7 @@ export async function POST() {
 
       fixes.push({
         journalId,
-        description: journalTxn.description || '',
+        description: journalEntry.description || '',
         beforeDebits: debits.toString(),
         beforeCredits: credits.toString(),
         afterDebits: newDebits.toString(),

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { v4 as uuidv4 } from 'uuid';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // POST: Commit a sale using the selected matching method
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { 
+    const {
       saleTxnId,           // Investment transaction ID for the sale
       symbol,
       saleQuantity,
@@ -22,13 +21,26 @@ export async function POST(request: Request) {
       saleDate,
       saleFees = 0,
       matchingMethod,      // FIFO, LIFO, HIFO, LOFO, MIN_TAX, SPECIFIC
-      selectedLots         // For SPECIFIC: array of { lotId, quantity }
+      selectedLots,        // For SPECIFIC: array of { lotId, quantity }
+      entityId             // Required: entity scope for accounts
     } = await request.json();
 
     if (!symbol || !saleQuantity || !salePrice || !saleDate || !matchingMethod) {
-      return NextResponse.json({ 
-        error: 'Required: symbol, saleQuantity, salePrice, saleDate, matchingMethod' 
+      return NextResponse.json({
+        error: 'Required: symbol, saleQuantity, salePrice, saleDate, matchingMethod'
       }, { status: 400 });
+    }
+
+    if (!entityId) {
+      return NextResponse.json({ error: 'entityId is required' }, { status: 400 });
+    }
+
+    // Verify entity belongs to user
+    const entity = await prisma.entities.findFirst({
+      where: { id: entityId, userId: user.id }
+    });
+    if (!entity) {
+      return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
     }
 
     const saleDateObj = new Date(saleDate);
@@ -101,7 +113,7 @@ export async function POST(request: Request) {
         const feesAllocated = (quantityFromLot / saleQuantity) * saleFees;
         const gainLoss = proceedsAllocated - costBasisUsed;
         const holdingDays = daysBetween(lot.acquired_date, saleDateObj);
-        const isLongTerm = holdingDays >= 365;
+        const isLongTerm = holdingDays >= 366;
 
         totalCostBasis += costBasisUsed;
         if (isLongTerm) {
@@ -190,46 +202,42 @@ export async function POST(request: Request) {
       const tradeNum = String(maxNum + 1);
 
       // Create journal entry for the sale
-      const TRADING_CASH = 'T-1010';
-      const STOCK_POSITION = 'T-1100';
+      const TRADING_CASH = '1010';
+      const STOCK_POSITION = '1100';
 
       const proceedsCents = Math.round(totalProceeds * 100);
       const costBasisCents = Math.round(totalCostBasis * 100);
       // Derive P&L from already-rounded values to guarantee balance
       const plCents = proceedsCents - costBasisCents;
       const totalGainLoss = plCents / 100;
-      const PL_ACCOUNT = plCents >= 0 ? 'T-4100' : 'T-5100';
+      const PL_ACCOUNT = plCents >= 0 ? '4100' : '5100';
 
-      // SECURITY: Fetch accounts scoped to user
+      // SECURITY: Fetch accounts scoped to user + entity
       const accounts = await tx.chart_of_accounts.findMany({
-        where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] }, userId: user.id }
+        where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] }, userId: user.id, entity_id: entityId }
       });
-      
+
       const cashAccount = accounts.find(a => a.code === TRADING_CASH);
       const stockAccount = accounts.find(a => a.code === STOCK_POSITION);
       const plAccount = accounts.find(a => a.code === PL_ACCOUNT);
-      
+
       if (!cashAccount || !stockAccount || !plAccount) {
-        throw new Error('Missing required accounts: T-1010, T-1100, T-4100/T-5100');
+        throw new Error(`Missing required accounts: ${TRADING_CASH}, ${STOCK_POSITION}, ${PL_ACCOUNT}`);
       }
 
-      // Create journal transaction
-      const journalTxn = await tx.journal_transactions.create({
+      // Create journal entry
+      const journalEntry = await tx.journal_entries.create({
         data: {
-          id: uuidv4(),
-          transaction_date: saleDateObj,
+          userId: user.id,
+          entity_id: entityId,
+          date: saleDateObj,
           description: `SELL STOCK: ${saleQuantity} ${symbol} @ $${salePrice.toFixed(2)} (${matchingMethod})`,
-          external_transaction_id: saleTxnId,
-          strategy: 'stock-long',
-          trade_num: tradeNum,
-          amount: proceedsCents,
-          posted_at: new Date()
+          source_type: 'investment_txn',
+          source_id: saleTxnId,
+          status: 'posted',
+          metadata: { strategy: 'stock-long', tradeNum }
         }
       });
-
-      // Journal entry: DR Cash (proceeds), CR Stock Position (cost basis), DR/CR P&L (difference)
-      // If gain: DR Cash, CR Stock, CR P&L (T-4100)
-      // If loss: DR Cash, DR P&L (T-5100), CR Stock
 
       // Balance guard: verify debits === credits before writing any ledger entries
       const totalDebits = proceedsCents + (plCents < 0 ? Math.abs(plCents) : 0);
@@ -241,8 +249,7 @@ export async function POST(request: Request) {
       // DR Trading Cash (proceeds received)
       await tx.ledger_entries.create({
         data: {
-          id: uuidv4(),
-          transaction_id: journalTxn.id,
+          journal_entry_id: journalEntry.id,
           account_id: cashAccount.id,
           amount: BigInt(proceedsCents),
           entry_type: 'D'
@@ -256,8 +263,7 @@ export async function POST(request: Request) {
       // CR Stock Position (cost basis removed)
       await tx.ledger_entries.create({
         data: {
-          id: uuidv4(),
-          transaction_id: journalTxn.id,
+          journal_entry_id: journalEntry.id,
           account_id: stockAccount.id,
           amount: BigInt(costBasisCents),
           entry_type: 'C'
@@ -268,11 +274,10 @@ export async function POST(request: Request) {
         data: { settled_balance: { increment: BigInt(-costBasisCents) }, version: { increment: 1 } }
       });
 
-      // P&L entry (gain = credit T-4100, loss = debit T-5100)
+      // P&L entry (gain = credit 4100, loss = debit 5100)
       await tx.ledger_entries.create({
         data: {
-          id: uuidv4(),
-          transaction_id: journalTxn.id,
+          journal_entry_id: journalEntry.id,
           account_id: plAccount.id,
           amount: BigInt(Math.abs(plCents)),
           entry_type: totalGainLoss >= 0 ? 'C' : 'D'
@@ -299,7 +304,7 @@ export async function POST(request: Request) {
       return {
         scenarioId: scenario.id,
         tradeNum,
-        journalId: journalTxn.id,
+        journalId: journalEntry.id,
         dispositions,
         summary: {
           totalProceeds,
@@ -318,8 +323,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Stock lots commit error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to commit sale' 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Failed to commit sale'
     }, { status: 500 });
   }
 }
@@ -330,9 +335,9 @@ function sortForMinTax(lots: any[], salePrice: number, saleDate: Date) {
     const bGain = salePrice - b.cost_per_share;
     const aIsLoss = aGain < 0;
     const bIsLoss = bGain < 0;
-    const aLT = daysBetween(a.acquired_date, saleDate) >= 365;
-    const bLT = daysBetween(b.acquired_date, saleDate) >= 365;
-    
+    const aLT = daysBetween(a.acquired_date, saleDate) >= 366;
+    const bLT = daysBetween(b.acquired_date, saleDate) >= 366;
+
     if (aIsLoss && !bIsLoss) return -1;
     if (!aIsLoss && bIsLoss) return 1;
     if (aIsLoss && bIsLoss) return b.cost_per_share - a.cost_per_share;

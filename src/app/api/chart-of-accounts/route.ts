@@ -20,13 +20,13 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const entity_type = searchParams.get('entity_type') || null;
-    
+    const entityId = searchParams.get('entity_id') || null;
+
     const accounts = await prisma.chart_of_accounts.findMany({
       where: {
         userId: user.id,
         is_archived: false,
-        ...(entity_type && { entity_type })
+        ...(entityId && { entity_id: entityId })
       },
       orderBy: [
         { code: 'asc' }
@@ -44,6 +44,7 @@ export async function GET(request: Request) {
       pendingBalance: Number(acc.pending_balance),
       version: Number(acc.version),
       is_archived: acc.is_archived,
+      entity_id: acc.entity_id,
       entity_type: acc.entity_type,
       createdAt: acc.created_at,
       updatedAt: acc.updated_at
@@ -78,10 +79,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { code, name, accountType, entityType } = await request.json();
+    const { code, name, accountType, entityId } = await request.json();
 
-    if (!code || !name || !accountType) {
-      return NextResponse.json({ error: 'code, name, and accountType are required' }, { status: 400 });
+    if (!code || !name || !accountType || !entityId) {
+      return NextResponse.json({ error: 'code, name, accountType, and entityId are required' }, { status: 400 });
     }
 
     const balanceType = BALANCE_TYPE_MAP[accountType.toLowerCase()];
@@ -89,9 +90,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid accountType. Must be asset, liability, equity, revenue, or expense' }, { status: 400 });
     }
 
-    const existing = await prisma.chart_of_accounts.findUnique({ where: { code } });
+    // Verify entity belongs to user
+    const entity = await prisma.entities.findFirst({
+      where: { id: entityId, userId: user.id }
+    });
+    if (!entity) {
+      return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
+    }
+
+    // Check compound unique [userId, entity_id, code]
+    const existing = await prisma.chart_of_accounts.findFirst({
+      where: { userId: user.id, entity_id: entityId, code }
+    });
     if (existing) {
-      return NextResponse.json({ error: `Account code "${code}" already exists` }, { status: 409 });
+      return NextResponse.json({ error: `Account code "${code}" already exists for this entity` }, { status: 409 });
     }
 
     const account = await prisma.chart_of_accounts.create({
@@ -101,7 +113,8 @@ export async function POST(request: Request) {
         name,
         account_type: accountType.toLowerCase(),
         balance_type: balanceType,
-        entity_type: entityType || null,
+        entity_id: entityId,
+        entity_type: entity.entity_type,
         userId: user.id,
       }
     });
@@ -114,6 +127,7 @@ export async function POST(request: Request) {
         name: account.name,
         accountType: account.account_type,
         balanceType: account.balance_type,
+        entity_id: account.entity_id,
         entity_type: account.entity_type,
         settledBalance: 0,
         pendingBalance: 0,

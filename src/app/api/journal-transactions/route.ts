@@ -16,56 +16,43 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // SECURITY: Scoped to user's COA only
-    const transactions = await prisma.journal_transactions.findMany({
-      where: {
-        ledger_entries: {
-          some: {
-            chart_of_accounts: { userId: user.id }
-          }
-        }
-      },
+    const journalEntries = await prisma.journal_entries.findMany({
+      where: { userId: user.id },
       include: {
         ledger_entries: {
           include: {
-            chart_of_accounts: {
-              select: {
-                code: true,
-                name: true,
-                account_type: true
-              }
+            account: {
+              select: { code: true, name: true, account_type: true }
             }
           }
         }
       },
       orderBy: [
-        { transaction_date: 'desc' },
+        { date: 'desc' },
         { created_at: 'desc' }
       ]
     });
 
-    const reversalCount = transactions.filter(t => t.is_reversal).length;
+    const reversalCount = journalEntries.filter(t => t.is_reversal).length;
 
-    const entries = transactions.map(t => ({
+    const entries = journalEntries.map(t => ({
       id: t.id,
-      transaction_date: t.transaction_date,
+      date: t.date,
       description: t.description,
+      source_type: t.source_type,
+      source_id: t.source_id,
+      status: t.status,
       is_reversal: t.is_reversal,
-      reverses_journal_id: t.reverses_journal_id,
-      reversed_by_transaction_id: t.reversed_by_transaction_id,
-      reversal_date: t.reversal_date,
-      account_code: t.account_code,
-      amount: t.amount,
-      strategy: t.strategy,
-      trade_num: t.trade_num,
+      reverses_entry_id: t.reverses_entry_id,
+      reversed_by_entry_id: t.reversed_by_entry_id,
+      metadata: t.metadata,
       created_at: t.created_at,
-      posted_at: t.posted_at,
       ledger_entries: t.ledger_entries.map(entry => ({
         id: entry.id,
         account_id: entry.account_id,
         amount: Number(entry.amount),
         entry_type: entry.entry_type,
-        chart_of_accounts: entry.chart_of_accounts
+        account: entry.account
       }))
     }));
 
@@ -75,7 +62,7 @@ export async function GET() {
       reversalCount
     });
   } catch (error) {
-    console.error('Journal transactions fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch journal transactions' }, { status: 500 });
+    console.error('Journal entries fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch journal entries' }, { status: 500 });
   }
 }

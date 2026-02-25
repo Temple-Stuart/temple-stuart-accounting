@@ -34,11 +34,11 @@ export async function POST() {
         ledger_entries: {
           take: 10,
           include: {
-            journal_transactions: {
+            journal_entry: {
               include: {
                 ledger_entries: {
                   include: {
-                    chart_of_accounts: { select: { id: true, userId: true, code: true } }
+                    account: { select: { id: true, userId: true, code: true } }
                   }
                 }
               }
@@ -54,12 +54,12 @@ export async function POST() {
       let resolvedUserId: string | null = null;
       let method = '';
 
-      // Strategy 1: Trace through sibling COA in same journal transaction
+      // Strategy 1: Trace through sibling COA in same journal entry
       for (const le of account.ledger_entries) {
-        for (const siblingEntry of le.journal_transactions.ledger_entries) {
-          if (siblingEntry.chart_of_accounts.userId && siblingEntry.chart_of_accounts.id !== account.id) {
-            resolvedUserId = siblingEntry.chart_of_accounts.userId;
-            method = `traced via sibling COA ${siblingEntry.chart_of_accounts.code}`;
+        for (const siblingEntry of le.journal_entry.ledger_entries) {
+          if (siblingEntry.account.userId && siblingEntry.account.id !== account.id) {
+            resolvedUserId = siblingEntry.account.userId;
+            method = `traced via sibling COA ${siblingEntry.account.code}`;
             break;
           }
         }
@@ -72,11 +72,11 @@ export async function POST() {
           where: { account_id: account.id },
           take: 50,
           include: {
-            journal_transactions: {
+            journal_entry: {
               include: {
                 ledger_entries: {
                   include: {
-                    chart_of_accounts: { select: { id: true, userId: true, code: true } }
+                    account: { select: { id: true, userId: true, code: true } }
                   }
                 }
               }
@@ -84,10 +84,10 @@ export async function POST() {
           }
         });
         for (const le of deepEntries) {
-          for (const sibling of le.journal_transactions.ledger_entries) {
-            if (sibling.chart_of_accounts.userId && sibling.chart_of_accounts.id !== account.id) {
-              resolvedUserId = sibling.chart_of_accounts.userId;
-              method = `deep trace via sibling COA ${sibling.chart_of_accounts.code}`;
+          for (const sibling of le.journal_entry.ledger_entries) {
+            if (sibling.account.userId && sibling.account.id !== account.id) {
+              resolvedUserId = sibling.account.userId;
+              method = `deep trace via sibling COA ${sibling.account.code}`;
               break;
             }
           }
