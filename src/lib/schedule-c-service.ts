@@ -47,42 +47,25 @@ export interface ScheduleSE {
   line13: number;  // Deductible half = Line 12 × 0.50
 }
 
-// ─── Name-pattern → Schedule C line mapping ────────────────────
+// ─── Schedule C line labels (for display) ────────────────────
 
-interface LineMapping {
-  line: string;
-  label: string;
-  patterns: string[];
-}
-
-const EXPENSE_LINE_MAPPINGS: LineMapping[] = [
-  { line: '8', label: 'Advertising', patterns: ['advertising', 'marketing'] },
-  { line: '13', label: 'Depreciation', patterns: ['depreciation', 'amortization'] },
-  { line: '15', label: 'Insurance', patterns: ['insurance'] },
-  { line: '16a', label: 'Interest (mortgage)', patterns: [] },
-  { line: '16b', label: 'Interest (other)', patterns: ['interest expense', 'interest'] },
-  { line: '17', label: 'Legal and professional services', patterns: ['legal', 'professional', 'accounting', 'cpa', 'attorney', 'lawyer'] },
-  { line: '18', label: 'Office expense', patterns: ['office'] },
-  { line: '20b', label: 'Rent (other business property)', patterns: ['rent'] },
-  { line: '21', label: 'Repairs and maintenance', patterns: ['repair', 'maintenance'] },
-  { line: '22', label: 'Supplies', patterns: ['supplies', 'supply'] },
-  { line: '24a', label: 'Travel', patterns: ['travel'] },
-  { line: '24b', label: 'Deductible meals', patterns: ['meal', 'entertainment', 'dining'] },
-  { line: '25', label: 'Utilities', patterns: ['utilit', 'telephone', 'internet', 'phone'] },
-  { line: '26', label: 'Wages', patterns: ['wage', 'salar', 'payroll'] },
-  { line: '27a', label: 'Other expenses', patterns: [] }, // Catch-all
-];
-
-function mapAccountToLine(accountName: string): string {
-  const lower = accountName.toLowerCase();
-  for (const mapping of EXPENSE_LINE_MAPPINGS) {
-    if (mapping.line === '27a') continue; // Skip catch-all
-    if (mapping.patterns.some(p => lower.includes(p))) {
-      return mapping.line;
-    }
-  }
-  return '27a'; // Default to Other
-}
+const LINE_LABELS: Record<string, string> = {
+  '8': 'Advertising',
+  '13': 'Depreciation',
+  '15': 'Insurance',
+  '16a': 'Interest (mortgage)',
+  '16b': 'Interest (other)',
+  '17': 'Legal and professional services',
+  '18': 'Office expense',
+  '20b': 'Rent (other business property)',
+  '21': 'Repairs and maintenance',
+  '22': 'Supplies',
+  '24a': 'Travel',
+  '24b': 'Deductible meals',
+  '25': 'Utilities',
+  '26': 'Wages',
+  '27a': 'Other expenses',
+};
 
 // ─── Year-filtered account balance calculation ─────────────────
 
@@ -95,8 +78,9 @@ async function getAccountYearBalance(
   const entries = await prisma.ledger_entries.findMany({
     where: {
       account_id: accountId,
-      journal_transactions: {
-        transaction_date: { gte: yearStart, lt: yearEnd },
+      journal_entry: {
+        date: { gte: yearStart, lt: yearEnd },
+        status: 'posted',
       },
     },
     select: { amount: true, entry_type: true },
@@ -116,7 +100,6 @@ async function getAccountYearBalance(
   const yearBalance = Number(net) / 100;
 
   // If no ledger entries exist for the year, fall back to settled_balance
-  // (only if there were truly no entries — the balance might be from prior years)
   if (entries.length === 0) {
     const account = await prisma.chart_of_accounts.findUnique({
       where: { id: accountId },
@@ -139,19 +122,54 @@ export async function generateScheduleC(
   const yearStart = new Date(`${taxYear}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${taxYear + 1}-01-01T00:00:00.000Z`);
 
-  // Fetch all B- accounts for this user
-  const bAccounts = await prisma.chart_of_accounts.findMany({
+  // Find the sole_prop entity for this user
+  const soleEntity = await prisma.entities.findFirst({
+    where: { userId, entity_type: 'sole_prop' },
+  });
+
+  if (!soleEntity) {
+    // Return zeroed-out Schedule C if no sole_prop entity exists
+    return {
+      taxYear,
+      businessName: 'N/A',
+      line1: 0, line2: 0, line7: 0,
+      expenses: [], line28: 0, line31: 0,
+      unmappedAccounts: [], revenueAccounts: [],
+    };
+  }
+
+  // Fetch all COA accounts for this entity (no B- prefix — entity-scoped)
+  const entityAccounts = await prisma.chart_of_accounts.findMany({
     where: {
       userId,
-      code: { startsWith: 'B-' },
+      entity_id: soleEntity.id,
       is_archived: false,
     },
     orderBy: { code: 'asc' },
   });
 
   // Separate revenue vs expense accounts
-  const revenueAccounts = bAccounts.filter((a: { account_type: string }) => a.account_type === 'revenue');
-  const expenseAccounts = bAccounts.filter((a: { account_type: string }) => a.account_type === 'expense');
+  const revenueAccounts = entityAccounts.filter(a => a.account_type === 'revenue');
+  const expenseAccounts = entityAccounts.filter(a => a.account_type === 'expense');
+
+  // Fetch account_tax_mappings for schedule_c and this tax year
+  const accountIds = entityAccounts.map(a => a.id);
+  const taxMappings = await prisma.account_tax_mappings.findMany({
+    where: {
+      account_id: { in: accountIds },
+      tax_form: 'schedule_c',
+      tax_year: taxYear,
+    },
+  });
+
+  // Build map: account_id → { form_line, multiplier }
+  const taxMappingByAccountId = new Map<string, { form_line: string; multiplier: number }>();
+  for (const tm of taxMappings) {
+    taxMappingByAccountId.set(tm.account_id, {
+      form_line: tm.form_line,
+      multiplier: tm.multiplier.toNumber(),
+    });
+  }
 
   // Calculate year balances for revenue accounts
   const revenueItems: { code: string; name: string; amount: number }[] = [];
@@ -172,23 +190,28 @@ export async function generateScheduleC(
   const unmappedAccounts: { code: string; name: string; amount: number }[] = [];
 
   // Initialize all lines
-  for (const mapping of EXPENSE_LINE_MAPPINGS) {
-    expenseLineMap.set(mapping.line, { accounts: [], total: 0 });
+  for (const line of Object.keys(LINE_LABELS)) {
+    expenseLineMap.set(line, { accounts: [], total: 0 });
   }
 
   for (const acct of expenseAccounts) {
     const balance = await getAccountYearBalance(acct.id, acct.balance_type, yearStart, yearEnd);
     if (balance === 0) continue;
 
-    const amount = round2(Math.abs(balance));
-    const line = mapAccountToLine(acct.name);
+    const rawAmount = round2(Math.abs(balance));
+
+    // Use account_tax_mappings to determine Schedule C line
+    const mapping = taxMappingByAccountId.get(acct.id);
+    const line = mapping?.form_line || '27a';
+    const multiplier = mapping?.multiplier ?? 1.0;
+    const amount = round2(rawAmount * multiplier);
 
     const lineData = expenseLineMap.get(line) || { accounts: [], total: 0 };
     lineData.accounts.push({ code: acct.code, name: acct.name, amount });
     lineData.total = round2(lineData.total + amount);
     expenseLineMap.set(line, lineData);
 
-    if (line === '27a') {
+    if (!mapping) {
       unmappedAccounts.push({ code: acct.code, name: acct.name, amount });
       console.log(`[Schedule C] Unmapped account → Line 27a: ${acct.code} "${acct.name}" $${amount}`);
     }
@@ -196,24 +219,30 @@ export async function generateScheduleC(
 
   // Build expense lines array
   const expenses: ScheduleCExpenseLine[] = [];
-  for (const mapping of EXPENSE_LINE_MAPPINGS) {
-    const lineData = expenseLineMap.get(mapping.line);
-    if (lineData && lineData.total > 0) {
+  for (const [line, lineData] of expenseLineMap) {
+    if (lineData.total > 0) {
       expenses.push({
-        line: mapping.line,
-        label: mapping.label,
+        line,
+        label: LINE_LABELS[line] || `Line ${line}`,
         amount: lineData.total,
         accounts: lineData.accounts,
       });
     }
   }
 
+  // Sort by line number
+  expenses.sort((a, b) => {
+    const numA = parseFloat(a.line);
+    const numB = parseFloat(b.line);
+    return numA - numB;
+  });
+
   const line28 = round2(expenses.reduce((sum, e) => sum + e.amount, 0));
   const line31 = round2(line7 - line28);
 
   return {
     taxYear,
-    businessName: 'Temple Stuart LLC',
+    businessName: soleEntity.name,
     line1,
     line2,
     line7,
