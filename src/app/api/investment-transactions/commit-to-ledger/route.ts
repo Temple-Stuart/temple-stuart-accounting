@@ -26,19 +26,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Resolve entityId: use provided or fall back to user's default entity
+    // Resolve entityId: use provided or find the Trading entity via COA code 1200
     let resolvedEntityId = entityId;
     if (!resolvedEntityId) {
-      const defaultEntity = await prisma.entities.findFirst({
-        where: { userId: user.id, is_default: true },
+      const tradingAccount = await prisma.chart_of_accounts.findFirst({
+        where: { userId: user.id, code: '1200' },
+        select: { entity_id: true },
       });
-      if (!defaultEntity) {
+      if (!tradingAccount?.entity_id) {
         return NextResponse.json(
-          { error: 'No entityId provided and no default entity found' },
+          { error: 'No entityId provided and no Trading entity found (missing COA 1200)' },
           { status: 400 }
         );
       }
-      resolvedEntityId = defaultEntity.id;
+      resolvedEntityId = tradingAccount.entity_id;
     }
 
     // Verify entity belongs to this user
