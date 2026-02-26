@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
     }
 
     // Create journal entry in transaction
+    const requestId = randomUUID();
     const result = await prisma.$transaction(async (tx) => {
       const journalEntry = await tx.journal_entries.create({
         data: {
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
           description,
           source_type: 'manual',
           status: 'posted',
+          request_id: requestId,
         },
       });
 

@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestId = randomUUID();
     const results = [];
     const errors = [];
 
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
           amount: plaidTxn.amount,
           description: plaidTxn.name,
           merchantName: plaidTxn.merchantName || undefined,
+          requestId,
         });
 
         // Track whether the user overrode the auto-categorization prediction

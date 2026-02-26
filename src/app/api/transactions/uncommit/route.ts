@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { reversePlaidTransaction } from '@/lib/journal-entry-service';
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const requestId = randomUUID();
     const results = [];
     const errors = [];
 
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
           userId: user.id,
           journalEntryId: originalEntry.id,
           transactionId: txn.transactionId,
+          requestId,
         });
 
         results.push({

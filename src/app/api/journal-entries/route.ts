@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
         description: description || 'Manual journal entry',
         source_type: 'manual',
         status: entryStatus || 'posted',
+        request_id: randomUUID(),
         ledger_entries: {
           create: lines.map((l: any) => {
             const debitAmt = parseFloat(l.debit) || 0;

@@ -181,6 +181,7 @@ model journal_entries {
   reverses_entry_id     String?  @unique
   reversed_by_entry_id  String?  @unique
   metadata              Json?
+  request_id            String?
   created_at            DateTime @default(now())
   created_by            String?
 

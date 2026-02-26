@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
@@ -333,9 +334,9 @@ export class PositionTrackerService {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
-    userId: string; entityId: string; db: TransactionContext;
+    userId: string; entityId: string; db: TransactionContext; requestId?: string;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db, requestId } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
@@ -358,6 +359,7 @@ export class PositionTrackerService {
         source_id: externalTransactionId || null,
         status: 'posted',
         metadata: (strategy || tradeNum) ? { strategy, trade_num: tradeNum } : undefined,
+        request_id: requestId || randomUUID(),
       }
     });
 

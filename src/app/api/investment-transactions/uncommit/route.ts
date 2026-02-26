@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
+    const requestId = randomUUID();
     const reversalIds: string[] = [];
 
     await prisma.$transaction(async (tx) => {
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
             status: 'posted',
             is_reversal: true,
             reverses_entry_id: original.id,
+            request_id: requestId,
           }
         });
 

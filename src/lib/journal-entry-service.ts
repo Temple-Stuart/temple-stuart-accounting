@@ -12,12 +12,14 @@ interface CommitPlaidTransactionParams {
   amount: number; // Plaid amount in dollars (Float)
   description: string;
   merchantName?: string;
+  requestId?: string;
 }
 
 interface ReversePlaidTransactionParams {
   userId: string;
   journalEntryId: string;
   transactionId: string;
+  requestId?: string;
 }
 
 function dollarsToCents(amount: number): bigint {
@@ -42,6 +44,7 @@ export async function commitPlaidTransaction(
     date,
     amount,
     description,
+    requestId,
   } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
@@ -89,6 +92,7 @@ export async function commitPlaidTransaction(
         source_type: 'plaid_txn',
         source_id: transactionId,
         status: 'posted',
+        request_id: requestId,
       },
     });
 
@@ -147,7 +151,7 @@ export async function reversePlaidTransaction(
   prisma: PrismaClient,
   params: ReversePlaidTransactionParams
 ) {
-  const { userId, journalEntryId, transactionId } = params;
+  const { userId, journalEntryId, transactionId, requestId } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
     // Look up original journal entry with its ledger entries and linked accounts
@@ -190,6 +194,7 @@ export async function reversePlaidTransaction(
         status: 'posted',
         is_reversal: true,
         reverses_entry_id: original.id,
+        request_id: requestId,
       },
     });
 

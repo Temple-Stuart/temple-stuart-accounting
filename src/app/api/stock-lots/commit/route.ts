@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
@@ -235,7 +236,8 @@ export async function POST(request: Request) {
           source_type: 'investment_txn',
           source_id: saleTxnId,
           status: 'posted',
-          metadata: { strategy: 'stock-long', tradeNum }
+          metadata: { strategy: 'stock-long', tradeNum },
+          request_id: randomUUID(),
         }
       });
 
