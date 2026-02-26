@@ -39,43 +39,102 @@ export async function GET() {
       optionGroups[key].push(txn);
     });
 
+    // Query trading_positions for authoritative status and P&L
+    const tradeNums = Object.keys(optionGroups);
+    const userInvTxnIds = committedTxns.map(t => t.id);
+    const positions = tradeNums.length > 0 ? await prisma.trading_positions.findMany({
+      where: {
+        trade_num: { in: tradeNums },
+        open_investment_txn_id: { in: userInvTxnIds }
+      },
+      select: {
+        trade_num: true,
+        status: true,
+        realized_pl: true,
+        close_date: true,
+      }
+    }) : [];
+
+    // Build lookup: trade_num → aggregated status/P&L across all legs
+    const positionsByTrade: Record<string, { status: string; realizedPL: number; closeDate: Date | null }> = {};
+    for (const pos of positions) {
+      if (!pos.trade_num) continue;
+      if (!positionsByTrade[pos.trade_num]) {
+        positionsByTrade[pos.trade_num] = { status: 'OPEN', realizedPL: 0, closeDate: null };
+      }
+      const entry = positionsByTrade[pos.trade_num];
+      entry.realizedPL += pos.realized_pl || 0;
+      if (pos.status === 'CLOSED') {
+        entry.status = 'CLOSED';
+        if (pos.close_date && (!entry.closeDate || pos.close_date > entry.closeDate)) {
+          entry.closeDate = pos.close_date;
+        }
+      }
+    }
+
     // Build option trade objects
     const optionTrades = Object.entries(optionGroups).map(([tradeNum, txns]) => {
       const firstTxn = txns[0];
-      
-      const underlying = firstTxn.security?.option_underlying_ticker || 
+
+      const underlying = firstTxn.security?.option_underlying_ticker ||
                         firstTxn.security?.ticker_symbol ||
                         extractTicker(firstTxn.name);
-      
+
+      // Use trading_positions as authoritative source for status and P&L
+      const posData = positionsByTrade[tradeNum];
+
+      if (posData) {
+        // Authoritative path: trading_positions has this trade
+        return {
+          tradeNum,
+          type: 'option',
+          underlying,
+          strategy: firstTxn.strategy || 'unknown',
+          status: posData.status as 'OPEN' | 'CLOSED',
+          openDate: firstTxn.date.toISOString(),
+          closeDate: posData.closeDate ? posData.closeDate.toISOString() : null,
+          legs: txns.length,
+          realizedPL: posData.realizedPL,
+          transactions: txns.map(t => ({
+            id: t.id,
+            date: t.date,
+            name: t.name,
+            amount: t.amount,
+            quantity: t.quantity
+          }))
+        };
+      }
+
+      // Fallback: legacy trades without trading_position records — use name-matching
       const opens = txns.filter(t => t.name.toLowerCase().includes('to open'));
       const closes = txns.filter(t => {
         const name = t.name.toLowerCase();
-        return name.includes('to close') || name.includes('exercise') || name.includes('assignment');
+        return name.includes('to close') || name.includes('exercise') ||
+               name.includes('assignment') || name.includes('expiration');
       });
-      
-      // Calculate P&L for options
+
       const openAmount = opens.reduce((sum, t) => {
         const amount = t.amount || 0;
         const name = t.name.toLowerCase();
         const isOption = name.includes('call') || name.includes('put');
         return sum + (isOption ? amount * 100 : amount);
       }, 0);
-      
+
       const closeAmount = closes.reduce((sum, t) => {
         const name = t.name.toLowerCase();
         const isExerciseOrAssignment = name.includes('exercise') || name.includes('assignment');
-        
+
         if (isExerciseOrAssignment) {
           const isSellStock = name.includes('sell') && name.includes('shares');
           const amount = t.amount || 0;
           return sum + (isSellStock ? -amount : amount);
         }
-        
+
         const amount = t.amount || 0;
         const isOption = name.includes('call') || name.includes('put');
         return sum + (isOption ? amount * 100 : amount);
       }, 0);
-      
+
       const isClosed = closes.length > 0;
       const realizedPL = isClosed ? -(openAmount + closeAmount) : 0;
 
