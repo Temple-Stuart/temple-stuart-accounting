@@ -84,20 +84,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Entity not found or not owned by user' }, { status: 404 });
     }
 
-    // Get next trade number if not provided
-    let actualTradeNum = tradeNum;
-    if (!actualTradeNum) {
-      const maxResult = await prisma.investment_transactions.findMany({
-        where: { tradeNum: { not: null }, accounts: { userId: user.id } },
-        select: { tradeNum: true }
-      });
-      const maxNum = maxResult.reduce((max, t) => {
-        const num = parseInt(t.tradeNum || '0', 10);
-        return num > max ? num : max;
-      }, 0);
-      actualTradeNum = String(maxNum + 1);
-    }
-
     // Fetch the investment transactions
     const transactions = await prisma.investment_transactions.findMany({
       where: { id: { in: transactionIds }, accounts: { userId: user.id } },
@@ -135,6 +121,27 @@ export async function POST(request: Request) {
         error: `${alreadyCommitted.length} transaction(s) already committed`,
         alreadyCommitted: alreadyCommitted.map(t => ({ id: t.id, tradeNum: t.tradeNum }))
       }, { status: 400 });
+    }
+
+    // Get next trade number if not provided (TICKER-XXXX format)
+    let actualTradeNum = tradeNum;
+    if (!actualTradeNum) {
+      const maxResult = await prisma.investment_transactions.findMany({
+        where: { tradeNum: { not: null }, accounts: { userId: user.id } },
+        select: { tradeNum: true }
+      });
+      const maxNum = maxResult.reduce((max, t) => {
+        const raw = t.tradeNum || '0';
+        const match = raw.match(/-(\d+)$/);
+        const num = match ? parseInt(match[1], 10) : parseInt(raw, 10);
+        return (isNaN(num) ? 0 : num) > max ? (isNaN(num) ? 0 : num) : max;
+      }, 0);
+      // Derive ticker from the first transaction's security
+      const firstTxn = transactions[0];
+      const ticker = (firstTxn.security?.ticker_symbol ||
+                     firstTxn.security?.option_underlying_ticker ||
+                     extractSymbol(firstTxn.name)).toUpperCase();
+      actualTradeNum = `${ticker}-${String(maxNum + 1).padStart(4, '0')}`;
     }
 
     // Transform to legs format

@@ -191,16 +191,18 @@ export async function POST(request: Request) {
         }
       });
 
-      // Get next trade number
+      // Get next trade number in TICKER-XXXX format
       const maxResult = await tx.investment_transactions.findMany({
         where: { tradeNum: { not: null }, accounts: { userId: user.id } },
         select: { tradeNum: true }
       });
       const maxNum = maxResult.reduce((max, t) => {
-        const num = parseInt(t.tradeNum || '0', 10);
-        return num > max ? num : max;
+        const raw = t.tradeNum || '0';
+        const match = raw.match(/-(\d+)$/);
+        const num = match ? parseInt(match[1], 10) : parseInt(raw, 10);
+        return (isNaN(num) ? 0 : num) > max ? (isNaN(num) ? 0 : num) : max;
       }, 0);
-      const tradeNum = String(maxNum + 1);
+      const tradeNum = `${symbol.toUpperCase()}-${String(maxNum + 1).padStart(4, '0')}`;
 
       // Create journal entry for the sale
       const TRADING_CASH = '1010';

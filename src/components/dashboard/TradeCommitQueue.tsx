@@ -99,7 +99,6 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
       
       setTransactions(all);
       setNextTradeNum((maxData.maxTradeNum || 0) + 1);
-      setTradeNum(String((maxData.maxTradeNum || 0) + 1));
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -158,6 +157,20 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
     return selectedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   }, [selectedTransactions]);
 
+  // Derive ticker from selected transactions for TICKER-XXXX format
+  const selectedTicker = useMemo(() => {
+    if (selectedTransactions.length === 0) return '';
+    const first = selectedTransactions[0];
+    return (first.underlying || first.ticker || 'UNKNOWN').toUpperCase();
+  }, [selectedTransactions]);
+
+  // Auto-populate tradeNum in TICKER-XXXX format when selection or number changes
+  useEffect(() => {
+    if (selectedTicker) {
+      setTradeNum(`${selectedTicker}-${String(nextTradeNum).padStart(4, '0')}`);
+    }
+  }, [selectedTicker, nextTradeNum]);
+
   const commitTrade = async () => {
     if (selectedIds.size === 0) {
       alert('Select transactions to commit');
@@ -188,10 +201,10 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
       const result = await res.json();
       
       if (result.success) {
-        alert(`✅ Committed Trade #${tradeNum} (${selectedIds.size} legs)`);
+        alert(`✅ Committed Trade ${tradeNum} (${selectedIds.size} legs)`);
         setSelectedIds(new Set());
         setStrategy('');
-        setTradeNum(String(Number(tradeNum) + 1));
+        setNextTradeNum(prev => prev + 1);
         await fetchData();
         await onReload();
       } else {
@@ -267,8 +280,8 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                   type="text"
                   value={tradeNum}
                   onChange={e => setTradeNum(e.target.value)}
-                  placeholder="#"
-                  className="border rounded px-2 py-1 text-sm w-16 text-center"
+                  placeholder="TICK-0001"
+                  className="border rounded px-2 py-1 text-sm w-32 text-center font-mono"
                 />
                 
                 <button
