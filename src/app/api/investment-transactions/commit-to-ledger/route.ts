@@ -78,7 +78,9 @@ export async function POST(request: Request) {
         quantity: txn.quantity || 1,
         price: txn.price || 0,
         fees: txn.rhFees || txn.fees || 0,
-        amount: txn.amount || 0
+        amount: txn.amount || 0,
+        subtype: txn.subtype || undefined,
+        txnType: txn.type || undefined
       };
     });
 

@@ -15,6 +15,9 @@ interface InvestmentLeg {
   price: number;
   fees: number;
   amount: number;
+  name?: string;
+  subtype?: string;
+  txnType?: string;
 }
 
 type TransactionContext = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -44,44 +47,28 @@ export class PositionTrackerService {
       }
     }
 
-    // Then process ALL closes (can now find the opens we just created)
-    for (const leg of legs) {
-      if (leg.positionEffect === 'close') {
-        // Check if this is an exercise/assignment transaction
-        const legName = (leg as any).name?.toLowerCase() || '';
-        const isExerciseOrAssignment = legName.includes('exercise') || legName.includes('assignment');
+    // Detect if close legs form an exercise/assignment/expiration pattern
+    // requiring atomic spread close processing (single journal entry for all legs)
+    const closeLegs = legs.filter(l => l.positionEffect === 'close');
+    const hasAtomicClosePattern = closeLegs.length > 0 && closeLegs.some(leg => {
+      const name = (leg.name || '').toLowerCase();
+      return name.includes('exercise') || name.includes('assignment') ||
+             name.includes('expiration') || leg.txnType === 'transfer';
+    });
 
-        // Skip $0 transfer legs - only process stock transactions with real amounts
-        if (isExerciseOrAssignment && (leg.amount === 0 || leg.price === 0)) {
-          console.log(`  [SKIP] $0 transfer leg for exercise/assignment: ${legName.slice(0, 50)}`);
-          // Still mark as committed but don't create journal entries
-          results.push({
-            legId: leg.id,
-            action: 'CLOSE',
-            skipped: true,
-            reason: 'ZERO_AMOUNT_TRANSFER'
-          });
-          continue;
-        }
-
-        let openPosition = null;
-
-        if (isExerciseOrAssignment) {
-          // For exercise/assignment: find open position by TRADE NUMBER
-          // These transactions close options but have stock symbol, not option details
-          openPosition = await db.trading_positions.findFirst({
-            where: {
-              trade_num: tradeNum,
-              status: 'OPEN'
-            }
-          });
-
-          if (openPosition) {
-            console.log(`  [EXERCISE/ASSIGN CLOSE] Found position by trade #${tradeNum}: ${openPosition.symbol} $${openPosition.strike_price}`);
-          }
-        } else {
-          // Normal option close: match by symbol/strike/type/expiry
-          openPosition = await db.trading_positions.findFirst({
+    if (hasAtomicClosePattern) {
+      // Exercise/assignment/expiration: process ALL close legs as ONE atomic journal entry.
+      // This handles spread closes where multiple positions close together via stock
+      // settlement, and expirations where positions expire worthless.
+      console.log(`  [ATOMIC CLOSE] ${closeLegs.length} legs for Trade #${tradeNum}`);
+      const spreadResult = await this.closeSpreadAtomically(closeLegs, strategy, tradeNum, userId, entityId, db);
+      results.push(...spreadResult.results);
+      skipped.push(...spreadResult.skipped);
+    } else {
+      // Normal close: process each close leg individually (buy-to-close / sell-to-close)
+      for (const leg of legs) {
+        if (leg.positionEffect === 'close') {
+          const openPosition = await db.trading_positions.findFirst({
             where: {
               symbol: leg.symbol,
               strike_price: leg.strike,
@@ -90,32 +77,31 @@ export class PositionTrackerService {
               status: 'OPEN'
             }
           });
-        }
 
-        if (!openPosition) {
-          console.warn(`  [SKIP CLOSE] No open position for ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-          skipped.push({
-            legId: leg.id,
-            reason: 'NO_OPEN_POSITION',
-            symbol: leg.symbol,
-            strike: leg.strike,
-            contractType: leg.contractType,
-            expiry: leg.expiry?.toLocaleDateString()
-          });
-          continue; // Skip this close, don't crash
-        }
+          if (!openPosition) {
+            console.warn(`  [SKIP CLOSE] No open position for ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
+            skipped.push({
+              legId: leg.id,
+              reason: 'NO_OPEN_POSITION',
+              symbol: leg.symbol,
+              strike: leg.strike,
+              contractType: leg.contractType,
+              expiry: leg.expiry?.toLocaleDateString()
+            });
+            continue;
+          }
 
-        console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        // For exercise/assignment, pass the matched position info to closePosition
-        const result = await this.closePosition(
-          isExerciseOrAssignment ? { ...leg, matchedPosition: openPosition } : leg,
-          strategy,
-          tradeNum,
-          userId,
-          entityId,
-          db
-        );
-        results.push(result);
+          console.log(`  [CLOSE] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
+          const result = await this.closePosition(
+            leg,
+            strategy,
+            tradeNum,
+            userId,
+            entityId,
+            db
+          );
+          results.push(result);
+        }
       }
     }
 
@@ -330,6 +316,221 @@ export class PositionTrackerService {
     return { legId: leg.id, journalId: journalEntry.id, coaCode: plAccount, realizedPL, proceeds, originalCost, action: isFullClose ? 'CLOSE' : 'PARTIAL_CLOSE' };
   }
 
+  /**
+   * Atomic spread close for exercise/assignment/expiration.
+   *
+   * Creates ONE balanced journal entry that:
+   * 1. Closes all open positions (DR short accounts, CR long accounts) at original cost basis
+   * 2. Records net stock settlement cash (if exercise/assignment with stock buy+sell)
+   * 3. Calculates P&L as the balancing entry (CR 4100 for gain, DR 5100 for loss)
+   *
+   * Stock settlement lines do NOT create stock_lots — they represent instantaneous
+   * settlement (buy shares due to exercise + sell shares due to assignment), not held positions.
+   *
+   * ═══════════════════════════════════════════════════════════════════════════════
+   * VERIFICATION — SPY $535/$540 credit spread, exercise/assignment close:
+   *
+   * Opens (previously committed):
+   *   Sell $535 Call: DR 1010 $117,700  CR 2100 $117,700 (short call, cost_basis=$1,177)
+   *   Buy  $540 Call: DR 1200  $77,400  CR 1010  $77,400 (long call, cost_basis=$774)
+   *   Net premium received = $117,700 - $77,400 = $40,300 ($403.00)
+   *
+   * Close legs (4 transactions):
+   *   1. "Assignment SPY 535 Call" — $0 transfer (closes short)
+   *   2. "Exercise SPY 540 Call"  — $0 transfer (closes long)
+   *   3. "Sell 100 SPY due to assignment" — amount=+$53,500
+   *   4. "Buy 100 SPY due to exercise"   — amount=-$54,000
+   *
+   * Atomic journal entry (all amounts in cents):
+   *   DR 2100 (Short Call)  117,700   — close short position at original cost
+   *   CR 1200 (Long Call)    77,400   — close long position at original cost
+   *   CR 1010 (Cash)         50,000   — net stock settlement: ($53,500-$54,000)=-$500
+   *   DR 5100 (Loss)          9,700   — P&L: $40,300 premium + (-$50,000 settlement) = -$9,700
+   *   ─────────────────────────────
+   *   Total DR: 127,400  Total CR: 127,400  ✓ Balanced
+   *   Realized P&L: -$97.00 (loss)
+   * ═══════════════════════════════════════════════════════════════════════════════
+   */
+  private async closeSpreadAtomically(
+    closeLegs: InvestmentLeg[],
+    strategy: string,
+    tradeNum: string,
+    userId: string,
+    entityId: string,
+    db: TransactionContext
+  ): Promise<{ results: any[]; skipped: any[] }> {
+    const TRADING_CASH = '1010';
+    const results: any[] = [];
+    const skipped: any[] = [];
+
+    // Classify legs into option transfers ($0) vs stock settlement (has amount)
+    const optionTransferLegs: InvestmentLeg[] = [];
+    const stockSettlementLegs: InvestmentLeg[] = [];
+
+    for (const leg of closeLegs) {
+      const name = (leg.name || '').toLowerCase();
+      const isTransferType = name.includes('exercise') || name.includes('assignment') || name.includes('expiration');
+
+      if (isTransferType && (leg.amount === 0 || leg.price === 0)) {
+        optionTransferLegs.push(leg);
+      } else {
+        stockSettlementLegs.push(leg);
+      }
+    }
+
+    console.log(`  [ATOMIC] ${optionTransferLegs.length} transfer legs, ${stockSettlementLegs.length} settlement legs`);
+
+    // Find ALL open positions for this trade number
+    const openPositions = await db.trading_positions.findMany({
+      where: { trade_num: tradeNum, status: 'OPEN' }
+    });
+
+    if (openPositions.length === 0) {
+      console.warn(`  [ATOMIC] No open positions found for trade #${tradeNum}`);
+      for (const leg of closeLegs) {
+        skipped.push({ legId: leg.id, reason: 'NO_OPEN_POSITIONS_FOR_TRADE', symbol: leg.symbol });
+      }
+      return { results, skipped };
+    }
+
+    console.log(`  [ATOMIC] Found ${openPositions.length} open positions to close`);
+
+    // Build journal entry lines
+    const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
+
+    // 1. Close each open position at its proportional remaining cost basis
+    const positionAccountMap: Record<string, string> = {};
+    for (const pos of openPositions) {
+      // Proportional cost basis for remaining quantity (handles partial prior closes)
+      const costBasisCents = Math.round(
+        (pos.remaining_quantity / pos.quantity) * pos.cost_basis * 100
+      );
+      const positionAccount = pos.position_type === 'LONG'
+        ? (pos.option_type === 'CALL' ? '1200' : '1210')
+        : (pos.option_type === 'CALL' ? '2100' : '2110');
+      positionAccountMap[pos.id] = positionAccount;
+
+      if (pos.position_type === 'SHORT') {
+        // Close short: DR to remove liability
+        lines.push({ accountCode: positionAccount, amount: costBasisCents, entryType: 'D' });
+      } else {
+        // Close long: CR to remove asset
+        lines.push({ accountCode: positionAccount, amount: costBasisCents, entryType: 'C' });
+      }
+    }
+
+    // 2. Net stock settlement (buy + sell amounts from exercise/assignment)
+    // Positive amount = cash received, negative = cash paid
+    const netSettlementDollars = stockSettlementLegs.reduce((sum, leg) => sum + (leg.amount || 0), 0);
+    const netSettlementCents = Math.round(netSettlementDollars * 100);
+
+    if (netSettlementCents > 0) {
+      // Cash received from settlement: DR cash
+      lines.push({ accountCode: TRADING_CASH, amount: netSettlementCents, entryType: 'D' });
+    } else if (netSettlementCents < 0) {
+      // Cash paid for settlement: CR cash
+      lines.push({ accountCode: TRADING_CASH, amount: Math.abs(netSettlementCents), entryType: 'C' });
+    }
+
+    // 3. Calculate P&L as the balancing entry
+    const totalDebits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
+    const totalCredits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
+    const imbalance = totalDebits - totalCredits;
+    // imbalance > 0 → excess debits → GAIN (need credit to balance)
+    // imbalance < 0 → excess credits → LOSS (need debit to balance)
+
+    if (imbalance > 0) {
+      lines.push({ accountCode: '4100', amount: imbalance, entryType: 'C' });
+    } else if (imbalance < 0) {
+      lines.push({ accountCode: '5100', amount: Math.abs(imbalance), entryType: 'D' });
+    }
+
+    const realizedPLCents = imbalance; // positive = gain, negative = loss
+    const isGain = realizedPLCents >= 0;
+    const plAccount = realizedPLCents > 0 ? '4100' : (realizedPLCents < 0 ? '5100' : null);
+    const hasExpiration = closeLegs.some(l => (l.name || '').toLowerCase().includes('expiration'));
+    const closeType = hasExpiration ? 'EXPIRATION' : 'EXERCISE/ASSIGNMENT';
+    const symbol = openPositions[0].symbol;
+
+    const description = `SPREAD CLOSE (${closeType}): Trade #${tradeNum} ${symbol} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPLCents) / 100).toFixed(2)}`;
+
+    // Create ONE atomic journal entry
+    const journalEntry = await this.createJournalEntry({
+      date: closeLegs[0].date,
+      description,
+      lines,
+      externalTransactionId: closeLegs[0].id,
+      strategy,
+      tradeNum,
+      amount: Math.abs(realizedPLCents),
+      userId,
+      entityId,
+      db
+    });
+
+    console.log(`  [ATOMIC] Journal entry ${journalEntry.id}: ${description}`);
+
+    // Update all open positions to CLOSED
+    for (let i = 0; i < openPositions.length; i++) {
+      const pos = openPositions[i];
+
+      // Try to match a transfer leg to this position by strike + option type
+      const matchingTransfer = optionTransferLegs.find(leg => {
+        const name = (leg.name || '').toLowerCase();
+        const strikeStr = pos.strike_price?.toString() || '';
+        return strikeStr && name.includes(strikeStr) &&
+               name.includes((pos.option_type || '').toLowerCase());
+      });
+
+      await db.trading_positions.update({
+        where: { id: pos.id },
+        data: {
+          remaining_quantity: 0,
+          status: 'CLOSED',
+          close_investment_txn_id: matchingTransfer?.id || closeLegs[0].id,
+          close_date: closeLegs[0].date,
+          close_price: 0,
+          close_fees: 0,
+          proceeds: 0,
+          // Store total trade P&L on first position; 0 on others
+          realized_pl: i === 0 ? realizedPLCents / 100 : 0
+        }
+      });
+    }
+
+    // Build results for each close leg
+    for (const leg of optionTransferLegs) {
+      // Find which position this transfer closes
+      const matchedPos = openPositions.find(pos => {
+        const name = (leg.name || '').toLowerCase();
+        const strikeStr = pos.strike_price?.toString() || '';
+        return strikeStr && name.includes(strikeStr) &&
+               name.includes((pos.option_type || '').toLowerCase());
+      });
+      const coaCode = matchedPos ? positionAccountMap[matchedPos.id] : (plAccount || TRADING_CASH);
+
+      results.push({
+        legId: leg.id,
+        journalId: journalEntry.id,
+        coaCode,
+        realizedPL: realizedPLCents,
+        action: 'SPREAD_CLOSE'
+      });
+    }
+
+    for (const leg of stockSettlementLegs) {
+      results.push({
+        legId: leg.id,
+        journalId: journalEntry.id,
+        coaCode: TRADING_CASH,
+        realizedPL: 0,
+        action: 'SPREAD_CLOSE_SETTLEMENT'
+      });
+    }
+
+    return { results, skipped };
+  }
+
   private async createJournalEntry(params: {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
@@ -341,10 +542,11 @@ export class PositionTrackerService {
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
     const accountCodes = lines.map(l => l.accountCode);
+    const uniqueAccountCodes = [...new Set(accountCodes)];
     // SECURITY: Scope account lookup to user's accounts within the entity
-    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: accountCodes }, userId, entity_id: entityId } });
-    if (accounts.length !== accountCodes.length) {
-      const missing = accountCodes.filter(code => !accounts.find(a => a.code === code));
+    const accounts = await db.chart_of_accounts.findMany({ where: { code: { in: uniqueAccountCodes }, userId, entity_id: entityId } });
+    if (accounts.length !== uniqueAccountCodes.length) {
+      const missing = uniqueAccountCodes.filter(code => !accounts.find(a => a.code === code));
       throw new Error(`Account codes not found: ${missing.join(', ')}`);
     }
 
