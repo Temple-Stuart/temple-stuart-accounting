@@ -13,6 +13,7 @@ import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
 import TaxReportTab from '@/components/dashboard/TaxReportTab';
+import ReviewQueueTab from '@/components/dashboard/ReviewQueueTab';
 
 interface Transaction {
   id: string;
@@ -135,6 +136,7 @@ export default function Dashboard() {
   const committedSpending = transactions.filter(t => t.accountCode);
   const uncommittedInvestments = investmentTransactions.filter((t: any) => !t.accountCode);
   const committedInvestments = investmentTransactions.filter((t: any) => t.accountCode);
+  const pendingReviewCount = transactions.filter(t => t.review_status === 'pending_review').length;
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -317,6 +319,7 @@ export default function Dashboard() {
               {[
                 { key: 'accounts', label: 'Accounts' },
                 { key: 'mapping', label: `Map COA${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
+                { key: 'review', label: `Review${pendingReviewCount > 0 ? ` (${pendingReviewCount})` : ''}` },
                 { key: 'statements', label: 'Statements' },
                 { key: 'ledger', label: 'Ledger' },
                 { key: 'journal', label: 'Journal' },
@@ -397,6 +400,19 @@ export default function Dashboard() {
                   <div className="p-4">
                     {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
                     {mappingTab === 'investments' && <InvestmentsTab investmentTransactions={uncommittedInvestments} committedInvestments={committedInvestments} onReload={loadData} />}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Queue */}
+              {activeSection === 'review' && (
+                <div>
+                  <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold">Review Queue</span>
+                    {pendingReviewCount > 0 && <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-medium">{pendingReviewCount} pending</span>}
+                  </div>
+                  <div className="p-4">
+                    <ReviewQueueTab coaOptions={coaOptions} />
                   </div>
                 </div>
               )}
