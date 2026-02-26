@@ -62,16 +62,18 @@ export async function GET() {
         action = isSell ? 'sell' : 'buy';
       }
       
-      // Detect exercise/assignment (these CLOSE option positions)
+      // Detect exercise/assignment/expiration (these CLOSE option positions)
       const isExercise = nameLower.includes('exercise');
       const isAssignment = nameLower.includes('assignment');
+      const isExpiration = nameLower.includes('expiration');
       const isExerciseOrAssignment = isExercise || isAssignment;
-      
+      const isTransferClose = isExerciseOrAssignment || isExpiration || t.type === 'transfer';
+
       // Determine position type
       let positionType: 'open' | 'close' | 'unknown' = 'unknown';
-      
-      if (isExerciseOrAssignment) {
-        // ALL exercise/assignment transactions close option positions
+
+      if (isTransferClose) {
+        // ALL exercise/assignment/expiration/transfer transactions close option positions
         // Both the $0 transfers AND the stock buy/sell transactions
         // are closing legs for the original option trade
         positionType = 'close';
@@ -97,6 +99,8 @@ export async function GET() {
         expiration,
         action,
         positionType,
+        type: t.type,
+        subtype: t.subtype,
         quantity: t.quantity,
         price: t.price,
         amount: t.amount,
