@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     for (const item of items) {
-      const coa = item.coaCode || 'B-6900';
+      const coa = item.coaCode || '6900';
       const month = item.month - 1; // 0-indexed
       const amount = Number(item.amount || 0);
 
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // ACTUALS DATA - From transactions with business COA codes (B-xxxx)
+    // ACTUALS DATA - From transactions with business COA codes
     // SECURITY: Scoped to user's accounts only
     // ═══════════════════════════════════════════════════════════════════
     const businessCodes = Object.keys(COA_NAMES);
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
     let actualGrandTotal = 0;
 
     for (const txn of transactions) {
-      const coa = txn.accountCode || 'B-6900';
+      const coa = txn.accountCode || '6900';
       const month = new Date(txn.date).getMonth();
       const amount = Math.abs(txn.amount);
 
