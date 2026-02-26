@@ -9,8 +9,6 @@ import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
 import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
-import BankReconciliation from '@/components/dashboard/BankReconciliation';
-import PeriodClose from '@/components/dashboard/PeriodClose';
 import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
@@ -76,8 +74,6 @@ export default function Dashboard() {
   const [coaOptions, setCoaOptions] = useState<CoaOption[]>([]);
   const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
-  const [reconciliations, setReconciliations] = useState<any[]>([]);
-  const [periodCloses, setPeriodCloses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -118,10 +114,8 @@ export default function Dashboard() {
       
       const jeRes = await fetch('/api/journal-transactions');
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
-      const reconRes = await fetch("/api/bank-reconciliations");
-      if (reconRes.ok) { const reconData = await reconRes.json(); setReconciliations(reconData.reconciliations || []); }
-      const pcRes = await fetch(`/api/period-closes?year=${new Date().getFullYear()}`);
-      if (pcRes.ok) { const pcData = await pcRes.json(); setPeriodCloses(pcData.periods || []); }
+      // bank-reconciliations and period-closes tables were dropped in Phase 0.
+      // These tabs are disabled until rebuilt in a later phase.
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
@@ -245,9 +239,7 @@ export default function Dashboard() {
   };
 
   const saveJournalEntry = async (entry: any) => { await fetch("/api/journal-entries", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) }); };
-  const saveReconciliation = async (data: any) => { await fetch("/api/bank-reconciliations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); };
-  const closePeriod = async (year: number, month: number, notes?: string) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "close", notes }) }); };
-  const reopenPeriod = async (year: number, month: number) => { await fetch("/api/period-closes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, action: "reopen" }) }); };
+  // saveReconciliation, closePeriod, reopenPeriod removed — tables dropped in Phase 0
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
   const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
@@ -619,22 +611,24 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Bank Reconciliation */}
+              {/* Bank Reconciliation — disabled until tables are rebuilt */}
               {activeSection === 'reconcile' && (
                 <div>
                   <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Bank Reconciliation</div>
-                  <div className="p-4">
-                    <BankReconciliation accounts={accounts} transactions={transactions} reconciliations={reconciliations} onSave={saveReconciliation} onReload={loadData} />
+                  <div className="p-8 text-center text-gray-400">
+                    <p className="text-sm font-medium">Bank Reconciliation</p>
+                    <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
                   </div>
                 </div>
               )}
 
-              {/* Period Close */}
+              {/* Period Close — disabled until tables are rebuilt */}
               {activeSection === 'close' && (
                 <div>
                   <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Period Close</div>
-                  <div className="p-4">
-                    <PeriodClose transactions={transactions} reconciliations={reconciliations} periodCloses={periodCloses} selectedYear={selectedYear} onClose={closePeriod} onReopen={reopenPeriod} onReload={loadData} />
+                  <div className="p-8 text-center text-gray-400">
+                    <p className="text-sm font-medium">Period Close</p>
+                    <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
                   </div>
                 </div>
               )}

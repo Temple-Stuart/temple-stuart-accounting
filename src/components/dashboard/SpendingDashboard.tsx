@@ -42,12 +42,20 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
   // Calculate current month/year totals
   const now = new Date();
 
+  // Build a set of account codes per entity type from COA options
+  const coaEntityMap = new Map<string, string>();
+  coaOptions.forEach((c: any) => {
+    if (c.code && c.entity_type) coaEntityMap.set(c.code, c.entity_type);
+  });
+
   // Filter by entity if selected
   const entityFilteredTransactions = selectedEntity
     ? transactions.filter(t => {
-        if (selectedEntity === 'Personal') return t.accountCode?.startsWith('P-');
-        if (selectedEntity === 'Business') return t.accountCode?.startsWith('B-');
-        if (selectedEntity === 'Trading') return t.accountCode?.startsWith('T-');
+        if (!t.accountCode) return true;
+        const entityType = coaEntityMap.get(t.accountCode);
+        if (selectedEntity === 'Personal') return entityType === 'personal';
+        if (selectedEntity === 'Business') return entityType === 'sole_prop';
+        if (selectedEntity === 'Trading') return entityType === 'personal'; // Trading shares personal entity_type
         return true;
       })
     : transactions;
