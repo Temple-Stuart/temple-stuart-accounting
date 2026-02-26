@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+// Extract the numeric portion from both "42" (legacy) and "OKTA-0042" (TICKER-XXXX) formats
+function extractTradeNumber(tradeNum: string): number {
+  const match = tradeNum.match(/-(\d+)$/);
+  if (match) return parseInt(match[1], 10);
+  const num = parseInt(tradeNum, 10);
+  return isNaN(num) ? 0 : num;
+}
+
 export async function GET() {
   try {
     const userEmail = await getVerifiedEmail();
@@ -13,7 +21,7 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     // Get all trade numbers and find the max numerically
-    // (tradeNum is stored as string, so we can't use orderBy for numeric sorting)
+    // Supports both legacy "42" and new "OKTA-0042" (TICKER-XXXX) formats
     const results = await prisma.investment_transactions.findMany({
       where: {
         tradeNum: { not: null },
@@ -28,8 +36,8 @@ export async function GET() {
     let maxTradeNum = 0;
     for (const r of results) {
       if (r.tradeNum) {
-        const num = parseInt(r.tradeNum, 10);
-        if (!isNaN(num) && num > maxTradeNum) {
+        const num = extractTradeNumber(r.tradeNum);
+        if (num > maxTradeNum) {
           maxTradeNum = num;
         }
       }

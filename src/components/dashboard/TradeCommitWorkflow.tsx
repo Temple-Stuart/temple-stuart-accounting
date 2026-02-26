@@ -213,7 +213,6 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
       setCorporateActions(corpActionsData.actions || []);
       
       setNextTradeNum((maxData.maxTradeNum || 0) + 1);
-      setTradeNum(String((maxData.maxTradeNum || 0) + 1));
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -274,6 +273,20 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
     return selectedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   }, [selectedTransactions]);
 
+  // Derive ticker from selected transactions for TICKER-XXXX format
+  const selectedTicker = useMemo(() => {
+    if (selectedTransactions.length === 0) return '';
+    const first = selectedTransactions[0];
+    return (first.underlying || first.ticker || 'UNKNOWN').toUpperCase();
+  }, [selectedTransactions]);
+
+  // Auto-populate tradeNum in TICKER-XXXX format when selection or number changes
+  useEffect(() => {
+    if (selectedTicker) {
+      setTradeNum(`${selectedTicker}-${String(nextTradeNum).padStart(4, '0')}`);
+    }
+  }, [selectedTicker, nextTradeNum]);
+
   // Commit OPENS
   const commitOpens = async () => {
     if (selectedIds.size === 0) return alert('Select transactions to commit');
@@ -301,9 +314,9 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
       
       if (result.success) {
         const skippedCount = result.details?.skipped?.length || 0;
-        alert(`✅ Trade #${tradeNum} OPENED (${result.committed} legs)${skippedCount > 0 ? `\n⚠️ ${skippedCount} skipped` : ''}`);
+        alert(`✅ Trade ${tradeNum} OPENED (${result.committed} legs)${skippedCount > 0 ? `\n⚠️ ${skippedCount} skipped` : ''}`);
         clearSelection();
-        setTradeNum(String(Number(tradeNum) + 1));
+        setNextTradeNum(prev => prev + 1);
         await fetchData();
         await onReload();
       } else {
@@ -333,9 +346,12 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
       const result = await res.json();
       
       if (result.success) {
-        alert(`✅ Trade #${result.tradeNum}: Created ${result.committed} stock lot(s) with journal entries`);
+        alert(`✅ Trade ${result.tradeNum}: Created ${result.committed} stock lot(s) with journal entries`);
         clearSelection();
-        setTradeNum(String(Number(result.tradeNum) + 1));
+        // Extract number from returned TICKER-XXXX and increment
+        const match = (result.tradeNum || '').match(/-(\d+)$/);
+        const returnedNum = match ? parseInt(match[1], 10) : parseInt(result.tradeNum || '0', 10);
+        setNextTradeNum(returnedNum + 1);
         await fetchData();
         await onReload();
       } else {
@@ -607,8 +623,8 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                     type="text"
                     value={tradeNum}
                     onChange={e => setTradeNum(e.target.value)}
-                    placeholder="Trade #"
-                    className="border rounded px-3 py-2 text-sm w-20 text-center"
+                    placeholder="TICK-0001"
+                    className="border rounded px-3 py-2 text-sm w-32 text-center font-mono"
                   />
                   <button
                     onClick={commitOpens}

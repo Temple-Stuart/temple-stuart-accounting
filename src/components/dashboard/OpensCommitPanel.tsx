@@ -184,6 +184,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
       const committedRes = await fetch('/api/investment-transactions/max-trade-num');
       const committedData = await committedRes.json();
       setNextTradeNum((committedData.maxTradeNum || 0) + 1);
+
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch opens');
@@ -218,17 +219,20 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
 
     setCommitStatus({ loading: true, message: 'Starting commit...' });
     
-    let currentTradeNum = nextTradeNum;
+    let currentNum = nextTradeNum;
     let committed = 0;
     const errors: string[] = [];
+    const committedTradeNums: string[] = [];
 
     for (const group of confirmedGroups) {
+      const ticker = (group.underlying || 'UNKNOWN').toUpperCase();
+      const formattedTradeNum = `${ticker}-${String(currentNum).padStart(4, '0')}`;
       try {
         const transactionIds = group.legs.map(l => l.id);
-        
-        setCommitStatus({ 
-          loading: true, 
-          message: `Committing Trade #${currentTradeNum}: ${group.underlying} ${group.selectedStrategy}...` 
+
+        setCommitStatus({
+          loading: true,
+          message: `Committing ${formattedTradeNum}: ${group.underlying} ${group.selectedStrategy}...`
         });
 
         const res = await fetch('/api/investment-transactions/commit-to-ledger', {
@@ -238,27 +242,28 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
             transactionIds,
             accountCode: 'T-1210',
             strategy: group.selectedStrategy,
-            tradeNum: String(currentTradeNum),
+            tradeNum: formattedTradeNum,
           }),
         });
 
         const result = await res.json();
-        
+
         if (result.success) {
           committed++;
-          currentTradeNum++;
+          committedTradeNums.push(formattedTradeNum);
+          currentNum++;
         } else {
-          errors.push(`Trade #${currentTradeNum} (${group.underlying}): ${result.error}`);
+          errors.push(`${formattedTradeNum} (${group.underlying}): ${result.error}`);
         }
       } catch (err) {
-        errors.push(`Trade #${currentTradeNum} (${group.underlying}): ${err instanceof Error ? err.message : 'Unknown error'}`);
+        errors.push(`${formattedTradeNum} (${group.underlying}): ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     }
 
     setCommitStatus(null);
-    
+
     if (errors.length === 0) {
-      alert(`✅ Successfully committed ${committed} trades (Trade #${nextTradeNum} - #${currentTradeNum - 1})`);
+      alert(`✅ Successfully committed ${committed} trades (${committedTradeNums[0]} to ${committedTradeNums[committedTradeNums.length - 1]})`);
     } else {
       alert(`⚠️ Committed ${committed}/${confirmedGroups.length} trades.\n\nErrors:\n${errors.join('\n')}`);
     }
