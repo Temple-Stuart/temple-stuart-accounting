@@ -41,6 +41,7 @@ interface Transaction {
   institutionName: string | null;
   accountCode: string | null;
   subAccount: string | null;
+  entity_id: string | null;
   predicted_coa_code: string | null;
   prediction_confidence: number | null;
   review_status: string;
