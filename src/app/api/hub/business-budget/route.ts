@@ -58,6 +58,9 @@ export async function GET(request: Request) {
       });
     }
 
+    // Label for items missing a COA code (must be after the empty check above)
+    COA_NAMES['UNCATEGORIZED'] = 'Uncategorized';
+
     // ═══════════════════════════════════════════════════════════════════
     // BUDGET DATA - From budget_line_items (business source)
     // ═══════════════════════════════════════════════════════════════════
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     for (const item of items) {
-      const coa = item.coaCode || '6900';
+      const coa = item.coaCode || 'UNCATEGORIZED';
       const month = item.month - 1; // 0-indexed
       const amount = Number(item.amount || 0);
 
@@ -89,7 +92,7 @@ export async function GET(request: Request) {
     // ACTUALS DATA - From transactions with business COA codes
     // SECURITY: Scoped to user's accounts only
     // ═══════════════════════════════════════════════════════════════════
-    const businessCodes = Object.keys(COA_NAMES);
+    const businessCodes = Object.keys(COA_NAMES).filter(c => c !== 'UNCATEGORIZED');
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
@@ -114,7 +117,7 @@ export async function GET(request: Request) {
     let actualGrandTotal = 0;
 
     for (const txn of transactions) {
-      const coa = txn.accountCode || '6900';
+      const coa = txn.accountCode || 'UNCATEGORIZED';
       const month = new Date(txn.date).getMonth();
       const amount = Math.abs(txn.amount);
 
