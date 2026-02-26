@@ -862,7 +862,7 @@ function VirtualTable({
                       onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
                       className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-1 bg-white focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e] outline-none"
                     >
-                      <option value="">{txn.predicted_coa_code ? `AI: ${txn.predicted_coa_code}` : 'Select...'}</option>
+                      <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
                         <optgroup key={entity} label={entity || 'General'}>
                           {opts.map(o => <option key={o.id} value={o.code}>{o.code} - {o.name}</option>)}
