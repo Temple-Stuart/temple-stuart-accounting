@@ -2,15 +2,24 @@
 
 import { useEffect, useState } from 'react';
 
+interface LedgerLine {
+  id: string;
+  entry_type: 'D' | 'C';
+  amount: string; // BigInt cents as string
+  account: {
+    code: string;
+    name: string;
+  };
+}
+
 interface JournalEntry {
   id: string;
   date: string;
   description: string;
-  transactionId: string;
-  debitAccount: string;
-  creditAccount: string;
-  amount: number;
-  posted: boolean;
+  status: string;
+  source_type: string;
+  is_reversal?: boolean;
+  ledger_entries: LedgerLine[];
 }
 
 export default function JournalEntriesPage() {
@@ -30,8 +39,9 @@ export default function JournalEntriesPage() {
       });
   }, []);
 
-  const formatMoney = (cents: number) => {
-    return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  const formatMoney = (cents: string) => {
+    const amount = parseInt(cents) / 100;
+    return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
 
   if (loading) return <div className="p-8">Loading journal entries...</div>;
@@ -40,40 +50,75 @@ export default function JournalEntriesPage() {
     <div className="p-8 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Journal Entries</h1>
 
-      <table className="w-full border">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-3 text-left">Date</th>
-            <th className="p-3 text-left">Description</th>
-            <th className="p-3 text-left">Debit Account</th>
-            <th className="p-3 text-left">Credit Account</th>
-            <th className="p-3 text-right">Amount</th>
-            <th className="p-3 text-center">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map(entry => (
-            <tr key={entry.id} className="border-t">
-              <td className="p-3">{new Date(entry.date).toLocaleDateString()}</td>
-              <td className="p-3">{entry.description}</td>
-              <td className="p-3 font-mono">{entry.debitAccount}</td>
-              <td className="p-3 font-mono">{entry.creditAccount}</td>
-              <td className="p-3 text-right font-semibold">{formatMoney(entry.amount)}</td>
-              <td className="p-3 text-center">
-                {entry.posted ? (
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Posted</span>
-                ) : (
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Pending</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {entries.length === 0 && (
+      {entries.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           No journal entries yet. Commit transactions to create entries.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {entries.map(entry => {
+            const debits = entry.ledger_entries.filter(l => l.entry_type === 'D');
+            const credits = entry.ledger_entries.filter(l => l.entry_type === 'C');
+
+            return (
+              <div key={entry.id} className="border rounded-lg overflow-hidden">
+                {/* Entry header */}
+                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600">
+                      {new Date(entry.date).toLocaleDateString()}
+                    </span>
+                    <span className="font-medium">{entry.description}</span>
+                    {entry.is_reversal && (
+                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">Reversal</span>
+                    )}
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    entry.status === 'posted'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {entry.status === 'posted' ? 'Posted' : entry.status}
+                  </span>
+                </div>
+
+                {/* Ledger lines */}
+                <table className="w-full">
+                  <thead className="bg-gray-100 text-xs text-gray-500 uppercase">
+                    <tr>
+                      <th className="px-4 py-2 text-left w-1/3">Account</th>
+                      <th className="px-4 py-2 text-right w-1/3">Debit</th>
+                      <th className="px-4 py-2 text-right w-1/3">Credit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debits.map(line => (
+                      <tr key={line.id} className="border-t">
+                        <td className="px-4 py-2 font-mono text-sm">
+                          {line.account.code} — {line.account.name}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                          {formatMoney(line.amount)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-sm text-gray-400">—</td>
+                      </tr>
+                    ))}
+                    {credits.map(line => (
+                      <tr key={line.id} className="border-t">
+                        <td className="px-4 py-2 font-mono text-sm pl-8">
+                          {line.account.code} — {line.account.name}
+                        </td>
+                        <td className="px-4 py-2 text-right text-sm text-gray-400">—</td>
+                        <td className="px-4 py-2 text-right font-semibold text-sm">
+                          {formatMoney(line.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -32,8 +32,8 @@ export default function StatementsPage() {
       });
   }, []);
 
-  const formatMoney = (cents: number) => {
-    return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  const formatMoney = (dollars: number) => {
+    return dollars.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   };
 
   if (loading) return <div className="p-8">Loading statements...</div>;

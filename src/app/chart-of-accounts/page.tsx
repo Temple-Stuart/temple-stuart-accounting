@@ -29,7 +29,7 @@ export default function ChartOfAccountsPage() {
   }, []);
 
   const personal = accounts.filter(a => a.entityType === 'personal');
-  const business = accounts.filter(a => a.entityType === 'business');
+  const business = accounts.filter(a => a.entityType === 'sole_prop');
 
   const formatBalance = (cents: string) => {
     const amount = parseInt(cents) / 100;

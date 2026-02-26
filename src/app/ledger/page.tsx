@@ -2,20 +2,29 @@
 
 import { useState, useEffect } from 'react';
 
-interface LedgerEntry {
+interface LedgerEntryItem {
   id: string;
   date: string;
+  description: string;
+  entryType: 'D' | 'C';
+  amount: number; // already dollars from API
+  runningBalance: number; // already dollars from API
+  journal_id: string;
+  is_reversal: boolean;
+}
+
+interface AccountLedger {
   accountCode: string;
   accountName: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number;
+  accountType: string;
+  balanceType: string;
+  entries: LedgerEntryItem[];
+  openingBalance: number;
+  closingBalance: number;
 }
 
 export default function LedgerPage() {
-  const [entries, setEntries] = useState<LedgerEntry[]>([]);
-  const [accounts, setAccounts] = useState<string[]>([]);
+  const [ledgers, setLedgers] = useState<AccountLedger[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
@@ -23,9 +32,7 @@ export default function LedgerPage() {
     fetch('/api/ledger')
       .then(res => res.json())
       .then(data => {
-        setEntries(data.entries || []);
-        const uniqueAccounts = Array.from(new Set(data.entries.map((e: LedgerEntry) => e.accountCode))) as string[];
-        setAccounts(uniqueAccounts);
+        setLedgers(data.ledgers || []);
         setLoading(false);
       })
       .catch(err => {
@@ -34,9 +41,13 @@ export default function LedgerPage() {
       });
   }, []);
 
-  const filteredEntries = selectedAccount === 'all' 
-    ? entries 
-    : entries.filter(e => e.accountCode === selectedAccount);
+  const filteredLedgers = selectedAccount === 'all'
+    ? ledgers
+    : ledgers.filter(l => l.accountCode === selectedAccount);
+
+  const formatMoney = (amount: number) => {
+    return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  };
 
   if (loading) {
     return (
@@ -51,7 +62,7 @@ export default function LedgerPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">General Ledger</h1>
-          <p className="text-gray-600 mt-2">All posted transactions</p>
+          <p className="text-gray-600 mt-2">All posted transactions grouped by account</p>
         </div>
 
         {/* Account Filter */}
@@ -65,70 +76,86 @@ export default function LedgerPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Accounts</option>
-            {accounts.map(acc => (
-              <option key={acc} value={acc}>{acc}</option>
+            {ledgers.map(l => (
+              <option key={l.accountCode} value={l.accountCode}>
+                {l.accountCode} — {l.accountName}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Ledger Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Account
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Debit
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Credit
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Balance
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEntries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(entry.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="font-medium text-gray-900">{entry.accountCode}</div>
-                    <div className="text-gray-500">{entry.accountName}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {entry.description}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    {entry.debit > 0 ? `$${entry.debit.toFixed(2)}` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                    {entry.credit > 0 ? `$${entry.credit.toFixed(2)}` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                    ${entry.balance.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {filteredEntries.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No entries found</p>
-            </div>
-          )}
-        </div>
+        {/* Account Ledgers */}
+        {filteredLedgers.length === 0 ? (
+          <div className="bg-white rounded-lg shadow text-center py-12">
+            <p className="text-gray-500">No ledger entries found</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {filteredLedgers.map(account => (
+              <div key={account.accountCode} className="bg-white rounded-lg shadow overflow-hidden">
+                {/* Account header */}
+                <div className="bg-gray-50 px-6 py-4 border-b flex items-center justify-between">
+                  <div>
+                    <span className="font-mono font-medium text-gray-900">{account.accountCode}</span>
+                    <span className="ml-3 text-gray-700">{account.accountName}</span>
+                    <span className="ml-3 text-xs text-gray-500 uppercase">{account.accountType}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm text-gray-500">Closing Balance: </span>
+                    <span className="font-semibold text-gray-900">{formatMoney(account.closingBalance)}</span>
+                  </div>
+                </div>
+
+                {/* Entries table */}
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Debit
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Credit
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Balance
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {account.entries.map((entry) => (
+                      <tr key={entry.id} className={`hover:bg-gray-50 ${entry.is_reversal ? 'text-red-600' : ''}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {new Date(entry.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {entry.description}
+                          {entry.is_reversal && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-xs">Reversal</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          {entry.entryType === 'D' ? formatMoney(entry.amount) : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                          {entry.entryType === 'C' ? formatMoney(entry.amount) : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                          {formatMoney(entry.runningBalance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
