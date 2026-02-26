@@ -68,6 +68,7 @@ model entities {
   fiscal_year_start  Int      @default(1)
   naics_code         String?  @db.VarChar(6)
   created_at         DateTime @default(now())
+  created_by         String?
   updated_at         DateTime @updatedAt
 
   user                  users                   @relation(fields: [userId], references: [id])
@@ -116,12 +117,14 @@ model coa_template_accounts {
 // ═══════════════════════════════════════════════════════════════════
 
 model account_tax_mappings {
-  id          String  @id @default(uuid())
-  account_id  String  @db.Uuid
-  tax_form    String  @db.VarChar(50)
-  form_line   String  @db.VarChar(50)
+  id          String   @id @default(uuid())
+  account_id  String   @db.Uuid
+  tax_form    String   @db.VarChar(50)
+  form_line   String   @db.VarChar(50)
   tax_year    Int
-  multiplier  Decimal @default(1.0) @db.Decimal(5, 4)
+  multiplier  Decimal  @default(1.0) @db.Decimal(5, 4)
+  created_at  DateTime @default(now())
+  created_by  String?
   account     chart_of_accounts @relation(fields: [account_id], references: [id])
 
   @@unique([account_id, tax_form, form_line, tax_year])
@@ -149,6 +152,7 @@ model chart_of_accounts {
   entity_type     String?          @db.VarChar(10)
   module          String?          @db.VarChar(20)
   created_at      DateTime         @default(now())
+  created_by      String?
   updated_at      DateTime         @default(now())
   user            users?           @relation(fields: [userId], references: [id])
   entity          entities         @relation(fields: [entity_id], references: [id])
@@ -178,6 +182,7 @@ model journal_entries {
   reversed_by_entry_id  String?  @unique
   metadata              Json?
   created_at            DateTime @default(now())
+  created_by            String?
 
   user                  users            @relation(fields: [userId], references: [id])
   entity                entities         @relation(fields: [entity_id], references: [id])
@@ -201,6 +206,7 @@ model ledger_entries {
   entry_type        String   @db.Char(1)
   amount            BigInt
   created_at        DateTime @default(now())
+  created_by        String?
 
   journal_entry     journal_entries   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
   account           chart_of_accounts @relation(fields: [account_id], references: [id], onDelete: Restrict)
