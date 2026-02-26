@@ -19,16 +19,31 @@ export async function POST(request: Request) {
 
     const { transactionIds, strategy, tradeNum, entityId } = await request.json();
 
-    if (!transactionIds || !strategy || !tradeNum || !entityId) {
+    if (!transactionIds || !strategy || !tradeNum) {
       return NextResponse.json(
-        { error: 'transactionIds, strategy, tradeNum, and entityId required' },
+        { error: 'transactionIds, strategy, and tradeNum required' },
         { status: 400 }
       );
     }
 
+    // Resolve entityId: use provided or fall back to user's default entity
+    let resolvedEntityId = entityId;
+    if (!resolvedEntityId) {
+      const defaultEntity = await prisma.entities.findFirst({
+        where: { userId: user.id, is_default: true },
+      });
+      if (!defaultEntity) {
+        return NextResponse.json(
+          { error: 'No entityId provided and no default entity found' },
+          { status: 400 }
+        );
+      }
+      resolvedEntityId = defaultEntity.id;
+    }
+
     // Verify entity belongs to this user
     const entity = await prisma.entities.findFirst({
-      where: { id: entityId, userId: user.id }
+      where: { id: resolvedEntityId, userId: user.id }
     });
     if (!entity) {
       return NextResponse.json({ error: 'Entity not found or does not belong to user' }, { status: 404 });
@@ -91,7 +106,7 @@ export async function POST(request: Request) {
           strategy,
           tradeNum,
           userId: user.id,
-          entityId,
+          entityId: resolvedEntityId,
           tx
         });
       },
