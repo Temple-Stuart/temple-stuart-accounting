@@ -68,3 +68,7 @@ next-env.d.ts
 /npm
 /npx
 /sed
+scripts/
+audit-*.sh
+discover-schema.sh
+0
