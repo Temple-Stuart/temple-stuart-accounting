@@ -74,6 +74,7 @@ export async function GET() {
       institutionName: txn.accounts?.plaid_items?.institutionName,
       accountCode: txn.accountCode,
       subAccount: txn.subAccount,
+      entity_id: txn.entity_id || null,
       predicted_coa_code: txn.predicted_coa_code,
       prediction_confidence: txn.prediction_confidence ? Number(txn.prediction_confidence) : null,
       review_status: txn.review_status,

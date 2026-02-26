@@ -42,6 +42,7 @@ export interface SpendingTransaction {
   institutionName: string | null;
   accountCode: string | null;
   subAccount: string | null;
+  entity_id: string | null;
   predicted_coa_code: string | null;
   prediction_confidence: number | null;
   review_status: string;
@@ -1181,12 +1182,18 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     if (ids.length === 0) return;
     if (!batchCoa) { alert('Select a COA account first'); return; }
 
+    // TODO: Batch commit with mixed entities needs entity-aware grouping —
+    // group by entity_id and send separate requests per entity (same pattern
+    // as would be used in a prediction-based commit). For now, use the first
+    // transaction's entity_id as a best-effort default.
+    const firstTxn = transactions.find(t => ids.includes(t.id));
+
     setCommitting(true);
     try {
       const res = await fetch('/api/transactions/commit-to-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionIds: ids, accountCode: batchCoa, subAccount: batchSub || null })
+        body: JSON.stringify({ transactionIds: ids, accountCode: batchCoa, subAccount: batchSub || null, entityId: firstTxn?.entity_id || undefined })
       });
       const data = await res.json();
       if (data.success) {
@@ -1210,10 +1217,11 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     let committed = 0;
     try {
       for (const [id, change] of entries) {
+        const txn = transactions.find(t => t.id === id);
         const res = await fetch('/api/transactions/commit-to-ledger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transactionIds: [id], accountCode: change.coa, subAccount: change.sub || null })
+          body: JSON.stringify({ transactionIds: [id], accountCode: change.coa, subAccount: change.sub || null, entityId: txn?.entity_id || undefined })
         });
         const data = await res.json();
         if (data.success) committed += data.committed;
