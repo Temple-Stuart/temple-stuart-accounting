@@ -5,6 +5,7 @@ interface CategoryPrediction {
   coaCode: string;
   confidence: number;
   source: 'merchant_mapping' | 'category_mapping' | 'gpt' | 'manual';
+  entityId: string | null;
 }
 
 export class AutoCategorizationService {
@@ -46,7 +47,8 @@ export class AutoCategorizationService {
         return {
           coaCode: merchantMapping.coa_code,
           confidence: merchantMapping.confidence_score.toNumber(),
-          source: 'merchant_mapping'
+          source: 'merchant_mapping',
+          entityId: merchantMapping.entity_id
         };
       }
     }
@@ -75,7 +77,8 @@ export class AutoCategorizationService {
         return {
           coaCode,
           confidence: 0.6,
-          source: 'category_mapping'
+          source: 'category_mapping',
+          entityId: null  // caller resolves to user's personal entity
         };
       }
     }
@@ -91,6 +94,13 @@ export class AutoCategorizationService {
     categorized: number;
     failed: number;
   }> {
+    // Look up user's default personal entity ONCE for Tier 2 (category_mapping) fallback
+    const personalEntity = await prisma.entities.findFirst({
+      where: { userId, entity_type: 'personal', is_default: true },
+      select: { id: true }
+    });
+    const personalEntityId = personalEntity?.id ?? null;
+
     const pendingTransactions = await prisma.transactions.findMany({
       where: {
         accountCode: null,
@@ -115,12 +125,17 @@ export class AutoCategorizationService {
         );
 
         if (prediction) {
+          // Tier 1 (merchant_mapping): use mapping's entity_id
+          // Tier 2 (category_mapping): entityId is null, resolve to personal entity
+          const resolvedEntityId = prediction.entityId ?? personalEntityId;
+
           await prisma.transactions.update({
             where: { id: txn.id },
             data: {
               predicted_coa_code: prediction.coaCode,
               prediction_confidence: new Prisma.Decimal(prediction.confidence),
-              review_status: 'pending_review'
+              review_status: 'pending_review',
+              entity_id: resolvedEntityId
             }
           });
           categorized++;
