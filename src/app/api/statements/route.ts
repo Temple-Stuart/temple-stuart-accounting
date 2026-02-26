@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 
 export async function GET(request: Request) {
   try {
@@ -15,6 +16,8 @@ export async function GET(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    await ensureBookkeepingInitialized(user);
 
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entityId');

@@ -427,18 +427,19 @@ model investment_transactions {
 }
 
 model users {
-  id                   String                 @id
-  email                String                 @unique
-  password             String
-  name                 String
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime
-  accountCode          String?
-  subAccount           String?
-  tier                 String                 @default("free") @db.VarChar(20)
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  accounts             accounts[]
+  id                       String                 @id
+  email                    String                 @unique
+  password                 String
+  name                     String
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime
+  accountCode              String?
+  subAccount               String?
+  tier                     String                 @default("free") @db.VarChar(20)
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  bookkeeping_initialized  Boolean                @default(false)
+  accounts                 accounts[]
   plaid_items          plaid_items[]
   budgets              budgets[]
   journal_entries      journal_entries[]

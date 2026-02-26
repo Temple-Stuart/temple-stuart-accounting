@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 
 export async function GET() {
   try {
@@ -18,6 +19,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    await ensureBookkeepingInitialized(user);
 
     // Get transactions for accounts owned by this user
     const transactions = await prisma.transactions.findMany({

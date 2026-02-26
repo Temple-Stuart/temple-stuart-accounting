@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    await ensureBookkeepingInitialized(user);
 
     const body = await request.json();
     const { transactionIds, accountCode, entityId, subAccount } = body;
