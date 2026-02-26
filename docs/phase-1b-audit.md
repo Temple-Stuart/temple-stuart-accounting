@@ -70,6 +70,14 @@ No references found. Clean.
 - src/app/api/closing-periods/reopen/route.ts
 - src/app/api/period-closes/route.ts
 
+## Transactions Page — Verified Working (FIX 8)
+- `src/app/transactions/page.tsx` — Fetches `/api/transactions` + `/api/transactions/manual`, displays correctly
+- `src/app/api/transactions/route.ts` — Queries `transactions` table (alive), returns correct shape
+- `src/app/api/transactions/manual/route.ts` — Creates/reads manual transactions in `transactions` table
+- `src/app/api/transactions/commit-to-ledger/route.ts` — Uses `commitPlaidTransaction` with new schema (journal_entries + ledger_entries)
+- No dead schema references in any of these files
+- Note: page doesn't display COA accountCode or committed-to-ledger status as columns (design gap, not a bug)
+
 ## Pages inventory (35 total)
 See find output. Bookkeeping-critical pages:
 - src/app/chart-of-accounts/page.tsx
