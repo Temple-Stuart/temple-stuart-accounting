@@ -22,17 +22,23 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // Get Business COA codes (B-xxxx prefix) — scoped to user
+    // Get Business COA codes — scoped to user's business entity
     // ═══════════════════════════════════════════════════════════════════
-    const businessAccounts = await prisma.chart_of_accounts.findMany({
-      where: {
-        userId: user.id,
-        code: { startsWith: 'B-' },
-        account_type: 'expense',
-        is_archived: false
-      },
-      select: { code: true, name: true }
+    const businessEntity = await prisma.entities.findFirst({
+      where: { userId: user.id, entity_type: 'sole_prop' }
     });
+
+    const businessAccounts = businessEntity
+      ? await prisma.chart_of_accounts.findMany({
+          where: {
+            userId: user.id,
+            entity_id: businessEntity.id,
+            account_type: 'expense',
+            is_archived: false
+          },
+          select: { code: true, name: true }
+        })
+      : [];
 
     // Build COA name mapping dynamically from database
     const COA_NAMES: Record<string, string> = {};

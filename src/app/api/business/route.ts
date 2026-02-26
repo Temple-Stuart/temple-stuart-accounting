@@ -16,17 +16,23 @@ export async function GET() {
       SELECT * FROM module_expenses WHERE user_id = ${user.id} AND module = ${MODULE} ORDER BY created_at DESC
     `;
     
-    // Also get available business COA codes
-    const coaAccounts = await prisma.chart_of_accounts.findMany({
-      where: {
-        userId: user.id,
-        code: { startsWith: 'B-' },
-        account_type: 'expense',
-        is_archived: false
-      },
-      select: { code: true, name: true },
-      orderBy: { code: 'asc' }
+    // Also get available business COA codes — scoped by business entity
+    const businessEntity = await prisma.entities.findFirst({
+      where: { userId: user.id, entity_type: 'sole_prop' }
     });
+
+    const coaAccounts = businessEntity
+      ? await prisma.chart_of_accounts.findMany({
+          where: {
+            userId: user.id,
+            entity_id: businessEntity.id,
+            account_type: 'expense',
+            is_archived: false
+          },
+          select: { code: true, name: true },
+          orderBy: { code: 'asc' }
+        })
+      : [];
     
     return NextResponse.json({ expenses, coaAccounts });
   } catch (error) {
