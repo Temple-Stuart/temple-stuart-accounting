@@ -403,7 +403,7 @@ export class PositionTrackerService {
     for (const pos of openPositions) {
       // Proportional cost basis for remaining quantity (handles partial prior closes)
       const costBasisCents = Math.round(
-        (pos.remaining_quantity / pos.quantity) * pos.cost_basis * 100
+        ((pos.remaining_quantity ?? pos.quantity) / pos.quantity) * pos.cost_basis * 100
       );
       const positionAccount = pos.position_type === 'LONG'
         ? (pos.option_type === 'CALL' ? '1200' : '1210')
