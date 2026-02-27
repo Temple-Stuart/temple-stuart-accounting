@@ -420,8 +420,18 @@ export class PositionTrackerService {
     }
 
     // 2. Net stock settlement (buy + sell amounts from exercise/assignment)
-    // Positive amount = cash received, negative = cash paid
-    const netSettlementDollars = stockSettlementLegs.reduce((sum, leg) => sum + (leg.amount || 0), 0);
+    // DB stores all amounts as positive. Determine direction from transaction name:
+    //   "sell ... due to assignment" → cash inflow (positive)
+    //   "buy ... due to exercise"   → cash outflow (negative)
+    const netSettlementDollars = stockSettlementLegs.reduce((sum, leg) => {
+      const name = (leg.name || '').toLowerCase();
+      const isCashInflow = name.includes('sell') && name.includes('assignment');
+      const isCashOutflow = name.includes('buy') && name.includes('exercise');
+      const signedAmount = isCashOutflow ? -Math.abs(leg.amount || 0)
+                         : isCashInflow  ?  Math.abs(leg.amount || 0)
+                         : (leg.amount || 0); // fallback: trust raw amount
+      return sum + signedAmount;
+    }, 0);
     const netSettlementCents = Math.round(netSettlementDollars * 100);
 
     if (netSettlementCents > 0) {
@@ -470,7 +480,19 @@ export class PositionTrackerService {
 
     console.log(`  [ATOMIC] Journal entry ${journalEntry.id}: ${description}`);
 
-    // Update all open positions to CLOSED
+    // Distribute total trade P&L across positions proportional to cost basis weight.
+    // For exercise/assignment, stock settlement is a spread-level event — it doesn't
+    // decompose to individual option legs. We allocate P&L by each leg's share of
+    // total cost basis and derive implied proceeds from cost + allocated P&L.
+    let totalCostBasisCents = 0;
+    for (const pos of openPositions) {
+      totalCostBasisCents += Math.round(
+        ((pos.remaining_quantity ?? pos.quantity) / pos.quantity) * pos.cost_basis * 100
+      );
+    }
+
+    // Update all open positions to CLOSED with per-position proceeds and P&L
+    let allocatedPLCents = 0;
     for (let i = 0; i < openPositions.length; i++) {
       const pos = openPositions[i];
 
@@ -482,6 +504,26 @@ export class PositionTrackerService {
                name.includes((pos.option_type || '').toLowerCase());
       });
 
+      const costBasisCents = Math.round(
+        ((pos.remaining_quantity ?? pos.quantity) / pos.quantity) * pos.cost_basis * 100
+      );
+
+      // Allocate P&L proportionally; last position gets remainder to avoid rounding drift
+      let perPositionPL: number;
+      if (i === openPositions.length - 1) {
+        perPositionPL = realizedPLCents - allocatedPLCents;
+      } else {
+        perPositionPL = totalCostBasisCents > 0
+          ? Math.round(realizedPLCents * (costBasisCents / totalCostBasisCents))
+          : 0;
+        allocatedPLCents += perPositionPL;
+      }
+
+      // Derive implied proceeds: for LONG, proceeds = cost + P&L; for SHORT, proceeds = cost - P&L
+      const proceedsCents = pos.position_type === 'LONG'
+        ? costBasisCents + perPositionPL
+        : costBasisCents - perPositionPL;
+
       await db.trading_positions.update({
         where: { id: pos.id },
         data: {
@@ -491,9 +533,8 @@ export class PositionTrackerService {
           close_date: closeLegs[0].date,
           close_price: 0,
           close_fees: 0,
-          proceeds: 0,
-          // Store total trade P&L on first position; 0 on others
-          realized_pl: i === 0 ? realizedPLCents / 100 : 0
+          proceeds: proceedsCents / 100,
+          realized_pl: perPositionPL / 100
         }
       });
     }
