@@ -49,6 +49,7 @@ export interface SpendingTransaction {
   manually_overridden: boolean;
   createdAt: string;
   updatedAt: string;
+  journalProof?: any;
 }
 
 interface SpendingTabProps {
@@ -715,6 +716,41 @@ function FilterableHeader({
   );
 }
 
+// ─── JE Proof Helpers ────────────────────────────────────────────────────────
+
+function getProofDrAccounts(journalProof: any): string {
+  if (!journalProof?.ledgerEntries) return '\u2014';
+  return journalProof.ledgerEntries
+    .filter((le: any) => le.entryType === 'D')
+    .map((le: any) => `${le.accountCode} - ${le.accountName}`)
+    .join(', ') || '\u2014';
+}
+
+function getProofCrAccounts(journalProof: any): string {
+  if (!journalProof?.ledgerEntries) return '\u2014';
+  return journalProof.ledgerEntries
+    .filter((le: any) => le.entryType === 'C')
+    .map((le: any) => `${le.accountCode} - ${le.accountName}`)
+    .join(', ') || '\u2014';
+}
+
+function isProofBalanced(journalProof: any): boolean | null {
+  if (!journalProof?.ledgerEntries) return null;
+  const dr = journalProof.ledgerEntries
+    .filter((le: any) => le.entryType === 'D')
+    .reduce((sum: number, le: any) => sum + Number(le.amount), 0);
+  const cr = journalProof.ledgerEntries
+    .filter((le: any) => le.entryType === 'C')
+    .reduce((sum: number, le: any) => sum + Number(le.amount), 0);
+  return dr === cr;
+}
+
+function formatProofDate(d: string | null | undefined): string {
+  if (!d) return '\u2014';
+  const dt = new Date(d);
+  return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+}
+
 // ─── Virtualized Table ───────────────────────────────────────────────────────
 
 function VirtualTable({
@@ -788,7 +824,7 @@ function VirtualTable({
 
   return (
     <div ref={parentRef} className="overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className="w-full text-xs border-collapse min-w-[900px]">
+      <table className={`w-full text-xs border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
         <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
           <tr>
             <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
@@ -802,7 +838,16 @@ function VirtualTable({
             <FilterableHeader label="Institution" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             <th className="px-2 py-2.5 text-xs font-semibold min-w-[180px]">COA</th>
             {variant === 'committed' && (
-              <th className="px-2 py-2.5 text-xs font-semibold w-24">Committed</th>
+              <>
+                <th className="px-2 py-2.5 text-xs font-semibold w-20">JE ID</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-28">DR Acct</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-28">CR Acct</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-10 text-center">D=C</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-20">Entity</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-24">By</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-20">At</th>
+                <th className="px-2 py-2.5 text-xs font-semibold w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
+              </>
             )}
           </tr>
         </thead>
@@ -810,7 +855,7 @@ function VirtualTable({
           {/* spacer for virtual scroll offset */}
           {virtualizer.getVirtualItems().length > 0 && (
             <tr style={{ height: virtualizer.getVirtualItems()[0]?.start || 0 }}>
-              <td colSpan={variant === 'pending' ? 8 : 9} />
+              <td colSpan={variant === 'pending' ? 8 : 16} />
             </tr>
           )}
           {virtualizer.getVirtualItems().map(vRow => {
@@ -879,10 +924,35 @@ function VirtualTable({
                     </span>
                   )}
                 </td>
-                {/* Committed date */}
-                {variant === 'committed' && (
-                  <td className="px-2 py-1 text-gray-500 font-mono whitespace-nowrap">{formatDate(txn.updatedAt)}</td>
-                )}
+                {/* JE Proof columns */}
+                {variant === 'committed' && (() => {
+                  const jp = (txn as any).journalProof;
+                  const balanced = isProofBalanced(jp);
+                  return (
+                    <>
+                      <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap" style={{ color: '#3b2d6b' }} title={jp?.jeId || ''}>
+                        {jp?.jeId ? jp.jeId.slice(0, 8) : '\u2014'}
+                      </td>
+                      <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofDrAccounts(jp)}>
+                        {getProofDrAccounts(jp)}
+                      </td>
+                      <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofCrAccounts(jp)}>
+                        {getProofCrAccounts(jp)}
+                      </td>
+                      <td className="px-2 py-1 text-center text-[11px]">
+                        {balanced === null ? '\u2014' : balanced ? <span className="text-green-600 font-bold">{'\u2713'}</span> : <span className="text-red-600 font-bold">{'\u2717'}</span>}
+                      </td>
+                      <td className="px-2 py-1 text-[10px] text-gray-600 truncate">{jp?.entityName || '\u2014'}</td>
+                      <td className="px-2 py-1 text-[10px] text-gray-600 truncate" title={jp?.createdBy || ''}>
+                        {jp?.createdBy || '\u2014'}
+                      </td>
+                      <td className="px-2 py-1 text-[10px] text-gray-500 font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
+                      <td className="px-2 py-1 text-center" title="Immutable (trigger-enforced)">
+                        <span style={{ color: '#b8960f' }}>{'\uD83D\uDD12'}</span>
+                      </td>
+                    </>
+                  );
+                })()}
               </tr>
             );
           })}
@@ -891,7 +961,7 @@ function VirtualTable({
             <tr style={{
               height: virtualizer.getTotalSize() - (virtualizer.getVirtualItems()[virtualizer.getVirtualItems().length - 1]?.end || 0)
             }}>
-              <td colSpan={variant === 'pending' ? 8 : 9} />
+              <td colSpan={variant === 'pending' ? 8 : 16} />
             </tr>
           )}
         </tbody>

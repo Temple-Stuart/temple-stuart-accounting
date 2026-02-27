@@ -29,6 +29,7 @@ interface InvestmentTxn {
     option_underlying_ticker: string | null;
   } | null;
   updatedAt?: string;
+  journalProof?: any;
 }
 
 type SortField = 'date' | 'symbol' | 'name' | 'action' | 'quantity' | 'price' | 'amount' | 'fees' | 'strategy' | 'accountCode' | 'tradeNum';
@@ -84,6 +85,39 @@ function formatDate(d: string) {
 
 function formatMoney(n: number) {
   return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getProofDrAccounts(jp: any): string {
+  if (!jp?.ledgerEntries) return '\u2014';
+  return jp.ledgerEntries
+    .filter((le: any) => le.entryType === 'D')
+    .map((le: any) => `${le.accountCode} - ${le.accountName}`)
+    .join(', ') || '\u2014';
+}
+
+function getProofCrAccounts(jp: any): string {
+  if (!jp?.ledgerEntries) return '\u2014';
+  return jp.ledgerEntries
+    .filter((le: any) => le.entryType === 'C')
+    .map((le: any) => `${le.accountCode} - ${le.accountName}`)
+    .join(', ') || '\u2014';
+}
+
+function isProofBalanced(jp: any): boolean | null {
+  if (!jp?.ledgerEntries) return null;
+  const dr = jp.ledgerEntries
+    .filter((le: any) => le.entryType === 'D')
+    .reduce((sum: number, le: any) => sum + Number(le.amount), 0);
+  const cr = jp.ledgerEntries
+    .filter((le: any) => le.entryType === 'C')
+    .reduce((sum: number, le: any) => sum + Number(le.amount), 0);
+  return dr === cr;
+}
+
+function formatProofDate(d: string | null | undefined): string {
+  if (!d) return '\u2014';
+  const dt = new Date(d);
+  return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
 function getFieldValue(txn: InvestmentTxn, field: SortField): string {
@@ -549,7 +583,7 @@ export default function CommittedInvestmentsTable({
 
       {/* Virtualized Table */}
       <div ref={parentRef} className="overflow-auto border border-gray-200 border-t-0" style={{ maxHeight: '600px' }}>
-        <table className="w-full text-xs border-collapse min-w-[1100px]">
+        <table className="w-full text-xs border-collapse min-w-[1800px]">
           <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
             <tr>
               <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
@@ -577,13 +611,21 @@ export default function CommittedInvestmentsTable({
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.accountCode} onApplyColumnFilter={handleApplyColumnFilter} className="w-20" />
               <InvFilterableHeader label="Trade #" field="tradeNum" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.tradeNum} onApplyColumnFilter={handleApplyColumnFilter} className="w-16 text-center" />
+              <th className="px-2 py-2.5 text-xs font-semibold w-20">JE ID</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-28">DR Acct</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-28">CR Acct</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-10 text-center">D=C</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-20">Entity</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-24">By</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-20">At</th>
+              <th className="px-2 py-2.5 text-xs font-semibold w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
             </tr>
           </thead>
           <tbody>
             {/* top spacer */}
             {virtualizer.getVirtualItems().length > 0 && (
               <tr style={{ height: virtualizer.getVirtualItems()[0]?.start || 0 }}>
-                <td colSpan={12} />
+                <td colSpan={20} />
               </tr>
             )}
             {virtualizer.getVirtualItems().map(vRow => {
@@ -643,6 +685,35 @@ export default function CommittedInvestmentsTable({
                   <td className="px-2 py-1 text-gray-700 truncate">{txn.strategy || '\u2014'}</td>
                   <td className="px-2 py-1 font-mono text-green-700 text-[11px]">{txn.accountCode || '\u2014'}</td>
                   <td className="px-2 py-1 text-center font-mono">{txn.tradeNum || '\u2014'}</td>
+                  {/* JE Proof columns */}
+                  {(() => {
+                    const jp = txn.journalProof;
+                    const balanced = isProofBalanced(jp);
+                    return (
+                      <>
+                        <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap" style={{ color: '#3b2d6b' }} title={jp?.jeId || ''}>
+                          {jp?.jeId ? jp.jeId.slice(0, 8) : '\u2014'}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofDrAccounts(jp)}>
+                          {getProofDrAccounts(jp)}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofCrAccounts(jp)}>
+                          {getProofCrAccounts(jp)}
+                        </td>
+                        <td className="px-2 py-1 text-center text-[11px]">
+                          {balanced === null ? '\u2014' : balanced ? <span className="text-green-600 font-bold">{'\u2713'}</span> : <span className="text-red-600 font-bold">{'\u2717'}</span>}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] text-gray-600 truncate">{jp?.entityName || '\u2014'}</td>
+                        <td className="px-2 py-1 text-[10px] text-gray-600 truncate" title={jp?.createdBy || ''}>
+                          {jp?.createdBy || '\u2014'}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] text-gray-500 font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
+                        <td className="px-2 py-1 text-center" title="Immutable (trigger-enforced)">
+                          <span style={{ color: '#b8960f' }}>{'\uD83D\uDD12'}</span>
+                        </td>
+                      </>
+                    );
+                  })()}
                 </tr>
               );
             })}
@@ -651,7 +722,7 @@ export default function CommittedInvestmentsTable({
               <tr style={{
                 height: virtualizer.getTotalSize() - (virtualizer.getVirtualItems()[virtualizer.getVirtualItems().length - 1]?.end || 0)
               }}>
-                <td colSpan={12} />
+                <td colSpan={20} />
               </tr>
             )}
           </tbody>
