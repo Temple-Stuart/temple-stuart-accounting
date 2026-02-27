@@ -69,6 +69,7 @@ export async function POST(request: Request) {
           source_type: 'manual',
           status: 'posted',
           request_id: requestId,
+          created_by: userEmail,
         },
       });
 
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
             account_id: account.id,
             entry_type: line.entryType,
             amount: amountCents,
+            created_by: userEmail,
           },
         });
 
