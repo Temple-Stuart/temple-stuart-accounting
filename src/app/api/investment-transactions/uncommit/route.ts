@@ -103,6 +103,7 @@ export async function POST(request: Request) {
             is_reversal: true,
             reverses_entry_id: original.id,
             request_id: requestId,
+            created_by: userEmail,
           }
         });
 
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
               account_id: entry.account_id,
               amount: entry.amount,
               entry_type: oppositeType,
+              created_by: userEmail,
             }
           });
 

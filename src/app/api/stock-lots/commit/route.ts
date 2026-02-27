@@ -240,6 +240,7 @@ export async function POST(request: Request) {
           status: 'posted',
           metadata: { strategy: 'stock-long', tradeNum },
           request_id: randomUUID(),
+          created_by: userEmail,
         }
       });
 
@@ -256,7 +257,8 @@ export async function POST(request: Request) {
           journal_entry_id: journalEntry.id,
           account_id: cashAccount.id,
           amount: BigInt(proceedsCents),
-          entry_type: 'D'
+          entry_type: 'D',
+          created_by: userEmail,
         }
       });
       await tx.chart_of_accounts.update({
@@ -270,7 +272,8 @@ export async function POST(request: Request) {
           journal_entry_id: journalEntry.id,
           account_id: stockAccount.id,
           amount: BigInt(costBasisCents),
-          entry_type: 'C'
+          entry_type: 'C',
+          created_by: userEmail,
         }
       });
       await tx.chart_of_accounts.update({
@@ -284,7 +287,8 @@ export async function POST(request: Request) {
           journal_entry_id: journalEntry.id,
           account_id: plAccount.id,
           amount: BigInt(Math.abs(plCents)),
-          entry_type: totalGainLoss >= 0 ? 'C' : 'D'
+          entry_type: totalGainLoss >= 0 ? 'C' : 'D',
+          created_by: userEmail,
         }
       });
       const plBalanceChange = totalGainLoss >= 0 ? BigInt(Math.abs(plCents)) : BigInt(-Math.abs(plCents));

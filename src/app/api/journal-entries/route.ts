@@ -71,6 +71,7 @@ export async function POST(request: Request) {
         source_type: 'manual',
         status: entryStatus || 'posted',
         request_id: randomUUID(),
+        created_by: userEmail,
         ledger_entries: {
           create: lines.map((l: any) => {
             const debitAmt = parseFloat(l.debit) || 0;
@@ -80,7 +81,8 @@ export async function POST(request: Request) {
             return {
               account_id: l.accountId,
               entry_type: isDebit ? 'D' : 'C',
-              amount: BigInt(amountCents)
+              amount: BigInt(amountCents),
+              created_by: userEmail,
             };
           })
         }
