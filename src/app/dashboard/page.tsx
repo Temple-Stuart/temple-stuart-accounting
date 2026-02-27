@@ -48,6 +48,7 @@ interface Transaction {
   manually_overridden: boolean;
   createdAt: string;
   updatedAt: string;
+  journalProof?: any;
 }
 interface Account {
   id: string;
@@ -133,10 +134,10 @@ export default function Dashboard() {
   const fmt = (n: number) => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const fmtSigned = (n: number) => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-  const uncommittedSpending = transactions.filter(t => !t.accountCode);
-  const committedSpending = transactions.filter(t => t.accountCode);
-  const uncommittedInvestments = investmentTransactions.filter((t: any) => !t.accountCode);
-  const committedInvestments = investmentTransactions.filter((t: any) => t.accountCode);
+  const committedSpending = transactions.filter(t => t.journalProof);
+  const uncommittedSpending = transactions.filter(t => !t.journalProof);
+  const committedInvestments = investmentTransactions.filter((t: any) => t.journalProof);
+  const uncommittedInvestments = investmentTransactions.filter((t: any) => !t.journalProof);
 
 
   const availableYears = useMemo(() => {
