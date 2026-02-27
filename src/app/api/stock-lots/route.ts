@@ -170,7 +170,8 @@ export async function POST(request: Request) {
           tradeNum: actualTradeNum,
           userId: user.id,
           entityId,
-          tx
+          tx,
+          createdBy: userEmail,
         });
       },
       { maxWait: 30000, timeout: 120000 }

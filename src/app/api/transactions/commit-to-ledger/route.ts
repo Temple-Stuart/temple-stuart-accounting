@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
           description: plaidTxn.name,
           merchantName: plaidTxn.merchantName || undefined,
           requestId,
+          createdBy: userEmail,
         });
 
         // Track whether the user overrode the auto-categorization prediction

@@ -13,6 +13,7 @@ interface CommitPlaidTransactionParams {
   description: string;
   merchantName?: string;
   requestId?: string;
+  createdBy?: string;
 }
 
 interface ReversePlaidTransactionParams {
@@ -20,6 +21,7 @@ interface ReversePlaidTransactionParams {
   journalEntryId: string;
   transactionId: string;
   requestId?: string;
+  createdBy?: string;
 }
 
 function dollarsToCents(amount: number): bigint {
@@ -45,6 +47,7 @@ export async function commitPlaidTransaction(
     amount,
     description,
     requestId,
+    createdBy,
   } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
@@ -93,6 +96,7 @@ export async function commitPlaidTransaction(
         source_id: transactionId,
         status: 'posted',
         request_id: requestId,
+        created_by: createdBy || null,
       },
     });
 
@@ -103,6 +107,7 @@ export async function commitPlaidTransaction(
         account_id: debitAccountId,
         entry_type: 'D',
         amount: amountCents,
+        created_by: createdBy || null,
       },
     });
 
@@ -113,6 +118,7 @@ export async function commitPlaidTransaction(
         account_id: creditAccountId,
         entry_type: 'C',
         amount: amountCents,
+        created_by: createdBy || null,
       },
     });
 
@@ -151,7 +157,7 @@ export async function reversePlaidTransaction(
   prisma: PrismaClient,
   params: ReversePlaidTransactionParams
 ) {
-  const { userId, journalEntryId, transactionId, requestId } = params;
+  const { userId, journalEntryId, transactionId, requestId, createdBy } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
     // Look up original journal entry with its ledger entries and linked accounts
@@ -195,6 +201,7 @@ export async function reversePlaidTransaction(
         is_reversal: true,
         reverses_entry_id: original.id,
         request_id: requestId,
+        created_by: createdBy || null,
       },
     });
 
@@ -208,6 +215,7 @@ export async function reversePlaidTransaction(
           account_id: entry.account_id,
           entry_type: oppositeType,
           amount: entry.amount,
+          created_by: createdBy || null,
         },
       });
 

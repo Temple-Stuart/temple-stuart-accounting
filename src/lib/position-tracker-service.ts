@@ -30,8 +30,9 @@ export class PositionTrackerService {
     userId: string;
     entityId: string;
     tx?: TransactionContext;
+    createdBy?: string;
   }) {
-    const { legs, strategy, tradeNum, userId, entityId, tx } = params;
+    const { legs, strategy, tradeNum, userId, entityId, tx, createdBy } = params;
     const db = tx || prisma;
     const results = [];
     const skipped = [];
@@ -42,7 +43,7 @@ export class PositionTrackerService {
     for (const leg of legs) {
       if (leg.positionEffect === 'open') {
         console.log(`  [OPEN] ${leg.symbol} $${leg.strike} ${leg.contractType} ${leg.expiry?.toLocaleDateString()}`);
-        const result = await this.openPosition(leg, strategy, tradeNum, userId, entityId, db);
+        const result = await this.openPosition(leg, strategy, tradeNum, userId, entityId, db, createdBy);
         results.push(result);
       }
     }
@@ -61,7 +62,7 @@ export class PositionTrackerService {
       // This handles spread closes where multiple positions close together via stock
       // settlement, and expirations where positions expire worthless.
       console.log(`  [ATOMIC CLOSE] ${closeLegs.length} legs for Trade #${tradeNum}`);
-      const spreadResult = await this.closeSpreadAtomically(closeLegs, strategy, tradeNum, userId, entityId, db);
+      const spreadResult = await this.closeSpreadAtomically(closeLegs, strategy, tradeNum, userId, entityId, db, createdBy);
       results.push(...spreadResult.results);
       skipped.push(...spreadResult.skipped);
     } else {
@@ -98,7 +99,8 @@ export class PositionTrackerService {
             tradeNum,
             userId,
             entityId,
-            db
+            db,
+            createdBy
           );
           results.push(result);
         }
@@ -133,7 +135,8 @@ export class PositionTrackerService {
     tradeNum: string,
     userId: string,
     entityId: string,
-    db: TransactionContext
+    db: TransactionContext,
+    createdBy?: string
   ) {
     const TRADING_CASH = '1010';
     const multiplier = 100;
@@ -162,7 +165,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `OPEN ${positionType}: ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} ${leg.expiry?.toLocaleDateString()}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: costBasis,
-      userId, entityId, db
+      userId, entityId, db, createdBy
     });
     await db.trading_positions.create({
       data: {
@@ -181,7 +184,8 @@ export class PositionTrackerService {
     tradeNum: string,
     userId: string,
     entityId: string,
-    db: TransactionContext
+    db: TransactionContext,
+    createdBy?: string
   ) {
     const TRADING_CASH = '1010';
 
@@ -296,7 +300,7 @@ export class PositionTrackerService {
       date: leg.date,
       description: `${isFullClose ? 'CLOSE' : 'PARTIAL CLOSE'} ${openPosition.position_type}: ${closeQty}x ${leg.symbol} ${leg.strike} ${leg.contractType?.toUpperCase()} - ${isGain ? 'GAIN' : 'LOSS'} $${(Math.abs(realizedPL) / 100).toFixed(2)}`,
       lines, externalTransactionId: leg.id, strategy, tradeNum, amount: proceeds,
-      userId, entityId, db
+      userId, entityId, db, createdBy
     });
 
     // Update position with new remaining quantity
@@ -357,7 +361,8 @@ export class PositionTrackerService {
     tradeNum: string,
     userId: string,
     entityId: string,
-    db: TransactionContext
+    db: TransactionContext,
+    createdBy?: string
   ): Promise<{ results: any[]; skipped: any[] }> {
     const TRADING_CASH = '1010';
     const results: any[] = [];
@@ -475,7 +480,8 @@ export class PositionTrackerService {
       amount: Math.abs(realizedPLCents),
       userId,
       entityId,
-      db
+      db,
+      createdBy
     });
 
     console.log(`  [ATOMIC] Journal entry ${journalEntry.id}: ${description}`);
@@ -576,9 +582,9 @@ export class PositionTrackerService {
     date: Date; description: string;
     lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }>;
     externalTransactionId?: string; strategy?: string; tradeNum?: string; amount?: number;
-    userId: string; entityId: string; db: TransactionContext; requestId?: string;
+    userId: string; entityId: string; db: TransactionContext; requestId?: string; createdBy?: string;
   }) {
-    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db, requestId } = params;
+    const { date, description, lines, externalTransactionId, strategy, tradeNum, userId, entityId, db, requestId, createdBy } = params;
     const debits = lines.filter(l => l.entryType === 'D').reduce((sum, l) => sum + l.amount, 0);
     const credits = lines.filter(l => l.entryType === 'C').reduce((sum, l) => sum + l.amount, 0);
     if (debits !== credits) throw new Error(`Unbalanced entry: debits=${debits} credits=${credits}`);
@@ -603,6 +609,7 @@ export class PositionTrackerService {
         status: 'posted',
         metadata: (strategy || tradeNum) ? { strategy, trade_num: tradeNum } : undefined,
         request_id: requestId || randomUUID(),
+        created_by: createdBy || null,
       }
     });
 
@@ -614,7 +621,8 @@ export class PositionTrackerService {
           journal_entry_id: journalEntry.id,
           account_id: account.id,
           amount: BigInt(line.amount),
-          entry_type: line.entryType
+          entry_type: line.entryType,
+          created_by: createdBy || null,
         }
       });
       const balanceChange = line.entryType === account.balance_type ? BigInt(line.amount) : BigInt(-line.amount);
@@ -631,9 +639,9 @@ export class PositionTrackerService {
   }
 
   async handleAssignmentExercise(params: {
-    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string; userId: string; entityId: string;
+    exerciseTransfer: any; stockTransaction: any; strategy: string; tradeNum: string; userId: string; entityId: string; createdBy?: string;
   }) {
-    const { exerciseTransfer, stockTransaction, strategy, tradeNum, userId, entityId } = params;
+    const { exerciseTransfer, stockTransaction, strategy, tradeNum, userId, entityId, createdBy } = params;
     const nameMatch = exerciseTransfer.name.match(/(\d+\.?\d*)\s*call|put/i);
     const strike = nameMatch ? parseFloat(nameMatch[1]) : null;
     if (!strike) throw new Error(`Cannot extract strike from: ${exerciseTransfer.name}`);
@@ -663,7 +671,7 @@ export class PositionTrackerService {
       date: exerciseTransfer.date,
       description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${openPosition.option_type}`,
       lines, externalTransactionId: exerciseTransfer.id, strategy, tradeNum, amount: originalCost,
-      userId, entityId, db: prisma
+      userId, entityId, db: prisma, createdBy
     });
     await prisma.trading_positions.update({
       where: { id: openPosition.id },
@@ -696,8 +704,9 @@ export class PositionTrackerService {
     userId: string;
     entityId: string;
     tx?: TransactionContext;
+    createdBy?: string;
   }) {
-    const { legs, strategy, tradeNum, userId, entityId, tx } = params;
+    const { legs, strategy, tradeNum, userId, entityId, tx, createdBy } = params;
     const db = tx || prisma;
     const results = [];
     const TRADING_CASH = '1010';
@@ -736,7 +745,7 @@ export class PositionTrackerService {
           strategy,
           tradeNum,
           amount: costBasis,
-          userId, entityId, db
+          userId, entityId, db, createdBy
         });
 
         // Update investment transaction
