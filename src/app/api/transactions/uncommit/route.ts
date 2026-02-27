@@ -66,6 +66,7 @@ export async function POST(request: Request) {
           journalEntryId: originalEntry.id,
           transactionId: txn.transactionId,
           requestId,
+          createdBy: userEmail,
         });
 
         results.push({

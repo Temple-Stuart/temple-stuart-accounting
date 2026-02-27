@@ -61,7 +61,8 @@ export async function POST(request: Request) {
         strategy: strategy || 'ITM Spread Expiration',
         tradeNum: tradeNum || 'AUTO',
         userId: user.id,
-        entityId
+        entityId,
+        createdBy: userEmail,
       });
 
       results.push(result);

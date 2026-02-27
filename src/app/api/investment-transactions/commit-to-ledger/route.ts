@@ -108,7 +108,8 @@ export async function POST(request: Request) {
           tradeNum,
           userId: user.id,
           entityId: resolvedEntityId,
-          tx
+          tx,
+          createdBy: userEmail,
         });
       },
       {
