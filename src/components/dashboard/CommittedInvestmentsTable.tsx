@@ -301,11 +301,11 @@ function InvColumnFilterDropdown({
     <div ref={panelRef} className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[100] w-64" style={panelStyle}>
       <div className="border-b border-gray-100 p-2 space-y-1">
         <button onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}>
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}>
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
       </div>
@@ -316,10 +316,10 @@ function InvColumnFilterDropdown({
             {uniqueValues.length > 6 && (
               <input ref={searchRef} type="text" placeholder="Search..." value={localSearch}
                 onChange={e => setLocalSearch(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-[#2d1b4e]" />
+                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-brand-purple-deep" />
             )}
             <div className="flex items-center justify-between mb-1 px-1">
-              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-[#2d1b4e] hover:underline">Select All</button>
+              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple-deep hover:underline">Select All</button>
               <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
@@ -340,25 +340,25 @@ function InvColumnFilterDropdown({
         {filterType === 'dateRange' && (
           <div className="space-y-2">
             <div><label className="block text-[10px] text-gray-500 mb-1">From</label>
-              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
             <div><label className="block text-[10px] text-gray-500 mb-1">To</label>
-              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
           </div>
         )}
 
         {filterType === 'amountRange' && (
           <div className="space-y-2">
             <div><label className="block text-[10px] text-gray-500 mb-1">Min</label>
-              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
             <div><label className="block text-[10px] text-gray-500 mb-1">Max</label>
-              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
           </div>
         )}
 
         {filterType === 'search' && (
           <input ref={searchRef} type="text" placeholder="Search..." value={localTerm}
             onChange={e => setLocalTerm(e.target.value)}
-            className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
         )}
       </div>
 
@@ -366,7 +366,7 @@ function InvColumnFilterDropdown({
         <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
         <div className="flex gap-2">
           <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
-          <button onClick={handleApply} className="px-3 py-1 text-xs bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e]">Apply</button>
+          <button onClick={handleApply} className="px-3 py-1 text-xs bg-brand-purple-deep text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
     </div>,
@@ -397,15 +397,15 @@ function InvFilterableHeader({
   const hasFilter = !!columnFilter;
 
   return (
-    <th className={`px-2 py-2.5 text-xs font-semibold select-none ${className || ''}`}>
+    <th className={`px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 select-none ${className || ''}`}>
       <span className="flex items-center gap-0.5">
-        <span className="cursor-pointer hover:underline truncate" onClick={() => onSort(field)}>
+        <span className="cursor-pointer hover:underline hover:text-white truncate" onClick={() => onSort(field)}>
           {label}
           {isSortActive && <span className="text-[10px] ml-0.5">{sortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
         </span>
         <button ref={btnRef} onClick={e => { e.stopPropagation(); setOpen(!open); }}
-          className={`ml-auto w-4 h-4 flex items-center justify-center rounded text-[9px] flex-shrink-0 ${
-            hasFilter ? 'text-amber-400 bg-amber-400/20' : 'text-white/40 hover:text-white/80 hover:bg-white/10'
+          className={`ml-auto w-3.5 h-3.5 flex items-center justify-center rounded text-[8px] flex-shrink-0 ${
+            hasFilter ? 'text-amber-400 bg-amber-400/20' : 'text-white/30 hover:text-white/70 hover:bg-white/10'
           }`}>
           {'\u25BC'}
         </button>
@@ -441,7 +441,7 @@ export default function CommittedInvestmentsTable({
   massUncommitInvestments,
 }: CommittedInvestmentsTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 44;
+  const ROW_HEIGHT = 32;
 
   // State
   const [search, setSearch] = useState('');
@@ -523,37 +523,37 @@ export default function CommittedInvestmentsTable({
   return (
     <div className="mt-6">
       {/* Header */}
-      <div className="bg-[#2d1b4e] text-white px-4 py-3 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">Committed Investment Transactions</h3>
-          <p className="text-[10px] text-gray-300 font-mono">
-            {filtered.length === txns.length ? txns.length : `${filtered.length} of ${txns.length}`} transactions
-            {selectedCommittedInvestments.length > 0 && ` \u00B7 ${selectedCommittedInvestments.length} selected`}
-          </p>
+      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-terminal-sm font-mono font-semibold uppercase tracking-wider">Committed Investments</span>
+          <span className="text-terminal-xs text-white/50 font-mono">
+            {filtered.length === txns.length ? txns.length : `${filtered.length}/${txns.length}`}
+            {selectedCommittedInvestments.length > 0 && ` \u00B7 ${selectedCommittedInvestments.length} sel`}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {selectedCommittedInvestments.length > 0 && (
             <button onClick={massUncommitInvestments}
-              className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors">
-              Uncommit ({selectedCommittedInvestments.length})
+              className="px-2 py-0.5 bg-brand-red hover:bg-red-600 text-white text-terminal-xs font-mono rounded transition-colors">
+              UNCOMMIT ({selectedCommittedInvestments.length})
             </button>
           )}
         </div>
       </div>
 
       {/* Search + filter pills */}
-      <div className="bg-gray-50 border-x border-gray-200 px-4 py-2 space-y-2">
+      <div className="bg-bg-terminal border-x border-border px-3 py-1.5 space-y-1">
         <div className="flex items-center gap-2">
           <input
             type="text"
             placeholder="Search symbol, name, strategy, COA, trade#..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]"
+            className="flex-1 px-2 py-1 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple"
           />
           {(search || activeColFilterCount > 0) && (
             <button onClick={() => { setSearch(''); setColumnFilters({}); }}
-              className="px-2 py-1.5 text-[10px] text-red-500 hover:text-red-700">
+              className="px-1.5 py-0.5 text-terminal-xs font-mono text-brand-red hover:text-red-700">
               Clear All
             </button>
           )}
@@ -582,11 +582,11 @@ export default function CommittedInvestmentsTable({
       </div>
 
       {/* Virtualized Table */}
-      <div ref={parentRef} className="overflow-auto border border-gray-200 border-t-0" style={{ maxHeight: '600px' }}>
-        <table className="w-full text-xs border-collapse min-w-[1800px]">
-          <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+      <div ref={parentRef} className="overflow-auto border border-border border-t-0" style={{ maxHeight: '600px' }}>
+        <table className="w-full text-terminal-base border-collapse min-w-[1800px]">
+          <thead className="bg-brand-purple text-white sticky top-0 z-10">
             <tr>
-              <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
+              <th className="px-2 py-1 w-10 sticky left-0 bg-brand-purple z-20">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3.5 h-3.5 rounded" />
               </th>
               <InvFilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={handleSort}
@@ -611,14 +611,14 @@ export default function CommittedInvestmentsTable({
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.accountCode} onApplyColumnFilter={handleApplyColumnFilter} className="w-20" />
               <InvFilterableHeader label="Trade #" field="tradeNum" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="checkbox" allTransactions={txns} columnFilter={columnFilters.tradeNum} onApplyColumnFilter={handleApplyColumnFilter} className="w-16 text-center" />
-              <th className="px-2 py-2.5 text-xs font-semibold w-20">JE ID</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-28">DR Acct</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-28">CR Acct</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-10 text-center">D=C</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-20">Entity</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-24">By</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-20">At</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">JE ID</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">DR ACCT</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">CR ACCT</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-10 text-center">D=C</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">ENTITY</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-24">BY</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">AT</th>
+              <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
             </tr>
           </thead>
           <tbody>
@@ -634,17 +634,17 @@ export default function CommittedInvestmentsTable({
               const symbol = getSymbol(txn);
               const action = getAction(txn);
               const isOption = !!(txn.security?.option_contract_type);
-              const rowBg = isSelected ? 'bg-[#2d1b4e]/5' : vRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+              const rowBg = isSelected ? 'bg-brand-purple-wash' : vRow.index % 2 === 0 ? 'bg-white' : 'bg-bg-row';
 
               return (
                 <tr key={txn.id} data-index={vRow.index}
-                  className={`${rowBg} hover:bg-[#2d1b4e]/[.07] transition-colors`}
+                  className={`${rowBg} hover:bg-brand-purple-deep/[.07] border-b border-border-light transition-colors`}
                   style={{ height: ROW_HEIGHT }}>
-                  <td className="px-2 py-1 sticky left-0 z-[5]" style={{ background: 'inherit' }}>
+                  <td className="px-1.5 py-0.5 sticky left-0 z-[5]" style={{ background: 'inherit' }}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleOne(txn.id)} className="w-3.5 h-3.5 rounded" />
                   </td>
-                  <td className="px-2 py-1 text-gray-600 whitespace-nowrap font-mono">{formatDate(txn.date)}</td>
-                  <td className="px-2 py-1 font-medium text-gray-900">
+                  <td className="px-1.5 py-0.5 text-text-muted whitespace-nowrap font-mono">{formatDate(txn.date)}</td>
+                  <td className="px-1.5 py-0.5 font-medium text-text-primary">
                     {symbol}
                     {isOption && (
                       <span className={`ml-1 text-[9px] px-1 py-0.5 rounded ${
@@ -654,62 +654,62 @@ export default function CommittedInvestmentsTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-1">
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                  <td className="px-1.5 py-0.5">
+                    <span className={`text-terminal-xs font-medium px-1 py-0 rounded ${
                       action === 'BUY' ? 'bg-blue-100 text-blue-700' :
                       action === 'SELL' ? 'bg-orange-100 text-orange-700' :
                       action === 'EXERCISE' || action === 'ASSIGN' ? 'bg-purple-100 text-purple-700' :
-                      action === 'EXPIRE' ? 'bg-gray-100 text-gray-600' :
+                      action === 'EXPIRE' ? 'bg-bg-row text-text-muted' :
                       action === 'DIV' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-600'
+                      'bg-bg-row text-text-muted'
                     }`}>
                       {action}
                     </span>
                   </td>
-                  <td className="px-2 py-1 text-gray-800 truncate" title={txn.name}>
+                  <td className="px-1.5 py-0.5 text-text-primary truncate" title={txn.name}>
                     {txn.name}
                     {isOption && txn.security?.option_strike_price && (
-                      <span className="text-gray-400 ml-1 text-[10px]">
+                      <span className="text-text-faint ml-1 text-terminal-xs">
                         ${txn.security.option_strike_price} {txn.security.option_expiration_date ? new Date(txn.security.option_expiration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-1 text-right font-mono text-gray-700">{txn.quantity != null ? Math.abs(txn.quantity) : '\u2014'}</td>
-                  <td className="px-2 py-1 text-right font-mono text-gray-700">{txn.price != null ? `$${txn.price.toFixed(2)}` : '\u2014'}</td>
-                  <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
-                    <span className={(txn.amount || 0) > 0 ? 'text-red-700' : 'text-green-700'}>
+                  <td className="px-1.5 py-0.5 text-right font-mono text-text-secondary">{txn.quantity != null ? Math.abs(txn.quantity) : '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 text-right font-mono text-text-secondary">{txn.price != null ? `$${txn.price.toFixed(2)}` : '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 text-right font-mono font-semibold whitespace-nowrap">
+                    <span className={(txn.amount || 0) > 0 ? 'text-brand-red' : 'text-brand-green'}>
                       {(txn.amount || 0) > 0 ? '-' : '+'}{formatMoney(txn.amount || 0)}
                     </span>
                   </td>
-                  <td className="px-2 py-1 text-right font-mono text-gray-500">{txn.fees ? `$${txn.fees.toFixed(2)}` : '\u2014'}</td>
-                  <td className="px-2 py-1 text-gray-700 truncate">{txn.strategy || '\u2014'}</td>
-                  <td className="px-2 py-1 font-mono text-green-700 text-[11px]">{txn.accountCode || '\u2014'}</td>
-                  <td className="px-2 py-1 text-center font-mono">{txn.tradeNum || '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 text-right font-mono text-text-faint">{txn.fees ? `$${txn.fees.toFixed(2)}` : '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 text-text-secondary truncate">{txn.strategy || '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 font-mono text-brand-green text-terminal-base">{txn.accountCode || '\u2014'}</td>
+                  <td className="px-1.5 py-0.5 text-center font-mono text-text-muted">{txn.tradeNum || '\u2014'}</td>
                   {/* JE Proof columns */}
                   {(() => {
                     const jp = txn.journalProof;
                     const balanced = isProofBalanced(jp);
                     return (
                       <>
-                        <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap" style={{ color: '#3b2d6b' }} title={jp?.jeId || ''}>
+                        <td className="px-1.5 py-0.5 font-mono text-terminal-xs text-brand-purple whitespace-nowrap" title={jp?.jeId || ''}>
                           {jp?.jeId ? jp.jeId.slice(0, 8) : '\u2014'}
                         </td>
-                        <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofDrAccounts(jp)}>
+                        <td className="px-1.5 py-0.5 text-terminal-xs text-text-secondary truncate" title={getProofDrAccounts(jp)}>
                           {getProofDrAccounts(jp)}
                         </td>
-                        <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofCrAccounts(jp)}>
+                        <td className="px-1.5 py-0.5 text-terminal-xs text-text-secondary truncate" title={getProofCrAccounts(jp)}>
                           {getProofCrAccounts(jp)}
                         </td>
-                        <td className="px-2 py-1 text-center text-[11px]">
-                          {balanced === null ? '\u2014' : balanced ? <span className="text-green-600 font-bold">{'\u2713'}</span> : <span className="text-red-600 font-bold">{'\u2717'}</span>}
+                        <td className="px-1.5 py-0.5 text-center text-terminal-sm">
+                          {balanced === null ? '\u2014' : balanced ? <span className="text-brand-green font-bold">{'\u2713'}</span> : <span className="text-brand-red font-bold">{'\u2717'}</span>}
                         </td>
-                        <td className="px-2 py-1 text-[10px] text-gray-600 truncate">{jp?.entityName || '\u2014'}</td>
-                        <td className="px-2 py-1 text-[10px] text-gray-600 truncate" title={jp?.createdBy || ''}>
+                        <td className="px-1.5 py-0.5 text-terminal-xs text-text-muted truncate">{jp?.entityName || '\u2014'}</td>
+                        <td className="px-1.5 py-0.5 text-terminal-xs text-text-muted truncate" title={jp?.createdBy || ''}>
                           {jp?.createdBy || '\u2014'}
                         </td>
-                        <td className="px-2 py-1 text-[10px] text-gray-500 font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
-                        <td className="px-2 py-1 text-center" title="Immutable (trigger-enforced)">
-                          <span style={{ color: '#b8960f' }}>{'\uD83D\uDD12'}</span>
+                        <td className="px-1.5 py-0.5 text-terminal-xs text-text-faint font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
+                        <td className="px-1.5 py-0.5 text-center" title="Immutable (trigger-enforced)">
+                          <span className="text-brand-gold">{'\uD83D\uDD12'}</span>
                         </td>
                       </>
                     );
@@ -728,7 +728,7 @@ export default function CommittedInvestmentsTable({
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-gray-400 text-xs">
+          <div className="px-4 py-6 text-center text-text-faint text-terminal-sm font-mono">
             {search || activeColFilterCount > 0 ? 'No transactions match your filters.' : 'No committed investment transactions.'}
           </div>
         )}

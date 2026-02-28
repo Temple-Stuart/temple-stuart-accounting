@@ -291,7 +291,7 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
       <button
         onClick={() => setOpen(!open)}
         className={`px-3 py-1.5 text-xs border rounded-lg flex items-center gap-1 transition-colors ${
-          selected.length > 0 ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' : 'bg-white hover:border-gray-400'
+          selected.length > 0 ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'
         }`}
       >
         {label} {selected.length > 0 && <span className="px-1 py-0.5 bg-white/20 rounded text-[10px]">{selected.length}</span>}
@@ -328,7 +328,7 @@ function SortHeader({ label, field, currentField, currentDir, onSort, className 
   const isActive = currentField === field;
   return (
     <th
-      className={`px-2 py-2.5 text-xs font-semibold cursor-pointer select-none hover:bg-[#3d2b5e] transition-colors ${className}`}
+      className={`px-2 py-2.5 text-xs font-semibold cursor-pointer select-none hover:bg-brand-purple-hover transition-colors ${className}`}
       onClick={() => onSort(field)}
     >
       <span className="flex items-center gap-1">
@@ -373,7 +373,7 @@ function CreateCoaModal({ onClose, onCreate }: {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="bg-[#2d1b4e] text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
+        <div className="bg-brand-purple-deep text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
           <span className="text-sm font-semibold">Create New COA Account</span>
           <button onClick={onClose} className="text-white/60 hover:text-white text-lg">×</button>
         </div>
@@ -551,13 +551,13 @@ function ColumnFilterDropdown({
       <div className="border-b border-gray-100 p-2 space-y-1">
         <button
           onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}
         >
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button
           onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}
         >
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
@@ -574,11 +574,11 @@ function ColumnFilterDropdown({
                 placeholder="Search..."
                 value={localSearch}
                 onChange={e => setLocalSearch(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-[#2d1b4e]"
+                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-brand-purple-deep"
               />
             )}
             <div className="flex items-center justify-between mb-1 px-1">
-              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-[#2d1b4e] hover:underline">Select All</button>
+              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple-deep hover:underline">Select All</button>
               <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
@@ -611,11 +611,11 @@ function ColumnFilterDropdown({
           <div className="space-y-2">
             <div>
               <label className="block text-[10px] text-gray-500 mb-1">From</label>
-              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
               <label className="block text-[10px] text-gray-500 mb-1">To</label>
-              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
         )}
@@ -624,17 +624,17 @@ function ColumnFilterDropdown({
           <div className="space-y-2">
             <div>
               <label className="block text-[10px] text-gray-500 mb-1">Min ($)</label>
-              <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+              <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
               <label className="block text-[10px] text-gray-500 mb-1">Max ($)</label>
-              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
         )}
 
         {filterType === 'search' && (
-          <input ref={searchRef} type="text" placeholder="Search descriptions..." value={localTerm} onChange={e => setLocalTerm(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+          <input ref={searchRef} type="text" placeholder="Search descriptions..." value={localTerm} onChange={e => setLocalTerm(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
         )}
       </div>
 
@@ -643,7 +643,7 @@ function ColumnFilterDropdown({
         <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
         <div className="flex gap-2">
           <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
-          <button onClick={handleApply} className="px-3 py-1 text-xs bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e]">Apply</button>
+          <button onClick={handleApply} className="px-3 py-1 text-xs bg-brand-purple-deep text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
     </div>,
@@ -676,10 +676,10 @@ function FilterableHeader({
   const hasFilter = !!columnFilter;
 
   return (
-    <th className={`px-2 py-2.5 text-xs font-semibold select-none ${className || ''}`}>
+    <th className={`px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 select-none ${className || ''}`}>
       <span className="flex items-center gap-0.5">
         <span
-          className="cursor-pointer hover:underline truncate"
+          className="cursor-pointer hover:underline hover:text-white truncate"
           onClick={() => onSort(field)}
         >
           {label}
@@ -688,10 +688,10 @@ function FilterableHeader({
         <button
           ref={btnRef}
           onClick={e => { e.stopPropagation(); setOpen(!open); }}
-          className={`ml-auto w-4 h-4 flex items-center justify-center rounded text-[9px] flex-shrink-0 ${
+          className={`ml-auto w-3.5 h-3.5 flex items-center justify-center rounded text-[8px] flex-shrink-0 ${
             hasFilter
               ? 'text-amber-400 bg-amber-400/20'
-              : 'text-white/40 hover:text-white/80 hover:bg-white/10'
+              : 'text-white/30 hover:text-white/70 hover:bg-white/10'
           }`}
         >
           {'\u25BC'}
@@ -787,7 +787,7 @@ function VirtualTable({
   onApplyColumnFilter: (field: SortField, value: ColumnFilterValue | undefined) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 48;
+  const ROW_HEIGHT = 32;
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -824,10 +824,10 @@ function VirtualTable({
 
   return (
     <div ref={parentRef} className="overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className={`w-full text-xs border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
-        <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+      <table className={`w-full text-terminal-base border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
+        <thead className="bg-brand-purple text-white sticky top-0 z-10">
           <tr>
-            <th className="px-2 py-2.5 w-10 sticky left-0 bg-[#2d1b4e] z-20">
+            <th className="px-2 py-1 w-10 sticky left-0 bg-brand-purple z-20">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3.5 h-3.5 rounded" />
             </th>
             <FilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="dateRange" allTransactions={allTransactions} columnFilter={columnFilters.date} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24" />
@@ -836,17 +836,17 @@ function VirtualTable({
             <FilterableHeader label="Amount" field="amount" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="amountRange" allTransactions={allTransactions} columnFilter={columnFilters.amount} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24 text-right" />
             <FilterableHeader label="Account" field="accountName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.accountName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
             <FilterableHeader label="Institution" field="institutionName" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="checkbox" allTransactions={allTransactions} columnFilter={columnFilters.institutionName} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-28" />
-            <th className="px-2 py-2.5 text-xs font-semibold min-w-[180px]">COA</th>
+            <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 min-w-[180px]">COA</th>
             {variant === 'committed' && (
               <>
-                <th className="px-2 py-2.5 text-xs font-semibold w-20">JE ID</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-28">DR Acct</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-28">CR Acct</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-10 text-center">D=C</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-20">Entity</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-24">By</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-20">At</th>
-                <th className="px-2 py-2.5 text-xs font-semibold w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">JE ID</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">DR ACCT</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">CR ACCT</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-10 text-center">D=C</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">ENTITY</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-24">BY</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">AT</th>
+                <th className="px-2 py-1 text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-8 text-center" title="Trigger-enforced immutability">{'\uD83D\uDD12'}</th>
               </>
             )}
           </tr>
@@ -862,50 +862,50 @@ function VirtualTable({
             const txn = rows[vRow.index];
             const isSelected = selected.has(txn.id);
             const rowBg = isSelected
-              ? 'bg-[#2d1b4e]/5'
+              ? 'bg-brand-purple-wash'
               : vRow.index % 2 === 0
                 ? 'bg-white'
-                : 'bg-gray-50/50';
+                : 'bg-bg-row';
 
             return (
               <tr
                 key={txn.id}
                 data-index={vRow.index}
-                className={`${rowBg} hover:bg-[#2d1b4e]/[.07] transition-colors`}
+                className={`${rowBg} hover:bg-brand-purple-deep/[.07] border-b border-border-light transition-colors`}
                 style={{ height: ROW_HEIGHT }}
               >
                 {/* Checkbox */}
-                <td className="px-2 py-1 sticky left-0 z-[5]" style={{ background: 'inherit' }}>
+                <td className="px-1.5 py-0.5 sticky left-0 z-[5]" style={{ background: 'inherit' }}>
                   <input type="checkbox" checked={isSelected} onChange={() => toggleOne(txn.id)} className="w-3.5 h-3.5 rounded" />
                 </td>
                 {/* Date */}
-                <td className="px-2 py-1 text-gray-600 whitespace-nowrap font-mono">{formatDate(txn.date)}</td>
+                <td className="px-1.5 py-0.5 text-text-muted whitespace-nowrap font-mono">{formatDate(txn.date)}</td>
                 {/* Merchant */}
-                <td className="px-2 py-1">
-                  <div className="flex items-center gap-1.5">
-                    {txn.logo_url && <img src={txn.logo_url} alt="" className="w-4 h-4 rounded-sm flex-shrink-0" />}
-                    <span className="truncate text-gray-900">{txn.merchantName || '\u2014'}</span>
+                <td className="px-1.5 py-0.5">
+                  <div className="flex items-center gap-1">
+                    {txn.logo_url && <img src={txn.logo_url} alt="" className="w-3.5 h-3.5 rounded-sm flex-shrink-0" />}
+                    <span className="truncate text-text-primary">{txn.merchantName || '\u2014'}</span>
                   </div>
                 </td>
                 {/* Description */}
-                <td className="px-2 py-1 text-gray-800">{txn.name}</td>
+                <td className="px-1.5 py-0.5 text-text-primary truncate">{txn.name}</td>
                 {/* Amount */}
-                <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
-                  <span className={txn.amount > 0 ? 'text-red-700' : 'text-green-700'}>
+                <td className="px-1.5 py-0.5 text-right font-mono font-semibold whitespace-nowrap">
+                  <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
                     {txn.amount > 0 ? '-' : '+'}{formatMoney(txn.amount)}
                   </span>
                 </td>
                 {/* Account */}
-                <td className="px-2 py-1 text-gray-600 truncate">{txn.accountName || '\u2014'}</td>
+                <td className="px-1.5 py-0.5 text-text-secondary truncate">{txn.accountName || '\u2014'}</td>
                 {/* Institution */}
-                <td className="px-2 py-1 text-gray-600 truncate">{txn.institutionName || '\u2014'}</td>
+                <td className="px-1.5 py-0.5 text-text-secondary truncate">{txn.institutionName || '\u2014'}</td>
                 {/* COA dropdown */}
-                <td className="px-2 py-1">
+                <td className="px-1.5 py-0.5">
                   {variant === 'pending' ? (
                     <select
                       value={rowChanges[txn.id]?.coa || ''}
                       onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                      className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-1 bg-white focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e] outline-none"
+                      className="w-full text-terminal-base font-mono border border-border rounded px-1 py-0.5 bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple outline-none"
                     >
                       <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -916,10 +916,10 @@ function VirtualTable({
                       <option value="__NEW__">+ Add Category</option>
                     </select>
                   ) : (
-                    <span className="font-mono text-green-700 text-[11px]">
+                    <span className="font-mono text-brand-green text-terminal-base">
                       {txn.accountCode}
                       {txn.accountCode && coaLookup.get(txn.accountCode) && (
-                        <span className="text-gray-400 ml-1">{coaLookup.get(txn.accountCode)!.name}</span>
+                        <span className="text-text-faint ml-1">{coaLookup.get(txn.accountCode)!.name}</span>
                       )}
                     </span>
                   )}
@@ -930,25 +930,25 @@ function VirtualTable({
                   const balanced = isProofBalanced(jp);
                   return (
                     <>
-                      <td className="px-2 py-1 font-mono text-[10px] whitespace-nowrap" style={{ color: '#3b2d6b' }} title={jp?.jeId || ''}>
+                      <td className="px-1.5 py-0.5 font-mono text-terminal-xs text-brand-purple whitespace-nowrap" title={jp?.jeId || ''}>
                         {jp?.jeId ? jp.jeId.slice(0, 8) : '\u2014'}
                       </td>
-                      <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofDrAccounts(jp)}>
+                      <td className="px-1.5 py-0.5 text-terminal-xs text-text-secondary truncate" title={getProofDrAccounts(jp)}>
                         {getProofDrAccounts(jp)}
                       </td>
-                      <td className="px-2 py-1 text-[10px] text-gray-700 truncate" title={getProofCrAccounts(jp)}>
+                      <td className="px-1.5 py-0.5 text-terminal-xs text-text-secondary truncate" title={getProofCrAccounts(jp)}>
                         {getProofCrAccounts(jp)}
                       </td>
-                      <td className="px-2 py-1 text-center text-[11px]">
-                        {balanced === null ? '\u2014' : balanced ? <span className="text-green-600 font-bold">{'\u2713'}</span> : <span className="text-red-600 font-bold">{'\u2717'}</span>}
+                      <td className="px-1.5 py-0.5 text-center text-terminal-sm">
+                        {balanced === null ? '\u2014' : balanced ? <span className="text-brand-green font-bold">{'\u2713'}</span> : <span className="text-brand-red font-bold">{'\u2717'}</span>}
                       </td>
-                      <td className="px-2 py-1 text-[10px] text-gray-600 truncate">{jp?.entityName || '\u2014'}</td>
-                      <td className="px-2 py-1 text-[10px] text-gray-600 truncate" title={jp?.createdBy || ''}>
+                      <td className="px-1.5 py-0.5 text-terminal-xs text-text-muted truncate">{jp?.entityName || '\u2014'}</td>
+                      <td className="px-1.5 py-0.5 text-terminal-xs text-text-muted truncate" title={jp?.createdBy || ''}>
                         {jp?.createdBy || '\u2014'}
                       </td>
-                      <td className="px-2 py-1 text-[10px] text-gray-500 font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
-                      <td className="px-2 py-1 text-center" title="Immutable (trigger-enforced)">
-                        <span style={{ color: '#b8960f' }}>{'\uD83D\uDD12'}</span>
+                      <td className="px-1.5 py-0.5 text-terminal-xs text-text-faint font-mono whitespace-nowrap">{formatProofDate(jp?.createdAt)}</td>
+                      <td className="px-1.5 py-0.5 text-center" title="Immutable (trigger-enforced)">
+                        <span className="text-brand-gold">{'\uD83D\uDD12'}</span>
                       </td>
                     </>
                   );
@@ -1021,14 +1021,14 @@ function MerchantGroupTable({
 
   return (
     <div className="overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className="w-full text-xs border-collapse min-w-[1000px]">
-        <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+      <table className="w-full text-terminal-base border-collapse min-w-[1000px]">
+        <thead className="bg-brand-purple text-white sticky top-0 z-10">
           <tr>
-            <th className="px-2 py-2.5 w-10"></th>
-            <th className="px-2 py-2.5 text-left font-semibold">Merchant</th>
-            <th className="px-2 py-2.5 text-right font-semibold w-16">Count</th>
-            <th className="px-2 py-2.5 text-right font-semibold w-28">Total</th>
-            <th className="px-2 py-2.5 text-left font-semibold min-w-[180px]">Batch COA</th>
+            <th className="px-2 py-1 w-10"></th>
+            <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70">MERCHANT</th>
+            <th className="px-2 py-1 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-16">COUNT</th>
+            <th className="px-2 py-1 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">TOTAL</th>
+            <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 min-w-[180px]">BATCH COA</th>
           </tr>
         </thead>
         <tbody>
@@ -1039,44 +1039,44 @@ function MerchantGroupTable({
 
             return (
               <Fragment key={merchant}>
-                <tr className="bg-gray-100 border-b border-gray-200 hover:bg-gray-200 cursor-pointer" onClick={() => toggleGroup(merchant)}>
-                  <td className="px-2 py-2" onClick={e => { e.stopPropagation(); selectGroup(txns, allSel); }}>
+                <tr className="bg-bg-row border-b border-border hover:bg-brand-purple-wash cursor-pointer" onClick={() => toggleGroup(merchant)}>
+                  <td className="px-2 py-1" onClick={e => { e.stopPropagation(); selectGroup(txns, allSel); }}>
                     <input type="checkbox" checked={allSel} onChange={() => selectGroup(txns, allSel)} className="w-3.5 h-3.5 rounded" />
                   </td>
-                  <td className="px-2 py-2 font-medium text-gray-900">
-                    <span className="text-[10px] text-gray-400 mr-1.5">{isCollapsed ? '▶' : '▼'}</span>
+                  <td className="px-2 py-1 font-medium text-text-primary">
+                    <span className="text-terminal-xs text-text-faint mr-1.5">{isCollapsed ? '\u25B6' : '\u25BC'}</span>
                     {merchant}
                   </td>
-                  <td className="px-2 py-2 text-right font-mono text-gray-600">{txns.length}</td>
-                  <td className="px-2 py-2 text-right font-mono font-medium">{formatMoney(total)}</td>
-                  <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                  <td className="px-2 py-1 text-right font-mono text-text-secondary">{txns.length}</td>
+                  <td className="px-2 py-1 text-right font-mono font-semibold">{formatMoney(total)}</td>
+                  <td className="px-2 py-1" onClick={e => e.stopPropagation()}>
                     {/* placeholder for group-level COA if needed */}
                   </td>
                 </tr>
                 {!isCollapsed && txns.map((txn, i) => (
-                  <tr key={txn.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-[#2d1b4e]/[.05]`}>
-                    <td className="px-2 py-1.5 pl-6">
+                  <tr key={txn.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-bg-row'} hover:bg-brand-purple-deep/[.05] border-b border-border-light`}>
+                    <td className="px-1.5 py-0.5 pl-6">
                       <input type="checkbox" checked={selected.has(txn.id)} onChange={() => setSelected(prev => {
                         const next = new Set(prev);
                         if (next.has(txn.id)) next.delete(txn.id); else next.add(txn.id);
                         return next;
                       })} className="w-3.5 h-3.5 rounded" />
                     </td>
-                    <td className="px-2 py-1.5 text-gray-600" colSpan={1}>
-                      <span className="font-mono text-gray-400 mr-2">{formatDate(txn.date)}</span>
+                    <td className="px-1.5 py-0.5 text-text-secondary" colSpan={1}>
+                      <span className="font-mono text-text-faint mr-2">{formatDate(txn.date)}</span>
                       {txn.name}
                     </td>
-                    <td className="px-2 py-1.5 text-right font-mono text-gray-500">{txn.personal_finance_category?.primary || ''}</td>
-                    <td className="px-2 py-1.5 text-right font-mono">
-                      <span className={txn.amount > 0 ? 'text-red-700' : 'text-green-700'}>
+                    <td className="px-1.5 py-0.5 text-right font-mono text-text-muted">{txn.personal_finance_category?.primary || ''}</td>
+                    <td className="px-1.5 py-0.5 text-right font-mono font-semibold">
+                      <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
                         {formatMoney(txn.amount)}
                       </span>
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td className="px-1.5 py-0.5">
                       <select
                         value={rowChanges[txn.id]?.coa || ''}
                         onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                        className="w-full text-[11px] border border-gray-200 rounded px-1.5 py-1 bg-white"
+                        className="w-full text-terminal-base font-mono border border-border rounded px-1 py-0.5 bg-white"
                       >
                         <option value="">Select...</option>
                         {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -1368,13 +1368,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           )}
           <button
             onClick={() => setViewMode(viewMode === 'flat' ? 'merchant' : 'flat')}
-            className={`px-3 py-1.5 text-xs border rounded-lg transition-colors ${viewMode === 'merchant' ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' : 'bg-white hover:border-gray-400'}`}
+            className={`px-3 py-1.5 text-xs border rounded-lg transition-colors ${viewMode === 'merchant' ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'}`}
           >
             {viewMode === 'flat' ? 'Group by Merchant' : 'Flat View'}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-1.5 text-xs border rounded-lg transition-colors ${showFilters ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' : 'bg-white hover:border-gray-400'}`}
+            className={`px-3 py-1.5 text-xs border rounded-lg transition-colors ${showFilters ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'}`}
           >
             Filters
           </button>
@@ -1391,7 +1391,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               placeholder="Search name, merchant, category..."
               value={pendingFilters.search}
               onChange={e => setPendingFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="flex-1 min-w-[200px] px-3 py-1.5 text-xs border rounded-lg bg-white focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e] outline-none"
+              className="flex-1 min-w-[200px] px-3 py-1.5 text-xs border rounded-lg bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple outline-none"
             />
             {/* Multi-selects */}
             <MultiSelectFilter
@@ -1452,7 +1452,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && (
             <div className="flex flex-wrap gap-1.5">
               {pendingFilters.search && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2d1b4e]/10 text-[#2d1b4e] rounded-full text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-purple-deep/10 text-brand-purple-deep rounded-full text-[10px]">
                   Search: &quot;{pendingFilters.search}&quot;
                   <button onClick={() => removeFilterPill('search')} className="hover:text-red-500">{'\u00D7'}</button>
                 </span>
@@ -1535,7 +1535,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               ) : (
                 <>
                   <p className="text-sm">No transactions match current filters</p>
-                  <button onClick={() => { setPendingFilters(EMPTY_FILTERS); setPendingColFilters(EMPTY_COL_FILTERS); }} className="text-xs text-[#2d1b4e] mt-2 underline">Clear filters</button>
+                  <button onClick={() => { setPendingFilters(EMPTY_FILTERS); setPendingColFilters(EMPTY_COL_FILTERS); }} className="text-xs text-brand-purple-deep mt-2 underline">Clear filters</button>
                 </>
               )}
             </div>
@@ -1582,7 +1582,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               placeholder="Search committed..."
               value={committedFilters.search}
               onChange={e => setCommittedFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="flex-1 max-w-xs px-3 py-1.5 text-xs border rounded-lg bg-white focus:border-[#2d1b4e] outline-none"
+              className="flex-1 max-w-xs px-3 py-1.5 text-xs border rounded-lg bg-white focus:border-brand-purple-deep outline-none"
             />
             {hasActiveFilters(committedFilters) && (
               <button onClick={() => setCommittedFilters(EMPTY_FILTERS)} className="text-xs text-red-500">Clear search</button>
@@ -1630,7 +1630,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
       {/* Batch Commit Bar (sticky bottom when pending selected) */}
       {selectedPending.size > 0 && activeTable === 'pending' && (
-        <div className="sticky bottom-0 left-0 right-0 bg-[#2d1b4e] text-white p-3 rounded-lg shadow-lg z-20">
+        <div className="sticky bottom-0 left-0 right-0 bg-brand-purple-deep text-white p-3 rounded-lg shadow-lg z-20">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs font-medium">
               {selectedPending.size} transaction{selectedPending.size !== 1 ? 's' : ''} selected
@@ -1642,7 +1642,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                 if (e.target.value === '__NEW__') { setShowCreateCoa(true); return; }
                 setBatchCoa(e.target.value);
               }}
-              className="flex-1 min-w-[200px] bg-[#3d2b5e] text-white border-0 text-xs px-3 py-2 rounded"
+              className="flex-1 min-w-[200px] bg-brand-purple-hover text-white border-0 text-xs px-3 py-2 rounded"
             >
               <option value="">Select COA...</option>
               {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -1657,7 +1657,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               placeholder="Sub-account (optional)"
               value={batchSub}
               onChange={e => setBatchSub(e.target.value)}
-              className="w-40 bg-[#3d2b5e] text-white border-0 text-xs px-3 py-2 rounded placeholder-white/40"
+              className="w-40 bg-brand-purple-hover text-white border-0 text-xs px-3 py-2 rounded placeholder-white/40"
             />
             <Button
               size="sm"
