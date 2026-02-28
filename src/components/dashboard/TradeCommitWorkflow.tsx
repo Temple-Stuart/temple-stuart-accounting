@@ -531,23 +531,23 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   const TxnSortHeader = ({ label, field, className = '' }: { label: string; field: TxnSortField; className?: string }) => {
     const isActive = txnSortField === field;
     return (
-      <th className={`px-2 py-2 text-xs font-semibold cursor-pointer select-none hover:bg-[#3d2b5e] transition-colors ${className}`}
+      <th className={`py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold cursor-pointer select-none hover:bg-brand-purple-hover transition-colors ${className}`}
         onClick={() => handleTxnSort(field)}>
         <span className="flex items-center gap-1">
           {label}
-          {isActive && <span className="text-[10px]">{txnSortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
+          {isActive && <span className="text-terminal-xs">{txnSortDir === 'asc' ? '\u25B2' : '\u25BC'}</span>}
         </span>
       </th>
     );
   };
 
   if (loading) {
-    return <div className="p-6 bg-white border rounded-lg"><div className="animate-pulse">Loading...</div></div>;
+    return <div className="p-3 bg-white border border-border rounded"><div className="animate-pulse text-terminal-sm text-text-muted">Loading...</div></div>;
   }
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+      <div className="p-3 bg-red-50 border border-red-200 rounded">
         <div className="text-red-600">Error: {error}</div>
         <button onClick={fetchData} className="mt-2 text-blue-600 underline">Retry</button>
       </div>
@@ -557,43 +557,43 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   return (
     <div className="space-y-4">
       {/* Header with Tabs */}
-      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded">
         <div>
-          <h3 className="font-bold text-lg">📊 Trade Commit Workflow</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="font-semibold text-terminal-lg">Trade Commit Workflow</h3>
+          <p className="text-terminal-sm text-text-muted">
             {opens.length} opens • {closes.length} closes • {openTrades.length} open trades • Next #: {nextTradeNum}
           </p>
         </div>
         
-        <div className="flex gap-1 bg-white rounded-lg p-1 border">
+        <div className="flex gap-1 bg-white rounded p-1 border border-border">
           <button
             onClick={() => { setActiveTab('opens'); clearSelection(); setTxnSearch(''); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'opens' ? 'bg-green-100 text-green-700' : 'text-gray-600 hover:bg-gray-100'
+            className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
+              activeTab === 'opens' ? 'bg-green-100 text-green-700' : 'bg-bg-row text-text-muted'
             }`}
           >
             1. Opens ({opens.length})
           </button>
           <button
             onClick={() => { setActiveTab('closes'); clearSelection(); setTxnSearch(''); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'closes' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100'
+            className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
+              activeTab === 'closes' ? 'bg-red-100 text-red-700' : 'bg-bg-row text-text-muted'
             }`}
           >
             2. Closes ({closes.length})
           </button>
           <button
             onClick={() => { setActiveTab('trades'); clearSelection(); setTxnSearch(''); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'trades' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+            className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
+              activeTab === 'trades' ? 'bg-blue-100 text-blue-700' : 'bg-bg-row text-text-muted'
             }`}
           >
             3. Trades ({openTrades.length})
           </button>
           <button
             onClick={() => { setActiveTab('corporate-actions'); clearSelection(); setTxnSearch(''); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeTab === 'corporate-actions' ? 'bg-purple-100 text-purple-700' : 'text-gray-600 hover:bg-gray-100'
+            className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
+              activeTab === 'corporate-actions' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-muted'
             }`}
           >
             4. Corp Actions ({corporateActions.length})
@@ -606,16 +606,16 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         <>
           {/* Commit Controls */}
           {selectedIds.size > 0 && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg sticky top-0 z-10">
+            <div className="p-3 bg-green-50 border border-green-200 rounded sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-medium">{selectedIds.size} legs selected</span>
-                  <span className={`ml-3 ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="font-medium text-terminal-sm">{selectedIds.size} legs selected</span>
+                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
                     Net: ${Math.abs(selectedTotal).toFixed(2)} {selectedTotal < 0 ? 'CR' : 'DR'}
                   </span>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <select value={strategy} onChange={e => setStrategy(e.target.value)} className="border rounded px-3 py-2 text-sm">
+                  <select value={strategy} onChange={e => setStrategy(e.target.value)} className="border border-border rounded h-7 px-2 text-terminal-base font-mono">
                     <option value="">Strategy...</option>
                     {STRATEGY_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
@@ -624,16 +624,16 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                     value={tradeNum}
                     onChange={e => setTradeNum(e.target.value)}
                     placeholder="TICK-0001"
-                    className="border rounded px-3 py-2 text-sm w-32 text-center font-mono"
+                    className="border border-border rounded h-7 px-2 text-terminal-base font-mono w-32 text-center"
                   />
                   <button
                     onClick={commitOpens}
                     disabled={committing || !strategy || !tradeNum}
-                    className="px-4 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:bg-gray-400"
+                    className="px-4 py-2 bg-green-600 text-white rounded text-terminal-sm font-medium hover:bg-green-700 disabled:bg-text-faint"
                   >
                     {committing ? 'Committing...' : 'Open Position'}
                   </button>
-                  <button onClick={clearSelection} className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">Clear</button>
+                  <button onClick={clearSelection} className="px-3 py-2 text-text-muted hover:text-text-primary text-terminal-sm">Clear</button>
                 </div>
               </div>
             </div>
@@ -643,19 +643,19 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           <div className="mb-2">
             <input type="text" placeholder="Search by symbol, name, action..."
               value={txnSearch} onChange={e => setTxnSearch(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]" />
+              className="w-full h-7 px-2 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple" />
           </div>
 
           {/* Opens Table */}
-          <div ref={opensScrollRef} className="overflow-auto border border-gray-200 rounded-lg" style={{ maxHeight: '500px' }}>
-            <table className="w-full text-xs border-collapse min-w-[800px]">
-              <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+          <div ref={opensScrollRef} className="overflow-auto border border-border rounded" style={{ maxHeight: '500px' }}>
+            <table className="w-full text-terminal-base border-collapse min-w-[800px]">
+              <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
                 <tr>
-                  <th className="px-2 py-2 w-10"></th>
+                  <th className="py-1 px-2 w-10"></th>
                   <TxnSortHeader label="Date" field="date" className="w-24" />
                   <TxnSortHeader label="Symbol" field="ticker" className="w-20" />
                   <TxnSortHeader label="Action" field="action" className="w-20" />
-                  <th className="px-2 py-2 text-xs font-semibold text-left">Details</th>
+                  <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold text-left">Details</th>
                   <TxnSortHeader label="Qty" field="quantity" className="w-16 text-right" />
                   <TxnSortHeader label="Price" field="price" className="w-20 text-right" />
                   <TxnSortHeader label="Amount" field="amount" className="w-24 text-right" />
@@ -665,44 +665,44 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                 {filteredOpens.map((t, i) => {
                   const isSelected = selectedIds.has(t.id);
                   const ticker = t.underlying || t.ticker || 'UNKNOWN';
-                  const rowBg = isSelected ? 'bg-[#2d1b4e]/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+                  const rowBg = isSelected ? 'bg-brand-purple-wash' : i % 2 === 0 ? 'bg-white' : 'bg-bg-row';
                   return (
-                    <tr key={t.id} className={`${rowBg} hover:bg-[#2d1b4e]/[.07] cursor-pointer transition-colors`}
+                    <tr key={t.id} className={`${rowBg} hover:bg-bg-row cursor-pointer transition-colors border-b border-border-light`}
                       style={{ height: 40 }}
                       onClick={() => toggleSelect(t.id)}>
-                      <td className="px-2 py-1">
+                      <td className="py-1 px-2">
                         <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(t.id)} className="w-3.5 h-3.5 rounded" />
                       </td>
-                      <td className="px-2 py-1 font-mono text-gray-600 whitespace-nowrap">
+                      <td className="py-1 px-2 font-mono text-text-muted whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
-                      <td className="px-2 py-1 font-medium text-gray-900">{ticker}</td>
-                      <td className="px-2 py-1">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      <td className="py-1 px-2 font-medium text-terminal-base text-text-primary">{ticker}</td>
+                      <td className="py-1 px-2">
+                        <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
                           t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                         }`}>
                           {t.action.includes('sell') ? 'SELL' : 'BUY'}
                         </span>
                       </td>
-                      <td className="px-2 py-1 text-gray-700">
+                      <td className="py-1 px-2 text-terminal-base text-text-primary">
                         {t.isOption ? (
                           <span className="flex items-center gap-1">
                             <span className="font-mono">${t.strike}</span>
                             <span className={`text-[9px] px-1 rounded ${
                               t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
                             }`}>{t.optionType?.toUpperCase()}</span>
-                            <span className="text-gray-400 text-[10px]">{t.expiration}</span>
+                            <span className="text-text-muted text-terminal-xs">{t.expiration}</span>
                           </span>
                         ) : (
-                          <span className="text-gray-500 truncate text-[11px]">{t.name}</span>
+                          <span className="text-text-muted truncate text-terminal-base">{t.name}</span>
                         )}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-gray-700">{t.quantity}</td>
-                      <td className="px-2 py-1 text-right font-mono text-gray-700">${t.price?.toFixed(2)}</td>
-                      <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
+                      <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">{t.quantity}</td>
+                      <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">${t.price?.toFixed(2)}</td>
+                      <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap">
                         <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
                           ${Math.abs(t.amount).toFixed(2)}
-                          <span className="text-[10px] text-gray-400 ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
+                          <span className="text-terminal-xs text-text-muted ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
                         </span>
                       </td>
                     </tr>
@@ -711,13 +711,13 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
               </tbody>
             </table>
             {filteredOpens.length === 0 && (
-              <div className="p-8 text-center text-gray-400 text-xs">
+              <div className="p-8 text-center text-text-muted text-terminal-sm">
                 {txnSearch ? 'No opens match your search.' : 'No uncommitted opening transactions.'}
               </div>
             )}
           </div>
           {filteredOpens.length > 0 && (
-            <div className="text-[10px] text-gray-500 mt-1 px-1">
+            <div className="text-terminal-xs text-text-muted mt-1 px-1">
               {filteredOpens.length}{filteredOpens.length !== opens.length ? ` of ${opens.length}` : ''} transactions
               {' \u00B7 '}
               {sortedOpenTickers.length} symbols
@@ -731,16 +731,16 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
         <>
           {/* Commit Controls */}
           {selectedIds.size > 0 && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg sticky top-0 z-10">
+            <div className="p-3 bg-red-50 border border-red-200 rounded sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-medium">{selectedIds.size} closing legs selected</span>
-                  <span className={`ml-3 ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className="font-medium text-terminal-sm">{selectedIds.size} closing legs selected</span>
+                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
                     Net: ${Math.abs(selectedTotal).toFixed(2)} {selectedTotal < 0 ? 'CR' : 'DR'}
                   </span>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <select value={linkedTradeId} onChange={e => setLinkedTradeId(e.target.value)} className="border rounded px-3 py-2 text-sm min-w-[250px]">
+                  <select value={linkedTradeId} onChange={e => setLinkedTradeId(e.target.value)} className="border border-border rounded h-7 px-2 text-terminal-base font-mono min-w-[250px]">
                     <option value="">Link to open position...</option>
                     {openTrades.length > 0 && (
                       <optgroup label="Option Trades">
@@ -764,11 +764,11 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                   <button
                     onClick={commitCloses}
                     disabled={committing || !linkedTradeId}
-                    className="px-4 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 disabled:bg-gray-400"
+                    className="px-4 py-2 bg-red-600 text-white rounded text-terminal-sm font-medium hover:bg-red-700 disabled:bg-text-faint"
                   >
                     {committing ? 'Closing...' : 'Close Position'}
                   </button>
-                  <button onClick={clearSelection} className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">Clear</button>
+                  <button onClick={clearSelection} className="px-3 py-2 text-text-muted hover:text-text-primary text-terminal-sm">Clear</button>
                 </div>
               </div>
             </div>
@@ -778,19 +778,19 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           <div className="mb-2">
             <input type="text" placeholder="Search by symbol, name, action..."
               value={txnSearch} onChange={e => setTxnSearch(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]" />
+              className="w-full h-7 px-2 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple" />
           </div>
 
           {/* Closes Table */}
-          <div ref={closesScrollRef} className="overflow-auto border border-gray-200 rounded-lg" style={{ maxHeight: '500px' }}>
-            <table className="w-full text-xs border-collapse min-w-[800px]">
-              <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+          <div ref={closesScrollRef} className="overflow-auto border border-border rounded" style={{ maxHeight: '500px' }}>
+            <table className="w-full text-terminal-base border-collapse min-w-[800px]">
+              <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
                 <tr>
-                  <th className="px-2 py-2 w-10"></th>
+                  <th className="py-1 px-2 w-10"></th>
                   <TxnSortHeader label="Date" field="date" className="w-24" />
                   <TxnSortHeader label="Symbol" field="ticker" className="w-20" />
                   <TxnSortHeader label="Action" field="action" className="w-20" />
-                  <th className="px-2 py-2 text-xs font-semibold text-left">Details</th>
+                  <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold text-left">Details</th>
                   <TxnSortHeader label="Qty" field="quantity" className="w-16 text-right" />
                   <TxnSortHeader label="Price" field="price" className="w-20 text-right" />
                   <TxnSortHeader label="Amount" field="amount" className="w-24 text-right" />
@@ -800,20 +800,20 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                 {filteredCloses.map((t, i) => {
                   const isSelected = selectedIds.has(t.id);
                   const ticker = t.underlying || t.ticker || 'UNKNOWN';
-                  const rowBg = isSelected ? 'bg-[#2d1b4e]/5' : i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+                  const rowBg = isSelected ? 'bg-brand-purple-wash' : i % 2 === 0 ? 'bg-white' : 'bg-bg-row';
                   return (
-                    <tr key={t.id} className={`${rowBg} hover:bg-[#2d1b4e]/[.07] cursor-pointer transition-colors`}
+                    <tr key={t.id} className={`${rowBg} hover:bg-bg-row cursor-pointer transition-colors border-b border-border-light`}
                       style={{ height: 40 }}
                       onClick={() => toggleSelect(t.id)}>
-                      <td className="px-2 py-1">
+                      <td className="py-1 px-2">
                         <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(t.id)} className="w-3.5 h-3.5 rounded" />
                       </td>
-                      <td className="px-2 py-1 font-mono text-gray-600 whitespace-nowrap">
+                      <td className="py-1 px-2 font-mono text-text-muted whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
-                      <td className="px-2 py-1 font-medium text-gray-900">{ticker}</td>
-                      <td className="px-2 py-1">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      <td className="py-1 px-2 font-medium text-terminal-base text-text-primary">{ticker}</td>
+                      <td className="py-1 px-2">
+                        <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
                           t.action.includes('sell') ? 'bg-orange-100 text-orange-700' :
                           t.action.includes('exercise') || t.action.includes('assignment') ? 'bg-purple-100 text-purple-700' :
                           'bg-blue-100 text-blue-700'
@@ -823,25 +823,25 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                            t.action.includes('assignment') ? 'ASSIGN' : 'BUY'}
                         </span>
                       </td>
-                      <td className="px-2 py-1 text-gray-700">
+                      <td className="py-1 px-2 text-terminal-base text-text-primary">
                         {t.isOption ? (
                           <span className="flex items-center gap-1">
                             <span className="font-mono">${t.strike}</span>
                             <span className={`text-[9px] px-1 rounded ${
                               t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
                             }`}>{t.optionType?.toUpperCase()}</span>
-                            <span className="text-gray-400 text-[10px]">{t.expiration}</span>
+                            <span className="text-text-muted text-terminal-xs">{t.expiration}</span>
                           </span>
                         ) : (
-                          <span className="text-gray-500 truncate text-[11px]">{t.name}</span>
+                          <span className="text-text-muted truncate text-terminal-base">{t.name}</span>
                         )}
                       </td>
-                      <td className="px-2 py-1 text-right font-mono text-gray-700">{t.quantity}</td>
-                      <td className="px-2 py-1 text-right font-mono text-gray-700">${t.price?.toFixed(2)}</td>
-                      <td className="px-2 py-1 text-right font-mono font-medium whitespace-nowrap">
+                      <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">{t.quantity}</td>
+                      <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">${t.price?.toFixed(2)}</td>
+                      <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap">
                         <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
                           ${Math.abs(t.amount).toFixed(2)}
-                          <span className="text-[10px] text-gray-400 ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
+                          <span className="text-terminal-xs text-text-muted ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
                         </span>
                       </td>
                     </tr>
@@ -850,13 +850,13 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
               </tbody>
             </table>
             {filteredCloses.length === 0 && (
-              <div className="p-8 text-center text-gray-400 text-xs">
+              <div className="p-8 text-center text-text-muted text-terminal-sm">
                 {txnSearch ? 'No closes match your search.' : 'No uncommitted closing transactions.'}
               </div>
             )}
           </div>
           {filteredCloses.length > 0 && (
-            <div className="text-[10px] text-gray-500 mt-1 px-1">
+            <div className="text-terminal-xs text-text-muted mt-1 px-1">
               {filteredCloses.length}{filteredCloses.length !== closes.length ? ` of ${closes.length}` : ''} transactions
               {' \u00B7 '}
               {sortedCloseTickers.length} symbols
@@ -869,49 +869,49 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
       {activeTab === 'trades' && (
         <div>
           {openTrades.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+            <div className="p-8 text-center text-text-muted bg-bg-row rounded text-terminal-sm">
               No open trades. Commit some opening positions first.
             </div>
           ) : (
-            <div className="overflow-auto border border-gray-200 rounded-lg">
-              <table className="w-full text-xs border-collapse min-w-[700px]">
-                <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+            <div className="overflow-auto border border-border rounded">
+              <table className="w-full text-terminal-base border-collapse min-w-[700px]">
+                <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2.5 text-left font-semibold">Trade #</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Symbol</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Strategy</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Status</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Opened</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Cost Basis</th>
-                    <th className="px-3 py-2.5 text-center font-semibold">Legs</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Leg Details</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Trade #</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Symbol</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Strategy</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Status</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Opened</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-right font-semibold">Cost Basis</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-center font-semibold">Legs</th>
+                    <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono text-left font-semibold">Leg Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {openTrades.map((trade, i) => (
-                    <tr key={trade.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-[#2d1b4e]/[.07] transition-colors`}>
-                      <td className="px-3 py-2 font-mono font-bold text-[#2d1b4e]">#{trade.trade_num}</td>
-                      <td className="px-3 py-2 font-medium text-gray-900">{trade.symbol}</td>
-                      <td className="px-3 py-2">
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                    <tr key={trade.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-bg-row'} hover:bg-bg-row transition-colors border-b border-border-light`}>
+                      <td className="py-1 px-2 font-mono font-bold text-brand-purple">#{trade.trade_num}</td>
+                      <td className="py-1 px-2 font-medium text-terminal-base text-text-primary">{trade.symbol}</td>
+                      <td className="py-1 px-2">
+                        <span className="text-terminal-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
                           {trade.strategy}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                      <td className="py-1 px-2">
+                        <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
+                          trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-bg-row text-text-muted'
                         }`}>{trade.status}</span>
                       </td>
-                      <td className="px-3 py-2 font-mono text-gray-600">
+                      <td className="py-1 px-2 font-mono text-text-muted">
                         {new Date(trade.open_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-medium">
+                      <td className="py-1 px-2 text-right font-mono font-semibold">
                         ${trade.cost_basis.toFixed(2)}
                       </td>
-                      <td className="px-3 py-2 text-center font-mono text-gray-600">
+                      <td className="py-1 px-2 text-center font-mono text-text-muted">
                         {trade.legs?.length || 0}
                       </td>
-                      <td className="px-3 py-2 text-gray-600">
+                      <td className="py-1 px-2 text-text-muted">
                         {trade.legs && trade.legs.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {trade.legs.map((leg, li) => (
@@ -923,7 +923,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                             ))}
                           </div>
                         ) : (
-                          <span className="text-gray-400">{'\u2014'}</span>
+                          <span className="text-text-muted">{'\u2014'}</span>
                         )}
                       </td>
                     </tr>
@@ -941,54 +941,54 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           <div className="mb-4">
             <button
               onClick={() => setShowCorpActionModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+              className="px-4 py-2 bg-purple-600 text-white rounded text-terminal-sm font-medium hover:bg-purple-700"
             >
               + Record Corporate Action
             </button>
           </div>
 
           <div className="space-y-3">
-            <h3 className="font-semibold text-gray-700">Corporate Actions History</h3>
+            <h3 className="font-semibold text-text-primary">Corporate Actions History</h3>
             {corporateActions.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+              <div className="p-8 text-center text-text-muted bg-bg-row rounded text-terminal-sm">
                 <p>No corporate actions recorded.</p>
-                <p className="text-sm mt-2">Stock splits, dividends, mergers, and spinoffs will appear here.</p>
+                <p className="text-terminal-sm mt-2">Stock splits, dividends, mergers, and spinoffs will appear here.</p>
               </div>
             ) : (
               corporateActions.map((action: any) => (
-                <div key={action.id} className="border rounded-lg p-4 bg-white">
+                <div key={action.id} className="border border-border rounded p-3 bg-white">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="font-bold text-lg">{action.symbol}</span>
-                      <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                      <span className={`ml-2 text-terminal-xs px-2 py-0.5 rounded ${
                         action.action_type === 'REVERSE_SPLIT' ? 'bg-orange-100 text-orange-700' :
                         action.action_type === 'SPLIT' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
+                        'bg-bg-row text-text-muted'
                       }`}>
                         {action.action_type.replace('_', ' ')}
                       </span>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
+                    <div className="text-right text-terminal-sm text-text-muted">
                       {new Date(action.effective_date).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                  <div className="mt-2 grid grid-cols-2 gap-4 text-terminal-sm">
                     <div>
-                      <span className="text-gray-500">Ratio:</span>
+                      <span className="text-text-muted">Ratio:</span>
                       <span className="ml-2 font-medium">{action.ratio_from}:{action.ratio_to}</span>
                     </div>
                     {action.pre_split_shares && (
                       <div>
-                        <span className="text-gray-500">Shares:</span>
+                        <span className="text-text-muted">Shares:</span>
                         <span className="ml-2 font-medium">{action.pre_split_shares} → {action.post_split_shares}</span>
                       </div>
                     )}
                   </div>
                   {action.notes && (
-                    <div className="mt-2 text-sm text-gray-600 italic">&quot;{action.notes}&quot;</div>
+                    <div className="mt-2 text-terminal-sm text-text-muted italic">&quot;{action.notes}&quot;</div>
                   )}
                   {action.source && (
-                    <div className="mt-1 text-xs text-gray-400">Source: {action.source}</div>
+                    <div className="mt-1 text-terminal-xs text-text-muted">Source: {action.source}</div>
                   )}
                 </div>
               ))
@@ -997,27 +997,27 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
 
           {showCorpActionModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded p-3 w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <h2 className="text-xl font-bold mb-4">Record Corporate Action</h2>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Symbol *</label>
+                    <label className="block text-terminal-sm font-medium text-text-primary mb-1">Symbol *</label>
                     <input
                       type="text"
                       value={corpActionForm.symbol}
                       onChange={e => setCorpActionForm({...corpActionForm, symbol: e.target.value.toUpperCase()})}
-                      className="w-full border rounded-lg px-3 py-2"
+                      className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                       placeholder="e.g., UAVS"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Action Type *</label>
+                    <label className="block text-terminal-sm font-medium text-text-primary mb-1">Action Type *</label>
                     <select
                       value={corpActionForm.action_type}
                       onChange={e => setCorpActionForm({...corpActionForm, action_type: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
+                      className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                     >
                       <option value="REVERSE_SPLIT">Reverse Split (fewer shares)</option>
                       <option value="SPLIT">Forward Split (more shares)</option>
@@ -1028,60 +1028,60 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date *</label>
+                    <label className="block text-terminal-sm font-medium text-text-primary mb-1">Effective Date *</label>
                     <input
                       type="date"
                       value={corpActionForm.effective_date}
                       onChange={e => setCorpActionForm({...corpActionForm, effective_date: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
+                      className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ratio From *</label>
+                      <label className="block text-terminal-sm font-medium text-text-primary mb-1">Ratio From *</label>
                       <input
                         type="number"
                         value={corpActionForm.ratio_from}
                         onChange={e => setCorpActionForm({...corpActionForm, ratio_from: parseInt(e.target.value) || 1})}
-                        className="w-full border rounded-lg px-3 py-2"
+                        className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                         min="1"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ratio To *</label>
+                      <label className="block text-terminal-sm font-medium text-text-primary mb-1">Ratio To *</label>
                       <input
                         type="number"
                         value={corpActionForm.ratio_to}
                         onChange={e => setCorpActionForm({...corpActionForm, ratio_to: parseInt(e.target.value) || 1})}
-                        className="w-full border rounded-lg px-3 py-2"
+                        className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                         min="1"
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 -mt-2">
+                  <p className="text-terminal-xs text-text-muted -mt-2">
                     For 1:50 reverse split, enter 1 and 50. For 2:1 forward split, enter 2 and 1.
                   </p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pre-Split Shares</label>
+                      <label className="block text-terminal-sm font-medium text-text-primary mb-1">Pre-Split Shares</label>
                       <input
                         type="number"
                         value={corpActionForm.pre_split_shares}
                         onChange={e => setCorpActionForm({...corpActionForm, pre_split_shares: e.target.value})}
-                        className="w-full border rounded-lg px-3 py-2"
+                        className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                         placeholder="e.g., 555"
                         step="0.0001"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Post-Split Shares</label>
+                      <label className="block text-terminal-sm font-medium text-text-primary mb-1">Post-Split Shares</label>
                       <input
                         type="number"
                         value={corpActionForm.post_split_shares}
                         onChange={e => setCorpActionForm({...corpActionForm, post_split_shares: e.target.value})}
-                        className="w-full border rounded-lg px-3 py-2"
+                        className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                         placeholder="e.g., 11.1"
                         step="0.0001"
                       />
@@ -1096,57 +1096,57 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                         onChange={e => setCorpActionForm({...corpActionForm, add_pre_split_lot: e.target.checked})}
                         className="rounded"
                       />
-                      <span className="text-sm font-medium text-gray-700">Add missing pre-split lot</span>
+                      <span className="text-terminal-sm font-medium text-text-primary">Add missing pre-split lot</span>
                     </label>
-                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                    <p className="text-terminal-xs text-text-muted mt-1 ml-6">
                       Check this if you had shares before the split that are not in the system yet.
                     </p>
                   </div>
 
                   {corpActionForm.add_pre_split_lot && (
-                    <div className="ml-6 space-y-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="ml-6 space-y-3 p-3 bg-bg-row rounded">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Original Cost Basis ($)</label>
+                        <label className="block text-terminal-sm font-medium text-text-primary mb-1">Original Cost Basis ($)</label>
                         <input
                           type="number"
                           value={corpActionForm.lot_cost_basis}
                           onChange={e => setCorpActionForm({...corpActionForm, lot_cost_basis: parseFloat(e.target.value) || 0})}
-                          className="w-full border rounded-lg px-3 py-2"
+                          className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                           placeholder="0 if unknown"
                           step="0.01"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter $0 if original cost is unknown.</p>
+                        <p className="text-terminal-xs text-text-muted mt-1">Enter $0 if original cost is unknown.</p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Original Acquisition Date</label>
+                        <label className="block text-terminal-sm font-medium text-text-primary mb-1">Original Acquisition Date</label>
                         <input
                           type="date"
                           value={corpActionForm.lot_acquired_date}
                           onChange={e => setCorpActionForm({...corpActionForm, lot_acquired_date: e.target.value})}
-                          className="w-full border rounded-lg px-3 py-2"
+                          className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Leave blank to use split date.</p>
+                        <p className="text-terminal-xs text-text-muted mt-1">Leave blank to use split date.</p>
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <label className="block text-terminal-sm font-medium text-text-primary mb-1">Notes</label>
                     <input
                       type="text"
                       value={corpActionForm.notes}
                       onChange={e => setCorpActionForm({...corpActionForm, notes: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
+                      className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                       placeholder="e.g., 1:50 reverse split per SEC filing"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Source Documentation</label>
+                    <label className="block text-terminal-sm font-medium text-text-primary mb-1">Source Documentation</label>
                     <input
                       type="text"
                       value={corpActionForm.source}
                       onChange={e => setCorpActionForm({...corpActionForm, source: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
+                      className="w-full border border-border rounded h-7 px-2 text-terminal-base font-mono"
                       placeholder="e.g., Broker statement - Robinhood"
                     />
                   </div>
@@ -1162,7 +1162,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                         notes: '', source: '', add_pre_split_lot: false, lot_cost_basis: 0, lot_acquired_date: ''
                       });
                     }}
-                    className="flex-1 px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-border rounded text-terminal-sm text-text-primary hover:bg-bg-row"
                   >
                     Cancel
                   </button>
@@ -1201,7 +1201,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                         alert('Failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
                       }
                     }}
-                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded text-terminal-sm font-medium hover:bg-purple-700"
                   >
                     Record Corporate Action
                   </button>
