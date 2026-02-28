@@ -247,12 +247,40 @@ export default function Dashboard() {
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
   const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
+  const committedCount = committedSpending.length + committedInvestments.length;
+  const ytdRevenue = Math.abs(getSectionTotal(revenueCodes));
+  const ytdExpenses = Math.abs(getSectionTotal(expenseCodes));
+  const pipelineSrc = transactions.length + investmentTransactions.length;
+  const pipelineCat = transactions.filter(t => t.accountCode).length;
+  const pipelineJe = committedCount;
+  const pipelineLdg = journalEntries.length;
+
+  const PIPELINE_STEPS = [
+    { code: 'SRC', count: pipelineSrc },
+    { code: 'CAT', count: pipelineCat },
+    { code: 'JE', count: pipelineJe },
+    { code: 'LDG', count: pipelineLdg },
+    { code: 'TB', count: null as number | null },
+    { code: 'STMT', count: null as number | null },
+    { code: 'TAX', count: null as number | null },
+  ];
+
+  const SOC2_CONTROLS = [
+    { code: 'BAL', status: journalEntries.length > 0 ? 'pass' : 'planned' },
+    { code: 'AUTH', status: 'pass' },
+    { code: 'IMMUT', status: 'pass' },
+    { code: 'CHGMG', status: 'wip' },
+    { code: 'IDEMP', status: 'pass' },
+    { code: 'SCOPE', status: 'wip' },
+    { code: 'TRACE', status: 'pass' },
+    { code: 'COMPL', status: 'wip' },
+  ] as const;
 
   if (loading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple-deep border-t-transparent rounded-full animate-spin" />
         </div>
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -261,7 +289,7 @@ export default function Dashboard() {
             <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
             <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
             </div>
           </div>
@@ -274,54 +302,65 @@ export default function Dashboard() {
   return (
     <>
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
-      <AppLayout>
-        <div className="min-h-screen bg-[#f5f5f5]">
-          <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
-            
-            {/* Header - Wall Street Style */}
-            <div className="mb-4 bg-[#2d1b4e] text-white p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-lg font-semibold tracking-tight">Bookkeeping</h1>
-                  <p className="text-gray-300 text-xs font-mono">{transactions.length.toLocaleString()} transactions · {accounts.length} accounts · FY {selectedYear}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={syncAccounts} disabled={syncing} className="px-3 py-1.5 text-xs bg-white/10 hover:bg-white/20 transition-colors">
-                    {syncing ? 'Syncing...' : 'Sync'}
-                  </button>
-                  <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken} className="px-3 py-1.5 text-xs bg-white/20 hover:bg-white/30 transition-colors">
-                    + Account
-                  </button>
-                </div>
+      <AppLayout metrics={{ balance: totalBalance, pending: pendingCount, revenue: ytdRevenue, expenses: ytdExpenses, committed: committedCount }}>
+        <div className="min-h-screen bg-bg-terminal">
+          <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
+
+            {/* Compact Info Bar */}
+            <div className="flex items-center justify-between mb-2 px-0.5">
+              <div className="flex items-center gap-2 text-terminal-base font-mono text-text-muted">
+                <span>{transactions.length.toLocaleString()} txn</span>
+                <span className="text-border">·</span>
+                <span>{accounts.length} acct</span>
+                <span className="text-border">·</span>
+                <span>FY {selectedYear}</span>
+                <span className="text-border">|</span>
+                <span className="text-brand-red">{pendingCount.toLocaleString()} pending</span>
+                <span className="text-brand-green">{committedCount.toLocaleString()} committed</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button onClick={syncAccounts} disabled={syncing}
+                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                  {syncing ? 'Syncing...' : 'Sync'}
+                </button>
+                <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
+                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                  + Account
+                </button>
               </div>
             </div>
 
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-              <div className="bg-white border border-gray-200 p-3">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Balance</div>
-                <div className="text-xl font-bold font-mono text-gray-900">{fmt(totalBalance)}</div>
+            {/* Pipeline Bar */}
+            <div className="mb-2 flex items-center border border-border bg-white overflow-x-auto">
+              <div className="flex items-center h-6 px-2 gap-0">
+                {PIPELINE_STEPS.map((step, i) => (
+                  <div key={step.code} className="flex items-center">
+                    {i > 0 && <span className="text-text-faint text-terminal-xs mx-1.5">›</span>}
+                    <div className={`flex items-center gap-1 px-1.5 py-0.5 ${step.count != null && step.count > 0 ? 'bg-brand-purple-wash' : ''}`}>
+                      <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted">{step.code}</span>
+                      <span className={`text-terminal-base font-mono font-bold ${step.count != null && step.count > 0 ? 'text-brand-gold' : 'text-text-faint'}`}>
+                        {step.count != null ? step.count.toLocaleString() : '\u2014'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="bg-white border border-gray-200 p-3">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">Pending Review</div>
-                <div className="text-xl font-bold font-mono text-gray-900">{pendingCount}</div>
-              </div>
-              <div className="bg-white border border-gray-200 p-3">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">YTD Revenue</div>
-                <div className="text-xl font-bold font-mono text-emerald-700">{fmt(Math.abs(getSectionTotal(revenueCodes)))}</div>
-              </div>
-              <div className="bg-white border border-gray-200 p-3">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider">YTD Expenses</div>
-                <div className="text-xl font-bold font-mono text-red-700">{fmt(Math.abs(getSectionTotal(expenseCodes)))}</div>
+              <div className="ml-auto flex items-center h-6 px-2 bg-brand-purple-wash border-l border-border gap-2">
+                <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted mr-0.5">SOC 2</span>
+                {SOC2_CONTROLS.map(ctrl => (
+                  <div key={ctrl.code} className="flex items-center gap-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${ctrl.status === 'pass' ? 'bg-brand-green' : ctrl.status === 'wip' ? 'bg-brand-gold' : 'bg-gray-300'}`} />
+                    <span className="text-[7px] font-mono text-text-muted">{ctrl.code}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Section Tabs */}
-            <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
+            {/* Section Tabs — compact terminal */}
+            <div className="flex items-center mb-3 overflow-x-auto border border-border bg-white" style={{ height: 24 }}>
               {[
                 { key: 'accounts', label: 'Accounts' },
                 { key: 'mapping', label: `Map COA${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
-
                 { key: 'statements', label: 'Statements' },
                 { key: 'ledger', label: 'Ledger' },
                 { key: 'journal', label: 'Journal' },
@@ -331,9 +370,14 @@ export default function Dashboard() {
                 { key: 'wash-sales', label: 'Wash Sales' },
                 { key: 'tax', label: 'Tax Forms' },
                 { key: 'export', label: 'Export' },
-              ].map(tab => (
+              ].map((tab, i) => (
                 <button key={tab.key} onClick={() => setActiveSection(tab.key)}
-                  className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeSection === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  className={`px-2 py-1 text-[10px] font-medium font-mono whitespace-nowrap transition-colors h-full ${
+                    i > 0 ? 'border-l border-border-light' : ''
+                  } ${activeSection === tab.key
+                    ? 'bg-brand-purple text-white'
+                    : 'text-text-muted hover:text-text-primary hover:bg-bg-row'
+                  }`}>
                   {tab.label}
                 </button>
               ))}
@@ -345,12 +389,12 @@ export default function Dashboard() {
               {/* Connected Accounts */}
               {activeSection === 'accounts' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
-                    Connected Accounts
+                  <div className="px-3 py-1.5 bg-bg-row border-b border-border">
+                    <span className="text-terminal-base font-mono font-semibold text-text-primary">Connected Accounts</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#3d2b5e] text-white">
+                      <thead className="bg-brand-purple-hover text-white">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Institution</th>
                           <th className="px-3 py-2 text-left font-medium">Account</th>
@@ -385,19 +429,25 @@ export default function Dashboard() {
               {/* Map to COA */}
               {activeSection === 'mapping' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold">Map Transactions to Chart of Accounts</span>
-                    {pendingCount > 0 && <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-medium">{pendingCount} pending</span>}
-                  </div>
-                  <div className="flex border-b border-gray-200">
-                    <button onClick={() => setMappingTab('spending')}
-                      className={`flex-1 px-4 py-2 text-xs font-medium ${mappingTab === 'spending' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
-                      Spending ({uncommittedSpending.length})
-                    </button>
-                    <button onClick={() => setMappingTab('investments')}
-                      className={`flex-1 px-4 py-2 text-xs font-medium ${mappingTab === 'investments' ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
-                      Investments ({uncommittedInvestments.length})
-                    </button>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-bg-row border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-terminal-base font-mono font-semibold text-text-primary">Map Transactions → COA</span>
+                      <div className="flex items-center border border-border bg-white">
+                        <button onClick={() => setMappingTab('spending')}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${
+                            mappingTab === 'spending' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
+                          }`}>
+                          Spending <span className="font-bold text-brand-gold">{uncommittedSpending.length}</span>
+                        </button>
+                        <button onClick={() => setMappingTab('investments')}
+                          className={`px-2 py-0.5 text-[10px] font-mono font-medium border-l border-border transition-colors ${
+                            mappingTab === 'investments' ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
+                          }`}>
+                          Investments <span className="font-bold text-brand-gold">{uncommittedInvestments.length}</span>
+                        </button>
+                      </div>
+                    </div>
+                    {pendingCount > 0 && <span className="text-terminal-sm font-mono text-brand-red">{pendingCount} pending</span>}
                   </div>
                   <div className="p-4">
                     {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
@@ -410,30 +460,34 @@ export default function Dashboard() {
               {/* Financial Statements */}
               {activeSection === 'statements' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold">Financial Statements</span>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-bg-row border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-terminal-base font-mono font-semibold text-text-primary">Financial Statements</span>
+                      <div className="flex items-center border border-border bg-white">
+                        {[{ key: 'income', label: 'Income' }, { key: 'balance', label: 'Balance' }, { key: 'cashflow', label: 'Cash Flow' }].map((tab, i) => (
+                          <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
+                            className={`px-2 py-0.5 text-[10px] font-mono font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
+                              activeStatement === tab.key ? 'bg-brand-purple-wash text-brand-purple' : 'text-text-muted hover:text-text-primary'
+                            }`}>
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      className="bg-[#3d2b5e] text-white border-0 text-xs px-2 py-1">
+                      className="bg-white border border-border text-text-primary text-[10px] font-mono px-1.5 py-0.5">
                       {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
-                  </div>
-                  <div className="flex border-b border-gray-200">
-                    {[{ key: 'income', label: 'Income Statement' }, { key: 'balance', label: 'Balance Sheet' }, { key: 'cashflow', label: 'Cash Flow' }].map(tab => (
-                      <button key={tab.key} onClick={() => setActiveStatement(tab.key as any)}
-                        className={`px-4 py-2 text-xs font-medium ${activeStatement === tab.key ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'}`}>
-                        {tab.label}
-                      </button>
-                    ))}
                   </div>
 
                   {activeStatement === 'income' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs border-collapse">
-                        <thead className="bg-[#2d1b4e] text-white">
+                        <thead className="bg-brand-purple-deep text-white">
                           <tr>
-                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-[#2d1b4e] z-10 min-w-[160px]">Account</th>
+                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-brand-purple-deep z-10 min-w-[160px]">Account</th>
                             {MONTHS.map((m, i) => <th key={i} className="px-2 py-2 text-right font-medium w-16">{m}</th>)}
-                            <th className="px-3 py-2 text-right font-medium bg-[#1a0f2e] sticky right-0 w-20">YTD</th>
+                            <th className="px-3 py-2 text-right font-medium bg-brand-purple-deep sticky right-0 w-20">YTD</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -507,13 +561,13 @@ export default function Dashboard() {
                               </tr>
                             </>
                           )}
-                          <tr className="bg-[#2d1b4e]/10 border-t-2 border-[#2d1b4e]">
-                            <td className="px-3 py-2 font-bold text-gray-900 sticky left-0 bg-[#2d1b4e]/10">Net Income</td>
+                          <tr className="bg-brand-purple-deep/10 border-t-2 border-brand-purple-deep">
+                            <td className="px-3 py-2 font-bold text-gray-900 sticky left-0 bg-brand-purple-deep/10">Net Income</td>
                             {MONTHS.map((_, m) => {
                               const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
                               return <td key={m} className={`px-2 py-2 text-right font-mono font-bold ${ni >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{ni === 0 ? '—' : fmtSigned(ni)}</td>;
                             })}
-                            <td className={`px-3 py-2 text-right font-mono font-bold sticky right-0 bg-[#2d1b4e]/20 ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                            <td className={`px-3 py-2 text-right font-mono font-bold sticky right-0 bg-brand-purple-deep/20 ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                               {fmtSigned(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)))}
                             </td>
                           </tr>
@@ -526,11 +580,11 @@ export default function Dashboard() {
                   {activeStatement === 'balance' && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs border-collapse">
-                        <thead className="bg-[#2d1b4e] text-white">
+                        <thead className="bg-brand-purple-deep text-white">
                           <tr>
-                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-[#2d1b4e] z-10 min-w-[160px]">Account</th>
+                            <th className="px-3 py-2 text-left font-medium sticky left-0 bg-brand-purple-deep z-10 min-w-[160px]">Account</th>
                             {MONTHS.map((m, i) => <th key={i} className="px-2 py-2 text-right font-medium w-16">{m}</th>)}
-                            <th className="px-3 py-2 text-right font-medium bg-[#1a0f2e] sticky right-0 w-20">YTD</th>
+                            <th className="px-3 py-2 text-right font-medium bg-brand-purple-deep sticky right-0 w-20">YTD</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -620,7 +674,7 @@ export default function Dashboard() {
               {/* Bank Reconciliation — disabled until tables are rebuilt */}
               {activeSection === 'reconcile' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Bank Reconciliation</div>
+                  <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Bank Reconciliation</span></div>
                   <div className="p-8 text-center text-gray-400">
                     <p className="text-sm font-medium">Bank Reconciliation</p>
                     <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
@@ -631,7 +685,7 @@ export default function Dashboard() {
               {/* Period Close — disabled until tables are rebuilt */}
               {activeSection === 'close' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Period Close</div>
+                  <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Period Close</span></div>
                   <div className="p-8 text-center text-gray-400">
                     <p className="text-sm font-medium">Period Close</p>
                     <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
@@ -657,7 +711,7 @@ export default function Dashboard() {
               {/* CPA Export */}
               {activeSection === 'export' && (
                 <div>
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">CPA Export</div>
+                  <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">CPA Export</span></div>
                   <div className="p-4">
                     <CPAExport transactions={transactions} coaOptions={coaOptions} selectedYear={selectedYear} />
                   </div>
@@ -670,16 +724,16 @@ export default function Dashboard() {
 
         {/* Bulk Assign Bar */}
         {selectedIds.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-[#2d1b4e] text-white p-3 z-40">
+          <div className="fixed bottom-0 left-0 right-0 bg-brand-purple-deep text-white p-3 z-40">
             <div className="max-w-7xl mx-auto flex items-center gap-3">
               <span className="px-2 py-1 bg-white/20 text-xs font-mono">{selectedIds.length}</span>
-              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 bg-[#3d2b5e] text-white border-0 px-3 py-1.5 text-xs">
+              <select value={assignCoa} onChange={(e) => setAssignCoa(e.target.value)} className="flex-1 bg-brand-purple-hover text-white border-0 px-3 py-1.5 text-xs">
                 <option value="">Select COA...</option>
                 {Object.entries(coaGrouped).map(([type, opts]) => (
                   <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                 ))}
               </select>
-              <button onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} className="px-4 py-1.5 bg-white text-[#2d1b4e] text-xs font-medium disabled:opacity-50">
+              <button onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} className="px-4 py-1.5 bg-white text-brand-purple-deep text-xs font-medium disabled:opacity-50">
                 {isAssigning ? '...' : 'Assign'}
               </button>
               <button onClick={() => setSelectedIds([])} className="text-white/60 hover:text-white text-lg">×</button>
@@ -691,7 +745,7 @@ export default function Dashboard() {
         {drilldownCell && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }}>
             <div className="bg-white w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="bg-[#2d1b4e] text-white px-4 py-3 flex justify-between items-center">
+              <div className="bg-brand-purple-deep text-white px-4 py-3 flex justify-between items-center">
                 <div>
                   <h4 className="font-semibold text-sm">{getCoaName(drilldownCell.coaCode)}</h4>
                   <p className="text-xs text-gray-300 font-mono">{drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} · {drilldownTransactions.length} transactions</p>
@@ -700,15 +754,15 @@ export default function Dashboard() {
               </div>
 
               {selectedDrilldownTxns.length > 0 && (
-                <div className="bg-[#3d2b5e] text-white px-4 py-2 flex items-center gap-2">
+                <div className="bg-brand-purple-hover text-white px-4 py-2 flex items-center gap-2">
                   <span className="px-2 py-0.5 bg-white/20 text-xs font-mono">{selectedDrilldownTxns.length}</span>
-                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 bg-[#2d1b4e] text-white border-0 text-xs px-2 py-1">
+                  <select value={reassignCoa} onChange={(e) => setReassignCoa(e.target.value)} className="flex-1 bg-brand-purple-deep text-white border-0 text-xs px-2 py-1">
                     <option value="">Move to...</option>
                     {Object.entries(coaGrouped).map(([type, opts]) => (
                       <optgroup key={type} label={type}>{opts.map(o => <option key={o.id} value={o.code}>{o.name}</option>)}</optgroup>
                     ))}
                   </select>
-                  <button onClick={handleDrilldownReassign} disabled={!reassignCoa} className="px-3 py-1 bg-white text-[#2d1b4e] text-xs font-medium disabled:opacity-50">Move</button>
+                  <button onClick={handleDrilldownReassign} disabled={!reassignCoa} className="px-3 py-1 bg-white text-brand-purple-deep text-xs font-medium disabled:opacity-50">Move</button>
                 </div>
               )}
 
@@ -728,7 +782,7 @@ export default function Dashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {drilldownTransactions.map(txn => (
-                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-[#2d1b4e]/5' : ''}`}>
+                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-brand-purple-deep/5' : ''}`}>
                         <td className="px-3 py-2">
                           <input type="checkbox" checked={selectedDrilldownTxns.includes(txn.id)}
                             onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? [...selectedDrilldownTxns, txn.id] : selectedDrilldownTxns.filter(id => id !== txn.id))}
@@ -757,7 +811,7 @@ export default function Dashboard() {
             <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
             <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
               <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
             </div>
           </div>
