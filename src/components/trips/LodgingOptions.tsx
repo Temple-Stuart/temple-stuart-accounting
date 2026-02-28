@@ -134,12 +134,12 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
     }
   };
 
-  if (loading) return <div className="animate-pulse bg-gray-100 rounded-lg h-32"></div>;
+  if (loading) return <div className="animate-pulse bg-bg-row rounded h-32"></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">🏠 Lodging Options</h3>
+        <h3 className="font-semibold text-text-primary">🏠 Lodging Options</h3>
         {options.length < 5 && (
           <Button size="sm" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ Add Option'}
@@ -148,7 +148,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
       </div>
 
       {showForm && (
-        <Card className="p-4 border-2 border-dashed border-[#b4b237]">
+        <Card className="p-4 border-2 border-dashed border-brand-accent">
           <form onSubmit={handleSubmit} className="space-y-3">
             <input
               className="w-full border rounded px-3 py-2 text-sm"
@@ -203,7 +203,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
       )}
 
       {options.length === 0 && !showForm ? (
-        <Card className="p-8 text-center text-gray-400">
+        <Card className="p-8 text-center text-text-faint">
           <div className="text-4xl mb-2">🏠</div>
           <p>No lodging options yet</p>
           <p className="text-sm mt-1">Add Airbnb, VRBO, or hotel links for your group to review</p>
@@ -223,28 +223,28 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                 <img 
                   src={option.image_url} 
                   alt={option.title || 'Lodging'} 
-                  className="w-full h-32 object-cover rounded-lg mb-3"
+                  className="w-full h-32 object-cover rounded mb-3"
                 />
               )}
               
-              <h4 className="font-medium text-gray-900 mb-1">
+              <h4 className="font-medium text-text-primary mb-1">
                 {option.title || 'Untitled Listing'}
               </h4>
               
               {option.location && (
-                <p className="text-sm text-gray-500 mb-2">📍 {option.location}</p>
+                <p className="text-sm text-text-muted mb-2">📍 {option.location}</p>
               )}
               
               <div className="text-sm space-y-1 mb-3">
                 {option.price_per_night && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">{fmt(option.price_per_night)}/night × {nights}</span>
+                    <span className="text-text-muted">{fmt(option.price_per_night)}/night × {nights}</span>
                     <span className="font-medium">{fmt(option.price_per_night * nights)}</span>
                   </div>
                 )}
                 {option.taxes_estimate && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Taxes & fees</span>
+                    <span className="text-text-muted">Taxes & fees</span>
                     <span>{fmt(option.taxes_estimate)}</span>
                   </div>
                 )}
@@ -255,7 +255,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                   </div>
                 )}
                 {option.per_person && participantCount > 1 && (
-                  <div className="flex justify-between text-[#b4b237]">
+                  <div className="flex justify-between text-brand-accent">
                     <span>Per person ({participantCount})</span>
                     <span className="font-bold">{fmt(option.per_person)}</span>
                   </div>
@@ -263,7 +263,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
               </div>
 
               {option.notes && (
-                <p className="text-xs text-gray-500 italic mb-3">"{option.notes}"</p>
+                <p className="text-xs text-text-muted italic mb-3">"{option.notes}"</p>
               )}
 
               <div className="flex items-center justify-between">
@@ -288,7 +288,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                     href={option.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-3 py-1.5 bg-brand-purple text-white text-xs font-medium rounded hover:bg-brand-purple transition-colors"
                   >
                     Open on {extractDomain(option.url)}
                   </a>
@@ -307,7 +307,7 @@ export default function LodgingOptions({ tripId, participantCount, nights, onSel
                 )}
                 <button
                   onClick={() => handleDelete(option.id)}
-                  className="text-red-500 text-xs hover:underline"
+                  className="text-brand-red text-xs hover:underline"
                 >
                   Remove
                 </button>

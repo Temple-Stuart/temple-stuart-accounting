@@ -207,7 +207,7 @@ export default function AppLayout({ children, metrics }: AppLayoutProps) {
 
                 {/* Budgeting Dropdown */}
                 {budgetingOpen && (
-                  <div className="absolute top-full left-0 mt-0 bg-brand-purple-deep border border-white/10 shadow-xl z-50 min-w-[140px]">
+                  <div className="absolute top-full left-0 mt-0 bg-brand-purple-deep border border-white/10 shadow-sm z-50 min-w-[140px]">
                     {BUDGETING_ITEMS.map(item => {
                       const isSubActive = pathname?.startsWith(item.href);
                       return (

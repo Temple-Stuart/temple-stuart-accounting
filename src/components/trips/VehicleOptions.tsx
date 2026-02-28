@@ -124,12 +124,12 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
   const fmt = (n: number | null) => n ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n) : '-';
   const getTypeConfig = (type: string) => VEHICLE_TYPES.find(t => t.value === type) || VEHICLE_TYPES[7];
 
-  if (loading) return <div className="animate-pulse bg-gray-100 rounded-lg h-32"></div>;
+  if (loading) return <div className="animate-pulse bg-bg-row rounded h-32"></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">🚗 Transportation Options</h3>
+        <h3 className="font-semibold text-text-primary">🚗 Transportation Options</h3>
         {options.length < 5 && (
           <Button size="sm" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ Add Option'}
@@ -138,7 +138,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
       </div>
 
       {showForm && (
-        <Card className="p-4 border-2 border-dashed border-[#b4b237]">
+        <Card className="p-4 border-2 border-dashed border-brand-accent">
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <select
@@ -194,7 +194,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
       )}
 
       {options.length === 0 && !showForm ? (
-        <Card className="p-8 text-center text-gray-400">
+        <Card className="p-8 text-center text-text-faint">
           <div className="text-4xl mb-2">🚗</div>
           <p>No transportation options yet</p>
           <p className="text-sm mt-1">Add rental cars, mopeds, motorcycles, or other vehicles</p>
@@ -206,20 +206,20 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
             return (
               <Card 
                 key={option.id} 
-                className={`p-4 relative ${option.is_selected ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
+                className={`p-4 relative ${option.is_selected ? 'ring-2 ring-brand-green bg-green-50' : ''}`}
               >
                 {option.is_selected && (
                   <Badge variant="success" className="absolute top-2 right-2">✓ Selected</Badge>
                 )}
                 
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{typeConfig.icon}</span>
+                  <span className="text-sm">{typeConfig.icon}</span>
                   <div>
-                    <h4 className="font-medium text-gray-900">
+                    <h4 className="font-medium text-text-primary">
                       {option.title || typeConfig.label}
                     </h4>
                     {option.vendor && (
-                      <p className="text-xs text-gray-500">{option.vendor}</p>
+                      <p className="text-xs text-text-muted">{option.vendor}</p>
                     )}
                   </div>
                 </div>
@@ -227,12 +227,12 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                 <div className="text-sm space-y-1 mb-3">
                   {option.price_per_day && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">{fmt(option.price_per_day)}/day × {days}</span>
+                      <span className="text-text-muted">{fmt(option.price_per_day)}/day × {days}</span>
                       <span className="font-medium">{fmt(option.price_per_day * days)}</span>
                     </div>
                   )}
                   {option.total_price && participantCount > 1 && (
-                    <div className="flex justify-between text-[#b4b237]">
+                    <div className="flex justify-between text-brand-accent">
                       <span>Per person ({participantCount})</span>
                       <span className="font-bold">{fmt(option.per_person)}</span>
                     </div>
@@ -240,7 +240,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                 </div>
 
                 {option.notes && (
-                  <p className="text-xs text-gray-500 italic mb-3">"{option.notes}"</p>
+                  <p className="text-xs text-text-muted italic mb-3">"{option.notes}"</p>
                 )}
 
                 <div className="flex items-center justify-between">
@@ -265,7 +265,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                       href={option.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700"
+                      className="px-3 py-1.5 bg-brand-purple text-white text-xs font-medium rounded hover:bg-brand-purple"
                     >
                       View Rental ↗
                     </a>
@@ -284,7 +284,7 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                   )}
                   <button
                     onClick={() => handleDelete(option.id)}
-                    className="text-red-500 text-xs hover:underline"
+                    className="text-brand-red text-xs hover:underline"
                   >
                     Remove
                   </button>

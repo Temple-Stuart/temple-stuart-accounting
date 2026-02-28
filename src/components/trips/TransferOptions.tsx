@@ -125,7 +125,7 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
   const arrivalOptions = options.filter(o => o.direction === 'arrival');
   const departureOptions = options.filter(o => o.direction === 'departure');
 
-  if (loading) return <div className="animate-pulse bg-gray-100 rounded-lg h-32"></div>;
+  if (loading) return <div className="animate-pulse bg-bg-row rounded h-32"></div>;
 
   const renderOptionCard = (option: TransferOption) => {
     const typeConfig = getTypeConfig(option.transfer_type);
@@ -139,27 +139,27 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
         )}
         
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-xl">{typeConfig.icon}</span>
+          <span className="text-sm">{typeConfig.icon}</span>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 text-sm truncate">
+            <h4 className="font-medium text-text-primary text-sm truncate">
               {option.title || typeConfig.label}
             </h4>
             {option.vendor && (
-              <p className="text-xs text-gray-500 truncate">{option.vendor}</p>
+              <p className="text-xs text-text-muted truncate">{option.vendor}</p>
             )}
           </div>
           {option.price && (
             <div className="text-right">
               <div className="font-bold text-sm">{fmt(option.price)}</div>
               {participantCount > 1 && (
-                <div className="text-xs text-[#b4b237]">{fmt(option.per_person)}/ea</div>
+                <div className="text-xs text-brand-accent">{fmt(option.per_person)}/ea</div>
               )}
             </div>
           )}
         </div>
 
         {option.notes && (
-          <p className="text-xs text-gray-500 italic mb-2 truncate">"{option.notes}"</p>
+          <p className="text-xs text-text-muted italic mb-2 truncate">"{option.notes}"</p>
         )}
 
         <div className="flex items-center justify-between">
@@ -174,18 +174,18 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
           
           <div className="flex items-center gap-1">
             {option.url && (
-              <a href={option.url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+              <a href={option.url} target="_blank" rel="noopener noreferrer" className="px-2 py-1 bg-brand-purple text-white text-xs rounded hover:bg-brand-purple">
                 Link ↗
               </a>
             )}
             {!option.is_selected ? (
-              <button onClick={() => handleSelect(option.id)} className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+              <button onClick={() => handleSelect(option.id)} className="px-2 py-1 bg-brand-green text-white text-xs rounded hover:bg-brand-green">
                 Select
               </button>
             ) : (
-              <span className="text-xs text-green-600">Selected</span>
+              <span className="text-xs text-brand-green">Selected</span>
             )}
-            <button onClick={() => handleDelete(option.id)} className="text-red-400 text-xs hover:text-red-600">✕</button>
+            <button onClick={() => handleDelete(option.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
           </div>
         </div>
       </Card>
@@ -195,7 +195,7 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">🚕 Ground Transport</h3>
+        <h3 className="font-semibold text-text-primary">🚕 Ground Transport</h3>
         {options.length < 10 && (
           <Button size="sm" onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Cancel' : '+ Add Option'}
@@ -204,7 +204,7 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
       </div>
 
       {showForm && (
-        <Card className="p-4 border-2 border-dashed border-[#b4b237]">
+        <Card className="p-4 border-2 border-dashed border-brand-accent">
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <select
@@ -261,7 +261,7 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
       )}
 
       {options.length === 0 && !showForm ? (
-        <Card className="p-6 text-center text-gray-400">
+        <Card className="p-6 text-center text-text-faint">
           <div className="text-3xl mb-2">🚕</div>
           <p className="text-sm">No transport options yet</p>
           <p className="text-xs mt-1">Add rideshare, shuttle, or other ground transport</p>
@@ -269,20 +269,20 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2">✈️→🏨 Arrival ({arrivalOptions.length})</h4>
+            <h4 className="text-sm font-medium text-text-muted mb-2">✈️→🏨 Arrival ({arrivalOptions.length})</h4>
             <div className="space-y-2">
               {arrivalOptions.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No arrival options</p>
+                <p className="text-xs text-text-faint italic">No arrival options</p>
               ) : (
                 arrivalOptions.map(renderOptionCard)
               )}
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2">🏨→✈️ Departure ({departureOptions.length})</h4>
+            <h4 className="text-sm font-medium text-text-muted mb-2">🏨→✈️ Departure ({departureOptions.length})</h4>
             <div className="space-y-2">
               {departureOptions.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No departure options</p>
+                <p className="text-xs text-text-faint italic">No departure options</p>
               ) : (
                 departureOptions.map(renderOptionCard)
               )}

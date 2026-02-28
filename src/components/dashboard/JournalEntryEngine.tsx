@@ -307,7 +307,7 @@ function JournalColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-xl z-[100] w-64" style={panelStyle}>
+    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-sm z-[100] w-64" style={panelStyle}>
       <div className="border-b border-border-light p-2 space-y-1">
         <button onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
           className={`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`}>
@@ -329,7 +329,7 @@ function JournalColumnFilterDropdown({
             )}
             <div className="flex items-center justify-between mb-1 px-1">
               <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple hover:underline">Select All</button>
-              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
+              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-brand-red hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
@@ -372,7 +372,7 @@ function JournalColumnFilterDropdown({
       </div>
 
       <div className="border-t border-border-light p-2 flex justify-between gap-2">
-        <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
+        <button onClick={() => onApply(undefined)} className="text-[10px] text-brand-red hover:underline">Clear</button>
         <div className="flex gap-2">
           <button onClick={onCancel} className="px-3 py-1 text-terminal-sm border rounded hover:bg-bg-row">Cancel</button>
           <button onClick={handleApply} className="px-3 py-1 text-terminal-sm bg-brand-purple text-white rounded hover:bg-brand-purple-hover">Apply</button>
@@ -677,7 +677,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                   </td>
                   <td className="px-1">
                     {newLines.length > 2 && (
-                      <button onClick={() => removeLine(idx)} className="text-red-400 hover:text-red-600">{'\u2715'}</button>
+                      <button onClick={() => removeLine(idx)} className="text-text-faint hover:text-brand-red">{'\u2715'}</button>
                     )}
                   </td>
                 </tr>
@@ -692,9 +692,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                 <td className="px-2 py-2 text-right">${totalCredits.toFixed(2)}</td>
                 <td className="px-1">
                   {isBalanced ? (
-                    <span className="text-green-600">{'\u2713'}</span>
+                    <span className="text-brand-green">{'\u2713'}</span>
                   ) : (
-                    <span className="text-red-600">{'\u2260'}</span>
+                    <span className="text-brand-red">{'\u2260'}</span>
                   )}
                 </td>
               </tr>
@@ -705,7 +705,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           <div className="flex items-center justify-between">
             <div className="text-sm">
               {!isBalanced && totalDebits > 0 && (
-                <span className="text-red-600">
+                <span className="text-brand-red">
                   Out of balance by ${Math.abs(totalDebits - totalCredits).toFixed(2)}
                 </span>
               )}
@@ -742,7 +742,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           />
           {(search || activeColFilterCount > 0) && (
             <button onClick={() => { setSearch(''); setColumnFilters({}); }}
-              className="px-2 py-1.5 text-[10px] text-red-500 hover:text-red-700">
+              className="px-2 py-1.5 text-[10px] text-brand-red hover:text-brand-red">
               Clear All
             </button>
           )}
@@ -843,8 +843,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       {/* Status */}
                       <div className="px-2 py-1 w-24 flex-shrink-0">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          derivedStatus === 'Active' ? 'bg-green-100 text-green-700' :
-                          derivedStatus === 'Reversed' ? 'bg-red-100 text-red-700' :
+                          derivedStatus === 'Active' ? 'bg-green-100 text-brand-green' :
+                          derivedStatus === 'Reversed' ? 'bg-red-100 text-brand-red' :
                           'bg-amber-100 text-amber-700'
                         }`}>
                           {derivedStatus}
@@ -861,9 +861,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       {/* Balanced */}
                       <div className="px-2 py-1 w-16 flex-shrink-0 text-center">
                         {balanced ? (
-                          <span className="text-green-600 font-bold">{'\u2713'}</span>
+                          <span className="text-brand-green font-bold">{'\u2713'}</span>
                         ) : (
-                          <span className="text-red-600 font-bold">{'\u2717'}</span>
+                          <span className="text-brand-red font-bold">{'\u2717'}</span>
                         )}
                       </div>
                       {/* Related */}

@@ -40,18 +40,18 @@ export default function OpenSourceSection() {
   ];
 
   return (
-    <section id="case-studies" className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-gray-50 to-white">
+    <section id="case-studies" className="py-16 sm:py-20 lg:py-24 bg-gradient-to-br from-bg-row to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="text-center mb-12 lg:mb-16">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#b4b237] mb-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-accent mb-2">
             Open-Core Projects
           </p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light text-gray-900 mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light text-text-primary mb-4">
             Case Studies
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-terminal-lg text-text-secondary max-w-2xl mx-auto">
             Real systems I've built and open-sourced. See how they work, what they solve, and how you can use them.
           </p>
         </div>
@@ -61,14 +61,14 @@ export default function OpenSourceSection() {
           {projects.map((project, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-all duration-300"
+              className="bg-white rounded border border-border overflow-hidden hover:shadow-sm transition-all duration-300"
             >
               {/* Featured Badge */}
               {project.featured && (
                 <div className="px-6 pt-6">
                   <span className={`inline-block px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full ${
                     project.featured === 'Open Core'
-                      ? 'bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white'
+                      ? 'bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white'
                       : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white'
                   }`}>
                     {project.featured}
@@ -81,10 +81,10 @@ export default function OpenSourceSection() {
 
                 {/* Title & One-liner */}
                 <div>
-                  <h3 className="text-2xl font-light text-gray-900 mb-2">
+                  <h3 className="text-sm font-light text-text-primary mb-2">
                     {project.title}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-text-secondary">
                     {project.oneLiner}
                   </p>
                 </div>
@@ -92,8 +92,8 @@ export default function OpenSourceSection() {
                 {/* Bullets */}
                 <ul className="space-y-2">
                   {project.bullets.map((bullet, i) => (
-                    <li key={i} className="flex items-start text-sm text-gray-700">
-                      <span className="text-[#b4b237] mr-2">•</span>
+                    <li key={i} className="flex items-start text-sm text-text-secondary">
+                      <span className="text-brand-accent mr-2">•</span>
                       <span>{bullet}</span>
                     </li>
                   ))}
@@ -104,7 +104,7 @@ export default function OpenSourceSection() {
                   {project.stack.map((tech, i) => (
                     <span
                       key={i}
-                      className="px-3 py-1 text-xs font-medium uppercase tracking-wider bg-gray-100 text-gray-700 rounded-full"
+                      className="px-3 py-1 text-xs font-medium uppercase tracking-wider bg-bg-row text-text-secondary rounded-full"
                     >
                       {tech}
                     </span>
@@ -134,7 +134,7 @@ export default function OpenSourceSection() {
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     onClick={scrollToProject}
-                    className="flex-1 py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-xl hover:shadow-xl transition-all"
+                    className="flex-1 py-3 bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white font-medium rounded hover:shadow-sm transition-all"
                   >
                     Build Something Like This
                   </button>
@@ -142,7 +142,7 @@ export default function OpenSourceSection() {
                     href={`https://github.com/${project.repo}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-medium rounded-xl hover:border-[#b4b237] hover:text-[#b4b237] transition-all text-center"
+                    className="flex-1 py-3 border-2 border-border text-text-secondary font-medium rounded hover:border-brand-accent hover:text-brand-accent transition-all text-center"
                   >
                     View Repo
                   </a>

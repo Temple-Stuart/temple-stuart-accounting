@@ -116,20 +116,20 @@ export default function DeveloperDashboard() {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl p-8 shadow-lg w-full max-w-md">
-          <h1 className="text-2xl font-light text-gray-900 mb-6">Developer Access</h1>
+      <div className="min-h-screen bg-bg-row flex items-center justify-center p-4">
+        <div className="bg-white rounded p-8 shadow-sm w-full max-w-md">
+          <h1 className="text-sm font-light text-text-primary mb-6">Developer Access</h1>
           <form onSubmit={handleLogin}>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl mb-4 focus:outline-none focus:border-[#b4b237]"
+              className="w-full px-4 py-3 border border-border rounded mb-4 focus:outline-none focus:border-brand-accent"
             />
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white rounded-xl hover:shadow-xl transition-all"
+              className="w-full py-3 bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white rounded hover:shadow-sm transition-all"
             >
               Login
             </button>
@@ -140,18 +140,18 @@ export default function DeveloperDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-bg-row">
+      <nav className="bg-white border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-light text-gray-900">Developer Dashboard</h1>
+            <h1 className="text-sm font-light text-text-primary">Developer Dashboard</h1>
             <div className="flex gap-4">
               <button
                 onClick={() => setActiveTab('prospects')}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                   activeTab === 'prospects'
-                    ? 'bg-[#b4b237] text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-brand-accent text-white'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 Prospects ({prospects.length})
@@ -161,7 +161,7 @@ export default function DeveloperDashboard() {
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                   activeTab === 'clients'
                     ? 'bg-purple-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 Client Login
@@ -177,38 +177,38 @@ export default function DeveloperDashboard() {
           <div className="grid grid-cols-3 gap-6">
             
             {/* Prospects List */}
-            <div className="col-span-1 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="font-medium text-gray-900">All Prospects</h2>
+            <div className="col-span-1 bg-white rounded border border-border overflow-hidden">
+              <div className="p-4 border-b border-border">
+                <h2 className="font-medium text-text-primary">All Prospects</h2>
               </div>
-              <div className="divide-y divide-gray-100 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div className="divide-y divide-border max-h-[calc(100vh-200px)] overflow-y-auto">
                 {prospects.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setSelectedProspect(p)}
-                    className={`w-full p-4 text-left hover:bg-gray-50 transition-all ${
-                      selectedProspect?.id === p.id ? 'bg-[#b4b237]/5 border-l-4 border-[#b4b237]' : ''
+                    className={`w-full p-4 text-left hover:bg-bg-row transition-all ${
+                      selectedProspect?.id === p.id ? 'bg-brand-accent/5 border-l-4 border-brand-accent' : ''
                     }`}
                   >
-                    <p className="font-medium text-gray-900">{p.contactName}</p>
-                    <p className="text-sm text-gray-600">{p.businessName || 'Personal'}</p>
+                    <p className="font-medium text-text-primary">{p.contactName}</p>
+                    <p className="text-sm text-text-secondary">{p.businessName || 'Personal'}</p>
                     <div className="flex justify-between items-center mt-2">
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        p.status === 'new' ? 'bg-blue-100 text-blue-700' :
+                        p.status === 'new' ? 'bg-brand-purple-wash text-brand-purple' :
                         p.status === 'contacted' ? 'bg-yellow-100 text-yellow-700' :
-                        p.status === 'qualified' ? 'bg-green-100 text-green-700' :
+                        p.status === 'qualified' ? 'bg-green-100 text-brand-green' :
                         p.status === 'proposal' ? 'bg-purple-100 text-purple-700' :
                         p.status === 'won' ? 'bg-green-600 text-white' :
-                        'bg-red-100 text-red-700'
+                        'bg-red-100 text-brand-red'
                       }`}>
                         {p.status}
                       </span>
-                      <span className="text-xs text-gray-500">{p.expenseTier || 'No budget'}</span>
+                      <span className="text-xs text-text-muted">{p.expenseTier || 'No budget'}</span>
                     </div>
                   </button>
                 ))}
                 {prospects.length === 0 && (
-                  <div className="p-8 text-center text-gray-500">
+                  <div className="p-8 text-center text-text-muted">
                     No prospects yet
                   </div>
                 )}
@@ -216,30 +216,30 @@ export default function DeveloperDashboard() {
             </div>
 
             {/* Prospect Details */}
-            <div className="col-span-2 bg-white rounded-2xl border border-gray-200">
+            <div className="col-span-2 bg-white rounded border border-border">
               {selectedProspect ? (
                 <div>
-                  <div className="p-6 border-b border-gray-200">
+                  <div className="p-6 border-b border-border">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h2 className="text-2xl font-light text-gray-900">{selectedProspect.contactName}</h2>
-                        <p className="text-gray-600">{selectedProspect.businessName || 'Personal Project'}</p>
-                        <p className="text-sm text-gray-500 mt-1">{selectedProspect.email}</p>
+                        <h2 className="text-sm font-light text-text-primary">{selectedProspect.contactName}</h2>
+                        <p className="text-text-secondary">{selectedProspect.businessName || 'Personal Project'}</p>
+                        <p className="text-sm text-text-muted mt-1">{selectedProspect.email}</p>
                       </div>
                       <button
                         onClick={() => deleteProspect(selectedProspect.id)}
-                        className="text-sm text-red-600 hover:text-red-800"
+                        className="text-sm text-brand-red hover:text-red-800"
                       >
                         Delete
                       </button>
                     </div>
                     
                     <div className="mt-4">
-                      <label className="text-xs text-gray-500 uppercase">Status</label>
+                      <label className="text-xs text-text-muted uppercase">Status</label>
                       <select
                         value={selectedProspect.status}
                         onChange={(e) => updateStatus(selectedProspect.id, e.target.value)}
-                        className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                        className="mt-1 w-full px-3 py-2 border border-border rounded focus:outline-none focus:border-brand-accent"
                       >
                         <option value="new">New</option>
                         <option value="contacted">Contacted</option>
@@ -256,88 +256,88 @@ export default function DeveloperDashboard() {
                     {/* Investment & Timeline */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-gray-500 uppercase">Budget</label>
-                        <p className="text-lg font-medium text-gray-900">{selectedProspect.expenseTier || 'Not specified'}</p>
+                        <label className="text-xs text-text-muted uppercase">Budget</label>
+                        <p className="text-terminal-lg font-medium text-text-primary">{selectedProspect.expenseTier || 'Not specified'}</p>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 uppercase">Timeline</label>
-                        <p className="text-lg font-medium text-gray-900">{selectedProspect.timeline || 'Not specified'}</p>
+                        <label className="text-xs text-text-muted uppercase">Timeline</label>
+                        <p className="text-terminal-lg font-medium text-text-primary">{selectedProspect.timeline || 'Not specified'}</p>
                       </div>
                     </div>
 
                     {/* Problem */}
                     {selectedProspect.problem && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">What's NOT Working</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.problem}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">What's NOT Working</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.problem}</p>
                       </div>
                     )}
 
                     {/* Dream System */}
                     {selectedProspect.dreamSystem && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">Dream System</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.dreamSystem}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">Dream System</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.dreamSystem}</p>
                       </div>
                     )}
 
                     {/* Enablement */}
                     {selectedProspect.enablement && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">What It Enables</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.enablement}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">What It Enables</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.enablement}</p>
                       </div>
                     )}
 
                     {/* System Type */}
                     {selectedProspect.systemType && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">System Type</label>
-                        <p className="mt-2 text-gray-900">{selectedProspect.systemType}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">System Type</label>
+                        <p className="mt-2 text-text-primary">{selectedProspect.systemType}</p>
                       </div>
                     )}
 
                     {/* Current Tools */}
                     {selectedProspect.currentTools && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">Current Tools</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.currentTools}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">Current Tools</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.currentTools}</p>
                       </div>
                     )}
 
                     {/* Has Data */}
                     {selectedProspect.hasData && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">Data Status</label>
-                        <p className="mt-2 text-gray-900">{selectedProspect.hasData}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">Data Status</label>
+                        <p className="mt-2 text-text-primary">{selectedProspect.hasData}</p>
                       </div>
                     )}
 
                     {/* Why Now */}
                     {selectedProspect.whyNow && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">Why Now</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.whyNow}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">Why Now</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.whyNow}</p>
                       </div>
                     )}
 
                     {/* Additional Info */}
                     {selectedProspect.additionalInfo && (
                       <div>
-                        <label className="text-xs text-gray-500 uppercase font-semibold">Additional Details</label>
-                        <p className="mt-2 text-gray-900 whitespace-pre-wrap">{selectedProspect.additionalInfo}</p>
+                        <label className="text-xs text-text-muted uppercase font-semibold">Additional Details</label>
+                        <p className="mt-2 text-text-primary whitespace-pre-wrap">{selectedProspect.additionalInfo}</p>
                       </div>
                     )}
 
                     {/* Submission Date */}
                     <div>
-                      <label className="text-xs text-gray-500 uppercase">Submitted</label>
-                      <p className="text-sm text-gray-600">{new Date(selectedProspect.createdAt).toLocaleString()}</p>
+                      <label className="text-xs text-text-muted uppercase">Submitted</label>
+                      <p className="text-sm text-text-secondary">{new Date(selectedProspect.createdAt).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-12 text-center text-gray-500">
+                <div className="p-12 text-center text-text-muted">
                   Select a prospect to view details
                 </div>
               )}
@@ -347,20 +347,20 @@ export default function DeveloperDashboard() {
 
         {activeTab === 'clients' && (
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-2xl border border-gray-200 p-8">
+            <div className="bg-white rounded border border-border p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-light text-gray-900 mb-2">Client Portal</h2>
-                <p className="text-gray-600">Access your bookkeeping dashboard</p>
+                <h2 className="text-sm font-light text-text-primary mb-2">Client Portal</h2>
+                <p className="text-text-secondary">Access your bookkeeping dashboard</p>
               </div>
 
               {/* Toggle */}
-              <div className="flex border-b border-gray-100 mb-6">
+              <div className="flex border-b border-border-light mb-6">
                 <button
                   onClick={() => {setIsLogin(true); setMessage('');}}
                   className={`flex-1 py-3 text-sm font-medium transition-all ${
                     isLogin 
                       ? 'text-purple-600 border-b-2 border-purple-600' 
-                      : 'text-gray-400 hover:text-gray-600'
+                      : 'text-text-faint hover:text-text-secondary'
                   }`}
                 >
                   Sign In
@@ -370,7 +370,7 @@ export default function DeveloperDashboard() {
                   className={`flex-1 py-3 text-sm font-medium transition-all ${
                     !isLogin 
                       ? 'text-purple-600 border-b-2 border-purple-600' 
-                      : 'text-gray-400 hover:text-gray-600'
+                      : 'text-text-faint hover:text-text-secondary'
                   }`}
                 >
                   Create Account
@@ -380,41 +380,41 @@ export default function DeveloperDashboard() {
               <form onSubmit={handleClientSubmit} className="space-y-4">
                 {!isLogin && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-text-secondary mb-2">
                       Full Name
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-purple-600"
+                      className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-purple-600"
                       required={!isLogin}
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Email Address
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-purple-600"
+                    className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-purple-600"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Password
                   </label>
                   <input
                     type="password"
                     value={clientPassword}
                     onChange={(e) => setClientPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-purple-600"
+                    className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-purple-600"
                     required
                     minLength={8}
                   />
@@ -423,7 +423,7 @@ export default function DeveloperDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-medium rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-medium rounded hover:shadow-sm transition-all disabled:opacity-50"
                 >
                   {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
                 </button>
@@ -431,8 +431,8 @@ export default function DeveloperDashboard() {
                 {message && (
                   <div className={`text-center text-sm ${
                     message.includes('Success') 
-                      ? 'text-green-600' 
-                      : 'text-red-600'
+                      ? 'text-brand-green' 
+                      : 'text-brand-red'
                   }`}>
                     {message}
                   </div>

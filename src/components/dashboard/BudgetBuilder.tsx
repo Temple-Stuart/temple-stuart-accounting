@@ -95,28 +95,28 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
     const annual = getAnnualBudget(account.code);
 
     return (
-      <div key={account.code} className="bg-white rounded-xl border border-gray-200 overflow-hidden p-4">
+      <div key={account.code} className="bg-white rounded border border-border overflow-hidden p-4">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <div className="font-semibold text-gray-900">{account.name}</div>
-            <div className="text-xs text-gray-400 font-mono">{account.code}</div>
+            <div className="font-semibold text-text-primary">{account.name}</div>
+            <div className="text-xs text-text-faint font-mono">{account.code}</div>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4 mb-3">
           <div>
-            <div className="text-xs text-gray-400">YTD</div>
-            <button onClick={() => setDrilldown({ code: account.code })} className="font-semibold text-blue-600 hover:underline">
+            <div className="text-xs text-text-faint">YTD</div>
+            <button onClick={() => setDrilldown({ code: account.code })} className="font-semibold text-brand-purple hover:underline">
               {formatMoney(ytd)}
             </button>
           </div>
-          <div><div className="text-xs text-gray-400">Avg/Mo</div><div className="font-semibold text-gray-900">{formatMoney(avg)}</div></div>
-          <div><div className="text-xs text-gray-400">Budget</div><div className="font-semibold text-gray-900">{formatMoney(annual)}</div></div>
+          <div><div className="text-xs text-text-faint">Avg/Mo</div><div className="font-semibold text-text-primary">{formatMoney(avg)}</div></div>
+          <div><div className="text-xs text-text-faint">Budget</div><div className="font-semibold text-text-primary">{formatMoney(annual)}</div></div>
         </div>
         <div className="grid grid-cols-6 gap-1 text-center text-xs">
           {MONTH_LABELS.map((label, i) => (
             <div key={label}>
-              <div className="text-gray-400">{label}</div>
-              <div className="font-medium text-gray-700">{formatMoney(getBudgetValue(account.code, MONTHS[i]))}</div>
+              <div className="text-text-faint">{label}</div>
+              <div className="font-medium text-text-secondary">{formatMoney(getBudgetValue(account.code, MONTHS[i]))}</div>
             </div>
           ))}
         </div>
@@ -130,21 +130,21 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
     const avg = Math.round(ytd / monthsWithData);
 
     return (
-      <tr key={account.code} className="border-b border-gray-100 hover:bg-gray-50/50">
-        <td className="px-4 py-3 sticky left-0 bg-white z-10 min-w-[200px] border-r border-gray-100">
-          <div className="font-medium text-gray-900 text-sm">{account.name}</div>
-          <div className="text-xs text-gray-400 font-mono">{account.code}</div>
+      <tr key={account.code} className="border-b border-border-light hover:bg-bg-row/50">
+        <td className="px-4 py-3 sticky left-0 bg-white z-10 min-w-[200px] border-r border-border-light">
+          <div className="font-medium text-text-primary text-sm">{account.name}</div>
+          <div className="text-xs text-text-faint font-mono">{account.code}</div>
         </td>
-        <td className="px-3 py-3 text-right cursor-pointer hover:bg-blue-50" onClick={() => setDrilldown({ code: account.code })}>
-          <span className="text-blue-600 font-medium text-sm">{formatMoney(ytd)}</span>
+        <td className="px-3 py-3 text-right cursor-pointer hover:bg-brand-purple-wash" onClick={() => setDrilldown({ code: account.code })}>
+          <span className="text-brand-purple font-medium text-sm">{formatMoney(ytd)}</span>
         </td>
-        <td className="px-3 py-3 text-right text-sm text-gray-600">{formatMoney(avg)}</td>
+        <td className="px-3 py-3 text-right text-sm text-text-secondary">{formatMoney(avg)}</td>
         {MONTHS.map(month => (
-          <td key={month} className="px-2 py-3 text-center text-sm text-gray-700">
+          <td key={month} className="px-2 py-3 text-center text-sm text-text-secondary">
             {formatMoney(getBudgetValue(account.code, month))}
           </td>
         ))}
-        <td className="px-3 py-3 text-right font-bold text-sm bg-gray-50 sticky right-0 border-l border-gray-200">
+        <td className="px-3 py-3 text-right font-bold text-sm bg-bg-row sticky right-0 border-l border-border">
           {formatMoney(getAnnualBudget(account.code))}
         </td>
       </tr>
@@ -166,7 +166,7 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
       <td className="px-3 py-3 text-right font-bold text-sm">{formatMoney(accounts.reduce((sum, a) => sum + (ytdByAccount[a.code] || 0), 0))}</td>
       <td className="px-3 py-3 text-right font-bold text-sm">{formatMoney(Math.round(accounts.reduce((sum, a) => sum + (ytdByAccount[a.code] || 0), 0) / monthsWithData))}</td>
       {MONTHS.map(month => <td key={month} className="px-2 py-3 text-center text-sm font-bold">{formatMoney(getSectionTotal(accounts, month))}</td>)}
-      <td className="px-3 py-3 text-right font-bold text-sm bg-gray-100 sticky right-0">{formatMoney(accounts.reduce((sum, a) => sum + getAnnualBudget(a.code), 0))}</td>
+      <td className="px-3 py-3 text-right font-bold text-sm bg-bg-row sticky right-0">{formatMoney(accounts.reduce((sum, a) => sum + getAnnualBudget(a.code), 0))}</td>
     </tr>
   );
 
@@ -176,41 +176,41 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
       <div className="block lg:hidden space-y-4">
         {revenueCodes.length > 0 && (
           <div>
-            <h3 className="text-sm font-bold text-green-700 uppercase tracking-wider mb-3">Revenue</h3>
+            <h3 className="text-sm font-bold text-brand-green uppercase tracking-wider mb-3">Revenue</h3>
             <div className="space-y-3">{revenueCodes.map(a => renderCard(a))}</div>
           </div>
         )}
         {expenseCodes.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-sm font-bold text-red-700 uppercase tracking-wider mb-3">Expenses</h3>
+            <h3 className="text-sm font-bold text-brand-red uppercase tracking-wider mb-3">Expenses</h3>
             <div className="space-y-3">{expenseCodes.map(a => renderCard(a))}</div>
           </div>
         )}
         {usedAccounts.length === 0 && (
           <Card className="text-center py-8">
             <div className="text-4xl mb-3">📊</div>
-            <p className="text-gray-600 font-medium">No budgets committed yet</p>
-            <p className="text-sm text-gray-400 mt-1">Commit a trip to start building your budget</p>
+            <p className="text-text-secondary font-medium">No budgets committed yet</p>
+            <p className="text-sm text-text-faint mt-1">Commit a trip to start building your budget</p>
           </Card>
         )}
       </div>
 
       {/* Desktop View - Table */}
       <Card noPadding className="hidden lg:block">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900">Budget Review</h3>
-          <p className="text-sm text-gray-500">Committed budgets vs actual spending • Use Trips to add budget</p>
+        <div className="px-6 py-4 border-b border-border-light">
+          <h3 className="font-bold text-text-primary">Budget Review</h3>
+          <p className="text-sm text-text-muted">Committed budgets vs actual spending • Use Trips to add budget</p>
         </div>
         {usedAccounts.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" style={{ minWidth: '1000px' }}>
-              <thead className="bg-[#2d1b4e] text-white">
+              <thead className="bg-brand-purple text-white">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-[#2d1b4e] z-20 min-w-[200px]">Account</th>
+                  <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-brand-purple z-20 min-w-[200px]">Account</th>
                   <th className="px-3 py-3 text-right font-semibold">YTD</th>
                   <th className="px-3 py-3 text-right font-semibold">Avg</th>
                   {MONTH_LABELS.map(m => <th key={m} className="px-2 py-3 text-center font-semibold">{m}</th>)}
-                  <th className="px-3 py-3 text-right font-semibold bg-[#1a0f2e] sticky right-0">Annual</th>
+                  <th className="px-3 py-3 text-right font-semibold bg-panel-highlight sticky right-0">Annual</th>
                 </tr>
               </thead>
               <tbody>
@@ -222,8 +222,8 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
         ) : (
           <div className="text-center py-12">
             <div className="text-4xl mb-3">📊</div>
-            <p className="text-gray-600 font-medium">No budgets committed yet</p>
-            <p className="text-sm text-gray-400 mt-1">Commit a trip to start building your budget</p>
+            <p className="text-text-secondary font-medium">No budgets committed yet</p>
+            <p className="text-sm text-text-faint mt-1">Commit a trip to start building your budget</p>
           </div>
         )}
       </Card>
@@ -231,39 +231,39 @@ export default function BudgetBuilder({ transactions, coaOptions, budgets, selec
       {/* Drilldown Modal */}
       {drilldown && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDrilldown(null)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded shadow-sm w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <div>
-                <h4 className="font-bold text-gray-900">{coaOptions.find(c => c.code === drilldown.code)?.name}</h4>
-                <p className="text-sm text-gray-500">{drilldownTxns.length} transactions</p>
+                <h4 className="font-bold text-text-primary">{coaOptions.find(c => c.code === drilldown.code)?.name}</h4>
+                <p className="text-sm text-text-muted">{drilldownTxns.length} transactions</p>
               </div>
-              <button onClick={() => setDrilldown(null)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xl">×</button>
+              <button onClick={() => setDrilldown(null)} className="w-8 h-8 rounded-full hover:bg-bg-row flex items-center justify-center text-text-faint hover:text-text-secondary text-sm">×</button>
             </div>
             <div className="flex-1 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
+                <thead className="bg-bg-row sticky top-0">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Date</th>
                     <th className="px-4 py-3 text-left font-semibold">Description</th>
                     <th className="px-4 py-3 text-right font-semibold">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {drilldownTxns.map(txn => (
-                    <tr key={txn.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">{new Date(txn.date).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 truncate max-w-[250px] text-gray-900">{txn.name}</td>
+                    <tr key={txn.id} className="hover:bg-bg-row">
+                      <td className="px-4 py-3 whitespace-nowrap text-text-secondary">{new Date(txn.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 truncate max-w-[250px] text-text-primary">{txn.name}</td>
                       <td className="px-4 py-3 text-right font-mono font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
                     </tr>
                   ))}
                   {drilldownTxns.length === 0 && (
-                    <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">No transactions yet</td></tr>
+                    <tr><td colSpan={3} className="px-4 py-8 text-center text-text-faint">No transactions yet</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-between items-center">
-              <span className="font-semibold text-gray-900">Total: ${drilldownTxns.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
+            <div className="px-6 py-4 border-t bg-bg-row flex justify-between items-center">
+              <span className="font-semibold text-text-primary">Total: ${drilldownTxns.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
               <Button variant="ghost" onClick={() => setDrilldown(null)}>Close</Button>
             </div>
           </div>

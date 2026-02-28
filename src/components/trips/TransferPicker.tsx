@@ -153,26 +153,26 @@ export default function TransferPicker({
   const onSelect = activeTab === 'arrival' ? onSelectArrival : onSelectDeparture;
 
   return (
-    <div className="bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-bg-row rounded border border-border overflow-hidden">
       {/* Header */}
       <div 
-        className="p-4 cursor-pointer hover:bg-gray-100 flex justify-between items-center"
+        className="p-4 cursor-pointer hover:bg-bg-row flex justify-between items-center"
         onClick={() => (arrivalTransfers.length > 0 || searched) ? setExpanded(!expanded) : fetchTransfers()}
       >
         <div>
           <div className="font-medium">{destinationName}</div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-text-muted">
             {airportCode} ↔ Resort • {passengers} passengers
           </div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-xs text-text-faint mt-1">
             🛬 {formatDate(arrivalDateTime)} • 🛫 {formatDate(departureDateTime)}
           </div>
         </div>
         
         {(selectedArrival || selectedDeparture) ? (
           <div className="text-right">
-            <div className="text-green-400 font-bold">${totalPrice.toFixed(0)}</div>
-            <div className="text-xs text-gray-500">
+            <div className="text-brand-green font-bold">${totalPrice.toFixed(0)}</div>
+            <div className="text-xs text-text-muted">
               {selectedArrival && selectedDeparture ? 'Round trip' : 'One way'}
             </div>
           </div>
@@ -180,7 +180,7 @@ export default function TransferPicker({
           <button
             onClick={(e) => { e.stopPropagation(); fetchTransfers(); }}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-gray-900 rounded text-sm hover:bg-blue-500 disabled:opacity-50"
+            className="px-4 py-2 bg-brand-purple text-text-primary rounded text-sm hover:bg-brand-purple disabled:opacity-50"
           >
             {loading ? '⏳ Loading...' : '🚗 Search Transfers'}
           </button>
@@ -189,13 +189,13 @@ export default function TransferPicker({
 
       {/* Selected Transfer Summary */}
       {(selectedArrival || selectedDeparture) && !expanded && (
-        <div className="px-4 pb-3 border-t border-gray-200">
+        <div className="px-4 pb-3 border-t border-border">
           {selectedArrival && (
             <div className="flex justify-between items-center text-sm pt-2">
               <div>
-                <span className="text-blue-400">🛬 Arrival:</span>
-                <span className="ml-2 text-gray-600">{selectedArrival.vehicle.description}</span>
-                <span className="ml-2 text-gray-400">${selectedArrival.price.toFixed(0)}</span>
+                <span className="text-brand-purple">🛬 Arrival:</span>
+                <span className="ml-2 text-text-secondary">{selectedArrival.vehicle.description}</span>
+                <span className="ml-2 text-text-faint">${selectedArrival.price.toFixed(0)}</span>
               </div>
             </div>
           )}
@@ -203,14 +203,14 @@ export default function TransferPicker({
             <div className="flex justify-between items-center text-sm pt-1">
               <div>
                 <span className="text-orange-400">🛫 Departure:</span>
-                <span className="ml-2 text-gray-600">{selectedDeparture.vehicle.description}</span>
-                <span className="ml-2 text-gray-400">${selectedDeparture.price.toFixed(0)}</span>
+                <span className="ml-2 text-text-secondary">{selectedDeparture.vehicle.description}</span>
+                <span className="ml-2 text-text-faint">${selectedDeparture.price.toFixed(0)}</span>
               </div>
             </div>
           )}
           <button 
             onClick={() => setExpanded(true)}
-            className="text-xs text-blue-400 hover:text-blue-300 mt-2"
+            className="text-xs text-brand-purple hover:text-brand-purple mt-2"
           >
             Change
           </button>
@@ -219,15 +219,15 @@ export default function TransferPicker({
 
       {/* Transfer Options */}
       {expanded && (
-        <div className="border-t border-gray-200 max-h-[500px] overflow-y-auto">
+        <div className="border-t border-border max-h-[500px] overflow-y-auto">
           {/* Direction Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-border">
             <button
               onClick={() => setActiveTab('arrival')}
               className={`flex-1 py-2 px-3 text-sm flex items-center justify-center gap-2 ${
                 activeTab === 'arrival'
-                  ? 'bg-blue-600 text-gray-900'
-                  : 'bg-white text-gray-500 hover:bg-gray-100'
+                  ? 'bg-brand-purple text-text-primary'
+                  : 'bg-white text-text-muted hover:bg-bg-row'
               }`}
             >
               🛬 Arrival
@@ -237,8 +237,8 @@ export default function TransferPicker({
               onClick={() => setActiveTab('departure')}
               className={`flex-1 py-2 px-3 text-sm flex items-center justify-center gap-2 ${
                 activeTab === 'departure'
-                  ? 'bg-orange-600 text-gray-900'
-                  : 'bg-white text-gray-500 hover:bg-gray-100'
+                  ? 'bg-orange-600 text-text-primary'
+                  : 'bg-white text-text-muted hover:bg-bg-row'
               }`}
             >
               🛫 Departure
@@ -247,15 +247,15 @@ export default function TransferPicker({
           </div>
 
           {/* Transfer Type Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-border">
             {TRANSFER_TYPES.map(type => (
               <button
                 key={type.code}
                 onClick={() => handleTypeChange(type.code)}
                 className={`flex-1 py-2 px-3 text-sm ${
                   transferType === type.code
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'bg-white text-gray-500 hover:bg-gray-100'
+                    ? 'bg-border text-text-primary'
+                    : 'bg-white text-text-muted hover:bg-bg-row'
                 }`}
               >
                 {type.icon} {type.label}
@@ -264,7 +264,7 @@ export default function TransferPicker({
           </div>
 
           {/* Direction Label */}
-          <div className="px-4 py-2 bg-white text-xs text-gray-500">
+          <div className="px-4 py-2 bg-white text-xs text-text-muted">
             {activeTab === 'arrival' 
               ? `${airportCode} → ${destinationName} • ${formatDate(arrivalDateTime)}`
               : `${destinationName} → ${airportCode} • ${formatDate(departureDateTime)}`
@@ -272,44 +272,44 @@ export default function TransferPicker({
           </div>
 
           {error && (
-            <div className="p-4 text-red-400 text-sm">{error}</div>
+            <div className="p-4 text-brand-red text-sm">{error}</div>
           )}
           
 
           {/* Manual Entry Section */}
-          <div className="p-4 bg-gray-50 border-b border-gray-200">
-            <div className="text-sm text-gray-600 font-medium mb-2">
+          <div className="p-4 bg-bg-row border-b border-border">
+            <div className="text-sm text-text-secondary font-medium mb-2">
               {activeTab === 'arrival' ? '🛬 Arrival' : '🛫 Departure'} - Enter manually:
             </div>
             <div className="flex gap-2 items-center">
-              <span className="text-gray-500">$</span>
+              <span className="text-text-muted">$</span>
               <input
                 type="number"
                 value={activeTab === 'arrival' ? manualArrivalPrice : manualDeparturePrice}
                 onChange={(e) => activeTab === 'arrival' ? setManualArrivalPrice(e.target.value) : setManualDeparturePrice(e.target.value)}
                 placeholder="Total cost"
-                className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm"
+                className="flex-1 bg-white border border-border rounded px-3 py-2 text-text-primary text-sm"
               />
               <button
                 onClick={() => handleManualSubmit(activeTab)}
                 disabled={!(activeTab === 'arrival' ? manualArrivalPrice : manualDeparturePrice)}
-                className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                className="px-4 py-2 bg-brand-green text-white rounded text-sm hover:bg-brand-green disabled:opacity-50"
               >
                 Use This
               </button>
             </div>
             <div className="mt-2 flex gap-2 text-xs">
-              <span className="text-gray-400">Check prices:</span>
-              <a href="https://www.uber.com/us/en/price-estimate/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">Uber ↗</a>
-              <a href="https://www.lyft.com/rider/fare-estimate" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">Lyft ↗</a>
+              <span className="text-text-faint">Check prices:</span>
+              <a href="https://www.uber.com/us/en/price-estimate/" target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:text-brand-purple">Uber ↗</a>
+              <a href="https://www.lyft.com/rider/fare-estimate" target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:text-brand-purple">Lyft ↗</a>
             </div>
           </div>
           {loading && (
-            <div className="p-4 text-gray-500 text-sm text-center">Loading transfers...</div>
+            <div className="p-4 text-text-muted text-sm text-center">Loading transfers...</div>
           )}
 
           {currentTransfers.length === 0 && searched && !loading && !error && (
-            <div className="p-4 text-gray-400 text-sm">
+            <div className="p-4 text-text-faint text-sm">
               No {transferType.toLowerCase()} transfers found for this route.
               <div className="mt-2 text-xs">
                 Try a different transfer type or check that the airport code is correct.
@@ -323,40 +323,40 @@ export default function TransferPicker({
               onClick={() => {
                 onSelect({ ...transfer, direction: activeTab });
               }}
-              className={`p-4 border-b border-gray-200 last:border-b-0 cursor-pointer transition-colors ${
+              className={`p-4 border-b border-border last:border-b-0 cursor-pointer transition-colors ${
                 currentSelected?.id === transfer.id 
-                  ? 'bg-blue-600/20 border-l-2 border-l-blue-500' 
-                  : 'hover:bg-gray-200/50'
+                  ? 'bg-brand-purple/20 border-l-2 border-l-brand-purple' 
+                  : 'hover:bg-border/50'
               }`}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">{transfer.vehicle.description}</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-medium text-text-primary">{transfer.vehicle.description}</div>
+                  <div className="text-sm text-text-muted">
                     {transfer.provider.name}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-text-faint mt-1">
                     👥 {transfer.vehicle.seats} seats • 🧳 {transfer.vehicle.bags} bags
                     {transfer.distance && <span className="ml-2">• 📍 {transfer.distance}</span>}
                   </div>
                   {transfer.pickupTime && (
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-text-faint mt-1">
                       ⏰ Pickup: {formatTime(transfer.pickupTime)}
                       {transfer.dropoffTime && ` → ${formatTime(transfer.dropoffTime)}`}
                     </div>
                   )}
                 </div>
                 <div className="ml-4 text-right">
-                  <div className="text-xl font-bold text-green-400">${transfer.price.toFixed(0)}</div>
-                  <div className="text-xs text-gray-500">{transfer.currency}</div>
-                  <div className="text-xs text-blue-400">${(transfer.price / passengers).toFixed(0)}/person</div>
+                  <div className="text-sm font-bold text-brand-green">${transfer.price.toFixed(0)}</div>
+                  <div className="text-xs text-text-muted">{transfer.currency}</div>
+                  <div className="text-xs text-brand-purple">${(transfer.price / passengers).toFixed(0)}/person</div>
                 </div>
               </div>
             </div>
           ))}
 
           {currentTransfers.length > 0 && (
-            <div className="p-3 bg-white text-xs text-gray-400 text-center">
+            <div className="p-3 bg-white text-xs text-text-faint text-center">
               ⚠️ Test data from Amadeus API — prices may not reflect actual rates
             </div>
           )}

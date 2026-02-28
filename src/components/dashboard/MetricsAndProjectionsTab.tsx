@@ -60,16 +60,16 @@ export default function MetricsAndProjectionsTab() {
 
   const getRatingColor = (value: number, metricType: string) => {
     if (metricType === 'margin' || metricType === 'return') {
-      if (value >= 20) return 'text-green-600';
+      if (value >= 20) return 'text-brand-green';
       if (value >= 10) return 'text-yellow-600';
-      return 'text-red-600';
+      return 'text-brand-red';
     }
     if (metricType === 'ratio') {
-      if (value >= 2) return 'text-green-600';
+      if (value >= 2) return 'text-brand-green';
       if (value >= 1) return 'text-yellow-600';
-      return 'text-red-600';
+      return 'text-brand-red';
     }
-    return 'text-gray-600';
+    return 'text-text-secondary';
   };
 
   if (loading) {
@@ -77,48 +77,48 @@ export default function MetricsAndProjectionsTab() {
   }
 
   if (!metrics) {
-    return <div className="p-8 text-center text-red-600">Failed to load metrics</div>;
+    return <div className="p-8 text-center text-brand-red">Failed to load metrics</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Metrics & Projections</h2>
-          <p className="text-sm text-gray-600 mt-1">Financial KPIs and trend forecasting</p>
+          <h2 className="text-sm font-bold">Metrics & Projections</h2>
+          <p className="text-sm text-text-secondary mt-1">Financial KPIs and trend forecasting</p>
         </div>
         <button 
           onClick={loadMetrics}
-          className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm"
+          className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
         >
           Refresh
         </button>
       </div>
 
       {/* Profitability Metrics */}
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Profitability Metrics</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Profitability Metrics</h3>
         <div className="grid grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Gross Profit Margin</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Gross Profit Margin</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.profitability.grossProfitMargin, 'margin')}`}>
               {metrics.profitability.grossProfitMargin.toFixed(1)}%
             </div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Net Profit Margin</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Net Profit Margin</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.profitability.netProfitMargin, 'margin')}`}>
               {metrics.profitability.netProfitMargin.toFixed(1)}%
             </div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Return on Assets</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Return on Assets</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.profitability.returnOnAssets, 'return')}`}>
               {metrics.profitability.returnOnAssets.toFixed(1)}%
             </div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Return on Equity</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Return on Equity</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.profitability.returnOnEquity, 'return')}`}>
               {metrics.profitability.returnOnEquity.toFixed(1)}%
             </div>
@@ -127,61 +127,61 @@ export default function MetricsAndProjectionsTab() {
       </div>
 
       {/* Liquidity Metrics */}
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Liquidity Metrics</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Liquidity Metrics</h3>
         <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Current Ratio</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Current Ratio</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.liquidity.currentRatio, 'ratio')}`}>
               {metrics.liquidity.currentRatio.toFixed(2)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Target: &gt; 1.5</div>
+            <div className="text-xs text-text-muted mt-1">Target: &gt; 1.5</div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Quick Ratio</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Quick Ratio</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.liquidity.quickRatio, 'ratio')}`}>
               {metrics.liquidity.quickRatio.toFixed(2)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Target: &gt; 1.0</div>
+            <div className="text-xs text-text-muted mt-1">Target: &gt; 1.0</div>
           </div>
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-xs text-gray-600 mb-1">Cash Ratio</div>
+          <div className="text-center p-4 bg-bg-row rounded">
+            <div className="text-xs text-text-secondary mb-1">Cash Ratio</div>
             <div className={`text-3xl font-bold ${getRatingColor(metrics.liquidity.cashRatio, 'ratio')}`}>
               {metrics.liquidity.cashRatio.toFixed(2)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Target: &gt; 0.5</div>
+            <div className="text-xs text-text-muted mt-1">Target: &gt; 0.5</div>
           </div>
         </div>
       </div>
 
       {/* Efficiency & Growth */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white border rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Efficiency Metrics</h3>
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-terminal-lg font-semibold mb-4">Efficiency Metrics</h3>
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="text-sm text-gray-600">Expense Ratio</span>
-              <span className="text-xl font-bold">{metrics.efficiency.expenseRatio.toFixed(1)}%</span>
+            <div className="flex justify-between items-center p-3 bg-bg-row rounded">
+              <span className="text-sm text-text-secondary">Expense Ratio</span>
+              <span className="text-sm font-bold">{metrics.efficiency.expenseRatio.toFixed(1)}%</span>
             </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="text-sm text-gray-600">Asset Turnover</span>
-              <span className="text-xl font-bold">{metrics.efficiency.assetTurnover.toFixed(2)}x</span>
+            <div className="flex justify-between items-center p-3 bg-bg-row rounded">
+              <span className="text-sm text-text-secondary">Asset Turnover</span>
+              <span className="text-sm font-bold">{metrics.efficiency.assetTurnover.toFixed(2)}x</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Growth Metrics</h3>
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-terminal-lg font-semibold mb-4">Growth Metrics</h3>
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="text-sm text-gray-600">Revenue Growth</span>
-              <span className={`text-xl font-bold ${metrics.growth.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex justify-between items-center p-3 bg-bg-row rounded">
+              <span className="text-sm text-text-secondary">Revenue Growth</span>
+              <span className={`text-sm font-bold ${metrics.growth.revenueGrowth >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                 {metrics.growth.revenueGrowth >= 0 ? '+' : ''}{metrics.growth.revenueGrowth.toFixed(1)}%
               </span>
             </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="text-sm text-gray-600">Income Growth</span>
-              <span className={`text-xl font-bold ${metrics.growth.incomeGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex justify-between items-center p-3 bg-bg-row rounded">
+              <span className="text-sm text-text-secondary">Income Growth</span>
+              <span className={`text-sm font-bold ${metrics.growth.incomeGrowth >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                 {metrics.growth.incomeGrowth >= 0 ? '+' : ''}{metrics.growth.incomeGrowth.toFixed(1)}%
               </span>
             </div>
@@ -191,26 +191,26 @@ export default function MetricsAndProjectionsTab() {
 
       {/* Projections */}
       {projections.length > 0 && (
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 border-b">
-            <h3 className="text-lg font-semibold">Financial Projections</h3>
-            <p className="text-xs text-gray-600 mt-1">Based on historical trends (simple linear projection)</p>
+        <div className="bg-white border rounded overflow-hidden">
+          <div className="bg-bg-row px-6 py-4 border-b">
+            <h3 className="text-terminal-lg font-semibold">Financial Projections</h3>
+            <p className="text-xs text-text-secondary mt-1">Based on historical trends (simple linear projection)</p>
           </div>
           <div className="overflow-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-bg-row">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Metric</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">Current</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">3 Months</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">6 Months</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">12 Months</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Trend</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Metric</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary">Current</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary">3 Months</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary">6 Months</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary">12 Months</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-text-secondary">Trend</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {projections.map((proj, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
+                  <tr key={idx} className="hover:bg-bg-row">
                     <td className="px-4 py-3 text-sm font-medium">{proj.metric}</td>
                     <td className="px-4 py-3 text-right text-sm font-semibold">
                       ${proj.current.toFixed(2)}
@@ -226,9 +226,9 @@ export default function MetricsAndProjectionsTab() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        proj.trend === 'up' ? 'bg-green-100 text-green-700' :
-                        proj.trend === 'down' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
+                        proj.trend === 'up' ? 'bg-green-100 text-brand-green' :
+                        proj.trend === 'down' ? 'bg-red-100 text-brand-red' :
+                        'bg-bg-row text-text-secondary'
                       }`}>
                         {proj.trend === 'up' ? '↑ Growing' : proj.trend === 'down' ? '↓ Declining' : '→ Stable'}
                       </span>
@@ -242,7 +242,7 @@ export default function MetricsAndProjectionsTab() {
       )}
 
       {/* Disclaimer */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-brand-purple-wash border border-blue-200 rounded p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">About These Metrics</h3>
         <p className="text-sm text-blue-800">
           Financial metrics provide insights into business performance. Projections are based on historical trends 

@@ -219,14 +219,14 @@ export default function ActivityDestinationSelector({ tripId, activity, onSelect
   };
 
   if (loading) {
-    return <div className="text-gray-500 py-4">Loading destinations...</div>;
+    return <div className="text-text-muted py-4">Loading destinations...</div>;
   }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-gray-900">{config.title}</h3>
-        <span className="text-sm text-gray-400">{destinations.length} destinations</span>
+        <h3 className="font-semibold text-text-primary">{config.title}</h3>
+        <span className="text-sm text-text-faint">{destinations.length} destinations</span>
       </div>
 
       <input
@@ -234,16 +234,16 @@ export default function ActivityDestinationSelector({ tripId, activity, onSelect
         placeholder="Search destinations..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full px-4 py-2 border border-gray-200 rounded-lg mb-4 focus:outline-none focus:border-[#b4b237]"
+        className="w-full px-4 py-2 border border-border rounded mb-4 focus:outline-none focus:border-brand-accent"
       />
 
-      <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+      <div className="overflow-x-auto max-h-96 overflow-y-auto border border-border rounded">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 sticky top-0">
+          <thead className="bg-bg-row sticky top-0">
             <tr>
-              <th className="text-left py-2 px-3 text-gray-500 font-medium"></th>
+              <th className="text-left py-2 px-3 text-text-muted font-medium"></th>
               {config.columns.map(col => (
-                <th key={col.key} className="text-left py-2 px-3 text-gray-500 font-medium whitespace-nowrap">
+                <th key={col.key} className="text-left py-2 px-3 text-text-muted font-medium whitespace-nowrap">
                   {col.label}
                 </th>
               ))}
@@ -254,8 +254,8 @@ export default function ActivityDestinationSelector({ tripId, activity, onSelect
               <tr
                 key={dest.id}
                 onClick={() => toggleSelect(dest.id)}
-                className={`border-t border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  selected.has(dest.id) ? 'bg-[#b4b237]/10' : ''
+                className={`border-t border-border-light cursor-pointer hover:bg-bg-row transition-colors ${
+                  selected.has(dest.id) ? 'bg-brand-accent/10' : ''
                 }`}
               >
                 <td className="py-2 px-3">
@@ -263,11 +263,11 @@ export default function ActivityDestinationSelector({ tripId, activity, onSelect
                     type="checkbox"
                     checked={selected.has(dest.id)}
                     onChange={() => {}}
-                    className="rounded border-gray-300"
+                    className="rounded border-border"
                   />
                 </td>
                 {config.columns.map(col => (
-                  <td key={col.key} className="py-2 px-3 text-gray-700 whitespace-nowrap">
+                  <td key={col.key} className="py-2 px-3 text-text-secondary whitespace-nowrap">
                     {col.format ? col.format(dest[col.key]) : (dest[col.key] || '-')}
                   </td>
                 ))}
@@ -278,8 +278,8 @@ export default function ActivityDestinationSelector({ tripId, activity, onSelect
       </div>
 
       {selected.size > 0 && (
-        <div className="mt-4 p-3 bg-[#b4b237]/10 border border-[#b4b237]/30 rounded-lg">
-          <span className="text-sm text-[#b4b237] font-medium">
+        <div className="mt-4 p-3 bg-brand-accent/10 border border-brand-accent/30 rounded">
+          <span className="text-sm text-brand-accent font-medium">
             {selected.size} destination{selected.size > 1 ? 's' : ''} selected for comparison
           </span>
         </div>

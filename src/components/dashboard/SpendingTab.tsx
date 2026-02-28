@@ -291,16 +291,16 @@ function MultiSelectFilter({ label, options, selected, onToggle }: {
       <button
         onClick={() => setOpen(!open)}
         className={`px-2 py-1 text-terminal-sm font-mono border rounded flex items-center gap-1 transition-colors ${
-          selected.length > 0 ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'
+          selected.length > 0 ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'
         }`}
       >
         {label} {selected.length > 0 && <span className="px-1 py-0.5 bg-white/20 rounded text-[8px]">{selected.length}</span>}
         <span className="text-[8px]">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 bg-white border border-gray-200 rounded shadow-lg max-h-60 overflow-auto min-w-[200px]">
+        <div className="absolute z-30 top-full mt-1 left-0 bg-white border border-border rounded shadow-sm max-h-60 overflow-auto min-w-[200px]">
           {options.map(([val, count]) => (
-            <label key={val} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-50 cursor-pointer text-terminal-sm">
+            <label key={val} className="flex items-center gap-2 px-2 py-1 hover:bg-bg-row cursor-pointer text-terminal-sm">
               <input
                 type="checkbox"
                 checked={selected.includes(val)}
@@ -372,25 +372,25 @@ function CreateCoaModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded shadow-sm w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="bg-brand-purple-deep text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
           <span className="text-sm font-semibold">Create New COA Account</span>
-          <button onClick={onClose} className="text-white/60 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-white/60 hover:text-white text-terminal-lg">×</button>
         </div>
         <div className="p-4 space-y-3">
-          {error && <div className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{error}</div>}
+          {error && <div className="text-xs text-brand-red bg-red-50 px-3 py-2 rounded">{error}</div>}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Account Code</label>
-            <input value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. P-6100" className="w-full px-3 py-2 border rounded-lg text-sm" />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Account Code</label>
+            <input value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. P-6100" className="w-full px-3 py-2 border rounded text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Account Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Office Supplies" className="w-full px-3 py-2 border rounded-lg text-sm" />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Account Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Office Supplies" className="w-full px-3 py-2 border rounded text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Account Type</label>
-              <select value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Account Type</label>
+              <select value={accountType} onChange={e => setAccountType(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
                 <option value="expense">Expense</option>
                 <option value="revenue">Revenue</option>
                 <option value="asset">Asset</option>
@@ -399,8 +399,8 @@ function CreateCoaModal({ onClose, onCreate }: {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Entity Type</label>
-              <select value={entityType} onChange={e => setEntityType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+              <label className="block text-xs font-medium text-text-secondary mb-1">Entity Type</label>
+              <select value={entityType} onChange={e => setEntityType(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
                 <option value="personal">Personal</option>
                 <option value="business">Business</option>
                 <option value="trading">Trading</option>
@@ -546,18 +546,18 @@ function ColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[100] w-64" style={panelStyle}>
+    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-sm z-[100] w-64" style={panelStyle}>
       {/* Sort controls */}
-      <div className="border-b border-gray-100 p-2 space-y-1">
+      <div className="border-b border-border-light p-2 space-y-1">
         <button
           onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}
         >
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button
           onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}
         >
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
@@ -579,11 +579,11 @@ function ColumnFilterDropdown({
             )}
             <div className="flex items-center justify-between mb-1 px-1">
               <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple-deep hover:underline">Select All</button>
-              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
+              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-brand-red hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
-                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">
+                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-xs">
                   <input
                     type="checkbox"
                     checked={localSelected.has(val)}
@@ -597,11 +597,11 @@ function ColumnFilterDropdown({
                     className="w-3.5 h-3.5 rounded flex-shrink-0"
                   />
                   <span className="truncate flex-1">{displayVal(val)}</span>
-                  <span className="text-gray-400 text-[10px] flex-shrink-0">({count})</span>
+                  <span className="text-text-faint text-[10px] flex-shrink-0">({count})</span>
                 </label>
               ))}
               {filteredValues.length === 0 && (
-                <div className="px-2 py-3 text-center text-gray-400 text-xs">No values found</div>
+                <div className="px-2 py-3 text-center text-text-faint text-xs">No values found</div>
               )}
             </div>
           </>
@@ -610,11 +610,11 @@ function ColumnFilterDropdown({
         {filterType === 'dateRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">From</label>
+              <label className="block text-[10px] text-text-muted mb-1">From</label>
               <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">To</label>
+              <label className="block text-[10px] text-text-muted mb-1">To</label>
               <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -623,11 +623,11 @@ function ColumnFilterDropdown({
         {filterType === 'amountRange' && (
           <div className="space-y-2">
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">Min ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Min ($)</label>
               <input ref={searchRef} type="number" placeholder="0.00" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">Max ($)</label>
+              <label className="block text-[10px] text-text-muted mb-1">Max ($)</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" />
             </div>
           </div>
@@ -639,10 +639,10 @@ function ColumnFilterDropdown({
       </div>
 
       {/* Apply / Cancel */}
-      <div className="border-t border-gray-100 p-2 flex justify-between gap-2">
-        <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
+      <div className="border-t border-border-light p-2 flex justify-between gap-2">
+        <button onClick={() => onApply(undefined)} className="text-[10px] text-brand-red hover:underline">Clear</button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
+          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-bg-row">Cancel</button>
           <button onClick={handleApply} className="px-3 py-1 text-xs bg-brand-purple-deep text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
@@ -905,7 +905,7 @@ function VirtualTable({
                     <select
                       value={rowChanges[txn.id]?.coa || ''}
                       onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                      className="w-full text-terminal-sm font-mono border border-gray-200 rounded px-1 py-0.5 bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple-deep outline-none"
+                      className="w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple-deep outline-none"
                     >
                       <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -1039,7 +1039,7 @@ function MerchantGroupTable({
 
             return (
               <Fragment key={merchant}>
-                <tr className="bg-bg-row border-b border-border-light hover:bg-gray-200 cursor-pointer" onClick={() => toggleGroup(merchant)}>
+                <tr className="bg-bg-row border-b border-border-light hover:bg-border cursor-pointer" onClick={() => toggleGroup(merchant)}>
                   <td className="px-2 py-1" onClick={e => { e.stopPropagation(); selectGroup(txns, allSel); }}>
                     <input type="checkbox" checked={allSel} onChange={() => selectGroup(txns, allSel)} className="w-3 h-3 rounded" />
                   </td>
@@ -1076,7 +1076,7 @@ function MerchantGroupTable({
                       <select
                         value={rowChanges[txn.id]?.coa || ''}
                         onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                        className="w-full text-terminal-sm font-mono border border-gray-200 rounded px-1 py-0.5 bg-white"
+                        className="w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white"
                       >
                         <option value="">Select...</option>
                         {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
@@ -1102,7 +1102,7 @@ function MerchantGroupTable({
 function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-in]">
+    <div className="fixed bottom-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded shadow-sm text-sm font-medium animate-[fadeIn_0.2s_ease-in]">
       {message}
     </div>
   );
@@ -1337,7 +1337,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const rowsWithCoa = Object.entries(rowChanges).filter(([_, c]) => c.coa && c.coa !== '__NEW__').length;
 
   if (!transactions && !committedTransactions) {
-    return <div className="p-4 text-center text-gray-400">Loading...</div>;
+    return <div className="p-4 text-center text-text-faint">Loading...</div>;
   }
 
   return (
@@ -1368,13 +1368,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
           )}
           <button
             onClick={() => setViewMode(viewMode === 'flat' ? 'merchant' : 'flat')}
-            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${viewMode === 'merchant' ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'}`}
+            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${viewMode === 'merchant' ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'}`}
           >
             {viewMode === 'flat' ? 'Group by Merchant' : 'Flat View'}
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${showFilters ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-gray-400'}`}
+            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${showFilters ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'}`}
           >
             Filters
           </button>
@@ -1408,40 +1408,40 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
             />
           </div>
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-[10px] text-gray-500 uppercase font-semibold">Date:</span>
+            <span className="text-[10px] text-text-muted uppercase font-semibold">Date:</span>
             <input
               type="date"
               value={pendingFilters.dateFrom}
               onChange={e => setPendingFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-              className="px-2 py-1 text-xs border rounded-lg bg-white"
+              className="px-2 py-1 text-xs border rounded bg-white"
             />
-            <span className="text-xs text-gray-400">to</span>
+            <span className="text-xs text-text-faint">to</span>
             <input
               type="date"
               value={pendingFilters.dateTo}
               onChange={e => setPendingFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-              className="px-2 py-1 text-xs border rounded-lg bg-white"
+              className="px-2 py-1 text-xs border rounded bg-white"
             />
-            <span className="text-[10px] text-gray-500 uppercase font-semibold ml-2">Amount:</span>
+            <span className="text-[10px] text-text-muted uppercase font-semibold ml-2">Amount:</span>
             <input
               type="number"
               placeholder="Min"
               value={pendingFilters.amountMin}
               onChange={e => setPendingFilters(prev => ({ ...prev, amountMin: e.target.value }))}
-              className="w-20 px-2 py-1 text-xs border rounded-lg bg-white"
+              className="w-20 px-2 py-1 text-xs border rounded bg-white"
             />
-            <span className="text-xs text-gray-400">-</span>
+            <span className="text-xs text-text-faint">-</span>
             <input
               type="number"
               placeholder="Max"
               value={pendingFilters.amountMax}
               onChange={e => setPendingFilters(prev => ({ ...prev, amountMax: e.target.value }))}
-              className="w-20 px-2 py-1 text-xs border rounded-lg bg-white"
+              className="w-20 px-2 py-1 text-xs border rounded bg-white"
             />
             {hasActiveFilters(pendingFilters) && (
               <button
                 onClick={() => setPendingFilters(EMPTY_FILTERS)}
-                className="ml-auto text-xs text-red-500 hover:text-red-700"
+                className="ml-auto text-xs text-brand-red hover:text-brand-red"
               >
                 Clear All
               </button>
@@ -1454,42 +1454,42 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               {pendingFilters.search && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-purple-deep/10 text-brand-purple-deep rounded-full text-[10px]">
                   Search: &quot;{pendingFilters.search}&quot;
-                  <button onClick={() => removeFilterPill('search')} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => removeFilterPill('search')} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               )}
               {pendingFilters.merchants.map(m => (
-                <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px]">
+                <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-purple-wash text-brand-purple rounded-full text-[10px]">
                   {m.slice(0, 20)}
-                  <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.accounts.map(a => (
-                <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">
+                <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-brand-green rounded-full text-[10px]">
                   {a}
-                  <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               ))}
               {pendingFilters.dateFrom && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-border text-text-secondary rounded-full text-[10px]">
                   From: {pendingFilters.dateFrom}
-                  <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               )}
               {pendingFilters.dateTo && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-border text-text-secondary rounded-full text-[10px]">
                   To: {pendingFilters.dateTo}
-                  <button onClick={() => removeFilterPill('dateTo')} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => removeFilterPill('dateTo')} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               )}
               {/* Column filter pills */}
               {(Object.entries(pendingColFilters) as [SortField, ColumnFilterValue][]).map(([field, filter]) => filter && (
                 <span key={`col-${field}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px]">
                   {columnFilterLabel(field)}: {columnFilterSummary(filter)}
-                  <button onClick={() => handlePendingColFilter(field, undefined)} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => handlePendingColFilter(field, undefined)} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               ))}
               {hasPendingColFilters && (
-                <button onClick={() => setPendingColFilters(EMPTY_COL_FILTERS)} className="text-[10px] text-amber-700 hover:text-red-500 underline">
+                <button onClick={() => setPendingColFilters(EMPTY_COL_FILTERS)} className="text-[10px] text-amber-700 hover:text-brand-red underline">
                   Clear column filters
                 </button>
               )}
@@ -1526,7 +1526,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
       {activeTable === 'pending' && (
         <>
           {pendingRows.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-text-faint">
               {transactions.length === 0 ? (
                 <>
                   <div className="text-3xl mb-2">✓</div>
@@ -1597,13 +1597,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               {(Object.entries(committedColFilters) as [SortField, ColumnFilterValue][]).map(([field, filter]) => filter && (
                 <span key={`col-${field}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px]">
                   {columnFilterLabel(field)}: {columnFilterSummary(filter)}
-                  <button onClick={() => handleCommittedColFilter(field, undefined)} className="hover:text-red-500">{'\u00D7'}</button>
+                  <button onClick={() => handleCommittedColFilter(field, undefined)} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               ))}
             </div>
           )}
           {committedRows.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-text-faint">
               <p className="text-sm">{committedTransactions.length === 0 ? 'No committed transactions yet' : 'No matches'}</p>
             </div>
           ) : (
@@ -1630,7 +1630,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
       {/* Batch Commit Bar (sticky bottom when pending selected) */}
       {selectedPending.size > 0 && activeTable === 'pending' && (
-        <div className="sticky bottom-0 left-0 right-0 bg-brand-purple-deep text-white p-2 rounded shadow-lg z-20">
+        <div className="sticky bottom-0 left-0 right-0 bg-brand-purple-deep text-white p-2 rounded shadow-sm z-20">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-terminal-base font-mono font-medium">
               {selectedPending.size} txn{selectedPending.size !== 1 ? 's' : ''}
@@ -1680,7 +1680,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
       {/* Uncommit Bar (sticky bottom when committed selected) */}
       {selectedCommitted.size > 0 && activeTable === 'committed' && (
-        <div className="sticky bottom-0 left-0 right-0 bg-brand-red text-white p-2 rounded shadow-lg z-20">
+        <div className="sticky bottom-0 left-0 right-0 bg-brand-red text-white p-2 rounded shadow-sm z-20">
           <div className="flex items-center gap-2">
             <span className="text-terminal-base font-mono font-medium">
               {selectedCommitted.size} txn{selectedCommitted.size !== 1 ? 's' : ''} to uncommit

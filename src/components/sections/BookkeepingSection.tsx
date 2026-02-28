@@ -238,7 +238,7 @@ export default function BookkeepingSection() {
           <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent mb-4">
             Request for Proposal
           </h2>
-          <p className="text-xl text-gray-600 uppercase tracking-widest opacity-90">
+          <p className="text-sm text-text-secondary uppercase tracking-widest opacity-90">
             Select Services & Get Your Custom Quote
           </p>
         </div>
@@ -251,7 +251,7 @@ export default function BookkeepingSection() {
               onClick={() => setSelectedCategory(category as keyof ServiceCategories)}
               className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
                 selectedCategory === category 
-                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-lg transform -translate-y-1'
+                  ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white shadow-sm transform -translate-y-1'
                   : 'bg-white/70 backdrop-blur text-purple-700 hover:bg-white/90 border border-purple-200'
               }`}
             >
@@ -263,7 +263,7 @@ export default function BookkeepingSection() {
         {/* Expense Tier Selector - Only shows for Monthly Essentials */}
         {selectedCategory === 'Monthly Essentials' && (
           <div className="flex justify-center mb-8">
-            <div className="bg-white/80 backdrop-blur rounded-lg p-4 border border-purple-200">
+            <div className="bg-white/80 backdrop-blur rounded p-4 border border-purple-200">
               <label className="block text-sm font-semibold text-purple-700 mb-2">
                 Your Monthly Business Expenses:
               </label>
@@ -274,7 +274,7 @@ export default function BookkeepingSection() {
                   // Clear selected monthly services when tier changes
                   setSelectedServices(selectedServices.filter(s => s.frequency !== 'monthly'));
                 }}
-                className="px-4 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="px-4 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="tier1">Under $25,000/month</option>
                 <option value="tier2">$25,000 - $75,000/month</option>
@@ -295,18 +295,18 @@ export default function BookkeepingSection() {
                 <div
                   key={service.name}
                   onClick={() => toggleService(service)}
-                  className={`p-6 rounded-2xl cursor-pointer transition-all duration-300 transform hover:-translate-y-2 ${
+                  className={`p-6 rounded cursor-pointer transition-all duration-300 transform hover:-translate-y-2 ${
                     isSelected 
-                      ? 'bg-gradient-to-r from-purple-100 to-amber-100 border-2 border-amber-400 shadow-xl'
-                      : 'bg-white/70 backdrop-blur border-2 border-purple-200 hover:shadow-lg'
+                      ? 'bg-gradient-to-r from-purple-100 to-amber-100 border-2 border-amber-400 shadow-sm'
+                      : 'bg-white/70 backdrop-blur border-2 border-purple-200 hover:shadow-sm'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 max-w-xs">
+                    <h3 className="text-terminal-lg font-semibold text-text-primary max-w-xs">
                       {service.name}
                     </h3>
                     <div className="text-right">
-                      <div className="text-xl font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
+                      <div className="text-sm font-bold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
                         {service.price}
                       </div>
                       <div className="text-xs text-purple-600 uppercase tracking-wide">
@@ -317,12 +317,12 @@ export default function BookkeepingSection() {
                   
                   <div className="mb-3">
                     <span className="font-semibold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent text-sm">Problem: </span>
-                    <span className="text-gray-600 text-sm">{service.why}</span>
+                    <span className="text-text-secondary text-sm">{service.why}</span>
                   </div>
                   
                   <div>
                     <span className="font-semibold bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent text-sm">Value: </span>
-                    <span className="text-gray-600 text-sm">{service.value}</span>
+                    <span className="text-text-secondary text-sm">{service.value}</span>
                   </div>
                 </div>
               );
@@ -331,8 +331,8 @@ export default function BookkeepingSection() {
 
           {/* Quote Section */}
           <div className="sticky top-8">
-            <div className="bg-gradient-to-br from-purple-100 to-amber-100 rounded-2xl p-8 border-2 border-purple-200 shadow-xl">
-              <h3 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
+            <div className="bg-gradient-to-br from-purple-100 to-amber-100 rounded p-8 border-2 border-purple-200 shadow-sm">
+              <h3 className="text-sm font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
                 Your Quote
               </h3>
               
@@ -345,7 +345,7 @@ export default function BookkeepingSection() {
                     name="businessName"
                     value={formData.businessName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -357,7 +357,7 @@ export default function BookkeepingSection() {
                     name="contactName"
                     value={formData.contactName}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -369,7 +369,7 @@ export default function BookkeepingSection() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -381,7 +381,7 @@ export default function BookkeepingSection() {
                     value={formData.needs}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
                 </div>
@@ -392,7 +392,7 @@ export default function BookkeepingSection() {
                     name="timeline"
                     value={formData.timeline}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   >
                     <option value="">Select timeline</option>
@@ -408,16 +408,16 @@ export default function BookkeepingSection() {
               {selectedServices.length > 0 && (
                 <div className="space-y-4 mb-4">
                   {totals.oneTime > 0 && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="bg-white rounded p-4 border border-purple-200">
                       <div className="text-sm font-semibold text-purple-600 mb-1">One-time Setup</div>
-                      <div className="text-2xl font-bold text-gray-900">${totals.oneTime.toLocaleString()}</div>
+                      <div className="text-sm font-bold text-text-primary">${totals.oneTime.toLocaleString()}</div>
                     </div>
                   )}
                   
                   {totals.monthly > 0 && (
-                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <div className="bg-white rounded p-4 border border-purple-200">
                       <div className="text-sm font-semibold text-purple-600 mb-1">Monthly Service</div>
-                      <div className="text-2xl font-bold text-gray-900">${totals.monthly.toLocaleString()}</div>
+                      <div className="text-sm font-bold text-text-primary">${totals.monthly.toLocaleString()}</div>
                     </div>
                   )}
                 </div>
@@ -426,16 +426,16 @@ export default function BookkeepingSection() {
               <button 
                 onClick={handleSubmit}
                 disabled={isSubmitting || !formData.businessName || !formData.email}
-                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded hover:from-purple-700 hover:to-amber-600 transform hover:-translate-y-1 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Submitting...' : 'Get Quote'}
               </button>
 
               {submitMessage && (
-                <div className={`mt-4 p-3 rounded-lg text-center ${
+                <div className={`mt-4 p-3 rounded text-center ${
                   submitMessage.includes('successfully') 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-red-100 text-red-700'
+                    ? 'bg-green-100 text-brand-green' 
+                    : 'bg-red-100 text-brand-red'
                 }`}>
                   {submitMessage}
                 </div>

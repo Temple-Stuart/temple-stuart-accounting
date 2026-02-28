@@ -46,7 +46,7 @@ export function DataDebugSection() {
         <h3 className="font-medium mb-2">{title} ({data.length} records)</h3>
         <div className="overflow-x-auto border rounded">
           <table className="w-full text-xs">
-            <thead className="bg-gray-100">
+            <thead className="bg-bg-row">
               <tr>
                 {columns.map(col => (
                   <th key={col} className="px-2 py-1 text-left border-r">
@@ -57,7 +57,7 @@ export function DataDebugSection() {
             </thead>
             <tbody>
               {data.slice(0, 10).map((row, idx) => (
-                <tr key={idx} className="border-t hover:bg-gray-50">
+                <tr key={idx} className="border-t hover:bg-bg-row">
                   {columns.map(col => (
                     <td key={col} className="px-2 py-1 border-r text-xs">
                       {typeof row[col] === 'object' 
@@ -76,13 +76,13 @@ export function DataDebugSection() {
 
   return (
     <div className="space-y-6 p-4">
-      <h2 className="text-xl font-bold">Raw Data Debug View</h2>
+      <h2 className="text-sm font-bold">Raw Data Debug View</h2>
       
       {/* Show raw investment data */}
       {investmentData && (
         <div>
           <h3 className="font-medium">Investment API Raw Response:</h3>
-          <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
+          <pre className="bg-bg-row p-2 rounded text-xs overflow-auto max-h-40">
             {JSON.stringify(investmentData, null, 2).substring(0, 2000)}...
           </pre>
           

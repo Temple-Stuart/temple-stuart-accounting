@@ -268,14 +268,14 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
   const dir = dirBadge(comp.direction);
 
   return (
-    <div className="rounded-lg overflow-hidden border" style={{ background: '#1E293B', borderColor: '#334155' }}>
+    <div className="rounded overflow-hidden border" style={{ background: '#1E293B', borderColor: '#334155' }}>
 
       {/* ═══ A) HEADER ROW ═══ */}
       <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ background: '#0F172A' }}>
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-black font-mono text-white">{detail.symbol}</span>
-          <span className="text-2xl font-black font-mono" style={{ color: gradeColor(comp.score) }}>{comp.score.toFixed(1)}</span>
-          <span className="text-lg font-black" style={{ color: gradeColor(comp.score) }}>{letterGrade(comp.score)}</span>
+          <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
+          <span className="text-sm font-black font-mono" style={{ color: gradeColor(comp.score) }}>{comp.score.toFixed(1)}</span>
+          <span className="text-terminal-lg font-black" style={{ color: gradeColor(comp.score) }}>{letterGrade(comp.score)}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider" style={{ background: dir.bg, color: dir.text }}>{dir.label}</span>
@@ -859,7 +859,7 @@ export default function ConvergenceIntelligence() {
   }, [lookupTicker]);
 
   return (
-    <div className="rounded-lg overflow-hidden" style={{ background: '#0F172A' }}>
+    <div className="rounded overflow-hidden" style={{ background: '#0F172A' }}>
 
       {/* ═══ SECTION 1: UNIVERSE SELECTOR ═══ */}
       <div className="px-5 py-4 flex items-center gap-3 flex-wrap border-b" style={{ background: '#1E293B', borderColor: '#334155' }}>

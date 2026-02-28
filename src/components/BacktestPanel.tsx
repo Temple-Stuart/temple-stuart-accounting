@@ -42,8 +42,8 @@ function HeroStats({ result }: { result: BacktestResult }) {
   return (
     <div className="grid grid-cols-4 gap-2 mb-4">
       {stats.map((st, i) => (
-        <div key={i} className="bg-[#161b22] border border-[#30363d] rounded p-2 text-center">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wide">{st.label}</div>
+        <div key={i} className="bg-panel-surface border border-panel-border rounded p-2 text-center">
+          <div className="text-[10px] text-text-muted uppercase tracking-wide">{st.label}</div>
           <div className="text-sm font-bold font-mono" style={{ color: st.color }}>{st.value}</div>
         </div>
       ))}
@@ -62,8 +62,8 @@ function EquityCurve({ result }: { result: BacktestResult }) {
 
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-gray-400 mb-2">Equity Curve</div>
-      <div className="bg-[#161b22] border border-[#30363d] rounded p-3">
+      <div className="text-xs font-semibold text-text-faint mb-2">Equity Curve</div>
+      <div className="bg-panel-surface border border-panel-border rounded p-3">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
@@ -124,16 +124,16 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
 
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-gray-400 mb-2">Monthly Returns</div>
-      <div className="bg-[#161b22] border border-[#30363d] rounded p-3 overflow-x-auto">
+      <div className="text-xs font-semibold text-text-faint mb-2">Monthly Returns</div>
+      <div className="bg-panel-surface border border-panel-border rounded p-3 overflow-x-auto">
         <table className="w-full text-[10px]">
           <thead>
             <tr>
-              <th className="text-left text-gray-500 px-1">Year</th>
+              <th className="text-left text-text-muted px-1">Year</th>
               {months.map(m => (
-                <th key={m} className="text-center text-gray-500 px-1">{m}</th>
+                <th key={m} className="text-center text-text-muted px-1">{m}</th>
               ))}
-              <th className="text-center text-gray-500 px-1">Total</th>
+              <th className="text-center text-text-muted px-1">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -143,7 +143,7 @@ function MonthlyHeatmap({ result }: { result: BacktestResult }) {
                 .reduce((s, m) => s + m.pnl, 0);
               return (
                 <tr key={year}>
-                  <td className="text-gray-400 px-1 font-mono">{year}</td>
+                  <td className="text-text-faint px-1 font-mono">{year}</td>
                   {months.map((_, mi) => {
                     const pnl = monthData.get(`${year}-${mi + 1}`);
                     return (
@@ -200,8 +200,8 @@ function PnlDistribution({ result }: { result: BacktestResult }) {
 
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-gray-400 mb-2">P&L Distribution</div>
-      <div className="bg-[#161b22] border border-[#30363d] rounded p-3">
+      <div className="text-xs font-semibold text-text-faint mb-2">P&L Distribution</div>
+      <div className="bg-panel-surface border border-panel-border rounded p-3">
         <ResponsiveContainer width="100%" height={150}>
           <BarChart data={bins}>
             <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
@@ -231,37 +231,37 @@ function TradeLog({ result }: { result: BacktestResult }) {
 
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-gray-400 mb-2">
+      <div className="text-xs font-semibold text-text-faint mb-2">
         Trade Log ({result.trades.length} trades)
       </div>
-      <div className="bg-[#161b22] border border-[#30363d] rounded overflow-hidden">
+      <div className="bg-panel-surface border border-panel-border rounded overflow-hidden">
         <div className="max-h-[300px] overflow-y-auto">
           <table className="w-full text-[10px]">
-            <thead className="sticky top-0 bg-[#161b22]">
-              <tr className="border-b border-[#30363d]">
-                <th className="text-left px-2 py-1 text-gray-500">#</th>
-                <th className="text-left px-2 py-1 text-gray-500">Entry</th>
-                <th className="text-left px-2 py-1 text-gray-500">Exit</th>
-                <th className="text-right px-2 py-1 text-gray-500">Days</th>
-                <th className="text-right px-2 py-1 text-gray-500">P&L</th>
-                <th className="text-right px-2 py-1 text-gray-500">P&L %</th>
-                <th className="text-left px-2 py-1 text-gray-500">Exit Reason</th>
+            <thead className="sticky top-0 bg-panel-surface">
+              <tr className="border-b border-panel-border">
+                <th className="text-left px-2 py-1 text-text-muted">#</th>
+                <th className="text-left px-2 py-1 text-text-muted">Entry</th>
+                <th className="text-left px-2 py-1 text-text-muted">Exit</th>
+                <th className="text-right px-2 py-1 text-text-muted">Days</th>
+                <th className="text-right px-2 py-1 text-text-muted">P&L</th>
+                <th className="text-right px-2 py-1 text-text-muted">P&L %</th>
+                <th className="text-left px-2 py-1 text-text-muted">Exit Reason</th>
               </tr>
             </thead>
             <tbody>
               {trades.map((t, i) => (
-                <tr key={i} className="border-b border-[#21262d] hover:bg-[#21262d]">
-                  <td className="px-2 py-1 text-gray-500 font-mono">{i + 1}</td>
-                  <td className="px-2 py-1 text-gray-400 font-mono">{t.entryDate}</td>
-                  <td className="px-2 py-1 text-gray-400 font-mono">{t.exitDate}</td>
-                  <td className="px-2 py-1 text-gray-400 font-mono text-right">{t.holdingDays}</td>
+                <tr key={i} className="border-b border-panel-hover hover:bg-panel-hover">
+                  <td className="px-2 py-1 text-text-muted font-mono">{i + 1}</td>
+                  <td className="px-2 py-1 text-text-faint font-mono">{t.entryDate}</td>
+                  <td className="px-2 py-1 text-text-faint font-mono">{t.exitDate}</td>
+                  <td className="px-2 py-1 text-text-faint font-mono text-right">{t.holdingDays}</td>
                   <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnl >= 0 ? '#10B981' : '#EF4444' }}>
                     {t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(0)}
                   </td>
                   <td className="px-2 py-1 font-mono text-right" style={{ color: t.pnlPercent >= 0 ? '#10B981' : '#EF4444' }}>
                     {t.pnlPercent >= 0 ? '+' : ''}{(t.pnlPercent * 100).toFixed(1)}%
                   </td>
-                  <td className="px-2 py-1 text-gray-500">
+                  <td className="px-2 py-1 text-text-muted">
                     {t.exitReason.replace('_', ' ')}
                   </td>
                 </tr>
@@ -272,7 +272,7 @@ function TradeLog({ result }: { result: BacktestResult }) {
         {result.trades.length > 20 && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full text-[10px] text-blue-400 hover:text-blue-300 py-1 border-t border-[#30363d]"
+            className="w-full text-[10px] text-blue-400 hover:text-blue-300 py-1 border-t border-panel-border"
           >
             {expanded ? 'Show less' : `Show all ${result.trades.length} trades`}
           </button>
@@ -299,60 +299,60 @@ function ConfigPanel({
 }) {
   return (
     <div className="mb-4">
-      <div className="text-xs font-semibold text-gray-400 mb-2">Configuration</div>
-      <div className="bg-[#161b22] border border-[#30363d] rounded p-3 grid grid-cols-2 gap-3">
+      <div className="text-xs font-semibold text-text-faint mb-2">Configuration</div>
+      <div className="bg-panel-surface border border-panel-border rounded p-3 grid grid-cols-2 gap-3">
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">Target DTE</label>
+          <label className="text-[10px] text-text-muted block mb-1">Target DTE</label>
           <input
             type="number"
             value={dte}
             onChange={e => onChange({ dte: parseInt(e.target.value) || 45 })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">Profit Target %</label>
+          <label className="text-[10px] text-text-muted block mb-1">Profit Target %</label>
           <input
             type="number"
             value={management.profitTargetPercent}
             onChange={e => onChange({ management: { profitTargetPercent: parseInt(e.target.value) || 50 } })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">Stop Loss %</label>
+          <label className="text-[10px] text-text-muted block mb-1">Stop Loss %</label>
           <input
             type="number"
             value={management.stopLossPercent}
             onChange={e => onChange({ management: { stopLossPercent: parseInt(e.target.value) || 200 } })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">Exit at DTE</label>
+          <label className="text-[10px] text-text-muted block mb-1">Exit at DTE</label>
           <input
             type="number"
             value={management.exitDte}
             onChange={e => onChange({ management: { exitDte: parseInt(e.target.value) || 21 } })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">Start Date</label>
+          <label className="text-[10px] text-text-muted block mb-1">Start Date</label>
           <input
             type="date"
             value={startDate}
             onChange={e => onChange({ startDate: e.target.value })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
         <div>
-          <label className="text-[10px] text-gray-500 block mb-1">End Date</label>
+          <label className="text-[10px] text-text-muted block mb-1">End Date</label>
           <input
             type="date"
             value={endDate}
             onChange={e => onChange({ endDate: e.target.value })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2 py-1 text-xs text-gray-300 font-mono"
+            className="w-full bg-panel border border-panel-border rounded px-2 py-1 text-xs text-text-faint font-mono"
           />
         </div>
       </div>
@@ -449,21 +449,21 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-[#0d1117] border border-[#30363d] rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-panel border border-panel-border rounded w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-[#161b22] border-b border-[#30363d] px-4 py-3 flex justify-between items-center">
+        <div className="bg-panel-surface border-b border-panel-border px-4 py-3 flex justify-between items-center">
           <div>
             <div className="text-sm font-bold text-white">
               Backtest: {symbol} — {card.name}
             </div>
-            <div className="text-[10px] text-gray-500">
+            <div className="text-[10px] text-text-muted">
               {card.legs.map(l => `${l.side === 'sell' ? 'S' : 'B'} ${l.strike}${l.type === 'call' ? 'C' : 'P'}`).join(' / ')}
               {' '} | {card.dte} DTE
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">
+          <button onClick={onClose} className="text-text-faint hover:text-white text-sm leading-none">
             &times;
           </button>
         </div>
@@ -473,10 +473,10 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
           {/* Idle state */}
           {state.status === 'idle' && (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="text-sm text-gray-400 mb-4">
+              <div className="text-sm text-text-faint mb-4">
                 Run a historical backtest of this {card.name} on {symbol}
               </div>
-              <div className="text-[10px] text-gray-600 mb-6 max-w-md text-center">
+              <div className="text-[10px] text-text-secondary mb-6 max-w-md text-center">
                 The backtester will simulate entering this strategy every cycle over the selected date range,
                 applying your management rules to each trade.
               </div>
@@ -491,7 +491,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
 
           {/* Checking */}
           {state.status === 'checking' && (
-            <div className="flex items-center justify-center py-12 gap-2 text-gray-400 text-sm">
+            <div className="flex items-center justify-center py-12 gap-2 text-text-faint text-sm">
               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               Checking {symbol} backtest availability...
             </div>
@@ -510,15 +510,15 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
 
               {/* Leg summary */}
               <div className="mb-4">
-                <div className="text-xs font-semibold text-gray-400 mb-2">Strategy Legs (delta targets)</div>
-                <div className="bg-[#161b22] border border-[#30363d] rounded p-3 flex gap-4">
+                <div className="text-xs font-semibold text-text-faint mb-2">Strategy Legs (delta targets)</div>
+                <div className="bg-panel-surface border border-panel-border rounded p-3 flex gap-4">
                   {card.legs.map((leg, i) => (
                     <div key={i} className="text-[11px] font-mono">
                       <span className={leg.side === 'sell' ? 'text-emerald-400' : 'text-blue-400'}>
                         {leg.side === 'sell' ? 'SELL' : 'BUY'}
                       </span>{' '}
-                      <span className="text-gray-400">{leg.type === 'call' ? 'C' : 'P'}</span>{' '}
-                      <span className="text-gray-300">{'\u0394'}{roundDeltaForDisplay(leg.delta)}</span>
+                      <span className="text-text-faint">{leg.type === 'call' ? 'C' : 'P'}</span>{' '}
+                      <span className="text-text-faint">{'\u0394'}{roundDeltaForDisplay(leg.delta)}</span>
                     </div>
                   ))}
                 </div>
@@ -533,7 +533,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-400 hover:text-gray-300 text-sm border border-[#30363d] rounded"
+                  className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-panel-border rounded"
                 >
                   Cancel
                 </button>
@@ -545,8 +545,8 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
           {state.status === 'running' && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-              <div className="text-sm text-gray-400">Running backtest for {symbol}...</div>
-              <div className="text-[10px] text-gray-600 mt-2">
+              <div className="text-sm text-text-faint">Running backtest for {symbol}...</div>
+              <div className="text-[10px] text-text-secondary mt-2">
                 Testing {card.name} from {startDate} to {endDate} ({dte} DTE entries)
               </div>
             </div>
@@ -564,7 +564,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               <TradeLog result={state.result} />
 
               {/* Re-run with different params */}
-              <div className="border-t border-[#30363d] pt-4 mt-4">
+              <div className="border-t border-panel-border pt-4 mt-4">
                 <ConfigPanel
                   management={management}
                   dte={dte}
@@ -588,7 +588,7 @@ export default function BacktestPanel({ symbol, card, onClose }: BacktestPanelPr
               <div className="text-red-400 text-sm mb-2">{state.error}</div>
               <button
                 onClick={checkAvailability}
-                className="px-4 py-2 text-gray-400 hover:text-gray-300 text-sm border border-[#30363d] rounded"
+                className="px-4 py-2 text-text-faint hover:text-text-faint text-sm border border-panel-border rounded"
               >
                 Try Again
               </button>

@@ -252,17 +252,17 @@ export default function CPAExport({ transactions, coaOptions, selectedYear }: CP
   };
 
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
-      <div className="px-4 py-3 border-b bg-gray-50">
+    <div className="bg-white rounded border overflow-hidden">
+      <div className="px-4 py-3 border-b bg-bg-row">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold">CPA Export Package</h3>
-            <p className="text-xs text-gray-500">Export financial reports for your accountant</p>
+            <p className="text-xs text-text-muted">Export financial reports for your accountant</p>
           </div>
           <button
             onClick={exportAll}
             disabled={exporting !== null}
-            className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-brand-purple text-white rounded text-sm font-medium disabled:opacity-50"
           >
             {exporting === 'all' ? 'Exporting...' : '📦 Export All'}
           </button>
@@ -270,75 +270,75 @@ export default function CPAExport({ transactions, coaOptions, selectedYear }: CP
       </div>
 
       {/* Stats */}
-      <div className="px-4 py-3 border-b bg-blue-50 flex items-center gap-6 text-sm">
-        <span className="text-gray-600">Year: <strong>{selectedYear}</strong></span>
-        <span className="text-gray-600">Accounts: <strong>{stats.accounts}</strong></span>
-        <span className="text-gray-600">Transactions: <strong>{stats.transactions}</strong></span>
+      <div className="px-4 py-3 border-b bg-brand-purple-wash flex items-center gap-6 text-sm">
+        <span className="text-text-secondary">Year: <strong>{selectedYear}</strong></span>
+        <span className="text-text-secondary">Accounts: <strong>{stats.accounts}</strong></span>
+        <span className="text-text-secondary">Transactions: <strong>{stats.transactions}</strong></span>
         {stats.uncategorized > 0 && (
-          <span className="text-red-600">⚠️ {stats.uncategorized} uncategorized</span>
+          <span className="text-brand-red">⚠️ {stats.uncategorized} uncategorized</span>
         )}
       </div>
 
       {/* Export Options */}
       <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border rounded-lg p-4 hover:bg-gray-50">
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📊 Trial Balance</h4>
-              <p className="text-xs text-gray-500 mt-1">Debits and credits by account - verifies books are balanced</p>
+              <p className="text-xs text-text-muted mt-1">Debits and credits by account - verifies books are balanced</p>
             </div>
             <button
               onClick={exportTrialBalance}
               disabled={exporting !== null}
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'trial-balance' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4 hover:bg-gray-50">
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📈 Income Statement</h4>
-              <p className="text-xs text-gray-500 mt-1">Revenue minus expenses = Net Income (P&L)</p>
+              <p className="text-xs text-text-muted mt-1">Revenue minus expenses = Net Income (P&L)</p>
             </div>
             <button
               onClick={exportIncomeStatement}
               disabled={exporting !== null}
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'income-statement' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4 hover:bg-gray-50">
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📋 Balance Sheet</h4>
-              <p className="text-xs text-gray-500 mt-1">Assets = Liabilities + Equity snapshot</p>
+              <p className="text-xs text-text-muted mt-1">Assets = Liabilities + Equity snapshot</p>
             </div>
             <button
               onClick={exportBalanceSheet}
               disabled={exporting !== null}
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'balance-sheet' ? '...' : 'Export CSV'}
             </button>
           </div>
         </div>
 
-        <div className="border rounded-lg p-4 hover:bg-gray-50">
+        <div className="border rounded p-4 hover:bg-bg-row">
           <div className="flex items-start justify-between">
             <div>
               <h4 className="font-medium">📒 General Ledger</h4>
-              <p className="text-xs text-gray-500 mt-1">Complete transaction detail by date</p>
+              <p className="text-xs text-text-muted mt-1">Complete transaction detail by date</p>
             </div>
             <button
               onClick={exportGeneralLedger}
               disabled={exporting !== null}
-              className="px-3 py-1.5 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
+              className="px-3 py-1.5 border rounded text-sm hover:bg-bg-row disabled:opacity-50"
             >
               {exporting === 'general-ledger' ? '...' : 'Export CSV'}
             </button>
@@ -347,7 +347,7 @@ export default function CPAExport({ transactions, coaOptions, selectedYear }: CP
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t bg-gray-50 text-xs text-gray-500">
+      <div className="px-4 py-3 border-t bg-bg-row text-xs text-text-muted">
         💡 Tip: Open CSV files in Excel or Google Sheets. Your CPA can import these directly into their tax software.
       </div>
     </div>

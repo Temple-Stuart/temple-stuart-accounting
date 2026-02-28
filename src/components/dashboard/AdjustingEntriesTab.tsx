@@ -143,32 +143,32 @@ export default function AdjustingEntriesTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Adjusting Entries</h2>
-        <p className="text-sm text-gray-600 mt-1">Create manual journal entries for adjustments and corrections</p>
+        <h2 className="text-sm font-bold">Adjusting Entries</h2>
+        <p className="text-sm text-text-secondary mt-1">Create manual journal entries for adjustments and corrections</p>
       </div>
 
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold mb-4">New Adjusting Entry</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">New Adjusting Entry</h3>
 
         {/* Date and Description */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border rounded"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Description</label>
             <input
               type="text"
               placeholder="e.g. Accrued rent expense"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg"
+              className="w-full px-3 py-2 border rounded"
             />
           </div>
         </div>
@@ -176,10 +176,10 @@ export default function AdjustingEntriesTab() {
         {/* Entry Lines */}
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-gray-700">Journal Entry Lines</label>
+            <label className="block text-sm font-medium text-text-secondary">Journal Entry Lines</label>
             <button
               onClick={addLine}
-              className="px-3 py-1 bg-gray-600 text-white rounded text-sm"
+              className="px-3 py-1 bg-brand-purple text-white rounded text-sm"
             >
               + Add Line
             </button>
@@ -192,7 +192,7 @@ export default function AdjustingEntriesTab() {
                   <select
                     value={line.accountCode}
                     onChange={(e) => updateLine(index, 'accountCode', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded text-sm"
                   >
                     <option value="">Select Account</option>
                     {Object.keys(coaGrouped).map(type => (
@@ -210,7 +210,7 @@ export default function AdjustingEntriesTab() {
                   <select
                     value={line.entryType}
                     onChange={(e) => updateLine(index, 'entryType', e.target.value as 'D' | 'C')}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded text-sm"
                   >
                     <option value="D">Debit</option>
                     <option value="C">Credit</option>
@@ -223,13 +223,13 @@ export default function AdjustingEntriesTab() {
                     placeholder="0.00"
                     value={line.amount}
                     onChange={(e) => updateLine(index, 'amount', e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    className="w-full px-3 py-2 border rounded text-sm"
                   />
                 </div>
                 {lines.length > 2 && (
                   <button
                     onClick={() => removeLine(index)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded"
+                    className="px-3 py-2 text-brand-red hover:bg-red-50 rounded"
                   >
                     ✕
                   </button>
@@ -243,23 +243,23 @@ export default function AdjustingEntriesTab() {
         <div className="border-t pt-4 mb-4">
           <div className="flex justify-end gap-8 text-sm">
             <div>
-              <span className="text-gray-600">Total Debits:</span>
-              <span className="ml-2 font-semibold text-blue-600">${totalDebits.toFixed(2)}</span>
+              <span className="text-text-secondary">Total Debits:</span>
+              <span className="ml-2 font-semibold text-brand-purple">${totalDebits.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-600">Total Credits:</span>
-              <span className="ml-2 font-semibold text-green-600">${totalCredits.toFixed(2)}</span>
+              <span className="text-text-secondary">Total Credits:</span>
+              <span className="ml-2 font-semibold text-brand-green">${totalCredits.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-gray-600">Difference:</span>
-              <span className={`ml-2 font-semibold ${balanced ? 'text-green-600' : 'text-red-600'}`}>
+              <span className="text-text-secondary">Difference:</span>
+              <span className={`ml-2 font-semibold ${balanced ? 'text-brand-green' : 'text-brand-red'}`}>
                 ${Math.abs(totalDebits - totalCredits).toFixed(2)}
               </span>
             </div>
           </div>
           {balanced && (
             <div className="text-right mt-2">
-              <span className="text-sm text-green-600 font-medium">✓ Entry is balanced</span>
+              <span className="text-sm text-brand-green font-medium">✓ Entry is balanced</span>
             </div>
           )}
         </div>
@@ -269,10 +269,10 @@ export default function AdjustingEntriesTab() {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit() || loading}
-            className={`px-6 py-2 rounded-lg text-sm font-medium ${
+            className={`px-6 py-2 rounded text-sm font-medium ${
               canSubmit() && !loading
-                ? 'bg-[#2d1b4e] text-white hover:bg-[#9a9730]'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ? 'bg-brand-purple text-white hover:bg-brand-accent-dark'
+                : 'bg-border text-text-muted cursor-not-allowed'
             }`}
           >
             {loading ? 'Creating...' : 'Create Adjusting Entry'}
@@ -281,7 +281,7 @@ export default function AdjustingEntriesTab() {
       </div>
 
       {/* Help Text */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
         <h3 className="text-sm font-semibold text-yellow-900 mb-2">About Adjusting Entries</h3>
         <p className="text-sm text-yellow-800">
           Adjusting entries are manual journal entries used to record accruals, deferrals, corrections, and other 

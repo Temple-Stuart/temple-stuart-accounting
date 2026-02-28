@@ -155,9 +155,9 @@ export default function ThreeStatementSection({
           <td colSpan={14} className={`px-3 py-2 font-bold text-sm ${textClass}`}>{title}</td>
         </tr>
         {codes.map(code => (
-          <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+          <tr key={code} className="border-b border-border-light hover:bg-bg-row">
             <td className="px-3 py-2">
-              <span className="font-mono text-xs text-gray-400">{code}</span>
+              <span className="font-mono text-xs text-text-faint">{code}</span>
               <span className="ml-2 text-sm">{getCoaName(code)}</span>
             </td>
             {MONTHS.map((_, m) => {
@@ -165,15 +165,15 @@ export default function ThreeStatementSection({
               return (
                 <td 
                   key={m} 
-                  className={`px-3 py-2 text-right text-sm ${val !== 0 ? 'cursor-pointer hover:bg-blue-50 text-blue-600' : 'text-gray-300'}`}
+                  className={`px-3 py-2 text-right text-sm ${val !== 0 ? 'cursor-pointer hover:bg-brand-purple-wash text-brand-purple' : 'text-text-faint'}`}
                   onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
                 >
                   {formatAmount(val)}
                 </td>
               );
             })}
-            <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}>
-              <span className="text-blue-600 hover:underline">{formatAmount(getRowTotal(code))}</span>
+            <td className="px-3 py-2 text-right text-sm font-semibold bg-bg-row cursor-pointer hover:bg-brand-purple-wash" onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}>
+              <span className="text-brand-purple hover:underline">{formatAmount(getRowTotal(code))}</span>
             </td>
           </tr>
         ))}
@@ -184,7 +184,7 @@ export default function ThreeStatementSection({
               {formatAmount(getMonthTotal(codes, m))}
             </td>
           ))}
-          <td className={`px-3 py-2 text-right font-bold text-sm bg-gray-50 ${textClass}`}>
+          <td className={`px-3 py-2 text-right font-bold text-sm bg-bg-row ${textClass}`}>
             {formatAmount(getSectionQtrTotal(codes))}
           </td>
         </tr>
@@ -193,10 +193,10 @@ export default function ThreeStatementSection({
   };
 
   return (
-    <div className="mt-6 bg-white border rounded-lg overflow-hidden">
+    <div className="mt-6 bg-white border rounded overflow-hidden">
       {/* Header Row */}
-      <div className="px-4 py-3 bg-gray-50 border-b flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold">Financial Statements</h3>
+      <div className="px-4 py-3 bg-bg-row border-b flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-terminal-lg font-semibold">Financial Statements</h3>
         
         <div className="flex items-center gap-4">
           {/* Year Select */}
@@ -222,8 +222,8 @@ export default function ThreeStatementSection({
             onClick={() => setActiveStatement(tab.key as any)}
             className={`px-5 py-3 text-sm font-medium transition-colors ${
               activeStatement === tab.key
-                ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white'
-                : 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                ? 'border-b-2 border-brand-purple text-brand-purple bg-white'
+                : 'text-text-muted hover:text-text-secondary bg-bg-row'
             }`}
           >
             {tab.label}
@@ -235,13 +235,13 @@ export default function ThreeStatementSection({
       {activeStatement === 'income' && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-bg-row">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold min-w-[200px]">Account</th>
                 {MONTHS.map((name, i) => (
                   <th key={i} className="px-3 py-2 text-right font-semibold w-24">{name}</th>
                 ))}
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-100">Total</th>
+                <th className="px-3 py-2 text-right font-semibold w-24 bg-bg-row">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -256,19 +256,19 @@ export default function ThreeStatementSection({
                   const exp = getMonthTotal(expenseCodes, m);
                   const ni = Math.abs(rev) - Math.abs(exp);
                   return (
-                    <td key={m} className={`px-3 py-2 text-right ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    <td key={m} className={`px-3 py-2 text-right ${ni >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                       {ni < 0 && '('}{formatAmount(Math.abs(ni))}{ni < 0 && ')'}
                     </td>
                   );
                 })}
-                <td className={`px-3 py-2 text-right bg-yellow-200 ${getNetIncomeQtr() >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                <td className={`px-3 py-2 text-right bg-yellow-200 ${getNetIncomeQtr() >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                   {getNetIncomeQtr() < 0 && '('}{formatAmount(Math.abs(getNetIncomeQtr()))}{getNetIncomeQtr() < 0 && ')'}
                 </td>
               </tr>
             </tbody>
           </table>
           {incomeStatementCodes.length === 0 && (
-            <div className="p-8 text-center text-gray-500">No income/expense data for {selectedYear}</div>
+            <div className="p-8 text-center text-text-muted">No income/expense data for {selectedYear}</div>
           )}
         </div>
       )}
@@ -277,31 +277,31 @@ export default function ThreeStatementSection({
       {activeStatement === 'balance' && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-bg-row">
               <tr>
                 <th className="px-3 py-2 text-left font-semibold min-w-[200px]">Account</th>
                 {MONTHS.map((name, i) => (
                   <th key={i} className="px-3 py-2 text-right font-semibold w-24">{name}</th>
                 ))}
-                <th className="px-3 py-2 text-right font-semibold w-24 bg-gray-100">Total</th>
+                <th className="px-3 py-2 text-right font-semibold w-24 bg-bg-row">Total</th>
               </tr>
             </thead>
             <tbody>
-              {renderSection('Assets', assetCodes, 'bg-blue-50', 'text-blue-800')}
+              {renderSection('Assets', assetCodes, 'bg-brand-purple-wash', 'text-blue-800')}
               {renderSection('Liabilities', liabilityCodes, 'bg-orange-50', 'text-orange-800')}
               {renderSection('Equity', equityCodes, 'bg-purple-50', 'text-purple-800')}
             </tbody>
           </table>
           {balanceSheetCodes.length === 0 && (
-            <div className="p-8 text-center text-gray-500">No balance sheet data for {selectedYear}</div>
+            <div className="p-8 text-center text-text-muted">No balance sheet data for {selectedYear}</div>
           )}
         </div>
       )}
 
       {/* Cash Flow Placeholder */}
       {activeStatement === 'cashflow' && (
-        <div className="p-12 text-center text-gray-500">
-          <p className="text-lg font-medium">Cash Flow Statement</p>
+        <div className="p-12 text-center text-text-muted">
+          <p className="text-terminal-lg font-medium">Cash Flow Statement</p>
           <p className="text-sm mt-1">Coming soon — derived from I/S and B/S changes</p>
         </div>
       )}
@@ -309,16 +309,16 @@ export default function ThreeStatementSection({
       {/* Drilldown Modal */}
       {drilldownCell && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <div className="bg-white rounded shadow-sm w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="px-4 py-3 border-b flex justify-between items-center">
               <div>
-                <p className="font-mono text-xs text-gray-500">{drilldownCell.coaCode}</p>
+                <p className="font-mono text-xs text-text-muted">{drilldownCell.coaCode}</p>
                 <h4 className="font-semibold">{getCoaName(drilldownCell.coaCode)}</h4>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-text-muted">
                   {drilldownCell.month === -1 ? "YTD" : MONTHS[drilldownCell.month]} {selectedYear} • {drilldownTransactions.length} txns
                 </p>
               </div>
-              <button onClick={() => { setDrilldownCell(null); setSelectedTxns([]); }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+              <button onClick={() => { setDrilldownCell(null); setSelectedTxns([]); }} className="text-text-faint hover:text-text-secondary text-sm leading-none">&times;</button>
             </div>
 
             {selectedTxns.length > 0 && (
@@ -332,7 +332,7 @@ export default function ThreeStatementSection({
                     </optgroup>
                   ))}
                 </select>
-                <button onClick={handleReassign} disabled={!reassignCoa || isReassigning} className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-sm disabled:opacity-50">
+                <button onClick={handleReassign} disabled={!reassignCoa || isReassigning} className="px-3 py-1 bg-brand-purple text-white rounded text-sm disabled:opacity-50">
                   {isReassigning ? '...' : 'Move'}
                 </button>
               </div>
@@ -340,7 +340,7 @@ export default function ThreeStatementSection({
 
             <div className="flex-1 overflow-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
+                <thead className="bg-bg-row sticky top-0">
                   <tr>
                     <th className="px-3 py-2 w-8">
                       <input type="checkbox" 
@@ -355,7 +355,7 @@ export default function ThreeStatementSection({
                 </thead>
                 <tbody className="divide-y">
                   {drilldownTransactions.map(txn => (
-                    <tr key={txn.id} className={`hover:bg-gray-50 ${selectedTxns.includes(txn.id) ? 'bg-blue-50' : ''}`}>
+                    <tr key={txn.id} className={`hover:bg-bg-row ${selectedTxns.includes(txn.id) ? 'bg-brand-purple-wash' : ''}`}>
                       <td className="px-3 py-2">
                         <input type="checkbox" checked={selectedTxns.includes(txn.id)}
                           onChange={(e) => setSelectedTxns(e.target.checked ? [...selectedTxns, txn.id] : selectedTxns.filter(id => id !== txn.id))} />
@@ -363,7 +363,7 @@ export default function ThreeStatementSection({
                       <td className="px-3 py-2 whitespace-nowrap">{new Date(txn.date).toLocaleDateString()}</td>
                       <td className="px-3 py-2">
                         <div className="truncate max-w-[250px]">{txn.name}</div>
-                        {txn.merchantName && <div className="text-xs text-gray-500">{txn.merchantName}</div>}
+                        {txn.merchantName && <div className="text-xs text-text-muted">{txn.merchantName}</div>}
                       </td>
                       <td className="px-3 py-2 text-right font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
                     </tr>
@@ -372,9 +372,9 @@ export default function ThreeStatementSection({
               </table>
             </div>
 
-            <div className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center">
-              <span className="text-sm text-gray-600">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
-              <button onClick={() => { setDrilldownCell(null); setSelectedTxns([]); }} className="px-4 py-1.5 bg-gray-200 rounded text-sm">Close</button>
+            <div className="px-4 py-3 border-t bg-bg-row flex justify-between items-center">
+              <span className="text-sm text-text-secondary">Total: ${drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</span>
+              <button onClick={() => { setDrilldownCell(null); setSelectedTxns([]); }} className="px-4 py-1.5 bg-border rounded text-sm">Close</button>
             </div>
           </div>
         </div>

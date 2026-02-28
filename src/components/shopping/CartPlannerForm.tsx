@@ -120,22 +120,22 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
     <div className="space-y-4">
       {/* Progress Bar */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Step {step} of {totalSteps}</div>
-        <div className="flex-1 bg-gray-200 h-1">
-          <div className="bg-[#2d1b4e] h-1 transition-all" style={{ width: `${(step / totalSteps) * 100}%` }} />
+        <div className="text-[10px] text-text-muted uppercase tracking-wider">Step {step} of {totalSteps}</div>
+        <div className="flex-1 bg-border h-1">
+          <div className="bg-brand-purple h-1 transition-all" style={{ width: `${(step / totalSteps) * 100}%` }} />
         </div>
       </div>
 
       {/* Step 1: Budget & Preferences */}
       {step === 1 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 1: {categoryLabel} — Budget & Preferences
           </div>
 
           <div className="p-4 space-y-4">
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Budget Range</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Budget Range</div>
               <div className="grid grid-cols-2 gap-2">
                 {BUDGET_OPTIONS.map((opt, i) => (
                   <button
@@ -143,19 +143,19 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
                     onClick={() => setBudgetIdx(i)}
                     className={`p-4 text-left border transition-colors ${
                       budgetIdx === i
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
-                    <div className="font-bold text-lg">{opt.label}</div>
-                    <div className={`text-xs ${budgetIdx === i ? 'text-gray-300' : 'text-gray-400'}`}>{opt.desc}</div>
+                    <div className="font-bold text-terminal-lg">{opt.label}</div>
+                    <div className={`text-xs ${budgetIdx === i ? 'text-text-faint' : 'text-text-faint'}`}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Household Size</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Household Size</div>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5, 6].map(n => (
                   <button
@@ -163,8 +163,8 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
                     onClick={() => setHouseholdSize(n)}
                     className={`flex-1 py-2 text-sm font-medium border transition-colors ${
                       householdSize === n
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {n}
@@ -174,7 +174,7 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Replenishment Cadence</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Replenishment Cadence</div>
               <div className="space-y-2">
                 {CADENCE_OPTIONS.map(opt => (
                   <button
@@ -182,40 +182,40 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
                     onClick={() => setCadence(opt.value)}
                     className={`w-full p-3 text-left border transition-colors ${
                       cadence === opt.value
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     <div className="font-medium text-sm">{opt.label}</div>
-                    <div className={`text-xs ${cadence === opt.value ? 'text-gray-300' : 'text-gray-400'}`}>{opt.desc}</div>
+                    <div className={`text-xs ${cadence === opt.value ? 'text-text-faint' : 'text-text-faint'}`}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                Preferences / Must-Haves <span className="text-gray-400">(optional)</span>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
+                Preferences / Must-Haves <span className="text-text-faint">(optional)</span>
               </div>
               <input
                 type="text"
                 value={preferences}
                 onChange={e => setPreferences(e.target.value)}
                 placeholder="e.g., unscented products, eco-friendly, specific brands"
-                className="w-full border border-gray-300 px-3 py-2 text-sm"
+                className="w-full border border-border px-3 py-2 text-sm"
               />
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                Items to Exclude <span className="text-gray-400">(optional)</span>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
+                Items to Exclude <span className="text-text-faint">(optional)</span>
               </div>
               <input
                 type="text"
                 value={excludeItems}
                 onChange={e => setExcludeItems(e.target.value)}
                 placeholder="e.g., bleach, fabric softener, scented candles"
-                className="w-full border border-gray-300 px-3 py-2 text-sm"
+                className="w-full border border-border px-3 py-2 text-sm"
               />
             </div>
           </div>
@@ -225,44 +225,44 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
       {/* Step 2: Review & Generate */}
       {step === 2 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 2: Review & Generate
           </div>
 
           <div className="p-4 space-y-4">
-            <div className="bg-gray-50 border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Plan Summary</div>
+            <div className="bg-bg-row border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-3">Plan Summary</div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                <div className="text-gray-500">Category:</div>
-                <div className="font-medium text-gray-900">{categoryLabel}</div>
+                <div className="text-text-muted">Category:</div>
+                <div className="font-medium text-text-primary">{categoryLabel}</div>
 
-                <div className="text-gray-500">Budget:</div>
-                <div className="font-medium text-gray-900">{budget.label} ({budget.desc})</div>
+                <div className="text-text-muted">Budget:</div>
+                <div className="font-medium text-text-primary">{budget.label} ({budget.desc})</div>
 
-                <div className="text-gray-500">Household:</div>
-                <div className="font-medium text-gray-900">{householdSize} person{householdSize > 1 ? 's' : ''}</div>
+                <div className="text-text-muted">Household:</div>
+                <div className="font-medium text-text-primary">{householdSize} person{householdSize > 1 ? 's' : ''}</div>
 
-                <div className="text-gray-500">Cadence:</div>
-                <div className="font-medium text-gray-900 capitalize">{cadence.replace('-', ' ')}</div>
+                <div className="text-text-muted">Cadence:</div>
+                <div className="font-medium text-text-primary capitalize">{cadence.replace('-', ' ')}</div>
 
                 {preferences && (
                   <>
-                    <div className="text-gray-500">Preferences:</div>
+                    <div className="text-text-muted">Preferences:</div>
                     <div className="font-medium text-emerald-700">{preferences}</div>
                   </>
                 )}
 
                 {excludeItems && (
                   <>
-                    <div className="text-gray-500">Exclude:</div>
-                    <div className="font-medium text-red-700">{excludeItems}</div>
+                    <div className="text-text-muted">Exclude:</div>
+                    <div className="font-medium text-brand-red">{excludeItems}</div>
                   </>
                 )}
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 p-3 text-red-700 text-sm">
+              <div className="bg-red-50 border border-red-200 p-3 text-brand-red text-sm">
                 {error}
               </div>
             )}
@@ -275,7 +275,7 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
         {step > 1 && (
           <button
             onClick={() => setStep(s => s - 1)}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-bg-row text-text-secondary hover:bg-border transition-colors"
           >
             &larr; Back
           </button>
@@ -283,7 +283,7 @@ export default function CartPlannerForm({ category, onPlanGenerated }: Props) {
         {step < totalSteps ? (
           <button
             onClick={() => setStep(s => s + 1)}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-hover transition-colors"
           >
             Next &rarr;
           </button>

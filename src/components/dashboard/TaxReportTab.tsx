@@ -300,7 +300,7 @@ export default function TaxReportTab() {
   }
 
   if (!data) {
-    return <div className="p-8 text-center text-terminal-sm text-red-600">Failed to load tax report</div>;
+    return <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load tax report</div>;
   }
 
   const { summary, scheduleD } = data;
@@ -376,34 +376,34 @@ export default function TaxReportTab() {
           <div className="grid grid-cols-5 gap-3">
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Net Capital Gain/Loss</div>
-              <div className={`text-lg font-bold font-mono ${plColor(summary.netGainOrLoss)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.netGainOrLoss)}`}>
                 {fmt(summary.netGainOrLoss)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Short-Term</div>
-              <div className={`text-lg font-bold font-mono ${plColor(scheduleD.partI.line7.gainOrLoss)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partI.line7.gainOrLoss)}`}>
                 {fmt(scheduleD.partI.line7.gainOrLoss)}
               </div>
               <div className="text-terminal-xs text-text-faint">{summary.shortTermCount} dispositions</div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Long-Term</div>
-              <div className={`text-lg font-bold font-mono ${plColor(scheduleD.partII.line15.gainOrLoss)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partII.line15.gainOrLoss)}`}>
                 {fmt(scheduleD.partII.line15.gainOrLoss)}
               </div>
               <div className="text-terminal-xs text-text-faint">{summary.longTermCount} dispositions</div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Wash Sales</div>
-              <div className="text-lg font-bold font-mono text-brand-amber">
+              <div className="text-terminal-lg font-bold font-mono text-brand-amber">
                 {summary.washSaleCount}
               </div>
               <div className="text-terminal-xs text-text-faint">{fmt(summary.washSaleDisallowed)} disallowed</div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Total Dispositions</div>
-              <div className="text-lg font-bold font-mono">{summary.totalDispositions}</div>
+              <div className="text-terminal-lg font-bold font-mono">{summary.totalDispositions}</div>
             </div>
           </div>
 
@@ -480,7 +480,7 @@ export default function TaxReportTab() {
                   <td className="px-3 py-3 text-right font-mono">{fmt(scheduleD.line16.proceeds)}</td>
                   <td className="px-3 py-3 text-right font-mono">{fmt(scheduleD.line16.costBasis)}</td>
                   <td className="px-3 py-3 text-right font-mono">{fmt(scheduleD.line16.adjustments)}</td>
-                  <td className={`px-3 py-3 text-right font-mono text-lg ${plColor(scheduleD.line16.gainOrLoss)}`}>
+                  <td className={`px-3 py-3 text-right font-mono text-terminal-lg ${plColor(scheduleD.line16.gainOrLoss)}`}>
                     {fmt(scheduleD.line16.gainOrLoss)}
                   </td>
                 </tr>
@@ -569,7 +569,7 @@ export default function TaxReportTab() {
           {scheduleCLoading ? (
             <div className="p-8 text-center text-terminal-sm text-text-muted">Loading Schedule C...</div>
           ) : !scheduleCData ? (
-            <div className="p-8 text-center text-terminal-sm text-red-600">Failed to load Schedule C</div>
+            <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load Schedule C</div>
           ) : (
             <>
               {/* Business name */}
@@ -643,9 +643,9 @@ export default function TaxReportTab() {
               </div>
 
               {/* Line 31: Net profit */}
-              <div className={`border-2 rounded p-2 text-center ${scheduleCData.scheduleC.line31 >= 0 ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
+              <div className={`border-2 rounded p-2 text-center ${scheduleCData.scheduleC.line31 >= 0 ? 'border-brand-green bg-green-50' : 'border-brand-red bg-red-50'}`}>
                 <div className="text-terminal-base text-text-secondary mb-1">Line 31: Net profit or (loss)</div>
-                <div className={`text-2xl font-bold font-mono ${plColor(scheduleCData.scheduleC.line31)}`}>
+                <div className={`text-sm font-bold font-mono ${plColor(scheduleCData.scheduleC.line31)}`}>
                   {fmt(scheduleCData.scheduleC.line31)}
                 </div>
               </div>
@@ -700,7 +700,7 @@ export default function TaxReportTab() {
           {form1040Loading ? (
             <div className="p-8 text-center text-terminal-sm text-text-muted">Loading Form 1040...</div>
           ) : !form1040Data ? (
-            <div className="p-8 text-center text-terminal-sm text-red-600">Failed to load Form 1040</div>
+            <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load Form 1040</div>
           ) : (
             <>
               {/* INCOME */}
@@ -875,7 +875,7 @@ export default function TaxReportTab() {
               </div>
 
               {/* BOTTOM LINE */}
-              <div className={`border-2 rounded p-2 text-center ${form1040Data.isRefund ? 'border-green-600 bg-green-50' : 'border-red-600 bg-red-50'}`}>
+              <div className={`border-2 rounded p-2 text-center ${form1040Data.isRefund ? 'border-brand-green bg-green-50' : 'border-brand-red bg-red-50'}`}>
                 <div className="text-terminal-base text-text-secondary mb-1">
                   {form1040Data.isRefund ? 'Estimated Refund' : 'Estimated Amount Owed'}
                 </div>
@@ -889,7 +889,7 @@ export default function TaxReportTab() {
               <div className="border border-border rounded overflow-hidden">
                 <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-secondary flex items-center justify-between">
                   <span>Manual Tax Data Entry</span>
-                  {savingOverride && <span className="text-terminal-xs text-blue-500 animate-pulse">Saving {savingOverride}...</span>}
+                  {savingOverride && <span className="text-terminal-xs text-brand-purple animate-pulse">Saving {savingOverride}...</span>}
                 </div>
                 <div className="p-4 space-y-3">
                   {/* W-2 fields */}
@@ -959,7 +959,7 @@ export default function TaxReportTab() {
         <td className="px-2 py-1.5">
           <span className="font-medium">{e.description}</span>
           {e.assetType === 'option' && (
-            <span className="ml-1 text-terminal-xs px-1 py-0.5 bg-blue-100 text-blue-700 rounded">OPT</span>
+            <span className="ml-1 text-terminal-xs px-1 py-0.5 bg-brand-purple-wash text-brand-purple rounded">OPT</span>
           )}
         </td>
         <td className="px-2 py-1.5 font-mono">{fmtDate(e.dateAcquired)}</td>
@@ -1019,7 +1019,7 @@ export default function TaxReportTab() {
             className="w-full text-terminal-base font-mono border border-border rounded h-7 px-2 pl-5"
           />
           {savingOverride === key && (
-            <span className="absolute right-2 top-1.5 text-terminal-xs text-blue-500">saving...</span>
+            <span className="absolute right-2 top-1.5 text-terminal-xs text-brand-purple">saving...</span>
           )}
         </div>
       </div>

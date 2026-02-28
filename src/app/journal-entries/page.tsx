@@ -51,7 +51,7 @@ export default function JournalEntriesPage() {
       <h1 className="text-3xl font-bold mb-8">Journal Entries</h1>
 
       {entries.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-text-muted">
           No journal entries yet. Commit transactions to create entries.
         </div>
       ) : (
@@ -61,16 +61,16 @@ export default function JournalEntriesPage() {
             const credits = entry.ledger_entries.filter(l => l.entry_type === 'C');
 
             return (
-              <div key={entry.id} className="border rounded-lg overflow-hidden">
+              <div key={entry.id} className="border rounded overflow-hidden">
                 {/* Entry header */}
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                <div className="bg-bg-row px-4 py-3 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-text-secondary">
                       {new Date(entry.date).toLocaleDateString()}
                     </span>
                     <span className="font-medium">{entry.description}</span>
                     {entry.is_reversal && (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">Reversal</span>
+                      <span className="px-2 py-0.5 bg-red-100 text-brand-red rounded text-xs">Reversal</span>
                     )}
                   </div>
                   <span className={`px-2 py-1 rounded text-xs ${
@@ -84,7 +84,7 @@ export default function JournalEntriesPage() {
 
                 {/* Ledger lines */}
                 <table className="w-full">
-                  <thead className="bg-gray-100 text-xs text-gray-500 uppercase">
+                  <thead className="bg-bg-row text-xs text-text-muted uppercase">
                     <tr>
                       <th className="px-4 py-2 text-left w-1/3">Account</th>
                       <th className="px-4 py-2 text-right w-1/3">Debit</th>
@@ -100,7 +100,7 @@ export default function JournalEntriesPage() {
                         <td className="px-4 py-2 text-right font-semibold text-sm">
                           {formatMoney(line.amount)}
                         </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-400">—</td>
+                        <td className="px-4 py-2 text-right text-sm text-text-faint">—</td>
                       </tr>
                     ))}
                     {credits.map(line => (
@@ -108,7 +108,7 @@ export default function JournalEntriesPage() {
                         <td className="px-4 py-2 font-mono text-sm pl-8">
                           {line.account.code} — {line.account.name}
                         </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-400">—</td>
+                        <td className="px-4 py-2 text-right text-sm text-text-faint">—</td>
                         <td className="px-4 py-2 text-right font-semibold text-sm">
                           {formatMoney(line.amount)}
                         </td>

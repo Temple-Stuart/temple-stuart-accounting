@@ -100,20 +100,20 @@ export default function ThreeStatementAnalysisTab() {
           </td>
         </tr>
         {accts.map(acct => (
-          <tr key={acct.code} className="border-b border-gray-100 hover:bg-gray-50">
+          <tr key={acct.code} className="border-b border-border-light hover:bg-bg-row">
             <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white z-10">
-              <span className="font-mono text-xs text-gray-400">{acct.code}</span>
+              <span className="font-mono text-xs text-text-faint">{acct.code}</span>
               <span className="ml-2 text-sm">{acct.name}</span>
             </td>
             {periodKeys.map(pk => {
               const val = acct.periods[pk] || 0;
               return (
-                <td key={pk} className={`px-3 py-2 text-right text-sm ${val !== 0 ? '' : 'text-gray-300'}`}>
+                <td key={pk} className={`px-3 py-2 text-right text-sm ${val !== 0 ? '' : 'text-text-faint'}`}>
                   {formatAmount(val)}
                 </td>
               );
             })}
-            <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-50">
+            <td className="px-3 py-2 text-right text-sm font-semibold bg-bg-row">
               {formatAmount(acct.periods[periodKeys[periodKeys.length - 1]] || 0)}
             </td>
           </tr>
@@ -125,7 +125,7 @@ export default function ThreeStatementAnalysisTab() {
               {formatAmount(getSectionTotal(accts, pk))}
             </td>
           ))}
-          <td className={`px-3 py-2 text-right font-bold text-sm bg-gray-50 ${textClass}`}>
+          <td className={`px-3 py-2 text-right font-bold text-sm bg-bg-row ${textClass}`}>
             {formatAmount(getSectionTotal(accts, periodKeys[periodKeys.length - 1] || ''))}
           </td>
         </tr>
@@ -137,14 +137,14 @@ export default function ThreeStatementAnalysisTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">3-Statement Analysis</h2>
-          <p className="text-sm text-gray-600 mt-1">Comparative financial statement analysis</p>
+          <h2 className="text-sm font-bold">3-Statement Analysis</h2>
+          <p className="text-sm text-text-secondary mt-1">Comparative financial statement analysis</p>
         </div>
         <div className="flex gap-2">
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-4 py-2 border rounded-lg text-sm font-medium"
+            className="px-4 py-2 border rounded text-sm font-medium"
           >
             {(availableYears.length > 0 ? availableYears : [new Date().getFullYear()]).map(y => (
               <option key={y} value={y}>{y}</option>
@@ -153,7 +153,7 @@ export default function ThreeStatementAnalysisTab() {
           <select
             value={periodType}
             onChange={(e) => setPeriodType(e.target.value as any)}
-            className="px-4 py-2 border rounded-lg text-sm"
+            className="px-4 py-2 border rounded text-sm"
           >
             <option value="monthly">Monthly</option>
             <option value="quarterly">Quarterly</option>
@@ -161,7 +161,7 @@ export default function ThreeStatementAnalysisTab() {
           </select>
           <button
             onClick={loadAnalysis}
-            className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm"
+            className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
           >
             Refresh
           </button>
@@ -169,7 +169,7 @@ export default function ThreeStatementAnalysisTab() {
       </div>
 
       {periodKeys.length === 0 ? (
-        <div className="bg-white border rounded-xl p-8 text-center text-gray-500">
+        <div className="bg-white border rounded p-8 text-center text-text-muted">
           No data available for analysis
         </div>
       ) : (
@@ -185,8 +185,8 @@ export default function ThreeStatementAnalysisTab() {
                 onClick={() => setActiveTab(tab.key as any)}
                 className={`px-5 py-3 text-sm font-medium transition-colors ${
                   activeTab === tab.key
-                    ? 'border-b-2 border-[#2d1b4e] text-[#2d1b4e] bg-white'
-                    : 'text-gray-500 hover:text-gray-700 bg-gray-50'
+                    ? 'border-b-2 border-brand-purple text-brand-purple bg-white'
+                    : 'text-text-muted hover:text-text-secondary bg-bg-row'
                 }`}
               >
                 {tab.label}
@@ -196,34 +196,34 @@ export default function ThreeStatementAnalysisTab() {
 
           {/* Balance Sheet — account-level detail with running balances */}
           {activeTab === 'balance' && (
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Balance Sheet</h3>
-                <span className="text-xs text-gray-500">Cumulative running balances at each period-end</span>
+            <div className="bg-white border rounded overflow-hidden">
+              <div className="bg-bg-row px-6 py-4 border-b flex justify-between items-center">
+                <h3 className="text-terminal-lg font-semibold">Balance Sheet</h3>
+                <span className="text-xs text-text-muted">Cumulative running balances at each period-end</span>
               </div>
               <div className="overflow-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-bg-row">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold min-w-[220px] sticky left-0 bg-gray-100 z-10">Account</th>
+                      <th className="px-3 py-2 text-left font-semibold min-w-[220px] sticky left-0 bg-bg-row z-10">Account</th>
                       {periodKeys.map(pk => (
                         <th key={pk} className="px-3 py-2 text-right font-semibold whitespace-nowrap min-w-[100px]">
                           {formatPeriodLabel(pk)}
                         </th>
                       ))}
-                      <th className="px-3 py-2 text-right font-semibold min-w-[100px] bg-gray-100">Current</th>
+                      <th className="px-3 py-2 text-right font-semibold min-w-[100px] bg-bg-row">Current</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {renderAccountSection('Assets', assetAccounts, 'bg-blue-50', 'text-blue-800')}
+                    {renderAccountSection('Assets', assetAccounts, 'bg-brand-purple-wash', 'text-blue-800')}
                     {renderAccountSection('Liabilities', liabilityAccounts, 'bg-orange-50', 'text-orange-800')}
                     {renderAccountSection('Equity', equityAccounts, 'bg-purple-50', 'text-purple-800')}
 
                     {/* Accounting equation check */}
                     {periodKeys.length > 0 && (
                       <>
-                        <tr className="bg-gray-200 border-t-2">
-                          <td className="px-3 py-2 font-bold text-sm sticky left-0 bg-gray-200 z-10">L + E</td>
+                        <tr className="bg-border border-t-2">
+                          <td className="px-3 py-2 font-bold text-sm sticky left-0 bg-border z-10">L + E</td>
                           {periodKeys.map(pk => {
                             const le = getSectionTotal(liabilityAccounts, pk) + getSectionTotal(equityAccounts, pk);
                             return (
@@ -232,35 +232,35 @@ export default function ThreeStatementAnalysisTab() {
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2 text-right font-bold text-sm bg-gray-200">
+                          <td className="px-3 py-2 text-right font-bold text-sm bg-border">
                             {formatAmount(
                               getSectionTotal(liabilityAccounts, periodKeys[periodKeys.length - 1] || '') +
                               getSectionTotal(equityAccounts, periodKeys[periodKeys.length - 1] || '')
                             )}
                           </td>
                         </tr>
-                        <tr className="bg-gray-100">
-                          <td className="px-3 py-2 font-bold text-sm sticky left-0 bg-gray-100 z-10">A = L + E Check</td>
+                        <tr className="bg-bg-row">
+                          <td className="px-3 py-2 font-bold text-sm sticky left-0 bg-bg-row z-10">A = L + E Check</td>
                           {periodKeys.map(pk => {
                             const a = getSectionTotal(assetAccounts, pk);
                             const le = getSectionTotal(liabilityAccounts, pk) + getSectionTotal(equityAccounts, pk);
                             const diff = Math.abs(a - le);
                             const balanced = diff < 0.02;
                             return (
-                              <td key={pk} className={`px-3 py-2 text-right text-sm font-semibold ${balanced ? 'text-green-600' : 'text-red-600'}`}>
+                              <td key={pk} className={`px-3 py-2 text-right text-sm font-semibold ${balanced ? 'text-brand-green' : 'text-brand-red'}`}>
                                 {balanced ? 'Balanced' : `Off $${diff.toFixed(2)}`}
                               </td>
                             );
                           })}
-                          <td className="px-3 py-2 text-right text-sm font-semibold bg-gray-100">
+                          <td className="px-3 py-2 text-right text-sm font-semibold bg-bg-row">
                             {(() => {
                               const lastPk = periodKeys[periodKeys.length - 1] || '';
                               const a = getSectionTotal(assetAccounts, lastPk);
                               const le = getSectionTotal(liabilityAccounts, lastPk) + getSectionTotal(equityAccounts, lastPk);
                               const diff = Math.abs(a - le);
                               return diff < 0.02
-                                ? <span className="text-green-600">Balanced</span>
-                                : <span className="text-red-600">Off ${diff.toFixed(2)}</span>;
+                                ? <span className="text-brand-green">Balanced</span>
+                                : <span className="text-brand-red">Off ${diff.toFixed(2)}</span>;
                             })()}
                           </td>
                         </tr>
@@ -274,22 +274,22 @@ export default function ThreeStatementAnalysisTab() {
 
           {/* Income Statement — periodic activity */}
           {activeTab === 'income' && (
-            <div className="bg-white border rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Income Statement</h3>
-                <span className="text-xs text-gray-500">Activity per period</span>
+            <div className="bg-white border rounded overflow-hidden">
+              <div className="bg-bg-row px-6 py-4 border-b flex justify-between items-center">
+                <h3 className="text-terminal-lg font-semibold">Income Statement</h3>
+                <span className="text-xs text-text-muted">Activity per period</span>
               </div>
               <div className="overflow-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-bg-row">
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold min-w-[220px] sticky left-0 bg-gray-100 z-10">Account</th>
+                      <th className="px-3 py-2 text-left font-semibold min-w-[220px] sticky left-0 bg-bg-row z-10">Account</th>
                       {periodKeys.map(pk => (
                         <th key={pk} className="px-3 py-2 text-right font-semibold whitespace-nowrap min-w-[100px]">
                           {formatPeriodLabel(pk)}
                         </th>
                       ))}
-                      <th className="px-3 py-2 text-right font-semibold min-w-[100px] bg-gray-100">YTD</th>
+                      <th className="px-3 py-2 text-right font-semibold min-w-[100px] bg-bg-row">YTD</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -304,7 +304,7 @@ export default function ThreeStatementAnalysisTab() {
                         const exp = getSectionTotal(expenseAccounts, pk);
                         const ni = rev - exp;
                         return (
-                          <td key={pk} className={`px-3 py-2 text-right ${ni >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          <td key={pk} className={`px-3 py-2 text-right ${ni >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                             {formatAmount(ni)}
                           </td>
                         );
@@ -314,7 +314,7 @@ export default function ThreeStatementAnalysisTab() {
                           const totalRev = periodKeys.reduce((s, pk) => s + getSectionTotal(revenueAccounts, pk), 0);
                           const totalExp = periodKeys.reduce((s, pk) => s + getSectionTotal(expenseAccounts, pk), 0);
                           const ni = totalRev - totalExp;
-                          return <span className={ni >= 0 ? 'text-green-700' : 'text-red-700'}>{formatAmount(ni)}</span>;
+                          return <span className={ni >= 0 ? 'text-brand-green' : 'text-brand-red'}>{formatAmount(ni)}</span>;
                         })()}
                       </td>
                     </tr>
@@ -327,32 +327,32 @@ export default function ThreeStatementAnalysisTab() {
           {/* Key Metrics */}
           {periods.length > 0 && (
             <div className="grid grid-cols-4 gap-4">
-              <div className="bg-white border rounded-lg p-4">
-                <div className="text-xs text-gray-600 mb-1">Latest Revenue</div>
-                <div className="text-2xl font-bold text-green-600">
+              <div className="bg-white border rounded p-4">
+                <div className="text-xs text-text-secondary mb-1">Latest Revenue</div>
+                <div className="text-sm font-bold text-brand-green">
                   {formatAmount(periods[0].revenue)}
                 </div>
               </div>
-              <div className="bg-white border rounded-lg p-4">
-                <div className="text-xs text-gray-600 mb-1">Latest Net Income</div>
-                <div className={`text-2xl font-bold ${periods[0].netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className="bg-white border rounded p-4">
+                <div className="text-xs text-text-secondary mb-1">Latest Net Income</div>
+                <div className={`text-sm font-bold ${periods[0].netIncome >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                   {formatAmount(periods[0].netIncome)}
                 </div>
               </div>
-              <div className="bg-white border rounded-lg p-4">
-                <div className="text-xs text-gray-600 mb-1">Total Assets</div>
-                <div className="text-2xl font-bold">
+              <div className="bg-white border rounded p-4">
+                <div className="text-xs text-text-secondary mb-1">Total Assets</div>
+                <div className="text-sm font-bold">
                   {formatAmount(periods[0].assets)}
                 </div>
               </div>
-              <div className="bg-white border rounded-lg p-4">
-                <div className="text-xs text-gray-600 mb-1">A = L + E</div>
-                <div className="text-2xl font-bold">
+              <div className="bg-white border rounded p-4">
+                <div className="text-xs text-text-secondary mb-1">A = L + E</div>
+                <div className="text-sm font-bold">
                   {(() => {
                     const diff = Math.abs(periods[0].assets - (periods[0].liabilities + periods[0].equity));
                     return diff < 0.02
-                      ? <span className="text-green-600">Balanced</span>
-                      : <span className="text-red-600">Off ${diff.toFixed(2)}</span>;
+                      ? <span className="text-brand-green">Balanced</span>
+                      : <span className="text-brand-red">Off ${diff.toFixed(2)}</span>;
                   })()}
                 </div>
               </div>

@@ -109,8 +109,8 @@ export default function AdminPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-amber-50/30 via-white to-amber-50/20 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-          <h1 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
+        <div className="bg-white p-8 rounded shadow-sm max-w-md w-full">
+          <h1 className="text-sm font-bold mb-6 text-center bg-gradient-to-r from-purple-600 to-amber-500 bg-clip-text text-transparent">
             Admin Access
           </h1>
           <form onSubmit={handleLogin}>
@@ -119,11 +119,11 @@ export default function AdminPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter admin password"
-              className="w-full px-4 py-2 border border-purple-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2 border border-purple-200 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
             <button
               type="submit"
-              className="w-full py-2 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-amber-600"
+              className="w-full py-2 bg-gradient-to-r from-purple-600 to-amber-500 text-white font-semibold rounded hover:from-purple-700 hover:to-amber-600"
             >
               Login
             </button>
@@ -155,7 +155,7 @@ export default function AdminPage() {
               sessionStorage.removeItem('adminAuth');
               router.push('/');
             }}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
           >
             Logout
           </button>
@@ -165,20 +165,20 @@ export default function AdminPage() {
         <div className="flex gap-4 mb-6">
           <button
             onClick={() => setActiveTab('rfps')}
-            className={`px-6 py-2 rounded-lg font-semibold ${
+            className={`px-6 py-2 rounded font-semibold ${
               activeTab === 'rfps'
                 ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white'
-                : 'bg-white text-gray-700'
+                : 'bg-white text-text-secondary'
             }`}
           >
             RFP Submissions ({rfps.length})
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-6 py-2 rounded-lg font-semibold ${
+            className={`px-6 py-2 rounded font-semibold ${
               activeTab === 'users'
                 ? 'bg-gradient-to-r from-purple-600 to-amber-500 text-white'
-                : 'bg-white text-gray-700'
+                : 'bg-white text-text-secondary'
             }`}
           >
             User Signups ({users.length})
@@ -192,12 +192,12 @@ export default function AdminPage() {
             placeholder="Filter data..."
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
-            className="px-4 py-2 border border-purple-200 rounded-lg w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="px-4 py-2 border border-purple-200 rounded w-full max-w-md focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+        <div className="bg-white rounded shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             {activeTab === 'rfps' ? (
               <table className="w-full">
@@ -252,7 +252,7 @@ export default function AdminPage() {
                 <tbody>
                   {displayData.map((rfp: any, index: number) => (
                     <>
-                      <tr key={rfp.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <tr key={rfp.id} className={index % 2 === 0 ? 'bg-bg-row' : 'bg-white'}>
                         <td className="px-4 py-3 text-sm">
                           {new Date(rfp.createdAt).toLocaleDateString()}
                         </td>
@@ -270,9 +270,9 @@ export default function AdminPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            rfp.timeline === 'immediate' ? 'bg-red-100 text-red-700' :
+                            rfp.timeline === 'immediate' ? 'bg-red-100 text-brand-red' :
                             rfp.timeline === 'month' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-green-100 text-green-700'
+                            'bg-green-100 text-brand-green'
                           }`}>
                             {rfp.timeline}
                           </span>
@@ -300,17 +300,17 @@ export default function AdminPage() {
                                       <li key={idx} className="text-sm">
                                         <span className="font-medium">{service.name}</span> - 
                                         <span className="text-purple-600 ml-2">{service.price}</span>
-                                        <span className="text-gray-500 ml-2">({service.frequency})</span>
+                                        <span className="text-text-muted ml-2">({service.frequency})</span>
                                       </li>
                                     ))}
                                   </ul>
                                 ) : (
-                                  <p className="text-gray-500">No services selected</p>
+                                  <p className="text-text-muted">No services selected</p>
                                 )}
                               </div>
                               <div>
                                 <h4 className="font-semibold text-purple-700 mb-2">Client Needs:</h4>
-                                <p className="text-sm text-gray-700 bg-white p-3 rounded">{rfp.needs || 'Not specified'}</p>
+                                <p className="text-sm text-text-secondary bg-white p-3 rounded">{rfp.needs || 'Not specified'}</p>
                               </div>
                             </div>
                           </td>
@@ -347,7 +347,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {displayData.map((user: any, index: number) => (
-                    <tr key={user.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                    <tr key={user.id} className={index % 2 === 0 ? 'bg-bg-row' : 'bg-white'}>
                       <td className="px-4 py-3">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>

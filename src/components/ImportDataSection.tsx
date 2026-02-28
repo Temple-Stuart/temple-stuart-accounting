@@ -218,22 +218,22 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
       
       <div className="space-y-6">
         {/* Connected Accounts */}
-        <div className="bg-white border border-gray-100 rounded-xl">
+        <div className="bg-white border border-border-light rounded">
           <div className="px-4 sm:px-6 py-4 border-b">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h3 className="text-lg font-medium">Connected Accounts</h3>
+              <h3 className="text-terminal-lg font-medium">Connected Accounts</h3>
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={syncCompleteData}
                   disabled={loading || accounts.length === 0}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-[#b4b237] text-white rounded-lg hover:bg-[#b4b237] disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-brand-accent text-white rounded hover:bg-brand-accent disabled:opacity-50 text-sm"
                 >
                   {loading ? 'Syncing...' : 'Sync All Data'}
                 </button>
                 <button
                   onClick={openPlaidLink}
                   disabled={!linkToken}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-[#b4b237] text-white rounded-lg hover:bg-[#9a9630] disabled:opacity-50 text-sm"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-brand-accent text-white rounded hover:bg-brand-accent-dark disabled:opacity-50 text-sm"
                 >
                   + Connect
                 </button>
@@ -242,21 +242,21 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
           </div>
           <div className="p-4 sm:p-6">
             {syncStatus && (
-              <div className="mb-4 p-3 bg-[#b4b237]/5 text-gray-700 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-brand-accent/5 text-text-secondary rounded text-sm">
                 {syncStatus}
               </div>
             )}
             {accounts.map((account) => (
-              <div key={account.id} className="border rounded-lg p-3 sm:p-4 mb-4">
+              <div key={account.id} className="border rounded p-3 sm:p-4 mb-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-medium">{account.name}</h4>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-text-muted">
                       {account.type} • {account.subtype}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg sm:text-xl font-semibold">
+                    <p className="text-terminal-lg sm:text-sm font-semibold">
                       ${(account.currentBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -267,15 +267,15 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         </div>
 
         {/* Transaction Tabs */}
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="bg-white border border-border-light rounded overflow-hidden">
           <div className="border-b">
             <div className="flex">
               <button
                 onClick={() => setActiveTab('spending')}
                 className={`px-4 sm:px-6 py-3 font-medium whitespace-nowrap ${
                   activeTab === 'spending'
-                    ? 'border-b-2 border-[#b4b237] text-[#b4b237]'
-                    : 'text-gray-600'
+                    ? 'border-b-2 border-brand-accent text-brand-accent'
+                    : 'text-text-secondary'
                 }`}
               >
                 Spending ({transactions.length})
@@ -284,8 +284,8 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 onClick={() => setActiveTab('investments')}
                 className={`px-4 sm:px-6 py-3 font-medium whitespace-nowrap ${
                   activeTab === 'investments'
-                    ? 'border-b-2 border-[#b4b237] text-[#b4b237]'
-                    : 'text-gray-600'
+                    ? 'border-b-2 border-brand-accent text-brand-accent'
+                    : 'text-text-secondary'
                 }`}
               >
                 Investments ({investmentTransactions.length})
@@ -297,10 +297,10 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
           {activeTab === 'spending' && (
             <>
               {/* NEW: Filter Lists */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b bg-bg-row">
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-600 mb-2">MERCHANT</h4>
-                  <div className="bg-white border rounded-lg max-h-40 overflow-y-auto">
+                  <h4 className="text-xs font-semibold text-text-secondary mb-2">MERCHANT</h4>
+                  <div className="bg-white border rounded max-h-40 overflow-y-auto">
                     {getMerchants().slice(0, 10).map(([merchant, count]) => (
                       <div
                         key={merchant}
@@ -308,20 +308,20 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                           setSelectedFilter({type: 'merchant', value: merchant});
                           setShowCOAAssignment(true);
                         }}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 flex justify-between items-center text-sm ${
-                          selectedFilter?.value === merchant ? 'bg-blue-50 text-blue-700' : ''
+                        className={`px-3 py-2 cursor-pointer hover:bg-bg-row flex justify-between items-center text-sm ${
+                          selectedFilter?.value === merchant ? 'bg-brand-purple-wash text-brand-purple' : ''
                         }`}
                       >
                         <span>{merchant}</span>
-                        <span className="text-xs text-gray-500">{count}</span>
+                        <span className="text-xs text-text-muted">{count}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-600 mb-2">PRIMARY CATEGORY</h4>
-                  <div className="bg-white border rounded-lg max-h-40 overflow-y-auto">
+                  <h4 className="text-xs font-semibold text-text-secondary mb-2">PRIMARY CATEGORY</h4>
+                  <div className="bg-white border rounded max-h-40 overflow-y-auto">
                     {getPrimaryCategories().map(([category, count]) => (
                       <div
                         key={category}
@@ -329,20 +329,20 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                           setSelectedFilter({type: 'primary', value: category});
                           setShowCOAAssignment(true);
                         }}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 flex justify-between items-center text-sm ${
-                          selectedFilter?.value === category ? 'bg-blue-50 text-blue-700' : ''
+                        className={`px-3 py-2 cursor-pointer hover:bg-bg-row flex justify-between items-center text-sm ${
+                          selectedFilter?.value === category ? 'bg-brand-purple-wash text-brand-purple' : ''
                         }`}
                       >
                         <span>{category}</span>
-                        <span className="text-xs text-gray-500">{count}</span>
+                        <span className="text-xs text-text-muted">{count}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-600 mb-2">DETAILED CATEGORY</h4>
-                  <div className="bg-white border rounded-lg max-h-40 overflow-y-auto">
+                  <h4 className="text-xs font-semibold text-text-secondary mb-2">DETAILED CATEGORY</h4>
+                  <div className="bg-white border rounded max-h-40 overflow-y-auto">
                     {getDetailedCategories().slice(0, 10).map(([category, count]) => (
                       <div
                         key={category}
@@ -350,12 +350,12 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                           setSelectedFilter({type: 'detailed', value: category});
                           setShowCOAAssignment(true);
                         }}
-                        className={`px-3 py-2 cursor-pointer hover:bg-gray-50 flex justify-between items-center text-sm ${
-                          selectedFilter?.value === category ? 'bg-blue-50 text-blue-700' : ''
+                        className={`px-3 py-2 cursor-pointer hover:bg-bg-row flex justify-between items-center text-sm ${
+                          selectedFilter?.value === category ? 'bg-brand-purple-wash text-brand-purple' : ''
                         }`}
                       >
                         <span>{category}</span>
-                        <span className="text-xs text-gray-500">{count}</span>
+                        <span className="text-xs text-text-muted">{count}</span>
                       </div>
                     ))}
                   </div>
@@ -364,11 +364,11 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
 
               {/* NEW: COA Assignment Bar */}
               {showCOAAssignment && selectedFilter && (
-                <div className="p-4 bg-blue-50 border-b">
+                <div className="p-4 bg-brand-purple-wash border-b">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-medium">Assign COA to: {selectedFilter.value}</h4>
-                      <p className="text-xs text-gray-600">{getFilteredTransactions().length} transactions</p>
+                      <p className="text-xs text-text-secondary">{getFilteredTransactions().length} transactions</p>
                     </div>
                     <div className="flex gap-2">
                       <select 
@@ -417,7 +417,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
               {/* Transactions Table */}
               <div className="w-full overflow-auto" style={{ maxHeight: '600px' }}>
                 <table className="w-full text-xs" style={{ minWidth: '800px' }}>
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+                  <thead className="bg-bg-row sticky top-0 z-10">
                     <tr>
                       <th className="px-2 py-2 text-left">Institution</th>
                       <th className="px-2 py-2 text-left">Account</th>
@@ -432,19 +432,19 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                   </thead>
                   <tbody className="divide-y">
                     {(selectedFilter ? getFilteredTransactions() : transactions).map((txn) => (
-                      <tr key={txn.id} className={`hover:bg-gray-50 ${
-                        selectedFilter && getFilteredTransactions().includes(txn) ? 'bg-blue-50' : ''
+                      <tr key={txn.id} className={`hover:bg-bg-row ${
+                        selectedFilter && getFilteredTransactions().includes(txn) ? 'bg-brand-purple-wash' : ''
                       }`}>
                         <td className="px-2 py-2">
                           <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
                             getInstitution(txn.account) === 'Wells Fargo' 
-                              ? 'bg-red-50 text-red-600' 
-                              : 'bg-[#b4b237]/10 text-[#b4b237]'
+                              ? 'bg-red-50 text-brand-red' 
+                              : 'bg-brand-accent/10 text-brand-accent'
                           }`}>
                             {getInstitution(txn.account)}
                           </span>
                         </td>
-                        <td className="px-2 py-2 text-xs text-gray-600">
+                        <td className="px-2 py-2 text-xs text-text-secondary">
                           {getAccountType(txn.account)}
                         </td>
                         <td className="px-2 py-2 whitespace-nowrap">
@@ -453,7 +453,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                         <td className="px-2 py-2">{txn.name}</td>
                         <td className="px-2 py-2">{txn.merchantName || '-'}</td>
                         <td className={`px-2 py-2 text-right font-medium whitespace-nowrap ${
-                          txn.amount < 0 ? 'text-red-600' : 'text-green-600'
+                          txn.amount < 0 ? 'text-brand-red' : 'text-brand-green'
                         }`}>
                           ${Math.abs(txn.amount).toFixed(2)}
                         </td>
@@ -480,7 +480,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
           {activeTab === 'investments' && (
             <div className="w-full overflow-auto" style={{ maxHeight: '600px' }}>
               <table className="w-full text-xs" style={{ minWidth: '600px' }}>
-                <thead className="bg-gray-50 sticky top-0 z-10">
+                <thead className="bg-bg-row sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-2 text-left">Date</th>
                     <th className="px-2 py-2 text-left">Description</th>
@@ -494,7 +494,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                 </thead>
                 <tbody className="divide-y">
                   {investmentTransactions.map((txn) => (
-                    <tr key={txn.id || txn.investment_transaction_id} className="hover:bg-gray-50">
+                    <tr key={txn.id || txn.investment_transaction_id} className="hover:bg-bg-row">
                       <td className="px-2 py-2 whitespace-nowrap">
                         {new Date(txn.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
@@ -504,7 +504,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
                       <td className="px-2 py-2 text-right">{txn.quantity || '-'}</td>
                       <td className="px-2 py-2 text-right">${txn.price || 0}</td>
                       <td className={`px-2 py-2 text-right font-medium whitespace-nowrap ${
-                        txn.amount < 0 ? 'text-red-600' : 'text-green-600'
+                        txn.amount < 0 ? 'text-brand-red' : 'text-brand-green'
                       }`}>
                         ${Math.abs(txn.amount || 0).toFixed(2)}
                       </td>

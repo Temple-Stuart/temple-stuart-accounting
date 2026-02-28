@@ -95,11 +95,11 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white border border-border rounded p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Add Transaction</h3>
+        <h3 className="text-terminal-lg font-semibold text-text-primary">Add Transaction</h3>
         {onCancel && (
-          <button onClick={onCancel} className="text-sm text-gray-400 hover:text-gray-600">
+          <button onClick={onCancel} className="text-sm text-text-faint hover:text-text-secondary">
             Cancel
           </button>
         )}
@@ -107,14 +107,14 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Expense / Income Toggle */}
-        <div className="flex rounded-lg overflow-hidden border border-gray-200">
+        <div className="flex rounded overflow-hidden border border-border">
           <button
             type="button"
             onClick={() => setIsExpense(true)}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
               isExpense
-                ? 'bg-red-50 text-red-700 border-r border-gray-200'
-                : 'bg-white text-gray-500 hover:bg-gray-50 border-r border-gray-200'
+                ? 'bg-red-50 text-brand-red border-r border-border'
+                : 'bg-white text-text-muted hover:bg-bg-row border-r border-border'
             }`}
           >
             Expense
@@ -124,8 +124,8 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
             onClick={() => setIsExpense(false)}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
               !isExpense
-                ? 'bg-green-50 text-green-700'
-                : 'bg-white text-gray-500 hover:bg-gray-50'
+                ? 'bg-green-50 text-brand-green'
+                : 'bg-white text-text-muted hover:bg-bg-row'
             }`}
           >
             Income
@@ -135,17 +135,17 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
         {/* Date + Amount Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e]"
+              className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
               required
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Amount ($)</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Amount ($)</label>
             <input
               type="number"
               step="0.01"
@@ -153,7 +153,7 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e]"
+              className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
               required
             />
           </div>
@@ -161,24 +161,24 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
 
         {/* Description */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+          <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Coffee at Blue Bottle"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e]"
+            className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
             required
           />
         </div>
 
         {/* Category */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+          <label className="block text-xs font-medium text-text-secondary mb-1">Category</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e] bg-white"
+            className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple bg-white"
           >
             <option value="">Select category...</option>
             {CATEGORIES.map(c => (
@@ -190,21 +190,21 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
         {/* Account */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Account Name</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Account Name</label>
             <input
               type="text"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="Manual Cash"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e]"
+              className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Account Type</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Account Type</label>
             <select
               value={accountType}
               onChange={(e) => setAccountType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d1b4e]/20 focus:border-[#2d1b4e] bg-white"
+              className="w-full px-3 py-2 border border-border rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple bg-white"
             >
               {ACCOUNT_TYPES.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -214,14 +214,14 @@ export default function ManualTransactionForm({ onSuccess, onCancel }: ManualTra
         </div>
 
         {/* Error / Success */}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && <p className="text-sm text-green-600">{success}</p>}
+        {error && <p className="text-sm text-brand-red">{error}</p>}
+        {success && <p className="text-sm text-brand-green">{success}</p>}
 
         {/* Submit */}
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-2.5 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium hover:bg-[#3d2b5e] transition-colors disabled:opacity-50"
+          className="w-full py-2.5 bg-brand-purple text-white rounded text-sm font-medium hover:bg-brand-purple-hover transition-colors disabled:opacity-50"
         >
           {submitting ? 'Saving...' : `Add ${isExpense ? 'Expense' : 'Income'}`}
         </button>

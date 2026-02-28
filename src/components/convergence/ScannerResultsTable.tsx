@@ -233,7 +233,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Rejection reasons (when no strategies passed) */}
       {allRejections && allRejections.length > 0 && !card && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Why No Strategies Passed</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Why No Strategies Passed</div>
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {allRejections.map((rej, i) => (
               <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1" style={{ background: '#1E293B' }}>
@@ -243,10 +243,10 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
                 }}>
                   {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
                 </span>
-                <span className="text-gray-300 flex-1">
-                  <span className="text-gray-400 font-mono">{rej.strategy}:</span> {rej.reason}
+                <span className="text-text-faint flex-1">
+                  <span className="text-text-faint font-mono">{rej.strategy}:</span> {rej.reason}
                   {rej.details?.spreadWidth != null && (
-                    <span className="text-gray-500"> (width: ${rej.details.spreadWidth})</span>
+                    <span className="text-text-muted"> (width: ${rej.details.spreadWidth})</span>
                   )}
                 </span>
               </div>
@@ -261,7 +261,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
           const score = comp.category_scores[cat];
           return (
             <div key={cat} className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 w-16 text-right shrink-0">
+              <span className="text-[10px] text-text-faint w-16 text-right shrink-0">
                 {cat === 'vol_edge' ? 'Vol Edge' : cat === 'info_edge' ? 'Info Edge' : cat.charAt(0).toUpperCase() + cat.slice(1)}
               </span>
               <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: '#334155' }}>
@@ -278,10 +278,10 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* WHY THIS TRADE */}
       {why && why.plain_english_signals.length > 0 && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Why This Trade</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Why This Trade</div>
           <div className="space-y-1">
             {why.plain_english_signals.map((sig, i) => (
-              <div key={i} className="flex gap-2 text-xs text-gray-200 leading-relaxed">
+              <div key={i} className="flex gap-2 text-xs text-text-faint leading-relaxed">
                 <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: '#334155', color: '#94A3B8' }}>{i + 1}</span>
                 <span>{sig}</span>
               </div>
@@ -293,44 +293,44 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* KEY STATS */}
       {ks && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Key Stats</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Key Stats</div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
             <div>
-              <span className="text-gray-500">IV Rank: </span>
-              <span className="text-gray-200 font-mono">{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '—'}</span>
-              {ks.iv_rank != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('iv_rank', ks.iv_rank)}</span>}
+              <span className="text-text-muted">IV Rank: </span>
+              <span className="text-text-faint font-mono">{ks.iv_rank != null ? ks.iv_rank.toFixed(1) : '—'}</span>
+              {ks.iv_rank != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('iv_rank', ks.iv_rank)}</span>}
             </div>
             <div>
-              <span className="text-gray-500">P/E: </span>
-              <span className="text-gray-200 font-mono">{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
-              {ks.pe_ratio != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+              <span className="text-text-muted">P/E: </span>
+              <span className="text-text-faint font-mono">{ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
+              {ks.pe_ratio != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('pe_ratio', ks.pe_ratio)}</span>}
             </div>
             <div>
-              <span className="text-gray-500">Beta: </span>
-              <span className="text-gray-200 font-mono">{ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
-              {ks.beta != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('beta', ks.beta)}</span>}
+              <span className="text-text-muted">Beta: </span>
+              <span className="text-text-faint font-mono">{ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
+              {ks.beta != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('beta', ks.beta)}</span>}
             </div>
             <div>
-              <span className="text-gray-500">SPY Corr: </span>
-              <span className="text-gray-200 font-mono">{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
-              {ks.spy_correlation != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+              <span className="text-text-muted">SPY Corr: </span>
+              <span className="text-text-faint font-mono">{ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
+              {ks.spy_correlation != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('spy_correlation', ks.spy_correlation)}</span>}
             </div>
             <div>
-              <span className="text-gray-500">Liquidity: </span>
-              <span className="text-gray-200 font-mono">{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
-              {ks.liquidity_rating != null && <span className="text-gray-500 text-[10px]"> &mdash; {statExplain('liquidity_rating', ks.liquidity_rating)}</span>}
+              <span className="text-text-muted">Liquidity: </span>
+              <span className="text-text-faint font-mono">{ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
+              {ks.liquidity_rating != null && <span className="text-text-muted text-[10px]"> &mdash; {statExplain('liquidity_rating', ks.liquidity_rating)}</span>}
             </div>
             <div>
-              <span className="text-gray-500">Mkt Cap: </span>
-              <span className="text-gray-200 font-mono">{fmtMcap(ks.market_cap)}</span>
+              <span className="text-text-muted">Mkt Cap: </span>
+              <span className="text-text-faint font-mono">{fmtMcap(ks.market_cap)}</span>
             </div>
             <div>
-              <span className="text-gray-500">Sector: </span>
-              <span className="text-gray-200">{ks.sector ?? '—'}</span>
+              <span className="text-text-muted">Sector: </span>
+              <span className="text-text-faint">{ks.sector ?? '—'}</span>
             </div>
             <div>
-              <span className="text-gray-500">Earnings: </span>
-              <span className="text-gray-200 font-mono">{ks.earnings_date ?? '—'}</span>
+              <span className="text-text-muted">Earnings: </span>
+              <span className="text-text-faint font-mono">{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
                 <span className="text-amber-400 text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
@@ -342,8 +342,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Regime context */}
       {why?.regime_context && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Macro Regime</div>
-          <div className="rounded px-3 py-2 text-xs text-gray-300 leading-relaxed" style={{ background: '#1E293B' }}>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Macro Regime</div>
+          <div className="rounded px-3 py-2 text-xs text-text-faint leading-relaxed" style={{ background: '#1E293B' }}>
             {why.regime_context}
           </div>
         </div>
@@ -370,14 +370,14 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Headlines */}
       {headlines.length > 0 && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Headlines</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Headlines</div>
           <div className="space-y-1">
             {headlines.map((h, i) => {
               const sentColor = h.sentiment === 'bullish' ? '#34D399' : h.sentiment === 'bearish' ? '#F87171' : '#94A3B8';
               return (
                 <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="text-gray-300 leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
-                  <span className="shrink-0 text-[9px] text-gray-500">{h.source}</span>
+                  <span className="text-text-faint leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
+                  <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
                   <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
                     {h.sentiment}
                   </span>
@@ -391,28 +391,28 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {/* Social Pulse — from xAI x_search */}
       {sentiment && !sentiment.error && sentiment.postCount > 0 && (
         <div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">
             Social Pulse
-            <span className="ml-2 text-[9px] text-gray-600 normal-case font-normal">
+            <span className="ml-2 text-[9px] text-text-secondary normal-case font-normal">
               Based on {sentiment.postCount} X posts in last 24h
             </span>
           </div>
           <div className="rounded px-3 py-2 text-xs space-y-2" style={{ background: '#1E293B' }}>
             <div className="flex items-center gap-3">
-              <span className="text-gray-400">Score:</span>
+              <span className="text-text-faint">Score:</span>
               <span
                 className="font-mono font-bold"
                 style={{ color: sentiment.score > 0.2 ? '#10B981' : sentiment.score < -0.2 ? '#EF4444' : '#94A3B8' }}
               >
                 {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
               </span>
-              <span className="text-gray-400">
+              <span className="text-text-faint">
                 ({sentiment.bullishCount} bullish / {sentiment.bearishCount} bearish / {sentiment.neutralCount} neutral)
               </span>
             </div>
             {sentiment.themes.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 shrink-0">Themes:</span>
+                <span className="text-text-faint shrink-0">Themes:</span>
                 <div className="flex flex-wrap gap-1">
                   {sentiment.themes.slice(0, 5).map((t, i) => (
                     <span key={i} className="px-1.5 py-0.5 rounded text-[9px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
@@ -431,8 +431,8 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
                       <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
                         {post.sentiment.charAt(0).toUpperCase()}
                       </span>
-                      <span className="text-gray-300 leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
-                      <span className="shrink-0 text-[9px] text-gray-500 font-mono">{post.author}</span>
+                      <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
+                      <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
                     </div>
                   );
                 })}
@@ -612,17 +612,17 @@ export default function ScannerResultsTable({
     return sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
   };
 
-  const thBase = 'px-2 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-200 select-none whitespace-nowrap';
+  const thBase = 'px-2 py-2 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer hover:text-text-faint select-none whitespace-nowrap';
 
   return (
     <div className="px-4 py-3">
       {/* Batch actions bar */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <button onClick={selectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium">Select All</button>
-        <span className="text-gray-600">|</span>
+        <span className="text-text-secondary">|</span>
         <button onClick={deselectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium">Deselect All</button>
         {selectedCount > 0 && (
-          <span className="text-[10px] text-gray-400 font-mono">{selectedCount} selected</span>
+          <span className="text-[10px] text-text-faint font-mono">{selectedCount} selected</span>
         )}
         <div className="ml-auto">
           <button
@@ -640,7 +640,7 @@ export default function ScannerResultsTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border max-h-[700px] overflow-y-auto" style={{ borderColor: '#334155' }}>
+      <div className="overflow-x-auto rounded border max-h-[700px] overflow-y-auto" style={{ borderColor: '#334155' }}>
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           <thead className="sticky top-0 z-10">
             <tr style={{ background: '#1E293B' }}>
@@ -674,7 +674,7 @@ export default function ScannerResultsTable({
               return (
                 <Fragment key={row.id}>
                   <tr
-                    className="transition-colors cursor-pointer hover:bg-gray-700/30"
+                    className="transition-colors cursor-pointer hover:bg-brand-purple-deep/30"
                     style={{
                       background: isQueued ? '#064E3B20' : isSelected ? '#312E8120' : bgColor,
                       borderLeft: isSelected ? '2px solid #6366F1' : isQueued ? '2px solid #10B981' : '2px solid transparent',
@@ -691,7 +691,7 @@ export default function ScannerResultsTable({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(row.id)}
-                          className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded border-border bg-brand-purple-deep text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                         />
                       )}
                     </td>
@@ -726,7 +726,7 @@ export default function ScannerResultsTable({
                       </span>
                     </td>
                     {/* Strategy */}
-                    <td className="px-2 py-2 text-gray-200" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-text-faint" onClick={() => toggleRow(row.id)}>
                       {row.card ? (
                         <>
                           {row.strategyName}
@@ -735,7 +735,7 @@ export default function ScannerResultsTable({
                           )}
                         </>
                       ) : (
-                        <span className="text-gray-500 italic">
+                        <span className="text-text-muted italic">
                           {row.detail._fetch_errors?.chain_fetch || (() => {
                             const rej = row.detail._rejection_reasons || rejectionMap?.[row.symbol];
                             if (rej && rej.length > 0) {
@@ -749,11 +749,11 @@ export default function ScannerResultsTable({
                       )}
                     </td>
                     {/* Legs */}
-                    <td className="px-2 py-2 text-gray-300 font-mono text-[10px] max-w-[200px]" onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td className="px-2 py-2 text-text-faint font-mono text-[10px] max-w-[200px]" onClick={() => toggleRow(row.id)} style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                       {row.legsText || '—'}
                     </td>
                     {/* Entry */}
-                    <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
                       {row.entryText}
                     </td>
                     {/* Max Profit */}
@@ -766,7 +766,7 @@ export default function ScannerResultsTable({
                     </td>
                     {/* Est. PoP */}
                     <td
-                      className="px-2 py-2 text-right font-mono text-gray-200"
+                      className="px-2 py-2 text-right font-mono text-text-faint"
                       onClick={() => toggleRow(row.id)}
                       title={row.popMethod === 'breakeven_d2'
                         ? 'PoP via N(d2) at breakeven price'
@@ -783,11 +783,11 @@ export default function ScannerResultsTable({
                       {row.evPerRisk != null ? row.evPerRisk.toFixed(3) : '—'}
                     </td>
                     {/* R:R */}
-                    <td className="px-2 py-2 text-right font-mono text-gray-200" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
                       {row.riskReward != null ? row.riskReward.toFixed(2) : '—'}
                     </td>
                     {/* DTE */}
-                    <td className="px-2 py-2 text-right font-mono text-gray-300" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-right font-mono text-text-faint" onClick={() => toggleRow(row.id)}>
                       {row.dte ?? '—'}
                     </td>
                   </tr>

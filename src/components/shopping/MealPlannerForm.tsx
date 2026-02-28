@@ -256,22 +256,22 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
     <div className="space-y-4">
       {/* Progress Bar */}
       <div className="flex items-center gap-2 mb-4">
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Step {step} of {totalSteps}</div>
-        <div className="flex-1 bg-gray-200 h-1">
-          <div className="bg-[#2d1b4e] h-1 transition-all" style={{ width: `${(step / totalSteps) * 100}%` }} />
+        <div className="text-[10px] text-text-muted uppercase tracking-wider">Step {step} of {totalSteps}</div>
+        <div className="flex-1 bg-border h-1">
+          <div className="bg-brand-purple h-1 transition-all" style={{ width: `${(step / totalSteps) * 100}%` }} />
         </div>
       </div>
 
       {/* Step 1: Cooking Style */}
       {step === 1 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 1: How Do You Want to Cook?
           </div>
           
           <div className="p-4 space-y-4">
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Cooking Style</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Cooking Style</div>
               <div className="space-y-2">
                 {COOKING_STYLE_OPTIONS.map(opt => (
                   <button
@@ -282,13 +282,13 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     }}
                     className={`w-full p-4 text-left border transition-colors ${
                       profile.cookingStyle === opt.value
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     <div className="font-semibold">{opt.label}</div>
-                    <div className={`text-sm ${profile.cookingStyle === opt.value ? 'text-gray-300' : 'text-gray-500'}`}>{opt.desc}</div>
-                    <div className={`text-xs mt-1 ${profile.cookingStyle === opt.value ? 'text-gray-400' : 'text-gray-400'}`}>{opt.detail}</div>
+                    <div className={`text-sm ${profile.cookingStyle === opt.value ? 'text-text-faint' : 'text-text-muted'}`}>{opt.desc}</div>
+                    <div className={`text-xs mt-1 ${profile.cookingStyle === opt.value ? 'text-text-faint' : 'text-text-faint'}`}>{opt.detail}</div>
                   </button>
                 ))}
               </div>
@@ -302,7 +302,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             )}
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
                 Cooking Days Per Week {profile.cookingStyle === 'meal-prep' && '(Prep Days)'}
               </div>
               <div className="flex gap-2">
@@ -312,8 +312,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, cookingDays: n }))}
                     className={`flex-1 py-2 text-sm font-medium border transition-colors ${
                       profile.cookingDays === n 
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple' 
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {n}
@@ -323,7 +323,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Meals Per Day</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Meals Per Day</div>
               <div className="flex gap-2">
                 {[2, 3].map(n => (
                   <button
@@ -331,8 +331,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, mealsPerDay: n }))}
                     className={`flex-1 py-3 text-sm font-medium border transition-colors ${
                       profile.mealsPerDay === n 
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple' 
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {n === 2 ? '2 (Skip breakfast)' : '3 (Full day)'}
@@ -342,8 +342,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                Meals Eating Out Per Week <span className="text-gray-400">(reduce planned meals)</span>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
+                Meals Eating Out Per Week <span className="text-text-faint">(reduce planned meals)</span>
               </div>
               <div className="flex gap-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7].map(n => (
@@ -352,15 +352,15 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, eatOutMeals: n }))}
                     className={`flex-1 py-2 text-sm font-medium border transition-colors ${
                       profile.eatOutMeals === n 
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple' 
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {n}
                   </button>
                 ))}
               </div>
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="text-xs text-text-muted mt-2">
                 Planning <strong>{mealsToPlan}</strong> meals ({totalMealsPerWeek} total - {mealsToEatOut} eating out)
               </div>
             </div>
@@ -371,13 +371,13 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
       {/* Step 2: Household & Body */}
       {step === 2 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 2: About You
           </div>
           
           <div className="p-4 space-y-4">
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Number of People</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Number of People</div>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5, 6].map(n => (
                   <button
@@ -385,8 +385,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, peopleCount: n }))}
                     className={`flex-1 py-2 text-sm font-medium border transition-colors ${
                       profile.peopleCount === n 
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple' 
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {n}
@@ -397,28 +397,28 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Age</div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Age</div>
                 <input
                   type="number"
                   value={profile.age}
                   onChange={e => setProfile(p => ({ ...p, age: +e.target.value }))}
-                  className="w-full border border-gray-300 px-3 py-2 text-sm"
+                  className="w-full border border-border px-3 py-2 text-sm"
                   min={1} max={120}
                 />
               </div>
               <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Weight</div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Weight</div>
                 <div className="flex gap-1">
                   <input
                     type="number"
                     value={profile.weight}
                     onChange={e => setProfile(p => ({ ...p, weight: +e.target.value }))}
-                    className="flex-1 border border-gray-300 px-3 py-2 text-sm"
+                    className="flex-1 border border-border px-3 py-2 text-sm"
                   />
                   <select
                     value={profile.weightUnit}
                     onChange={e => setProfile(p => ({ ...p, weightUnit: e.target.value as 'lbs' | 'kg' }))}
-                    className="border border-gray-300 px-1 text-sm"
+                    className="border border-border px-1 text-sm"
                   >
                     <option value="lbs">lb</option>
                     <option value="kg">kg</option>
@@ -426,18 +426,18 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Height</div>
+                <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Height</div>
                 <div className="flex gap-1">
                   <input
                     type="number"
                     value={profile.height}
                     onChange={e => setProfile(p => ({ ...p, height: +e.target.value }))}
-                    className="flex-1 border border-gray-300 px-3 py-2 text-sm"
+                    className="flex-1 border border-border px-3 py-2 text-sm"
                   />
                   <select
                     value={profile.heightUnit}
                     onChange={e => setProfile(p => ({ ...p, heightUnit: e.target.value as 'in' | 'cm' }))}
-                    className="border border-gray-300 px-1 text-sm"
+                    className="border border-border px-1 text-sm"
                   >
                     <option value="in">in</option>
                     <option value="cm">cm</option>
@@ -447,7 +447,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Diet Type</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Diet Type</div>
               <div className="grid grid-cols-2 gap-2">
                 {DIET_OPTIONS.map(opt => (
                   <button
@@ -455,12 +455,12 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, diet: opt.value }))}
                     className={`p-2 text-left border transition-colors ${
                       profile.diet === opt.value
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     <div className="font-medium text-xs">{opt.label}</div>
-                    <div className={`text-[10px] ${profile.diet === opt.value ? 'text-gray-300' : 'text-gray-400'}`}>{opt.desc}</div>
+                    <div className={`text-[10px] ${profile.diet === opt.value ? 'text-text-faint' : 'text-text-faint'}`}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -472,13 +472,13 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
       {/* Step 3: Health Goals */}
       {step === 3 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex justify-between">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex justify-between">
             <span>Step 3: Health Goals</span>
-            <span className="text-xs text-gray-300">{profile.goals.length}/{MAX_GOALS} selected</span>
+            <span className="text-xs text-text-faint">{profile.goals.length}/{MAX_GOALS} selected</span>
           </div>
           
           <div className="p-4">
-            <div className="text-xs text-gray-500 mb-3">
+            <div className="text-xs text-text-muted mb-3">
               Select up to {MAX_GOALS} goals. Each goal influences ingredient selection and meal composition.
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -488,12 +488,12 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                   onClick={() => toggleGoal(goal.value)}
                   className={`p-3 text-left border transition-colors ${
                     profile.goals.includes(goal.value)
-                      ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-brand-purple text-white border-brand-purple'
+                      : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                   }`}
                 >
                   <div className="font-medium text-xs">{goal.label}</div>
-                  <div className={`text-[10px] ${profile.goals.includes(goal.value) ? 'text-gray-300' : 'text-gray-400'}`}>
+                  <div className={`text-[10px] ${profile.goals.includes(goal.value) ? 'text-text-faint' : 'text-text-faint'}`}>
                     {goal.desc}
                   </div>
                 </button>
@@ -506,13 +506,13 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
       {/* Step 4: Allergies & Restrictions */}
       {step === 4 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 4: Allergies & Food Preferences
           </div>
           
           <div className="p-4 space-y-4">
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Allergies / Intolerances</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Allergies / Intolerances</div>
               <div className="flex flex-wrap gap-2">
                 {ALLERGIES.map(a => (
                   <button
@@ -520,8 +520,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => toggleAllergy(a.value)}
                     className={`px-3 py-1.5 border text-xs font-medium transition-colors ${
                       profile.allergies.includes(a.value)
-                        ? 'bg-red-100 text-red-700 border-red-300'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-red-100 text-brand-red border-red-300'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {a.label}
@@ -531,33 +531,33 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                Foods to EXCLUDE <span className="text-gray-400">(comma-separated)</span>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
+                Foods to EXCLUDE <span className="text-text-faint">(comma-separated)</span>
               </div>
               <input
                 type="text"
                 value={profile.excludeFoods}
                 onChange={e => setProfile(p => ({ ...p, excludeFoods: e.target.value }))}
                 placeholder="e.g., mushrooms, cilantro, olives"
-                className="w-full border border-gray-300 px-3 py-2 text-sm"
+                className="w-full border border-border px-3 py-2 text-sm"
               />
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                Foods to INCLUDE <span className="text-gray-400">(things you love)</span>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
+                Foods to INCLUDE <span className="text-text-faint">(things you love)</span>
               </div>
               <input
                 type="text"
                 value={profile.includeFoods}
                 onChange={e => setProfile(p => ({ ...p, includeFoods: e.target.value }))}
                 placeholder="e.g., salmon, avocado, sweet potato"
-                className="w-full border border-gray-300 px-3 py-2 text-sm"
+                className="w-full border border-border px-3 py-2 text-sm"
               />
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Cuisine Preferences (up to 5)</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Cuisine Preferences (up to 5)</div>
               <div className="flex flex-wrap gap-2">
                 {CUISINES.map(c => (
                   <button
@@ -565,8 +565,8 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => toggleCuisine(c.value)}
                     className={`px-3 py-1.5 border text-xs font-medium transition-colors ${
                       profile.cuisinePreferences.includes(c.value)
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {c.label}
@@ -581,13 +581,13 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
       {/* Step 5: Meal Complexity */}
       {step === 5 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 5: Meal Complexity & Budget
           </div>
           
           <div className="p-4 space-y-4">
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Meal Complexity</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Meal Complexity</div>
               <div className="space-y-2">
                 {COMPLEXITY_OPTIONS.map(opt => (
                   <button
@@ -595,19 +595,19 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, mealComplexity: opt.value as any }))}
                     className={`w-full p-3 text-left border transition-colors ${
                       profile.mealComplexity === opt.value
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     <div className="font-medium text-sm">{opt.label}</div>
-                    <div className={`text-xs ${profile.mealComplexity === opt.value ? 'text-gray-300' : 'text-gray-400'}`}>{opt.desc}</div>
+                    <div className={`text-xs ${profile.mealComplexity === opt.value ? 'text-text-faint' : 'text-text-faint'}`}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Weekly Budget (per person)</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Weekly Budget (per person)</div>
               <div className="grid grid-cols-2 gap-2">
                 {BUDGET_OPTIONS.map(opt => (
                   <button
@@ -615,12 +615,12 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
                     onClick={() => setProfile(p => ({ ...p, budget: opt.value }))}
                     className={`p-4 text-left border transition-colors ${
                       profile.budget === opt.value
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple'
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
-                    <div className="font-bold text-lg">{opt.label}</div>
-                    <div className={`text-xs ${profile.budget === opt.value ? 'text-gray-300' : 'text-gray-400'}`}>{opt.desc}</div>
+                    <div className="font-bold text-terminal-lg">{opt.label}</div>
+                    <div className={`text-xs ${profile.budget === opt.value ? 'text-text-faint' : 'text-text-faint'}`}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -632,48 +632,48 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
       {/* Step 6: Review & Generate */}
       {step === 6 && (
         <div className="space-y-4">
-          <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
             Step 6: Review Your Plan
           </div>
           
           <div className="p-4 space-y-4">
-            <div className="bg-gray-50 border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Plan Summary</div>
+            <div className="bg-bg-row border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-3">Plan Summary</div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                <div className="text-gray-500">Cooking Style:</div>
-                <div className="font-medium text-gray-900 capitalize">{profile.cookingStyle.replace('-', ' ')}</div>
+                <div className="text-text-muted">Cooking Style:</div>
+                <div className="font-medium text-text-primary capitalize">{profile.cookingStyle.replace('-', ' ')}</div>
                 
-                <div className="text-gray-500">Cooking Days:</div>
-                <div className="font-medium text-gray-900">{profile.cookingDays} days/week</div>
+                <div className="text-text-muted">Cooking Days:</div>
+                <div className="font-medium text-text-primary">{profile.cookingDays} days/week</div>
                 
-                <div className="text-gray-500">Meals to Plan:</div>
-                <div className="font-medium text-gray-900">{mealsToPlan} meals ({mealsToEatOut} eating out)</div>
+                <div className="text-text-muted">Meals to Plan:</div>
+                <div className="font-medium text-text-primary">{mealsToPlan} meals ({mealsToEatOut} eating out)</div>
                 
-                <div className="text-gray-500">People:</div>
-                <div className="font-medium text-gray-900">{profile.peopleCount}</div>
+                <div className="text-text-muted">People:</div>
+                <div className="font-medium text-text-primary">{profile.peopleCount}</div>
                 
-                <div className="text-gray-500">Diet:</div>
-                <div className="font-medium text-gray-900 capitalize">{profile.diet}</div>
+                <div className="text-text-muted">Diet:</div>
+                <div className="font-medium text-text-primary capitalize">{profile.diet}</div>
                 
-                <div className="text-gray-500">Goals:</div>
-                <div className="font-medium text-gray-900">{profile.goals.length > 0 ? profile.goals.join(', ') : 'None'}</div>
+                <div className="text-text-muted">Goals:</div>
+                <div className="font-medium text-text-primary">{profile.goals.length > 0 ? profile.goals.join(', ') : 'None'}</div>
                 
-                <div className="text-gray-500">Allergies:</div>
-                <div className="font-medium text-gray-900">{profile.allergies.length > 0 ? profile.allergies.join(', ') : 'None'}</div>
+                <div className="text-text-muted">Allergies:</div>
+                <div className="font-medium text-text-primary">{profile.allergies.length > 0 ? profile.allergies.join(', ') : 'None'}</div>
                 
-                <div className="text-gray-500">Complexity:</div>
-                <div className="font-medium text-gray-900 capitalize">{profile.mealComplexity}</div>
+                <div className="text-text-muted">Complexity:</div>
+                <div className="font-medium text-text-primary capitalize">{profile.mealComplexity}</div>
                 
                 {profile.excludeFoods && (
                   <>
-                    <div className="text-gray-500">Exclude:</div>
-                    <div className="font-medium text-red-700">{profile.excludeFoods}</div>
+                    <div className="text-text-muted">Exclude:</div>
+                    <div className="font-medium text-brand-red">{profile.excludeFoods}</div>
                   </>
                 )}
                 
                 {profile.includeFoods && (
                   <>
-                    <div className="text-gray-500">Include:</div>
+                    <div className="text-text-muted">Include:</div>
                     <div className="font-medium text-emerald-700">{profile.includeFoods}</div>
                   </>
                 )}
@@ -687,7 +687,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 p-3 text-red-700 text-sm">
+              <div className="bg-red-50 border border-red-200 p-3 text-brand-red text-sm">
                 {error}
               </div>
             )}
@@ -700,7 +700,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
         {step > 1 && (
           <button 
             onClick={() => setStep(s => s - 1)}
-            className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-bg-row text-text-secondary hover:bg-border transition-colors"
           >
             ← Back
           </button>
@@ -708,7 +708,7 @@ export default function MealPlannerForm({ onPlanGenerated }: Props) {
         {step < totalSteps ? (
           <button 
             onClick={() => setStep(s => s + 1)} 
-            className="flex-1 px-4 py-2 text-sm font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-medium bg-brand-purple text-white hover:bg-brand-purple-hover transition-colors"
           >
             Next →
           </button>

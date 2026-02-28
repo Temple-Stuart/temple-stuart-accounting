@@ -42,7 +42,7 @@ export default function FinancialStatementsTab() {
   }
 
   if (!data) {
-    return <div className="p-8 text-center text-red-600">Failed to load statements</div>;
+    return <div className="p-8 text-center text-brand-red">Failed to load statements</div>;
   }
 
   const isBalanced = Math.abs(
@@ -52,10 +52,10 @@ export default function FinancialStatementsTab() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Financial Statements</h2>
+        <h2 className="text-sm font-bold">Financial Statements</h2>
         <button 
           onClick={loadStatements}
-          className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm"
+          className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
         >
           Refresh
         </button>
@@ -63,29 +63,29 @@ export default function FinancialStatementsTab() {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Income Statement */}
-        <div className="bg-white border rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Income Statement</h3>
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-sm font-semibold mb-6">Income Statement</h3>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-gray-700">Revenue</span>
-              <span className="text-lg font-semibold text-green-600">
+              <span className="text-text-secondary">Revenue</span>
+              <span className="text-terminal-lg font-semibold text-brand-green">
                 ${data.incomeStatement.revenue.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-700">Expenses</span>
-              <span className="text-lg font-semibold text-red-600">
+              <span className="text-text-secondary">Expenses</span>
+              <span className="text-terminal-lg font-semibold text-brand-red">
                 ${data.incomeStatement.expenses.toFixed(2)}
               </span>
             </div>
 
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between items-center">
-                <span className="text-lg font-bold">Net Income</span>
-                <span className={`text-2xl font-bold ${
-                  data.incomeStatement.netIncome >= 0 ? 'text-green-600' : 'text-red-600'
+                <span className="text-terminal-lg font-bold">Net Income</span>
+                <span className={`text-sm font-bold ${
+                  data.incomeStatement.netIncome >= 0 ? 'text-brand-green' : 'text-brand-red'
                 }`}>
                   ${data.incomeStatement.netIncome.toFixed(2)}
                 </span>
@@ -95,36 +95,36 @@ export default function FinancialStatementsTab() {
         </div>
 
         {/* Balance Sheet */}
-        <div className="bg-white border rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Balance Sheet</h3>
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-sm font-semibold mb-6">Balance Sheet</h3>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-gray-700">Assets</span>
-              <span className="text-lg font-semibold">
+              <span className="text-text-secondary">Assets</span>
+              <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.assets.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-700">Liabilities</span>
-              <span className="text-lg font-semibold">
+              <span className="text-text-secondary">Liabilities</span>
+              <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.liabilities.toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-700">Equity</span>
-              <span className="text-lg font-semibold">
+              <span className="text-text-secondary">Equity</span>
+              <span className="text-terminal-lg font-semibold">
                 ${data.balanceSheet.equity.toFixed(2)}
               </span>
             </div>
 
             <div className="border-t pt-4 mt-4">
-              <div className="text-sm text-gray-600 space-y-1">
+              <div className="text-sm text-text-secondary space-y-1">
                 <div>Balance Check: Assets = ${data.balanceSheet.assets.toFixed(2)}</div>
                 <div>Liabilities + Equity = ${(data.balanceSheet.liabilities + data.balanceSheet.equity).toFixed(2)}</div>
-                <div className={`font-semibold ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`font-semibold ${isBalanced ? 'text-brand-green' : 'text-brand-red'}`}>
                   {isBalanced ? '✓ Books balanced' : '⚠ Books not balanced'}
                 </div>
               </div>
@@ -134,12 +134,12 @@ export default function FinancialStatementsTab() {
       </div>
 
       {/* Quick Stats */}
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Quick Ratios</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Quick Ratios</h3>
         <div className="grid grid-cols-3 gap-4">
-          <div className="border rounded-lg p-4 text-center">
-            <div className="text-sm text-gray-600 mb-1">Profit Margin</div>
-            <div className="text-2xl font-bold">
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">Profit Margin</div>
+            <div className="text-sm font-bold">
               {data.incomeStatement.revenue > 0 
                 ? ((data.incomeStatement.netIncome / data.incomeStatement.revenue) * 100).toFixed(1)
                 : '0.0'
@@ -147,9 +147,9 @@ export default function FinancialStatementsTab() {
             </div>
           </div>
           
-          <div className="border rounded-lg p-4 text-center">
-            <div className="text-sm text-gray-600 mb-1">Current Ratio</div>
-            <div className="text-2xl font-bold">
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">Current Ratio</div>
+            <div className="text-sm font-bold">
               {data.balanceSheet.liabilities !== 0
                 ? (data.balanceSheet.assets / Math.abs(data.balanceSheet.liabilities)).toFixed(2)
                 : 'N/A'
@@ -157,9 +157,9 @@ export default function FinancialStatementsTab() {
             </div>
           </div>
           
-          <div className="border rounded-lg p-4 text-center">
-            <div className="text-sm text-gray-600 mb-1">ROE</div>
-            <div className="text-2xl font-bold">
+          <div className="border rounded p-4 text-center">
+            <div className="text-sm text-text-secondary mb-1">ROE</div>
+            <div className="text-sm font-bold">
               {data.balanceSheet.equity !== 0
                 ? ((data.incomeStatement.netIncome / data.balanceSheet.equity) * 100).toFixed(1)
                 : '0.0'
