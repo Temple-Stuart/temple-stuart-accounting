@@ -9,11 +9,11 @@ interface ResponsiveTableProps {
   showLandscapeHint?: boolean;
 }
 
-export default function ResponsiveTable({ 
-  children, 
+export default function ResponsiveTable({
+  children,
   minWidth = '900px',
   maxHeight,
-  showLandscapeHint = true 
+  showLandscapeHint = true
 }: ResponsiveTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -62,41 +62,41 @@ export default function ResponsiveTable({
     <div className="relative">
       {/* Landscape hint for mobile */}
       {showLandscapeHint && !isLandscape && (
-        <div className="sm:hidden bg-[#b4b237]/10 border border-[#b4b237]/30 rounded-lg px-3 py-2 mb-3 flex items-center gap-2 text-sm">
-          <span className="text-lg">📱↔️</span>
-          <span className="text-[#8f8c2a]">Rotate for better view</span>
+        <div className="sm:hidden bg-brand-gold-wash border border-brand-gold/30 rounded px-2 py-1.5 mb-2 flex items-center gap-2 text-terminal-xs">
+          <span className="text-sm">📱↔️</span>
+          <span className="text-text-faint font-mono">Rotate for better view</span>
         </div>
       )}
 
       {/* Scroll shadow left */}
-      <div className={`absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none transition-opacity ${canScrollLeft ? 'opacity-100' : 'opacity-0'}`} />
-      
+      <div className={`absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none transition-opacity ${canScrollLeft ? 'opacity-100' : 'opacity-0'}`} />
+
       {/* Scroll shadow right */}
-      <div className={`absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none transition-opacity ${canScrollRight ? 'opacity-100' : 'opacity-0'}`} />
+      <div className={`absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none transition-opacity ${canScrollRight ? 'opacity-100' : 'opacity-0'}`} />
 
       {/* Scroll buttons - visible on touch devices when scrollable */}
       {canScrollLeft && (
-        <button 
+        <button
           onClick={() => scrollTo('left')}
-          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white/90 border border-gray-200 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 sm:hidden"
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 bg-white/90 border border-border rounded shadow-sm flex items-center justify-center text-brand-purple hover:bg-bg-row sm:hidden text-terminal-sm"
         >
           ‹
         </button>
       )}
       {canScrollRight && (
-        <button 
+        <button
           onClick={() => scrollTo('right')}
-          className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-8 h-8 bg-white/90 border border-gray-200 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:bg-gray-50 sm:hidden"
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 bg-white/90 border border-border rounded shadow-sm flex items-center justify-center text-brand-purple hover:bg-bg-row sm:hidden text-terminal-sm"
         >
           ›
         </button>
       )}
 
       {/* Scrollable container */}
-      <div 
+      <div
         ref={scrollRef}
-        className="overflow-x-auto overscroll-x-contain scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
-        style={{ 
+        className="overflow-x-auto overscroll-x-contain scrollbar-thin scrollbar-thumb-brand-purple/20 scrollbar-track-transparent"
+        style={{
           WebkitOverflowScrolling: 'touch',
           maxHeight: maxHeight || 'none'
         }}
@@ -108,10 +108,10 @@ export default function ResponsiveTable({
 
       {/* Scroll indicator dots */}
       {(canScrollLeft || canScrollRight) && (
-        <div className="flex justify-center gap-1 mt-2 sm:hidden">
-          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${!canScrollLeft ? 'bg-[#b4b237]' : 'bg-gray-300'}`} />
-          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${canScrollLeft && canScrollRight ? 'bg-[#b4b237]' : 'bg-gray-300'}`} />
-          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${!canScrollRight ? 'bg-[#b4b237]' : 'bg-gray-300'}`} />
+        <div className="flex justify-center gap-1 mt-1.5 sm:hidden">
+          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${!canScrollLeft ? 'bg-brand-purple' : 'bg-border'}`} />
+          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${canScrollLeft && canScrollRight ? 'bg-brand-purple' : 'bg-border'}`} />
+          <div className={`w-1.5 h-1.5 rounded-full transition-colors ${!canScrollRight ? 'bg-brand-purple' : 'bg-border'}`} />
         </div>
       )}
     </div>

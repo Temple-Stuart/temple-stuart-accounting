@@ -13,17 +13,17 @@ interface CardProps {
 
 export default function Card({ children, title, subtitle, action, noPadding = false, className = '' }: CardProps) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white rounded border border-border shadow-sm overflow-hidden ${className}`}>
       {(title || action) && (
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <div>
-            {title && <h3 className="font-semibold text-gray-900">{title}</h3>}
-            {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+            {title && <h3 className="text-terminal-lg font-semibold text-text-primary">{title}</h3>}
+            {subtitle && <p className="text-terminal-sm text-text-muted mt-0.5">{subtitle}</p>}
           </div>
           {action && <div>{action}</div>}
         </div>
       )}
-      <div className={noPadding ? '' : 'p-6'}>{children}</div>
+      <div className={noPadding ? '' : 'p-3'}>{children}</div>
     </div>
   );
 }
