@@ -65,7 +65,26 @@ interface CoaOption {
   name: string;
   accountType: string;
   balanceType: string;
+  entity_id?: string;
   entity_type?: string | null;
+}
+
+interface StatementAccount {
+  id: string;
+  code: string;
+  name: string;
+  accountType: string;
+  entityId: string;
+  entityName: string;
+  month: number;
+  debits: number;
+  credits: number;
+}
+
+interface Soc2Proof {
+  status: 'pass' | 'fail' | 'warn';
+  summary: string;
+  details?: any[];
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -92,6 +111,10 @@ export default function Dashboard() {
   const [assignCoa, setAssignCoa] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('accounts');
+  const [statementData, setStatementData] = useState<StatementAccount[]>([]);
+  const [statementYears, setStatementYears] = useState<number[]>([]);
+  const [soc2Proofs, setSoc2Proofs] = useState<Record<string, Soc2Proof>>({});
+  const [soc2Modal, setSoc2Modal] = useState<string | null>(null);
 
   // Cookie is now HMAC-signed server-side (login/register/nextauth).
   // Client-side writes removed to prevent overwriting signed cookies.
@@ -117,8 +140,8 @@ export default function Dashboard() {
       
       const jeRes = await fetch('/api/journal-transactions');
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
-      // bank-reconciliations and period-closes tables were dropped in Phase 0.
-      // These tabs are disabled until rebuilt in a later phase.
+      const soc2Res = await fetch('/api/soc2');
+      if (soc2Res.ok) { const soc2Data = await soc2Res.json(); setSoc2Proofs(soc2Data.proofs || {}); }
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
@@ -128,6 +151,27 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Fetch statements data when year changes
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/statements?year=${selectedYear}`);
+        if (res.ok) {
+          const data = await res.json();
+          setStatementData(data.accounts || []);
+          if (data.availableYears?.length > 0) setStatementYears(data.availableYears);
+        }
+      } catch (e) { console.error('Statements fetch error:', e); }
+    })();
+  }, [selectedYear]);
+
+  // On initial load, default selectedYear to the most recent year with ledger data
+  useEffect(() => {
+    if (statementYears.length > 0 && !statementYears.includes(selectedYear)) {
+      setSelectedYear(statementYears[0]);
+    }
+  }, [statementYears]);
 
   const getCoaName = (code: string | null) => code ? coaOptions.find(c => c.code === code)?.name || code : null;
   const getCoaType = (code: string) => coaOptions.find(c => c.code === code)?.accountType || '';
@@ -141,36 +185,68 @@ export default function Dashboard() {
 
 
   const availableYears = useMemo(() => {
+    if (statementYears.length > 0) return statementYears;
     const years = new Set<number>();
     transactions.forEach(t => years.add(new Date(t.date).getFullYear()));
     if (years.size === 0) years.add(new Date().getFullYear());
     return Array.from(years).sort((a, b) => b - a);
-  }, [transactions]);
+  }, [transactions, statementYears]);
 
-  const yearTransactions = useMemo(() => committedSpending.filter(t => new Date(t.date).getFullYear() === selectedYear), [committedSpending, selectedYear]);
-
+  // Ledger-based gridData: amounts in dollars from ledger entries (cents / 100)
+  // For expense/asset accounts (balance_type=D): net = debits - credits
+  // For revenue/liability/equity accounts (balance_type=C): net = credits - debits
+  interface GridAccount { name: string; entityName: string; accountType: string }
   const gridData = useMemo(() => {
     const data: Record<string, Record<number, number>> = {};
-    yearTransactions.forEach(t => {
-      if (!t.accountCode) return;
-      const month = new Date(t.date).getMonth();
-      if (!data[t.accountCode]) data[t.accountCode] = {};
-      if (!data[t.accountCode][month]) data[t.accountCode][month] = 0;
-      data[t.accountCode][month] += t.amount;
+    statementData.forEach(row => {
+      const key = row.code;
+      if (!data[key]) data[key] = {};
+      // month from API is 1-indexed, convert to 0-indexed for display
+      const m = row.month - 1;
+      const isDebitNormal = row.accountType === 'expense' || row.accountType === 'asset';
+      const net = isDebitNormal
+        ? (row.debits - row.credits) / 100
+        : (row.credits - row.debits) / 100;
+      data[key][m] = (data[key][m] || 0) + net;
     });
     return data;
-  }, [yearTransactions]);
+  }, [statementData]);
 
-  const revenueCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'revenue').sort(), [gridData, coaOptions]);
-  const expenseCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'expense').sort(), [gridData, coaOptions]);
-  const assetCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'asset').sort(), [gridData, coaOptions]);
-  const liabilityCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'liability').sort(), [gridData, coaOptions]);
-  const equityCodes = useMemo(() => Object.keys(gridData).filter(c => getCoaType(c) === 'equity').sort(), [gridData, coaOptions]);
+  // Account metadata from statement data (entity-aware names)
+  const gridAccountInfo = useMemo(() => {
+    const info: Record<string, GridAccount> = {};
+    statementData.forEach(row => {
+      if (!info[row.code]) {
+        info[row.code] = { name: row.name, entityName: row.entityName, accountType: row.accountType };
+      }
+    });
+    return info;
+  }, [statementData]);
 
-  const getMonthTotal = (codes: string[], month: number) => codes.reduce((sum, code) => sum + (gridData[code]?.[month] || 0), 0);
-  const getRowTotal = (coaCode: string) => Object.values(gridData[coaCode] || {}).reduce((sum, val) => sum + val, 0);
-  const getSectionTotal = (codes: string[]) => codes.reduce((sum, code) => sum + getRowTotal(code), 0);
+  const getGridCoaName = (code: string) => {
+    const info = gridAccountInfo[code];
+    if (info) return info.name;
+    return getCoaName(code) || code;
+  };
+  const getGridCoaType = (code: string) => {
+    const info = gridAccountInfo[code];
+    if (info) return info.accountType;
+    return getCoaType(code);
+  };
+  const getGridEntityName = (code: string) => gridAccountInfo[code]?.entityName || '';
 
+  const revenueCodes = useMemo(() => Object.keys(gridData).filter(c => getGridCoaType(c) === 'revenue').sort(), [gridData, statementData]);
+  const expenseCodes = useMemo(() => Object.keys(gridData).filter(c => getGridCoaType(c) === 'expense').sort(), [gridData, statementData]);
+  const assetCodes = useMemo(() => Object.keys(gridData).filter(c => getGridCoaType(c) === 'asset').sort(), [gridData, statementData]);
+  const liabilityCodes = useMemo(() => Object.keys(gridData).filter(c => getGridCoaType(c) === 'liability').sort(), [gridData, statementData]);
+  const equityCodes = useMemo(() => Object.keys(gridData).filter(c => getGridCoaType(c) === 'equity').sort(), [gridData, statementData]);
+
+  const getMonthTotal = (codes: string[], month: number) => codes.reduce((sum: number, code: string) => sum + (gridData[code]?.[month] || 0), 0);
+  const getRowTotal = (coaCode: string): number => Object.values(gridData[coaCode] || {}).reduce<number>((sum, val) => sum + (val as number), 0);
+  const getSectionTotal = (codes: string[]) => codes.reduce((sum: number, code: string) => sum + getRowTotal(code), 0);
+
+  // Drilldown uses committed transactions for detail view
+  const yearTransactions = useMemo(() => committedSpending.filter(t => new Date(t.date).getFullYear() === selectedYear), [committedSpending, selectedYear]);
   const drilldownTransactions = useMemo(() => {
     if (!drilldownCell) return [];
     return yearTransactions.filter(t => {
@@ -265,16 +341,21 @@ export default function Dashboard() {
     { code: 'TAX', count: null as number | null },
   ];
 
-  const SOC2_CONTROLS = [
-    { code: 'BAL', status: journalEntries.length > 0 ? 'pass' : 'planned' },
-    { code: 'AUTH', status: 'pass' },
-    { code: 'IMMUT', status: 'pass' },
-    { code: 'CHGMG', status: 'wip' },
-    { code: 'IDEMP', status: 'pass' },
-    { code: 'SCOPE', status: 'wip' },
-    { code: 'TRACE', status: 'pass' },
-    { code: 'COMPL', status: 'wip' },
-  ] as const;
+  const SOC2_CODES = ['BAL', 'AUTH', 'IMMUT', 'CHGMG', 'IDEMP', 'SCOPE', 'TRACE', 'COMPL'] as const;
+  const SOC2_LABELS: Record<string, string> = {
+    BAL: 'Double-Entry Balance Verification',
+    AUTH: 'Attribution',
+    IMMUT: 'Immutability',
+    CHGMG: 'Change Management',
+    IDEMP: 'Idempotency',
+    SCOPE: 'Entity Separation',
+    TRACE: 'Traceability',
+    COMPL: 'Completeness',
+  };
+  const getSoc2Status = (code: string) => {
+    const proof = soc2Proofs[code.toLowerCase()];
+    return proof?.status || 'warn';
+  };
 
   if (loading) {
     return (
@@ -306,31 +387,7 @@ export default function Dashboard() {
         <div className="min-h-screen bg-bg-terminal">
           <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
 
-            {/* Compact Info Bar */}
-            <div className="flex items-center justify-between mb-2 px-0.5">
-              <div className="flex items-center gap-2 text-terminal-base font-mono text-text-muted">
-                <span>{transactions.length.toLocaleString()} txn</span>
-                <span className="text-border">·</span>
-                <span>{accounts.length} acct</span>
-                <span className="text-border">·</span>
-                <span>FY {selectedYear}</span>
-                <span className="text-border">|</span>
-                <span className="text-brand-red">{pendingCount.toLocaleString()} pending</span>
-                <span className="text-brand-green">{committedCount.toLocaleString()} committed</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button onClick={syncAccounts} disabled={syncing}
-                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
-                  {syncing ? 'Syncing...' : 'Sync'}
-                </button>
-                <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
-                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
-                  + Account
-                </button>
-              </div>
-            </div>
-
-            {/* Pipeline Bar */}
+            {/* Pipeline + SOC 2 Bar */}
             <div className="mb-2 flex items-center border border-border bg-white overflow-x-auto">
               <div className="flex items-center h-6 px-2 gap-0">
                 {PIPELINE_STEPS.map((step, i) => (
@@ -347,12 +404,15 @@ export default function Dashboard() {
               </div>
               <div className="ml-auto flex items-center h-6 px-2 bg-brand-purple-wash border-l border-border gap-2">
                 <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted mr-0.5">SOC 2</span>
-                {SOC2_CONTROLS.map(ctrl => (
-                  <div key={ctrl.code} className="flex items-center gap-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${ctrl.status === 'pass' ? 'bg-brand-green' : ctrl.status === 'wip' ? 'bg-brand-gold' : 'bg-border'}`} />
-                    <span className="text-[7px] font-mono text-text-muted">{ctrl.code}</span>
-                  </div>
-                ))}
+                {SOC2_CODES.map(code => {
+                  const status = getSoc2Status(code);
+                  return (
+                    <button key={code} onClick={() => setSoc2Modal(code)} className="flex items-center gap-0.5 hover:bg-brand-purple-deep/10 px-0.5 rounded cursor-pointer" title={SOC2_LABELS[code]}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${status === 'pass' ? 'bg-brand-green' : status === 'fail' ? 'bg-brand-red' : 'bg-brand-gold'}`} />
+                      <span className="text-[7px] font-mono text-text-muted">{code}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -381,6 +441,16 @@ export default function Dashboard() {
                   {tab.label}
                 </button>
               ))}
+              <div className="ml-auto flex items-center gap-1 px-1.5">
+                <button onClick={syncAccounts} disabled={syncing}
+                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                  {syncing ? 'Syncing...' : 'Sync'}
+                </button>
+                <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
+                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                  + Account
+                </button>
+              </div>
             </div>
 
             {/* Section Content */}
@@ -499,7 +569,7 @@ export default function Dashboard() {
                               {revenueCodes.map(code => (
                                 <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="font-medium text-text-primary truncate">{getGridCoaName(code)}{getGridEntityName(code) ? <span className="text-text-faint ml-1 text-[10px]">({getGridEntityName(code)})</span> : null}</div>
                                     <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
@@ -534,7 +604,7 @@ export default function Dashboard() {
                               {expenseCodes.map(code => (
                                 <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="font-medium text-text-primary truncate">{getGridCoaName(code)}{getGridEntityName(code) ? <span className="text-text-faint ml-1 text-[10px]">({getGridEntityName(code)})</span> : null}</div>
                                     <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
@@ -594,7 +664,7 @@ export default function Dashboard() {
                               {assetCodes.map(code => (
                                 <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="font-medium text-text-primary truncate">{getGridCoaName(code)}{getGridEntityName(code) ? <span className="text-text-faint ml-1 text-[10px]">({getGridEntityName(code)})</span> : null}</div>
                                     <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
@@ -612,7 +682,7 @@ export default function Dashboard() {
                               {liabilityCodes.map(code => (
                                 <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="font-medium text-text-primary truncate">{getGridCoaName(code)}{getGridEntityName(code) ? <span className="text-text-faint ml-1 text-[10px]">({getGridEntityName(code)})</span> : null}</div>
                                     <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
@@ -630,7 +700,7 @@ export default function Dashboard() {
                               {equityCodes.map(code => (
                                 <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="font-medium text-text-primary truncate">{getGridCoaName(code)}{getGridEntityName(code) ? <span className="text-text-faint ml-1 text-[10px]">({getGridEntityName(code)})</span> : null}</div>
                                     <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
@@ -799,7 +869,7 @@ export default function Dashboard() {
 
               <div className="bg-bg-row px-4 py-3 flex justify-between items-center border-t">
                 <span className="font-semibold text-text-primary text-xs">Total: {fmt(drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0))}</span>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-border text-text-secondary text-xs font-medium hover:bg-border">Close</button>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-bg-row text-text-secondary text-xs font-medium hover:bg-border">Close</button>
               </div>
             </div>
           </div>
@@ -817,6 +887,64 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* SOC 2 Proof Modal */}
+      {soc2Modal && (() => {
+        const code = soc2Modal;
+        const proof = soc2Proofs[code.toLowerCase()];
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSoc2Modal(null)}>
+            <div className="bg-white w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="bg-brand-purple-deep text-white px-4 py-3 flex justify-between items-center">
+                <div>
+                  <h4 className="font-semibold text-sm font-mono">{code}: {SOC2_LABELS[code]}</h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded ${
+                      proof?.status === 'pass' ? 'bg-green-500/20 text-green-300' :
+                      proof?.status === 'fail' ? 'bg-red-500/20 text-red-300' :
+                      'bg-yellow-500/20 text-yellow-300'
+                    }`}>{proof?.status?.toUpperCase() || 'LOADING'}</span>
+                  </div>
+                </div>
+                <button onClick={() => setSoc2Modal(null)} className="text-white/60 hover:text-white text-sm">×</button>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <p className="text-sm font-mono text-text-primary mb-3">{proof?.summary || 'Loading...'}</p>
+                {proof?.details && proof.details.length > 0 && (
+                  <div className="border border-border">
+                    <table className="w-full text-xs font-mono">
+                      <thead className="bg-bg-row">
+                        <tr>
+                          {Object.keys(proof.details[0]).map(k => (
+                            <th key={k} className="px-2 py-1.5 text-left text-text-muted font-medium uppercase text-[9px] tracking-wider">{k}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-light">
+                        {proof.details.map((row: any, i: number) => (
+                          <tr key={i} className="hover:bg-bg-row">
+                            {Object.values(row).map((v: any, j: number) => (
+                              <td key={j} className="px-2 py-1.5 text-text-secondary truncate max-w-[200px]">
+                                {typeof v === 'string' && v.startsWith('http') ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline">Link</a> : String(v)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {proof?.details && proof.details.length === 0 && (
+                  <p className="text-xs text-text-faint font-mono">No issues found.</p>
+                )}
+              </div>
+              <div className="border-t border-border px-4 py-2 flex justify-end">
+                <button onClick={() => setSoc2Modal(null)} className="px-4 py-1.5 bg-bg-row text-text-secondary text-xs font-medium hover:bg-border">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       </AppLayout>
     </>
   );
