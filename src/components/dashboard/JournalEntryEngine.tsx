@@ -89,7 +89,7 @@ const ENTRY_TYPES = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 44;
+const ROW_HEIGHT = 30;
 
 function formatDate(d: string | null | undefined): string {
   if (!d) return '\u2014';
@@ -307,14 +307,14 @@ function JournalColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[100] w-64" style={panelStyle}>
-      <div className="border-b border-gray-100 p-2 space-y-1">
+    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-xl z-[100] w-64" style={panelStyle}>
+      <div className="border-b border-border-light p-2 space-y-1">
         <button onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`}>
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-[#2d1b4e] font-semibold bg-[#2d1b4e]/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-terminal-sm rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple font-semibold bg-brand-purple/5' : 'text-text-secondary'}`}>
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
       </div>
@@ -325,57 +325,57 @@ function JournalColumnFilterDropdown({
             {uniqueValues.length > 6 && (
               <input ref={searchRef} type="text" placeholder="Search..." value={localSearch}
                 onChange={e => setLocalSearch(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border rounded mb-2 outline-none focus:border-[#2d1b4e]" />
+                className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded mb-2 outline-none focus:border-brand-purple" />
             )}
             <div className="flex items-center justify-between mb-1 px-1">
-              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-[#2d1b4e] hover:underline">Select All</button>
+              <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple hover:underline">Select All</button>
               <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
-                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">
+                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-terminal-sm">
                   <input type="checkbox" checked={localSelected.has(val)}
                     onChange={() => setLocalSelected(prev => { const next = new Set(prev); if (next.has(val)) next.delete(val); else next.add(val); return next; })}
                     className="w-3.5 h-3.5 rounded flex-shrink-0" />
                   <span className="truncate flex-1">{val}</span>
-                  <span className="text-gray-400 text-[10px] flex-shrink-0">({count})</span>
+                  <span className="text-text-faint text-[10px] flex-shrink-0">({count})</span>
                 </label>
               ))}
-              {filteredValues.length === 0 && <div className="px-2 py-3 text-center text-gray-400 text-xs">No values found</div>}
+              {filteredValues.length === 0 && <div className="px-2 py-3 text-center text-text-faint text-terminal-sm">No values found</div>}
             </div>
           </>
         )}
 
         {filterType === 'dateRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-gray-500 mb-1">From</label>
-              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
-            <div><label className="block text-[10px] text-gray-500 mb-1">To</label>
-              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+            <div><label className="block text-[10px] text-text-muted mb-1">From</label>
+              <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
+            <div><label className="block text-[10px] text-text-muted mb-1">To</label>
+              <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
           </div>
         )}
 
         {filterType === 'amountRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-gray-500 mb-1">Min</label>
-              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
-            <div><label className="block text-[10px] text-gray-500 mb-1">Max</label>
-              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" /></div>
+            <div><label className="block text-[10px] text-text-muted mb-1">Min</label>
+              <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
+            <div><label className="block text-[10px] text-text-muted mb-1">Max</label>
+              <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" /></div>
           </div>
         )}
 
         {filterType === 'search' && (
           <input ref={searchRef} type="text" placeholder="Search..." value={localTerm}
             onChange={e => setLocalTerm(e.target.value)}
-            className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-[#2d1b4e]" />
+            className="w-full px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple" />
         )}
       </div>
 
-      <div className="border-t border-gray-100 p-2 flex justify-between gap-2">
+      <div className="border-t border-border-light p-2 flex justify-between gap-2">
         <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
-          <button onClick={handleApply} className="px-3 py-1 text-xs bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e]">Apply</button>
+          <button onClick={onCancel} className="px-3 py-1 text-terminal-sm border rounded hover:bg-bg-row">Cancel</button>
+          <button onClick={handleApply} className="px-3 py-1 text-terminal-sm bg-brand-purple text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
     </div>,
@@ -406,7 +406,7 @@ function JournalFilterableHeader({
   const hasFilter = !!columnFilter;
 
   return (
-    <th className={`px-2 py-2.5 text-xs font-semibold select-none ${className || ''}`}>
+    <th className={`py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold select-none ${className || ''}`}>
       <span className="flex items-center gap-0.5">
         <span className="cursor-pointer hover:underline truncate" onClick={() => onSort(field)}>
           {label}
@@ -561,18 +561,18 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
+    <div className="bg-white rounded border border-border overflow-hidden">
       {/* Header */}
-      <div className="bg-[#2d1b4e] text-white px-4 py-3 flex items-center justify-between">
+      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold">Journal Entries</h3>
-          <p className="text-[10px] text-gray-300 font-mono">
+          <h3 className="text-terminal-lg font-semibold">Journal Entries</h3>
+          <p className="text-terminal-xs text-text-faint font-mono">
             {txns.length} journal entries ({reversalCount} reversals)
           </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-medium transition-colors"
+          className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded text-terminal-sm font-medium transition-colors"
         >
           {showForm ? '\u2715 Cancel' : '+ New Entry'}
         </button>
@@ -586,50 +586,50 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           {/* Entry Header */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Date</label>
+              <label className="block text-terminal-sm text-text-muted mb-1">Date</label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
+                className="px-2 h-7 border border-border rounded text-terminal-base font-mono"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Type</label>
+              <label className="block text-terminal-sm text-text-muted mb-1">Type</label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
+                className="px-2 h-7 border border-border rounded text-terminal-base font-mono"
               >
                 {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-gray-500 mb-1">Memo</label>
+              <label className="block text-terminal-sm text-text-muted mb-1">Memo</label>
               <input
                 type="text"
                 value={newMemo}
                 onChange={(e) => setNewMemo(e.target.value)}
                 placeholder="Description of this entry..."
-                className="w-full px-3 py-2 border rounded-lg text-sm"
+                className="w-full px-2 h-7 border border-border rounded text-terminal-base font-mono"
               />
             </div>
           </div>
 
           {/* Entry Lines */}
           <table className="w-full text-sm mb-3">
-            <thead className="bg-gray-100">
+            <thead className="bg-brand-purple text-white/70">
               <tr>
-                <th className="px-2 py-2 text-left font-medium">Account</th>
-                <th className="px-2 py-2 text-left font-medium">Description</th>
-                <th className="px-2 py-2 text-right font-medium w-28">Debit</th>
-                <th className="px-2 py-2 text-right font-medium w-28">Credit</th>
+                <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Account</th>
+                <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Description</th>
+                <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono font-medium w-28">Debit</th>
+                <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono font-medium w-28">Credit</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
             <tbody>
               {newLines.map((line, idx) => (
-                <tr key={idx} className="border-b">
+                <tr key={idx} className="border-b border-border-light">
                   <td className="px-2 py-2">
                     <select
                       value={line.accountCode}
@@ -683,10 +683,10 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50 font-semibold">
+            <tfoot className="bg-bg-row font-semibold">
               <tr>
                 <td className="px-2 py-2" colSpan={2}>
-                  <button onClick={addLine} className="text-[#2d1b4e] text-sm hover:underline">+ Add Line</button>
+                  <button onClick={addLine} className="text-brand-purple text-sm hover:underline">+ Add Line</button>
                 </td>
                 <td className="px-2 py-2 text-right">${totalDebits.toFixed(2)}</td>
                 <td className="px-2 py-2 text-right">${totalCredits.toFixed(2)}</td>
@@ -714,14 +714,14 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
               <button
                 onClick={() => handleSave('draft')}
                 disabled={!isBalanced || saving}
-                className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50"
+                className="px-4 py-2 border border-border rounded text-sm disabled:opacity-50"
               >
                 Save as Draft
               </button>
               <button
                 onClick={() => handleSave('posted')}
                 disabled={!isBalanced || saving}
-                className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-brand-purple text-white rounded text-sm font-medium disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Post Entry'}
               </button>
@@ -731,14 +731,14 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       )}
 
       {/* Search + filter pills */}
-      <div className="bg-gray-50 border-x border-gray-200 px-4 py-2 space-y-2">
+      <div className="bg-bg-row border-x border-border px-4 py-2 space-y-2">
         <div className="flex items-center gap-2">
           <input
             type="text"
             placeholder="Search descriptions..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#2d1b4e] focus:ring-1 focus:ring-[#2d1b4e]"
+            className="flex-1 px-2 h-7 text-terminal-base font-mono border border-border rounded outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple"
           />
           {(search || activeColFilterCount > 0) && (
             <button onClick={() => { setSearch(''); setColumnFilters({}); }}
@@ -771,9 +771,9 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       </div>
 
       {/* Virtualized Table */}
-      <div ref={parentRef} className="overflow-auto border border-gray-200 border-t-0" style={{ maxHeight: '600px' }}>
-        <table className="w-full text-xs border-collapse min-w-[1000px]">
-          <thead className="bg-[#2d1b4e] text-white sticky top-0 z-10">
+      <div ref={parentRef} className="overflow-auto border border-border border-t-0" style={{ maxHeight: '600px' }}>
+        <table className="w-full text-terminal-base border-collapse min-w-[1000px]">
+          <thead className="bg-brand-purple text-white sticky top-0 z-10">
             <tr>
               <JournalFilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="dateRange" allTransactions={txns} columnFilter={columnFilters.date} onApplyColumnFilter={handleApplyColumnFilter} className="w-24" />
@@ -787,8 +787,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                 filterType="amountRange" allTransactions={txns} columnFilter={columnFilters.debits} onApplyColumnFilter={handleApplyColumnFilter} className="w-24 text-right" />
               <JournalFilterableHeader label="Credits" field="credits" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="amountRange" allTransactions={txns} columnFilter={columnFilters.credits} onApplyColumnFilter={handleApplyColumnFilter} className="w-24 text-right" />
-              <th className="px-2 py-2.5 text-xs font-semibold w-16 text-center">Balanced</th>
-              <th className="px-2 py-2.5 text-xs font-semibold w-36">Related</th>
+              <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold w-16 text-center">Balanced</th>
+              <th className="py-1 px-2 text-terminal-xs uppercase tracking-widest font-mono font-semibold w-36">Related</th>
             </tr>
           </thead>
           <tbody>
@@ -809,8 +809,8 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
               const isReversal = txn.is_reversal;
               const isExpanded = expandedId === txn.id;
 
-              const rowBg = vRow.index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
-              const textClass = isReversed ? 'text-gray-400' : '';
+              const rowBg = vRow.index % 2 === 0 ? 'bg-white' : 'bg-bg-row';
+              const textClass = isReversed ? 'text-text-faint' : '';
               const borderClass = isReversal ? 'border-l-[3px] border-amber-400' : '';
 
               return (
@@ -818,12 +818,12 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                   {/* Main row */}
                   <td colSpan={8} className="p-0">
                     <div
-                      className={`${rowBg} ${borderClass} hover:bg-[#2d1b4e]/[.07] transition-colors cursor-pointer flex items-center ${textClass}`}
+                      className={`${rowBg} ${borderClass} hover:bg-brand-purple/[.07] transition-colors cursor-pointer flex items-center ${textClass}`}
                       style={{ height: ROW_HEIGHT }}
                       onClick={() => setExpandedId(isExpanded ? null : txn.id)}
                     >
                       {/* Date */}
-                      <div className="px-2 py-1 w-24 flex-shrink-0 whitespace-nowrap font-mono">
+                      <div className="px-2 py-1 w-24 flex-shrink-0 whitespace-nowrap font-mono text-text-muted">
                         {formatDate(txn.date)}
                       </div>
                       {/* Description */}
@@ -835,7 +835,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                       {/* Type */}
                       <div className="px-2 py-1 w-24 flex-shrink-0">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          derivedType === 'Reversal' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                          derivedType === 'Reversal' ? 'bg-amber-100 text-amber-700' : 'bg-bg-row text-text-secondary'
                         }`}>
                           {derivedType}
                         </span>
@@ -851,11 +851,11 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                         </span>
                       </div>
                       {/* Debits */}
-                      <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono">
+                      <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono font-semibold">
                         {debits > 0 ? formatMoneyDollars(debits) : '\u2014'}
                       </div>
                       {/* Credits */}
-                      <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono">
+                      <div className="px-2 py-1 w-24 flex-shrink-0 text-right font-mono font-semibold">
                         {credits > 0 ? formatMoneyDollars(credits) : '\u2014'}
                       </div>
                       {/* Balanced */}
@@ -871,7 +871,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                         {isReversal && txn.reverses_journal_id && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setExpandedId(txn.reverses_journal_id); }}
-                            className="text-[10px] text-[#2d1b4e] hover:underline truncate block"
+                            className="text-[10px] text-brand-purple hover:underline truncate block"
                           >
                             Reversal of {truncateId(txn.reverses_journal_id)}
                           </button>
@@ -879,7 +879,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                         {isReversed && txn.reversed_by_transaction_id && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setExpandedId(txn.reversed_by_transaction_id); }}
-                            className="text-[10px] text-[#2d1b4e] hover:underline truncate block"
+                            className="text-[10px] text-brand-purple hover:underline truncate block"
                           >
                             Reversed by {truncateId(txn.reversed_by_transaction_id)}
                           </button>
@@ -889,14 +889,14 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
 
                     {/* Expanded detail */}
                     {isExpanded && (
-                      <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-                        <table className="w-full text-xs">
-                          <thead className="bg-gray-100">
+                      <div className="bg-bg-row px-6 py-3 border-t border-border-light">
+                        <table className="w-full text-terminal-base">
+                          <thead className="bg-brand-purple text-white/70">
                             <tr>
-                              <th className="px-3 py-2 text-left font-medium">COA Code</th>
-                              <th className="px-3 py-2 text-left font-medium">COA Name</th>
-                              <th className="px-3 py-2 text-right font-medium">Debit</th>
-                              <th className="px-3 py-2 text-right font-medium">Credit</th>
+                              <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Code</th>
+                              <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Name</th>
+                              <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono font-medium">Debit</th>
+                              <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono font-medium">Credit</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -904,35 +904,35 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                               const legDebit = leg.entry_type === 'D' ? leg.amount : 0;
                               const legCredit = leg.entry_type === 'C' ? leg.amount : 0;
                               return (
-                                <tr key={leg.id} className={`border-b border-gray-200 ${isReversed ? 'text-gray-400' : ''}`}>
-                                  <td className={`px-3 py-2 font-mono ${isReversed ? 'line-through' : ''}`}>
+                                <tr key={leg.id} className={`border-b border-border-light ${isReversed ? 'text-text-faint' : ''}`}>
+                                  <td className={`py-1 px-2 font-mono ${isReversed ? 'line-through' : ''}`}>
                                     {leg.account.code}
                                   </td>
-                                  <td className={`px-3 py-2 ${isReversed ? 'line-through' : ''}`}>
+                                  <td className={`py-1 px-2 ${isReversed ? 'line-through' : ''}`}>
                                     {leg.account.name}
                                   </td>
-                                  <td className={`px-3 py-2 text-right font-mono ${isReversed ? 'line-through' : ''}`}>
+                                  <td className={`py-1 px-2 text-right font-mono font-semibold ${isReversed ? 'line-through' : ''}`}>
                                     {legDebit > 0 ? formatMoney(legDebit) : '\u2014'}
                                   </td>
-                                  <td className={`px-3 py-2 text-right font-mono ${isReversed ? 'line-through' : ''}`}>
+                                  <td className={`py-1 px-2 text-right font-mono font-semibold ${isReversed ? 'line-through' : ''}`}>
                                     {legCredit > 0 ? formatMoney(legCredit) : '\u2014'}
                                   </td>
                                 </tr>
                               );
                             })}
                           </tbody>
-                          <tfoot className="bg-gray-100 font-semibold">
+                          <tfoot className="bg-bg-row font-semibold">
                             <tr>
-                              <td colSpan={2} className="px-3 py-2">Total</td>
-                              <td className="px-3 py-2 text-right font-mono">{formatMoneyDollars(debits)}</td>
-                              <td className="px-3 py-2 text-right font-mono">{formatMoneyDollars(credits)}</td>
+                              <td colSpan={2} className="py-1 px-2">Total</td>
+                              <td className="py-1 px-2 text-right font-mono font-semibold">{formatMoneyDollars(debits)}</td>
+                              <td className="py-1 px-2 text-right font-mono font-semibold">{formatMoneyDollars(credits)}</td>
                             </tr>
                           </tfoot>
                         </table>
                         {txn.strategy && (
-                          <div className="mt-2 text-[10px] text-gray-500">
-                            Strategy: <span className="font-medium text-gray-700">{txn.strategy}</span>
-                            {txn.trade_num && <> | Trade #: <span className="font-medium text-gray-700">{txn.trade_num}</span></>}
+                          <div className="mt-2 text-[10px] text-text-muted">
+                            Strategy: <span className="font-medium text-text-primary">{txn.strategy}</span>
+                            {txn.trade_num && <> | Trade #: <span className="font-medium text-text-primary">{txn.trade_num}</span></>}
                           </div>
                         )}
                       </div>
@@ -952,15 +952,15 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-gray-400 text-xs">
+          <div className="px-4 py-8 text-center text-text-faint text-terminal-sm">
             {search || activeColFilterCount > 0 ? 'No journal entries match your filters.' : 'No journal entries yet. Click "+ New Entry" to create one.'}
           </div>
         )}
       </div>
 
       {/* Footer summary */}
-      <div className="bg-gray-100 border border-gray-200 border-t-0 px-4 py-2 flex items-center justify-between text-xs">
-        <span className="text-gray-500">
+      <div className="bg-bg-row border border-border border-t-0 px-3 py-1.5 flex items-center justify-between text-terminal-sm">
+        <span className="text-text-muted">
           {filtered.length === txns.length ? txns.length : `${filtered.length} of ${txns.length}`} entries
         </span>
         <span className="font-mono font-medium">

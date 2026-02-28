@@ -138,11 +138,11 @@ export default function PositionReportTab() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-sm text-gray-500">Loading position report...</div>;
+    return <div className="p-8 text-center text-terminal-sm text-text-muted">Loading position report...</div>;
   }
 
   if (!data) {
-    return <div className="p-8 text-center text-sm text-red-600">Failed to load position data</div>;
+    return <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load position data</div>;
   }
 
   const { summary } = data;
@@ -150,15 +150,15 @@ export default function PositionReportTab() {
   return (
     <div>
       {/* Header */}
-      <div className="bg-[#2d1b4e] text-white px-4 py-2 flex items-center justify-between">
-        <span className="text-sm font-semibold">Position &amp; P&amp;L Report</span>
-        <button onClick={loadData} className="text-xs bg-[#3d2b5e] px-3 py-1 rounded hover:bg-[#4d3b6e]">
+      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
+        <span className="text-terminal-lg font-semibold">Position &amp; P&amp;L Report</span>
+        <button onClick={loadData} className="text-terminal-sm bg-brand-purple-hover px-2 py-0.5 rounded hover:bg-brand-purple-hover">
           Refresh
         </button>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-border">
         {[
           { key: 'summary', label: 'P&L Summary' },
           { key: 'open', label: `Open (${summary.openPositions})` },
@@ -167,8 +167,8 @@ export default function PositionReportTab() {
           <button
             key={tab.key}
             onClick={() => setActiveView(tab.key as any)}
-            className={`px-4 py-2 text-xs font-medium ${
-              activeView === tab.key ? 'bg-[#2d1b4e] text-white' : 'bg-gray-50 text-gray-600'
+            className={`px-3 py-1 text-terminal-sm font-medium ${
+              activeView === tab.key ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-muted'
             }`}
           >
             {tab.label}
@@ -178,53 +178,53 @@ export default function PositionReportTab() {
 
       {/* P&L Summary View */}
       {activeView === 'summary' && (
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Top metrics */}
-          <div className="grid grid-cols-5 gap-3">
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Total Realized P&L</div>
-              <div className={`text-xl font-bold font-mono ${plColor(summary.totalRealizedPL)}`}>
+          <div className="grid grid-cols-5 gap-2">
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Total Realized P&L</div>
+              <div className={`text-lg font-bold font-mono ${plColor(summary.totalRealizedPL)}`}>
                 {fmt(summary.totalRealizedPL)}
               </div>
             </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Short-Term P&L</div>
-              <div className={`text-xl font-bold font-mono ${plColor(summary.shortTermPL)}`}>
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Short-Term P&L</div>
+              <div className={`text-lg font-bold font-mono ${plColor(summary.shortTermPL)}`}>
                 {fmt(summary.shortTermPL)}
               </div>
             </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Long-Term P&L</div>
-              <div className={`text-xl font-bold font-mono ${plColor(summary.longTermPL)}`}>
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Long-Term P&L</div>
+              <div className={`text-lg font-bold font-mono ${plColor(summary.longTermPL)}`}>
                 {fmt(summary.longTermPL)}
               </div>
             </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Win Rate</div>
-              <div className="text-xl font-bold font-mono">{summary.winRate}%</div>
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Win Rate</div>
+              <div className="text-lg font-bold font-mono">{summary.winRate}%</div>
             </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Profit Factor</div>
-              <div className="text-xl font-bold font-mono">
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Profit Factor</div>
+              <div className="text-lg font-bold font-mono">
                 {summary.profitFactor >= 999 ? 'N/A' : summary.profitFactor.toFixed(2)}
               </div>
             </div>
           </div>
 
           {/* Options vs Stocks breakdown */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border rounded-lg p-4">
-              <h4 className="text-sm font-semibold mb-3">Options P&L</h4>
-              <div className={`text-2xl font-bold font-mono ${plColor(summary.optionRealizedPL)}`}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border border-border rounded p-3">
+              <h4 className="text-terminal-lg font-semibold mb-2">Options P&L</h4>
+              <div className={`text-xl font-bold font-mono ${plColor(summary.optionRealizedPL)}`}>
                 {fmt(summary.optionRealizedPL)}
               </div>
             </div>
-            <div className="border rounded-lg p-4">
-              <h4 className="text-sm font-semibold mb-3">Stocks P&L</h4>
-              <div className={`text-2xl font-bold font-mono ${plColor(summary.stockRealizedPL)}`}>
+            <div className="border border-border rounded p-3">
+              <h4 className="text-terminal-lg font-semibold mb-2">Stocks P&L</h4>
+              <div className={`text-xl font-bold font-mono ${plColor(summary.stockRealizedPL)}`}>
                 {fmt(summary.stockRealizedPL)}
               </div>
-              <div className="flex gap-4 mt-2 text-xs text-gray-500">
+              <div className="flex gap-4 mt-2 text-terminal-sm text-text-muted">
                 <span>ST: <span className={`font-mono ${plColor(summary.shortTermPL - (summary.shortTermPL - (data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0))))}`}>{fmt(data.closedPositions.stocks.reduce((s, p) => s + p.shortTermPL, 0))}</span></span>
                 <span>LT: <span className={`font-mono ${plColor(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0))}`}>{fmt(data.closedPositions.stocks.reduce((s, p) => s + p.longTermPL, 0))}</span></span>
               </div>
@@ -233,30 +233,30 @@ export default function PositionReportTab() {
 
           {/* Strategy breakdown */}
           {data.byStrategy.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-2 text-sm font-semibold">By Strategy</div>
-              <table className="w-full text-xs">
-                <thead className="bg-gray-100">
+            <div className="border border-border rounded overflow-hidden">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold">By Strategy</div>
+              <table className="w-full text-terminal-base">
+                <thead className="bg-brand-purple text-white/70">
                   <tr>
-                    <th className="px-3 py-2 text-left">Strategy</th>
-                    <th className="px-3 py-2 text-right">Trades</th>
-                    <th className="px-3 py-2 text-right">Wins</th>
-                    <th className="px-3 py-2 text-right">Losses</th>
-                    <th className="px-3 py-2 text-right">Win Rate</th>
-                    <th className="px-3 py-2 text-right">P&L</th>
+                    <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Strategy</th>
+                    <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Trades</th>
+                    <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Wins</th>
+                    <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Losses</th>
+                    <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Win Rate</th>
+                    <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">P&L</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.byStrategy.map(s => (
-                    <tr key={s.strategy} className="border-b hover:bg-gray-50">
-                      <td className="px-3 py-2 font-medium">{s.strategy}</td>
-                      <td className="px-3 py-2 text-right font-mono">{s.count}</td>
-                      <td className="px-3 py-2 text-right font-mono text-green-700">{s.wins}</td>
-                      <td className="px-3 py-2 text-right font-mono text-red-700">{s.losses}</td>
-                      <td className="px-3 py-2 text-right font-mono">
+                  {data.byStrategy.map((s, idx) => (
+                    <tr key={s.strategy} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
+                      <td className="py-1 px-2 font-medium">{s.strategy}</td>
+                      <td className="py-1 px-2 text-right font-mono">{s.count}</td>
+                      <td className="py-1 px-2 text-right font-mono text-brand-green">{s.wins}</td>
+                      <td className="py-1 px-2 text-right font-mono text-brand-red">{s.losses}</td>
+                      <td className="py-1 px-2 text-right font-mono">
                         {s.count > 0 ? Math.round((s.wins / s.count) * 100) : 0}%
                       </td>
-                      <td className={`px-3 py-2 text-right font-mono font-semibold ${plColor(s.pl)}`}>
+                      <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(s.pl)}`}>
                         {fmt(s.pl)}
                       </td>
                     </tr>
@@ -267,14 +267,14 @@ export default function PositionReportTab() {
           )}
 
           {/* Avg win/loss */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Avg Win</div>
-              <div className="text-lg font-bold font-mono text-green-700">{fmt(summary.avgWin)}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Win</div>
+              <div className="text-base font-bold font-mono text-brand-green">{fmt(summary.avgWin)}</div>
             </div>
-            <div className="border rounded-lg p-3">
-              <div className="text-[10px] text-gray-500 uppercase">Avg Loss</div>
-              <div className="text-lg font-bold font-mono text-red-700">{fmt(summary.avgLoss)}</div>
+            <div className="border border-border rounded p-2">
+              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Avg Loss</div>
+              <div className="text-base font-bold font-mono text-brand-red">{fmt(summary.avgLoss)}</div>
             </div>
           </div>
         </div>
@@ -282,46 +282,46 @@ export default function PositionReportTab() {
 
       {/* Open Positions View */}
       {activeView === 'open' && (
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Open Options */}
           {data.openPositions.options.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">
+            <div className="border border-border rounded overflow-hidden">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Open Options ({data.openPositions.options.length})
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-100">
+                <table className="w-full text-terminal-base">
+                  <thead className="bg-brand-purple text-white/70">
                     <tr>
-                      <th className="px-3 py-2 text-left">Symbol</th>
-                      <th className="px-3 py-2 text-left">Type</th>
-                      <th className="px-3 py-2 text-right">Strike</th>
-                      <th className="px-3 py-2 text-left">Exp</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Cost Basis</th>
-                      <th className="px-3 py-2 text-left">Opened</th>
-                      <th className="px-3 py-2 text-left">Strategy</th>
-                      <th className="px-3 py-2 text-right">Trade #</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Type</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Strike</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Exp</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Qty</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Cost Basis</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Opened</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Strategy</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Trade #</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.openPositions.options.map(p => (
-                      <tr key={p.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium">{p.symbol}</td>
-                        <td className="px-3 py-2">
+                    {data.openPositions.options.map((p, idx) => (
+                      <tr key={p.id} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
+                        <td className="py-1 px-2 font-medium">{p.symbol}</td>
+                        <td className="py-1 px-2">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             p.optionType === 'CALL' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {p.positionType} {p.optionType}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono">${p.strike?.toFixed(2) ?? '-'}</td>
-                        <td className="px-3 py-2">{fmtDate(p.expiration)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{p.remainingQuantity}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.costBasis)}</td>
-                        <td className="px-3 py-2">{fmtDate(p.openDate)}</td>
-                        <td className="px-3 py-2">{p.strategy}</td>
-                        <td className="px-3 py-2 text-right font-mono text-gray-400">#{p.tradeNum}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.strike?.toFixed(2) ?? '-'}</td>
+                        <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.expiration)}</td>
+                        <td className="py-1 px-2 text-right font-mono">{p.remainingQuantity}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
+                        <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.openDate)}</td>
+                        <td className="py-1 px-2">{p.strategy}</td>
+                        <td className="py-1 px-2 text-right font-mono text-text-faint">#{p.tradeNum}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -332,35 +332,35 @@ export default function PositionReportTab() {
 
           {/* Open Stocks */}
           {data.openPositions.stocks.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-800">
+            <div className="border border-border rounded overflow-hidden">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Open Stock Positions ({data.openPositions.stocks.length})
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-100">
+                <table className="w-full text-terminal-base">
+                  <thead className="bg-brand-purple text-white/70">
                     <tr>
-                      <th className="px-3 py-2 text-left">Symbol</th>
-                      <th className="px-3 py-2 text-right">Shares</th>
-                      <th className="px-3 py-2 text-right">Avg Cost</th>
-                      <th className="px-3 py-2 text-right">Cost Basis</th>
-                      <th className="px-3 py-2 text-right">Realized P&L</th>
-                      <th className="px-3 py-2 text-left">Opened</th>
-                      <th className="px-3 py-2 text-right">Lots</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Shares</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Avg Cost</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Cost Basis</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Realized P&L</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Opened</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Lots</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.openPositions.stocks.map(p => (
-                      <tr key={p.symbol} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium">{p.symbol}</td>
-                        <td className="px-3 py-2 text-right font-mono">{p.shares.remaining}</td>
-                        <td className="px-3 py-2 text-right font-mono">${p.avgCostPerShare.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.remainingCostBasis)}</td>
-                        <td className={`px-3 py-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
+                    {data.openPositions.stocks.map((p, idx) => (
+                      <tr key={p.symbol} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
+                        <td className="py-1 px-2 font-medium">{p.symbol}</td>
+                        <td className="py-1 px-2 text-right font-mono">{p.shares.remaining}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.avgCostPerShare.toFixed(2)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.remainingCostBasis)}</td>
+                        <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
                           {fmt(p.realizedPL)}
                         </td>
-                        <td className="px-3 py-2">{fmtDate(p.openDate)}</td>
-                        <td className="px-3 py-2 text-right font-mono text-gray-400">{p.lotCount}</td>
+                        <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.openDate)}</td>
+                        <td className="py-1 px-2 text-right font-mono text-text-faint">{p.lotCount}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -370,65 +370,65 @@ export default function PositionReportTab() {
           )}
 
           {data.openPositions.options.length === 0 && data.openPositions.stocks.length === 0 && (
-            <div className="text-center text-sm text-gray-500 py-8">No open positions</div>
+            <div className="text-center text-terminal-sm text-text-muted py-8">No open positions</div>
           )}
         </div>
       )}
 
       {/* Closed Positions View */}
       {activeView === 'closed' && (
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Closed Options */}
           {data.closedPositions.options.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">
+            <div className="border border-border rounded overflow-hidden">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Closed Options ({data.closedPositions.options.length})
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-100">
+                <table className="w-full text-terminal-base">
+                  <thead className="bg-brand-purple text-white/70">
                     <tr>
-                      <th className="px-3 py-2 text-left">Symbol</th>
-                      <th className="px-3 py-2 text-left">Type</th>
-                      <th className="px-3 py-2 text-right">Strike</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Cost Basis</th>
-                      <th className="px-3 py-2 text-right">Proceeds</th>
-                      <th className="px-3 py-2 text-right">P&L</th>
-                      <th className="px-3 py-2 text-right">Days</th>
-                      <th className="px-3 py-2 text-left">Term</th>
-                      <th className="px-3 py-2 text-left">Closed</th>
-                      <th className="px-3 py-2 text-right">Trade #</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Type</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Strike</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Qty</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Cost Basis</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Proceeds</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">P&L</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Days</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Term</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Closed</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Trade #</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.closedPositions.options.map(p => (
-                      <tr key={p.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium">{p.symbol}</td>
-                        <td className="px-3 py-2">
+                    {data.closedPositions.options.map((p, idx) => (
+                      <tr key={p.id} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
+                        <td className="py-1 px-2 font-medium">{p.symbol}</td>
+                        <td className="py-1 px-2">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             p.optionType === 'CALL' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {p.positionType} {p.optionType}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono">${p.strike?.toFixed(2) ?? '-'}</td>
-                        <td className="px-3 py-2 text-right font-mono">{p.quantity}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.costBasis)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.proceeds)}</td>
-                        <td className={`px-3 py-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">${p.strike?.toFixed(2) ?? '-'}</td>
+                        <td className="py-1 px-2 text-right font-mono">{p.quantity}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.proceeds)}</td>
+                        <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
                           {fmt(p.realizedPL)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono text-gray-500">{p.holdingDays ?? '-'}</td>
-                        <td className="px-3 py-2">
+                        <td className="py-1 px-2 text-right font-mono text-text-muted">{p.holdingDays ?? '-'}</td>
+                        <td className="py-1 px-2">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             p.isLongTerm ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
                           }`}>
                             {p.isLongTerm ? 'LT' : 'ST'}
                           </span>
                         </td>
-                        <td className="px-3 py-2">{fmtDate(p.closeDate)}</td>
-                        <td className="px-3 py-2 text-right font-mono text-gray-400">#{p.tradeNum}</td>
+                        <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.closeDate)}</td>
+                        <td className="py-1 px-2 text-right font-mono text-text-faint">#{p.tradeNum}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -439,41 +439,41 @@ export default function PositionReportTab() {
 
           {/* Closed Stocks */}
           {data.closedPositions.stocks.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-800">
+            <div className="border border-border rounded overflow-hidden">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Closed Stock Positions ({data.closedPositions.stocks.length})
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-100">
+                <table className="w-full text-terminal-base">
+                  <thead className="bg-brand-purple text-white/70">
                     <tr>
-                      <th className="px-3 py-2 text-left">Symbol</th>
-                      <th className="px-3 py-2 text-right">Shares</th>
-                      <th className="px-3 py-2 text-right">Cost Basis</th>
-                      <th className="px-3 py-2 text-right">Proceeds</th>
-                      <th className="px-3 py-2 text-right">P&L</th>
-                      <th className="px-3 py-2 text-right">ST P&L</th>
-                      <th className="px-3 py-2 text-right">LT P&L</th>
-                      <th className="px-3 py-2 text-left">Closed</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Shares</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Cost Basis</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Proceeds</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">P&L</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">ST P&L</th>
+                      <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">LT P&L</th>
+                      <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Closed</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.closedPositions.stocks.map(p => (
-                      <tr key={p.symbol} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium">{p.symbol}</td>
-                        <td className="px-3 py-2 text-right font-mono">{p.shares.original}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.costBasis)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{fmt(p.proceeds)}</td>
-                        <td className={`px-3 py-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
+                    {data.closedPositions.stocks.map((p, idx) => (
+                      <tr key={p.symbol} className={`border-b border-border-light hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'}`}>
+                        <td className="py-1 px-2 font-medium">{p.symbol}</td>
+                        <td className="py-1 px-2 text-right font-mono">{p.shares.original}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.costBasis)}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">{fmt(p.proceeds)}</td>
+                        <td className={`py-1 px-2 text-right font-mono font-semibold ${plColor(p.realizedPL)}`}>
                           {fmt(p.realizedPL)}
                         </td>
-                        <td className={`px-3 py-2 text-right font-mono ${plColor(p.shortTermPL)}`}>
+                        <td className={`py-1 px-2 text-right font-mono ${plColor(p.shortTermPL)}`}>
                           {fmt(p.shortTermPL)}
                         </td>
-                        <td className={`px-3 py-2 text-right font-mono ${plColor(p.longTermPL)}`}>
+                        <td className={`py-1 px-2 text-right font-mono ${plColor(p.longTermPL)}`}>
                           {fmt(p.longTermPL)}
                         </td>
-                        <td className="px-3 py-2">{fmtDate(p.closeDate)}</td>
+                        <td className="py-1 px-2 font-mono text-text-muted">{fmtDate(p.closeDate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -483,7 +483,7 @@ export default function PositionReportTab() {
           )}
 
           {data.closedPositions.options.length === 0 && data.closedPositions.stocks.length === 0 && (
-            <div className="text-center text-sm text-gray-500 py-8">No closed positions</div>
+            <div className="text-center text-terminal-sm text-text-muted py-8">No closed positions</div>
           )}
         </div>
       )}
