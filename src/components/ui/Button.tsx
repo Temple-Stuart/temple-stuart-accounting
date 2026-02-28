@@ -11,18 +11,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export default function Button({ children, variant = 'primary', size = 'md', loading = false, icon, className = '', disabled, ...props }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
   const variants = {
-    primary: 'bg-gray-900 text-white hover:bg-[#2d1b4e] focus:ring-[#b4b237] shadow-sm',
-    secondary: 'bg-white text-gray-900 border-2 border-gray-900 hover:border-[#2d1b4e] hover:text-[#2d1b4e] focus:ring-[#b4b237]',
-    ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    primary: 'bg-brand-purple text-white hover:bg-brand-purple-hover focus:ring-brand-purple shadow-sm',
+    secondary: 'bg-white text-text-primary border border-border hover:bg-bg-row focus:ring-brand-purple',
+    ghost: 'text-text-muted hover:text-text-primary hover:bg-bg-row focus:ring-brand-purple',
+    danger: 'bg-brand-red text-white hover:bg-red-700 focus:ring-brand-red',
   };
-  const sizes = { sm: 'px-3 py-1.5 text-sm gap-1.5', md: 'px-4 py-2 text-sm gap-2', lg: 'px-6 py-3 text-base gap-2' };
+  const sizes = { sm: 'h-6 px-2 text-terminal-sm gap-1', md: 'h-7 px-3 text-terminal-base gap-1.5', lg: 'h-8 px-4 text-terminal-lg gap-2' };
 
   return (
     <button className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`} disabled={disabled || loading} {...props}>
-      {loading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : icon ? <span className="flex-shrink-0">{icon}</span> : null}
+      {loading ? <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : icon ? <span className="flex-shrink-0">{icon}</span> : null}
       {children}
     </button>
   );
