@@ -87,9 +87,23 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Resolve the bank account's entity from the linked account's entityType.
+        // This may differ from resolvedEntityId when cross-entity categorization
+        // is used (e.g., personal bank account paying a business expense).
+        let bankEntityId = resolvedEntityId;
+        if (linkedAccount.entityType) {
+          const bankEntity = await prisma.entities.findFirst({
+            where: { userId: user.id, entity_type: linkedAccount.entityType },
+          });
+          if (bankEntity) {
+            bankEntityId = bankEntity.id;
+          }
+        }
+
         const journalEntry = await commitPlaidTransaction(prisma, {
           userId: user.id,
           entityId: resolvedEntityId,
+          bankEntityId,
           transactionId: plaidTxn.transactionId,
           accountCode,
           bankAccountCode,

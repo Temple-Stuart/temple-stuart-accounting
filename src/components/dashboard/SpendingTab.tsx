@@ -13,6 +13,7 @@ export interface CoaOption {
   name: string;
   accountType: string;
   balanceType: string;
+  entity_id?: string;
   entity_type?: string | null;
 }
 
@@ -910,7 +911,7 @@ function VirtualTable({
                       <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
                         <optgroup key={entity} label={entity || 'General'}>
-                          {opts.map(o => <option key={o.id} value={o.code}>{o.code} - {o.name}</option>)}
+                          {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
                         </optgroup>
                       ))}
                       <option value="__NEW__">+ Add Category</option>
@@ -1081,7 +1082,7 @@ function MerchantGroupTable({
                         <option value="">Select...</option>
                         {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
                           <optgroup key={entity} label={entity || 'General'}>
-                            {opts.map(o => <option key={o.id} value={o.code}>{o.code} - {o.name}</option>)}
+                            {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
                           </optgroup>
                         ))}
                       </select>
@@ -1252,18 +1253,15 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     if (ids.length === 0) return;
     if (!batchCoa) { alert('Select a COA account first'); return; }
 
-    // TODO: Batch commit with mixed entities needs entity-aware grouping —
-    // group by entity_id and send separate requests per entity (same pattern
-    // as would be used in a prediction-based commit). For now, use the first
-    // transaction's entity_id as a best-effort default.
-    const firstTxn = transactions.find(t => ids.includes(t.id));
+    // Parse "code|entity_id" from dropdown value
+    const [accountCode, coaEntityId] = batchCoa.split('|');
 
     setCommitting(true);
     try {
       const res = await fetch('/api/transactions/commit-to-ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionIds: ids, accountCode: batchCoa, subAccount: batchSub || null, entityId: firstTxn?.entity_id || undefined })
+        body: JSON.stringify({ transactionIds: ids, accountCode, subAccount: batchSub || null, entityId: coaEntityId || undefined })
       });
       const data = await res.json();
       if (data.success) {
@@ -1291,11 +1289,12 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     let committed = 0;
     try {
       for (const [id, change] of entries) {
-        const txn = transactions.find(t => t.id === id);
+        // Parse "code|entity_id" from dropdown value
+        const [accountCode, coaEntityId] = change.coa.split('|');
         const res = await fetch('/api/transactions/commit-to-ledger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transactionIds: [id], accountCode: change.coa, subAccount: change.sub || null, entityId: txn?.entity_id || undefined })
+          body: JSON.stringify({ transactionIds: [id], accountCode, subAccount: change.sub || null, entityId: coaEntityId || undefined })
         });
         const data = await res.json();
         if (data.success) committed += data.committed;
@@ -1657,7 +1656,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               <option value="">Select COA...</option>
               {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
                 <optgroup key={entity} label={entity || 'General'}>
-                  {opts.map(o => <option key={o.id} value={o.code}>{o.code} - {o.name}</option>)}
+                  {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
                 </optgroup>
               ))}
               <option value="__NEW__">+ Add Category</option>
