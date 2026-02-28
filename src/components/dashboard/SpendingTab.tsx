@@ -824,7 +824,7 @@ function VirtualTable({
   };
 
   return (
-    <div ref={parentRef} className="overflow-auto" style={{ maxHeight: '600px' }}>
+    <div ref={parentRef} className="overflow-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-bg-row [&::-webkit-scrollbar-thumb]:bg-brand-purple/30 [&::-webkit-scrollbar-thumb]:rounded" style={{ maxHeight: '600px' }}>
       <table className={`w-full text-xs border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
         <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
           <tr>
@@ -916,14 +916,18 @@ function VirtualTable({
                       ))}
                       <option value="__NEW__">+ Add Category</option>
                     </select>
-                  ) : (
-                    <span className="font-mono text-brand-green text-terminal-sm">
-                      {txn.accountCode}
-                      {txn.accountCode && coaLookup.get(txn.accountCode) && (
-                        <span className="text-text-faint ml-1">{coaLookup.get(txn.accountCode)!.name}</span>
-                      )}
-                    </span>
-                  )}
+                  ) : (() => {
+                    const jp = (txn as any).journalProof;
+                    const drEntry = jp?.ledgerEntries?.find((e: any) => e.entryType === 'D' && e.accountCode !== txn.accountCode);
+                    const drName = jp?.ledgerEntries?.find((e: any) => e.entryType === 'D' && e.accountCode === txn.accountCode)?.accountName;
+                    const displayName = drName || coaLookup.get(txn.accountCode!)?.name;
+                    return (
+                      <span className="font-mono text-brand-green text-terminal-sm">
+                        {txn.accountCode}
+                        {displayName && <span className="text-text-faint ml-1">{displayName}</span>}
+                      </span>
+                    );
+                  })()}
                 </td>
                 {/* JE Proof columns */}
                 {variant === 'committed' && (() => {
