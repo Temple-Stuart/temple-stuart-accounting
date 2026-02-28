@@ -11,7 +11,7 @@ interface LedgerEntry {
   account_id: string;
   amount: number; // cents (BigInt serialized as number)
   entry_type: string; // 'D' or 'C'
-  chart_of_accounts: {
+  account: {
     code: string;
     name: string;
     account_type: string;
@@ -20,7 +20,7 @@ interface LedgerEntry {
 
 interface JournalTxn {
   id: string;
-  transaction_date: string;
+  date: string;
   description: string | null;
   is_reversal: boolean;
   reverses_journal_id: string | null;
@@ -91,8 +91,10 @@ const ENTRY_TYPES = [
 
 const ROW_HEIGHT = 44;
 
-function formatDate(d: string): string {
+function formatDate(d: string | null | undefined): string {
+  if (!d) return '\u2014';
   const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '\u2014';
   return `${String(dt.getMonth() + 1).padStart(2, '0')}/${String(dt.getDate()).padStart(2, '0')}/${dt.getFullYear()}`;
 }
 
@@ -128,7 +130,7 @@ function truncateId(id: string): string {
 
 function getFieldValue(txn: JournalTxn, field: SortField): string {
   switch (field) {
-    case 'date': return txn.transaction_date;
+    case 'date': return txn.date;
     case 'description': return txn.description || '';
     case 'type': return getDerivedType(txn);
     case 'status': return getDerivedStatus(txn);
@@ -151,7 +153,7 @@ function sortTxns(txns: JournalTxn[], field: SortField, dir: SortDir): JournalTx
   sorted.sort((a, b) => {
     let cmp = 0;
     switch (field) {
-      case 'date': cmp = new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime(); break;
+      case 'date': cmp = new Date(a.date).getTime() - new Date(b.date).getTime(); break;
       case 'description': cmp = (a.description || '').localeCompare(b.description || ''); break;
       case 'type': cmp = getDerivedType(a).localeCompare(getDerivedType(b)); break;
       case 'status': cmp = getDerivedStatus(a).localeCompare(getDerivedStatus(b)); break;
@@ -173,8 +175,8 @@ function applyColumnFilters(txns: JournalTxn[], colFilters: ColumnFilters): Jour
           result = result.filter(t => filter.selected.includes(getFieldValue(t, field)));
         break;
       case 'dateRange':
-        if (filter.from) { const f = new Date(filter.from); result = result.filter(t => new Date(t.transaction_date) >= f); }
-        if (filter.to) { const to = new Date(filter.to); to.setHours(23, 59, 59, 999); result = result.filter(t => new Date(t.transaction_date) <= to); }
+        if (filter.from) { const f = new Date(filter.from); result = result.filter(t => new Date(t.date) >= f); }
+        if (filter.to) { const to = new Date(filter.to); to.setHours(23, 59, 59, 999); result = result.filter(t => new Date(t.date) <= to); }
         break;
       case 'amountRange': {
         if (filter.min) { const min = parseFloat(filter.min); if (!isNaN(min)) result = result.filter(t => parseFloat(getFieldValue(t, field)) >= min); }
@@ -822,7 +824,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                     >
                       {/* Date */}
                       <div className="px-2 py-1 w-24 flex-shrink-0 whitespace-nowrap font-mono">
-                        {formatDate(txn.transaction_date)}
+                        {formatDate(txn.date)}
                       </div>
                       {/* Description */}
                       <div className="px-2 py-1 min-w-[200px] flex-1 truncate">
@@ -904,10 +906,10 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                               return (
                                 <tr key={leg.id} className={`border-b border-gray-200 ${isReversed ? 'text-gray-400' : ''}`}>
                                   <td className={`px-3 py-2 font-mono ${isReversed ? 'line-through' : ''}`}>
-                                    {leg.chart_of_accounts.code}
+                                    {leg.account.code}
                                   </td>
                                   <td className={`px-3 py-2 ${isReversed ? 'line-through' : ''}`}>
-                                    {leg.chart_of_accounts.name}
+                                    {leg.account.name}
                                   </td>
                                   <td className={`px-3 py-2 text-right font-mono ${isReversed ? 'line-through' : ''}`}>
                                     {legDebit > 0 ? formatMoney(legDebit) : '\u2014'}
