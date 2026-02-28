@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Script from 'next/script';
-import { AppLayout, ResponsiveTable } from '@/components/ui';
+import { AppLayout } from '@/components/ui';
+import type { LedgerMetrics, EngineMetrics } from '@/components/ui/AppLayout';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
@@ -13,6 +14,8 @@ import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
 import TaxReportTab from '@/components/dashboard/TaxReportTab';
+import TaxSettings, { loadTaxSettings } from '@/components/dashboard/TaxSettings';
+import type { TaxSettingsValues } from '@/components/dashboard/TaxSettings';
 
 
 interface Transaction {
@@ -115,6 +118,9 @@ export default function Dashboard() {
   const [statementYears, setStatementYears] = useState<number[]>([]);
   const [soc2Proofs, setSoc2Proofs] = useState<Record<string, Soc2Proof>>({});
   const [soc2Modal, setSoc2Modal] = useState<string | null>(null);
+  const [ledgerMetrics, setLedgerMetrics] = useState<LedgerMetrics | null>(null);
+  const [engineMetrics, setEngineMetrics] = useState<EngineMetrics | null>(null);
+  const [showTaxSettings, setShowTaxSettings] = useState(false);
 
   // Cookie is now HMAC-signed server-side (login/register/nextauth).
   // Client-side writes removed to prevent overwriting signed cookies.
@@ -142,6 +148,13 @@ export default function Dashboard() {
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
       const soc2Res = await fetch('/api/soc2');
       if (soc2Res.ok) { const soc2Data = await soc2Res.json(); setSoc2Proofs(soc2Data.proofs || {}); }
+      const metricsRes = await fetch('/api/metrics');
+      if (metricsRes.ok) { const md = await metricsRes.json(); setLedgerMetrics(md); }
+      try {
+        const taxSettings = loadTaxSettings();
+        const taxRes = await fetch('/api/tax-estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(taxSettings) });
+        if (taxRes.ok) { const td = await taxRes.json(); setEngineMetrics(td); }
+      } catch {}
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
@@ -324,8 +337,14 @@ export default function Dashboard() {
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
   const pendingCount = uncommittedSpending.length + uncommittedInvestments.length;
   const committedCount = committedSpending.length + committedInvestments.length;
-  const ytdRevenue = Math.abs(getSectionTotal(revenueCodes));
-  const ytdExpenses = Math.abs(getSectionTotal(expenseCodes));
+
+  const handleTaxSettingsSave = async (settings: TaxSettingsValues) => {
+    try {
+      const res = await fetch('/api/tax-estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
+      if (res.ok) { const td = await res.json(); setEngineMetrics(td); }
+    } catch {}
+    setShowTaxSettings(false);
+  };
   const pipelineSrc = transactions.length + investmentTransactions.length;
   const pipelineCat = transactions.filter(t => t.accountCode).length;
   const pipelineJe = committedCount;
@@ -359,7 +378,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout ledgerMetrics={ledgerMetrics} engineMetrics={engineMetrics} onOpenTaxSettings={() => setShowTaxSettings(true)}>
         <div className="flex items-center justify-center py-20">
           <div className="w-6 h-6 border-2 border-brand-purple-deep border-t-transparent rounded-full animate-spin" />
         </div>
@@ -383,7 +402,7 @@ export default function Dashboard() {
   return (
     <>
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
-      <AppLayout metrics={{ balance: totalBalance, pending: pendingCount, revenue: ytdRevenue, expenses: ytdExpenses, committed: committedCount }}>
+      <AppLayout ledgerMetrics={ledgerMetrics} engineMetrics={engineMetrics} onOpenTaxSettings={() => setShowTaxSettings(true)}>
         <div className="min-h-screen bg-bg-terminal">
           <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
 
@@ -517,7 +536,6 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
-                    {pendingCount > 0 && <span className="text-terminal-sm font-mono text-brand-red">{pendingCount} pending</span>}
                   </div>
                   <div className="p-4">
                     {mappingTab === 'spending' && <SpendingTab transactions={uncommittedSpending} committedTransactions={committedSpending} coaOptions={coaOptions} onReload={loadData} />}
@@ -945,6 +963,9 @@ export default function Dashboard() {
           </div>
         );
       })()}
+      {showTaxSettings && (
+        <TaxSettings onClose={() => setShowTaxSettings(false)} onSave={handleTaxSettingsSave} />
+      )}
       </AppLayout>
     </>
   );
