@@ -84,7 +84,7 @@ const TRIP_TYPES = [
 const BUDGET_OPTIONS = [
   { value: 'backpacker', label: '$0-50', sublabel: '/night', desc: 'Hostels, street food', icon: '🎒', color: 'bg-green-100 border-green-300' },
   { value: 'budget', label: '$50-100', sublabel: '/night', desc: 'Budget hotels, local eats', icon: '💚', color: 'bg-emerald-100 border-emerald-300' },
-  { value: 'midrange', label: '$100-200', sublabel: '/night', desc: '3-4 star comfort', icon: '⭐', color: 'bg-blue-100 border-blue-300' },
+  { value: 'midrange', label: '$100-200', sublabel: '/night', desc: '3-4 star comfort', icon: '⭐', color: 'bg-brand-purple-wash border-border' },
   { value: 'comfort', label: '$200-350', sublabel: '/night', desc: 'Nice hotels, good dining', icon: '🌟', color: 'bg-purple-100 border-purple-300' },
   { value: 'premium', label: '$350-500', sublabel: '/night', desc: 'Premium experiences', icon: '💫', color: 'bg-amber-100 border-amber-300' },
   { value: 'luxury', label: '$500+', sublabel: '/night', desc: 'Luxury & 5-star', icon: '👑', color: 'bg-yellow-100 border-yellow-300' },
@@ -357,8 +357,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     ].filter(Boolean).join(' • ');
   };
 
-  const getSentimentColor = (s: string) => s === 'positive' ? 'bg-green-100 text-green-700' : s === 'negative' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700';
-  const getScoreColor = (n: number) => n >= 8 ? 'text-green-600' : n >= 5 ? 'text-yellow-600' : 'text-red-600';
+  const getSentimentColor = (s: string) => s === 'positive' ? 'bg-green-100 text-brand-green' : s === 'negative' ? 'bg-red-100 text-brand-red' : 'bg-bg-row text-text-secondary';
+  const getScoreColor = (n: number) => n >= 8 ? 'text-brand-green' : n >= 5 ? 'text-yellow-600' : 'text-brand-red';
 
   const togglePriority = (value: string) => {
     setProfile(p => ({
@@ -379,12 +379,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   };
 
   const renderSentimentTable = (items: GrokRecommendation[]) => {
-    if (!items?.length) return <p className="text-gray-400 text-sm py-4 px-4">No recommendations found</p>;
+    if (!items?.length) return <p className="text-text-faint text-sm py-4 px-4">No recommendations found</p>;
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-900 text-white">
+            <tr className="bg-brand-purple text-white">
               <th className="py-3 px-2 text-center w-10">+</th>
               <th className="py-3 px-2 text-center w-10">#</th>
               <th className="py-3 px-2 w-14">Photo</th>
@@ -401,21 +401,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             {items.map((rec, idx) => {
               const selected = isSelected(rec);
               return (
-                <tr key={idx} className={selected ? 'bg-green-50' : idx % 2 ? 'bg-gray-50' : 'bg-white'}>
+                <tr key={idx} className={selected ? 'bg-green-50' : idx % 2 ? 'bg-bg-row' : 'bg-white'}>
                   <td className="py-2 px-2 text-center">
-                    <button onClick={() => handleSelectItem(rec)} className={'w-7 h-7 rounded-full font-bold text-xs ' + (selected ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-blue-500 hover:text-white')}>
+                    <button onClick={() => handleSelectItem(rec)} className={'w-7 h-7 rounded-full font-bold text-xs ' + (selected ? 'bg-green-500 text-white' : 'bg-border hover:bg-brand-purple hover:text-white')}>
                       {selected ? '✓' : '+'}
                     </button>
                   </td>
                   <td className="py-2 px-2 text-center">
-                    <span className={'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ' + (rec.valueRank <= 3 ? 'bg-green-500 text-white' : rec.valueRank <= 6 ? 'bg-yellow-400 text-white' : 'bg-gray-300')}>{rec.valueRank}</span>
+                    <span className={'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ' + (rec.valueRank <= 3 ? 'bg-green-500 text-white' : rec.valueRank <= 6 ? 'bg-yellow-400 text-white' : 'bg-border')}>{rec.valueRank}</span>
                   </td>
                   <td className="py-2 px-2">
-                    {rec.photoUrl ? <img src={rec.photoUrl} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">📷</div>}
+                    {rec.photoUrl ? <img src={rec.photoUrl} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-border rounded flex items-center justify-center text-text-faint text-xs">📷</div>}
                   </td>
                   <td className="py-2 px-2">
-                    <div className="font-medium text-gray-900">{rec.name}</div>
-                    <div className="text-xs text-gray-500">⭐ {rec.googleRating} ({rec.reviewCount}) {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">Visit →</a>}</div>
+                    <div className="font-medium text-text-primary">{rec.name}</div>
+                    <div className="text-xs text-text-muted">⭐ {rec.googleRating} ({rec.reviewCount}) {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline ml-1">Visit →</a>}</div>
                   </td>
                   <td className="py-2 px-2 text-center">
                     <span className={'inline-block px-2 py-0.5 rounded-full text-xs font-medium ' + getSentimentColor(rec.sentiment)}>
@@ -423,18 +423,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     </span>
                   </td>
                   <td className="py-2 px-2 text-center">
-                    <span className={'text-lg font-bold ' + getScoreColor(rec.sentimentScore)}>{rec.sentimentScore}</span>
-                    <span className="text-xs text-gray-400">/10</span>
+                    <span className={'text-terminal-lg font-bold ' + getScoreColor(rec.sentimentScore)}>{rec.sentimentScore}</span>
+                    <span className="text-xs text-text-faint">/10</span>
                   </td>
-                  <td className="py-2 px-2 text-xs text-gray-600 max-w-[280px]">
+                  <td className="py-2 px-2 text-xs text-text-secondary max-w-[280px]">
                     <div className="line-clamp-3">{rec.summary}</div>
                   </td>
                   <td className="py-2 px-2 text-xs max-w-[140px]">
-                    {rec.warnings.length > 0 ? rec.warnings.slice(0, 2).map((w, i) => <div key={i} className="text-orange-600">⚠️ {w}</div>) : <span className="text-gray-300">—</span>}
+                    {rec.warnings.length > 0 ? rec.warnings.slice(0, 2).map((w, i) => <div key={i} className="text-orange-600">⚠️ {w}</div>) : <span className="text-text-faint">—</span>}
                   </td>
-                  <td className="py-2 px-2 text-center">{rec.trending ? <span title="Trending">🔥</span> : <span className="text-gray-300">—</span>}</td>
+                  <td className="py-2 px-2 text-center">{rec.trending ? <span title="Trending">🔥</span> : <span className="text-text-faint">—</span>}</td>
                   <td className="py-2 px-2 text-center">
-                    <span className={'inline-block px-2 py-0.5 rounded text-xs font-bold ' + (rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700')}>{rec.fitScore}/10</span>
+                    <span className={'inline-block px-2 py-0.5 rounded text-xs font-bold ' + (rec.fitScore >= 8 ? 'bg-green-100 text-brand-green' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-brand-red')}>{rec.fitScore}/10</span>
                   </td>
                 </tr>
               );
@@ -448,19 +448,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   return (
     <div className="space-y-6">
       {/* Profile Summary - Polished Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-sm">
         <div className="absolute inset-0 bg-black/10" />
         <div className="relative flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-white/80 text-sm font-medium mb-1">
               <span className="animate-pulse">🤖</span> Powered by Grok AI
             </div>
-            <h2 className="text-xl font-bold mb-1">Trip Intelligence</h2>
+            <h2 className="text-sm font-bold mb-1">Trip Intelligence</h2>
             <p className="text-white/80 text-sm">{getProfileSummary()}</p>
           </div>
           <button 
             onClick={() => { setShowProfileModal(true); setProfileStep(1); }} 
-            className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl text-sm font-semibold transition-all border border-white/20"
+            className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-sm font-semibold transition-all border border-white/20"
           >
             ✏️ Customize Profile
           </button>
@@ -468,16 +468,16 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       </div>
 
       {/* Search Controls */}
-      <div className="flex flex-wrap items-end gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+      <div className="flex flex-wrap items-end gap-4 p-4 bg-bg-row rounded border border-border">
         <div>
-          <label className="text-xs text-gray-500 font-medium block mb-1.5">⭐ Min Rating</label>
-          <select value={minRating} onChange={e => setMinRating(+e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white">
+          <label className="text-xs text-text-muted font-medium block mb-1.5">⭐ Min Rating</label>
+          <select value={minRating} onChange={e => setMinRating(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={3.5}>3.5+</option><option value={4.0}>4.0+</option><option value={4.5}>4.5+</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 font-medium block mb-1.5">📊 Min Reviews</label>
-          <select value={minReviews} onChange={e => setMinReviews(+e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white">
+          <label className="text-xs text-text-muted font-medium block mb-1.5">📊 Min Reviews</label>
+          <select value={minReviews} onChange={e => setMinReviews(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={10}>10+</option><option value={50}>50+</option><option value={100}>100+</option>
           </select>
         </div>
@@ -486,20 +486,20 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </Button>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 rounded p-4 text-brand-red text-sm">{error}</div>}
 
       {loading && (
-        <div className="text-center py-16 bg-gradient-to-b from-purple-50 to-white rounded-2xl border border-purple-100">
+        <div className="text-center py-16 bg-gradient-to-b from-purple-50 to-white rounded border border-purple-100">
           <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-700 font-semibold text-lg">Grok is analyzing {city}...</p>
+          <p className="text-text-secondary font-semibold text-terminal-lg">Grok is analyzing {city}...</p>
           {loadingCategory && (
             <p className="text-purple-600 text-sm mt-2 font-medium">
               {loadingCategory} ({completedCount + 1}/{totalCategories})
             </p>
           )}
-          <p className="text-gray-400 text-xs mt-1">Each category takes ~30 seconds</p>
+          <p className="text-text-faint text-xs mt-1">Each category takes ~30 seconds</p>
           {completedCount > 0 && (
-            <div className="mt-4 mx-auto w-64 bg-gray-200 rounded-full h-2">
+            <div className="mt-4 mx-auto w-64 bg-border rounded-full h-2">
               <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
             </div>
           )}
@@ -509,12 +509,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Enhanced Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded max-w-2xl w-full shadow-sm max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-xl">Tell Us About Your Trip</h3>
+                  <h3 className="font-bold text-sm">Tell Us About Your Trip</h3>
                   <p className="text-white/80 text-sm mt-1">So we can find the perfect spots for you</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -531,28 +531,28 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               {profileStep === 1 && (
                 <div className="space-y-4">
                   <div className="text-center mb-6">
-                    <h4 className="font-semibold text-lg text-gray-800">What kind of trip is this?</h4>
-                    <p className="text-gray-500 text-sm">Choose the style that best describes your adventure</p>
+                    <h4 className="font-semibold text-terminal-lg text-text-primary">What kind of trip is this?</h4>
+                    <p className="text-text-muted text-sm">Choose the style that best describes your adventure</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     {TRIP_TYPES.map(opt => (
                       <button key={opt.value} onClick={() => setProfile(p => ({ ...p, tripType: opt.value }))}
-                        className={'relative p-4 rounded-xl border-2 text-center transition-all hover:scale-[1.02] ' + (profile.tripType === opt.value ? 'border-purple-500 bg-purple-50 shadow-lg' : 'border-gray-200 hover:border-gray-300')}>
-                        <div className={'w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-br ' + opt.color + ' flex items-center justify-center text-2xl text-white shadow-md'}>
+                        className={'relative p-4 rounded border-2 text-center transition-all hover:scale-[1.02] ' + (profile.tripType === opt.value ? 'border-purple-500 bg-purple-50 shadow-sm' : 'border-border hover:border-border')}>
+                        <div className={'w-12 h-12 mx-auto mb-2 rounded bg-gradient-to-br ' + opt.color + ' flex items-center justify-center text-sm text-white shadow-sm'}>
                           {opt.icon}
                         </div>
-                        <div className="font-semibold text-sm text-gray-800">{opt.label}</div>
-                        <div className="text-xs text-gray-500 mt-1 line-clamp-2">{opt.desc}</div>
+                        <div className="font-semibold text-sm text-text-primary">{opt.label}</div>
+                        <div className="text-xs text-text-muted mt-1 line-clamp-2">{opt.desc}</div>
                         {profile.tripType === opt.value && <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>}
                       </button>
                     ))}
                   </div>
                   <div className="mt-6">
-                    <label className="text-sm font-medium text-gray-700 block mb-2">👥 Group Size</label>
+                    <label className="text-sm font-medium text-text-secondary block mb-2">👥 Group Size</label>
                     <div className="flex gap-2">
                       {[1,2,3,4,5,6,'7+'].map(n => (
                         <button key={n} onClick={() => setProfile(p => ({ ...p, groupSize: typeof n === 'number' ? n : 7 }))}
-                          className={'flex-1 py-3 rounded-lg font-medium transition-all ' + (profile.groupSize === (typeof n === 'number' ? n : 7) ? 'bg-purple-500 text-white' : 'bg-gray-100 hover:bg-gray-200')}>
+                          className={'flex-1 py-3 rounded font-medium transition-all ' + (profile.groupSize === (typeof n === 'number' ? n : 7) ? 'bg-purple-500 text-white' : 'bg-bg-row hover:bg-border')}>
                           {n}
                         </button>
                       ))}
@@ -565,18 +565,18 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               {profileStep === 2 && (
                 <div className="space-y-4">
                   <div className="text-center mb-6">
-                    <h4 className="font-semibold text-lg text-gray-800">What's your daily budget?</h4>
-                    <p className="text-gray-500 text-sm">Per person, including accommodation</p>
+                    <h4 className="font-semibold text-terminal-lg text-text-primary">What's your daily budget?</h4>
+                    <p className="text-text-muted text-sm">Per person, including accommodation</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {BUDGET_OPTIONS.map(opt => (
                       <button key={opt.value} onClick={() => setProfile(p => ({ ...p, budget: opt.value }))}
-                        className={'relative p-5 rounded-xl border-2 text-left transition-all ' + (profile.budget === opt.value ? 'border-purple-500 bg-purple-50' : opt.color + ' hover:border-gray-400')}>
+                        className={'relative p-5 rounded border-2 text-left transition-all ' + (profile.budget === opt.value ? 'border-purple-500 bg-purple-50' : opt.color + ' hover:border-border')}>
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{opt.icon}</span>
+                          <span className="text-sm">{opt.icon}</span>
                           <div>
-                            <div className="font-bold text-lg text-gray-800">{opt.label}<span className="text-sm font-normal text-gray-500">{opt.sublabel}</span></div>
-                            <div className="text-sm text-gray-500">{opt.desc}</div>
+                            <div className="font-bold text-terminal-lg text-text-primary">{opt.label}<span className="text-sm font-normal text-text-muted">{opt.sublabel}</span></div>
+                            <div className="text-sm text-text-muted">{opt.desc}</div>
                           </div>
                         </div>
                         {profile.budget === opt.value && <div className="absolute top-3 right-3 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>}
@@ -590,16 +590,16 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               {profileStep === 3 && (
                 <div className="space-y-4">
                   <div className="text-center mb-6">
-                    <h4 className="font-semibold text-lg text-gray-800">What matters most to you?</h4>
-                    <p className="text-gray-500 text-sm">Select up to 6 priorities • {(profile.priorities || []).length}/6 selected</p>
+                    <h4 className="font-semibold text-terminal-lg text-text-primary">What matters most to you?</h4>
+                    <p className="text-text-muted text-sm">Select up to 6 priorities • {(profile.priorities || []).length}/6 selected</p>
                   </div>
                   {PRIORITY_GROUPS.map(group => (
                     <div key={group.label} className="mb-4">
-                      <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{group.label}</h5>
+                      <h5 className="text-xs font-semibold text-text-faint uppercase tracking-wider mb-2">{group.label}</h5>
                       <div className="flex flex-wrap gap-2">
                         {group.priorities.map(p => (
                           <button key={p.value} onClick={() => togglePriority(p.value)}
-                            className={'px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ' + ((profile.priorities || []).includes(p.value) ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-gray-200 hover:border-gray-300')}>
+                            className={'px-3 py-2 rounded border-2 text-sm font-medium transition-all ' + ((profile.priorities || []).includes(p.value) ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-border hover:border-border')}>
                             {p.icon} {p.label}
                           </button>
                         ))}
@@ -613,21 +613,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               {profileStep === 4 && (
                 <div className="space-y-6">
                   <div className="text-center mb-4">
-                    <h4 className="font-semibold text-lg text-gray-800">What's your travel style?</h4>
-                    <p className="text-gray-500 text-sm">Help us match the vibe</p>
+                    <h4 className="font-semibold text-terminal-lg text-text-primary">What's your travel style?</h4>
+                    <p className="text-text-muted text-sm">Help us match the vibe</p>
                   </div>
                   
                   <div>
-                    <h5 className="text-sm font-semibold text-gray-700 mb-3">🎭 Travel Vibe <span className="font-normal text-gray-400">(pick up to 3)</span></h5>
+                    <h5 className="text-sm font-semibold text-text-secondary mb-3">🎭 Travel Vibe <span className="font-normal text-text-faint">(pick up to 3)</span></h5>
                     <div className="grid grid-cols-2 gap-2">
                       {VIBE_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => toggleVibe(opt.value)}
-                          className={'p-3 rounded-xl border-2 text-left transition-all ' + ((profile.vibe || []).includes(opt.value) ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300')}>
+                          className={'p-3 rounded border-2 text-left transition-all ' + ((profile.vibe || []).includes(opt.value) ? 'border-purple-500 bg-purple-50' : 'border-border hover:border-border')}>
                           <div className="flex items-center gap-2">
-                            <span className="text-xl">{opt.icon}</span>
+                            <span className="text-sm">{opt.icon}</span>
                             <div>
                               <div className="font-medium text-sm">{opt.label}</div>
-                              <div className="text-xs text-gray-500">{opt.desc}</div>
+                              <div className="text-xs text-text-muted">{opt.desc}</div>
                             </div>
                           </div>
                         </button>
@@ -636,14 +636,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                   </div>
 
                   <div>
-                    <h5 className="text-sm font-semibold text-gray-700 mb-3">⏱️ Trip Pace</h5>
+                    <h5 className="text-sm font-semibold text-text-secondary mb-3">⏱️ Trip Pace</h5>
                     <div className="flex gap-3">
                       {PACE_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => setProfile(p => ({ ...p, pace: opt.value }))}
-                          className={'flex-1 p-4 rounded-xl border-2 text-center transition-all ' + (profile.pace === opt.value ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300')}>
-                          <div className="text-2xl mb-1">{opt.icon}</div>
+                          className={'flex-1 p-4 rounded border-2 text-center transition-all ' + (profile.pace === opt.value ? 'border-purple-500 bg-purple-50' : 'border-border hover:border-border')}>
+                          <div className="text-sm mb-1">{opt.icon}</div>
                           <div className="font-medium text-sm">{opt.label}</div>
-                          <div className="text-xs text-gray-500">{opt.desc}</div>
+                          <div className="text-xs text-text-muted">{opt.desc}</div>
                         </button>
                       ))}
                     </div>
@@ -653,7 +653,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-3">
+            <div className="border-t border-border p-4 bg-bg-row flex gap-3">
               {profileStep > 1 && (
                 <Button variant="secondary" onClick={() => setProfileStep(s => s - 1)} className="flex-1">
                   ← Back
@@ -676,16 +676,16 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Edit Selection Modal */}
       {editingSelection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 className="font-bold text-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon} {editingSelection.item.name}</h3>
-            <p className="text-sm text-gray-500 mb-4">Sentiment: {editingSelection.item.sentiment} ({editingSelection.item.sentimentScore}/10)</p>
+          <div className="bg-white rounded max-w-lg w-full p-6 shadow-sm">
+            <h3 className="font-bold text-terminal-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon} {editingSelection.item.name}</h3>
+            <p className="text-sm text-text-muted mb-4">Sentiment: {editingSelection.item.sentiment} ({editingSelection.item.sentimentScore}/10)</p>
             
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium block mb-2">Rate Type</label>
                 <div className="flex gap-2">
                   {(['daily', 'weekly', 'monthly'] as const).map(r => (
-                    <button key={r} onClick={() => setEditForm(p => ({...p, rateType: r}))} className={'px-4 py-2 rounded-lg text-sm font-medium ' + (editForm.rateType === r ? 'bg-purple-500 text-white' : 'bg-gray-100')}>{r}</button>
+                    <button key={r} onClick={() => setEditForm(p => ({...p, rateType: r}))} className={'px-4 py-2 rounded text-sm font-medium ' + (editForm.rateType === r ? 'bg-purple-500 text-white' : 'bg-bg-row')}>{r}</button>
                   ))}
                 </div>
               </div>
@@ -693,23 +693,23 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                 <div className="flex justify-between mb-2">
                   <label className="text-sm font-medium">Days</label>
                   <div className="flex gap-2">
-                    <button onClick={() => setEditForm(p => ({ ...p, days: [...tripDays] }))} className="text-xs px-2 py-1 bg-gray-100 rounded">All</button>
-                    <button onClick={() => setEditForm(p => ({ ...p, days: [] }))} className="text-xs px-2 py-1 bg-gray-100 rounded">Clear</button>
+                    <button onClick={() => setEditForm(p => ({ ...p, days: [...tripDays] }))} className="text-xs px-2 py-1 bg-bg-row rounded">All</button>
+                    <button onClick={() => setEditForm(p => ({ ...p, days: [] }))} className="text-xs px-2 py-1 bg-bg-row rounded">Clear</button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {tripDays.map(d => (
                     <button key={d} onClick={() => setEditForm(p => ({ ...p, days: p.days.includes(d) ? p.days.filter(x => x !== d) : [...p.days, d].sort((a,b) => a-b) }))}
-                      className={'w-9 h-9 rounded-lg text-sm font-medium ' + (editForm.days.includes(d) ? 'bg-purple-500 text-white' : 'bg-gray-100')}>{d}</button>
+                      className={'w-9 h-9 rounded text-sm font-medium ' + (editForm.days.includes(d) ? 'bg-purple-500 text-white' : 'bg-bg-row')}>{d}</button>
                   ))}
                 </div>
               </div>
-              <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+              <div className="bg-purple-50 rounded p-4 border border-purple-200">
                 <div className="flex justify-between mb-2">
                   <span className="text-sm">Price ({editForm.rateType}):</span>
                   <input type="number" value={editForm.customPrice} onChange={e => setEditForm(f => ({ ...f, customPrice: +e.target.value }))} className="w-24 border rounded px-2 py-1 text-right" min={0} />
                 </div>
-                <div className="flex justify-between text-lg font-bold text-purple-700 border-t border-purple-200 pt-2 mt-2">
+                <div className="flex justify-between text-terminal-lg font-bold text-purple-700 border-t border-purple-200 pt-2 mt-2">
                   <span>Total:</span>
                   <span>${editForm.rateType === 'monthly' ? editForm.customPrice : editForm.rateType === 'weekly' ? editForm.customPrice * Math.ceil(editForm.days.length / 7) : editForm.customPrice * editForm.days.length}</span>
                 </div>
@@ -726,40 +726,40 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Custom Add Modal */}
       {showCustomModal && customCategory && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden">
+          <div className="bg-white rounded max-w-lg w-full shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 text-white">
-              <h3 className="font-bold text-lg">➕ Add Custom {CATEGORY_INFO[customCategory]?.label}</h3>
+              <h3 className="font-bold text-terminal-lg">➕ Add Custom {CATEGORY_INFO[customCategory]?.label}</h3>
               <p className="text-white/80 text-sm">Paste a URL or enter details manually</p>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">🔗 Paste URL (optional)</label>
+                <label className="text-sm font-medium text-text-secondary block mb-2">🔗 Paste URL (optional)</label>
                 <div className="flex gap-2">
-                  <input type="url" value={customForm.url} onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
-                  <button onClick={() => fetchUrlPreview(customForm.url)} disabled={!customForm.url || customLoading} className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-purple-600">
+                  <input type="url" value={customForm.url} onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." className="flex-1 border border-border rounded px-3 py-2.5 text-sm" />
+                  <button onClick={() => fetchUrlPreview(customForm.url)} disabled={!customForm.url || customLoading} className="px-4 py-2 bg-purple-500 text-white rounded text-sm font-medium disabled:opacity-50 hover:bg-purple-600">
                     {customLoading ? "..." : "Fetch"}
                   </button>
                 </div>
               </div>
               {customPreview?.image && (
-                <div className="rounded-xl overflow-hidden border border-gray-200">
+                <div className="rounded overflow-hidden border border-border">
                   <img src={customPreview.image} alt="Preview" className="w-full h-40 object-cover" />
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">📍 Name *</label>
-                <input type="text" value={customForm.name} onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))} placeholder="Villa Sunset Paradise" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
+                <label className="text-sm font-medium text-text-secondary block mb-2">📍 Name *</label>
+                <input type="text" value={customForm.name} onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))} placeholder="Villa Sunset Paradise" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">💰 Price</label>
-                <input type="text" value={customForm.price} onChange={e => setCustomForm(f => ({ ...f, price: e.target.value }))} placeholder="$150/night" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
+                <label className="text-sm font-medium text-text-secondary block mb-2">💰 Price</label>
+                <input type="text" value={customForm.price} onChange={e => setCustomForm(f => ({ ...f, price: e.target.value }))} placeholder="$150/night" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">📝 Notes (optional)</label>
-                <input type="text" value={customForm.notes} onChange={e => setCustomForm(f => ({ ...f, notes: e.target.value }))} placeholder="Great reviews, close to beach" className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
+                <label className="text-sm font-medium text-text-secondary block mb-2">📝 Notes (optional)</label>
+                <input type="text" value={customForm.notes} onChange={e => setCustomForm(f => ({ ...f, notes: e.target.value }))} placeholder="Great reviews, close to beach" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
             </div>
-            <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-3">
+            <div className="border-t border-border p-4 bg-bg-row flex gap-3">
               <Button variant="secondary" onClick={() => setShowCustomModal(false)} className="flex-1">Cancel</Button>
               <Button onClick={handleAddCustomItem} className="flex-1" disabled={!customForm.name}>➕ Add to Plan</Button>
             </div>
@@ -769,19 +769,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
       {/* Budget Summary */}
       {selections.length > 0 && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-5">
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded p-5">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-purple-800 text-lg">🗺️ Your Trip Plan ({selections.length})</h3>
-            <div className="text-2xl font-bold text-purple-700">${totalBudget.toLocaleString()}</div>
+            <h3 className="font-bold text-purple-800 text-terminal-lg">🗺️ Your Trip Plan ({selections.length})</h3>
+            <div className="text-sm font-bold text-purple-700">${totalBudget.toLocaleString()}</div>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
             {selections.map((sel, idx) => (
-              <div key={idx} className="bg-white rounded-xl border p-4 shadow-sm">
+              <div key={idx} className="bg-white rounded border p-4 shadow-sm">
                 <div className="flex justify-between items-start">
-                  <span className="text-lg">{CATEGORY_INFO[sel.category]?.icon}</span>
-                  <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-red-400 hover:text-red-600 text-sm">✕</button>
+                  <span className="text-terminal-lg">{CATEGORY_INFO[sel.category]?.icon}</span>
+                  <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-brand-red hover:text-brand-red text-sm">✕</button>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">{CATEGORY_INFO[sel.category]?.label}</div>
+                <div className="text-xs text-text-muted mt-1">{CATEGORY_INFO[sel.category]?.label}</div>
                 <div className="font-semibold text-sm truncate">{sel.item.name}</div>
                 <div className="text-purple-600 font-bold">${calculateItemCost(sel).toLocaleString()}</div>
               </div>
@@ -793,19 +793,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Results */}
       {Object.keys(byCategory).length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-bold text-xl text-gray-800">📊 AI Analysis Results <span className="text-sm font-normal text-gray-500">({recommendations.length} places)</span></h3>
+          <h3 className="font-bold text-sm text-text-primary">📊 AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
           {Object.entries(byCategory).map(([cat, items]) => {
             const info = CATEGORY_INFO[cat] || { label: cat, icon: '📍' };
             const isOpen = expandedCategory === cat;
             return (
-              <div key={cat} className="border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setExpandedCategory(isOpen ? null : cat)} className="w-full flex justify-between items-center px-5 py-4 bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <span className="flex items-center gap-3"><span className="text-2xl">{info.icon}</span><span className="font-semibold">{info.label}</span></span>
+              <div key={cat} className="border border-border rounded overflow-hidden">
+                <button onClick={() => setExpandedCategory(isOpen ? null : cat)} className="w-full flex justify-between items-center px-5 py-4 bg-bg-row hover:bg-bg-row transition-colors">
+                  <span className="flex items-center gap-3"><span className="text-sm">{info.icon}</span><span className="font-semibold">{info.label}</span></span>
                   <span className="flex items-center gap-3"><span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span><span className={'transition-transform ' + (isOpen ? 'rotate-180' : '')}>▼</span></span>
                 </button>
                 {isOpen && (<>
                 {renderSentimentTable(items)}
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-200">
+                <div className="px-5 py-3 bg-bg-row border-t border-border">
                   <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">+</span>
                     Add Custom {info.label}
@@ -819,10 +819,10 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       )}
 
       {!loading && Object.keys(byCategory).length === 0 && !error && (
-        <div className="text-center py-16 bg-gradient-to-b from-gray-50 to-white rounded-2xl border border-gray-200">
+        <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
           <div className="text-6xl mb-4">🤖</div>
-          <h3 className="font-bold text-xl text-gray-800 mb-2">Grok AI Trip Analyzer</h3>
-          <p className="text-gray-500">Customize your profile, pick a destination, and let AI find the perfect spots</p>
+          <h3 className="font-bold text-sm text-text-primary mb-2">Grok AI Trip Analyzer</h3>
+          <p className="text-text-muted">Customize your profile, pick a destination, and let AI find the perfect spots</p>
         </div>
       )}
     </div>

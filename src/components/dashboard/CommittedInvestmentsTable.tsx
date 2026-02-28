@@ -298,14 +298,14 @@ function InvColumnFilterDropdown({
   };
 
   return createPortal(
-    <div ref={panelRef} className="fixed bg-white border border-gray-200 rounded-lg shadow-xl z-[100] w-64" style={panelStyle}>
-      <div className="border-b border-gray-100 p-2 space-y-1">
+    <div ref={panelRef} className="fixed bg-white border border-border rounded shadow-sm z-[100] w-64" style={panelStyle}>
+      <div className="border-b border-border-light p-2 space-y-1">
         <button onClick={() => { onSortWithDir(field, 'asc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedAsc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}>
           <span className="text-[10px]">{'\u25B2'}</span> {sortAscLabel}
         </button>
         <button onClick={() => { onSortWithDir(field, 'desc'); onCancel(); }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-50 flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-gray-600'}`}>
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-bg-row flex items-center gap-2 ${isSortedDesc ? 'text-brand-purple-deep font-semibold bg-brand-purple-deep/5' : 'text-text-secondary'}`}>
           <span className="text-[10px]">{'\u25BC'}</span> {sortDescLabel}
         </button>
       </div>
@@ -320,37 +320,37 @@ function InvColumnFilterDropdown({
             )}
             <div className="flex items-center justify-between mb-1 px-1">
               <button onClick={() => setLocalSelected(new Set(filteredValues.map(([v]) => v)))} className="text-[10px] text-brand-purple-deep hover:underline">Select All</button>
-              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-red-500 hover:underline">Clear All</button>
+              <button onClick={() => setLocalSelected(new Set())} className="text-[10px] text-brand-red hover:underline">Clear All</button>
             </div>
             <div className="max-h-[300px] overflow-auto border rounded">
               {filteredValues.map(([val, count]) => (
-                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">
+                <label key={val} className="flex items-center gap-2 px-2 py-1.5 hover:bg-bg-row cursor-pointer text-xs">
                   <input type="checkbox" checked={localSelected.has(val)}
                     onChange={() => setLocalSelected(prev => { const next = new Set(prev); if (next.has(val)) next.delete(val); else next.add(val); return next; })}
                     className="w-3.5 h-3.5 rounded flex-shrink-0" />
                   <span className="truncate flex-1">{val}</span>
-                  <span className="text-gray-400 text-[10px] flex-shrink-0">({count})</span>
+                  <span className="text-text-faint text-[10px] flex-shrink-0">({count})</span>
                 </label>
               ))}
-              {filteredValues.length === 0 && <div className="px-2 py-3 text-center text-gray-400 text-xs">No values found</div>}
+              {filteredValues.length === 0 && <div className="px-2 py-3 text-center text-text-faint text-xs">No values found</div>}
             </div>
           </>
         )}
 
         {filterType === 'dateRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-gray-500 mb-1">From</label>
+            <div><label className="block text-[10px] text-text-muted mb-1">From</label>
               <input ref={searchRef} type="date" value={localFrom} onChange={e => setLocalFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
-            <div><label className="block text-[10px] text-gray-500 mb-1">To</label>
+            <div><label className="block text-[10px] text-text-muted mb-1">To</label>
               <input type="date" value={localTo} onChange={e => setLocalTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
           </div>
         )}
 
         {filterType === 'amountRange' && (
           <div className="space-y-2">
-            <div><label className="block text-[10px] text-gray-500 mb-1">Min</label>
+            <div><label className="block text-[10px] text-text-muted mb-1">Min</label>
               <input ref={searchRef} type="number" placeholder="0" value={localMin} onChange={e => setLocalMin(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
-            <div><label className="block text-[10px] text-gray-500 mb-1">Max</label>
+            <div><label className="block text-[10px] text-text-muted mb-1">Max</label>
               <input type="number" placeholder="999999" value={localMax} onChange={e => setLocalMax(e.target.value)} className="w-full px-2 py-1.5 text-xs border rounded outline-none focus:border-brand-purple-deep" /></div>
           </div>
         )}
@@ -362,10 +362,10 @@ function InvColumnFilterDropdown({
         )}
       </div>
 
-      <div className="border-t border-gray-100 p-2 flex justify-between gap-2">
-        <button onClick={() => onApply(undefined)} className="text-[10px] text-red-500 hover:underline">Clear</button>
+      <div className="border-t border-border-light p-2 flex justify-between gap-2">
+        <button onClick={() => onApply(undefined)} className="text-[10px] text-brand-red hover:underline">Clear</button>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-gray-50">Cancel</button>
+          <button onClick={onCancel} className="px-3 py-1 text-xs border rounded hover:bg-bg-row">Cancel</button>
           <button onClick={handleApply} className="px-3 py-1 text-xs bg-brand-purple-deep text-white rounded hover:bg-brand-purple-hover">Apply</button>
         </div>
       </div>
@@ -553,7 +553,7 @@ export default function CommittedInvestmentsTable({
           />
           {(search || activeColFilterCount > 0) && (
             <button onClick={() => { setSearch(''); setColumnFilters({}); }}
-              className="px-2 py-1 text-terminal-xs text-brand-red hover:text-red-700">
+              className="px-2 py-1 text-terminal-xs text-brand-red hover:text-brand-red">
               Clear All
             </button>
           )}
@@ -648,7 +648,7 @@ export default function CommittedInvestmentsTable({
                     {symbol}
                     {isOption && (
                       <span className={`ml-1 text-[8px] px-0.5 py-0 rounded ${
-                        txn.security?.option_contract_type === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                        txn.security?.option_contract_type === 'call' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-purple-50 text-purple-600'
                       }`}>
                         {txn.security?.option_contract_type?.toUpperCase()}
                       </span>
@@ -656,12 +656,12 @@ export default function CommittedInvestmentsTable({
                   </td>
                   <td className="py-1 px-2">
                     <span className={`text-terminal-xs font-medium px-1 py-0 rounded ${
-                      action === 'BUY' ? 'bg-blue-100 text-blue-700' :
+                      action === 'BUY' ? 'bg-brand-purple-wash text-brand-purple' :
                       action === 'SELL' ? 'bg-orange-100 text-orange-700' :
                       action === 'EXERCISE' || action === 'ASSIGN' ? 'bg-purple-100 text-purple-700' :
-                      action === 'EXPIRE' ? 'bg-gray-100 text-gray-600' :
-                      action === 'DIV' ? 'bg-green-100 text-green-700' :
-                      'bg-gray-100 text-gray-600'
+                      action === 'EXPIRE' ? 'bg-bg-row text-text-secondary' :
+                      action === 'DIV' ? 'bg-green-100 text-brand-green' :
+                      'bg-bg-row text-text-secondary'
                     }`}>
                       {action}
                     </span>

@@ -26,7 +26,7 @@ const CATEGORY_CONFIG: Record<string, { icon: string; color: string; label: stri
   trading: { icon: '📊', color: 'bg-purple-500', label: 'Trading' },
   community: { icon: '🤝', color: 'bg-orange-500', label: 'Community' },
   shopping: { icon: '🛒', color: 'bg-pink-500', label: 'Shopping' },
-  vehicle: { icon: '🚗', color: 'bg-gray-500', label: 'Vehicle' },
+  vehicle: { icon: '🚗', color: 'bg-text-muted', label: 'Vehicle' },
 };
 
 const CADENCE_LABELS: Record<string, string> = {
@@ -95,7 +95,7 @@ export default function AgendaPage() {
     return (
       <AppLayout>
         <div className="p-8 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-brand-accent border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -109,11 +109,11 @@ export default function AgendaPage() {
           <div className="flex items-center gap-3">
             <span className="text-4xl">📋</span>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
-              <p className="text-gray-500">Plan your routine - Build, Fitness, Trading, Community</p>
+              <h1 className="text-sm font-bold text-text-primary">Agenda</h1>
+              <p className="text-text-muted">Plan your routine - Build, Fitness, Trading, Community</p>
             </div>
           </div>
-          <Button onClick={() => router.push('/agenda/new')} className="bg-[#b4b237] hover:bg-[#9a982f] text-white">
+          <Button onClick={() => router.push('/agenda/new')} className="bg-brand-accent hover:bg-brand-accent-dark text-white">
             + New Agenda Item
           </Button>
         </div>
@@ -121,20 +121,20 @@ export default function AgendaPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="p-4">
-            <div className="text-sm text-gray-500">Total Items</div>
-            <div className="text-2xl font-bold text-gray-900">{summary.totalItems}</div>
+            <div className="text-sm text-text-muted">Total Items</div>
+            <div className="text-sm font-bold text-text-primary">{summary.totalItems}</div>
           </div>
           <div className="p-4">
-            <div className="text-sm text-gray-500">Draft</div>
-            <div className="text-2xl font-bold text-yellow-600">{summary.draftCount}</div>
+            <div className="text-sm text-text-muted">Draft</div>
+            <div className="text-sm font-bold text-yellow-600">{summary.draftCount}</div>
           </div>
           <div className="p-4">
-            <div className="text-sm text-gray-500">Committed</div>
-            <div className="text-2xl font-bold text-green-600">{summary.committedCount}</div>
+            <div className="text-sm text-text-muted">Committed</div>
+            <div className="text-sm font-bold text-brand-green">{summary.committedCount}</div>
           </div>
-          <div className="p-4 bg-[#b4b237]/10">
-            <div className="text-sm text-[#8f8c2a]">Monthly Budget</div>
-            <div className="text-2xl font-bold text-[#8f8c2a]">{formatCurrency(summary.totalBudget)}</div>
+          <div className="p-4 bg-brand-accent/10">
+            <div className="text-sm text-brand-accent-dark">Monthly Budget</div>
+            <div className="text-sm font-bold text-brand-accent-dark">{formatCurrency(summary.totalBudget)}</div>
           </div>
         </div>
 
@@ -142,8 +142,8 @@ export default function AgendaPage() {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-              filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            className={`px-4 py-2 rounded text-sm font-medium transition-all whitespace-nowrap ${
+              filter === 'all' ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
             }`}
           >
             All ({items.length})
@@ -154,8 +154,8 @@ export default function AgendaPage() {
               <button
                 key={key}
                 onClick={() => setFilter(key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 ${
-                  filter === key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`px-4 py-2 rounded text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 ${
+                  filter === key ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
                 }`}
               >
                 <span>{config.icon}</span>
@@ -168,7 +168,7 @@ export default function AgendaPage() {
         {/* Draft Items */}
         {draftItems.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-terminal-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <span className="w-3 h-3 bg-yellow-400 rounded-full"></span>
               Draft ({draftItems.length})
             </h2>
@@ -176,12 +176,12 @@ export default function AgendaPage() {
               {draftItems.map(item => (
                 <div
                   key={item.id}
-                  className="p-4 hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-yellow-400"
+                  className="p-4 hover:shadow-sm transition-all cursor-pointer border-l-4 border-l-yellow-400"
                   onClick={() => router.push(`/agenda/${item.id}`)}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className={`w-8 h-8 ${CATEGORY_CONFIG[item.category]?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center text-white`}>
+                      <span className={`w-8 h-8 ${CATEGORY_CONFIG[item.category]?.color || 'bg-text-muted'} rounded flex items-center justify-center text-white`}>
                         {CATEGORY_CONFIG[item.category]?.icon || '📋'}
                       </span>
                       <Badge variant="warning">Draft</Badge>
@@ -189,20 +189,20 @@ export default function AgendaPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                       disabled={deleting === item.id}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      className="text-text-faint hover:text-brand-red transition-colors"
                     >
                       {deleting === item.id ? '...' : '✕'}
                     </button>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                  <div className="text-sm text-gray-500 mb-2">
+                  <h3 className="font-semibold text-text-primary mb-1">{item.name}</h3>
+                  <div className="text-sm text-text-muted mb-2">
                     {CADENCE_LABELS[item.cadence] || item.cadence} • {item.duration_mins} min
                   </div>
                   {item.goal && (
-                    <p className="text-sm text-gray-600 truncate">{item.goal}</p>
+                    <p className="text-sm text-text-secondary truncate">{item.goal}</p>
                   )}
                   {item.budget_amount > 0 && (
-                    <div className="mt-2 text-sm font-medium text-[#8f8c2a]">
+                    <div className="mt-2 text-sm font-medium text-brand-accent-dark">
                       {formatCurrency(item.budget_amount)}/mo
                     </div>
                   )}
@@ -215,7 +215,7 @@ export default function AgendaPage() {
         {/* Committed Items */}
         {committedItems.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-terminal-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <span className="w-3 h-3 bg-green-500 rounded-full"></span>
               Committed ({committedItems.length})
             </h2>
@@ -223,26 +223,26 @@ export default function AgendaPage() {
               {committedItems.map(item => (
                 <div
                   key={item.id}
-                  className="p-4 hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-green-500"
+                  className="p-4 hover:shadow-sm transition-all cursor-pointer border-l-4 border-l-green-500"
                   onClick={() => router.push(`/agenda/${item.id}`)}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className={`w-8 h-8 ${CATEGORY_CONFIG[item.category]?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center text-white`}>
+                      <span className={`w-8 h-8 ${CATEGORY_CONFIG[item.category]?.color || 'bg-text-muted'} rounded flex items-center justify-center text-white`}>
                         {CATEGORY_CONFIG[item.category]?.icon || '📋'}
                       </span>
                       <Badge variant="success">Committed</Badge>
                     </div>
                   </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-                  <div className="text-sm text-gray-500 mb-2">
+                  <h3 className="font-semibold text-text-primary mb-1">{item.name}</h3>
+                  <div className="text-sm text-text-muted mb-2">
                     {CADENCE_LABELS[item.cadence] || item.cadence} • {item.duration_mins} min
                   </div>
                   {item.goal && (
-                    <p className="text-sm text-gray-600 truncate">{item.goal}</p>
+                    <p className="text-sm text-text-secondary truncate">{item.goal}</p>
                   )}
                   {item.budget_amount > 0 && (
-                    <div className="mt-2 text-sm font-medium text-green-600">
+                    <div className="mt-2 text-sm font-medium text-brand-green">
                       {formatCurrency(item.budget_amount)}/mo
                     </div>
                   )}
@@ -256,9 +256,9 @@ export default function AgendaPage() {
         {items.length === 0 && (
           <div className="p-12 text-center">
             <div className="text-5xl mb-4">📋</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No agenda items yet</h3>
-            <p className="text-gray-500 mb-6">Plan your routine with Build, Fitness, Trading, and Community blocks</p>
-            <Button onClick={() => router.push('/agenda/new')} className="bg-[#b4b237] hover:bg-[#9a982f] text-white">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">No agenda items yet</h3>
+            <p className="text-text-muted mb-6">Plan your routine with Build, Fitness, Trading, and Community blocks</p>
+            <Button onClick={() => router.push('/agenda/new')} className="bg-brand-accent hover:bg-brand-accent-dark text-white">
               Create Your First Agenda Item
             </Button>
           </div>

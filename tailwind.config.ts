@@ -23,6 +23,15 @@ const config: Config = {
           green: '#16a34a',
           red: '#c53030',
           amber: '#d97706',
+          accent: '#b4b237',
+          'accent-dark': '#9a9630',
+        },
+        panel: {
+          DEFAULT: '#0d1117',
+          surface: '#161b22',
+          border: '#30363d',
+          hover: '#21262d',
+          highlight: '#1a0f2e',
         },
         bg: {
           terminal: '#f7f6f3',

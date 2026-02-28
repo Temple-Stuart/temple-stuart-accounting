@@ -135,7 +135,7 @@ export default function WashSaleReportTab() {
       <div className="p-3 space-y-3">
         {summary.totalViolations === 0 ? (
           <div className="text-center py-8">
-            <div className="text-lg mb-2">No wash sale violations detected</div>
+            <div className="text-terminal-lg mb-2">No wash sale violations detected</div>
             <div className="text-terminal-sm text-text-muted">
               All losing dispositions have been scanned against the 30-day replacement window.
             </div>
@@ -146,21 +146,21 @@ export default function WashSaleReportTab() {
             <div className="grid grid-cols-4 gap-2">
               <div className="border border-border rounded p-2 bg-red-50">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Disallowed Losses</div>
-                <div className="text-lg font-bold font-mono text-brand-red">
+                <div className="text-terminal-lg font-bold font-mono text-brand-red">
                   {fmt(summary.totalDisallowedLosses)}
                 </div>
               </div>
               <div className="border border-border rounded p-2">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Violations Found</div>
-                <div className="text-lg font-bold font-mono">{summary.totalViolations}</div>
+                <div className="text-terminal-lg font-bold font-mono">{summary.totalViolations}</div>
               </div>
               <div className="border border-border rounded p-2">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Symbols Affected</div>
-                <div className="text-lg font-bold font-mono">{summary.symbolsAffected.length}</div>
+                <div className="text-terminal-lg font-bold font-mono">{summary.symbolsAffected.length}</div>
               </div>
               <div className="border border-border rounded p-2 bg-amber-50">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Est. Tax Impact</div>
-                <div className="text-lg font-bold font-mono text-brand-amber">
+                <div className="text-terminal-lg font-bold font-mono text-brand-amber">
                   {fmt(taxImpact.estimatedAdditionalTax)}
                 </div>
               </div>

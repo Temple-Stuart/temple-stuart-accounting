@@ -10,7 +10,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="w-full bg-white border-b border-gray-100">
+      <header className="w-full bg-white border-b border-border-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4 sm:py-6">
             {/* Logo */}
@@ -29,7 +29,7 @@ export default function Header() {
             <div className="flex items-center space-x-3 sm:space-x-4">
               <button 
                 onClick={() => setShowLogin(true)}
-                className="group inline-flex items-center px-6 sm:px-8 py-3 bg-gray-900 text-white font-medium rounded-full hover:bg-[#b4b237] transition-all text-sm sm:text-base shadow-lg hover:shadow-[#b4b237]/25"
+                className="group inline-flex items-center px-6 sm:px-8 py-3 bg-brand-purple text-white font-medium rounded-full hover:bg-brand-accent transition-all text-sm sm:text-base shadow-sm hover:shadow-brand-accent/25"
               >
                 Enter
                 <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,7 +38,7 @@ export default function Header() {
               </button>
               <a 
                 href="mailto:astuart@templestuart.com?subject=Project%20Inquiry"
-                className="inline-flex items-center px-6 sm:px-8 py-3 bg-white border-2 border-gray-900 text-gray-900 font-medium rounded-full hover:border-[#b4b237] hover:text-[#b4b237] transition-all text-sm sm:text-base"
+                className="inline-flex items-center px-6 sm:px-8 py-3 bg-white border-2 border-border text-text-primary font-medium rounded-full hover:border-brand-accent hover:text-brand-accent transition-all text-sm sm:text-base"
               >
                 Email
               </a>

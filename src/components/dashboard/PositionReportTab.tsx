@@ -130,7 +130,7 @@ export default function PositionReportTab() {
     return val < 0 ? `(${formatted})` : formatted;
   };
 
-  const plColor = (val: number) => val >= 0 ? 'text-green-700' : 'text-red-700';
+  const plColor = (val: number) => val >= 0 ? 'text-brand-green' : 'text-brand-red';
 
   const fmtDate = (d: string | null) => {
     if (!d) return '-';
@@ -183,29 +183,29 @@ export default function PositionReportTab() {
           <div className="grid grid-cols-5 gap-2">
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Total Realized P&L</div>
-              <div className={`text-lg font-bold font-mono ${plColor(summary.totalRealizedPL)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.totalRealizedPL)}`}>
                 {fmt(summary.totalRealizedPL)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Short-Term P&L</div>
-              <div className={`text-lg font-bold font-mono ${plColor(summary.shortTermPL)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.shortTermPL)}`}>
                 {fmt(summary.shortTermPL)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Long-Term P&L</div>
-              <div className={`text-lg font-bold font-mono ${plColor(summary.longTermPL)}`}>
+              <div className={`text-terminal-lg font-bold font-mono ${plColor(summary.longTermPL)}`}>
                 {fmt(summary.longTermPL)}
               </div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Win Rate</div>
-              <div className="text-lg font-bold font-mono">{summary.winRate}%</div>
+              <div className="text-terminal-lg font-bold font-mono">{summary.winRate}%</div>
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Profit Factor</div>
-              <div className="text-lg font-bold font-mono">
+              <div className="text-terminal-lg font-bold font-mono">
                 {summary.profitFactor >= 999 ? 'N/A' : summary.profitFactor.toFixed(2)}
               </div>
             </div>
@@ -215,13 +215,13 @@ export default function PositionReportTab() {
           <div className="grid grid-cols-2 gap-3">
             <div className="border border-border rounded p-3">
               <h4 className="text-terminal-lg font-semibold mb-2">Options P&L</h4>
-              <div className={`text-xl font-bold font-mono ${plColor(summary.optionRealizedPL)}`}>
+              <div className={`text-sm font-bold font-mono ${plColor(summary.optionRealizedPL)}`}>
                 {fmt(summary.optionRealizedPL)}
               </div>
             </div>
             <div className="border border-border rounded p-3">
               <h4 className="text-terminal-lg font-semibold mb-2">Stocks P&L</h4>
-              <div className={`text-xl font-bold font-mono ${plColor(summary.stockRealizedPL)}`}>
+              <div className={`text-sm font-bold font-mono ${plColor(summary.stockRealizedPL)}`}>
                 {fmt(summary.stockRealizedPL)}
               </div>
               <div className="flex gap-4 mt-2 text-terminal-sm text-text-muted">

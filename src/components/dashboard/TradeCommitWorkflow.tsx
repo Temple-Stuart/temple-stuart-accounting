@@ -548,7 +548,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
   if (error) {
     return (
       <div className="p-3 bg-red-50 border border-red-200 rounded">
-        <div className="text-red-600">Error: {error}</div>
+        <div className="text-brand-red">Error: {error}</div>
         <button onClick={fetchData} className="mt-2 text-blue-600 underline">Retry</button>
       </div>
     );
@@ -569,7 +569,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           <button
             onClick={() => { setActiveTab('opens'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
-              activeTab === 'opens' ? 'bg-green-100 text-green-700' : 'bg-bg-row text-text-muted'
+              activeTab === 'opens' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-muted'
             }`}
           >
             1. Opens ({opens.length})
@@ -585,7 +585,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           <button
             onClick={() => { setActiveTab('trades'); clearSelection(); setTxnSearch(''); }}
             className={`px-4 py-2 rounded text-terminal-sm font-medium transition-colors ${
-              activeTab === 'trades' ? 'bg-blue-100 text-blue-700' : 'bg-bg-row text-text-muted'
+              activeTab === 'trades' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-bg-row text-text-muted'
             }`}
           >
             3. Trades ({openTrades.length})
@@ -610,7 +610,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-medium text-terminal-sm">{selectedIds.size} legs selected</span>
-                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                     Net: ${Math.abs(selectedTotal).toFixed(2)} {selectedTotal < 0 ? 'CR' : 'DR'}
                   </span>
                 </div>
@@ -679,7 +679,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                       <td className="py-1 px-2 font-medium text-terminal-base text-text-primary">{ticker}</td>
                       <td className="py-1 px-2">
                         <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
-                          t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                          t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-brand-purple-wash text-brand-purple'
                         }`}>
                           {t.action.includes('sell') ? 'SELL' : 'BUY'}
                         </span>
@@ -700,7 +700,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                       <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">{t.quantity}</td>
                       <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">${t.price?.toFixed(2)}</td>
                       <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap">
-                        <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
+                        <span className={t.amount < 0 ? 'text-brand-green' : 'text-brand-red'}>
                           ${Math.abs(t.amount).toFixed(2)}
                           <span className="text-terminal-xs text-text-muted ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
                         </span>
@@ -735,7 +735,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-medium text-terminal-sm">{selectedIds.size} closing legs selected</span>
-                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`ml-3 font-mono font-semibold ${selectedTotal < 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                     Net: ${Math.abs(selectedTotal).toFixed(2)} {selectedTotal < 0 ? 'CR' : 'DR'}
                   </span>
                 </div>
@@ -816,7 +816,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                         <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
                           t.action.includes('sell') ? 'bg-orange-100 text-orange-700' :
                           t.action.includes('exercise') || t.action.includes('assignment') ? 'bg-purple-100 text-purple-700' :
-                          'bg-blue-100 text-blue-700'
+                          'bg-brand-purple-wash text-brand-purple'
                         }`}>
                           {t.action.includes('sell') ? 'SELL' :
                            t.action.includes('exercise') ? 'EXERCISE' :
@@ -839,7 +839,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                       <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">{t.quantity}</td>
                       <td className="py-1 px-2 text-right font-mono text-terminal-base text-text-primary">${t.price?.toFixed(2)}</td>
                       <td className="py-1 px-2 text-right font-mono font-semibold whitespace-nowrap">
-                        <span className={t.amount < 0 ? 'text-green-600' : 'text-red-600'}>
+                        <span className={t.amount < 0 ? 'text-brand-green' : 'text-brand-red'}>
                           ${Math.abs(t.amount).toFixed(2)}
                           <span className="text-terminal-xs text-text-muted ml-1">{t.amount < 0 ? 'CR' : 'DR'}</span>
                         </span>
@@ -893,13 +893,13 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                       <td className="py-1 px-2 font-mono font-bold text-brand-purple">#{trade.trade_num}</td>
                       <td className="py-1 px-2 font-medium text-terminal-base text-text-primary">{trade.symbol}</td>
                       <td className="py-1 px-2">
-                        <span className="text-terminal-xs font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                        <span className="text-terminal-xs font-medium px-1.5 py-0.5 rounded bg-brand-purple-wash text-brand-purple">
                           {trade.strategy}
                         </span>
                       </td>
                       <td className="py-1 px-2">
                         <span className={`text-terminal-xs font-medium px-1.5 py-0.5 rounded ${
-                          trade.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-bg-row text-text-muted'
+                          trade.status === 'OPEN' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-muted'
                         }`}>{trade.status}</span>
                       </td>
                       <td className="py-1 px-2 font-mono text-text-muted">
@@ -959,10 +959,10 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
                 <div key={action.id} className="border border-border rounded p-3 bg-white">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="font-bold text-lg">{action.symbol}</span>
+                      <span className="font-bold text-terminal-lg">{action.symbol}</span>
                       <span className={`ml-2 text-terminal-xs px-2 py-0.5 rounded ${
                         action.action_type === 'REVERSE_SPLIT' ? 'bg-orange-100 text-orange-700' :
-                        action.action_type === 'SPLIT' ? 'bg-green-100 text-green-700' :
+                        action.action_type === 'SPLIT' ? 'bg-green-100 text-brand-green' :
                         'bg-bg-row text-text-muted'
                       }`}>
                         {action.action_type.replace('_', ' ')}
@@ -998,7 +998,7 @@ export default function TradeCommitWorkflow({ onReload }: TradeCommitWorkflowPro
           {showCorpActionModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded p-3 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Record Corporate Action</h2>
+                <h2 className="text-sm font-bold mb-4">Record Corporate Action</h2>
                 
                 <div className="space-y-4">
                   <div>

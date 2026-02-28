@@ -31,7 +31,7 @@ export default function LeadsPage() {
           Lead Tracker
         </h1>
         
-        <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+        <div className="bg-white rounded shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-purple-600 to-amber-500 text-white">
@@ -48,7 +48,7 @@ export default function LeadsPage() {
               </thead>
               <tbody>
                 {leads.map((lead: any, index: number) => (
-                  <tr key={lead.id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <tr key={lead.id} className={index % 2 === 0 ? 'bg-bg-row' : 'bg-white'}>
                     <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 font-semibold">{lead.businessName}</td>
                     <td className="px-4 py-3">{lead.contactName}</td>
@@ -61,7 +61,7 @@ export default function LeadsPage() {
                     <td className="px-4 py-3">${lead.oneTimeTotal.toLocaleString()}</td>
                     <td className="px-4 py-3">${lead.monthlyTotal.toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                      <span className="px-2 py-1 bg-green-100 text-brand-green rounded-full text-sm">
                         {lead.status}
                       </span>
                     </td>

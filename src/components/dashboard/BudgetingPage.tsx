@@ -220,7 +220,7 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
                         <Button size="sm" onClick={() => handleAction(e.id, 'commit')} disabled={actionLoading === e.id}>
                           {actionLoading === e.id ? '...' : 'Commit'}
                         </Button>
-                        <button className="text-brand-red text-terminal-sm hover:text-red-700 px-1" onClick={() => handleDelete(e.id)}>×</button>
+                        <button className="text-brand-red text-terminal-sm hover:text-brand-red px-1" onClick={() => handleDelete(e.id)}>×</button>
                       </span>
                     </td>
                   </tr>
@@ -248,7 +248,7 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
         {/* Empty State */}
         {expenses.length === 0 && coaAccounts.length > 0 && (
           <div className="border border-border rounded bg-white px-4 py-6 text-center">
-            <span className="text-lg">{emoji}</span>
+            <span className="text-terminal-lg">{emoji}</span>
             <p className="text-terminal-sm text-text-muted mt-1 font-mono">No {category.toLowerCase()} expenses yet</p>
             <p className="text-terminal-xs text-text-faint mt-0.5">Click "+ ADD" to create your first entry</p>
           </div>

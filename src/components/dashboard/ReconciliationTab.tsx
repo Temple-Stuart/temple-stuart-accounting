@@ -85,7 +85,7 @@ export default function ReconciliationTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-xl text-gray-600">Loading reconciliation data...</div>
+        <div className="text-sm text-text-secondary">Loading reconciliation data...</div>
       </div>
     );
   }
@@ -93,23 +93,23 @@ export default function ReconciliationTab() {
   return (
     <div className="space-y-6">
       {/* Summary Card */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded shadow p-6">
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-gray-600">Total Accounts</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-text-secondary">Total Accounts</p>
+            <p className="text-sm font-bold text-text-primary">
               {reconciliationItems.length}
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-600">Reconciled</p>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-sm text-text-secondary">Reconciled</p>
+            <p className="text-sm font-bold text-brand-green">
               {reconciliationItems.filter(i => i.isReconciled).length}
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-600">Total Variance</p>
-            <p className="text-2xl font-bold text-red-600">
+            <p className="text-sm text-text-secondary">Total Variance</p>
+            <p className="text-sm font-bold text-brand-red">
               ${totalDifference.toFixed(2)}
             </p>
           </div>
@@ -117,49 +117,49 @@ export default function ReconciliationTab() {
       </div>
 
       {/* Reconciliation Items */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white rounded shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-bg-row">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                 Account
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">
                 Bank Balance
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">
                 Ledger Balance
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase tracking-wider">
                 Difference
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-border">
             {reconciliationItems.map((item) => (
-              <tr key={item.bankAccountId} className="hover:bg-gray-50">
+              <tr key={item.bankAccountId} className="hover:bg-bg-row">
                 <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-sm font-medium text-text-primary">
                     {item.bankAccountName}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-text-muted">
                     {item.institutionName}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-text-primary">
                   ${item.bankBalance.toFixed(2)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-text-primary">
                   ${item.ledgerBalance.toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                  <span className={item.difference === 0 ? 'text-gray-900' : 'text-red-600 font-medium'}>
+                  <span className={item.difference === 0 ? 'text-text-primary' : 'text-brand-red font-medium'}>
                     ${Math.abs(item.difference).toFixed(2)}
                   </span>
                 </td>
@@ -175,7 +175,7 @@ export default function ReconciliationTab() {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                  <button className="text-blue-600 hover:text-blue-900 font-medium">
+                  <button className="text-brand-purple hover:text-brand-purple font-medium">
                     Review
                   </button>
                 </td>
@@ -186,7 +186,7 @@ export default function ReconciliationTab() {
 
         {reconciliationItems.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No accounts to reconcile</p>
+            <p className="text-text-muted">No accounts to reconcile</p>
           </div>
         )}
       </div>

@@ -157,12 +157,12 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
     return acc;
   }, {} as Record<string, ActivityExpense[]>);
 
-  if (loading) return <div className="animate-pulse bg-gray-100 rounded-lg h-32"></div>;
+  if (loading) return <div className="animate-pulse bg-bg-row rounded h-32"></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">📋 Trip Expenses</h3>
+        <h3 className="font-semibold text-text-primary">📋 Trip Expenses</h3>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : '+ Add Expense'}
         </Button>
@@ -181,8 +181,8 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
               }}
               className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
                 hasExpense 
-                  ? 'bg-green-100 border-green-300 text-green-700' 
-                  : 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-green-100 border-green-300 text-brand-green' 
+                  : 'bg-bg-row border-border text-text-secondary hover:bg-border'
               }`}
             >
               {cat.icon} {cat.label} {hasExpense && '✓'}
@@ -192,7 +192,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
       </div>
 
       {showForm && (
-        <Card className="p-4 border-2 border-dashed border-[#b4b237]">
+        <Card className="p-4 border-2 border-dashed border-brand-accent">
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <select
@@ -250,7 +250,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
       )}
 
       {expenses.length === 0 && !showForm ? (
-        <Card className="p-6 text-center text-gray-400">
+        <Card className="p-6 text-center text-text-faint">
           <div className="text-3xl mb-2">📋</div>
           <p className="text-sm">No expenses added yet</p>
           <p className="text-xs mt-1">Click a category above or + Add Expense</p>
@@ -264,11 +264,11 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
             return (
               <div key={category}>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-medium text-gray-600">
+                  <h4 className="text-sm font-medium text-text-secondary">
                     {catConfig.icon} {catConfig.label}
                   </h4>
                   {selectedTotal > 0 && (
-                    <span className="text-xs text-green-600 font-medium">
+                    <span className="text-xs text-brand-green font-medium">
                       {fmt(selectedTotal)}/person selected
                     </span>
                   )}
@@ -281,23 +281,23 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-sm text-gray-900 truncate">
+                          <h5 className="font-medium text-sm text-text-primary truncate">
                             {exp.title || catConfig.label}
                           </h5>
                           {exp.vendor && (
-                            <p className="text-xs text-gray-500 truncate">{exp.vendor}</p>
+                            <p className="text-xs text-text-muted truncate">{exp.vendor}</p>
                           )}
                         </div>
                         <div className="text-right">
                           <div className="font-bold text-sm">{fmt(Number(exp.price))}</div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-text-faint">
                             {exp.is_per_person ? '/person' : 'total'}
                           </div>
                         </div>
                       </div>
                       
                       {exp.notes && (
-                        <p className="text-xs text-gray-500 italic mt-1 truncate">"{exp.notes}"</p>
+                        <p className="text-xs text-text-muted italic mt-1 truncate">"{exp.notes}"</p>
                       )}
 
                       <div className="flex items-center justify-between mt-2 pt-2 border-t">
@@ -311,7 +311,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                         </div>
                         <div className="flex items-center gap-1">
                           {exp.url && (
-                            <a href={exp.url} target="_blank" rel="noopener noreferrer" className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                            <a href={exp.url} target="_blank" rel="noopener noreferrer" className="px-2 py-0.5 bg-brand-purple text-white text-xs rounded hover:bg-brand-purple">
                               Link
                             </a>
                           )}
@@ -320,12 +320,12 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                             className={`px-2 py-0.5 text-xs rounded ${
                               exp.is_selected 
                                 ? 'bg-green-600 text-white' 
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                : 'bg-border text-text-secondary hover:bg-border'
                             }`}
                           >
                             {exp.is_selected ? '✓' : 'Add'}
                           </button>
-                          <button onClick={() => handleDelete(exp.id)} className="text-red-400 text-xs hover:text-red-600">✕</button>
+                          <button onClick={() => handleDelete(exp.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
                         </div>
                       </div>
                     </Card>
@@ -339,15 +339,15 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
 
       {/* Summary */}
       {expenses.some(e => e.is_selected) && (
-        <Card className="p-4 bg-[#b4b237]/10 border-[#b4b237]/30">
+        <Card className="p-4 bg-brand-accent/10 border-brand-accent/30">
           <div className="flex justify-between items-center">
-            <span className="font-medium text-[#8f8c2a]">Selected expenses total:</span>
+            <span className="font-medium text-brand-accent-dark">Selected expenses total:</span>
             <div className="text-right">
-              <div className="font-bold text-[#8f8c2a]">
+              <div className="font-bold text-brand-accent-dark">
                 {fmt(expenses.filter(e => e.is_selected).reduce((sum, e) => 
                   sum + (e.is_per_person ? Number(e.price || 0) : Number(e.per_person || 0)), 0))}/person
               </div>
-              <div className="text-xs text-[#8f8c2a]/70">
+              <div className="text-xs text-brand-accent-dark/70">
                 × {participantCount} = {fmt(expenses.filter(e => e.is_selected).reduce((sum, e) => 
                   sum + (e.is_per_person ? Number(e.price || 0) * participantCount : Number(e.price || 0)), 0))} total
               </div>

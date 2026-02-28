@@ -122,23 +122,23 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
   };
 
   return (
-    <div className="bg-white rounded-xl border overflow-hidden">
-      <div className="px-4 py-3 border-b bg-gray-50">
+    <div className="bg-white rounded border overflow-hidden">
+      <div className="px-4 py-3 border-b bg-bg-row">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm text-gray-600">Fiscal Year {selectedYear}</span>
+            <span className="text-sm text-text-secondary">Fiscal Year {selectedYear}</span>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Closed</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Open</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-500 rounded-full"></span> Current</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-brand-purple-wash0 rounded-full"></span> Current</span>
           </div>
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-bg-row">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Month</th>
               <th className="px-4 py-3 text-right font-semibold">Transactions</th>
@@ -159,33 +159,33 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
               const isFuture = selectedYear > currentYear || (selectedYear === currentYear && idx > currentMonth);
 
               return (
-                <tr key={idx} className={`${isCurrent ? 'bg-blue-50' : ''} ${status === 'closed' ? 'bg-green-50' : ''}`}>
+                <tr key={idx} className={`${isCurrent ? 'bg-brand-purple-wash' : ''} ${status === 'closed' ? 'bg-green-50' : ''}`}>
                   <td className="px-4 py-3 font-medium">
                     {monthName}
-                    {isCurrent && <span className="ml-2 text-xs text-blue-600">(Current)</span>}
+                    {isCurrent && <span className="ml-2 text-xs text-brand-purple">(Current)</span>}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-600">{txnCount || '-'}</td>
+                  <td className="px-4 py-3 text-right text-text-secondary">{txnCount || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     {uncatCount > 0 ? (
-                      <span className="text-red-600 font-medium">{uncatCount}</span>
+                      <span className="text-brand-red font-medium">{uncatCount}</span>
                     ) : txnCount > 0 ? (
-                      <span className="text-green-600">✓</span>
+                      <span className="text-brand-green">✓</span>
                     ) : '-'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {isReconciled ? (
-                      <span className="text-green-600">✓</span>
+                      <span className="text-brand-green">✓</span>
                     ) : txnCount > 0 ? (
                       <span className="text-yellow-600">⚠️</span>
                     ) : '-'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {status === 'closed' ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">🔒 Closed</span>
+                      <span className="px-2 py-1 bg-green-100 text-brand-green rounded text-xs font-medium">🔒 Closed</span>
                     ) : isFuture ? (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">Future</span>
+                      <span className="px-2 py-1 bg-bg-row text-text-muted rounded text-xs">Future</span>
                     ) : isCurrent ? (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">🔄 Current</span>
+                      <span className="px-2 py-1 bg-brand-purple-wash text-brand-purple rounded text-xs font-medium">🔄 Current</span>
                     ) : (
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">⚠️ Open</span>
                     )}
@@ -195,7 +195,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                       <button
                         onClick={() => handleReopen(idx)}
                         disabled={processing}
-                        className="text-xs text-gray-500 hover:text-red-600"
+                        className="text-xs text-text-muted hover:text-brand-red"
                       >
                         Reopen
                       </button>
@@ -217,7 +217,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                         </button>
                         <button
                           onClick={() => setClosing(null)}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-text-faint hover:text-text-secondary"
                         >
                           ✕
                         </button>
@@ -226,7 +226,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
                       <button
                         onClick={() => setClosing(idx)}
                         disabled={!canClose(idx)}
-                        className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-xs font-medium disabled:opacity-50"
+                        className="px-3 py-1 bg-brand-purple text-white rounded text-xs font-medium disabled:opacity-50"
                         title={uncatCount > 0 ? 'Categorize all transactions first' : ''}
                       >
                         Close Period
@@ -241,13 +241,13 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
       </div>
 
       {/* Summary Footer */}
-      <div className="px-4 py-3 bg-gray-50 border-t flex justify-between text-sm">
-        <span className="text-gray-600">
+      <div className="px-4 py-3 bg-bg-row border-t flex justify-between text-sm">
+        <span className="text-text-secondary">
           Closed: {periodCloses.filter(p => p.year === selectedYear && p.status === 'closed').length} / 12 months
         </span>
-        <span className="text-gray-600">
+        <span className="text-text-secondary">
           {periodCloses.filter(p => p.year === selectedYear && p.status === 'closed').length === 12 ? (
-            <span className="text-green-600 font-medium">✓ Year Complete</span>
+            <span className="text-brand-green font-medium">✓ Year Complete</span>
           ) : (
             <span className="text-yellow-600">Year in progress</span>
           )}

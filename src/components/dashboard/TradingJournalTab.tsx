@@ -69,9 +69,9 @@ export default function TradingJournalTab() {
   if (error) {
     return (
       <div className="p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded p-4">
           <div className="font-semibold text-red-800">Error Loading Trading Journal</div>
-          <div className="text-red-600 text-sm mt-1">{error}</div>
+          <div className="text-brand-red text-sm mt-1">{error}</div>
           <button 
             onClick={loadTrades}
             className="mt-3 px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
@@ -86,7 +86,7 @@ export default function TradingJournalTab() {
   if (totalTrades === 0) {
     return (
       <div className="p-4">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
           <div className="font-semibold text-yellow-800">No Closed Trades</div>
           <div className="text-yellow-600 text-sm mt-1">
             You have committed positions, but none are closed yet. Trades appear here when both OPEN and CLOSE legs are committed.
@@ -99,32 +99,32 @@ export default function TradingJournalTab() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-4">
-        <div className="p-4 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">Total Trades</div>
-          <div className="text-2xl font-bold">{totalTrades}</div>
+        <div className="p-4 bg-white border rounded">
+          <div className="text-sm text-text-secondary">Total Trades</div>
+          <div className="text-sm font-bold">{totalTrades}</div>
         </div>
-        <div className="p-4 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">Win Rate</div>
-          <div className="text-2xl font-bold">{winRate}%</div>
-          <div className="text-xs text-gray-500">{winners}W / {losers}L</div>
+        <div className="p-4 bg-white border rounded">
+          <div className="text-sm text-text-secondary">Win Rate</div>
+          <div className="text-sm font-bold">{winRate}%</div>
+          <div className="text-xs text-text-muted">{winners}W / {losers}L</div>
         </div>
-        <div className="p-4 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">Total P&L</div>
-          <div className={`text-2xl font-bold ${totalNetPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className="p-4 bg-white border rounded">
+          <div className="text-sm text-text-secondary">Total P&L</div>
+          <div className={`text-sm font-bold ${totalNetPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
             ${totalNetPL.toFixed(2)}
           </div>
         </div>
-        <div className="p-4 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">Avg P&L per Trade</div>
-          <div className={`text-2xl font-bold ${totalNetPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className="p-4 bg-white border rounded">
+          <div className="text-sm text-text-secondary">Avg P&L per Trade</div>
+          <div className={`text-sm font-bold ${totalNetPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
             ${totalTrades > 0 ? (totalNetPL / totalTrades).toFixed(2) : '0.00'}
           </div>
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <div className="bg-white border rounded overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-bg-row">
             <tr>
               <th className="px-4 py-3 text-left">Trade #</th>
               <th className="px-4 py-3 text-left">Symbol</th>
@@ -142,13 +142,13 @@ export default function TradingJournalTab() {
               <>
                 <tr 
                   key={trade.tradeNum}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className="hover:bg-bg-row cursor-pointer"
                   onClick={() => setExpandedTrade(expandedTrade === trade.tradeNum ? null : trade.tradeNum)}
                 >
                   <td className="px-4 py-3 font-medium">{trade.tradeNum}</td>
                   <td className="px-4 py-3">{trade.symbol}</td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-brand-purple-wash text-brand-purple rounded text-xs">
                       {trade.strategy}
                     </span>
                   </td>
@@ -156,12 +156,12 @@ export default function TradingJournalTab() {
                   <td className="px-4 py-3">{new Date(trade.exitDate).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-center">{trade.legs}</td>
                   <td className="px-4 py-3 text-right">${Math.abs(trade.totalFees).toFixed(2)}</td>
-                  <td className={`px-4 py-3 text-right font-bold ${trade.netPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className={`px-4 py-3 text-right font-bold ${trade.netPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                     ${trade.netPL.toFixed(2)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      trade.isWinner ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      trade.isWinner ? 'bg-green-100 text-brand-green' : 'bg-red-100 text-brand-red'
                     }`}>
                       {trade.isWinner ? 'WIN' : 'LOSS'}
                     </span>
@@ -169,7 +169,7 @@ export default function TradingJournalTab() {
                 </tr>
                 {expandedTrade === trade.tradeNum && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-4 bg-gray-50">
+                    <td colSpan={9} className="px-4 py-4 bg-bg-row">
                       <div className="text-xs font-semibold mb-2">Trade Legs:</div>
                       <table className="w-full text-xs">
                         <thead className="bg-white">
@@ -189,7 +189,7 @@ export default function TradingJournalTab() {
                               <td className="px-2 py-1">{leg.name}</td>
                               <td className="px-2 py-1 text-right">{leg.quantity || '-'}</td>
                               <td className="px-2 py-1 text-right">${leg.price || 0}</td>
-                              <td className={`px-2 py-1 text-right ${leg.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              <td className={`px-2 py-1 text-right ${leg.amount >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                                 ${leg.amount.toFixed(2)}
                               </td>
                               <td className="px-2 py-1 text-right">${leg.fees || 0}</td>

@@ -255,7 +255,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
 
   const renderTable = (categoryKey: CategoryKey, items: Recommendation[]) => {
     if (!items || items.length === 0) {
-      return <p className="text-gray-400 text-sm py-4">No recommendations found</p>;
+      return <p className="text-text-faint text-sm py-4">No recommendations found</p>;
     }
 
     const catInfo = getCategoryInfo(categoryKey);
@@ -264,7 +264,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-900 text-white">
+            <tr className="bg-brand-purple text-white">
               <th className="text-center py-3 px-2 font-semibold w-16">Select</th>
               <th className="text-center py-3 px-2 font-semibold w-16">Score</th>
               <th className="text-left py-3 px-4 font-semibold">Name</th>
@@ -283,7 +283,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
               return (
                 <tr 
                   key={idx} 
-                  className={`border-b border-gray-100 ${selected ? 'bg-green-50' : idx % 2 === 1 ? 'bg-gray-50' : ''}`}
+                  className={`border-b border-border-light ${selected ? 'bg-green-50' : idx % 2 === 1 ? 'bg-bg-row' : ''}`}
                 >
                   <td className="py-3 px-2 text-center">
                     <button
@@ -291,7 +291,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
                       className={`w-8 h-8 rounded-full font-bold transition-colors ${
                         selected 
                           ? 'bg-green-500 text-white' 
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                          : 'bg-border text-text-secondary hover:bg-border'
                       }`}
                     >
                       {selected ? '✓' : '+'}
@@ -299,25 +299,25 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-bold ${
-                      rec.viralScore >= 80 ? 'bg-green-100 text-green-700' :
+                      rec.viralScore >= 80 ? 'bg-green-100 text-brand-green' :
                       rec.viralScore >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-600'
+                      'bg-bg-row text-text-secondary'
                     }`}>
                       {rec.viralScore || '—'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-medium text-gray-900">{rec.name}</td>
-                  <td className="py-3 px-4 text-gray-600 text-xs max-w-[150px]">{rec.address}</td>
+                  <td className="py-3 px-4 font-medium text-text-primary">{rec.name}</td>
+                  <td className="py-3 px-4 text-text-secondary text-xs max-w-[150px]">{rec.address}</td>
                   <td className="py-3 px-4">
                     {rec.website && rec.website !== 'N/A' ? (
-                      <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">
+                      <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline text-xs">
                         Visit →
                       </a>
-                    ) : <span className="text-gray-400 text-xs">—</span>}
+                    ) : <span className="text-text-faint text-xs">—</span>}
                   </td>
-                  <td className="py-3 px-4 text-right font-medium text-green-600 whitespace-nowrap">{rec.price}</td>
-                  <td className="py-3 px-4 text-gray-600 text-xs max-w-[180px]">{rec.whyViral}</td>
-                  <td className="py-3 px-4 text-gray-500 text-xs max-w-[180px]">{rec.socialProof}</td>
+                  <td className="py-3 px-4 text-right font-medium text-brand-green whitespace-nowrap">{rec.price}</td>
+                  <td className="py-3 px-4 text-text-secondary text-xs max-w-[180px]">{rec.whyViral}</td>
+                  <td className="py-3 px-4 text-text-muted text-xs max-w-[180px]">{rec.socialProof}</td>
                 </tr>
               );
             })}
@@ -345,13 +345,13 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
   return (
     <div className="space-y-6">
       {/* Controls Row */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 border-b border-gray-200">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 border-b border-border">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Budget Level</label>
+          <label className="block text-xs text-text-muted mb-1">Budget Level</label>
           <select
             value={budgetLevel}
             onChange={(e) => setBudgetLevel(e.target.value as 'low' | 'mid' | 'high')}
-            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            className="w-full bg-white border border-border rounded px-3 py-2 text-sm"
           >
             <option value="low">💰 Budget (${budgetTiers.low}/mo)</option>
             <option value="mid">💰💰 Mid (${budgetTiers.mid}/mo)</option>
@@ -360,21 +360,21 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Hotel Budget Tiers ($/mo)</label>
+          <label className="block text-xs text-text-muted mb-1">Hotel Budget Tiers ($/mo)</label>
           <div className="flex gap-1">
             <input type="number" value={budgetTiers.low} onChange={(e) => setBudgetTiers(prev => ({ ...prev, low: Number(e.target.value) }))}
-              className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-2 text-xs" placeholder="$" />
+              className="w-20 bg-white border border-border rounded px-2 py-2 text-xs" placeholder="$" />
             <input type="number" value={budgetTiers.mid} onChange={(e) => setBudgetTiers(prev => ({ ...prev, mid: Number(e.target.value) }))}
-              className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-2 text-xs" placeholder="$$" />
+              className="w-20 bg-white border border-border rounded px-2 py-2 text-xs" placeholder="$$" />
             <input type="number" value={budgetTiers.high} onChange={(e) => setBudgetTiers(prev => ({ ...prev, high: Number(e.target.value) }))}
-              className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-2 text-xs" placeholder="$$$" />
+              className="w-20 bg-white border border-border rounded px-2 py-2 text-xs" placeholder="$$$" />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Party Size</label>
+          <label className="block text-xs text-text-muted mb-1">Party Size</label>
           <select value={partySize} onChange={(e) => setPartySize(Number(e.target.value))}
-            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            className="w-full bg-white border border-border rounded px-3 py-2 text-sm">
             {[1,2,3,4,5,6,7,8,9,10].map(n => (
               <option key={n} value={n}>{n} {n === 1 ? 'person' : 'people'}</option>
             ))}
@@ -389,7 +389,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
       </div>
 
       {/* Context Info */}
-      <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+      <div className="flex flex-wrap gap-4 text-xs text-text-muted">
         <span><strong>📍</strong> {city || 'Select destination'}, {country || '—'}</span>
         <span><strong>🎯</strong> {activity || 'General'}</span>
         <span><strong>👥</strong> {partySize} {partySize === 1 ? 'traveler' : 'travelers'}</span>
@@ -399,59 +399,59 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">{error}</div>
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-brand-red">{error}</div>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="text-center py-12">
-          <div className="w-8 h-8 border-3 border-[#b4b237] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Analyzing {city} for viral content opportunities...</p>
+          <div className="w-8 h-8 border-3 border-brand-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-text-muted">Analyzing {city} for viral content opportunities...</p>
         </div>
       )}
 
       {/* Scheduling Modal */}
       {schedulingItem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold mb-4">📅 Schedule: {schedulingItem.item.name}</h3>
+          <div className="bg-white rounded max-w-lg w-full p-6 shadow-sm">
+            <h3 className="text-terminal-lg font-bold mb-4">📅 Schedule: {schedulingItem.item.name}</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Which days? (select multiple for repeat visits)</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Which days? (select multiple for repeat visits)</label>
                 <div className="flex flex-wrap gap-2">
                   {tripDays.map(day => (
                     <button
                       key={day}
                       onClick={() => toggleDay(day)}
-                      className={`w-10 h-10 rounded-lg font-medium text-sm transition-colors ${
+                      className={`w-10 h-10 rounded font-medium text-sm transition-colors ${
                         scheduleForm.days.includes(day)
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-bg-row text-text-secondary hover:bg-border'
                       }`}
                     >
                       {day}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{scheduleForm.days.length} day(s) selected</p>
+                <p className="text-xs text-text-muted mt-1">{scheduleForm.days.length} day(s) selected</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Time</label>
                 <select
                   value={scheduleForm.time}
                   onChange={(e) => setScheduleForm(prev => ({ ...prev, time: e.target.value }))}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-white border border-border rounded px-3 py-2 text-sm"
                 >
                   {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-sm text-gray-600">
+              <div className="bg-bg-row rounded p-3">
+                <div className="text-sm text-text-secondary">
                   <strong>Price:</strong> {schedulingItem.item.price} × {scheduleForm.days.length} visits = 
-                  <span className="text-green-600 font-bold ml-1">
+                  <span className="text-brand-green font-bold ml-1">
                     ${(parsePrice(schedulingItem.item.price) * scheduleForm.days.length).toFixed(2)}
                   </span>
                 </div>
@@ -470,13 +470,13 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
 
       {/* Your Trip Plan - Selected Cards + Map */}
       {selections.length > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-green-800">🗺️ Your Trip Plan ({selections.length} selections)</h3>
             <div className="text-right">
-              <div className="text-xs text-gray-500">Projected Budget</div>
-              <div className="text-xl font-bold text-green-700">${budget.total.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-text-muted">Projected Budget</div>
+              <div className="text-sm font-bold text-brand-green">${budget.total.toLocaleString()}</div>
+              <div className="text-xs text-text-muted">
                 ${budget.monthlyTotal.toLocaleString()} monthly + ${budget.dailyTotal.toLocaleString()} activities
               </div>
             </div>
@@ -484,7 +484,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
 
           {/* Map */}
           {mounted && MapContainer && TileLayer && Marker && Popup && L && (
-            <div className="mb-4 rounded-lg overflow-hidden border border-green-200" style={{ height: '250px' }}>
+            <div className="mb-4 rounded overflow-hidden border border-green-200" style={{ height: '250px' }}>
               <MapContainer
                 center={[-8.6478, 115.1385]}
                 zoom={13}
@@ -504,8 +504,8 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
                       <Popup>
                         <div className="text-sm">
                           <div className="font-bold">{catInfo?.icon} {sel.item.name}</div>
-                          <div className="text-xs text-gray-500">{sel.item.address}</div>
-                          <div className="text-green-600 font-medium">{sel.item.price}</div>
+                          <div className="text-xs text-text-muted">{sel.item.address}</div>
+                          <div className="text-brand-green font-medium">{sel.item.price}</div>
                         </div>
                       </Popup>
                     </Marker>
@@ -521,29 +521,29 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
               const catInfo = getCategoryInfo(sel.category);
               const isDaily = catInfo?.billing === 'daily';
               return (
-                <div key={idx} className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+                <div key={idx} className="bg-white rounded p-3 shadow-sm border border-green-100">
                   <div className="flex items-start justify-between mb-2">
-                    <span className="text-lg">{catInfo?.icon}</span>
-                    <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-red-400 hover:text-red-600 text-xs">
+                    <span className="text-terminal-lg">{catInfo?.icon}</span>
+                    <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-brand-red hover:text-brand-red text-xs">
                       ✕ Remove
                     </button>
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">{catInfo?.label}</div>
-                  <div className="font-medium text-gray-900 text-sm mb-1">{sel.item.name}</div>
-                  <div className="text-green-600 font-medium text-sm">
+                  <div className="text-xs text-text-muted mb-1">{catInfo?.label}</div>
+                  <div className="font-medium text-text-primary text-sm mb-1">{sel.item.name}</div>
+                  <div className="text-brand-green font-medium text-sm">
                     {sel.item.price}
                     {isDaily && sel.days && sel.days.length > 0 && (
-                      <span className="text-gray-500 font-normal"> × {sel.days.length}</span>
+                      <span className="text-text-muted font-normal"> × {sel.days.length}</span>
                     )}
                   </div>
                   {isDaily && sel.days && (
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-text-muted mt-1">
                       Days: {sel.days.join(', ')} @ {sel.time}
                     </div>
                   )}
                   {sel.item.website && sel.item.website !== 'N/A' && (
                     <a href={sel.item.website} target="_blank" rel="noopener noreferrer"
-                      className="text-blue-500 text-xs hover:underline mt-1 block">
+                      className="text-brand-purple text-xs hover:underline mt-1 block">
                       Visit website →
                     </a>
                   )}
@@ -563,24 +563,24 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
             const hasSelection = selections.some(s => s.category === key);
             
             return (
-              <div key={key} className={`border rounded-lg overflow-hidden ${hasSelection ? 'border-green-300 bg-green-50/30' : 'border-gray-200'}`}>
+              <div key={key} className={`border rounded overflow-hidden ${hasSelection ? 'border-green-300 bg-green-50/30' : 'border-border'}`}>
                 <button
                   onClick={() => setExpandedCategory(isExpanded ? null : key)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-bg-row hover:bg-bg-row transition-colors"
                 >
                   <div className="text-left flex items-center gap-2">
-                    <span className="text-xl">{icon}</span>
+                    <span className="text-sm">{icon}</span>
                     <div>
-                      <span className="font-medium text-gray-900">{label}</span>
-                      <span className="text-xs text-gray-500 ml-2">{subtitle}</span>
-                      <span className={`ml-2 text-xs px-2 py-0.5 rounded ${billing === 'monthly' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                      <span className="font-medium text-text-primary">{label}</span>
+                      <span className="text-xs text-text-muted ml-2">{subtitle}</span>
+                      <span className={`ml-2 text-xs px-2 py-0.5 rounded ${billing === 'monthly' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-orange-100 text-orange-700'}`}>
                         {billing}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {hasSelection && <span className="text-xs bg-green-500 text-white px-2 py-1 rounded">Selected</span>}
-                    <span className="text-xs bg-gray-200 px-2 py-1 rounded">{items?.length || 0} spots</span>
+                    <span className="text-xs bg-border px-2 py-1 rounded">{items?.length || 0} spots</span>
                     <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                   </div>
                 </button>
@@ -593,7 +593,7 @@ export default function TripAIAssistant({ tripId, city, country, activity, month
 
       {/* Empty State */}
       {!loading && !recommendations && !error && (
-        <div className="text-center py-8 text-gray-400">
+        <div className="text-center py-8 text-text-faint">
           <div className="text-4xl mb-2">🎬</div>
           <p className="font-medium">Viral Content Scout</p>
           <p className="text-sm mt-1">Find the most TikTok/Instagram/YouTube-worthy spots</p>

@@ -100,10 +100,10 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
   }, [expenseData]);
 
   return (
-    <div className="bg-white rounded-lg border">
+    <div className="bg-white rounded border">
       <div className="px-4 py-3 border-b">
         <h2 className="font-semibold">Expense Sub-Accounts</h2>
-        <p className="text-sm text-gray-500">Expand categories, select transactions, update sub-accounts</p>
+        <p className="text-sm text-text-muted">Expand categories, select transactions, update sub-accounts</p>
       </div>
 
       <div className="divide-y">
@@ -116,19 +116,19 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
             <div key={code}>
               <button
                 onClick={() => { setExpandedCoa(isExpanded ? null : code); setExpandedSub(null); setSelectedTxns([]); }}
-                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 ${isExpanded ? 'bg-gray-50' : ''}`}
+                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-bg-row ${isExpanded ? 'bg-bg-row' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   <span className={`text-xs transition ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                  <span className="font-mono text-xs text-gray-400">{code}</span>
+                  <span className="font-mono text-xs text-text-faint">{code}</span>
                   <span className="font-medium">{data.coa.name}</span>
-                  <span className="text-xs text-gray-400">{subCount} subs · {txnCount} txns</span>
+                  <span className="text-xs text-text-faint">{subCount} subs · {txnCount} txns</span>
                 </div>
-                <span className="font-semibold text-red-600">{formatAmount(data.total)}</span>
+                <span className="font-semibold text-brand-red">{formatAmount(data.total)}</span>
               </button>
 
               {isExpanded && (
-                <div className="bg-gray-50">
+                <div className="bg-bg-row">
                   {Object.entries(data.subs)
                     .sort((a, b) => b[1].txns.length - a[1].txns.length)
                     .map(([subName, subData]) => {
@@ -146,15 +146,15 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                               <span className={`text-sm ${subName === '(No Sub-Account)' ? 'text-amber-600 italic' : ''}`}>
                                 {subName}
                               </span>
-                              <span className="text-xs text-gray-400">{subData.txns.length}</span>
+                              <span className="text-xs text-text-faint">{subData.txns.length}</span>
                             </div>
-                            <span className="text-sm font-medium text-red-600">{formatAmount(subData.total)}</span>
+                            <span className="text-sm font-medium text-brand-red">{formatAmount(subData.total)}</span>
                           </button>
 
                           {isSubExpanded && (
                             <div className="bg-white border-t">
                               {selectedTxns.length > 0 && (
-                                <div className="px-4 py-2 bg-[#2d1b4e]/10 flex items-center gap-2 border-b">
+                                <div className="px-4 py-2 bg-brand-purple/10 flex items-center gap-2 border-b">
                                   <span className="text-sm font-medium">{selectedTxns.length} selected</span>
                                   <input
                                     type="text"
@@ -170,17 +170,17 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                                   <button
                                     onClick={handleUpdateSub}
                                     disabled={isUpdating}
-                                    className="px-3 py-1 bg-[#2d1b4e] text-white rounded text-sm disabled:opacity-50"
+                                    className="px-3 py-1 bg-brand-purple text-white rounded text-sm disabled:opacity-50"
                                   >
                                     {isUpdating ? '...' : 'Update'}
                                   </button>
-                                  <button onClick={() => setSelectedTxns([])} className="text-sm text-gray-500">Clear</button>
+                                  <button onClick={() => setSelectedTxns([])} className="text-sm text-text-muted">Clear</button>
                                 </div>
                               )}
 
                               <div className="max-h-60 overflow-y-auto">
                                 <table className="w-full text-sm">
-                                  <thead className="bg-gray-100 sticky top-0">
+                                  <thead className="bg-bg-row sticky top-0">
                                     <tr>
                                       <th className="px-3 py-1.5 w-8">
                                         <input
@@ -198,7 +198,7 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                                     {subData.txns
                                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                                       .map(txn => (
-                                        <tr key={txn.id} className={`hover:bg-gray-50 ${selectedTxns.includes(txn.id) ? 'bg-blue-50' : ''}`}>
+                                        <tr key={txn.id} className={`hover:bg-bg-row ${selectedTxns.includes(txn.id) ? 'bg-brand-purple-wash' : ''}`}>
                                           <td className="px-3 py-1.5">
                                             <input
                                               type="checkbox"
@@ -208,11 +208,11 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
                                               )}
                                             />
                                           </td>
-                                          <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap">
+                                          <td className="px-3 py-1.5 text-text-muted whitespace-nowrap">
                                             {new Date(txn.date).toLocaleDateString()}
                                           </td>
                                           <td className="px-3 py-1.5 truncate max-w-[200px]">{txn.name}</td>
-                                          <td className="px-3 py-1.5 text-right font-mono text-red-600">{formatAmount(txn.amount)}</td>
+                                          <td className="px-3 py-1.5 text-right font-mono text-brand-red">{formatAmount(txn.amount)}</td>
                                         </tr>
                                       ))}
                                   </tbody>
@@ -231,7 +231,7 @@ export default function ExpenseSubAccountManager({ transactions, coaOptions, onU
       </div>
 
       {Object.keys(expenseData).length === 0 && (
-        <div className="p-8 text-center text-gray-500">No expense transactions</div>
+        <div className="p-8 text-center text-text-muted">No expense transactions</div>
       )}
     </div>
   );

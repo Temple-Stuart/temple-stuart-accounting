@@ -147,46 +147,46 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
 
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold">Spending Dashboard</h2>
+      <h2 className="text-sm font-bold">Spending Dashboard</h2>
 
       {/* Entity Filter */}
       <div className="flex gap-2">
         <button
           onClick={() => setSelectedEntity(null)}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded font-medium transition-colors ${
             selectedEntity === null
-              ? 'bg-[#2d1b4e] text-white'
-              : 'bg-white text-gray-700 border hover:bg-gray-50'
+              ? 'bg-brand-purple text-white'
+              : 'bg-white text-text-secondary border hover:bg-bg-row'
           }`}
         >
           All
         </button>
         <button
           onClick={() => setSelectedEntity('Personal')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded font-medium transition-colors ${
             selectedEntity === 'Personal'
-              ? 'bg-[#2d1b4e] text-white'
-              : 'bg-white text-gray-700 border hover:bg-gray-50'
+              ? 'bg-brand-purple text-white'
+              : 'bg-white text-text-secondary border hover:bg-bg-row'
           }`}
         >
           Personal
         </button>
         <button
           onClick={() => setSelectedEntity('Business')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded font-medium transition-colors ${
             selectedEntity === 'Business'
-              ? 'bg-[#2d1b4e] text-white'
-              : 'bg-white text-gray-700 border hover:bg-gray-50'
+              ? 'bg-brand-purple text-white'
+              : 'bg-white text-text-secondary border hover:bg-bg-row'
           }`}
         >
           Business
         </button>
         <button
           onClick={() => setSelectedEntity('Trading')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-4 py-2 rounded font-medium transition-colors ${
             selectedEntity === 'Trading'
-              ? 'bg-[#2d1b4e] text-white'
-              : 'bg-white text-gray-700 border hover:bg-gray-50'
+              ? 'bg-brand-purple text-white'
+              : 'bg-white text-text-secondary border hover:bg-bg-row'
           }`}
         >
           Trading
@@ -197,19 +197,19 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
       <button
         onClick={generateAIInsights}
         disabled={loadingInsights}
-        className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        className="px-6 py-3 bg-purple-600 text-white rounded font-medium hover:bg-purple-700 disabled:bg-text-faint disabled:cursor-not-allowed transition-colors flex items-center gap-2"
       >
         {loadingInsights ? "Analyzing..." : "🤖 Get AI Insights"}
       </button>
 
       {/* AI Insights Display */}
       {aiInsights && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-6">
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded p-6">
           <div className="flex items-start gap-3">
             <div className="text-3xl">🤖</div>
             <div>
-              <h3 className="text-lg font-semibold text-purple-900 mb-2">AI Financial Insights</h3>
-              <p className="text-gray-700 leading-relaxed">{aiInsights}</p>
+              <h3 className="text-terminal-lg font-semibold text-purple-900 mb-2">AI Financial Insights</h3>
+              <p className="text-text-secondary leading-relaxed">{aiInsights}</p>
             </div>
           </div>
         </div>
@@ -217,22 +217,22 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="p-6 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">This Month</div>
+        <div className="p-6 bg-white border rounded">
+          <div className="text-sm text-text-secondary">This Month</div>
           <div className="text-3xl font-bold">${thisMonthTotal.toFixed(2)}</div>
-          <div className="text-xs text-gray-500">{thisMonthTransactions.length} transactions</div>
+          <div className="text-xs text-text-muted">{thisMonthTransactions.length} transactions</div>
         </div>
-        <div className="p-6 bg-white border rounded-lg">
-          <div className="text-sm text-gray-600">This Year</div>
+        <div className="p-6 bg-white border rounded">
+          <div className="text-sm text-text-secondary">This Year</div>
           <div className="text-3xl font-bold">${thisYearTotal.toFixed(2)}</div>
-          <div className="text-xs text-gray-500">{thisYearTransactions.length} transactions</div>
+          <div className="text-xs text-text-muted">{thisYearTransactions.length} transactions</div>
         </div>
       </div>
 
 
       {/* Monthly Spending Trend */}
-      <div className="bg-white border rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Spending Trend (Last 6 Months)</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Spending Trend (Last 6 Months)</h3>
         <div className="relative h-64">
           {monthlyTrends.length > 0 && (
             <div className="flex items-end justify-between h-full gap-2">
@@ -242,7 +242,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
                 return (
                   <div key={idx} className="flex-1 flex flex-col items-center gap-2">
                     <div className="w-full flex flex-col items-center">
-                      <span className="text-xs font-semibold text-gray-700 mb-1">
+                      <span className="text-xs font-semibold text-text-secondary mb-1">
                         ${month.total.toFixed(0)}
                       </span>
                       <div
@@ -251,7 +251,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
                         title={`${month.month}: $${month.total.toFixed(2)} (${month.count} transactions)`}
                       />
                     </div>
-                    <span className="text-xs text-gray-600 text-center">{month.month}</span>
+                    <span className="text-xs text-text-secondary text-center">{month.month}</span>
                   </div>
                 );
               })}
@@ -260,8 +260,8 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
         </div>
       </div>
       {/* Spending by Category */}
-      <div className="bg-white border rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Top Categories (with Budgets)</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Top Categories (with Budgets)</h3>
         <div className="space-y-3">
           {sortedCategories.map(([category, amount]) => {
             const budget = budgets[category];
@@ -273,20 +273,20 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
-                    className={`text-left ${selectedCategory === category ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                    className={`text-left ${selectedCategory === category ? 'text-brand-purple font-semibold' : 'text-text-secondary'}`}
                   >
                     {category}
                   </button>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">${amount.toFixed(2)}</span>
                     {budget && (
-                      <span className={`text-xs font-medium ${budgetPercent >= 100 ? 'text-red-600' : budgetPercent >= 70 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      <span className={`text-xs font-medium ${budgetPercent >= 100 ? 'text-brand-red' : budgetPercent >= 70 ? 'text-yellow-600' : 'text-brand-green'}`}>
                         {budgetPercent.toFixed(0)}% of ${budget}
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
+                <div className="w-full bg-border rounded-full h-3">
                   <div
                     className={`${barColor} h-3 rounded-full transition-all`}
                     style={{ width: `${Math.min(budgetPercent, 100)}%` }}
@@ -299,14 +299,14 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
       </div>
 
       {/* Top Merchants */}
-      <div className="bg-white border rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-4">Top Merchants</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Top Merchants</h3>
         <div className="space-y-2">
           {sortedMerchants.map(([merchant, amount]) => (
             <div key={merchant} className="flex items-center justify-between">
               <button
                 onClick={() => setSelectedMerchant(selectedMerchant === merchant ? null : merchant)}
-                className={`text-left flex-1 ${selectedMerchant === merchant ? 'text-blue-600 font-semibold' : 'text-gray-700'}`}
+                className={`text-left flex-1 ${selectedMerchant === merchant ? 'text-brand-purple font-semibold' : 'text-text-secondary'}`}
               >
                 {merchant}
               </button>
@@ -317,9 +317,9 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
       </div>
 
       {/* Transaction List */}
-      <div className="bg-white border rounded-lg p-6">
+      <div className="bg-white border rounded p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-terminal-lg font-semibold">
             Transactions {selectedCategory || selectedMerchant ? '(Filtered)' : ''}
           </h3>
           {(selectedCategory || selectedMerchant) && (
@@ -328,14 +328,14 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
                 setSelectedCategory(null);
                 setSelectedMerchant(null);
               }}
-              className="text-sm text-blue-600"
+              className="text-sm text-brand-purple"
             >
               Clear Filters
             </button>
           )}
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-bg-row">
             <tr>
               <th className="px-4 py-2 text-left">Date</th>
               <th className="px-4 py-2 text-left">Merchant</th>
@@ -345,7 +345,7 @@ export default function SpendingDashboard({ transactions, coaOptions }: Spending
           </thead>
           <tbody className="divide-y">
             {filteredTransactions.slice(0, 50).map(txn => (
-              <tr key={txn.id} className="hover:bg-gray-50">
+              <tr key={txn.id} className="hover:bg-bg-row">
                 <td className="px-4 py-2">{new Date(txn.date).toLocaleDateString()}</td>
                 <td className="px-4 py-2">{txn.merchantName || txn.name}</td>
                 <td className="px-4 py-2 text-xs">{txn.personal_finance_category?.primary || '-'}</td>

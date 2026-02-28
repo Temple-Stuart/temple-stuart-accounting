@@ -55,8 +55,8 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
 
   if (!mounted || !MapContainer || !TileLayer || !Marker || !Popup || !L) {
     return (
-      <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center">
-        <div className="text-gray-400">Loading map...</div>
+      <div className="h-48 bg-bg-row rounded flex items-center justify-center">
+        <div className="text-text-faint">Loading map...</div>
       </div>
     );
   }
@@ -73,8 +73,8 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
 
   if (locationsWithCoords.length === 0) {
     return (
-      <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="h-48 bg-bg-row rounded flex items-center justify-center">
+        <div className="text-center text-text-faint">
           <div className="text-3xl mb-2">🗺️</div>
           <p className="text-sm">Add destinations to see them on the map</p>
         </div>
@@ -128,7 +128,7 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
     <MapContainer
       center={[centerLat, centerLng]}
       zoom={5}
-      className="h-48 rounded-xl z-0"
+      className="h-48 rounded z-0"
       style={{ height: '192px' }}
       whenReady={(e: any) => {
         const mapInstance = e.target;
@@ -153,7 +153,7 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
         >
           <Popup>
             <div className="text-sm font-medium">
-              {loc.name === selectedName && <span className="text-green-600">✓ </span>}
+              {loc.name === selectedName && <span className="text-brand-green">✓ </span>}
               {loc.name}
             </div>
           </Popup>

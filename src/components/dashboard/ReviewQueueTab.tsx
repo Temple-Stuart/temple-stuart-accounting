@@ -135,30 +135,30 @@ export default function ReviewQueueTab({ coaOptions }: { coaOptions: any[] }) {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Review Queue</h2>
-          <p className="text-sm text-gray-600">{transactions.length} transactions pending review</p>
+          <h2 className="text-sm font-bold">Review Queue</h2>
+          <p className="text-sm text-text-secondary">{transactions.length} transactions pending review</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={runAutoCategorization}
             disabled={categorizing}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg disabled:bg-gray-400"
+            className="px-4 py-2 bg-purple-600 text-white rounded disabled:bg-text-faint"
           >
             {categorizing ? 'Categorizing...' : '🤖 Auto-Categorize'}
           </button>
           <button
             onClick={commitSelected}
             disabled={committing || selectedIds.size === 0}
-            className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg disabled:bg-gray-400"
+            className="px-4 py-2 bg-brand-purple text-white rounded disabled:bg-text-faint"
           >
             {committing ? 'Committing...' : `Commit Selected (${selectedIds.size})`}
           </button>
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <div className="bg-white border rounded overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-bg-row">
             <tr>
               <th className="px-4 py-3 text-left">
                 <input
@@ -180,11 +180,11 @@ export default function ReviewQueueTab({ coaOptions }: { coaOptions: any[] }) {
               const finalCoaCode = txn.accountCode || txn.predictedCoaCode;
               const confidence = txn.predictionConfidence;
               const confidenceColor = confidence
-                ? confidence > 0.8 ? 'text-green-600' : confidence > 0.6 ? 'text-yellow-600' : 'text-red-600'
-                : 'text-gray-400';
+                ? confidence > 0.8 ? 'text-brand-green' : confidence > 0.6 ? 'text-yellow-600' : 'text-brand-red'
+                : 'text-text-faint';
 
               return (
-                <tr key={txn.id} className="hover:bg-gray-50">
+                <tr key={txn.id} className="hover:bg-bg-row">
                   <td className="px-4 py-2">
                     <input
                       type="checkbox"
@@ -197,11 +197,11 @@ export default function ReviewQueueTab({ coaOptions }: { coaOptions: any[] }) {
                   <td className="px-4 py-2 text-right font-medium">${Math.abs(txn.amount).toFixed(2)}</td>
                   <td className="px-4 py-2">
                     {finalCoaCode ? (
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      <span className="text-xs bg-brand-purple-wash text-blue-800 px-2 py-1 rounded">
                         {finalCoaCode}
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">None</span>
+                      <span className="text-xs text-text-faint">None</span>
                     )}
                   </td>
                   <td className="px-4 py-2">
@@ -210,7 +210,7 @@ export default function ReviewQueueTab({ coaOptions }: { coaOptions: any[] }) {
                         {(confidence * 100).toFixed(0)}%
                       </span>
                     ) : (
-                      <span className="text-xs text-gray-400">-</span>
+                      <span className="text-xs text-text-faint">-</span>
                     )}
                   </td>
                   <td className="px-4 py-2">

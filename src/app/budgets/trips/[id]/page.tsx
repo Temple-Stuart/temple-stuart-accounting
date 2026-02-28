@@ -329,8 +329,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   const fmt = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-  if (loading) return <AppLayout><div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
-  if (error || !trip) return <AppLayout><div className="flex items-center justify-center py-20 text-red-500">{error || 'Trip not found'}</div></AppLayout>;
+  if (loading) return <AppLayout><div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" /></div></AppLayout>;
+  if (error || !trip) return <AppLayout><div className="flex items-center justify-center py-20 text-brand-red">{error || 'Trip not found'}</div></AppLayout>;
 
   const daysInMonth = new Date(trip.year, trip.month, 0).getDate();
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -340,30 +340,30 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
           {/* Header */}
-          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+          <div className="mb-4 bg-brand-purple text-white p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <button onClick={() => router.push('/budgets/trips')} className="text-gray-400 hover:text-white text-xs">
+                  <button onClick={() => router.push('/budgets/trips')} className="text-text-faint hover:text-white text-xs">
                     ← Trips
                   </button>
                   <span className={`px-2 py-0.5 text-[10px] ${trip.committedAt ? 'bg-emerald-500' : 'bg-amber-500'}`}>
                     {trip.committedAt ? 'COMMITTED' : 'PLANNING'}
                   </span>
                 </div>
-                <h1 className="text-lg font-semibold tracking-tight">{trip.name}</h1>
-                <p className="text-gray-300 text-xs font-mono">
+                <h1 className="text-terminal-lg font-semibold tracking-tight">{trip.name}</h1>
+                <p className="text-text-faint text-xs font-mono">
                   {trip.destination || 'Destination TBD'} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xl font-bold font-mono">{fmt(totalBudget || totalExpenses)}</div>
-                  <div className="text-[10px] text-gray-400">total budget</div>
+                  <div className="text-sm font-bold font-mono">{fmt(totalBudget || totalExpenses)}</div>
+                  <div className="text-[10px] text-text-faint">total budget</div>
                 </div>
                 {trip.inviteToken && (
                   <button onClick={copyInviteLink}
@@ -377,80 +377,80 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Crew</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{confirmedParticipants.length}</div>
-              <div className="text-[10px] text-gray-400">{participants.length} invited</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Crew</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{confirmedParticipants.length}</div>
+              <div className="text-[10px] text-text-faint">{participants.length} invited</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Days</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{trip.daysTravel}</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Days</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{trip.daysTravel}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Expenses</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{trip.expenses.length}</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Expenses</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{trip.expenses.length}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Budget</div>
-              <div className="text-xl font-bold font-mono text-emerald-700">{fmt(totalBudget || totalExpenses)}</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Budget</div>
+              <div className="text-sm font-bold font-mono text-emerald-700">{fmt(totalBudget || totalExpenses)}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Per Person</div>
-              <div className="text-xl font-bold font-mono text-gray-900">
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Per Person</div>
+              <div className="text-sm font-bold font-mono text-text-primary">
                 {confirmedParticipants.length > 0 ? fmt((totalBudget || totalExpenses) / confirmedParticipants.length) : '—'}
               </div>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
+          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-border">
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'budget', label: 'Budget' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
-                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-brand-purple text-white' : 'text-text-secondary hover:bg-bg-row'}`}>
                 {tab.label}
               </button>
             ))}
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white border border-gray-200">
+          <div className="bg-white border border-border">
             
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div>
-                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
                   {/* Date Selection */}
                   <div>
-                    <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Date Selection</div>
+                    <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">Date Selection</div>
                     <div className="p-4">
-                      <div className="text-xs text-gray-500 mb-3">{MONTHS[trip.month]} {trip.year}</div>
+                      <div className="text-xs text-text-muted mb-3">{MONTHS[trip.month]} {trip.year}</div>
                       
                       {/* Mini Calendar */}
                       <div className="overflow-x-auto mb-4">
                         <table className="w-full text-[10px]">
                           <thead>
                             <tr>
-                              <th className="text-left py-1 px-1 text-gray-400 w-16 sticky left-0 bg-white">Person</th>
+                              <th className="text-left py-1 px-1 text-text-faint w-16 sticky left-0 bg-white">Person</th>
                               {calendarDays.map(day => (
-                                <th key={day} className="text-center py-1 px-0.5 text-gray-400 min-w-[20px]">{day}</th>
+                                <th key={day} className="text-center py-1 px-0.5 text-text-faint min-w-[20px]">{day}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {confirmedParticipants.map(p => (
-                              <tr key={p.id} className="border-t border-gray-100">
-                                <td className="py-1 px-1 text-gray-700 font-medium sticky left-0 bg-white text-[10px]">{p.firstName}</td>
+                              <tr key={p.id} className="border-t border-border-light">
+                                <td className="py-1 px-1 text-text-secondary font-medium sticky left-0 bg-white text-[10px]">{p.firstName}</td>
                                 {calendarDays.map(day => {
                                   const blocked = (p.unavailableDays || []).includes(day);
                                   const inRange = confirmedStartDay && day >= confirmedStartDay && day < confirmedStartDay + trip.daysTravel;
                                   return (
                                     <td key={day} className="text-center py-0.5 px-0.5">
                                       <div className={`w-4 h-4 mx-auto flex items-center justify-center text-[8px] ${
-                                        blocked ? 'bg-red-100 text-red-500' : 
-                                        inRange ? 'bg-[#2d1b4e] text-white' :
+                                        blocked ? 'bg-red-100 text-brand-red' : 
+                                        inRange ? 'bg-brand-purple text-white' :
                                         'bg-emerald-100 text-emerald-600'
                                       }`}>
                                         {blocked ? '×' : inRange ? '✓' : '·'}
@@ -465,20 +465,20 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       </div>
 
                       {/* Date Windows */}
-                      <div className="text-xs font-medium text-gray-600 mb-2">Valid {trip.daysTravel}-Day Windows:</div>
+                      <div className="text-xs font-medium text-text-secondary mb-2">Valid {trip.daysTravel}-Day Windows:</div>
                       {dateWindows.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {dateWindows.map((w, idx) => (
                             <button key={idx} onClick={() => setConfirmedStartDay(w.startDay)}
                               className={`px-2 py-1 text-[10px] font-medium transition-all ${
-                                confirmedStartDay === w.startDay ? 'bg-[#2d1b4e] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                confirmedStartDay === w.startDay ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
                               }`}>
                               {MONTHS[trip.month].slice(0, 3)} {w.startDay}–{w.endDay}
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-gray-400 text-xs">{confirmedParticipants.length === 0 ? 'Waiting for RSVPs...' : 'No valid windows found.'}</p>
+                        <p className="text-text-faint text-xs">{confirmedParticipants.length === 0 ? 'Waiting for RSVPs...' : 'No valid windows found.'}</p>
                       )}
 
                       {confirmedStartDay && (
@@ -491,38 +491,38 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                   {/* Commit Section */}
                   <div>
-                    <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">Commit to Calendar</div>
+                    <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">Commit to Calendar</div>
                     <div className="p-4">
                       {trip.committedAt ? (
                         <div className="text-center">
                           <div className="text-3xl mb-2">✓</div>
                           <div className="text-sm font-semibold text-emerald-700 mb-1">Trip Committed</div>
-                          <div className="text-xs text-gray-500 mb-4">
+                          <div className="text-xs text-text-muted mb-4">
                             {new Date(trip.startDate!).toLocaleDateString()} - {new Date(trip.endDate!).toLocaleDateString()}
                           </div>
                           <button onClick={uncommitTrip} disabled={committing}
-                            className="px-4 py-2 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50">
+                            className="px-4 py-2 text-xs border border-border text-text-secondary hover:bg-bg-row">
                             {committing ? '...' : 'Uncommit'}
                           </button>
                         </div>
                       ) : (
                         <div>
                           <div className="grid grid-cols-3 gap-2 mb-4">
-                            <div className={`p-3 text-center border ${confirmedStartDay ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
-                              <div className="text-lg mb-1">{confirmedStartDay ? '✓' : '—'}</div>
-                              <div className="text-[10px] text-gray-500">Dates</div>
+                            <div className={`p-3 text-center border ${confirmedStartDay ? 'border-emerald-500 bg-emerald-50' : 'border-border'}`}>
+                              <div className="text-terminal-lg mb-1">{confirmedStartDay ? '✓' : '—'}</div>
+                              <div className="text-[10px] text-text-muted">Dates</div>
                             </div>
-                            <div className={`p-3 text-center border ${trip.destination ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
-                              <div className="text-lg mb-1">{trip.destination ? '✓' : '—'}</div>
-                              <div className="text-[10px] text-gray-500">Destination</div>
+                            <div className={`p-3 text-center border ${trip.destination ? 'border-emerald-500 bg-emerald-50' : 'border-border'}`}>
+                              <div className="text-terminal-lg mb-1">{trip.destination ? '✓' : '—'}</div>
+                              <div className="text-[10px] text-text-muted">Destination</div>
                             </div>
-                            <div className={`p-3 text-center border ${tripBudget.length > 0 ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200'}`}>
-                              <div className="text-lg mb-1">{tripBudget.length > 0 ? '✓' : '—'}</div>
-                              <div className="text-[10px] text-gray-500">Budget</div>
+                            <div className={`p-3 text-center border ${tripBudget.length > 0 ? 'border-emerald-500 bg-emerald-50' : 'border-border'}`}>
+                              <div className="text-terminal-lg mb-1">{tripBudget.length > 0 ? '✓' : '—'}</div>
+                              <div className="text-[10px] text-text-muted">Budget</div>
                             </div>
                           </div>
                           <button onClick={commitTrip} disabled={!confirmedStartDay || !trip.destination || committing}
-                            className="w-full px-4 py-3 bg-[#2d1b4e] text-white text-sm font-medium hover:bg-[#3d2b5e] disabled:opacity-50">
+                            className="w-full px-4 py-3 bg-brand-purple text-white text-sm font-medium hover:bg-brand-purple-hover disabled:opacity-50">
                             {committing ? 'Committing...' : 'Commit Trip'}
                           </button>
                         </div>
@@ -533,13 +533,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                 {/* Budget Summary */}
                 {tripBudget.length > 0 && (
-                  <div className="border-t border-gray-200">
-                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                  <div className="border-t border-border">
+                    <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                       Budget Summary
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-bg-row">
                           <tr>
                             <th className="px-3 py-2 text-left font-medium">Item</th>
                             <th className="px-3 py-2 text-left font-medium">Category</th>
@@ -547,11 +547,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                             <th className="px-3 py-2 text-right font-medium">Amount</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                           {tripBudget.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
+                            <tr key={idx} className="hover:bg-bg-row">
                               <td className="px-3 py-2 font-medium">{item.description || item.category}</td>
-                              <td className="px-3 py-2 text-gray-600">{item.category}</td>
+                              <td className="px-3 py-2 text-text-secondary">{item.category}</td>
                               <td className="px-3 py-2 text-center">
                                 {item.splitType === 'split' && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px]">Split</span>}
                               </td>
@@ -559,7 +559,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tfoot className="bg-bg-row border-t border-border">
                           <tr>
                             <td colSpan={3} className="px-3 py-2 font-semibold">Total</td>
                             <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">{fmt(totalBudget)}</td>
@@ -571,13 +571,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 )}
 
                 {/* Crew Section */}
-                <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                <div className="border-t border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                     Crew ({participants.length})
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#3d2b5e] text-white">
+                      <thead className="bg-brand-purple-hover text-white">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Name</th>
                           <th className="px-3 py-2 text-left font-medium">Email</th>
@@ -587,9 +587,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           <th className="px-3 py-2 text-center font-medium"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-border">
                         {participants.map(p => (
-                          <tr key={p.id} className="hover:bg-gray-50">
+                          <tr key={p.id} className="hover:bg-bg-row">
                             <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
                                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
@@ -597,29 +597,29 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                 }`}>
                                   {p.firstName[0]}
                                 </div>
-                                <span className="font-medium text-gray-900">{p.firstName} {p.lastName}</span>
+                                <span className="font-medium text-text-primary">{p.firstName} {p.lastName}</span>
                               </div>
                             </td>
-                            <td className="px-3 py-3 text-gray-600 font-mono">{p.email}</td>
+                            <td className="px-3 py-3 text-text-secondary font-mono">{p.email}</td>
                             <td className="px-3 py-3 text-center">
                               <span className={`px-2 py-0.5 text-[10px] ${
                                 p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                                p.rsvpStatus === 'declined' ? 'bg-red-100 text-red-700' :
+                                p.rsvpStatus === 'declined' ? 'bg-red-100 text-brand-red' :
                                 'bg-amber-100 text-amber-700'
                               }`}>
                                 {p.rsvpStatus}
                               </span>
                             </td>
                             <td className="px-3 py-3 text-center">
-                              {p.isOwner && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">Organizer</span>}
+                              {p.isOwner && <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">Organizer</span>}
                             </td>
-                            <td className="px-3 py-3 text-center text-gray-500">
+                            <td className="px-3 py-3 text-center text-text-muted">
                               {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
                             </td>
                             <td className="px-3 py-3 text-center">
                               {!p.isOwner && (
                                 <button onClick={() => removeParticipant(p.id, p.firstName)}
-                                  className="text-gray-400 hover:text-red-600">×</button>
+                                  className="text-text-faint hover:text-brand-red">×</button>
                               )}
                             </td>
                           </tr>
@@ -630,30 +630,30 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                   {/* Settlement Matrix */}
                   {confirmedParticipants.length > 1 && (
-                    <div className="border-t border-gray-200">
-                      <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                    <div className="border-t border-border">
+                      <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                         Settlement Matrix
                       </div>
                       <div className="p-4 overflow-x-auto">
                         <table className="text-xs">
                           <thead>
                             <tr>
-                              <th className="text-left py-2 px-2 text-gray-500 font-medium">Owes →</th>
+                              <th className="text-left py-2 px-2 text-text-muted font-medium">Owes →</th>
                               {confirmedParticipants.map(p => (
-                                <th key={p.id} className="text-center py-2 px-3 text-gray-500 font-medium">{p.firstName}</th>
+                                <th key={p.id} className="text-center py-2 px-3 text-text-muted font-medium">{p.firstName}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {confirmedParticipants.map(p => (
-                              <tr key={p.id} className="border-t border-gray-100">
-                                <td className="py-2 px-2 font-medium text-gray-900">{p.firstName}</td>
+                              <tr key={p.id} className="border-t border-border-light">
+                                <td className="py-2 px-2 font-medium text-text-primary">{p.firstName}</td>
                                 {confirmedParticipants.map(other => (
                                   <td key={other.id} className="text-center py-2 px-3">
                                     {p.id === other.id ? (
-                                      <span className="text-gray-300">—</span>
+                                      <span className="text-text-faint">—</span>
                                     ) : (
-                                      <span className={(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
+                                      <span className={(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? 'text-brand-red font-semibold' : 'text-text-faint'}>
                                         {(settlementMatrix[p.id]?.[other.id] || 0) > 0 ? fmt(settlementMatrix[p.id][other.id]) : '$0'}
                                       </span>
                                     )}
@@ -669,19 +669,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 {/* Itinerary Section */}
-                <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                <div className="border-t border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                     Itinerary
                   </div>
 
                   {trip.startDate ? (
                     <div>
                       {/* Day Selector */}
-                      <div className="flex flex-wrap gap-2 p-3 border-b border-gray-200">
+                      <div className="flex flex-wrap gap-2 p-3 border-b border-border">
                         {itineraryDays.map(day => (
                           <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
                             className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
-                              selectedDay === day.dayNum ? 'bg-[#2d1b4e] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              selectedDay === day.dayNum ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
                             }`}>
                             Day {day.dayNum} · {day.dateStr}
                           </button>
@@ -696,12 +696,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           <div className="p-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-[#2d1b4e] text-white flex items-center justify-center font-bold">
+                                <div className="w-10 h-10 bg-brand-purple text-white flex items-center justify-center font-bold">
                                   {day.dayNum}
                                 </div>
                                 <div>
-                                  <div className="text-sm font-semibold text-gray-900">{day.weekday}, {day.dateStr}</div>
-                                  <div className="text-[10px] text-gray-500">{day.items.length} items</div>
+                                  <div className="text-sm font-semibold text-text-primary">{day.weekday}, {day.dateStr}</div>
+                                  <div className="text-[10px] text-text-muted">{day.items.length} items</div>
                                 </div>
                               </div>
                               {day.totalCost > 0 && (
@@ -714,19 +714,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                             {day.items.length > 0 ? (
                               <div className="space-y-2">
                                 {day.items.map((item: any) => (
-                                  <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 text-xs">
+                                  <div key={item.id} className="flex items-center justify-between p-2 bg-bg-row text-xs">
                                     <div className="flex items-center gap-2">
                                       {item.destTime && (
-                                        <span className="px-2 py-0.5 bg-[#2d1b4e] text-white text-[10px] font-mono">{item.destTime}</span>
+                                        <span className="px-2 py-0.5 bg-brand-purple text-white text-[10px] font-mono">{item.destTime}</span>
                                       )}
-                                      <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-[10px]">{item.category}</span>
+                                      <span className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{item.category}</span>
                                       <span className="font-medium">{item.vendor}</span>
-                                      {item.note && <span className="text-gray-500">· {item.note}</span>}
+                                      {item.note && <span className="text-text-muted">· {item.note}</span>}
                                     </div>
                                     <div className="text-right">
                                       <div className="font-mono font-semibold">{fmt(parseFloat(item.cost || 0))}</div>
                                       {item.splitBy > 1 && item.perPerson && (
-                                        <div className="text-[10px] text-gray-500">
+                                        <div className="text-[10px] text-text-muted">
                                           {fmt(parseFloat(item.perPerson))}/person
                                         </div>
                                       )}
@@ -735,14 +735,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                 ))}
                               </div>
                             ) : (
-                              <div className="text-xs text-gray-400 italic">No activities planned for this day</div>
+                              <div className="text-xs text-text-faint italic">No activities planned for this day</div>
                             )}
                           </div>
                         );
                       })()}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-gray-400">
+                    <div className="p-8 text-center text-text-faint">
                       <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
                       <p className="text-xs">Select dates and destination first</p>
                     </div>
@@ -750,8 +750,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 {/* Add Expense Section */}
-                <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <div className="border-t border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
                     <span>Add Expense</span>
                     <button onClick={() => setShowExpenseForm(!showExpenseForm)}
                       className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
@@ -759,41 +759,41 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     </button>
                   </div>
                   {showExpenseForm && (
-                    <form onSubmit={handleAddExpense} className="p-4 bg-gray-50">
+                    <form onSubmit={handleAddExpense} className="p-4 bg-bg-row">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                         <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required>
+                          className="bg-white border border-border px-2 py-1.5 text-xs" required>
                           <option value="">Paid by...</option>
                           {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
                         </select>
                         <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs">
+                          className="bg-white border border-border px-2 py-1.5 text-xs">
                           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
                         <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
+                          className="bg-white border border-border px-2 py-1.5 text-xs" required />
                         <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" required />
+                          className="bg-white border border-border px-2 py-1.5 text-xs" required />
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                         <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
+                          className="bg-white border border-border px-2 py-1.5 text-xs" />
                         <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs" />
+                          className="bg-white border border-border px-2 py-1.5 text-xs" />
                         <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                          className="bg-white border border-gray-200 px-2 py-1.5 text-xs col-span-2" />
+                          className="bg-white border border-border px-2 py-1.5 text-xs col-span-2" />
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs text-gray-500">Split:</span>
+                        <span className="text-xs text-text-muted">Split:</span>
                         {confirmedParticipants.map(p => (
                           <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
-                            className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-[#2d1b4e] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                            className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-brand-purple text-white' : 'bg-border text-text-secondary'}`}>
                             {p.firstName}
                           </button>
                         ))}
                       </div>
                       <button type="submit" disabled={savingExpense}
-                        className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium disabled:opacity-50">
+                        className="px-4 py-2 bg-brand-purple text-white text-xs font-medium disabled:opacity-50">
                         {savingExpense ? '...' : 'Add'}
                       </button>
                     </form>
@@ -806,7 +806,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {activeTab === 'budget' && (
               <div>
                 {/* Destinations */}
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                   Compare Destinations
                 </div>
                 <div className="p-4">
@@ -821,7 +821,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                   {destinations.length > 0 && (
                     <div className="mt-6">
-                      <div className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">Location Map</div>
+                      <div className="text-xs font-medium text-text-muted mb-3 uppercase tracking-wider">Location Map</div>
                       <DestinationMap
                         destinations={destinations}
                         selectedName={trip.destination}
@@ -832,8 +832,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 {/* AI Trip Planner */}
-                <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                <div className="border-t border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                     AI Trip Planner
                   </div>
                   <div className="p-4">
@@ -842,9 +842,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     return (
                       userTier === 'free' || userTier === 'pro' ? (
                       <div className="text-center py-8">
-                        <div className="text-sm font-medium text-gray-900 mb-2">AI Trip Planner requires Pro+</div>
-                        <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
-                        <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                        <div className="text-sm font-medium text-text-primary mb-2">AI Trip Planner requires Pro+</div>
+                        <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>
+                        <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
                       </div>
                     ) : (
                       <TripPlannerAI
@@ -881,8 +881,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
                 {/* Flight Search */}
                 {tripDates && trip.destination && (
-                  <div className="border-t border-gray-200">
-                    <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                  <div className="border-t border-border">
+                    <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                       Flights
                     </div>
                     <div className="p-4">

@@ -45,29 +45,29 @@ export default function ClientPortalSection() {
   };
 
   return (
-    <section id="portal" className="py-24 bg-gray-50">
+    <section id="portal" className="py-24 bg-bg-row">
       <div className="max-w-md mx-auto px-8">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#b4b237] mb-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-accent mb-4">
             Client Access
           </p>
-          <h2 className="text-4xl font-light text-gray-900 mb-4">
+          <h2 className="text-4xl font-light text-text-primary mb-4">
             Your Dashboard
           </h2>
-          <p className="text-lg text-gray-600">
+          <p className="text-terminal-lg text-text-secondary">
             View your books anytime, anywhere
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+        <div className="bg-white rounded shadow-sm border border-border-light">
           {/* Toggle */}
-          <div className="flex border-b border-gray-100">
+          <div className="flex border-b border-border-light">
             <button
               onClick={() => {setIsLogin(true); setMessage('');}}
               className={`flex-1 py-4 text-sm font-medium transition-all ${
                 isLogin 
-                  ? 'text-[#b4b237] border-b-2 border-[#b4b237]' 
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'text-brand-accent border-b-2 border-brand-accent' 
+                  : 'text-text-faint hover:text-text-secondary'
               }`}
             >
               Sign In
@@ -77,7 +77,7 @@ export default function ClientPortalSection() {
               className={`flex-1 py-4 text-sm font-medium transition-all ${
                 !isLogin 
                   ? 'text-purple-600 border-b-2 border-purple-600' 
-                  : 'text-gray-400 hover:text-gray-600'
+                  : 'text-text-faint hover:text-text-secondary'
               }`}
             >
               Create Account
@@ -87,41 +87,41 @@ export default function ClientPortalSection() {
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
             {!isLogin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Full Name
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                  className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                   required={!isLogin}
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Email Address
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                 required
                 minLength={8}
               />
@@ -130,7 +130,7 @@ export default function ClientPortalSection() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-[#b4b237] to-[#9a9630] text-white font-medium rounded-lg hover:shadow-xl transition-all disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white font-medium rounded hover:shadow-sm transition-all disabled:opacity-50"
             >
               {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
@@ -138,8 +138,8 @@ export default function ClientPortalSection() {
             {message && (
               <div className={`text-center text-sm ${
                 message.includes('Success') 
-                  ? 'text-green-600' 
-                  : 'text-red-600'
+                  ? 'text-brand-green' 
+                  : 'text-brand-red'
               }`}>
                 {message}
               </div>

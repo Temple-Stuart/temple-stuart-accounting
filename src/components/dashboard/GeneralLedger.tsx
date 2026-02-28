@@ -370,7 +370,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             </button>
           )}
           {accountDropdownOpen && (
-            <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-lg max-h-72 overflow-y-auto">
+            <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white border border-border rounded shadow-sm max-h-72 overflow-y-auto">
               {Object.entries(groupedAccounts).length === 0 && (
                 <div className="px-3 py-2 text-terminal-base text-text-faint">No accounts found</div>
               )}
@@ -444,7 +444,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         <div className="p-8 text-center text-terminal-sm text-text-muted">Loading ledger data...</div>
       )}
       {error && (
-        <div className="p-4 text-center text-terminal-sm text-red-600 bg-red-50">
+        <div className="p-4 text-center text-terminal-sm text-brand-red bg-red-50">
           Error: {error}
           <button onClick={() => fetchLedger(selectedCode)} className="ml-2 underline">
             Retry
@@ -518,7 +518,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             </div>
             <div>
               <span className="text-text-muted">Total Debits</span>
-              <div className="font-semibold text-red-600 tabular-nums mt-0.5">
+              <div className="font-semibold text-brand-red tabular-nums mt-0.5">
                 {fmtMoney(
                   selectedAccount.entries
                     .filter((e) => e.entryType === 'D')
@@ -528,7 +528,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             </div>
             <div>
               <span className="text-text-muted">Total Credits</span>
-              <div className="font-semibold text-green-600 tabular-nums mt-0.5">
+              <div className="font-semibold text-brand-green tabular-nums mt-0.5">
                 {fmtMoney(
                   selectedAccount.entries
                     .filter((e) => e.entryType === 'C')
@@ -648,7 +648,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
                         {/* Status */}
                         <div className="py-1 px-2 w-[90px] shrink-0 text-center">
                           {status === 'Active' && (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700">
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-brand-green">
                               Active
                             </span>
                           )}
@@ -678,11 +678,11 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
             </span>
             <span className="text-text-secondary">
               Total Debits:{' '}
-              <span className="font-semibold text-red-600">{fmtMoney(totalDebits)}</span>
+              <span className="font-semibold text-brand-red">{fmtMoney(totalDebits)}</span>
             </span>
             <span className="text-text-secondary">
               Total Credits:{' '}
-              <span className="font-semibold text-green-600">{fmtMoney(totalCredits)}</span>
+              <span className="font-semibold text-brand-green">{fmtMoney(totalCredits)}</span>
             </span>
           </div>
         </>

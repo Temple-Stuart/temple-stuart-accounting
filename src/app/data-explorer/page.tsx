@@ -82,7 +82,7 @@ export default function DataExplorerPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-white bg-gray-900 min-h-screen">Loading all Plaid data...</div>;
+    return <div className="p-8 text-white bg-brand-purple min-h-screen">Loading all Plaid data...</div>;
   }
 
   const activeData = activeTab === 'transactions' ? transactions : investments;
@@ -91,19 +91,19 @@ export default function DataExplorerPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <h1 className="text-2xl font-bold mb-4">Plaid Data Explorer</h1>
+    <div className="min-h-screen bg-brand-purple text-white p-6">
+      <h1 className="text-sm font-bold mb-4">Plaid Data Explorer</h1>
       
       <div className="flex gap-4 mb-4">
         <button
           onClick={() => setActiveTab('transactions')}
-          className={`px-4 py-2 rounded ${activeTab === 'transactions' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'transactions' ? 'bg-blue-600' : 'bg-brand-purple-deep'}`}
         >
           Transactions ({transactions.length})
         </button>
         <button
           onClick={() => setActiveTab('investments')}
-          className={`px-4 py-2 rounded ${activeTab === 'investments' ? 'bg-blue-600' : 'bg-gray-700'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'investments' ? 'bg-blue-600' : 'bg-brand-purple-deep'}`}
         >
           Investments ({investments.length})
         </button>
@@ -125,9 +125,9 @@ export default function DataExplorerPage() {
       </div>
 
       {activeTab === 'investments' && investments.length > 0 && (
-        <div className="mb-4 p-4 bg-gray-800 rounded">
+        <div className="mb-4 p-4 bg-brand-purple-deep rounded">
           <h3 className="font-bold mb-2">Security Fields (nested):</h3>
-          <pre className="text-xs text-gray-400 overflow-x-auto">
+          <pre className="text-xs text-text-faint overflow-x-auto">
             {JSON.stringify(Object.keys(investments[0]?.security || {}), null, 2)}
           </pre>
         </div>
@@ -136,30 +136,30 @@ export default function DataExplorerPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
-            <tr className="bg-gray-800">
-              <th className="p-2 border border-gray-700 text-left">#</th>
+            <tr className="bg-brand-purple-deep">
+              <th className="p-2 border border-border text-left">#</th>
               {columns.slice(0, 20).map(col => (
-                <th key={col} className="p-2 border border-gray-700 text-left whitespace-nowrap">
+                <th key={col} className="p-2 border border-border text-left whitespace-nowrap">
                   {col}
                 </th>
               ))}
               {activeTab === 'investments' && (
                 <>
-                  <th className="p-2 border border-gray-700">sec_ticker</th>
-                  <th className="p-2 border border-gray-700">sec_underlying</th>
-                  <th className="p-2 border border-gray-700">sec_strike</th>
-                  <th className="p-2 border border-gray-700">sec_expiry</th>
-                  <th className="p-2 border border-gray-700">sec_type</th>
+                  <th className="p-2 border border-border">sec_ticker</th>
+                  <th className="p-2 border border-border">sec_underlying</th>
+                  <th className="p-2 border border-border">sec_strike</th>
+                  <th className="p-2 border border-border">sec_expiry</th>
+                  <th className="p-2 border border-border">sec_type</th>
                 </>
               )}
             </tr>
           </thead>
           <tbody>
             {activeData.slice(0, 200).map((row, idx) => (
-              <tr key={idx} className="hover:bg-gray-800">
-                <td className="p-2 border border-gray-700">{idx + 1}</td>
+              <tr key={idx} className="hover:bg-brand-purple-deep">
+                <td className="p-2 border border-border">{idx + 1}</td>
                 {columns.slice(0, 20).map(col => (
-                  <td key={col} className="p-2 border border-gray-700 max-w-[200px] truncate">
+                  <td key={col} className="p-2 border border-border max-w-[200px] truncate">
                     {typeof row[col] === 'object' 
                       ? JSON.stringify(row[col])?.substring(0, 50)
                       : String(row[col] ?? '')}
@@ -167,11 +167,11 @@ export default function DataExplorerPage() {
                 ))}
                 {activeTab === 'investments' && (
                   <>
-                    <td className="p-2 border border-gray-700">{row.security?.ticker_symbol}</td>
-                    <td className="p-2 border border-gray-700">{row.security?.option_underlying_ticker}</td>
-                    <td className="p-2 border border-gray-700">{row.security?.option_strike_price}</td>
-                    <td className="p-2 border border-gray-700">{row.security?.option_expiration_date}</td>
-                    <td className="p-2 border border-gray-700">{row.security?.option_contract_type}</td>
+                    <td className="p-2 border border-border">{row.security?.ticker_symbol}</td>
+                    <td className="p-2 border border-border">{row.security?.option_underlying_ticker}</td>
+                    <td className="p-2 border border-border">{row.security?.option_strike_price}</td>
+                    <td className="p-2 border border-border">{row.security?.option_expiration_date}</td>
+                    <td className="p-2 border border-border">{row.security?.option_contract_type}</td>
                   </>
                 )}
               </tr>
@@ -181,7 +181,7 @@ export default function DataExplorerPage() {
       </div>
       
       {activeData.length > 200 && (
-        <p className="mt-4 text-gray-400">Showing first 200 of {activeData.length} rows. Download for full data.</p>
+        <p className="mt-4 text-text-faint">Showing first 200 of {activeData.length} rows. Download for full data.</p>
       )}
     </div>
   );

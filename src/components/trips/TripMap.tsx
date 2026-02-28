@@ -43,8 +43,8 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
 
   if (!mounted || !MapContainer || !TileLayer || !Marker || !Popup || !Polyline || !L) {
     return (
-      <div className="aspect-[2/1] w-full bg-gray-100 rounded-xl flex items-center justify-center">
-        <div className="text-gray-400">Loading map...</div>
+      <div className="aspect-[2/1] w-full bg-bg-row rounded flex items-center justify-center">
+        <div className="text-text-faint">Loading map...</div>
       </div>
     );
   }
@@ -59,8 +59,8 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
 
   if (tripsWithCoords.length === 0) {
     return (
-      <div className="aspect-[2/1] w-full bg-gray-100 rounded-xl flex items-center justify-center">
-        <div className="text-center text-gray-400">
+      <div className="aspect-[2/1] w-full bg-bg-row rounded flex items-center justify-center">
+        <div className="text-center text-text-faint">
           <div className="text-4xl mb-2">🗺️</div>
           <p>No trip locations to display</p>
           <p className="text-sm">Commit trips to see them on the map</p>
@@ -116,7 +116,7 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
       <MapContainer
         center={[centerLat, centerLng]}
         zoom={4}
-        className="w-full h-full rounded-xl z-0"
+        className="w-full h-full rounded z-0"
         style={{ aspectRatio: '1/1' }}
         whenReady={(e: any) => {
           const mapInstance = e.target;
@@ -163,7 +163,7 @@ export default function TripMap({ trips, onTripClick }: TripMapProps) {
                   <span className="font-bold">{trip.destination || trip.name}</span>
                 </div>
                 {trip.startDate && (
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-text-muted">
                     {new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     {trip.endDate && ` - ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
                   </div>

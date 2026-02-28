@@ -97,10 +97,10 @@ export default function ItineraryBuilderPage() {
               <button
                 key={year}
                 onClick={() => setSelectedYear(year)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded text-sm font-medium transition-all ${
                   selectedYear === year 
-                    ? 'bg-gray-900 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-brand-purple text-white' 
+                    : 'bg-bg-row text-text-secondary hover:bg-border'
                 }`}
               >
                 {year}
@@ -110,7 +110,7 @@ export default function ItineraryBuilderPage() {
           
           <button
             onClick={() => router.push('/hub')}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+            className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
           >
             <span>📅</span> View Calendar
           </button>
@@ -120,7 +120,7 @@ export default function ItineraryBuilderPage() {
       <div className="p-8 pt-0">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-4 border-[#b4b237] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-brand-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <BudgetBuilder 
@@ -133,15 +133,15 @@ export default function ItineraryBuilderPage() {
         )}
 
         {/* Calendar Coming Soon - Now Active! */}
-        <Card className="p-8 mt-8 text-center bg-gradient-to-br from-[#b4b237]/10 to-[#b4b237]/5">
+        <Card className="p-8 mt-8 text-center bg-gradient-to-br from-brand-accent/10 to-brand-accent/5">
           <div className="text-4xl mb-4">📅</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Calendar View Available</h3>
-          <p className="text-gray-500 mb-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-2">Calendar View Available</h3>
+          <p className="text-text-muted mb-4">
             View your committed budgets from Home, Agenda, and Trips on the calendar.
           </p>
           <button
             onClick={() => router.push('/hub')}
-            className="px-6 py-3 bg-[#b4b237] hover:bg-[#9a982f] text-white rounded-lg font-medium transition-all"
+            className="px-6 py-3 bg-brand-accent hover:bg-brand-accent-dark text-white rounded font-medium transition-all"
           >
             Open Hub Calendar →
           </button>

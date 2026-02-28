@@ -192,7 +192,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             {/* ═══ TIER 1: Liquidity Gates ═══ */}
-            <div className="rounded-lg p-3" style={{ background: '#1E293B' }}>
+            <div className="rounded p-3" style={{ background: '#1E293B' }}>
               <SectionHeader label="Liquidity Gates" open={t1Open} onToggle={() => setT1Open(!t1Open)} />
               {t1Open && (
                 <div className="space-y-2 mt-2">
@@ -223,7 +223,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
             </div>
 
             {/* ═══ TIER 2: Risk Profile ═══ */}
-            <div className="rounded-lg p-3" style={{ background: '#1E293B' }}>
+            <div className="rounded p-3" style={{ background: '#1E293B' }}>
               <SectionHeader label="Risk Profile" open={t2Open} onToggle={() => setT2Open(!t2Open)} />
               {t2Open && (
                 <div className="space-y-2.5 mt-2">
@@ -335,7 +335,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
             </div>
 
             {/* ═══ TIER 3: Edge Metrics ═══ */}
-            <div className="rounded-lg p-3" style={{ background: '#1E293B' }}>
+            <div className="rounded p-3" style={{ background: '#1E293B' }}>
               <SectionHeader label="Edge Metrics" open={t3Open} onToggle={() => setT3Open(!t3Open)} />
               {t3Open && (
                 <div className="space-y-2 mt-2">

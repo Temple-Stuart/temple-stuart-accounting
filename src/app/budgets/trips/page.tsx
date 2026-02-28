@@ -124,7 +124,7 @@ export default function TripsPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -132,21 +132,21 @@ export default function TripsPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
           {/* Header */}
-          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+          <div className="mb-4 bg-brand-purple text-white p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">Trip Command Center</h1>
-                <p className="text-gray-300 text-xs font-mono">
+                <h1 className="text-terminal-lg font-semibold tracking-tight">Trip Command Center</h1>
+                <p className="text-text-faint text-xs font-mono">
                   {trips.length} trips · {committedTrips.length} committed · {plannedTrips.length} planning
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => router.push('/budgets/trips/new')}
-                  className="px-4 py-2 text-xs bg-white text-[#2d1b4e] font-medium hover:bg-gray-100">
+                  className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
                   + New Trip
                 </button>
               </div>
@@ -155,30 +155,30 @@ export default function TripsPage() {
 
           {/* Stats Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Trips {selectedYear}</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{stats.count}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Trips {selectedYear}</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{stats.count}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Travel Days</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{stats.days}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Travel Days</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{stats.days}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Destinations</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{stats.destinations}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Destinations</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{stats.destinations}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Budget Items</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{stats.budget}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Budget Items</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{stats.budget}</div>
             </div>
           </div>
 
           {/* Year Selector */}
           <div className="flex items-center justify-end mb-4">
-            <div className="flex gap-1 bg-white border border-gray-200">
+            <div className="flex gap-1 bg-white border border-border">
               {[selectedYear - 1, selectedYear, selectedYear + 1].map(year => (
                 <button key={year} onClick={() => setSelectedYear(year)}
-                  className={`px-4 py-2 text-xs font-medium ${year === selectedYear ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                  className={`px-4 py-2 text-xs font-medium ${year === selectedYear ? 'bg-brand-purple text-white' : 'text-text-secondary hover:bg-bg-row'}`}>
                   {year}
                 </button>
               ))}
@@ -186,8 +186,8 @@ export default function TripsPage() {
           </div>
 
           {/* Calendar */}
-          <div className="bg-white border border-gray-200 mb-4">
-            <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+          <div className="bg-white border border-border mb-4">
+            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
               <button onClick={() => {
                 if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
                 else setSelectedMonth(m => m - 1);
@@ -218,7 +218,7 @@ export default function TripsPage() {
                 <div className="p-4">
                   <div className="grid grid-cols-7 gap-px text-center mb-1">
                     {WEEKDAYS.map((d, i) => (
-                      <div key={i} className="text-[9px] text-gray-400 font-medium py-1">{d[0]}</div>
+                      <div key={i} className="text-[9px] text-text-faint font-medium py-1">{d[0]}</div>
                     ))}
                   </div>
 
@@ -249,7 +249,7 @@ export default function TripsPage() {
                           className={`aspect-square flex items-center justify-center text-[10px] transition-all relative ${
                             tripOnDay
                               ? 'text-white cursor-pointer hover:opacity-80'
-                              : 'text-gray-500 hover:bg-gray-50'
+                              : 'text-text-muted hover:bg-bg-row'
                           }`}
                           style={tripOnDay ? { backgroundColor: ACTIVITY_COLORS[tripOnDay.activity || ''] || '#2d1b4e' } : {}}
                           title={tripOnDay ? `${tripOnDay.name} - ${tripOnDay.destination}` : undefined}
@@ -281,23 +281,23 @@ export default function TripsPage() {
           </div>
 
           {/* Trip List */}
-          <div className="bg-white border border-gray-200 mb-4">
-            <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-white border border-border mb-4">
+            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
               All Trips
             </div>
 
             {trips.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
+              <div className="p-8 text-center text-text-faint">
                 <p className="text-sm mb-4">No trips yet. Create your first trip to start planning.</p>
                 <button onClick={() => router.push('/budgets/trips/new')}
-                  className="px-4 py-2 text-sm bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                  className="px-4 py-2 text-sm bg-brand-purple text-white hover:bg-brand-purple-hover">
                   Create First Trip
                 </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-[#3d2b5e] text-white">
+                  <thead className="bg-brand-purple-hover text-white">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium">Trip</th>
                       <th className="px-3 py-2 text-left font-medium">Destination</th>
@@ -309,14 +309,14 @@ export default function TripsPage() {
                       <th className="px-3 py-2 text-center font-medium"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {trips.map(trip => (
                       <tr key={trip.id} onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                        className="hover:bg-gray-50 cursor-pointer">
+                        className="hover:bg-bg-row cursor-pointer">
                         <td className="px-3 py-3">
-                          <div className="font-medium text-gray-900">{trip.name}</div>
+                          <div className="font-medium text-text-primary">{trip.name}</div>
                         </td>
-                        <td className="px-3 py-3 text-gray-600">{trip.destination || '—'}</td>
+                        <td className="px-3 py-3 text-text-secondary">{trip.destination || '—'}</td>
                         <td className="px-3 py-3">
                           {trip.activity && (
                             <span className="px-2 py-0.5 text-[10px] text-white"
@@ -325,7 +325,7 @@ export default function TripsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-3 font-mono text-gray-600">
+                        <td className="px-3 py-3 font-mono text-text-secondary">
                           {trip.startDate
                             ? `${new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(trip.endDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                             : `${MONTHS[trip.month - 1]} ${trip.year}`}
@@ -336,13 +336,13 @@ export default function TripsPage() {
                             {trip.participants.slice(0, 3).map(p => (
                               <div key={p.id}
                                 className={`w-5 h-5 rounded-full border border-white flex items-center justify-center text-[8px] font-bold text-white ${
-                                  p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : 'bg-gray-400'
+                                  p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : 'bg-text-faint'
                                 }`}>
                                 {p.firstName[0]}
                               </div>
                             ))}
                             {trip.participants.length > 3 && (
-                              <div className="w-5 h-5 rounded-full border border-white bg-gray-200 flex items-center justify-center text-[8px] text-gray-600">
+                              <div className="w-5 h-5 rounded-full border border-white bg-border flex items-center justify-center text-[8px] text-text-secondary">
                                 +{trip.participants.length - 3}
                               </div>
                             )}
@@ -357,7 +357,7 @@ export default function TripsPage() {
                         </td>
                         <td className="px-3 py-3 text-center">
                           <button onClick={(e) => deleteTrip(trip.id, e)}
-                            className="text-gray-400 hover:text-red-600 text-xs px-2 py-1">
+                            className="text-text-faint hover:text-brand-red text-xs px-2 py-1">
                             {deleting === trip.id ? '...' : '×'}
                           </button>
                         </td>
@@ -370,8 +370,8 @@ export default function TripsPage() {
           </div>
 
           {/* Map */}
-          <div className="bg-white border border-gray-200">
-            <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-white border border-border">
+            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
               Trip Locations
             </div>
             <div className="p-4">
@@ -393,11 +393,11 @@ export default function TripsPage() {
 
           {/* Trip Detail Sidebar (when selected) */}
           {selectedTrip && (
-            <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-xl z-50 overflow-y-auto">
-              <div className="bg-[#2d1b4e] text-white p-4 flex justify-between items-center">
+            <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-sm z-50 overflow-y-auto">
+              <div className="bg-brand-purple text-white p-4 flex justify-between items-center">
                 <div>
                   <div className="font-semibold">{selectedTrip.name}</div>
-                  <div className="text-xs text-gray-300">{selectedTrip.destination}</div>
+                  <div className="text-xs text-text-faint">{selectedTrip.destination}</div>
                 </div>
                 <button onClick={() => setSelectedTrip(null)} className="text-white/60 hover:text-white">×</button>
               </div>

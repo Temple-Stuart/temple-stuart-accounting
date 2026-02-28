@@ -219,7 +219,7 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
 
   if (loading) {
     return (
-      <div className="p-6 bg-white border rounded-lg">
+      <div className="p-6 bg-white border rounded">
         <div className="animate-pulse">Loading transactions...</div>
       </div>
     );
@@ -227,9 +227,9 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <div className="text-red-600">Error: {error}</div>
-        <button onClick={fetchData} className="mt-2 text-blue-600 underline">Retry</button>
+      <div className="p-6 bg-red-50 border border-red-200 rounded">
+        <div className="text-brand-red">Error: {error}</div>
+        <button onClick={fetchData} className="mt-2 text-brand-purple underline">Retry</button>
       </div>
     );
   }
@@ -237,19 +237,19 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
   return (
     <div className="space-y-4">
       {/* Header & Commit Controls */}
-      <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg sticky top-0 z-10">
+      <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded sticky top-0 z-10">
         <div className="flex justify-between items-start gap-4">
           <div>
-            <h3 className="font-bold text-lg">📊 Trade Commit Queue</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-bold text-terminal-lg">📊 Trade Commit Queue</h3>
+            <p className="text-sm text-text-secondary">
               {transactions.length} uncommitted • {sortedTickers.length} tickers • Next Trade #: {nextTradeNum}
             </p>
           </div>
           
           {selectedIds.size > 0 && (
-            <div className="flex flex-col gap-2 p-3 bg-white rounded-lg border shadow-sm">
+            <div className="flex flex-col gap-2 p-3 bg-white rounded border shadow-sm">
               <div className="text-sm font-medium">
-                {selectedIds.size} selected • Net: <span className={selectedTotal < 0 ? 'text-green-600' : 'text-red-600'}>
+                {selectedIds.size} selected • Net: <span className={selectedTotal < 0 ? 'text-brand-green' : 'text-brand-red'}>
                   ${Math.abs(selectedTotal).toFixed(2)} {selectedTotal < 0 ? 'CR' : 'DR'}
                 </span>
               </div>
@@ -287,14 +287,14 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                 <button
                   onClick={commitTrade}
                   disabled={committing || !strategy || !tradeNum}
-                  className="px-4 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 disabled:bg-gray-400"
+                  className="px-4 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 disabled:bg-text-faint"
                 >
                   {committing ? '...' : 'Commit'}
                 </button>
                 
                 <button
                   onClick={clearSelection}
-                  className="px-2 py-1 text-gray-500 hover:text-gray-700 text-sm"
+                  className="px-2 py-1 text-text-muted hover:text-text-secondary text-sm"
                 >
                   Clear
                 </button>
@@ -315,20 +315,20 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
           const unknown = txns.filter(t => t.positionType === 'unknown');
           
           return (
-            <div key={ticker} className="border rounded-lg overflow-hidden">
+            <div key={ticker} className="border rounded overflow-hidden">
               {/* Ticker Header */}
               <button
                 onClick={() => setExpandedTicker(isExpanded ? null : ticker)}
-                className="w-full flex justify-between items-center px-4 py-3 bg-gray-50 hover:bg-gray-100"
+                className="w-full flex justify-between items-center px-4 py-3 bg-bg-row hover:bg-bg-row"
               >
                 <span className="flex items-center gap-3">
-                  <span className="font-bold text-lg">{ticker}</span>
-                  <span className="text-xs bg-gray-200 px-2 py-0.5 rounded">{txns.length} txns</span>
+                  <span className="font-bold text-terminal-lg">{ticker}</span>
+                  <span className="text-xs bg-border px-2 py-0.5 rounded">{txns.length} txns</span>
                   {opens.length > 0 && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{opens.length} opens</span>
+                    <span className="text-xs bg-green-100 text-brand-green px-2 py-0.5 rounded">{opens.length} opens</span>
                   )}
                   {closes.length > 0 && (
-                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">{closes.length} closes</span>
+                    <span className="text-xs bg-red-100 text-brand-red px-2 py-0.5 rounded">{closes.length} closes</span>
                   )}
                   {selectedInTicker > 0 && (
                     <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">✓ {selectedInTicker} selected</span>
@@ -340,8 +340,8 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
               {/* Expanded Transaction List */}
               {isExpanded && (
                 <div className="border-t">
-                  <div className="px-4 py-2 bg-gray-50 border-b flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Click rows to select, then commit as a trade</span>
+                  <div className="px-4 py-2 bg-bg-row border-b flex justify-between items-center">
+                    <span className="text-xs text-text-muted">Click rows to select, then commit as a trade</span>
                     <button
                       onClick={() => selectAllInTicker(ticker)}
                       className="text-xs text-indigo-600 hover:text-indigo-800"
@@ -358,7 +358,7 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                           key={t.id}
                           onClick={() => toggleSelect(t.id)}
                           className={`flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors ${
-                            isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-gray-50'
+                            isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'hover:bg-bg-row'
                           }`}
                         >
                           <input
@@ -368,20 +368,20 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                             className="w-4 h-4"
                           />
                           
-                          <span className="text-xs text-gray-500 w-20">
+                          <span className="text-xs text-text-muted w-20">
                             {new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                           
                           <span className={`text-xs font-medium px-2 py-0.5 rounded w-16 text-center ${
-                            t.positionType === 'open' ? 'bg-green-100 text-green-700' :
-                            t.positionType === 'close' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
+                            t.positionType === 'open' ? 'bg-green-100 text-brand-green' :
+                            t.positionType === 'close' ? 'bg-red-100 text-brand-red' :
+                            'bg-bg-row text-text-secondary'
                           }`}>
                             {t.positionType === 'open' ? 'OPEN' : t.positionType === 'close' ? 'CLOSE' : '???'}
                           </span>
                           
                           <span className={`text-xs font-medium px-2 py-0.5 rounded w-12 text-center ${
-                            t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                            t.action.includes('sell') ? 'bg-orange-100 text-orange-700' : 'bg-brand-purple-wash text-brand-purple'
                           }`}>
                             {t.action.includes('sell') ? 'SELL' : 'BUY'}
                           </span>
@@ -390,11 +390,11 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                             <>
                               <span className="text-sm font-mono w-16 text-right">${t.strike}</span>
                               <span className={`text-xs px-2 py-0.5 rounded ${
-                                t.optionType === 'call' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+                                t.optionType === 'call' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-purple-50 text-purple-600'
                               }`}>
                                 {t.optionType?.toUpperCase()}
                               </span>
-                              <span className="text-xs text-gray-400 w-20">{t.expiration}</span>
+                              <span className="text-xs text-text-faint w-20">{t.expiration}</span>
                             </>
                           )}
                           
@@ -402,10 +402,10 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
                           <span className="text-sm w-20 text-right">${t.price?.toFixed(2)}</span>
                           
                           <span className={`text-sm font-medium w-24 text-right ${
-                            t.amount < 0 ? 'text-green-600' : 'text-red-600'
+                            t.amount < 0 ? 'text-brand-green' : 'text-brand-red'
                           }`}>
                             ${Math.abs(t.amount).toFixed(2)}
-                            <span className="text-xs text-gray-400 ml-1">
+                            <span className="text-xs text-text-faint ml-1">
                               {t.amount < 0 ? 'CR' : 'DR'}
                             </span>
                           </span>
@@ -421,7 +421,7 @@ export default function TradeCommitQueue({ onReload }: TradeCommitQueueProps) {
       </div>
 
       {transactions.length === 0 && (
-        <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+        <div className="p-8 text-center text-text-muted bg-bg-row rounded">
           No uncommitted transactions found.
         </div>
       )}

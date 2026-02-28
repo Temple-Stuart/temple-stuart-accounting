@@ -224,7 +224,7 @@ export default function TradeLabPanel() {
   return (
     <div>
       {/* Header */}
-      <div className="bg-[#2d1b4e] text-white px-4 py-3 flex items-center justify-between">
+      <div className="bg-brand-purple text-white px-4 py-3 flex items-center justify-between">
         <div>
           <span className="text-sm font-semibold">Trade Lab</span>
           <span className="text-[10px] text-purple-300 ml-2">{cards.length} card{cards.length !== 1 ? 's' : ''}</span>
@@ -233,7 +233,7 @@ export default function TradeLabPanel() {
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="bg-[#3d2b5e] text-white border-0 text-xs px-2 py-1 rounded"
+            className="bg-brand-purple-hover text-white border-0 text-xs px-2 py-1 rounded"
           >
             <option value="all">All</option>
             <option value="queued">Queued</option>
@@ -241,7 +241,7 @@ export default function TradeLabPanel() {
             <option value="linked">Linked</option>
             <option value="graded">Graded</option>
           </select>
-          <button onClick={loadCards} className="text-xs bg-[#3d2b5e] px-3 py-1 rounded hover:bg-[#4d3b6e]">
+          <button onClick={loadCards} className="text-xs bg-brand-purple-hover px-3 py-1 rounded hover:bg-brand-purple">
             Refresh
           </button>
         </div>
@@ -253,16 +253,16 @@ export default function TradeLabPanel() {
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-gray-500">Loading trade cards...</div>
+        <div className="p-8 text-center text-sm text-text-muted">Loading trade cards...</div>
       ) : cards.length === 0 ? (
         <div className="p-12 text-center">
-          <div className="text-gray-400 text-sm mb-2">No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
-          <div className="text-gray-400 text-xs">
+          <div className="text-text-faint text-sm mb-2">No trade cards {filter !== 'all' ? `with status "${filter}"` : 'yet'}</div>
+          <div className="text-text-faint text-xs">
             Use Market Intelligence to scan for opportunities, then click &ldquo;Enter Trade&rdquo; on any strategy card to save it here.
           </div>
         </div>
       ) : (
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-border">
           {cards.map(card => {
             const dir = dirColor(card.direction);
             const badge = statusBadge(card.status);
@@ -279,7 +279,7 @@ export default function TradeLabPanel() {
                   className={`px-4 py-3 transition-colors cursor-pointer ${
                     card.status === 'graded' && card.link?.grade
                       ? Number(card.link.actual_pl) >= 0 ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'
-                      : 'hover:bg-gray-50'
+                      : 'hover:bg-bg-row'
                   }`}
                   onClick={() => setExpandedCardId(isExpanded ? null : card.id)}
                 >
@@ -287,8 +287,8 @@ export default function TradeLabPanel() {
                     {/* Left: symbol + strategy */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-base font-bold font-mono text-gray-900">{card.symbol}</span>
-                        <span className="text-xs font-medium text-gray-600">{card.strategy_name}</span>
+                        <span className="text-base font-bold font-mono text-text-primary">{card.symbol}</span>
+                        <span className="text-xs font-medium text-text-secondary">{card.strategy_name}</span>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: dir.bg, color: dir.text }}>
                           {card.direction.toUpperCase()}
                         </span>
@@ -304,21 +304,21 @@ export default function TradeLabPanel() {
                       </div>
 
                       {/* Legs */}
-                      <div className="flex gap-3 text-[11px] text-gray-500 mb-1 flex-wrap">
+                      <div className="flex gap-3 text-[11px] text-text-muted mb-1 flex-wrap">
                         {legs.map((leg, i) => (
                           <span key={i} className="font-mono">
-                            <span className={leg.side === 'sell' ? 'text-red-600' : 'text-green-600'}>{leg.side.toUpperCase()}</span>
+                            <span className={leg.side === 'sell' ? 'text-brand-red' : 'text-brand-green'}>{leg.side.toUpperCase()}</span>
                             {' '}{leg.type.toUpperCase()}{' '}${leg.strike}{' '}@{' '}${leg.price.toFixed(2)}
                           </span>
                         ))}
                       </div>
 
                       {/* Meta row */}
-                      <div className="flex items-center gap-4 text-[10px] text-gray-400 flex-wrap">
+                      <div className="flex items-center gap-4 text-[10px] text-text-faint flex-wrap">
                         <span>Queued {fmtDate(card.generated_at)}</span>
                         {card.dte != null && <span>{card.dte} DTE</span>}
                         {card.expiration_date && <span>Exp {fmtDateShort(card.expiration_date)}</span>}
-                        {card.link && <span className="text-blue-600 font-medium">Trade #{card.link.trade_num}</span>}
+                        {card.link && <span className="text-brand-purple font-medium">Trade #{card.link.trade_num}</span>}
                         {card.link?.linked_at && <span>Linked {fmtDateShort(card.link.linked_at)}</span>}
                       </div>
                     </div>
@@ -328,21 +328,21 @@ export default function TradeLabPanel() {
                       {/* Actual P&L for graded cards */}
                       {card.link?.actual_pl != null && (
                         <div className="mb-1">
-                          <div className="text-[9px] text-gray-400 uppercase">Actual P&L</div>
-                          <div className={`text-lg font-mono font-black ${Number(card.link.actual_pl) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          <div className="text-[9px] text-text-faint uppercase">Actual P&L</div>
+                          <div className={`text-terminal-lg font-mono font-black ${Number(card.link.actual_pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                             {fmtDollar(Number(card.link.actual_pl))}
                           </div>
                         </div>
                       )}
 
                       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
-                        <div className="text-gray-400">Max Profit</div>
-                        <div className="font-mono font-bold text-green-700">{fmtDollar(card.max_profit)}</div>
-                        <div className="text-gray-400">Max Loss</div>
-                        <div className="font-mono font-bold text-red-700">{fmtDollar(card.max_loss)}</div>
-                        <div className="text-gray-400" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
+                        <div className="text-text-faint">Max Profit</div>
+                        <div className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</div>
+                        <div className="text-text-faint">Max Loss</div>
+                        <div className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</div>
+                        <div className="text-text-faint" title="Estimated Probability of Profit based on delta approximation">Est. PoP</div>
                         <div className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</div>
-                        <div className="text-gray-400">R:R</div>
+                        <div className="text-text-faint">R:R</div>
                         <div className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</div>
                       </div>
 
@@ -353,13 +353,13 @@ export default function TradeLabPanel() {
                           <>
                             <button
                               onClick={() => startLinking(card)}
-                              className="text-[10px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                              className="text-[10px] font-medium text-brand-purple hover:text-blue-800 transition-colors"
                             >
                               {isLinking ? 'Cancel' : 'Link to Position'}
                             </button>
                             <button
                               onClick={() => deleteCard(card.id)}
-                              className="text-[10px] text-gray-400 hover:text-red-600 transition-colors"
+                              className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
                             >
                               Remove
                             </button>
@@ -378,7 +378,7 @@ export default function TradeLabPanel() {
                             </button>
                             <button
                               onClick={() => unlinkCard(card.link!.id)}
-                              className="text-[10px] text-gray-400 hover:text-red-600 transition-colors"
+                              className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
                             >
                               Unlink
                             </button>
@@ -389,7 +389,7 @@ export default function TradeLabPanel() {
                         {card.status === 'graded' && card.link && (
                           <button
                             onClick={() => unlinkCard(card.link!.id)}
-                            className="text-[10px] text-gray-400 hover:text-red-600 transition-colors"
+                            className="text-[10px] text-text-faint hover:text-brand-red transition-colors"
                           >
                             Unlink
                           </button>
@@ -406,12 +406,12 @@ export default function TradeLabPanel() {
                       Select a position to link to:
                     </div>
                     {linkError && (
-                      <div className="text-xs text-red-600 mb-2">{linkError}</div>
+                      <div className="text-xs text-brand-red mb-2">{linkError}</div>
                     )}
                     {loadingPositions ? (
-                      <div className="text-xs text-gray-500">Loading positions...</div>
+                      <div className="text-xs text-text-muted">Loading positions...</div>
                     ) : matchablePositions.length === 0 ? (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-text-muted">
                         No matching positions yet &mdash; execute the trade and commit it in Books first.
                       </div>
                     ) : (
@@ -424,18 +424,18 @@ export default function TradeLabPanel() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="font-mono font-bold text-gray-900">#{pos.trade_num}</span>
-                                <span className="font-medium text-gray-700">{pos.symbol}</span>
-                                {pos.strategy && <span className="text-gray-500">{pos.strategy}</span>}
+                                <span className="font-mono font-bold text-text-primary">#{pos.trade_num}</span>
+                                <span className="font-medium text-text-secondary">{pos.symbol}</span>
+                                {pos.strategy && <span className="text-text-muted">{pos.strategy}</span>}
                                 {pos.option_type && (
-                                  <span className="text-gray-400">
+                                  <span className="text-text-faint">
                                     {pos.option_type} {pos.strike_price ? `$${pos.strike_price}` : ''}
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                              <div className="flex items-center gap-2 text-[10px] text-text-faint">
                                 <span>{fmtDateShort(pos.open_date)}</span>
-                                <span className={`px-1.5 py-0.5 rounded font-bold ${pos.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                <span className={`px-1.5 py-0.5 rounded font-bold ${pos.status === 'OPEN' ? 'bg-green-100 text-brand-green' : 'bg-bg-row text-text-secondary'}`}>
                                   {pos.status}
                                 </span>
                               </div>
@@ -449,31 +449,31 @@ export default function TradeLabPanel() {
 
                 {/* Expanded scorecard */}
                 {isExpanded && (
-                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <div className="px-4 py-3 bg-bg-row border-t border-border">
                     <div className="grid grid-cols-2 gap-4">
                       {/* Left: Predicted */}
                       <div>
-                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2">Predicted</div>
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Predicted</div>
                         <div className="space-y-1 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Max Profit</span>
-                            <span className="font-mono font-bold text-green-700">{fmtDollar(card.max_profit)}</span>
+                            <span className="text-text-muted">Max Profit</span>
+                            <span className="font-mono font-bold text-brand-green">{fmtDollar(card.max_profit)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Max Loss</span>
-                            <span className="font-mono font-bold text-red-700">{fmtDollar(card.max_loss)}</span>
+                            <span className="text-text-muted">Max Loss</span>
+                            <span className="font-mono font-bold text-brand-red">{fmtDollar(card.max_loss)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
+                            <span className="text-text-muted" title="Estimated Probability of Profit based on delta approximation">Est. PoP</span>
                             <span className="font-mono font-bold">{card.win_rate != null ? `${Number(card.win_rate).toFixed(1)}%` : '\u2014'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-500">R:R</span>
+                            <span className="text-text-muted">R:R</span>
                             <span className="font-mono font-bold">{card.risk_reward != null ? Number(card.risk_reward).toFixed(2) : '\u2014'}</span>
                           </div>
                           {card.entry_price != null && (
                             <div className="flex justify-between">
-                              <span className="text-gray-500">Entry Price</span>
+                              <span className="text-text-muted">Entry Price</span>
                               <span className="font-mono font-bold">${Number(card.entry_price).toFixed(2)}</span>
                             </div>
                           )}
@@ -484,30 +484,30 @@ export default function TradeLabPanel() {
                       <div>
                         {card.link ? (
                           <>
-                            <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2">Actual</div>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
                             <div className="space-y-1 text-xs">
                               <div className="flex justify-between">
-                                <span className="text-gray-500">P&L</span>
-                                <span className={`font-mono font-bold ${card.link.actual_pl != null && Number(card.link.actual_pl) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                <span className="text-text-muted">P&L</span>
+                                <span className={`font-mono font-bold ${card.link.actual_pl != null && Number(card.link.actual_pl) >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
                                   {card.link.actual_pl != null ? fmtDollar(Number(card.link.actual_pl)) : 'Open'}
                                 </span>
                               </div>
                               {card.link.actual_entry_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Entry Price</span>
+                                  <span className="text-text-muted">Entry Price</span>
                                   <span className="font-mono font-bold">${Number(card.link.actual_entry_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.actual_exit_price != null && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Exit Price</span>
+                                  <span className="text-text-muted">Exit Price</span>
                                   <span className="font-mono font-bold">${Number(card.link.actual_exit_price).toFixed(2)}</span>
                                 </div>
                               )}
                               {card.link.grade && (
                                 <div className="flex justify-between items-center mt-2">
-                                  <span className="text-gray-500">Grade</span>
-                                  <span className="px-3 py-1 rounded text-lg font-black" style={{ background: gradeColor(card.link.grade).bg, color: gradeColor(card.link.grade).text }}>
+                                  <span className="text-text-muted">Grade</span>
+                                  <span className="px-3 py-1 rounded text-terminal-lg font-black" style={{ background: gradeColor(card.link.grade).bg, color: gradeColor(card.link.grade).text }}>
                                     {card.link.grade}
                                   </span>
                                 </div>
@@ -516,8 +516,8 @@ export default function TradeLabPanel() {
                           </>
                         ) : (
                           <div>
-                            <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2">Actual</div>
-                            <div className="text-xs text-gray-400 italic">Not yet linked to a position</div>
+                            <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Actual</div>
+                            <div className="text-xs text-text-faint italic">Not yet linked to a position</div>
                           </div>
                         )}
                       </div>
@@ -525,19 +525,19 @@ export default function TradeLabPanel() {
 
                     {/* Thesis points with checkmarks */}
                     {card.thesis_points && card.thesis_points.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1.5">Thesis</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Thesis</div>
                         <div className="space-y-1">
                           {(card.thesis_points as string[]).map((pt, i) => {
                             const result = card.link?.thesis_results?.[i];
                             return (
                               <div key={i} className="flex gap-2 text-xs">
                                 <span className="shrink-0 w-4 text-center">
-                                  {result === true ? <span className="text-green-600">&#10003;</span> :
-                                   result === false ? <span className="text-red-600">&#10005;</span> :
-                                   <span className="text-gray-300">&bull;</span>}
+                                  {result === true ? <span className="text-brand-green">&#10003;</span> :
+                                   result === false ? <span className="text-brand-red">&#10005;</span> :
+                                   <span className="text-text-faint">&bull;</span>}
                                 </span>
-                                <span className="text-gray-600">{pt}</span>
+                                <span className="text-text-secondary">{pt}</span>
                               </div>
                             );
                           })}
@@ -547,17 +547,17 @@ export default function TradeLabPanel() {
 
                     {/* Macro regime */}
                     {card.macro_regime && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Regime</div>
-                        <div className="text-xs text-gray-600">{card.macro_regime}</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Regime</div>
+                        <div className="text-xs text-text-secondary">{card.macro_regime}</div>
                       </div>
                     )}
 
                     {/* Link notes */}
                     {card.link?.notes && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Notes</div>
-                        <div className="text-xs text-gray-600">{card.link.notes}</div>
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Notes</div>
+                        <div className="text-xs text-text-secondary">{card.link.notes}</div>
                       </div>
                     )}
                   </div>

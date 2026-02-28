@@ -164,7 +164,7 @@ export default function ShoppingPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -172,15 +172,15 @@ export default function ShoppingPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
 
           {/* Header */}
-          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+          <div className="mb-4 bg-brand-purple text-white p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">Shopping Planner</h1>
-                <p className="text-gray-300 text-xs font-mono">
+                <h1 className="text-terminal-lg font-semibold tracking-tight">Shopping Planner</h1>
+                <p className="text-text-faint text-xs font-mono">
                   {planCount} plan{planCount !== 1 ? 's' : ''} active
                 </p>
               </div>
@@ -189,41 +189,41 @@ export default function ShoppingPage() {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Meal Budget</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{fmt(mealBudget)}</div>
-              <div className="text-[10px] text-gray-400">weekly estimate</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Meal Budget</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{fmt(mealBudget)}</div>
+              <div className="text-[10px] text-text-faint">weekly estimate</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Cart Plans</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{fmt(cartBudgetTotal)}</div>
-              <div className="text-[10px] text-gray-400">{Object.values(cartPlans).filter(Boolean).length} categories</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Cart Plans</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{fmt(cartBudgetTotal)}</div>
+              <div className="text-[10px] text-text-faint">{Object.values(cartPlans).filter(Boolean).length} categories</div>
             </div>
-            <div className="bg-white border border-gray-200 p-3">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Budget</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{fmt(mealBudget + cartBudgetTotal)}</div>
-              <div className="text-[10px] text-gray-400">all categories</div>
+            <div className="bg-white border border-border p-3">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Total Budget</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{fmt(mealBudget + cartBudgetTotal)}</div>
+              <div className="text-[10px] text-text-faint">all categories</div>
             </div>
           </div>
 
           {/* Category Selector + Content */}
-          <div className="bg-white border border-gray-200">
-            <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+          <div className="bg-white border border-border">
+            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
               AI Shopping Planner
             </div>
 
             {/* Category Buttons */}
-            <div className="flex gap-1 p-3 border-b border-gray-200 bg-gray-50">
+            <div className="flex gap-1 p-3 border-b border-border bg-bg-row">
               {ALL_CATEGORIES.map(cat => (
                 <button
                   key={cat.key}
                   onClick={() => setActiveCategory(cat.key)}
                   className={`px-4 py-2 text-xs font-medium transition-colors ${
                     activeCategory === cat.key
-                      ? 'bg-[#2d1b4e] text-white'
+                      ? 'bg-brand-purple text-white'
                       : hasPlan(cat.key)
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                        : 'bg-white text-text-secondary border border-border hover:bg-bg-row'
                   }`}
                 >
                   {cat.label}
@@ -247,9 +247,9 @@ export default function ShoppingPage() {
                 ) : (
                   userTier === 'free' ? (
                     <div className="text-center py-8">
-                      <div className="text-sm font-medium text-gray-900 mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                      <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
+                      <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
+                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
                     </div>
                   ) : (
                     <MealPlannerForm onPlanGenerated={handleMealGenerated} />
@@ -272,9 +272,9 @@ export default function ShoppingPage() {
                 ) : (
                   userTier === 'free' ? (
                     <div className="text-center py-8">
-                      <div className="text-sm font-medium text-gray-900 mb-2">AI Shopping Planner requires Pro+</div>
-                      <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
-                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
+                      <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
+                      <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
+                      <button onClick={() => setShowUpgradeModal(true)} className="px-6 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
                     </div>
                   ) : (
                     <CartPlannerForm
@@ -292,12 +292,12 @@ export default function ShoppingPage() {
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
-          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
-            <div className="text-sm font-medium text-gray-900 mb-2">AI Shopping Planner requires Pro+</div>
-            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
+          <div className="relative z-10 bg-white border border-border p-6 max-w-md">
+            <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
+            <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
             <div className="flex gap-2">
-              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-[#2d1b4e] text-white font-medium hover:bg-[#3d2b5e]">View Plans</button>
-              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+              <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>
         </div>

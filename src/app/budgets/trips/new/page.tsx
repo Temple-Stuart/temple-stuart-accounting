@@ -148,25 +148,25 @@ export default function NewTripPage() {
   if (created) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-[#f5f5f5]">
+        <div className="min-h-screen bg-bg-terminal">
           <div className="p-4 lg:p-6 max-w-xl mx-auto">
-            <div className="bg-white border border-gray-200">
-              <div className="bg-[#2d1b4e] text-white p-4 text-center">
-                <div className="text-lg font-semibold">Trip Created</div>
+            <div className="bg-white border border-border">
+              <div className="bg-brand-purple text-white p-4 text-center">
+                <div className="text-terminal-lg font-semibold">Trip Created</div>
               </div>
               <div className="p-6 text-center">
                 <div className="text-4xl mb-4">✓</div>
-                <p className="text-gray-600 mb-6 text-sm">
+                <p className="text-text-secondary mb-6 text-sm">
                   Share the invite link with your travelers. They'll add their names and blackout dates.
                 </p>
 
-                <div className="bg-gray-50 p-3 mb-6">
-                  <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Invite Link</label>
+                <div className="bg-bg-row p-3 mb-6">
+                  <label className="block text-[10px] text-text-muted uppercase tracking-wider mb-1">Invite Link</label>
                   <div className="flex gap-2">
                     <input type="text" value={created.inviteUrl} readOnly
-                      className="flex-1 px-3 py-2 border border-gray-200 text-xs font-mono bg-white" />
+                      className="flex-1 px-3 py-2 border border-border text-xs font-mono bg-white" />
                     <button onClick={copyInviteLink}
-                      className="px-4 py-2 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e]">
+                      className="px-4 py-2 bg-brand-purple text-white text-xs font-medium hover:bg-brand-purple-hover">
                       Copy
                     </button>
                   </div>
@@ -174,11 +174,11 @@ export default function NewTripPage() {
 
                 <div className="flex gap-3 justify-center">
                   <button onClick={() => router.push(`/budgets/trips/${created.id}`)}
-                    className="px-6 py-2 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e]">
+                    className="px-6 py-2 bg-brand-purple text-white text-xs font-medium hover:bg-brand-purple-hover">
                     View Trip →
                   </button>
                   <button onClick={() => router.push('/budgets/trips')}
-                    className="px-6 py-2 border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+                    className="px-6 py-2 border border-border text-text-secondary text-xs font-medium hover:bg-bg-row">
                     All Trips
                   </button>
                 </div>
@@ -192,59 +192,59 @@ export default function NewTripPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-2xl mx-auto">
           
           {/* Header */}
-          <div className="mb-4 bg-[#2d1b4e] text-white p-4 flex items-center justify-between">
+          <div className="mb-4 bg-brand-purple text-white p-4 flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold">New Trip</h1>
-              <p className="text-gray-300 text-xs">Plan your next adventure</p>
+              <h1 className="text-terminal-lg font-semibold">New Trip</h1>
+              <p className="text-text-faint text-xs">Plan your next adventure</p>
             </div>
-            <button onClick={() => router.push('/budgets/trips')} className="text-xs text-gray-300 hover:text-white">
+            <button onClick={() => router.push('/budgets/trips')} className="text-xs text-text-faint hover:text-white">
               ← Back
             </button>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4 text-sm">{error}</div>
+            <div className="bg-red-50 border border-red-200 text-brand-red px-4 py-3 mb-4 text-sm">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Trip Name */}
-            <div className="bg-white border border-gray-200">
-              <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+            <div className="bg-white border border-border">
+              <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                 Trip Details
               </div>
               <div className="p-4 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Trip Name *</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Trip Name *</label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)}
                     placeholder="e.g., Bali Surf Trip 2025"
-                    className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]"
+                    className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple"
                     required />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Start Date</label>
                     <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]" />
+                      className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Duration (days)</label>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Duration (days)</label>
                     <input type="number" min={1} max={90} value={daysTravel}
                       onChange={(e) => setDaysTravel(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border border-gray-200 text-sm focus:outline-none focus:border-[#2d1b4e]" />
+                      className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Activities */}
-            <div className="bg-white border border-gray-200">
-              <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
+            <div className="bg-white border border-border">
+              <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
                 <span>Activities</span>
                 {activities.length > 0 && (
                   <span className="text-[10px] bg-white/20 px-2 py-0.5">{activities.length} selected</span>
@@ -253,7 +253,7 @@ export default function NewTripPage() {
               <div className="p-4 max-h-[400px] overflow-y-auto space-y-4">
                 {ACTIVITY_GROUPS.map(group => (
                   <div key={group.label}>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">{group.label}</div>
+                    <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">{group.label}</div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {group.activities.map(a => {
                         const isSelected = activities.includes(a.value);
@@ -261,8 +261,8 @@ export default function NewTripPage() {
                           <button key={a.value} type="button" onClick={() => toggleActivity(a.value)}
                             className={`px-3 py-2 text-xs font-medium transition-all ${
                               isSelected
-                                ? 'bg-[#2d1b4e] text-white'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                ? 'bg-brand-purple text-white'
+                                : 'bg-bg-row text-text-secondary hover:bg-bg-row border border-border'
                             }`}>
                             {a.label}
                           </button>
@@ -275,15 +275,15 @@ export default function NewTripPage() {
 
               {/* Selected summary */}
               {activities.length > 0 && (
-                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+                <div className="px-4 py-3 border-t border-border bg-bg-row">
                   <div className="flex flex-wrap gap-1">
                     {activities.map(actValue => {
                       const act = ACTIVITY_GROUPS.flatMap(g => g.activities).find(a => a.value === actValue);
                       return act ? (
                         <span key={actValue}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-[#2d1b4e] text-white text-[10px] font-medium">
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-brand-purple text-white text-[10px] font-medium">
                           {act.label}
-                          <button type="button" onClick={() => toggleActivity(actValue)} className="ml-1 hover:text-gray-300">×</button>
+                          <button type="button" onClick={() => toggleActivity(actValue)} className="ml-1 hover:text-text-faint">×</button>
                         </span>
                       ) : null;
                     })}
@@ -293,7 +293,7 @@ export default function NewTripPage() {
             </div>
 
             {/* Info Box */}
-            <div className="bg-blue-50 border border-blue-200 p-4 text-xs text-blue-800">
+            <div className="bg-brand-purple-wash border border-blue-200 p-4 text-xs text-blue-800">
               <strong>How it works:</strong> After creating, you'll get a shareable invite link. 
               Send it to your crew — they'll add their names and mark blackout dates.
             </div>
@@ -301,11 +301,11 @@ export default function NewTripPage() {
             {/* Actions */}
             <div className="flex gap-3">
               <button type="button" onClick={() => router.back()}
-                className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50">
+                className="flex-1 px-4 py-3 border border-border text-text-secondary text-xs font-medium hover:bg-bg-row">
                 Cancel
               </button>
               <button type="submit" disabled={saving || !name || activities.length === 0}
-                className="flex-1 px-4 py-3 bg-[#2d1b4e] text-white text-xs font-medium hover:bg-[#3d2b5e] disabled:opacity-50">
+                className="flex-1 px-4 py-3 bg-brand-purple text-white text-xs font-medium hover:bg-brand-purple-hover disabled:opacity-50">
                 {saving ? 'Creating...' : 'Create Trip'}
               </button>
             </div>

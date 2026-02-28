@@ -18,15 +18,15 @@ export default function TimeframeFilter({ onSync, syncing }: TimeframeFilterProp
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 border border-purple-200 mb-6">
-      <h3 className="text-lg font-bold text-purple-700 mb-4">Sync Transaction History</h3>
+    <div className="bg-white rounded shadow-sm p-6 border border-purple-200 mb-6">
+      <h3 className="text-terminal-lg font-bold text-purple-700 mb-4">Sync Transaction History</h3>
       <div className="grid grid-cols-4 gap-3">
         {timeframes.map((tf) => (
           <button
             key={tf.value}
             onClick={() => onSync(tf.value)}
             disabled={syncing}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-amber-500 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-amber-500 text-white rounded font-semibold hover:from-purple-700 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
           >
             {syncing ? 'Syncing...' : tf.label}
           </button>

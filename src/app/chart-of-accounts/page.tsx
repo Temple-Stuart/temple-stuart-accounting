@@ -43,9 +43,9 @@ export default function ChartOfAccountsPage() {
       <h1 className="text-3xl font-bold mb-8">Chart of Accounts</h1>
 
       <div className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4 text-purple-600">Personal Accounts</h2>
+        <h2 className="text-sm font-semibold mb-4 text-purple-600">Personal Accounts</h2>
         <table className="w-full border">
-          <thead className="bg-gray-100">
+          <thead className="bg-bg-row">
             <tr>
               <th className="p-3 text-left">Code</th>
               <th className="p-3 text-left">Account Name</th>
@@ -67,9 +67,9 @@ export default function ChartOfAccountsPage() {
       </div>
 
       <div>
-        <h2 className="text-2xl font-semibold mb-4 text-blue-600">Business Accounts</h2>
+        <h2 className="text-sm font-semibold mb-4 text-brand-purple">Business Accounts</h2>
         <table className="w-full border">
-          <thead className="bg-gray-100">
+          <thead className="bg-bg-row">
             <tr>
               <th className="p-3 text-left">Code</th>
               <th className="p-3 text-left">Account Name</th>

@@ -285,12 +285,12 @@ export default function Dashboard() {
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
-          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
-            <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
+          <div className="relative z-10 bg-white border border-border p-6 max-w-md">
+            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync requires Pro</div>
+            <div className="text-xs text-text-muted mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
               <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
-              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>
         </div>
@@ -349,7 +349,7 @@ export default function Dashboard() {
                 <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted mr-0.5">SOC 2</span>
                 {SOC2_CONTROLS.map(ctrl => (
                   <div key={ctrl.code} className="flex items-center gap-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${ctrl.status === 'pass' ? 'bg-brand-green' : ctrl.status === 'wip' ? 'bg-brand-gold' : 'bg-gray-300'}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${ctrl.status === 'pass' ? 'bg-brand-green' : ctrl.status === 'wip' ? 'bg-brand-gold' : 'bg-border'}`} />
                     <span className="text-[7px] font-mono text-text-muted">{ctrl.code}</span>
                   </div>
                 ))}
@@ -384,7 +384,7 @@ export default function Dashboard() {
             </div>
 
             {/* Section Content */}
-            <div className="bg-white border border-gray-200">
+            <div className="bg-white border border-border">
               
               {/* Connected Accounts */}
               {activeSection === 'accounts' && (
@@ -402,23 +402,23 @@ export default function Dashboard() {
                           <th className="px-3 py-2 text-right font-medium">Balance</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-border">
                         {accounts.map(acc => (
-                          <tr key={acc.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 font-medium text-gray-900">{acc.institutionName}</td>
-                            <td className="px-3 py-2 text-gray-600 font-mono">•••• {acc.mask || '----'}</td>
-                            <td className="px-3 py-2"><span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] uppercase">{acc.type}</span></td>
+                          <tr key={acc.id} className="hover:bg-bg-row">
+                            <td className="px-3 py-2 font-medium text-text-primary">{acc.institutionName}</td>
+                            <td className="px-3 py-2 text-text-secondary font-mono">•••• {acc.mask || '----'}</td>
+                            <td className="px-3 py-2"><span className="px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase">{acc.type}</span></td>
                             <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(acc.balance)}</td>
                           </tr>
                         ))}
                         {accounts.length === 0 && (
-                          <tr><td colSpan={4} className="px-3 py-8 text-center text-gray-400">No accounts connected</td></tr>
+                          <tr><td colSpan={4} className="px-3 py-8 text-center text-text-faint">No accounts connected</td></tr>
                         )}
                       </tbody>
-                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                      <tfoot className="bg-bg-row border-t border-border">
                         <tr>
-                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">Total</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(totalBalance)}</td>
+                          <td colSpan={3} className="px-3 py-2 font-semibold text-text-primary">Total</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">{fmt(totalBalance)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -497,22 +497,22 @@ export default function Dashboard() {
                                 <td colSpan={14} className="px-3 py-1.5 font-bold text-emerald-800 sticky left-0 bg-emerald-50">Revenue</td>
                               </tr>
                               {revenueCodes.map(code => (
-                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
-                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
                                     const val = gridData[code]?.[m] || 0;
                                     return (
                                       <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
-                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-emerald-50 text-gray-900' : 'text-gray-300'}`}>
+                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-emerald-50 text-text-primary' : 'text-text-faint'}`}>
                                         {val === 0 ? '—' : fmt(val)}
                                       </td>
                                     );
                                   })}
                                   <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
-                                    className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0 cursor-pointer hover:bg-emerald-50">
+                                    className="px-3 py-2 text-right font-mono font-semibold bg-bg-row sticky right-0 cursor-pointer hover:bg-emerald-50">
                                     {fmt(getRowTotal(code))}
                                   </td>
                                 </tr>
@@ -532,22 +532,22 @@ export default function Dashboard() {
                                 <td colSpan={14} className="px-3 py-1.5 font-bold text-red-800 sticky left-0 bg-red-50">Expenses</td>
                               </tr>
                               {expenseCodes.map(code => (
-                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
-                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
                                     const val = gridData[code]?.[m] || 0;
                                     return (
                                       <td key={m} onClick={() => val !== 0 && setDrilldownCell({ coaCode: code, month: m })}
-                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-red-50 text-gray-900' : 'text-gray-300'}`}>
+                                        className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'cursor-pointer hover:bg-red-50 text-text-primary' : 'text-text-faint'}`}>
                                         {val === 0 ? '—' : fmt(val)}
                                       </td>
                                     );
                                   })}
                                   <td onClick={() => setDrilldownCell({ coaCode: code, month: -1 })}
-                                    className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0 cursor-pointer hover:bg-red-50">
+                                    className="px-3 py-2 text-right font-mono font-semibold bg-bg-row sticky right-0 cursor-pointer hover:bg-red-50">
                                     {fmt(getRowTotal(code))}
                                   </td>
                                 </tr>
@@ -562,18 +562,18 @@ export default function Dashboard() {
                             </>
                           )}
                           <tr className="bg-brand-purple-deep/10 border-t-2 border-brand-purple-deep">
-                            <td className="px-3 py-2 font-bold text-gray-900 sticky left-0 bg-brand-purple-deep/10">Net Income</td>
+                            <td className="px-3 py-2 font-bold text-text-primary sticky left-0 bg-brand-purple-deep/10">Net Income</td>
                             {MONTHS.map((_, m) => {
                               const ni = Math.abs(getMonthTotal(revenueCodes, m)) - Math.abs(getMonthTotal(expenseCodes, m));
-                              return <td key={m} className={`px-2 py-2 text-right font-mono font-bold ${ni >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{ni === 0 ? '—' : fmtSigned(ni)}</td>;
+                              return <td key={m} className={`px-2 py-2 text-right font-mono font-bold ${ni >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>{ni === 0 ? '—' : fmtSigned(ni)}</td>;
                             })}
-                            <td className={`px-3 py-2 text-right font-mono font-bold sticky right-0 bg-brand-purple-deep/20 ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                            <td className={`px-3 py-2 text-right font-mono font-bold sticky right-0 bg-brand-purple-deep/20 ${Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)) >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>
                               {fmtSigned(Math.abs(getSectionTotal(revenueCodes)) - Math.abs(getSectionTotal(expenseCodes)))}
                             </td>
                           </tr>
                         </tbody>
                       </table>
-                      {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-8 text-center text-gray-400">No data for {selectedYear}</div>}
+                      {revenueCodes.length === 0 && expenseCodes.length === 0 && <div className="p-8 text-center text-text-faint">No data for {selectedYear}</div>}
                     </div>
                   )}
 
@@ -590,18 +590,18 @@ export default function Dashboard() {
                         <tbody>
                           {assetCodes.length > 0 && (
                             <>
-                              <tr className="bg-blue-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-blue-800 sticky left-0 bg-blue-50">Assets</td></tr>
+                              <tr className="bg-brand-purple-wash"><td colSpan={14} className="px-3 py-1.5 font-bold text-blue-800 sticky left-0 bg-brand-purple-wash">Assets</td></tr>
                               {assetCodes.map(code => (
-                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
-                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
                                     const val = gridData[code]?.[m] || 0;
-                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-text-primary' : 'text-text-faint'}`}>{val === 0 ? '—' : fmt(val)}</td>;
                                   })}
-                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-bg-row sticky right-0">{fmt(getRowTotal(code))}</td>
                                 </tr>
                               ))}
                             </>
@@ -610,16 +610,16 @@ export default function Dashboard() {
                             <>
                               <tr className="bg-orange-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-orange-800 sticky left-0 bg-orange-50">Liabilities</td></tr>
                               {liabilityCodes.map(code => (
-                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
-                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
                                     const val = gridData[code]?.[m] || 0;
-                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-text-primary' : 'text-text-faint'}`}>{val === 0 ? '—' : fmt(val)}</td>;
                                   })}
-                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-bg-row sticky right-0">{fmt(getRowTotal(code))}</td>
                                 </tr>
                               ))}
                             </>
@@ -628,28 +628,28 @@ export default function Dashboard() {
                             <>
                               <tr className="bg-purple-50"><td colSpan={14} className="px-3 py-1.5 font-bold text-purple-800 sticky left-0 bg-purple-50">Equity</td></tr>
                               {equityCodes.map(code => (
-                                <tr key={code} className="border-b border-gray-100 hover:bg-gray-50">
+                                <tr key={code} className="border-b border-border-light hover:bg-bg-row">
                                   <td className="px-3 py-2 sticky left-0 bg-white z-10">
-                                    <div className="font-medium text-gray-900 truncate">{getCoaName(code)}</div>
-                                    <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                                    <div className="font-medium text-text-primary truncate">{getCoaName(code)}</div>
+                                    <div className="text-[10px] text-text-faint font-mono">{code}</div>
                                   </td>
                                   {MONTHS.map((_, m) => {
                                     const val = gridData[code]?.[m] || 0;
-                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-gray-900' : 'text-gray-300'}`}>{val === 0 ? '—' : fmt(val)}</td>;
+                                    return <td key={m} className={`px-2 py-2 text-right font-mono ${val !== 0 ? 'text-text-primary' : 'text-text-faint'}`}>{val === 0 ? '—' : fmt(val)}</td>;
                                   })}
-                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-gray-50 sticky right-0">{fmt(getRowTotal(code))}</td>
+                                  <td className="px-3 py-2 text-right font-mono font-semibold bg-bg-row sticky right-0">{fmt(getRowTotal(code))}</td>
                                 </tr>
                               ))}
                             </>
                           )}
                         </tbody>
                       </table>
-                      {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-8 text-center text-gray-400">No data for {selectedYear}</div>}
+                      {assetCodes.length === 0 && liabilityCodes.length === 0 && equityCodes.length === 0 && <div className="p-8 text-center text-text-faint">No data for {selectedYear}</div>}
                     </div>
                   )}
 
                   {activeStatement === 'cashflow' && (
-                    <div className="p-8 text-center text-gray-400">
+                    <div className="p-8 text-center text-text-faint">
                       <p className="text-sm font-medium">Cash Flow Statement</p>
                       <p className="text-xs mt-1">Coming soon</p>
                     </div>
@@ -675,7 +675,7 @@ export default function Dashboard() {
               {activeSection === 'reconcile' && (
                 <div>
                   <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Bank Reconciliation</span></div>
-                  <div className="p-8 text-center text-gray-400">
+                  <div className="p-8 text-center text-text-faint">
                     <p className="text-sm font-medium">Bank Reconciliation</p>
                     <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
                   </div>
@@ -686,7 +686,7 @@ export default function Dashboard() {
               {activeSection === 'close' && (
                 <div>
                   <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Period Close</span></div>
-                  <div className="p-8 text-center text-gray-400">
+                  <div className="p-8 text-center text-text-faint">
                     <p className="text-sm font-medium">Period Close</p>
                     <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
                   </div>
@@ -736,7 +736,7 @@ export default function Dashboard() {
               <button onClick={handleBulkAssign} disabled={!assignCoa || isAssigning} className="px-4 py-1.5 bg-white text-brand-purple-deep text-xs font-medium disabled:opacity-50">
                 {isAssigning ? '...' : 'Assign'}
               </button>
-              <button onClick={() => setSelectedIds([])} className="text-white/60 hover:text-white text-lg">×</button>
+              <button onClick={() => setSelectedIds([])} className="text-white/60 hover:text-white text-terminal-lg">×</button>
             </div>
           </div>
         )}
@@ -748,9 +748,9 @@ export default function Dashboard() {
               <div className="bg-brand-purple-deep text-white px-4 py-3 flex justify-between items-center">
                 <div>
                   <h4 className="font-semibold text-sm">{getCoaName(drilldownCell.coaCode)}</h4>
-                  <p className="text-xs text-gray-300 font-mono">{drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} · {drilldownTransactions.length} transactions</p>
+                  <p className="text-xs text-text-faint font-mono">{drilldownCell.month === -1 ? 'Full Year' : MONTHS[drilldownCell.month]} {selectedYear} · {drilldownTransactions.length} transactions</p>
                 </div>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="text-white/60 hover:text-white text-xl">×</button>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="text-white/60 hover:text-white text-sm">×</button>
               </div>
 
               {selectedDrilldownTxns.length > 0 && (
@@ -768,7 +768,7 @@ export default function Dashboard() {
 
               <div className="flex-1 overflow-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-100 sticky top-0">
+                  <thead className="bg-bg-row sticky top-0">
                     <tr>
                       <th className="px-3 py-2 w-8">
                         <input type="checkbox" checked={selectedDrilldownTxns.length === drilldownTransactions.length && drilldownTransactions.length > 0}
@@ -780,16 +780,16 @@ export default function Dashboard() {
                       <th className="px-2 py-2 text-right font-medium">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {drilldownTransactions.map(txn => (
-                      <tr key={txn.id} className={`hover:bg-gray-50 ${selectedDrilldownTxns.includes(txn.id) ? 'bg-brand-purple-deep/5' : ''}`}>
+                      <tr key={txn.id} className={`hover:bg-bg-row ${selectedDrilldownTxns.includes(txn.id) ? 'bg-brand-purple-deep/5' : ''}`}>
                         <td className="px-3 py-2">
                           <input type="checkbox" checked={selectedDrilldownTxns.includes(txn.id)}
                             onChange={(e) => setSelectedDrilldownTxns(e.target.checked ? [...selectedDrilldownTxns, txn.id] : selectedDrilldownTxns.filter(id => id !== txn.id))}
                             className="w-3 h-3" />
                         </td>
-                        <td className="px-2 py-2 text-gray-600 font-mono">{new Date(txn.date).toLocaleDateString()}</td>
-                        <td className="px-2 py-2 text-gray-900 truncate max-w-[200px]">{txn.name}</td>
+                        <td className="px-2 py-2 text-text-secondary font-mono">{new Date(txn.date).toLocaleDateString()}</td>
+                        <td className="px-2 py-2 text-text-primary truncate max-w-[200px]">{txn.name}</td>
                         <td className="px-2 py-2 text-right font-mono font-medium">{fmt(Math.abs(txn.amount))}</td>
                       </tr>
                     ))}
@@ -797,9 +797,9 @@ export default function Dashboard() {
                 </table>
               </div>
 
-              <div className="bg-gray-100 px-4 py-3 flex justify-between items-center border-t">
-                <span className="font-semibold text-gray-900 text-xs">Total: {fmt(drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0))}</span>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-300">Close</button>
+              <div className="bg-bg-row px-4 py-3 flex justify-between items-center border-t">
+                <span className="font-semibold text-text-primary text-xs">Total: {fmt(drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0))}</span>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-border text-text-secondary text-xs font-medium hover:bg-border">Close</button>
               </div>
             </div>
           </div>
@@ -807,12 +807,12 @@ export default function Dashboard() {
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
-          <div className="relative z-10 bg-white border border-gray-200 p-6 max-w-md">
-            <div className="text-sm font-medium text-gray-900 mb-2">Bank Sync requires Pro</div>
-            <div className="text-xs text-gray-500 mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
+          <div className="relative z-10 bg-white border border-border p-6 max-w-md">
+            <div className="text-sm font-medium text-text-primary mb-2">Bank Sync requires Pro</div>
+            <div className="text-xs text-text-muted mb-4">Upgrade to Pro ($20/mo) to connect your bank accounts via Plaid.</div>
             <div className="flex gap-2">
               <button onClick={() => window.location.href = "/pricing"} className="flex-1 px-4 py-2 text-xs bg-brand-purple-deep text-white font-medium hover:bg-brand-purple-hover">View Plans</button>
-              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-gray-300 text-gray-700 font-medium hover:bg-gray-50">Not Now</button>
+              <button onClick={() => setShowUpgradeModal(false)} className="flex-1 px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">Not Now</button>
             </div>
           </div>
         </div>

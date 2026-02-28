@@ -213,7 +213,7 @@ export default function TripBookingFlow({
 
   if (!tripDates) {
     return (
-      <div className="text-center py-8 text-yellow-600 bg-yellow-50 rounded-lg">
+      <div className="text-center py-8 text-yellow-600 bg-yellow-50 rounded">
         ⚠️ Please select trip dates in the Availability section above
       </div>
     );
@@ -221,7 +221,7 @@ export default function TripBookingFlow({
 
   if (destinations.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-400">
+      <div className="text-center py-8 text-text-faint">
         Select destinations in the section above to start planning
       </div>
     );
@@ -233,15 +233,15 @@ export default function TripBookingFlow({
       {/* STEP 1: FLIGHTS */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
+        <h3 className="text-terminal-lg font-semibold mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-brand-purple text-white rounded-full flex items-center justify-center text-sm">1</span>
           ✈️ Flights
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           Search live prices or enter manually if booking elsewhere
         </p>
         <div className="flex items-center gap-2 mb-4">
-          <label className="text-sm text-gray-600">Flying from:</label>
+          <label className="text-sm text-text-secondary">Flying from:</label>
           <input
             type="text"
             value={originAirport}
@@ -272,11 +272,11 @@ export default function TripBookingFlow({
       {/* STEP 2: HOTELS */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">2</span>
+        <h3 className="text-terminal-lg font-semibold mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-brand-purple text-white rounded-full flex items-center justify-center text-sm">2</span>
           🏨 Lodging
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           {daysTravel - 1} nights • {travelerCount} guests • Cost split evenly
         </p>
         <LodgingOptions 
@@ -301,11 +301,11 @@ export default function TripBookingFlow({
       {/* STEP 3: RENTAL CAR */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">3</span>
+        <h3 className="text-terminal-lg font-semibold mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-brand-purple text-white rounded-full flex items-center justify-center text-sm">3</span>
           🚗 Transportation
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           {daysTravel} days • {travelerCount} travelers • Cost split evenly
         </p>
         <VehicleOptions 
@@ -330,11 +330,11 @@ export default function TripBookingFlow({
       {/* STEP 4: AIRPORT TRANSFERS */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">4</span>
+        <h3 className="text-terminal-lg font-semibold mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-brand-purple text-white rounded-full flex items-center justify-center text-sm">4</span>
           🚕 Airport Transfers
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           Rideshare/shuttle to and from the airport
         </p>
         <TransferOptions 
@@ -362,11 +362,11 @@ export default function TripBookingFlow({
       {/* STEP 5: OTHER EXPENSES - UNIVERSAL CATEGORIES */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm">5</span>
+        <h3 className="text-terminal-lg font-semibold mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 bg-brand-purple text-white rounded-full flex items-center justify-center text-sm">5</span>
           📋 Trip Expenses
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-text-muted mb-4">
           Add activities, coworking, lessons, and other expenses for your trip
         </p>
         <ActivityExpenses
@@ -392,128 +392,128 @@ export default function TripBookingFlow({
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* BUDGET COMPARISON */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">📊 Budget Comparison</h3>
+      <div className="bg-bg-row rounded p-6 border border-border">
+        <h3 className="text-terminal-lg font-semibold mb-4">📊 Budget Comparison</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-300">
-                <th className="text-left py-2 px-3 text-gray-500">Category</th>
+              <tr className="border-b border-border">
+                <th className="text-left py-2 px-3 text-text-muted">Category</th>
                 {destinations.map(dest => (
-                  <th key={dest.id} className="text-right py-2 px-3 text-gray-600 min-w-[120px]">
+                  <th key={dest.id} className="text-right py-2 px-3 text-text-secondary min-w-[120px]">
                     {dest.resort.name.split(' ').slice(0, 2).join(' ')}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">✈️ Flight</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.flight > 0 ? <span className="text-green-600 font-medium">${t.flight}</span> : <span className="text-gray-300">—</span>}
+                      {t.flight > 0 ? <span className="text-brand-green font-medium">${t.flight}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-2 px-3">🏨 Lodging <span className="text-xs text-blue-500">(÷{travelerCount})</span></td>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3">🏨 Lodging <span className="text-xs text-brand-purple">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.hotel > 0 ? <span className="text-green-600 font-medium">${(t.hotel / travelerCount).toFixed(0)}</span> : <span className="text-gray-300">—</span>}
+                      {t.hotel > 0 ? <span className="text-brand-green font-medium">${(t.hotel / travelerCount).toFixed(0)}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-2 px-3">🚗 Transportation <span className="text-xs text-blue-500">(÷{travelerCount})</span></td>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3">🚗 Transportation <span className="text-xs text-brand-purple">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.car > 0 ? <span className="text-green-600 font-medium">${(t.car / travelerCount).toFixed(0)}</span> : <span className="text-gray-300">—</span>}
+                      {t.car > 0 ? <span className="text-brand-green font-medium">${(t.car / travelerCount).toFixed(0)}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">🎟️ Activities</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.activities > 0 ? <span className="text-green-600 font-medium">${t.activities}</span> : <span className="text-gray-300">—</span>}
+                      {t.activities > 0 ? <span className="text-brand-green font-medium">${t.activities}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">🎿 Equipment</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.equipment > 0 ? <span className="text-green-600 font-medium">${t.equipment}</span> : <span className="text-gray-300">—</span>}
+                      {t.equipment > 0 ? <span className="text-brand-green font-medium">${t.equipment}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">🍽️ Food & Dining</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.meals > 0 ? <span className="text-green-600 font-medium">${t.meals}</span> : <span className="text-gray-300">—</span>}
+                      {t.meals > 0 ? <span className="text-brand-green font-medium">${t.meals}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-2 px-3">🚕 Ground Transport <span className="text-xs text-blue-500">(÷{travelerCount})</span></td>
+              <tr className="border-b border-border-light">
+                <td className="py-2 px-3">🚕 Ground Transport <span className="text-xs text-brand-purple">(÷{travelerCount})</span></td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.groundTransport > 0 ? <span className="text-green-600 font-medium">${(t.groundTransport / travelerCount).toFixed(0)}</span> : <span className="text-gray-300">—</span>}
+                      {t.groundTransport > 0 ? <span className="text-brand-green font-medium">${(t.groundTransport / travelerCount).toFixed(0)}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">💵 Tips & Misc</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.tips > 0 ? <span className="text-green-600 font-medium">${t.tips}</span> : <span className="text-gray-300">—</span>}
+                      {t.tips > 0 ? <span className="text-brand-green font-medium">${t.tips}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100">
+              <tr className="border-b border-border-light">
                 <td className="py-2 px-3">💼 Business Dev</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
                     <td key={dest.id} className="py-2 px-3 text-right">
-                      {t.bizdev > 0 ? <span className="text-green-600 font-medium">${t.bizdev}</span> : <span className="text-gray-300">—</span>}
+                      {t.bizdev > 0 ? <span className="text-brand-green font-medium">${t.bizdev}</span> : <span className="text-text-faint">—</span>}
                     </td>
                   );
                 })}
               </tr>
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-gray-300 font-bold">
-                <td className="py-3 px-3 text-lg">Per Person Total</td>
+              <tr className="border-t-2 border-border font-bold">
+                <td className="py-3 px-3 text-terminal-lg">Per Person Total</td>
                 {destinations.map(dest => {
                   const t = calculateTotal(dest.resortId);
                   return (
-                    <td key={dest.id} className="py-3 px-3 text-right text-xl text-green-600">
+                    <td key={dest.id} className="py-3 px-3 text-right text-sm text-brand-green">
                       {t.perPerson > 0 ? `$${t.perPerson.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '$0'}
                     </td>
                   );

@@ -120,32 +120,32 @@ export default function CloseBooksTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Close Books</h2>
-          <p className="text-sm text-gray-600 mt-1">Period-end closing process</p>
+          <h2 className="text-sm font-bold">Close Books</h2>
+          <p className="text-sm text-text-secondary mt-1">Period-end closing process</p>
         </div>
         <button 
           onClick={loadPeriods}
-          className="px-4 py-2 bg-[#2d1b4e] text-white rounded-lg text-sm"
+          className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
         >
           Refresh
         </button>
       </div>
 
       {/* Close New Period */}
-      <div className="bg-white border rounded-xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Close New Period</h3>
+      <div className="bg-white border rounded p-6">
+        <h3 className="text-terminal-lg font-semibold mb-4">Close New Period</h3>
         
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Period Type</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Period Type</label>
               <select
                 value={periodType}
                 onChange={(e) => {
                   setPeriodType(e.target.value as any);
                   setSelectedPeriod(generatePeriodEnd());
                 }}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded"
               >
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -153,17 +153,17 @@ export default function CloseBooksTab() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Period End Date</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Period End Date</label>
               <input
                 type="date"
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 border rounded"
               />
             </div>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
             <h4 className="text-sm font-semibold text-yellow-900 mb-2">Pre-Closing Checklist</h4>
             <ul className="text-sm text-yellow-800 space-y-1">
               <li>✓ All transactions for the period have been recorded</li>
@@ -177,10 +177,10 @@ export default function CloseBooksTab() {
           <button
             onClick={handleClosePeriod}
             disabled={!selectedPeriod || loading}
-            className={`w-full py-3 rounded-lg text-sm font-medium ${
+            className={`w-full py-3 rounded text-sm font-medium ${
               selectedPeriod && !loading
                 ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-border text-text-muted cursor-not-allowed'
             }`}
           >
             {loading ? 'Closing Period...' : 'Close Books for This Period'}
@@ -189,30 +189,30 @@ export default function CloseBooksTab() {
       </div>
 
       {/* Closed Periods History */}
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="bg-gray-50 px-6 py-4 border-b">
-          <h3 className="text-lg font-semibold">Closed Periods History</h3>
+      <div className="bg-white border rounded overflow-hidden">
+        <div className="bg-bg-row px-6 py-4 border-b">
+          <h3 className="text-terminal-lg font-semibold">Closed Periods History</h3>
         </div>
         
         {periods.length === 0 ? (
-          <div className="px-6 py-8 text-center text-gray-500 text-sm">
+          <div className="px-6 py-8 text-center text-text-muted text-sm">
             No periods have been closed yet
           </div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-bg-row">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Period End</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Closed At</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Period End</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Closed At</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-text-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {periods.map((period) => (
-                  <tr key={period.id} className="hover:bg-gray-50">
+                  <tr key={period.id} className="hover:bg-bg-row">
                     <td className="px-4 py-3 text-sm font-medium">
                       {new Date(period.periodEnd).toLocaleDateString()}
                     </td>
@@ -220,13 +220,13 @@ export default function CloseBooksTab() {
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
                         period.status === 'closed' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-700'
+                          ? 'bg-green-100 text-brand-green' 
+                          : 'bg-bg-row text-text-secondary'
                       }`}>
                         {period.status === 'closed' ? 'Closed' : 'Open'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-text-secondary">
                       {period.closedAt 
                         ? new Date(period.closedAt).toLocaleString()
                         : '—'
@@ -252,7 +252,7 @@ export default function CloseBooksTab() {
       </div>
 
       {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-brand-purple-wash border border-blue-200 rounded p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">About Closing Books</h3>
         <p className="text-sm text-blue-800">
           Closing the books is the final step in the accounting cycle. It transfers all revenue and expense 

@@ -65,7 +65,7 @@ export default function RidesharePicker({
   };
 
   return (
-    <div className="bg-zinc-800 rounded-lg border border-zinc-700 overflow-hidden">
+    <div className="bg-zinc-800 rounded border border-zinc-700 overflow-hidden">
       {/* Header */}
       <div 
         className="p-4 cursor-pointer hover:bg-zinc-750 flex justify-between items-center"
@@ -86,7 +86,7 @@ export default function RidesharePicker({
         ) : (
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
-            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-500"
+            className="px-4 py-2 bg-brand-purple text-white rounded text-sm hover:bg-brand-purple"
           >
             🚕 Estimate Cost
           </button>
@@ -126,7 +126,7 @@ export default function RidesharePicker({
                   onClick={() => handleQuickSelect(estimate)}
                   className={`p-3 rounded border text-left transition-colors ${
                     selectedDistance === estimate.label
-                      ? 'border-blue-500 bg-blue-600/20'
+                      ? 'border-brand-purple bg-brand-purple/20'
                       : 'border-zinc-600 hover:border-zinc-500'
                   }`}
                 >
@@ -155,7 +155,7 @@ export default function RidesharePicker({
               <button
                 onClick={handleCustomSubmit}
                 disabled={!customPrice}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 disabled:opacity-50"
+                className="px-4 py-2 bg-brand-green text-white rounded hover:bg-brand-green disabled:opacity-50"
               >
                 Use
               </button>

@@ -277,7 +277,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
 
   if (loading) {
     return (
-      <div className="p-6 bg-white border rounded-lg mb-4">
+      <div className="p-6 bg-white border rounded mb-4">
         <div className="animate-pulse">Loading opens...</div>
       </div>
     );
@@ -285,24 +285,24 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg mb-4">
-        <div className="text-red-600">Error: {error}</div>
-        <button onClick={fetchOpens} className="mt-2 text-sm text-blue-600 underline">Retry</button>
+      <div className="p-6 bg-red-50 border border-red-200 rounded mb-4">
+        <div className="text-brand-red">Error: {error}</div>
+        <button onClick={fetchOpens} className="mt-2 text-sm text-brand-purple underline">Retry</button>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 mb-6">
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="font-bold text-lg">📈 Phase 1: Commit Opening Positions</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-bold text-terminal-lg">📈 Phase 1: Commit Opening Positions</h3>
+            <p className="text-sm text-text-secondary">
               {groups.length} spread groups • {totalLegs} total legs • Next Trade #: {nextTradeNum}
             </p>
             {confirmedCount > 0 && (
-              <p className="text-sm text-green-600 font-medium mt-1">
+              <p className="text-sm text-brand-green font-medium mt-1">
                 ✓ {confirmedCount} groups confirmed, ready to commit
               </p>
             )}
@@ -310,14 +310,14 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
           <div className="flex gap-2">
             <button
               onClick={confirmAll}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200"
+              className="px-4 py-2 bg-bg-row text-text-secondary rounded text-sm hover:bg-border"
             >
               Confirm All
             </button>
             <button
               onClick={commitConfirmed}
               disabled={confirmedCount === 0 || commitStatus?.loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-400"
+              className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-text-faint"
             >
               {commitStatus?.loading ? commitStatus.message : `Commit ${confirmedCount} Trades`}
             </button>
@@ -329,8 +329,8 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
         {groups.map((group, idx) => (
           <div 
             key={`${group.date}-${group.underlying}-${idx}`}
-            className={`p-4 border rounded-lg ${
-              group.confirmed ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200'
+            className={`p-4 border rounded ${
+              group.confirmed ? 'bg-green-50 border-green-300' : 'bg-white border-border'
             }`}
           >
             <div className="flex justify-between items-start mb-3">
@@ -342,15 +342,15 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
                   className="w-5 h-5 rounded"
                 />
                 <div>
-                  <div className="font-bold text-lg">
+                  <div className="font-bold text-terminal-lg">
                     {group.underlying}
-                    <span className="ml-2 text-sm font-normal text-gray-500">
+                    <span className="ml-2 text-sm font-normal text-text-muted">
                       {new Date(group.date).toLocaleDateString('en-US', { 
                         weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
                       })}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-text-secondary">
                     {group.legs.length} leg{group.legs.length > 1 ? 's' : ''} • 
                     Detected: <span className="font-medium">{group.detectedStrategy}</span>
                   </div>
@@ -358,7 +358,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
               </div>
               
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Strategy:</label>
+                <label className="text-sm text-text-secondary">Strategy:</label>
                 <select
                   value={group.selectedStrategy}
                   onChange={(e) => updateGroupStrategy(idx, e.target.value)}
@@ -380,7 +380,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
             </div>
 
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-bg-row">
                 <tr>
                   <th className="px-2 py-1 text-left">Action</th>
                   <th className="px-2 py-1 text-left">Type</th>
@@ -393,12 +393,12 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
               </thead>
               <tbody className="divide-y">
                 {group.legs.map(leg => (
-                  <tr key={leg.id} className="hover:bg-gray-50">
+                  <tr key={leg.id} className="hover:bg-bg-row">
                     <td className="px-2 py-1">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         leg.action === 'sell_to_open' 
-                          ? 'bg-red-100 text-red-700' 
-                          : 'bg-green-100 text-green-700'
+                          ? 'bg-red-100 text-brand-red' 
+                          : 'bg-green-100 text-brand-green'
                       }`}>
                         {leg.action === 'sell_to_open' ? 'SELL' : 'BUY'}
                       </span>
@@ -407,7 +407,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
                       {leg.isOption ? (
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                           leg.optionType === 'call' 
-                            ? 'bg-blue-100 text-blue-700' 
+                            ? 'bg-brand-purple-wash text-brand-purple' 
                             : 'bg-purple-100 text-purple-700'
                         }`}>
                           {leg.optionType?.toUpperCase()}
@@ -421,10 +421,10 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
                     <td className="px-2 py-1 text-right">{leg.quantity}</td>
                     <td className="px-2 py-1 text-right">${leg.price?.toFixed(2)}</td>
                     <td className={`px-2 py-1 text-right font-medium ${
-                      leg.amount < 0 ? 'text-green-600' : 'text-red-600'
+                      leg.amount < 0 ? 'text-brand-green' : 'text-brand-red'
                     }`}>
                       ${Math.abs(leg.amount).toFixed(2)}
-                      <span className="text-xs text-gray-400 ml-1">
+                      <span className="text-xs text-text-faint ml-1">
                         {leg.amount < 0 ? 'CR' : 'DR'}
                       </span>
                     </td>
@@ -437,7 +437,7 @@ export default function OpensCommitPanel({ onReload }: OpensCommitPanelProps) {
       </div>
 
       {groups.length === 0 && (
-        <div className="p-8 text-center text-gray-500 bg-gray-50 rounded-lg">
+        <div className="p-8 text-center text-text-muted bg-bg-row rounded">
           No uncommitted opening positions found.
         </div>
       )}

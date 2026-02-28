@@ -48,7 +48,7 @@ const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: stri
   shopping: { icon: '🛒', color: 'text-pink-600', bgColor: 'bg-pink-50', dotColor: 'bg-pink-500', calendarColor: 'bg-pink-400' },
   personal: { icon: '👤', color: 'text-violet-600', bgColor: 'bg-violet-50', dotColor: 'bg-violet-500', calendarColor: 'bg-violet-400' },
   health: { icon: '💪', color: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-500', calendarColor: 'bg-emerald-400' },
-  growth: { icon: '📚', color: 'text-blue-600', bgColor: 'bg-blue-50', dotColor: 'bg-blue-500', calendarColor: 'bg-blue-400' },
+  growth: { icon: '📚', color: 'text-brand-purple', bgColor: 'bg-brand-purple-wash', dotColor: 'bg-brand-purple-wash0', calendarColor: 'bg-blue-400' },
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
 };
 
@@ -84,7 +84,7 @@ const getNomadMetrics = (destination: string | null) => {
 
 // Auto-generate destination tags based on keywords
 const getDestinationTag = (destination: string | null): { label: string; color: string } => {
-  if (!destination) return { label: 'Adventure awaits', color: 'bg-gray-600' };
+  if (!destination) return { label: 'Adventure awaits', color: 'bg-brand-purple' };
   
   const d = destination.toLowerCase();
   
@@ -135,13 +135,13 @@ const parseDate = (dateStr: string): Date => {
 const getWsVarianceClass = (budget: number, actual: number) => {
   if (actual === 0) return '';
   if (actual <= budget) return 'bg-emerald-50 text-emerald-700';
-  return 'bg-red-50 text-red-700';
+  return 'bg-red-50 text-brand-red';
 };
 
 const getWsVarianceText = (budget: number, actual: number) => {
-  if (actual === 0) return 'text-gray-400';
+  if (actual === 0) return 'text-text-faint';
   if (actual <= budget) return 'text-emerald-700';
-  return 'text-red-700';
+  return 'text-brand-red';
 };
 
 export default function HubPage() {
@@ -323,20 +323,20 @@ export default function HubPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#F8F9FA]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
           
           {/* Header - Wall Street Style */}
-          <div className="mb-6 bg-[#2d1b4e] text-white p-4">
+          <div className="mb-6 bg-brand-purple text-white p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-semibold tracking-tight">
+                <h1 className="text-sm font-semibold tracking-tight">
                   {session?.user?.name || 'Dashboard'}
                 </h1>
-                <p className="text-gray-300 text-sm mt-0.5 font-mono">Financial Command Center · FY {selectedYear}</p>
+                <p className="text-text-faint text-sm mt-0.5 font-mono">Financial Command Center · FY {selectedYear}</p>
               </div>
               <div className="text-right text-xs">
-                <div className="text-gray-300">Last updated</div>
+                <div className="text-text-faint">Last updated</div>
                 <div className="font-mono">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
               </div>
             </div>
@@ -348,10 +348,10 @@ export default function HubPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Committed Trips</h2>
-                <p className="text-xs text-gray-500">FY {selectedYear} · Nomad Itinerary · {committedTrips.length} destinations</p>
+                <h2 className="text-terminal-lg font-semibold text-text-primary tracking-tight">Committed Trips</h2>
+                <p className="text-xs text-text-muted">FY {selectedYear} · Nomad Itinerary · {committedTrips.length} destinations</p>
               </div>
-              <button onClick={() => router.push('/budgets/trips')} className="text-xs text-gray-600 hover:text-gray-900 font-medium">
+              <button onClick={() => router.push('/budgets/trips')} className="text-xs text-text-secondary hover:text-text-primary font-medium">
                 View all →
               </button>
             </div>
@@ -369,12 +369,12 @@ export default function HubPage() {
                     <div 
                       key={trip.id}
                       onClick={() => router.push(`/budgets/trips/${trip.id}`)}
-                      className="border border-gray-300 bg-white cursor-pointer hover:shadow-lg transition-shadow group"
+                      className="border border-border bg-white cursor-pointer hover:shadow-sm transition-shadow group"
                     >
                       {/* Image */}
                       <div className="relative h-[120px] overflow-hidden">
                         {/* Gradient placeholder - always rendered, visible when image fails or no destination */}
-                        <div className="w-full h-full bg-gradient-to-br from-[#2d1b4e] to-[#4a3a6e] flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-brand-purple-deep to-brand-purple-hover flex items-center justify-center">
                           <span className="text-white/50 text-3xl font-mono">{(trip.destination || trip.name || '?').charAt(0)}</span>
                         </div>
                         {/* Photo from proxy - overlays placeholder, hides on error */}
@@ -390,7 +390,7 @@ export default function HubPage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2">
                           <div className="font-semibold text-white text-sm truncate">{trip.destination || trip.name}</div>
-                          <div className="text-[10px] text-gray-300 font-mono">
+                          <div className="text-[10px] text-text-faint font-mono">
                             {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
                             {trip.endDate && ` – ${new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
                             {nights && ` · ${nights}N`}
@@ -399,55 +399,55 @@ export default function HubPage() {
                       </div>
                       
                       {/* Budget Row */}
-                      <div className="bg-[#2d1b4e] text-white px-3 py-2 flex justify-between items-center">
+                      <div className="bg-brand-purple text-white px-3 py-2 flex justify-between items-center">
                         <div>
-                          <div className="text-lg font-bold font-mono">{fmt(trip.totalBudget)}</div>
-                          <div className="text-[10px] text-gray-300">total budget</div>
+                          <div className="text-terminal-lg font-bold font-mono">{fmt(trip.totalBudget)}</div>
+                          <div className="text-[10px] text-text-faint">total budget</div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-mono">{avgPerNight ? `$${avgPerNight}` : '—'}/nt</div>
-                          <div className="text-[10px] text-gray-300">avg cost</div>
+                          <div className="text-[10px] text-text-faint">avg cost</div>
                         </div>
                       </div>
 
                       {/* Metrics Grid */}
                       {metrics ? (
-                        <div className="grid grid-cols-3 divide-x divide-gray-200 text-xs border-b border-gray-200">
+                        <div className="grid grid-cols-3 divide-x divide-border text-xs border-b border-border">
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">Cost</div>
-                            <div className={`font-mono font-semibold text-[11px] ${metrics.costIndex < 0.5 ? 'text-emerald-700' : metrics.costIndex < 0.7 ? 'text-gray-700' : 'text-red-700'}`}>{metrics.costIndex}x</div>
+                            <div className="text-text-faint text-[9px]">Cost</div>
+                            <div className={`font-mono font-semibold text-[11px] ${metrics.costIndex < 0.5 ? 'text-emerald-700' : metrics.costIndex < 0.7 ? 'text-text-secondary' : 'text-brand-red'}`}>{metrics.costIndex}x</div>
                           </div>
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">Visa</div>
-                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.visa.split(' ')[0]}</div>
+                            <div className="text-text-faint text-[9px]">Visa</div>
+                            <div className="font-mono font-semibold text-[11px] text-text-secondary">{metrics.visa.split(' ')[0]}</div>
                           </div>
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">TZ</div>
-                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.timezone.replace('UTC', '')}</div>
+                            <div className="text-text-faint text-[9px]">TZ</div>
+                            <div className="font-mono font-semibold text-[11px] text-text-secondary">{metrics.timezone.replace('UTC', '')}</div>
                           </div>
                         </div>
                       ) : null}
                       {metrics ? (
-                        <div className="grid grid-cols-3 divide-x divide-gray-200 text-xs">
+                        <div className="grid grid-cols-3 divide-x divide-border text-xs">
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">WiFi</div>
-                            <div className={`font-mono font-semibold text-[11px] ${metrics.internet >= 50 ? 'text-emerald-700' : 'text-gray-700'}`}>{metrics.internet}M</div>
+                            <div className="text-text-faint text-[9px]">WiFi</div>
+                            <div className={`font-mono font-semibold text-[11px] ${metrics.internet >= 50 ? 'text-emerald-700' : 'text-text-secondary'}`}>{metrics.internet}M</div>
                           </div>
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">Cowork</div>
-                            <div className="font-mono font-semibold text-[11px] text-gray-700">${metrics.cowork}</div>
+                            <div className="text-text-faint text-[9px]">Cowork</div>
+                            <div className="font-mono font-semibold text-[11px] text-text-secondary">${metrics.cowork}</div>
                           </div>
                           <div className="p-1.5 text-center">
-                            <div className="text-gray-400 text-[9px]">Temp</div>
-                            <div className="font-mono font-semibold text-[11px] text-gray-700">{metrics.temp}°</div>
+                            <div className="text-text-faint text-[9px]">Temp</div>
+                            <div className="font-mono font-semibold text-[11px] text-text-secondary">{metrics.temp}°</div>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-2 text-center text-[10px] text-gray-400">No metrics</div>
+                        <div className="p-2 text-center text-[10px] text-text-faint">No metrics</div>
                       )}
 
                       {/* Status Bar */}
-                      <div className="bg-gray-100 px-2 py-1 text-[9px] text-gray-500 flex justify-between border-t border-gray-200">
+                      <div className="bg-bg-row px-2 py-1 text-[9px] text-text-muted flex justify-between border-t border-border">
                         {metrics ? (
                           <>
                             <span>Safety {metrics.safety}</span>
@@ -462,46 +462,46 @@ export default function HubPage() {
                 })}
                 
                 {/* Add Trip Card */}
-                <div onClick={() => router.push('/budgets/trips/new')} className="border border-dashed border-gray-300 bg-white flex flex-col items-center justify-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors" style={{minHeight: '280px'}}>
-                  <div className="w-10 h-10 border-2 border-gray-300 flex items-center justify-center mb-2">
-                    <span className="text-gray-400 text-xl">+</span>
+                <div onClick={() => router.push('/budgets/trips/new')} className="border border-dashed border-border bg-white flex flex-col items-center justify-center cursor-pointer hover:border-brand-purple hover:bg-bg-row transition-colors" style={{minHeight: '280px'}}>
+                  <div className="w-10 h-10 border-2 border-border flex items-center justify-center mb-2">
+                    <span className="text-text-faint text-sm">+</span>
                   </div>
-                  <span className="text-gray-500 text-sm font-medium">Add Trip</span>
+                  <span className="text-text-muted text-sm font-medium">Add Trip</span>
                 </div>
               </div>
             ) : (
-              <div onClick={() => router.push('/budgets/trips/new')} className="border border-dashed border-gray-300 bg-white p-8 text-center cursor-pointer hover:border-[#2d1b4e] hover:bg-gray-50 transition-colors">
-                <div className="text-gray-400 mb-2">No committed trips</div>
-                <span className="text-sm text-[#2d1b4e] font-medium">+ Add Trip</span>
+              <div onClick={() => router.push('/budgets/trips/new')} className="border border-dashed border-border bg-white p-8 text-center cursor-pointer hover:border-brand-purple hover:bg-bg-row transition-colors">
+                <div className="text-text-faint mb-2">No committed trips</div>
+                <span className="text-sm text-brand-purple font-medium">+ Add Trip</span>
               </div>
             )}
           </div>
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* CALENDAR - macOS STYLE */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-6 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50/50">
+          <div className="mb-6 bg-white rounded border border-border overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50">
               <div className="flex items-center gap-4">
-                <div className="flex bg-gray-200/70 rounded-lg p-0.5">
-                  <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Week</button>
-                  <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>Month</button>
+                <div className="flex bg-border/70 rounded p-0.5">
+                  <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
+                  <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
                 </div>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">{calendarView === 'week' ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}` : `${MONTHS[selectedMonth]} ${selectedYear}`}</h2>
+              <h2 className="text-sm font-semibold text-text-primary">{calendarView === 'week' ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}` : `${MONTHS[selectedMonth]} ${selectedYear}`}</h2>
               <div className="flex items-center gap-2">
-                <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">Today</button>
-                <button onClick={calendarView === 'week' ? prevWeek : prevMonth} className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
-                <button onClick={calendarView === 'week' ? nextWeek : nextMonth} className="w-8 h-8 flex items-center justify-center text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
+                <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors">Today</button>
+                <button onClick={calendarView === 'week' ? prevWeek : prevMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
+                <button onClick={calendarView === 'week' ? nextWeek : nextMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
               </div>
             </div>
             <div className="flex">
-              <div className="w-44 border-r border-gray-200 p-3 bg-gray-50/30 hidden sm:block">
+              <div className="w-44 border-r border-border p-3 bg-bg-row/30 hidden sm:block">
                 <div className="space-y-0.5">
                   {Object.entries(SOURCE_CONFIG).map(([source, config]) => (
-                    <label key={source} className="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                    <label key={source} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-bg-row transition-colors">
                       <input type="checkbox" checked={visibleCategories[source]} onChange={(e) => setVisibleCategories(prev => ({ ...prev, [source]: e.target.checked }))} className="sr-only" />
-                      <div className={`w-3 h-3 rounded-sm transition-colors ${visibleCategories[source] ? config.calendarColor : 'bg-gray-300'}`} />
-                      <span className={`text-sm transition-colors ${visibleCategories[source] ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{source.charAt(0).toUpperCase() + source.slice(1)}</span>
+                      <div className={`w-3 h-3 rounded-sm transition-colors ${visibleCategories[source] ? config.calendarColor : 'bg-border'}`} />
+                      <span className={`text-sm transition-colors ${visibleCategories[source] ? 'text-text-secondary font-medium' : 'text-text-faint'}`}>{source.charAt(0).toUpperCase() + source.slice(1)}</span>
                     </label>
                   ))}
                 </div>
@@ -509,13 +509,13 @@ export default function HubPage() {
               <div className="flex-1 min-w-0">
                 {calendarView === 'week' ? (
                   <div>
-                    <div className="grid grid-cols-7 border-b border-gray-200">
+                    <div className="grid grid-cols-7 border-b border-border">
                       {weekDays.map((day, idx) => {
                         const isToday = day.toDateString() === now.toDateString();
                         return (
-                          <div key={idx} className={`text-center py-3 border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-red-50' : ''}`}>
-                            <div className="text-xs text-gray-500 uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
-                            <div className={`text-2xl font-light mt-0.5 ${isToday ? 'bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center mx-auto' : 'text-gray-900'}`}>{day.getDate()}</div>
+                          <div key={idx} className={`text-center py-3 border-r border-border-light last:border-r-0 ${isToday ? 'bg-red-50' : ''}`}>
+                            <div className="text-xs text-text-muted uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
+                            <div className={`text-sm font-light mt-0.5 ${isToday ? 'bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
                           </div>
                         );
                       })}
@@ -525,13 +525,13 @@ export default function HubPage() {
                         const dayEvents = getEventsForDate(day);
                         const isToday = day.toDateString() === now.toDateString();
                         return (
-                          <div key={idx} className={`border-r border-gray-100 last:border-r-0 p-1.5 ${isToday ? 'bg-red-50/30' : ''}`}>
+                          <div key={idx} className={`border-r border-border-light last:border-r-0 p-1.5 ${isToday ? 'bg-red-50/30' : ''}`}>
                             <div className="space-y-1">
                               {dayEvents.slice(0, 8).map((event, eventIdx) => {
                                 const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
                                 return (<div key={event.id || eventIdx} className={`${config.calendarColor} text-white text-xs px-2 py-1.5 rounded truncate cursor-pointer hover:opacity-90 transition-opacity`} title={`${event.title} - ${formatCurrency(event.budget_amount)}`}>{event.title}</div>);
                               })}
-                              {dayEvents.length > 8 && <div className="text-xs text-gray-500 px-2">+{dayEvents.length - 8} more</div>}
+                              {dayEvents.length > 8 && <div className="text-xs text-text-muted px-2">+{dayEvents.length - 8} more</div>}
                             </div>
                           </div>
                         );
@@ -540,7 +540,7 @@ export default function HubPage() {
                   </div>
                 ) : (
                   <div className="p-4">
-                    <div className="grid grid-cols-7 gap-1 mb-2">{DAYS.map(day => <div key={day} className="text-center text-sm font-semibold text-gray-500 py-2">{day}</div>)}</div>
+                    <div className="grid grid-cols-7 gap-1 mb-2">{DAYS.map(day => <div key={day} className="text-center text-sm font-semibold text-text-muted py-2">{day}</div>)}</div>
                     <div className="grid grid-cols-7 gap-1">
                       {calendarDays.map((day, idx) => {
                         if (!day) return <div key={`empty-${idx}`} className="aspect-square" />;
@@ -548,16 +548,16 @@ export default function HubPage() {
                         const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
                         const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
                         return (
-                          <div key={day} className={`aspect-square p-1 rounded-xl border overflow-hidden transition-all cursor-pointer hover:border-gray-300 ${isToday ? "border-red-400 border-2 bg-red-50" : "border-gray-100 bg-gray-50/50"}`}>
+                          <div key={day} className={`aspect-square p-1 rounded border overflow-hidden transition-all cursor-pointer hover:border-border ${isToday ? "border-red-400 border-2 bg-red-50" : "border-border-light bg-bg-row/50"}`}>
                             <div className="flex flex-col h-full">
-                              <div className={`text-xs font-semibold mb-1 ${isToday ? "text-red-500" : "text-gray-600"}`}>{day}</div>
+                              <div className={`text-xs font-semibold mb-1 ${isToday ? "text-brand-red" : "text-text-secondary"}`}>{day}</div>
                               {dayEvents.length > 0 && (
                                 <div className="flex-1 flex flex-col justify-end">
                                   <div className="flex flex-wrap gap-0.5 mb-1">
                                     {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => { const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home; return <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />; })}
-                                    {dayEvents.length > 4 && <span className="text-[8px] text-gray-400">+{dayEvents.length - 4}</span>}
+                                    {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
                                   </div>
-                                  <div className="text-[10px] font-bold text-gray-600 tabular-nums truncate">{formatCurrency(dayTotal)}</div>
+                                  <div className="text-[10px] font-bold text-text-secondary tabular-nums truncate">{formatCurrency(dayTotal)}</div>
                                 </div>
                               )}
                             </div>
@@ -577,26 +577,26 @@ export default function HubPage() {
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Budget Comparison</h2>
-                <p className="text-sm text-gray-500 mt-0.5">FY {selectedYear} · Homebase + Business + Travel · USD</p>
+                <h2 className="text-sm font-semibold text-text-primary tracking-tight">Budget Comparison</h2>
+                <p className="text-sm text-text-muted mt-0.5">FY {selectedYear} · Homebase + Business + Travel · USD</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-600 rounded-sm"></span><span className="text-gray-600">Under Budget</span></span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-600 rounded-sm"></span><span className="text-gray-600">Over Budget</span></span>
-                <div className="h-4 w-px bg-gray-300 mx-2"></div>
-                <button onClick={() => setSelectedYear(y => y - 1)} className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded">◀</button>
-                <span className="font-semibold text-gray-900">{selectedYear}</span>
-                <button onClick={() => setSelectedYear(y => y + 1)} className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded">▶</button>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-emerald-600 rounded-sm"></span><span className="text-text-secondary">Under Budget</span></span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-600 rounded-sm"></span><span className="text-text-secondary">Over Budget</span></span>
+                <div className="h-4 w-px bg-border mx-2"></div>
+                <button onClick={() => setSelectedYear(y => y - 1)} className="px-2 py-1 text-text-secondary hover:bg-bg-row rounded">◀</button>
+                <span className="font-semibold text-text-primary">{selectedYear}</span>
+                <button onClick={() => setSelectedYear(y => y + 1)} className="px-2 py-1 text-text-secondary hover:bg-bg-row rounded">▶</button>
               </div>
             </div>
 
             {/* Month Toggle */}
-            <div className="mb-4 p-4 bg-white border border-gray-300">
+            <div className="mb-4 p-4 bg-white border border-border">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-700">Travel months (homebase costs excluded):</span>
+                <span className="text-sm font-medium text-text-secondary">Travel months (homebase costs excluded):</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-3 py-1 text-gray-600 hover:bg-gray-100 border border-gray-300 transition-colors font-medium">All Travel</button>
-                  <button onClick={() => setTravelMonths([])} className="text-xs px-3 py-1 text-gray-600 hover:bg-gray-100 border border-gray-300 transition-colors font-medium">All Home</button>
+                  <button onClick={() => setTravelMonths([0,1,2,3,4,5,6,7,8,9,10,11])} className="text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium">All Travel</button>
+                  <button onClick={() => setTravelMonths([])} className="text-xs px-3 py-1 text-text-secondary hover:bg-bg-row border border-border transition-colors font-medium">All Home</button>
                 </div>
               </div>
               <div className="flex gap-1 flex-wrap">
@@ -606,102 +606,102 @@ export default function HubPage() {
                     onClick={() => setTravelMonths(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a,b) => a-b))}
                     className={`px-3 py-1.5 text-xs font-mono font-medium transition-all border ${
                       travelMonths.includes(i) 
-                        ? 'bg-[#2d1b4e] text-white border-[#2d1b4e]' 
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-brand-purple text-white border-brand-purple' 
+                        : 'bg-white text-text-secondary border-border hover:bg-bg-row'
                     }`}
                   >
                     {m}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-6 text-xs text-gray-500 mt-3 font-mono">
+              <div className="flex gap-6 text-xs text-text-muted mt-3 font-mono">
                 <span>Home: {homeMonths.length} mo</span>
                 <span>Travel: {travelMonths.length} mo</span>
               </div>
             </div>
 
             {/* Summary Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-gray-300 mb-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border mb-4">
               <div className="bg-white p-4">
-                <div className="text-xs text-gray-500 font-medium mb-1">Home Months Cost</div>
-                <div className="text-2xl font-bold text-gray-900 font-mono">{fmt(homeMonthsHomebaseBudget)}</div>
-                <div className="text-xs text-gray-500 mt-1">+ {fmt(homeMonthsTravelBudget)} travel</div>
+                <div className="text-xs text-text-muted font-medium mb-1">Home Months Cost</div>
+                <div className="text-sm font-bold text-text-primary font-mono">{fmt(homeMonthsHomebaseBudget)}</div>
+                <div className="text-xs text-text-muted mt-1">+ {fmt(homeMonthsTravelBudget)} travel</div>
               </div>
               <div className="bg-white p-4">
-                <div className="text-xs text-gray-500 font-medium mb-1">Travel Months Cost</div>
-                <div className="text-2xl font-bold text-gray-900 font-mono">{fmt(travelMonthsTravelBudget)}</div>
-                <div className="text-xs text-gray-400 line-through mt-1">{fmt(travelMonthsHomebaseBudget)} homebase</div>
+                <div className="text-xs text-text-muted font-medium mb-1">Travel Months Cost</div>
+                <div className="text-sm font-bold text-text-primary font-mono">{fmt(travelMonthsTravelBudget)}</div>
+                <div className="text-xs text-text-faint line-through mt-1">{fmt(travelMonthsHomebaseBudget)} homebase</div>
               </div>
               <div className="bg-white p-4">
-                <div className="text-xs text-gray-500 font-medium mb-1">Travel Savings</div>
-                <div className={`text-2xl font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
-                <div className="text-xs text-gray-500 mt-1">{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
+                <div className="text-xs text-text-muted font-medium mb-1">Travel Savings</div>
+                <div className={`text-sm font-bold font-mono ${travelSavings >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>{travelSavings >= 0 ? '+' : ''}{fmt(travelSavings)}</div>
+                <div className="text-xs text-text-muted mt-1">{travelSavings >= 0 ? 'Saved vs home' : 'Extra vs home'}</div>
               </div>
-              <div className="bg-[#2d1b4e] p-4 text-white">
-                <div className="text-xs text-gray-300 font-medium mb-1">Effective Total</div>
-                <div className="text-2xl font-bold font-mono">{fmt(effectiveYearlyCost)}</div>
-                <div className="text-xs text-gray-400 mt-1">{selectedYear} projected</div>
+              <div className="bg-brand-purple p-4 text-white">
+                <div className="text-xs text-text-faint font-medium mb-1">Effective Total</div>
+                <div className="text-sm font-bold font-mono">{fmt(effectiveYearlyCost)}</div>
+                <div className="text-xs text-text-faint mt-1">{selectedYear} projected</div>
               </div>
             </div>
 
             {/* Comparison Table */}
-            <div className="border border-gray-300 bg-white overflow-x-auto">
+            <div className="border border-border bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#2d1b4e] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-36">Category</th>
+                  <tr className="bg-brand-purple text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-36">Category</th>
                     {MONTHS_SHORT.map((m, i) => (
-                      <th key={m} className={`py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-[#1a0f2e]' : ''}`}>{m}</th>
+                      <th key={m} className={`py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px] ${travelMonths.includes(i) ? 'bg-panel-highlight' : ''}`}>{m}</th>
                     ))}
-                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
+                    <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-gray-200 bg-white hover:bg-blue-50/30">
-                    <td className="py-2 px-3 font-medium text-gray-900 border-r border-gray-200">Homebase</td>
+                  <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
+                    <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Homebase</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const val = yearBudget[i]?.total || 0;
                       const isTraveling = travelMonths.includes(i);
                       return (
-                        <td key={i} className={`py-2 px-2 text-right font-mono border-r border-gray-100 ${isTraveling ? 'bg-gray-100' : ''}`}>
-                          <span className={isTraveling ? 'text-gray-300 line-through' : 'text-gray-700'}>{fmt(val)}</span>
+                        <td key={i} className={`py-2 px-2 text-right font-mono border-r border-border-light ${isTraveling ? 'bg-bg-row' : ''}`}>
+                          <span className={isTraveling ? 'text-text-faint line-through' : 'text-text-secondary'}>{fmt(val)}</span>
                         </td>
                       );
                     })}
-                    <td className="py-2 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-50">{fmt(homeMonthsHomebaseBudget)}</td>
+                    <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(homeMonthsHomebaseBudget)}</td>
                   </tr>
-                  <tr className="border-b border-gray-200 bg-gray-50/50 hover:bg-blue-50/30">
-                    <td className="py-2 px-3 font-medium text-gray-900 border-r border-gray-200">Business</td>
+                  <tr className="border-b border-border bg-bg-row/50 hover:bg-brand-purple-wash/30">
+                    <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Business</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const val = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-gray-100 text-gray-700">{fmt(val)}</td>);
+                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary">{fmt(val)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-50">{fmt(yearlyBusinessBudget)}</td>
+                    <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(yearlyBusinessBudget)}</td>
                   </tr>
-                  <tr className="border-b border-gray-200 bg-white hover:bg-blue-50/30">
-                    <td className="py-2 px-3 font-medium text-gray-900 border-r border-gray-200">Travel</td>
+                  <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
+                    <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Travel</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const val = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-gray-100 text-gray-700">{fmt(val)}</td>);
+                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-border-light text-text-secondary">{fmt(val)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-50">{fmt(yearlyTravelBudget)}</td>
+                    <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row">{fmt(yearlyTravelBudget)}</td>
                   </tr>
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#2d1b4e] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Monthly Total</td>
+                  <tr className="bg-brand-purple text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-brand-purple-hover">Monthly Total</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const homebase = yearBudget[i]?.total || 0;
                       const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const isTraveling = travelMonths.includes(i);
                       const effective = isTraveling ? (travel + business) : (homebase + travel + business);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${isTraveling ? 'bg-[#1a0f2e]' : ''}`}>{fmt(effective)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${isTraveling ? 'bg-panel-highlight' : ''}`}>{fmt(effective)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(effectiveYearlyCost)}</td>
+                    <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(effectiveYearlyCost)}</td>
                   </tr>
-                  <tr className="bg-gray-100 text-gray-600 text-[10px]">
-                    <td className="py-1.5 px-3 border-r border-gray-200">Trips</td>
+                  <tr className="bg-bg-row text-text-secondary text-[10px]">
+                    <td className="py-1.5 px-3 border-r border-border">Trips</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const tripsInMonth = committedTrips.filter(t => {
                         if (!t.startDate) return false;
@@ -709,12 +709,12 @@ export default function HubPage() {
                         return start.getMonth() === i && start.getFullYear() === selectedYear;
                       });
                       return (
-                        <td key={i} className="py-1.5 px-1 text-center border-r border-gray-100 truncate" style={{maxWidth: '55px'}}>
+                        <td key={i} className="py-1.5 px-1 text-center border-r border-border-light truncate" style={{maxWidth: '55px'}}>
                           {tripsInMonth.length > 0 ? tripsInMonth.map(t => t.destination?.split(',')[0] || t.name).join(', ') : '—'}
                         </td>
                       );
                     })}
-                    <td className="py-1.5 px-3 text-center bg-gray-200 font-medium">{committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips</td>
+                    <td className="py-1.5 px-3 text-center bg-border font-medium">{committedTrips.filter(t => t.startDate && new Date(new Date(t.startDate).getTime() + 12*60*60*1000).getFullYear() === selectedYear).length} trips</td>
                   </tr>
                 </tfoot>
               </table>
@@ -727,18 +727,18 @@ export default function HubPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Homebase Operating Expenses</h2>
-                <p className="text-xs text-gray-500">FY {selectedYear} · Budget vs Actual · USD</p>
+                <h2 className="text-terminal-lg font-semibold text-text-primary tracking-tight">Homebase Operating Expenses</h2>
+                <p className="text-xs text-text-muted">FY {selectedYear} · Budget vs Actual · USD</p>
               </div>
             </div>
-            <div className="border border-gray-300 bg-white overflow-x-auto">
+            <div className="border border-border bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#2d1b4e] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
-                    <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
-                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
-                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
+                  <tr className="bg-brand-purple text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-40">Account</th>
+                    <th className="py-2 px-2 font-medium border-r border-brand-purple-hover w-10 text-center">Type</th>
+                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px]">{m}</th>)}
+                    <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -747,29 +747,29 @@ export default function HubPage() {
                     const actualTotal = Object.values(yearActual).reduce((sum, m) => sum + (m[source] || 0), 0);
                     return (
                       <Fragment key={source}>
-                        <tr className={`hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td rowSpan={2} className="py-1.5 px-3 border-r border-gray-200 align-top">
-                            <div className="font-medium text-gray-900">{CATEGORY_NAMES[source] || source}</div>
-                            <div className="text-[10px] text-gray-400 font-mono uppercase">{source}</div>
+                        <tr className={`hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                          <td rowSpan={2} className="py-1.5 px-3 border-r border-border align-top">
+                            <div className="font-medium text-text-primary">{CATEGORY_NAMES[source] || source}</div>
+                            <div className="text-[10px] text-text-faint font-mono uppercase">{source}</div>
                           </td>
-                          <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">BUD</td>
+                          <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">BUD</td>
                           {MONTHS_SHORT.map((_, i) => (
-                            <td key={i} className="py-1.5 px-2 text-right font-mono text-gray-700 border-r border-gray-100">{fmt(yearBudget[i]?.[source] || 0)}</td>
+                            <td key={i} className="py-1.5 px-2 text-right font-mono text-text-secondary border-r border-border-light">{fmt(yearBudget[i]?.[source] || 0)}</td>
                           ))}
-                          <td className="py-1.5 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-100/50">{fmt(budgetTotal)}</td>
+                          <td className="py-1.5 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row/50">{fmt(budgetTotal)}</td>
                         </tr>
-                        <tr className={`border-b border-gray-200 hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">ACT</td>
+                        <tr className={`border-b border-border hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                          <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">ACT</td>
                           {MONTHS_SHORT.map((_, i) => {
                             const bud = yearBudget[i]?.[source] || 0;
                             const act = yearActual[i]?.[source] || 0;
                             return (
-                              <td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-gray-100 ${act > 0 && act > bud ? 'text-red-700 bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-gray-400'}`}>
+                              <td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>
                                 {fmt(act)}
                               </td>
                             );
                           })}
-                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-red-700 bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-gray-400 bg-gray-100/50'}`}>
+                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>
                             {fmt(actualTotal)}
                           </td>
                         </tr>
@@ -778,21 +778,21 @@ export default function HubPage() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#2d1b4e] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
-                    {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(yearBudget[i]?.total || 0)}</td>))}
-                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyHomebaseBudget)}</td>
+                  <tr className="bg-brand-purple text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-brand-purple-hover">Total</td>
+                    <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">BUD</td>
+                    {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-2 px-2 text-right font-mono border-r border-brand-purple-hover">{fmt(yearBudget[i]?.total || 0)}</td>))}
+                    <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(yearlyHomebaseBudget)}</td>
                   </tr>
-                  <tr className="bg-[#3d2b5e] text-white">
-                    <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
+                  <tr className="bg-brand-purple-hover text-white">
+                    <td className="py-2 px-3 border-r border-brand-purple-hover"></td>
+                    <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">ACT</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const bud = yearBudget[i]?.total || 0;
                       const act = yearActual[i]?.total || 0;
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${act > 0 && act > bud ? 'text-red-300' : act > 0 ? 'text-emerald-300' : ''}`}>{fmt(act)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${act > 0 && act > bud ? 'text-red-300' : act > 0 ? 'text-emerald-300' : ''}`}>{fmt(act)}</td>);
                     })}
-                    <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
+                    <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -805,18 +805,18 @@ export default function HubPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Travel Operating Expenses</h2>
-                <p className="text-xs text-gray-500">FY {selectedYear} · Budget vs Actual · USD</p>
+                <h2 className="text-terminal-lg font-semibold text-text-primary tracking-tight">Travel Operating Expenses</h2>
+                <p className="text-xs text-text-muted">FY {selectedYear} · Budget vs Actual · USD</p>
               </div>
             </div>
-            <div className="border border-gray-300 bg-white overflow-x-auto">
+            <div className="border border-border bg-white overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#2d1b4e] text-white">
-                    <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
-                    <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
-                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
-                    <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
+                  <tr className="bg-brand-purple text-white">
+                    <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-40">Account</th>
+                    <th className="py-2 px-2 font-medium border-r border-brand-purple-hover w-10 text-center">Type</th>
+                    {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px]">{m}</th>)}
+                    <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -828,47 +828,47 @@ export default function HubPage() {
                     if (budgetTotal === 0 && actualTotal === 0) return null;
                     return (
                       <Fragment key={code}>
-                        <tr className={`hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td rowSpan={2} className="py-1.5 px-3 border-r border-gray-200 align-top">
-                            <div className="font-medium text-gray-900">{name.replace(/^[^\w]+/, '')}</div>
-                            <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                        <tr className={`hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                          <td rowSpan={2} className="py-1.5 px-3 border-r border-border align-top">
+                            <div className="font-medium text-text-primary">{name.replace(/^[^\w]+/, '')}</div>
+                            <div className="text-[10px] text-text-faint font-mono">{code}</div>
                           </td>
-                          <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">BUD</td>
-                          {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-1.5 px-2 text-right font-mono text-gray-700 border-r border-gray-100">{fmt(budgetRow[i] || 0)}</td>))}
-                          <td className="py-1.5 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-100/50">{fmt(budgetTotal)}</td>
+                          <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">BUD</td>
+                          {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-1.5 px-2 text-right font-mono text-text-secondary border-r border-border-light">{fmt(budgetRow[i] || 0)}</td>))}
+                          <td className="py-1.5 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row/50">{fmt(budgetTotal)}</td>
                         </tr>
-                        <tr className={`border-b border-gray-200 hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">ACT</td>
+                        <tr className={`border-b border-border hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                          <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">ACT</td>
                           {MONTHS_SHORT.map((_, i) => {
                             const bud = budgetRow[i] || 0;
                             const act = actualRow[i] || 0;
-                            return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-gray-100 ${act > 0 && act > bud ? 'text-red-700 bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-gray-400'}`}>{fmt(act)}</td>);
+                            return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                           })}
-                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-red-700 bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-gray-400 bg-gray-100/50'}`}>{fmt(actualTotal)}</td>
+                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                         </tr>
                       </Fragment>
                     );
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#2d1b4e] text-white font-semibold">
-                    <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
+                  <tr className="bg-brand-purple text-white font-semibold">
+                    <td className="py-2 px-3 border-r border-brand-purple-hover">Total</td>
+                    <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">BUD</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const monthTotal = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(monthTotal)}</td>);
+                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-brand-purple-hover">{fmt(monthTotal)}</td>);
                     })}
-                    <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyTravelBudget)}</td>
+                    <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(yearlyTravelBudget)}</td>
                   </tr>
-                  <tr className="bg-[#3d2b5e] text-white">
-                    <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
-                    <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
+                  <tr className="bg-brand-purple-hover text-white">
+                    <td className="py-2 px-3 border-r border-brand-purple-hover"></td>
+                    <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">ACT</td>
                     {MONTHS_SHORT.map((_, i) => {
                       const budMonth = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const actMonth = Object.values(nomadBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                     })}
-                    <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyTravelActual > yearlyTravelBudget ? 'text-red-300' : yearlyTravelActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyTravelActual)}</td>
+                    <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyTravelActual > yearlyTravelBudget ? 'text-red-300' : yearlyTravelActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyTravelActual)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -881,19 +881,19 @@ export default function HubPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Business Operating Expenses</h2>
-                <p className="text-xs text-gray-500">FY {selectedYear} · Budget vs Actual · USD</p>
+                <h2 className="text-terminal-lg font-semibold text-text-primary tracking-tight">Business Operating Expenses</h2>
+                <p className="text-xs text-text-muted">FY {selectedYear} · Budget vs Actual · USD</p>
               </div>
             </div>
             {Object.keys(businessBudget.coaNames).length > 0 ? (
-              <div className="border border-gray-300 bg-white overflow-x-auto">
+              <div className="border border-border bg-white overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-[#2d1b4e] text-white">
-                      <th className="text-left py-2 px-3 font-medium border-r border-[#3d2b5e] w-40">Account</th>
-                      <th className="py-2 px-2 font-medium border-r border-[#3d2b5e] w-10 text-center">Type</th>
-                      {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-[#3d2b5e] text-right min-w-[55px]">{m}</th>)}
-                      <th className="py-2 px-3 font-medium text-right bg-[#1a0f2e] min-w-[70px]">FY Total</th>
+                    <tr className="bg-brand-purple text-white">
+                      <th className="text-left py-2 px-3 font-medium border-r border-brand-purple-hover w-40">Account</th>
+                      <th className="py-2 px-2 font-medium border-r border-brand-purple-hover w-10 text-center">Type</th>
+                      {MONTHS_SHORT.map(m => <th key={m} className="py-2 px-2 font-medium border-r border-brand-purple-hover text-right min-w-[55px]">{m}</th>)}
+                      <th className="py-2 px-3 font-medium text-right bg-panel-highlight min-w-[70px]">FY Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -905,61 +905,61 @@ export default function HubPage() {
                       if (budgetTotal === 0 && actualTotal === 0) return null;
                       return (
                         <Fragment key={code}>
-                          <tr className={`hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                            <td rowSpan={2} className="py-1.5 px-3 border-r border-gray-200 align-top">
-                              <div className="font-medium text-gray-900">{name}</div>
-                              <div className="text-[10px] text-gray-400 font-mono">{code}</div>
+                          <tr className={`hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                            <td rowSpan={2} className="py-1.5 px-3 border-r border-border align-top">
+                              <div className="font-medium text-text-primary">{name}</div>
+                              <div className="text-[10px] text-text-faint font-mono">{code}</div>
                             </td>
-                            <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">BUD</td>
-                            {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-1.5 px-2 text-right font-mono text-gray-700 border-r border-gray-100">{fmt(budgetRow[i] || 0)}</td>))}
-                            <td className="py-1.5 px-3 text-right font-mono font-semibold text-gray-900 bg-gray-100/50">{fmt(budgetTotal)}</td>
+                            <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">BUD</td>
+                            {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-1.5 px-2 text-right font-mono text-text-secondary border-r border-border-light">{fmt(budgetRow[i] || 0)}</td>))}
+                            <td className="py-1.5 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row/50">{fmt(budgetTotal)}</td>
                           </tr>
-                          <tr className={`border-b border-gray-200 hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                            <td className="py-1.5 px-2 text-[10px] text-gray-500 border-r border-gray-200 text-center font-medium">ACT</td>
+                          <tr className={`border-b border-border hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
+                            <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">ACT</td>
                             {MONTHS_SHORT.map((_, i) => {
                               const bud = budgetRow[i] || 0;
                               const act = actualRow[i] || 0;
-                              return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-gray-100 ${act > 0 && act > bud ? 'text-red-700 bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-gray-400'}`}>{fmt(act)}</td>);
+                              return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                             })}
-                            <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-red-700 bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-gray-400 bg-gray-100/50'}`}>{fmt(actualTotal)}</td>
+                            <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                           </tr>
                         </Fragment>
                       );
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-[#2d1b4e] text-white font-semibold">
-                      <td className="py-2 px-3 border-r border-[#3d2b5e]">Total</td>
-                      <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">BUD</td>
+                    <tr className="bg-brand-purple text-white font-semibold">
+                      <td className="py-2 px-3 border-r border-brand-purple-hover">Total</td>
+                      <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">BUD</td>
                       {MONTHS_SHORT.map((_, i) => {
                         const monthTotal = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                        return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-[#3d2b5e]">{fmt(monthTotal)}</td>);
+                        return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-brand-purple-hover">{fmt(monthTotal)}</td>);
                       })}
-                      <td className="py-2 px-3 text-right font-mono bg-[#1a0f2e]">{fmt(yearlyBusinessBudget)}</td>
+                      <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(yearlyBusinessBudget)}</td>
                     </tr>
-                    <tr className="bg-[#3d2b5e] text-white">
-                      <td className="py-2 px-3 border-r border-[#3d2b5e]"></td>
-                      <td className="py-2 px-2 text-[10px] border-r border-[#3d2b5e] text-center">ACT</td>
+                    <tr className="bg-brand-purple-hover text-white">
+                      <td className="py-2 px-3 border-r border-brand-purple-hover"></td>
+                      <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">ACT</td>
                       {MONTHS_SHORT.map((_, i) => {
                         const budMonth = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                         const actMonth = Object.values(businessBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                        return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-[#3d2b5e] ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                        return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                       })}
-                      <td className={`py-2 px-3 text-right font-mono bg-[#1a0f2e] ${yearlyBusinessActual > yearlyBusinessBudget ? 'text-red-300' : yearlyBusinessActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyBusinessActual)}</td>
+                      <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyBusinessActual > yearlyBusinessBudget ? 'text-red-300' : yearlyBusinessActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyBusinessActual)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             ) : (
-              <div className="border border-gray-300 bg-white p-8 text-center">
-                <div className="text-gray-400 mb-2">No business accounts configured</div>
-                <div className="text-xs text-gray-400">Map transactions to B-xxxx accounts to see them here</div>
+              <div className="border border-border bg-white p-8 text-center">
+                <div className="text-text-faint mb-2">No business accounts configured</div>
+                <div className="text-xs text-text-faint">Map transactions to B-xxxx accounts to see them here</div>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="text-xs text-gray-400 text-center py-4">
+          <div className="text-xs text-text-faint text-center py-4">
             Last updated: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · Source: Temple Stuart Ledger
           </div>
 

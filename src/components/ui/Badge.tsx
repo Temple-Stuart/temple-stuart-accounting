@@ -15,7 +15,7 @@ export default function Badge({ children, variant = 'default', size = 'md', clas
     success: 'bg-green-50 text-brand-green',
     warning: 'bg-amber-50 text-brand-amber',
     danger: 'bg-red-50 text-brand-red',
-    info: 'bg-blue-50 text-blue-700',
+    info: 'bg-brand-purple-wash text-brand-purple',
     gold: 'bg-brand-gold-wash text-brand-gold font-mono',
     purple: 'bg-brand-purple-wash text-brand-purple font-mono',
   };

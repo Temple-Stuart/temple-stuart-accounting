@@ -140,18 +140,18 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             <button
               onClick={openPlaidLink}
               disabled={!linkToken || loading}
-              className="px-3 py-1.5 bg-[#2d1b4e] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              className="px-3 py-1.5 bg-brand-purple text-white rounded text-sm font-medium disabled:opacity-50"
             >
               {loading ? '...' : '+ Add Account'}
             </button>
             <button
               onClick={syncAllAccounts}
-              className="px-3 py-1.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              className="px-3 py-1.5 border rounded text-sm text-text-secondary hover:bg-bg-row"
             >
               🔄 Sync
             </button>
             {syncStatus && (
-              <span className="text-xs text-gray-500">{syncStatus}</span>
+              <span className="text-xs text-text-muted">{syncStatus}</span>
             )}
           </div>
         </div>
@@ -159,7 +159,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
         {/* Accounts Table */}
         {accounts.length > 0 ? (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-bg-row">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Account</th>
                 <th className="px-3 py-2 text-left font-medium">Type</th>
@@ -169,21 +169,21 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             </thead>
             <tbody className="divide-y">
               {accounts.map(account => (
-                <tr key={account.id} className="hover:bg-gray-50">
+                <tr key={account.id} className="hover:bg-bg-row">
                   <td className="px-3 py-2">
                     <div>
                       <span className="font-medium">{account.name}</span>
                       {account.plaid_items?.institutionName && (
-                        <span className="text-xs text-gray-400 ml-2">
+                        <span className="text-xs text-text-faint ml-2">
                           {account.plaid_items.institutionName}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-text-faint">
                       •••{account.mask || '----'}
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-gray-600">{account.type}</td>
+                  <td className="px-3 py-2 text-text-secondary">{account.type}</td>
                   <td className="px-3 py-2">
                     <select
                       value={account.entityType || 'personal'}
@@ -203,7 +203,7 @@ export function ImportDataSection({ entityId }: { entityId: string }) {
             </tbody>
           </table>
         ) : (
-          <div className="py-6 text-center text-gray-500 text-sm">
+          <div className="py-6 text-center text-text-muted text-sm">
             No accounts connected. Click "+ Add Account" to link your bank.
           </div>
         )}

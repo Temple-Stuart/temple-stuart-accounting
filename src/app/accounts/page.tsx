@@ -99,23 +99,23 @@ body: JSON.stringify({ accountId, entityType })
 }
 };
 return (
-<div className="min-h-screen bg-gray-50">
+<div className="min-h-screen bg-bg-row">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-<h1 className="text-3xl font-bold text-gray-900 mb-8">Accounts</h1>
+<h1 className="text-3xl font-bold text-text-primary mb-8">Accounts</h1>
     {loading && <div>Loading...</div>}
-    {error && <div className="text-red-600">{error}</div>}
+    {error && <div className="text-brand-red">{error}</div>}
     
     {!loading && !error && (
       <>
         <div className="grid gap-6 mb-8">
           {accounts.map(account => (
-            <div key={account.id} className="bg-white p-6 rounded-lg shadow">
+            <div key={account.id} className="bg-white p-6 rounded shadow">
               <div className="flex justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-medium">{account.name}</h3>
-                  <p className="text-sm text-gray-500">{account.institution}</p>
+                  <h3 className="text-terminal-lg font-medium">{account.name}</h3>
+                  <p className="text-sm text-text-muted">{account.institution}</p>
                   <div className="mt-2">
-                    <label className="text-xs text-gray-500 block mb-1">Entity Type:</label>
+                    <label className="text-xs text-text-muted block mb-1">Entity Type:</label>
                     <select
                       value={account.entityType || ''}
                       onChange={(e) => updateEntityType(account.id, e.target.value)}
@@ -130,17 +130,17 @@ return (
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold">${account.balance.toFixed(2)}</p>
-                  <p className="text-sm text-gray-500">{account.type}</p>
+                  <p className="text-sm font-bold">${account.balance.toFixed(2)}</p>
+                  <p className="text-sm text-text-muted">{account.type}</p>
                 </div>
               </div>
             </div>
           ))}
         </div>
         
-        <div className="bg-white shadow rounded-lg">
+        <div className="bg-white shadow rounded">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-xl font-semibold">Recent Transactions</h2>
+            <h2 className="text-sm font-semibold">Recent Transactions</h2>
           </div>
           <div className="divide-y">
             {transactions.slice(0, 10).map((transaction: any) => (
@@ -148,13 +148,13 @@ return (
                 <div className="flex justify-between">
                   <div>
                     <p className="font-medium">{transaction.name || transaction.description}</p>
-                    <p className="text-sm text-gray-500">{transaction.category}</p>
+                    <p className="text-sm text-text-muted">{transaction.category}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-medium ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <p className={`font-medium ${transaction.amount < 0 ? 'text-brand-red' : 'text-brand-green'}`}>
                       ${Math.abs(transaction.amount).toFixed(2)}
                     </p>
-                    <p className="text-sm text-gray-500">{new Date(transaction.date).toLocaleDateString()}</p>
+                    <p className="text-sm text-text-muted">{new Date(transaction.date).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>

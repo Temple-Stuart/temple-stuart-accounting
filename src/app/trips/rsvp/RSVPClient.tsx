@@ -173,11 +173,11 @@ function RSVPContent() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center max-w-md">
+      <div className="min-h-screen bg-bg-row flex items-center justify-center p-4">
+        <div className="bg-white rounded border border-border p-8 text-center max-w-md">
           <div className="text-4xl mb-4">🔗</div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Missing Invite Link</h1>
-          <p className="text-gray-500">Please use the invite link shared with you.</p>
+          <h1 className="text-sm font-semibold text-text-primary mb-2">Missing Invite Link</h1>
+          <p className="text-text-muted">Please use the invite link shared with you.</p>
         </div>
       </div>
     );
@@ -185,19 +185,19 @@ function RSVPContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading invitation...</div>
+      <div className="min-h-screen bg-bg-row flex items-center justify-center">
+        <div className="text-text-muted">Loading invitation...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center max-w-md">
+      <div className="min-h-screen bg-bg-row flex items-center justify-center p-4">
+        <div className="bg-white rounded border border-border p-8 text-center max-w-md">
           <div className="text-4xl mb-4">😕</div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid Invitation</h1>
-          <p className="text-gray-500">{error}</p>
+          <h1 className="text-sm font-semibold text-text-primary mb-2">Invalid Invitation</h1>
+          <p className="text-text-muted">{error}</p>
         </div>
       </div>
     );
@@ -205,13 +205,13 @@ function RSVPContent() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center max-w-md">
+      <div className="min-h-screen bg-bg-row flex items-center justify-center p-4">
+        <div className="bg-white rounded border border-border p-8 text-center max-w-md">
           <div className="text-5xl mb-4">{declined ? '👋' : '🎉'}</div>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          <h1 className="text-sm font-semibold text-text-primary mb-2">
             {declined ? 'Maybe Next Time!' : 'You\'re In!'}
           </h1>
-          <p className="text-gray-500">
+          <p className="text-text-muted">
             {declined
               ? 'We\'ll miss you on ' + trip?.name + '. Let ' + trip?.owner.name + ' know if anything changes!'
               : 'Your spot on ' + trip?.name + ' is confirmed. ' + trip?.owner.name + ' will be in touch with more details.'}
@@ -228,41 +228,41 @@ function RSVPContent() {
   const firstDayOffset = new Date(trip.year, trip.month - 1, 1).getDay();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg-row">
       <header className="bg-white border-b">
         <div className="max-w-xl mx-auto px-4 h-14 flex items-center">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#b4b237] rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-brand-accent rounded flex items-center justify-center">
               <span className="text-white font-bold">TS</span>
             </div>
-            <span className="font-semibold text-gray-900">Trip Invitation</span>
+            <span className="font-semibold text-text-primary">Trip Invitation</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-xl mx-auto px-4 py-8">
         {/* Trip Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 text-center">
-          <p className="text-sm text-gray-500 mb-1">{trip.owner.name} invited you to</p>
-          <h1 className="text-2xl font-semibold text-gray-900 mb-4">{trip.name}</h1>
+        <div className="bg-white rounded border border-border p-6 mb-6 text-center">
+          <p className="text-sm text-text-muted mb-1">{trip.owner.name} invited you to</p>
+          <h1 className="text-sm font-semibold text-text-primary mb-4">{trip.name}</h1>
           
-          <div className="flex justify-center gap-6 text-sm text-gray-600 mb-4">
+          <div className="flex justify-center gap-6 text-sm text-text-secondary mb-4">
             <div>
-              <span className="block text-gray-400">Where</span>
-              <span className="font-medium text-gray-900">{trip.destination || 'TBD'}</span>
+              <span className="block text-text-faint">Where</span>
+              <span className="font-medium text-text-primary">{trip.destination || 'TBD'}</span>
             </div>
             <div>
-              <span className="block text-gray-400">When</span>
-              <span className="font-medium text-gray-900">{MONTHS[trip.month]} {trip.year}</span>
+              <span className="block text-text-faint">When</span>
+              <span className="font-medium text-text-primary">{MONTHS[trip.month]} {trip.year}</span>
             </div>
             <div>
-              <span className="block text-gray-400">Duration</span>
-              <span className="font-medium text-gray-900">{trip.daysTravel} days</span>
+              <span className="block text-text-faint">Duration</span>
+              <span className="font-medium text-text-primary">{trip.daysTravel} days</span>
             </div>
           </div>
 
           {trip.activity && (
-            <div className="inline-flex items-center px-3 py-1 bg-gray-100 rounded-full text-sm">
+            <div className="inline-flex items-center px-3 py-1 bg-bg-row rounded-full text-sm">
               {ACTIVITIES[trip.activity] || trip.activity}
             </div>
           )}
@@ -271,51 +271,51 @@ function RSVPContent() {
         {/* RSVP Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name & Email */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4">Your Info</h2>
+          <div className="bg-white rounded border border-border p-6">
+            <h2 className="font-semibold text-text-primary mb-4">Your Info</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm text-gray-500 mb-1">First Name *</label>
+                <label className="block text-sm text-text-muted mb-1">First Name *</label>
                 <input
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                  className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-500 mb-1">Last Name</label>
+                <label className="block text-sm text-text-muted mb-1">Last Name</label>
                 <input
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                  className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-500 mb-1">Email *</label>
+              <label className="block text-sm text-text-muted mb-1">Email *</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#b4b237]"
+                className="w-full px-4 py-3 border border-border rounded focus:outline-none focus:border-brand-accent"
                 required
               />
             </div>
           </div>
 
           {/* Blackout Dates */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-2">Your Availability</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Tap any dates you are <span className="text-red-600 font-medium">NOT available</span> in {MONTHS[trip.month]}
+          <div className="bg-white rounded border border-border p-6">
+            <h2 className="font-semibold text-text-primary mb-2">Your Availability</h2>
+            <p className="text-sm text-text-muted mb-4">
+              Tap any dates you are <span className="text-brand-red font-medium">NOT available</span> in {MONTHS[trip.month]}
             </p>
             
             <div className="grid grid-cols-7 gap-1.5">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                <div key={i} className="text-center text-xs text-gray-400 py-1">{d}</div>
+                <div key={i} className="text-center text-xs text-text-faint py-1">{d}</div>
               ))}
               {Array.from({ length: firstDayOffset }, (_, i) => (
                 <div key={'empty-' + i} />
@@ -325,10 +325,10 @@ function RSVPContent() {
                   key={day}
                   type="button"
                   onClick={() => toggleDay(day)}
-                  className={'aspect-square rounded-lg text-sm font-medium transition-all ' + (
+                  className={'aspect-square rounded text-sm font-medium transition-all ' + (
                     unavailableDays.includes(day)
                       ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-bg-row text-text-secondary hover:bg-border'
                   )}
                 >
                   {day}
@@ -337,7 +337,7 @@ function RSVPContent() {
             </div>
             
             {unavailableDays.length > 0 && (
-              <p className="text-sm text-red-600 mt-3">
+              <p className="text-sm text-brand-red mt-3">
                 ✗ Unavailable: {unavailableDays.sort((a, b) => a - b).join(', ')}
               </p>
             )}
@@ -349,14 +349,14 @@ function RSVPContent() {
               type="button"
               onClick={handleDecline}
               disabled={saving}
-              className="flex-1 py-3 border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition-all"
+              className="flex-1 py-3 border border-border text-text-secondary rounded font-medium hover:bg-bg-row transition-all"
             >
               Can't Make It
             </button>
             <button
               type="submit"
               disabled={saving || !firstName || !email}
-              className="flex-1 py-3 bg-[#b4b237] text-white rounded-lg font-medium hover:shadow-lg transition-all disabled:opacity-50"
+              className="flex-1 py-3 bg-brand-accent text-white rounded font-medium hover:shadow-sm transition-all disabled:opacity-50"
             >
               {saving ? 'Submitting...' : 'Count Me In!'}
             </button>
@@ -370,8 +370,8 @@ function RSVPContent() {
 export default function RSVPPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen bg-bg-row flex items-center justify-center">
+        <div className="text-text-muted">Loading...</div>
       </div>
     }>
       <RSVPContent />

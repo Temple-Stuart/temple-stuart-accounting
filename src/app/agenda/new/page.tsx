@@ -9,7 +9,7 @@ const CATEGORY_GROUPS = [
     label: 'Build (Temple Stuart)',
     category: 'build',
     icon: '🧱',
-    color: 'bg-blue-500',
+    color: 'bg-brand-purple-wash0',
     subcategories: [
       { value: 'product', label: 'Product Build', icon: '🧱', description: 'Code/features' },
       { value: 'qa', label: 'QA / Bug Fixing', icon: '🧪', description: 'Testing & fixes' },
@@ -113,7 +113,7 @@ const CATEGORY_GROUPS = [
     label: 'Vehicle',
     category: 'vehicle',
     icon: '🚗',
-    color: 'bg-gray-500',
+    color: 'bg-bg-row0',
     subcategories: [
       { value: 'maintenance', label: 'Maintenance', icon: '🔧', description: 'Oil, tires, etc.' },
       { value: 'wash', label: 'Car Wash', icon: '🧽', description: 'Clean inside/out' },
@@ -236,17 +236,17 @@ export default function NewAgendaPage() {
       <div className="max-w-3xl mx-auto p-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <button onClick={() => router.push('/agenda')} className="text-gray-400 hover:text-gray-600">
+          <button onClick={() => router.push('/agenda')} className="text-text-faint hover:text-text-secondary">
             ← Back
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">New Agenda Item</h1>
-            <p className="text-gray-500">Plan your routine block</p>
+            <h1 className="text-sm font-bold text-text-primary">New Agenda Item</h1>
+            <p className="text-text-muted">Plan your routine block</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-brand-red">
             {error}
           </div>
         )}
@@ -254,15 +254,15 @@ export default function NewAgendaPage() {
         {/* Step 1: Category Selection */}
         {step === 1 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Category</h2>
+            <h2 className="text-terminal-lg font-semibold text-text-primary mb-4">Select Category</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {CATEGORY_GROUPS.map(group => (
                 <div
                   key={group.category}
-                  className={`p-4 cursor-pointer transition-all hover:shadow-lg ${
+                  className={`p-4 cursor-pointer transition-all hover:shadow-sm ${
                     selectedCategory === group.category 
-                      ? 'ring-2 ring-[#b4b237] border-[#b4b237]' 
-                      : 'hover:border-gray-300'
+                      ? 'ring-2 ring-brand-accent border-brand-accent' 
+                      : 'hover:border-border'
                   }`}
                   onClick={() => {
                     setSelectedCategory(group.category);
@@ -272,12 +272,12 @@ export default function NewAgendaPage() {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`w-12 h-12 ${group.color} rounded-xl flex items-center justify-center text-2xl text-white`}>
+                    <span className={`w-12 h-12 ${group.color} rounded flex items-center justify-center text-sm text-white`}>
                       {group.icon}
                     </span>
                     <div>
-                      <div className="font-semibold text-gray-900">{group.label}</div>
-                      <div className="text-sm text-gray-500">{group.subcategories.length} types</div>
+                      <div className="font-semibold text-text-primary">{group.label}</div>
+                      <div className="text-sm text-text-muted">{group.subcategories.length} types</div>
                     </div>
                   </div>
                 </div>
@@ -286,20 +286,20 @@ export default function NewAgendaPage() {
 
             {selectedCategory && (
               <div className="mt-6">
-                <h3 className="text-md font-medium text-gray-900 mb-3">Select Type</h3>
+                <h3 className="text-md font-medium text-text-primary mb-3">Select Type</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {categoryConfig?.subcategories.map(sub => (
                     <button
                       key={sub.value}
                       onClick={() => setSelectedSubcategory(sub.value)}
-                      className={`p-3 rounded-lg border text-left transition-all ${
+                      className={`p-3 rounded border text-left transition-all ${
                         selectedSubcategory === sub.value
-                          ? 'border-[#b4b237] bg-[#b4b237]/10'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-brand-accent bg-brand-accent/10'
+                          : 'border-border hover:border-border'
                       }`}
                     >
-                      <span className="text-xl">{sub.icon}</span>
-                      <div className="font-medium text-gray-900 text-sm mt-1">{sub.label}</div>
+                      <span className="text-sm">{sub.icon}</span>
+                      <div className="font-medium text-text-primary text-sm mt-1">{sub.label}</div>
                     </button>
                   ))}
                 </div>
@@ -309,7 +309,7 @@ export default function NewAgendaPage() {
             {selectedCategory && (
               <Button
                 onClick={() => setStep(2)}
-                className="mt-6 bg-[#b4b237] hover:bg-[#9a982f] text-white"
+                className="mt-6 bg-brand-accent hover:bg-brand-accent-dark text-white"
               >
                 Next: Details →
               </Button>
@@ -320,14 +320,14 @@ export default function NewAgendaPage() {
         {/* Step 2: Details */}
         {step === 2 && (
           <div>
-            <button onClick={() => setStep(1)} className="text-gray-400 hover:text-gray-600 mb-4">
+            <button onClick={() => setStep(1)} className="text-text-faint hover:text-text-secondary mb-4">
               ← Back to Category
             </button>
 
             <div className="space-y-6">
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Agenda Item Name *
                 </label>
                 <input
@@ -335,22 +335,22 @@ export default function NewAgendaPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={`e.g., ${categoryConfig?.subcategories[0]?.description || 'Daily task'}`}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#b4b237] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-border rounded focus:ring-2 focus:ring-brand-accent focus:border-transparent"
                 />
               </div>
 
               {/* Cadence */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Cadence</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Cadence</label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {CADENCES.map(c => (
                     <button
                       key={c.value}
                       onClick={() => setCadence(c.value)}
-                      className={`p-3 rounded-lg border text-center transition-all ${
+                      className={`p-3 rounded border text-center transition-all ${
                         cadence === c.value
-                          ? 'border-[#b4b237] bg-[#b4b237]/10'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-brand-accent bg-brand-accent/10'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       {c.label}
@@ -362,37 +362,37 @@ export default function NewAgendaPage() {
               {/* Date Range */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">Start Date</label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                    className="w-full px-4 py-3 border border-border rounded"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">End Date</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                    className="w-full px-4 py-3 border border-border rounded"
                   />
                 </div>
               </div>
 
               {/* Time Block */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Time</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Preferred Time</label>
                 <div className="flex flex-wrap gap-2">
                   {TIME_BLOCKS.map(t => (
                     <button
                       key={t.value}
                       onClick={() => setTimeBlock(t.value)}
-                      className={`px-4 py-2 rounded-lg border transition-all ${
+                      className={`px-4 py-2 rounded border transition-all ${
                         timeBlock === t.value
-                          ? 'border-[#b4b237] bg-[#b4b237]/10'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-brand-accent bg-brand-accent/10'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       {t.label}
@@ -403,16 +403,16 @@ export default function NewAgendaPage() {
 
               {/* Duration */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes)</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Duration (minutes)</label>
                 <div className="flex flex-wrap gap-2">
                   {DURATIONS.map(d => (
                     <button
                       key={d}
                       onClick={() => setDurationMins(d)}
-                      className={`px-4 py-2 rounded-lg border transition-all ${
+                      className={`px-4 py-2 rounded border transition-all ${
                         durationMins === d
-                          ? 'border-[#b4b237] bg-[#b4b237]/10'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-brand-accent bg-brand-accent/10'
+                          : 'border-border hover:border-border'
                       }`}
                     >
                       {d} min
@@ -424,16 +424,16 @@ export default function NewAgendaPage() {
               {/* Intensity */}
               {categoryConfig?.intensities && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Intensity / Mode</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">Intensity / Mode</label>
                   <div className="flex flex-wrap gap-2">
                     {categoryConfig.intensities.map(i => (
                       <button
                         key={i}
                         onClick={() => setIntensity(i)}
-                        className={`px-4 py-2 rounded-lg border transition-all ${
+                        className={`px-4 py-2 rounded border transition-all ${
                           intensity === i
-                            ? 'border-[#b4b237] bg-[#b4b237]/10'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-brand-accent bg-brand-accent/10'
+                            : 'border-border hover:border-border'
                         }`}
                       >
                         {i}
@@ -443,7 +443,7 @@ export default function NewAgendaPage() {
                 </div>
               )}
 
-              <Button onClick={() => setStep(3)} className="bg-[#b4b237] hover:bg-[#9a982f] text-white">
+              <Button onClick={() => setStep(3)} className="bg-brand-accent hover:bg-brand-accent-dark text-white">
                 Next: Goal & Budget →
               </Button>
             </div>
@@ -453,30 +453,30 @@ export default function NewAgendaPage() {
         {/* Step 3: Goal & Budget */}
         {step === 3 && (
           <div>
-            <button onClick={() => setStep(2)} className="text-gray-400 hover:text-gray-600 mb-4">
+            <button onClick={() => setStep(2)} className="text-text-faint hover:text-text-secondary mb-4">
               ← Back to Details
             </button>
 
             <div className="space-y-6">
               {/* Goal */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Goal (1-liner)</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">Goal (1-liner)</label>
                 <input
                   type="text"
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
                   placeholder="e.g., Merge Plaid mapping refactor"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                  className="w-full px-4 py-3 border border-border rounded"
                 />
               </div>
 
               {/* Definition of Done */}
               {categoryConfig?.definitionOfDone && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Definition of Done</label>
+                  <label className="block text-sm font-medium text-text-secondary mb-2">Definition of Done</label>
                   <div className="space-y-2">
                     {categoryConfig.definitionOfDone.map(item => (
-                      <label key={item} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <label key={item} className="flex items-center gap-3 p-3 border border-border rounded cursor-pointer hover:bg-bg-row">
                         <input
                           type="checkbox"
                           checked={selectedDOD.includes(item)}
@@ -487,9 +487,9 @@ export default function NewAgendaPage() {
                               setSelectedDOD(selectedDOD.filter(d => d !== item));
                             }
                           }}
-                          className="w-5 h-5 rounded border-gray-300 text-[#b4b237] focus:ring-[#b4b237]"
+                          className="w-5 h-5 rounded border-border text-brand-accent focus:ring-brand-accent"
                         />
-                        <span className="text-gray-700">{item}</span>
+                        <span className="text-text-secondary">{item}</span>
                       </label>
                     ))}
                   </div>
@@ -497,15 +497,15 @@ export default function NewAgendaPage() {
               )}
 
               {/* Budget */}
-              <div className="p-6 bg-gray-50">
-                <h3 className="font-semibold text-gray-900 mb-4">Budget (optional)</h3>
+              <div className="p-6 bg-bg-row">
+                <h3 className="font-semibold text-text-primary mb-4">Budget (optional)</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">COA Code</label>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">COA Code</label>
                     <select
                       value={coaCode}
                       onChange={(e) => setCoaCode(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                      className="w-full px-4 py-3 border border-border rounded"
                     >
                       <option value="">Select...</option>
                       {COA_CODES[selectedCategory]?.map(c => (
@@ -514,22 +514,22 @@ export default function NewAgendaPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Budget ($)</label>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Monthly Budget ($)</label>
                     <input
                       type="number"
                       value={budgetAmount}
                       onChange={(e) => setBudgetAmount(parseInt(e.target.value) || 0)}
                       placeholder="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg"
+                      className="w-full px-4 py-3 border border-border rounded"
                     />
                   </div>
                 </div>
               </div>
 
               {/* How it works */}
-              <div className="p-4 bg-blue-50 border-blue-200">
+              <div className="p-4 bg-brand-purple-wash border-blue-200">
                 <div className="flex items-start gap-3">
-                  <span className="text-xl">💡</span>
+                  <span className="text-sm">💡</span>
                   <div className="text-sm text-blue-800">
                     <strong>How it works:</strong> Add agenda items to your routine. 
                     The app can auto-suggest a daily stack (Build + Fitness + Trading + Community) 
@@ -540,30 +540,30 @@ export default function NewAgendaPage() {
 
               {/* Summary */}
               <div className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
+                <h3 className="font-semibold text-text-primary mb-4">Summary</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Category:</span>
+                    <span className="text-text-muted">Category:</span>
                     <span className="font-medium">{categoryConfig?.label}</span>
                   </div>
                   {selectedSubcategory && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Type:</span>
+                      <span className="text-text-muted">Type:</span>
                       <span className="font-medium">{categoryConfig?.subcategories.find(s => s.value === selectedSubcategory)?.label}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Cadence:</span>
+                    <span className="text-text-muted">Cadence:</span>
                     <span className="font-medium">{CADENCES.find(c => c.value === cadence)?.label}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Duration:</span>
+                    <span className="text-text-muted">Duration:</span>
                     <span className="font-medium">{durationMins} min</span>
                   </div>
                   {budgetAmount > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Monthly Budget:</span>
-                      <span className="font-medium text-[#8f8c2a]">${budgetAmount}</span>
+                      <span className="text-text-muted">Monthly Budget:</span>
+                      <span className="font-medium text-brand-accent-dark">${budgetAmount}</span>
                     </div>
                   )}
                 </div>
@@ -572,7 +572,7 @@ export default function NewAgendaPage() {
               <Button
                 onClick={handleSubmit}
                 disabled={saving || !name}
-                className="w-full bg-[#b4b237] hover:bg-[#9a982f] text-white py-4"
+                className="w-full bg-brand-accent hover:bg-brand-accent-dark text-white py-4"
               >
                 {saving ? 'Creating...' : 'Create Agenda Item'}
               </Button>

@@ -162,8 +162,8 @@ function PricingContent() {
   return (
     <AppLayout>
       <div className="mb-8">
-        <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Plans</div>
-        <h2 className="text-2xl font-light text-gray-900">Start free. Upgrade when you need more.</h2>
+        <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Plans</div>
+        <h2 className="text-sm font-light text-text-primary">Start free. Upgrade when you need more.</h2>
       </div>
 
       {cancelled && (
@@ -178,14 +178,14 @@ function PricingContent() {
             key={t.tier}
             className={`p-6 relative ${
               t.highlight
-                ? 'border-2 border-[#2d1b4e]'
+                ? 'border-2 border-brand-purple'
                 : t.tier === 'trader_pro'
                 ? 'border-2 border-emerald-400 bg-gradient-to-b from-white to-emerald-50/30'
-                : 'border border-gray-200'
+                : 'border border-border'
             }`}
           >
             {t.highlight && (
-              <div className="absolute -top-2.5 left-4 bg-[#2d1b4e] text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
+              <div className="absolute -top-2.5 left-4 bg-brand-purple text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
                 Popular
               </div>
             )}
@@ -194,18 +194,18 @@ function PricingContent() {
                 Coming Soon
               </div>
             )}
-            <div className="text-xs font-medium text-gray-900 mb-1">{t.name}</div>
-            <div className="text-2xl font-bold font-mono text-[#2d1b4e] mb-1">
+            <div className="text-xs font-medium text-text-primary mb-1">{t.name}</div>
+            <div className="text-sm font-bold font-mono text-brand-purple mb-1">
               {t.price}
               {t.period !== 'forever' && (
-                <span className="text-sm font-normal text-gray-500">{t.period}</span>
+                <span className="text-sm font-normal text-text-muted">{t.period}</span>
               )}
             </div>
-            <div className="text-[10px] text-gray-500 mb-4">
+            <div className="text-[10px] text-text-muted mb-4">
               {t.period === 'forever' ? 'Forever' : 'Billed monthly'}
             </div>
 
-            <div className="space-y-2 text-xs text-gray-700 mb-6">
+            <div className="space-y-2 text-xs text-text-secondary mb-6">
               {t.features.map((f, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full flex-shrink-0"></div>
@@ -219,12 +219,12 @@ function PricingContent() {
               disabled={loading !== null || t.tier === 'trader_pro'}
               className={`w-full px-4 py-2 text-xs font-medium ${
                 t.tier === 'trader_pro'
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  ? 'bg-border text-text-muted cursor-not-allowed'
                   : t.highlight
-                  ? 'bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]'
+                  ? 'bg-brand-purple text-white hover:bg-brand-purple-hover'
                   : t.tier === 'free'
-                  ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-                  : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'border border-border text-text-secondary hover:bg-bg-row'
+                  : 'border border-border text-text-secondary hover:bg-bg-row'
               }`}
             >
               {loading === t.tier ? 'Loading...' : t.cta}
@@ -236,7 +236,7 @@ function PricingContent() {
       <div className="text-center">
         <button
           onClick={handleManage}
-          className="text-xs text-gray-500 hover:text-gray-700 underline"
+          className="text-xs text-text-muted hover:text-text-secondary underline"
         >
           {loading === 'manage' ? 'Loading...' : 'Manage existing subscription'}
         </button>

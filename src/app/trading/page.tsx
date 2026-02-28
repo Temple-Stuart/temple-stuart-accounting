@@ -1285,7 +1285,7 @@ export default function TradingPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center py-20">
-          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
         </div>
       </AppLayout>
     );
@@ -1293,27 +1293,27 @@ export default function TradingPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-[#f5f5f5]">
+      <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
           {/* Header */}
-          <div className="mb-4 bg-[#2d1b4e] text-white p-4">
+          <div className="mb-4 bg-brand-purple text-white p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">Trading Dashboard</h1>
-                <p className="text-gray-300 text-xs font-mono">
+                <h1 className="text-terminal-lg font-semibold tracking-tight">Trading Dashboard</h1>
+                <p className="text-text-faint text-xs font-mono">
                   {filteredMetrics.totalTrades} trades · {filteredMetrics.closedTrades} closed · {filteredMetrics.openTrades} open
                 </p>
               </div>
               
               {/* Date Range Filter */}
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-400">Period:</span>
+                <span className="text-text-faint">Period:</span>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="bg-[#3d2b5e] text-white border-0 px-2 py-1 text-xs" />
-                <span className="text-gray-400">to</span>
+                  className="bg-brand-purple-hover text-white border-0 px-2 py-1 text-xs" />
+                <span className="text-text-faint">to</span>
                 <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                  className="bg-[#3d2b5e] text-white border-0 px-2 py-1 text-xs" />
+                  className="bg-brand-purple-hover text-white border-0 px-2 py-1 text-xs" />
                 {(dateFrom || dateTo) && (
                   <button onClick={() => { setDateFrom(''); setDateTo(''); }} 
                     className="px-2 py-1 bg-white/10 hover:bg-white/20 text-xs">Clear</button>
@@ -1325,72 +1325,72 @@ export default function TradingPage() {
           {/* Hero Stats Row */}
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
             <div className={`p-4 border ${filteredMetrics.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total P&L</div>
-              <div className={`text-2xl font-bold font-mono ${filteredMetrics.totalRealizedPL >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
+              <div className={`text-sm font-bold font-mono ${filteredMetrics.totalRealizedPL >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>
                 {fmtPL(filteredMetrics.totalRealizedPL)}
               </div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Win Rate</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{filteredMetrics.winRate}%</div>
-              <div className="text-[10px] text-gray-400">{filteredMetrics.closedTrades} closed</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Win Rate</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.winRate}%</div>
+              <div className="text-[10px] text-text-faint">{filteredMetrics.closedTrades} closed</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Profit Factor</div>
-              <div className="text-2xl font-bold font-mono text-gray-900">{filteredMetrics.profitFactor.toFixed(2)}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.profitFactor.toFixed(2)}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Win</div>
-              <div className="text-xl font-bold font-mono text-emerald-700">{fmt(filteredMetrics.avgWin)}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Win</div>
+              <div className="text-sm font-bold font-mono text-emerald-700">{fmt(filteredMetrics.avgWin)}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Loss</div>
-              <div className="text-xl font-bold font-mono text-red-700">{fmt(filteredMetrics.avgLoss)}</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Loss</div>
+              <div className="text-sm font-bold font-mono text-brand-red">{fmt(filteredMetrics.avgLoss)}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-4">
-              <div className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Hold</div>
-              <div className="text-xl font-bold font-mono text-gray-900">{filteredMetrics.avgHoldDays.toFixed(1)}d</div>
+            <div className="bg-white border border-border p-4">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Hold</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.avgHoldDays.toFixed(1)}d</div>
             </div>
           </div>
 
           {/* Secondary Stats */}
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Largest Win</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Largest Win</div>
               <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(filteredMetrics.largestWin)}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Largest Loss</div>
-              <div className="text-sm font-mono font-semibold text-red-700">{fmt(Math.abs(filteredMetrics.largestLoss))}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Largest Loss</div>
+              <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(filteredMetrics.largestLoss))}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Win Streak</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredMetrics.winStreak}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Win Streak</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredMetrics.winStreak}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Loss Streak</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredMetrics.lossStreak}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Loss Streak</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredMetrics.lossStreak}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Options</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredTrades.filter(t => t.type === 'option').length}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Options</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'option').length}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Stocks</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredTrades.filter(t => t.type === 'stock').length}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Stocks</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'stock').length}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Strategies</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredByStrategy.length}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Strategies</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredByStrategy.length}</div>
             </div>
-            <div className="bg-white border border-gray-200 p-2 text-center">
-              <div className="text-[9px] text-gray-500 uppercase">Tickers</div>
-              <div className="text-sm font-mono font-semibold text-gray-900">{filteredByTicker.length}</div>
+            <div className="bg-white border border-border p-2 text-center">
+              <div className="text-[9px] text-text-muted uppercase">Tickers</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-gray-200">
+          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-border">
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'positions', label: 'Open Positions' },
@@ -1398,23 +1398,23 @@ export default function TradingPage() {
               { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
-                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-[#2d1b4e] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-brand-purple text-white' : 'text-text-secondary hover:bg-bg-row'}`}>
                 {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' \uD83D\uDD12' : ''}
               </button>
             ))}
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white border border-gray-200">
+          <div className="bg-white border border-border">
             
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div>
                 {/* P&L Calendar - 365 Day Heatmap */}
-                <div className="border-b border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <div className="border-b border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
                     <span>P&L Calendar</span>
-                    <span className="text-xs text-gray-300">Last 365 days</span>
+                    <span className="text-xs text-text-faint">Last 365 days</span>
                   </div>
                   <div className="p-4 overflow-x-auto">
                     {calendarByMonth.length > 0 ? (
@@ -1428,8 +1428,8 @@ export default function TradingPage() {
                           return (
                             <div key={monthKey} className="flex items-start gap-3">
                               <div className="w-20 flex-shrink-0">
-                                <div className="text-xs font-medium text-gray-700">{monthName}</div>
-                                <div className={`text-[10px] font-mono ${monthTotal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                <div className="text-xs font-medium text-text-secondary">{monthName}</div>
+                                <div className={`text-[10px] font-mono ${monthTotal >= 0 ? 'text-emerald-600' : 'text-brand-red'}`}>
                                   {monthTotal !== 0 ? fmtPL(monthTotal) : '—'}
                                 </div>
                               </div>
@@ -1440,7 +1440,7 @@ export default function TradingPage() {
                                   const dayOfWeek = day.date.getDay();
                                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                                   
-                                  let bgColor = 'bg-gray-100';
+                                  let bgColor = 'bg-bg-row';
                                   if (day.count > 0) {
                                     if (isPositive) {
                                       bgColor = intensity > 0.7 ? 'bg-emerald-600' : intensity > 0.3 ? 'bg-emerald-400' : 'bg-emerald-200';
@@ -1448,17 +1448,17 @@ export default function TradingPage() {
                                       bgColor = intensity > 0.7 ? 'bg-red-600' : intensity > 0.3 ? 'bg-red-400' : 'bg-red-200';
                                     }
                                   } else if (isWeekend) {
-                                    bgColor = 'bg-gray-50';
+                                    bgColor = 'bg-bg-row';
                                   }
                                   
                                   return (
                                     <div key={i} className="group relative">
                                       <div className={`w-4 h-4 ${bgColor} ${day.count > 0 ? 'cursor-pointer' : ''}`} />
                                       {day.count > 0 && (
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20">
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-brand-purple text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20">
                                           <div className="font-medium">{day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
                                           <div className={day.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmtPL(day.pl)}</div>
-                                          <div className="text-gray-400">{day.count} trade{day.count > 1 ? 's' : ''}</div>
+                                          <div className="text-text-faint">{day.count} trade{day.count > 1 ? 's' : ''}</div>
                                         </div>
                                       )}
                                     </div>
@@ -1470,53 +1470,53 @@ export default function TradingPage() {
                         })}
                       </div>
                     ) : (
-                      <div className="h-32 flex items-center justify-center text-gray-400 text-sm">No trading data</div>
+                      <div className="h-32 flex items-center justify-center text-text-faint text-sm">No trading data</div>
                     )}
                     
                     {/* Legend */}
-                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-[10px] text-gray-500">Less</span>
+                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border-light">
+                      <span className="text-[10px] text-text-muted">Less</span>
                       <div className="flex gap-1">
                         <div className="w-3 h-3 bg-red-600" title="Large Loss" />
                         <div className="w-3 h-3 bg-red-400" title="Medium Loss" />
                         <div className="w-3 h-3 bg-red-200" title="Small Loss" />
-                        <div className="w-3 h-3 bg-gray-100" title="No Trades" />
+                        <div className="w-3 h-3 bg-bg-row" title="No Trades" />
                         <div className="w-3 h-3 bg-emerald-200" title="Small Win" />
                         <div className="w-3 h-3 bg-emerald-400" title="Medium Win" />
                         <div className="w-3 h-3 bg-emerald-600" title="Large Win" />
                       </div>
-                      <span className="text-[10px] text-gray-500">More</span>
+                      <span className="text-[10px] text-text-muted">More</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
                   {/* By Strategy */}
                   <div>
-                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                    <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                       P&L by Strategy
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-gray-50 sticky top-0">
+                        <thead className="bg-bg-row sticky top-0">
                           <tr>
                             <th className="px-3 py-2 text-left font-medium">Strategy</th>
                             <th className="px-3 py-2 text-center font-medium">W/L</th>
                             <th className="px-3 py-2 text-right font-medium">P&L</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                           {filteredByStrategy.map(s => (
-                            <tr key={s.strategy} className="hover:bg-gray-50">
+                            <tr key={s.strategy} className="hover:bg-bg-row">
                               <td className="px-3 py-2 font-medium">{s.strategy}</td>
-                              <td className="px-3 py-2 text-center text-gray-500">{s.wins}W/{s.losses}L</td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${s.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                              <td className="px-3 py-2 text-center text-text-muted">{s.wins}W/{s.losses}L</td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${s.pl >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>
                                 {fmtPL(s.pl)}
                               </td>
                             </tr>
                           ))}
                           {filteredByStrategy.length === 0 && (
-                            <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No data</td></tr>
+                            <tr><td colSpan={3} className="px-3 py-4 text-center text-text-faint">No data</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -1525,30 +1525,30 @@ export default function TradingPage() {
 
                   {/* By Ticker */}
                   <div>
-                    <div className="bg-[#3d2b5e] text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                    <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                       P&L by Ticker
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-gray-50 sticky top-0">
+                        <thead className="bg-bg-row sticky top-0">
                           <tr>
                             <th className="px-3 py-2 text-left font-medium">Ticker</th>
                             <th className="px-3 py-2 text-center font-medium">W/L</th>
                             <th className="px-3 py-2 text-right font-medium">P&L</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                           {filteredByTicker.slice(0, 15).map(t => (
-                            <tr key={t.ticker} className="hover:bg-gray-50">
+                            <tr key={t.ticker} className="hover:bg-bg-row">
                               <td className="px-3 py-2 font-mono font-medium">{t.ticker}</td>
-                              <td className="px-3 py-2 text-center text-gray-500">{t.wins}W/{t.losses}L</td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${t.pl >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                              <td className="px-3 py-2 text-center text-text-muted">{t.wins}W/{t.losses}L</td>
+                              <td className={`px-3 py-2 text-right font-mono font-semibold ${t.pl >= 0 ? 'text-emerald-700' : 'text-brand-red'}`}>
                                 {fmtPL(t.pl)}
                               </td>
                             </tr>
                           ))}
                           {filteredByTicker.length === 0 && (
-                            <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400">No data</td></tr>
+                            <tr><td colSpan={3} className="px-3 py-4 text-center text-text-faint">No data</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -1557,14 +1557,14 @@ export default function TradingPage() {
                 </div>
 
                 {/* Trade Journal */}
-                <div className="border-t border-gray-200">
-                  <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <div className="border-t border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
                     <span>Trade Journal</span>
-                    <span className="text-xs text-gray-300">{filteredTrades.length} trades · {journalEntries.length} entries</span>
+                    <span className="text-xs text-text-faint">{filteredTrades.length} trades · {journalEntries.length} entries</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#3d2b5e] text-white">
+                      <thead className="bg-brand-purple-hover text-white">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Trade #</th>
                           <th className="px-3 py-2 text-left font-medium">Date</th>
@@ -1578,60 +1578,60 @@ export default function TradingPage() {
                           <th className="px-3 py-2 text-center font-medium"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-border">
                         {filteredTrades.map(trade => {
                           const journal = getJournalEntry(trade.tradeNum);
                           const isExpanded = expandedTrade === trade.tradeNum;
 
                           return (
                             <>
-                              <tr key={trade.tradeNum} className={`hover:bg-gray-50 ${isExpanded ? 'bg-[#2d1b4e]/5' : ''}`}>
-                                <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
-                                <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
+                              <tr key={trade.tradeNum} className={`hover:bg-bg-row ${isExpanded ? 'bg-brand-purple/5' : ''}`}>
+                                <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
+                                <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
                                 <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
                                 <td className="px-3 py-2">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
+                                  <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
                                 </td>
                                 <td className="px-3 py-2 text-center">
-                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                                  <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
                                     {trade.type}
                                   </span>
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   <span className={`px-2 py-0.5 text-[10px] ${
-                                    trade.status === 'OPEN' ? 'bg-green-100 text-green-700' :
+                                    trade.status === 'OPEN' ? 'bg-green-100 text-brand-green' :
                                     trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-gray-100 text-gray-600'
+                                    'bg-bg-row text-text-secondary'
                                   }`}>{trade.status}</span>
                                 </td>
                                 <td className={`px-3 py-2 text-right font-mono font-semibold ${
-                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-emerald-700' : 'text-red-700') : 'text-gray-400'
+                                  trade.status === 'CLOSED' ? (trade.realizedPL >= 0 ? 'text-emerald-700' : 'text-brand-red') : 'text-text-faint'
                                 }`}>
                                   {trade.status === 'CLOSED' ? fmtPL(trade.realizedPL) : '—'}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {journal?.rating ? (
                                     <span className="text-amber-500">{'★'.repeat(journal.rating)}{'☆'.repeat(5 - journal.rating)}</span>
-                                  ) : <span className="text-gray-300">—</span>}
+                                  ) : <span className="text-text-faint">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {journal ? (
                                     <span className={`px-2 py-0.5 text-[10px] ${
                                       journal.emotion === 'confident' ? 'bg-emerald-100 text-emerald-700' :
                                       journal.emotion === 'nervous' || journal.emotion === 'fearful' ? 'bg-yellow-100 text-yellow-700' :
-                                      journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-red-700' :
-                                      'bg-gray-100 text-gray-700'
+                                      journal.emotion === 'fomo' || journal.emotion === 'revenge' || journal.emotion === 'greedy' ? 'bg-red-100 text-brand-red' :
+                                      'bg-bg-row text-text-secondary'
                                     }`}>{journal.emotion}</span>
-                                  ) : <span className="text-gray-300">—</span>}
+                                  ) : <span className="text-text-faint">—</span>}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   <div className="flex items-center gap-1 justify-center">
                                     <button onClick={() => openJournalModal(trade)}
-                                      className="px-2 py-1 text-[10px] bg-[#2d1b4e] text-white hover:bg-[#3d2b5e]">
+                                      className="px-2 py-1 text-[10px] bg-brand-purple text-white hover:bg-brand-purple-hover">
                                       {journal ? 'Edit' : 'Add'}
                                     </button>
                                     <button onClick={() => setExpandedTrade(isExpanded ? null : trade.tradeNum)}
-                                      className="px-2 py-1 text-[10px] bg-gray-100 text-gray-700 hover:bg-gray-200">
+                                      className="px-2 py-1 text-[10px] bg-bg-row text-text-secondary hover:bg-border">
                                       {isExpanded ? '▲' : '▼'}
                                     </button>
                                   </div>
@@ -1639,11 +1639,11 @@ export default function TradingPage() {
                               </tr>
                               {isExpanded && (
                                 <tr key={`${trade.tradeNum}-detail`}>
-                                  <td colSpan={10} className="px-4 py-3 bg-gray-50">
+                                  <td colSpan={10} className="px-4 py-3 bg-bg-row">
                                     <div className="grid lg:grid-cols-2 gap-4 text-xs">
                                       <div>
-                                        <div className="font-semibold text-gray-700 mb-2">Trade Details</div>
-                                        <div className="space-y-1 text-gray-600">
+                                        <div className="font-semibold text-text-secondary mb-2">Trade Details</div>
+                                        <div className="space-y-1 text-text-secondary">
                                           <div>Opened: {new Date(trade.openDate).toLocaleString()}</div>
                                           {trade.closeDate && <div>Closed: {new Date(trade.closeDate).toLocaleString()}</div>}
                                           <div>Legs: {trade.legs}</div>
@@ -1658,16 +1658,16 @@ export default function TradingPage() {
                                       </div>
                                       {journal && (
                                         <div>
-                                          <div className="font-semibold text-gray-700 mb-2">Journal Notes</div>
-                                          <div className="space-y-1 text-gray-600">
+                                          <div className="font-semibold text-text-secondary mb-2">Journal Notes</div>
+                                          <div className="space-y-1 text-text-secondary">
                                             {journal.thesis && <div><span className="font-medium">Thesis:</span> {journal.thesis}</div>}
                                             {journal.setup && <div><span className="font-medium">Setup:</span> {journal.setup}</div>}
-                                            {journal.mistakes && <div><span className="font-medium text-red-600">Mistakes:</span> {journal.mistakes}</div>}
+                                            {journal.mistakes && <div><span className="font-medium text-brand-red">Mistakes:</span> {journal.mistakes}</div>}
                                             {journal.lessons && <div><span className="font-medium text-emerald-600">Lessons:</span> {journal.lessons}</div>}
                                             {journal.tags?.length > 0 && (
                                               <div className="flex gap-1 flex-wrap">
                                                 {journal.tags.map(tag => (
-                                                  <span key={tag} className="px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px]">{tag}</span>
+                                                  <span key={tag} className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{tag}</span>
                                                 ))}
                                               </div>
                                             )}
@@ -1682,7 +1682,7 @@ export default function TradingPage() {
                           );
                         })}
                         {filteredTrades.length === 0 && (
-                          <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400">No trades in selected period</td></tr>
+                          <tr><td colSpan={10} className="px-3 py-8 text-center text-text-faint">No trades in selected period</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -1695,12 +1695,12 @@ export default function TradingPage() {
             {/* Open Positions Tab */}
             {activeTab === 'positions' && (
               <div>
-                <div className="bg-[#2d1b4e] text-white px-4 py-2 text-sm font-semibold">
+                <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                   Open Positions ({filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length})
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead className="bg-[#3d2b5e] text-white">
+                    <thead className="bg-brand-purple-hover text-white">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Trade #</th>
                         <th className="px-3 py-2 text-left font-medium">Opened</th>
@@ -1711,24 +1711,24 @@ export default function TradingPage() {
                         <th className="px-3 py-2 text-right font-medium">Days Open</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                       {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').map(trade => {
                         const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
                         return (
-                          <tr key={trade.tradeNum} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 font-mono text-gray-600">#{trade.tradeNum}</td>
-                            <td className="px-3 py-2 text-gray-600">{new Date(trade.openDate).toLocaleDateString()}</td>
+                          <tr key={trade.tradeNum} className="hover:bg-bg-row">
+                            <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
+                            <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
                             <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
                             <td className="px-3 py-2">
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px]">{trade.strategy}</span>
+                              <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                              <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
                                 {trade.type}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                              <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-brand-green'}`}>
                                 {trade.status}
                               </span>
                             </td>
@@ -1737,7 +1737,7 @@ export default function TradingPage() {
                         );
                       })}
                       {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length === 0 && (
-                        <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">No open positions</td></tr>
+                        <tr><td colSpan={7} className="px-3 py-8 text-center text-text-faint">No open positions</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -1756,18 +1756,18 @@ export default function TradingPage() {
                 {isOwner ? (
                   <div className="space-y-4 p-4">
                     {/* Tastytrade Connection Card */}
-                    <div className="bg-white border border-gray-200 p-6">
+                    <div className="bg-white border border-border p-6">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Brokerage Connection</div>
-                          <div className="text-sm font-medium text-gray-900">Tastytrade</div>
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Brokerage Connection</div>
+                          <div className="text-sm font-medium text-text-primary">Tastytrade</div>
                         </div>
                         {ttConnected && (
                           <div className="flex items-center gap-3">
                             <button
                               onClick={handleTtRefresh}
                               disabled={ttRefreshing}
-                              className="text-xs text-gray-500 hover:text-gray-700 underline disabled:opacity-50"
+                              className="text-xs text-text-muted hover:text-text-secondary underline disabled:opacity-50"
                             >
                               {ttRefreshing ? 'Refreshing...' : 'Refresh Data'}
                             </button>
@@ -1780,29 +1780,29 @@ export default function TradingPage() {
                       </div>
 
                       {ttConnected === null ? (
-                        <div className="text-xs text-gray-400">Checking connection...</div>
+                        <div className="text-xs text-text-faint">Checking connection...</div>
                       ) : ttConnected ? (
                         <div>
-                          <div className="text-xs text-gray-500 mb-2">
+                          <div className="text-xs text-text-muted mb-2">
                             Accounts: {ttAccounts.length > 0 ? ttAccounts.join(', ') : 'None found'}
                           </div>
                           <button
                             onClick={handleTtDisconnect}
-                            className="text-xs text-red-500 hover:text-red-700 underline"
+                            className="text-xs text-brand-red hover:text-brand-red underline"
                           >
                             Disconnect
                           </button>
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          <p className="text-xs text-gray-500">Connect your Tastytrade account to enable market data and trading features.</p>
+                          <p className="text-xs text-text-muted">Connect your Tastytrade account to enable market data and trading features.</p>
                           {ttError && (
-                            <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>
+                            <div className="text-xs text-brand-red bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>
                           )}
                           <button
                             onClick={handleTtConnect}
                             disabled={ttConnecting}
-                            className="w-full px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                            className="w-full px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
                           >
                             {ttConnecting ? 'Connecting...' : 'Connect Tastytrade'}
                           </button>
@@ -1812,32 +1812,32 @@ export default function TradingPage() {
 
                     {/* Live data or loading state */}
                     {ttConnected && ttLoading ? (
-                      <div className="bg-white border border-gray-200 p-8 text-center">
-                        <div className="text-sm text-gray-400">Loading account data...</div>
+                      <div className="bg-white border border-border p-8 text-center">
+                        <div className="text-sm text-text-faint">Loading account data...</div>
                       </div>
                     ) : ttConnected && ttDataError ? (
-                      <div className="bg-white border border-gray-200 p-6">
-                        <div className="text-sm text-red-600 mb-3">{ttDataError}</div>
-                        <button onClick={fetchTtData} className="text-xs text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                      <div className="bg-white border border-border p-6">
+                        <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
+                        <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
                       </div>
                     ) : ttConnected ? (
                       <>
                         {/* Market Regime Header */}
                         {ttVix !== null && (
-                          <div className="bg-white border border-gray-200 px-6 py-3 flex items-center justify-between">
+                          <div className="bg-white border border-border px-6 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <span className="text-xs text-gray-500 uppercase tracking-wider">VIX</span>
-                              <span className="text-lg font-mono font-semibold">{ttVix.toFixed(2)}</span>
+                              <span className="text-xs text-text-muted uppercase tracking-wider">VIX</span>
+                              <span className="text-terminal-lg font-mono font-semibold">{ttVix.toFixed(2)}</span>
                               <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${
                                 ttVix < 15 ? 'bg-emerald-100 text-emerald-700' :
-                                ttVix < 20 ? 'bg-gray-100 text-gray-700' :
+                                ttVix < 20 ? 'bg-bg-row text-text-secondary' :
                                 ttVix < 30 ? 'bg-amber-100 text-amber-700' :
-                                'bg-red-100 text-red-700'
+                                'bg-red-100 text-brand-red'
                               }`}>
                                 {ttVix < 15 ? 'Low Vol' : ttVix < 20 ? 'Normal' : ttVix < 30 ? 'Elevated' : 'High Vol'}
                               </span>
                             </div>
-                            <div className="text-[10px] text-gray-400">
+                            <div className="text-[10px] text-text-faint">
                               {ttVix < 15 ? 'Buying premium may outperform selling' :
                                ttVix < 20 ? 'Balanced environment for premium strategies' :
                                ttVix < 30 ? 'Elevated premiums — selling strategies favored' :
@@ -1850,23 +1850,23 @@ export default function TradingPage() {
                         <ConvergenceIntelligence />
 
                         {/* Volatility Scanner */}
-                        <div className="bg-white border border-gray-200 p-6">
+                        <div className="bg-white border border-border p-6">
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs text-gray-500 uppercase tracking-wider">Volatility Scanner</div>
-                            <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                            <div className="text-xs text-text-muted uppercase tracking-wider">Volatility Scanner</div>
+                            <div className="flex items-center gap-3 text-[10px] text-text-faint">
                               {ttScannerFetchedAt && (
                                 <span>Updated {new Date(ttScannerFetchedAt).toLocaleTimeString()}</span>
                               )}
                               <span>{ttScannerCountdown}s</span>
                               {ttScannerLoading && (
-                                <div className="w-2.5 h-2.5 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                <div className="w-2.5 h-2.5 border border-border border-t-transparent rounded-full animate-spin" />
                               )}
                             </div>
                           </div>
 
                           {/* Universe selector */}
                           <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            <label className="text-[10px] text-gray-500 font-medium">Universe:</label>
+                            <label className="text-[10px] text-text-muted font-medium">Universe:</label>
                             <select
                               value={ttScannerUniverse}
                               onChange={(e) => {
@@ -1876,7 +1876,7 @@ export default function TradingPage() {
                                 setMarketBrief(null);
                                 setMarketBriefUniverse(null);
                               }}
-                              className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
+                              className="text-xs border border-border rounded px-2 py-1 bg-white text-text-secondary focus:outline-none focus:ring-1 focus:ring-brand-purple"
                             >
                               <optgroup label="Indices">
                                 <option value="popular">Popular (50)</option>
@@ -1906,21 +1906,21 @@ export default function TradingPage() {
                                   value={ttScannerCustomInput}
                                   onChange={(e) => setTtScannerCustomInput(e.target.value)}
                                   placeholder="AAPL, TSLA, NVDA..."
-                                  className="text-xs border border-gray-200 rounded px-2 py-1 flex-1 min-w-[150px] focus:outline-none focus:ring-1 focus:ring-[#2d1b4e]"
+                                  className="text-xs border border-border rounded px-2 py-1 flex-1 min-w-[150px] focus:outline-none focus:ring-1 focus:ring-brand-purple"
                                   onKeyDown={(e) => { if (e.key === 'Enter') startScan(); }}
                                 />
                                 <button
                                   onClick={() => startScan()}
                                   disabled={ttScannerLoading || !ttScannerCustomInput.trim()}
-                                  className="text-xs font-medium px-3 py-1 bg-[#2d1b4e] text-white rounded hover:bg-[#3d2b5e] disabled:opacity-50"
+                                  className="text-xs font-medium px-3 py-1 bg-brand-purple text-white rounded hover:bg-brand-purple-hover disabled:opacity-50"
                                 >Scan</button>
                               </>
                             )}
                           </div>
 
                           {ttScannerLoading && ttScannerUniverse === 'sp500' && (
-                            <div className="flex items-center gap-2 mb-3 text-xs text-gray-400">
-                              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="flex items-center gap-2 mb-3 text-xs text-text-faint">
+                              <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                               Scanning ~500 symbols...
                             </div>
                           )}
@@ -1928,7 +1928,7 @@ export default function TradingPage() {
                           {sortedScannerData.length > 0 ? (
                             <div className="overflow-x-auto">
                               {ttScannerTotalScanned > 50 && (
-                                <div className="text-[10px] text-gray-400 mb-1">
+                                <div className="text-[10px] text-text-faint mb-1">
                                   {ttScannerTotalScanned} scanned {'\u2192'} {sortedScannerData.length} passed all gates{filteredData.length > 0 ? ` (${filteredData.length} filtered)` : ''} {'\u00B7'} sorted by {
                                     { score: 'Score', ivRank: 'IV Rank', ivHvSpread: 'IV-HV', hv30: 'HV30', impliedVolatility: 'IV', liquidityRating: 'Liquidity' }[ttScannerSort] || ttScannerSort
                                   } {ttScannerSortDir === 'desc' ? '\u25BC' : '\u25B2'}
@@ -1937,7 +1937,7 @@ export default function TradingPage() {
                               {/* Market Brief Card */}
                               {marketBriefLoading && (
                                 <div style={{ border: '1px solid #374151', borderRadius: 8, padding: 16, marginBottom: 16, color: '#9CA3AF' }} className="flex items-center gap-2 text-xs">
-                                  <div className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                  <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                                   AI analyzing {passedData.length} qualifying tickers...
                                 </div>
                               )}
@@ -2074,7 +2074,7 @@ export default function TradingPage() {
                                         {/* Loading state */}
                                         {(!data || data.status === 'loading') && (
                                           <div className="flex items-center gap-2" style={{ color: '#6B7280', fontSize: 12 }}>
-                                            <div className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                            <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                                             Loading strategies...
                                           </div>
                                         )}
@@ -2093,7 +2093,7 @@ export default function TradingPage() {
                                                   {card.netCredit != null ? `Credit $${card.netCredit.toFixed(2)}` : `Debit $${(card.netDebit ?? 0).toFixed(2)}`}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-2" style={{ color: '#6B7280', fontSize: 11, fontStyle: 'italic' }}>
-                                                  <div className="w-2 h-2 border border-gray-500 border-t-transparent rounded-full animate-spin" />
+                                                  <div className="w-2 h-2 border border-border border-t-transparent rounded-full animate-spin" />
                                                   Analyzing...
                                                 </div>
                                               </div>
@@ -2195,7 +2195,7 @@ export default function TradingPage() {
 
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className="border-b border-gray-200 text-gray-500">
+                                  <tr className="border-b border-border text-text-muted">
                                     <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
                                     {[
                                       { key: 'score', label: 'Score' },
@@ -2207,7 +2207,7 @@ export default function TradingPage() {
                                     ].map(col => (
                                       <th
                                         key={col.key}
-                                        className="text-right px-2 py-1.5 font-medium cursor-pointer hover:text-gray-900 select-none"
+                                        className="text-right px-2 py-1.5 font-medium cursor-pointer hover:text-text-primary select-none"
                                         onClick={() => handleScannerSort(col.key)}
                                       >
                                         {col.label}{ttScannerSort === col.key ? (ttScannerSortDir === 'desc' ? ' \u25BC' : ' \u25B2') : ''}
@@ -2231,51 +2231,51 @@ export default function TradingPage() {
                                     return (
                                       <Fragment key={m.symbol}>
                                         <tr
-                                          className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-indigo-50' : ''}`}
+                                          className={`border-b border-border-light hover:bg-bg-row cursor-pointer ${isExpanded ? 'bg-indigo-50' : ''}`}
                                           onClick={() => handleScannerExpand(m.symbol, m.ivRank, m.impliedVolatility, m.hv30)}
                                         >
-                                          <td className="px-2 py-1.5 font-mono font-medium text-gray-900" title={briefNoteMap[m.symbol] || undefined}>
-                                            <span className="mr-1 text-[9px] text-gray-400">{isExpanded ? '\u25B2' : '\u25BC'}</span>
+                                          <td className="px-2 py-1.5 font-mono font-medium text-text-primary" title={briefNoteMap[m.symbol] || undefined}>
+                                            <span className="mr-1 text-[9px] text-text-faint">{isExpanded ? '\u25B2' : '\u25BC'}</span>
                                             {topSymbols.has(m.symbol) && <span className="text-emerald-500 mr-0.5">{'\u25CF'}</span>}
-                                            {marginalSymbols.has(m.symbol) && <span className="text-gray-400 mr-0.5">{'\u25CF'}</span>}
+                                            {marginalSymbols.has(m.symbol) && <span className="text-text-faint mr-0.5">{'\u25CF'}</span>}
                                             {m.symbol}
                                           </td>
                                           <td className={`text-right px-2 py-1.5 font-mono font-medium ${
                                             m.score >= 80 ? 'text-emerald-500' :
                                             m.score >= 60 ? 'text-emerald-600' :
-                                            m.score >= 40 ? 'text-amber-600' : 'text-gray-400'
+                                            m.score >= 40 ? 'text-amber-600' : 'text-text-faint'
                                           }`}>{m.score}{m.sectorPenalty ? <span className="text-amber-500 ml-0.5" title={`Sector concentration: 3+ ${m.sector || 'Unknown'} in top 10`}>{'\u26A0'}</span> : null}</td>
                                           <td className={`text-right px-2 py-1.5 font-mono ${
                                             (m.ivRank ?? 0) > 0.50 ? 'text-emerald-600 font-medium' :
-                                            (m.ivRank ?? 0) < 0.20 ? 'text-red-500' : 'text-gray-700'
+                                            (m.ivRank ?? 0) < 0.20 ? 'text-brand-red' : 'text-text-secondary'
                                           }`}>{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
                                           <td className={`text-right px-2 py-1.5 font-mono font-medium ${
                                             ivhv != null && ivhv > 80 ? 'text-orange-500' :
                                             ivhv != null && ivhv > 15 ? 'text-emerald-500' :
                                             ivhv != null && ivhv > 8 ? 'text-emerald-600' :
                                             ivhv != null && ivhv > 3 ? 'text-amber-600' :
-                                            ivhv != null && ivhv < 0 ? 'text-red-500' : 'text-gray-400'
+                                            ivhv != null && ivhv < 0 ? 'text-brand-red' : 'text-text-faint'
                                           }`}>{ivhv != null ? ivhv.toFixed(1) + (ivhv > 80 ? '?' : '') : '\u2014'}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.hv30 != null ? <>
+                                          <td className="text-right px-2 py-1.5 font-mono text-text-muted">{m.hv30 != null ? <>
                                             {m.hv30.toFixed(1)}%{' '}
                                             {m.hv30 != null && m.hv60 != null && m.hv90 != null ? (
                                               m.hv30 < m.hv60 && m.hv60 < m.hv90 ? <span className="text-emerald-500">{'\u25BC'}</span> :
-                                              m.hv30 > m.hv60 && m.hv60 > m.hv90 ? <span className="text-red-500">{'\u25B2'}</span> :
-                                              <span className="text-gray-300">{'\u2014'}</span>
+                                              m.hv30 > m.hv60 && m.hv60 > m.hv90 ? <span className="text-brand-red">{'\u25B2'}</span> :
+                                              <span className="text-text-faint">{'\u2014'}</span>
                                             ) : null}
                                           </> : '\u2014'}</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-600">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
-                                          <td className="text-right px-2 py-1.5 font-mono text-gray-500">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
-                                          <td className="text-center px-2 py-1.5 text-[10px] text-gray-500 font-mono">{m.sector ? (sectorShort[m.sector] || m.sector.slice(0, 4)) : '\u2014'}</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-text-secondary">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
+                                          <td className="text-right px-2 py-1.5 font-mono text-text-muted">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
+                                          <td className="text-center px-2 py-1.5 text-[10px] text-text-muted font-mono">{m.sector ? (sectorShort[m.sector] || m.sector.slice(0, 4)) : '\u2014'}</td>
                                           <td className="text-center px-2 py-1.5">
                                             {earningsTag ? (
                                               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                                m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
+                                                m.daysTillEarnings <= 7 ? 'bg-amber-100 text-amber-700' : 'bg-bg-row text-text-secondary'
                                               }`}>
                                                 {m.daysTillEarnings <= 7 ? '\u26A1 ' : ''}{earningsTag}
                                               </span>
                                             ) : (
-                                              <span className="text-gray-300">{'\u2014'}</span>
+                                              <span className="text-text-faint">{'\u2014'}</span>
                                             )}
                                           </td>
                                           <td className="px-2 py-1.5">
@@ -2283,8 +2283,8 @@ export default function TradingPage() {
                                               {labels.map((l, li) => (
                                                 <span key={li} className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${
                                                   l.type === 'credit' ? 'bg-emerald-100 text-emerald-700' :
-                                                  l.type === 'debit' ? 'bg-blue-100 text-blue-700' :
-                                                  'bg-gray-100 text-gray-600'
+                                                  l.type === 'debit' ? 'bg-brand-purple-wash text-brand-purple' :
+                                                  'bg-bg-row text-text-secondary'
                                                 }`}>{l.name}</span>
                                               ))}
                                             </div>
@@ -2292,62 +2292,62 @@ export default function TradingPage() {
                                           <td className="text-center px-2 py-1.5">
                                             <button
                                               onClick={(e) => { e.stopPropagation(); handleScanSymbol(m.symbol); }}
-                                              className="text-[10px] font-medium text-[#2d1b4e] hover:underline"
+                                              className="text-[10px] font-medium text-brand-purple hover:underline"
                                             >Scan</button>
                                           </td>
                                         </tr>
                                         {/* Expanded Strategy Builder Row */}
                                         {isExpanded && (
                                           <tr>
-                                            <td colSpan={12} className="bg-gray-50 border-b border-gray-200 px-3 py-3">
+                                            <td colSpan={12} className="bg-bg-row border-b border-border px-3 py-3">
                                               {sbLoading ? (
-                                                <div className="flex items-center gap-2 text-xs text-gray-400 py-4 justify-center">
-                                                  <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                <div className="flex items-center gap-2 text-xs text-text-faint py-4 justify-center">
+                                                  <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                                                   Fetching chain & Greeks for {m.symbol}...
                                                 </div>
                                               ) : sbStrategies.length > 0 || sbCustomCard ? (
                                                 <div>
-                                                  <div className="text-[10px] text-gray-500 mb-2 font-medium">
+                                                  <div className="text-[10px] text-text-muted mb-2 font-medium">
                                                     AI Strategies for {m.symbol} {sbChainData && sbSelectedExp != null && `\u2014 ${sbChainData.expirations[sbSelectedExp].date} (${sbChainData.expirations[sbSelectedExp].dte} DTE)`}
-                                                    {sbQuotePrice && <span className="ml-2 text-gray-400">@ ${sbQuotePrice.toFixed(2)}</span>}
+                                                    {sbQuotePrice && <span className="ml-2 text-text-faint">@ ${sbQuotePrice.toFixed(2)}</span>}
                                                   </div>
                                                   {/* Strategy Cards */}
                                                   <div className="flex flex-wrap gap-3 mb-3">
                                                     {sbStrategies.map((card, ci) => (
-                                                      <div key={ci} className="border border-gray-200 bg-white rounded p-3 min-w-[280px] max-w-[320px] flex-1">
+                                                      <div key={ci} className="border border-border bg-white rounded p-3 min-w-[280px] max-w-[320px] flex-1">
                                                         <div className="flex justify-between items-start mb-1">
-                                                          <div className="text-xs font-semibold text-gray-900">{card.label}) {card.name}</div>
-                                                          <div className="text-[9px] text-gray-400">{card.dte} DTE</div>
+                                                          <div className="text-xs font-semibold text-text-primary">{card.label}) {card.name}</div>
+                                                          <div className="text-[9px] text-text-faint">{card.dte} DTE</div>
                                                         </div>
-                                                        <div className="border-t border-gray-100 pt-1 mb-1 space-y-0.5">
+                                                        <div className="border-t border-border-light pt-1 mb-1 space-y-0.5">
                                                           {card.legs.map((leg, li) => (
-                                                            <div key={li} className="text-[10px] font-mono text-gray-600">
-                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-blue-600'}>
+                                                            <div key={li} className="text-[10px] font-mono text-text-secondary">
+                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-brand-purple'}>
                                                                 {leg.side === 'sell' ? 'SELL' : 'BUY'}
                                                               </span>{' '}
                                                               {leg.strike} {leg.type === 'call' ? 'C' : 'P'}{' '}
-                                                              <span className="text-gray-400">@${leg.price.toFixed(2)}</span>
+                                                              <span className="text-text-faint">@${leg.price.toFixed(2)}</span>
                                                             </div>
                                                           ))}
                                                         </div>
-                                                        <div className="border-t border-gray-100 pt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                                                          <div className="text-gray-500">
+                                                        <div className="border-t border-border-light pt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                                                          <div className="text-text-muted">
                                                             {card.netCredit != null ? 'Credit:' : 'Debit:'}
-                                                            <span className={`ml-1 font-mono font-medium ${card.netCredit != null ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                            <span className={`ml-1 font-mono font-medium ${card.netCredit != null ? 'text-emerald-600' : 'text-brand-purple'}`}>
                                                               ${(card.netCredit ?? card.netDebit ?? 0).toFixed(2)}
                                                             </span>
                                                           </div>
-                                                          <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
-                                                          <div className="text-gray-500">Max Loss: <span className={`font-mono font-medium ${card.isUnlimited ? 'text-red-600' : 'text-gray-700'}`}>{card.maxLoss != null ? `$${card.maxLoss}` : card.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
-                                                          <div className="text-gray-500">R/R: <span className="font-mono font-medium text-gray-700">{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
+                                                          <div className="text-text-muted">Max Profit: <span className="font-mono font-medium text-text-secondary">{card.maxProfit != null ? `$${card.maxProfit}` : 'Unlimited'}</span></div>
+                                                          <div className="text-text-muted">Max Loss: <span className={`font-mono font-medium ${card.isUnlimited ? 'text-brand-red' : 'text-text-secondary'}`}>{card.maxLoss != null ? `$${card.maxLoss}` : card.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
+                                                          <div className="text-text-muted">R/R: <span className="font-mono font-medium text-text-secondary">{card.riskReward != null ? `${card.riskReward}:1` : 'N/A'}</span></div>
                                                           {card.breakevens.length > 0 && (
-                                                            <div className="text-gray-500 col-span-2">BE: <span className="font-mono text-gray-700">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
+                                                            <div className="text-text-muted col-span-2">BE: <span className="font-mono text-text-secondary">{card.breakevens.map(b => `$${b}`).join(' \u2014 ')}</span></div>
                                                           )}
-                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span>{card.hvPop != null && Math.abs(card.hvPop - (card.pop ?? 0)) > 0.02 && <span className="font-mono text-emerald-600">{` (${Math.round(card.hvPop * 100)}% adj)`}</span>}</div>
-                                                          <div className="text-gray-500">EV: <span className="font-mono font-medium text-emerald-600">+${Math.round(card.ev)}</span></div>
-                                                          <div className="text-gray-500">{'\u0398'}: <span className={`font-mono font-medium ${card.thetaPerDay >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{card.thetaPerDay >= 0 ? '+' : ''}${card.thetaPerDay.toFixed(2)}/day</span></div>
+                                                          <div className="text-text-muted">PoP: <span className="font-mono font-medium text-text-secondary">{card.pop != null ? `~${Math.round(card.pop * 100)}%` : 'N/A'}</span>{card.hvPop != null && Math.abs(card.hvPop - (card.pop ?? 0)) > 0.02 && <span className="font-mono text-emerald-600">{` (${Math.round(card.hvPop * 100)}% adj)`}</span>}</div>
+                                                          <div className="text-text-muted">EV: <span className="font-mono font-medium text-emerald-600">+${Math.round(card.ev)}</span></div>
+                                                          <div className="text-text-muted">{'\u0398'}: <span className={`font-mono font-medium ${card.thetaPerDay >= 0 ? 'text-emerald-600' : 'text-brand-red'}`}>{card.thetaPerDay >= 0 ? '+' : ''}${card.thetaPerDay.toFixed(2)}/day</span></div>
                                                         </div>
-                                                        <div className="border-t border-gray-100 pt-1 mt-1 text-[9px] font-mono text-gray-400 flex gap-3">
+                                                        <div className="border-t border-border-light pt-1 mt-1 text-[9px] font-mono text-text-faint flex gap-3">
                                                           <span>{'\u0394'} {card.netDelta >= 0 ? '+' : ''}{card.netDelta.toFixed(2)}</span>
                                                           <span>{'\u0393'} {card.netGamma >= 0 ? '+' : ''}{card.netGamma.toFixed(3)}</span>
                                                           <span>{'\u0398'} {card.netTheta >= 0 ? '+' : ''}{card.netTheta.toFixed(2)}</span>
@@ -2355,7 +2355,7 @@ export default function TradingPage() {
                                                         </div>
                                                         {/* P&L Chart */}
                                                         {card.pnlPoints.length > 2 && sbQuotePrice && (
-                                                          <div className="border-t border-gray-100 pt-1 mt-1"
+                                                          <div className="border-t border-border-light pt-1 mt-1"
                                                             dangerouslySetInnerHTML={{ __html: renderPnlSvg(card.pnlPoints, card.breakevens, sbQuotePrice, 280, 120) }}
                                                           />
                                                         )}
@@ -2364,10 +2364,10 @@ export default function TradingPage() {
                                                         )}
                                                         {/* AI Analysis for this strategy */}
                                                         {strategyAnalysisLoading[m.symbol] && (
-                                                          <div className="text-[9px] text-gray-400 mt-1 italic" style={{ animation: 'pulse 2s ease-in-out infinite' }}>Analyzing...</div>
+                                                          <div className="text-[9px] text-text-faint mt-1 italic" style={{ animation: 'pulse 2s ease-in-out infinite' }}>Analyzing...</div>
                                                         )}
                                                         {strategyAnalyses[m.symbol]?.find(a => a.strategy === card.name)?.analysis && (
-                                                          <div className="border-t border-gray-100 pt-1 mt-1 text-[10px] text-gray-500 italic leading-relaxed">
+                                                          <div className="border-t border-border-light pt-1 mt-1 text-[10px] text-text-muted italic leading-relaxed">
                                                             {strategyAnalyses[m.symbol].find(a => a.strategy === card.name)!.analysis}
                                                           </div>
                                                         )}
@@ -2383,25 +2383,25 @@ export default function TradingPage() {
                                                         </div>
                                                         <div className="border-t border-indigo-200 pt-1 mb-1 space-y-0.5">
                                                           {sbCustomCard.legs.map((leg, li) => (
-                                                            <div key={li} className="text-[10px] font-mono text-gray-600">
-                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-blue-600'}>
+                                                            <div key={li} className="text-[10px] font-mono text-text-secondary">
+                                                              <span className={leg.side === 'sell' ? 'text-emerald-600' : 'text-brand-purple'}>
                                                                 {leg.side === 'sell' ? 'SELL' : 'BUY'}
                                                               </span>{' '}
                                                               {leg.strike} {leg.type === 'call' ? 'C' : 'P'}{' '}
-                                                              <span className="text-gray-400">@${leg.price.toFixed(2)}</span>
+                                                              <span className="text-text-faint">@${leg.price.toFixed(2)}</span>
                                                             </div>
                                                           ))}
                                                         </div>
                                                         <div className="border-t border-indigo-200 pt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                                                          <div className="text-gray-500">
+                                                          <div className="text-text-muted">
                                                             {sbCustomCard.netCredit != null ? 'Credit:' : 'Debit:'}
-                                                            <span className={`ml-1 font-mono font-medium ${sbCustomCard.netCredit != null ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                                            <span className={`ml-1 font-mono font-medium ${sbCustomCard.netCredit != null ? 'text-emerald-600' : 'text-brand-purple'}`}>
                                                               ${(sbCustomCard.netCredit ?? sbCustomCard.netDebit ?? 0).toFixed(2)}
                                                             </span>
                                                           </div>
-                                                          <div className="text-gray-500">Max Profit: <span className="font-mono font-medium text-gray-700">{sbCustomCard.maxProfit != null ? `$${sbCustomCard.maxProfit}` : 'Unlimited'}</span></div>
-                                                          <div className="text-gray-500">Max Loss: <span className={`font-mono font-medium ${sbCustomCard.isUnlimited ? 'text-red-600' : 'text-gray-700'}`}>{sbCustomCard.maxLoss != null ? `$${sbCustomCard.maxLoss}` : sbCustomCard.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
-                                                          <div className="text-gray-500">PoP: <span className="font-mono font-medium text-gray-700">{sbCustomCard.pop != null ? `~${Math.round(sbCustomCard.pop * 100)}%` : 'N/A'}</span></div>
+                                                          <div className="text-text-muted">Max Profit: <span className="font-mono font-medium text-text-secondary">{sbCustomCard.maxProfit != null ? `$${sbCustomCard.maxProfit}` : 'Unlimited'}</span></div>
+                                                          <div className="text-text-muted">Max Loss: <span className={`font-mono font-medium ${sbCustomCard.isUnlimited ? 'text-brand-red' : 'text-text-secondary'}`}>{sbCustomCard.maxLoss != null ? `$${sbCustomCard.maxLoss}` : sbCustomCard.isUnlimited ? 'Unlimited' : 'Undefined'}</span></div>
+                                                          <div className="text-text-muted">PoP: <span className="font-mono font-medium text-text-secondary">{sbCustomCard.pop != null ? `~${Math.round(sbCustomCard.pop * 100)}%` : 'N/A'}</span></div>
                                                         </div>
                                                         {sbCustomCard.pnlPoints.length > 2 && sbQuotePrice && (
                                                           <div className="border-t border-indigo-200 pt-1 mt-1"
@@ -2418,19 +2418,19 @@ export default function TradingPage() {
                                                   {sbChainData && sbSelectedExp != null && (
                                                     <div>
                                                       <div className="flex items-center gap-2 mb-1">
-                                                        <div className="text-[9px] text-gray-400 uppercase tracking-wider">Click bid/ask to build custom strategy (max 4 legs)</div>
+                                                        <div className="text-[9px] text-text-faint uppercase tracking-wider">Click bid/ask to build custom strategy (max 4 legs)</div>
                                                         {sbCustomLegs.length > 0 && (
-                                                          <button onClick={() => { setSbCustomLegs([]); setSbCustomCard(null); }} className="text-[9px] text-red-400 hover:text-red-600">Clear All</button>
+                                                          <button onClick={() => { setSbCustomLegs([]); setSbCustomCard(null); }} className="text-[9px] text-red-400 hover:text-brand-red">Clear All</button>
                                                         )}
                                                       </div>
                                                       <div className="overflow-x-auto max-h-[200px] overflow-y-auto">
                                                         <table className="w-full text-[9px]">
-                                                          <thead className="sticky top-0 bg-gray-50">
-                                                            <tr className="text-gray-500 border-b border-gray-200">
+                                                          <thead className="sticky top-0 bg-bg-row">
+                                                            <tr className="text-text-muted border-b border-border">
                                                               <th className="text-right px-1 py-0.5 font-medium">C.Bid</th>
                                                               <th className="text-right px-1 py-0.5 font-medium">C.Ask</th>
                                                               <th className="text-right px-1 py-0.5 font-medium">{'\u0394'}</th>
-                                                              <th className="text-center px-1 py-0.5 font-semibold bg-gray-100">Strike</th>
+                                                              <th className="text-center px-1 py-0.5 font-semibold bg-bg-row">Strike</th>
                                                               <th className="text-left px-1 py-0.5 font-medium">{'\u0394'}</th>
                                                               <th className="text-left px-1 py-0.5 font-medium">P.Bid</th>
                                                               <th className="text-left px-1 py-0.5 font-medium">P.Ask</th>
@@ -2450,24 +2450,24 @@ export default function TradingPage() {
                                                                 const isPutBidSel = sbCustomLegs.some(l => l.streamerSymbol === s.putStreamerSymbol && l.side === 'sell');
                                                                 const isPutAskSel = sbCustomLegs.some(l => l.streamerSymbol === s.putStreamerSymbol && l.side === 'buy');
                                                                 return (
-                                                                  <tr key={si} className="border-b border-gray-50 hover:bg-white">
+                                                                  <tr key={si} className="border-b border-border-light hover:bg-white">
                                                                     <td
-                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isCallBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-gray-600'}`}
+                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isCallBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-text-secondary'}`}
                                                                       onClick={(e) => { e.stopPropagation(); if (cg.bid != null) handleClickLeg('call', 'sell', s.strike, s.callStreamerSymbol); }}
                                                                     >{cg.bid != null ? cg.bid.toFixed(2) : ''}</td>
                                                                     <td
-                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-blue-100 ${isCallAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-gray-600'}`}
+                                                                      className={`text-right px-1 py-0.5 font-mono cursor-pointer hover:bg-brand-purple-wash ${isCallAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-text-secondary'}`}
                                                                       onClick={(e) => { e.stopPropagation(); if (cg.ask != null) handleClickLeg('call', 'buy', s.strike, s.callStreamerSymbol); }}
                                                                     >{cg.ask != null ? cg.ask.toFixed(2) : ''}</td>
-                                                                    <td className="text-right px-1 py-0.5 font-mono text-gray-400">{cg.delta != null ? cg.delta.toFixed(2) : ''}</td>
-                                                                    <td className={`text-center px-1 py-0.5 font-mono font-semibold bg-gray-100 ${sbQuotePrice && Math.abs(s.strike - sbQuotePrice) < 1 ? 'text-indigo-700' : 'text-gray-700'}`}>{s.strike}</td>
-                                                                    <td className="text-left px-1 py-0.5 font-mono text-gray-400">{pg.delta != null ? pg.delta.toFixed(2) : ''}</td>
+                                                                    <td className="text-right px-1 py-0.5 font-mono text-text-faint">{cg.delta != null ? cg.delta.toFixed(2) : ''}</td>
+                                                                    <td className={`text-center px-1 py-0.5 font-mono font-semibold bg-bg-row ${sbQuotePrice && Math.abs(s.strike - sbQuotePrice) < 1 ? 'text-indigo-700' : 'text-text-secondary'}`}>{s.strike}</td>
+                                                                    <td className="text-left px-1 py-0.5 font-mono text-text-faint">{pg.delta != null ? pg.delta.toFixed(2) : ''}</td>
                                                                     <td
-                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isPutBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-gray-600'}`}
+                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-emerald-100 ${isPutBidSel ? 'bg-emerald-200 ring-1 ring-emerald-400' : 'text-text-secondary'}`}
                                                                       onClick={(e) => { e.stopPropagation(); if (pg.bid != null) handleClickLeg('put', 'sell', s.strike, s.putStreamerSymbol); }}
                                                                     >{pg.bid != null ? pg.bid.toFixed(2) : ''}</td>
                                                                     <td
-                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-blue-100 ${isPutAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-gray-600'}`}
+                                                                      className={`text-left px-1 py-0.5 font-mono cursor-pointer hover:bg-brand-purple-wash ${isPutAskSel ? 'bg-blue-200 ring-1 ring-blue-400' : 'text-text-secondary'}`}
                                                                       onClick={(e) => { e.stopPropagation(); if (pg.ask != null) handleClickLeg('put', 'buy', s.strike, s.putStreamerSymbol); }}
                                                                     >{pg.ask != null ? pg.ask.toFixed(2) : ''}</td>
                                                                   </tr>
@@ -2480,7 +2480,7 @@ export default function TradingPage() {
                                                   )}
                                                 </div>
                                               ) : (
-                                                <div className="text-xs text-gray-400 text-center py-2">
+                                                <div className="text-xs text-text-faint text-center py-2">
                                                   No strategies available{sbQuotePrice ? '' : ' (could not fetch quote price)'}
                                                 </div>
                                               )}
@@ -2496,7 +2496,7 @@ export default function TradingPage() {
                                 <div className="mt-2">
                                   <button
                                     onClick={() => setFilteredOutExpanded(p => !p)}
-                                    className="text-[10px] text-gray-400 hover:text-gray-600"
+                                    className="text-[10px] text-text-faint hover:text-text-secondary"
                                   >
                                     {filteredOutExpanded ? '\u25B2' : '\u25BC'} Filtered Out ({filteredData.length})
                                   </button>
@@ -2504,14 +2504,14 @@ export default function TradingPage() {
                                     <table className="w-full text-xs mt-1 opacity-50">
                                       <tbody>
                                         {filteredData.slice(0, 30).map((m: any) => (
-                                          <tr key={m.symbol} className="border-b border-gray-50">
-                                            <td className="px-2 py-1 font-mono text-gray-400">{m.symbol}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.score}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.ivHvSpread != null ? m.ivHvSpread.toFixed(1) : '\u2014'}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.hv30 != null ? m.hv30.toFixed(1) + '%' : '\u2014'}</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
-                                            <td className="text-right px-2 py-1 font-mono text-gray-400">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
+                                          <tr key={m.symbol} className="border-b border-border-light">
+                                            <td className="px-2 py-1 font-mono text-text-faint">{m.symbol}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{m.score}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{((m.ivRank ?? 0) * 100).toFixed(1)}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{m.ivHvSpread != null ? m.ivHvSpread.toFixed(1) : '\u2014'}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{m.hv30 != null ? m.hv30.toFixed(1) + '%' : '\u2014'}</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{((m.impliedVolatility ?? 0) * 100).toFixed(1)}%</td>
+                                            <td className="text-right px-2 py-1 font-mono text-text-faint">{m.liquidityRating != null ? m.liquidityRating : '\u2014'}</td>
                                             <td className="px-2 py-1 text-[10px] text-red-400">{m.filterReason}</td>
                                           </tr>
                                         ))}
@@ -2524,51 +2524,51 @@ export default function TradingPage() {
                           ) : !ttScannerStarted && !ttScannerLoading ? (
                             <div className="flex flex-col items-center justify-center py-16 gap-4">
                               <div className="text-4xl">{'\uD83D\uDD0D'}</div>
-                              <div className="text-lg font-semibold text-gray-700">Market Intelligence</div>
-                              <div className="text-sm text-gray-500 text-center max-w-md">
+                              <div className="text-terminal-lg font-semibold text-text-secondary">Market Intelligence</div>
+                              <div className="text-sm text-text-muted text-center max-w-md">
                                 Select a universe above, then scan to find options where implied volatility exceeds realized movement.
                               </div>
                               <button
                                 onClick={() => startScan()}
-                                className="mt-2 px-6 py-3 bg-[#2d1b4e] text-white rounded-lg font-semibold text-sm hover:bg-[#3d2b5e] transition-colors"
+                                className="mt-2 px-6 py-3 bg-brand-purple text-white rounded font-semibold text-sm hover:bg-brand-purple-hover transition-colors"
                               >
                                 {'\uD83D\uDE80'} Scan Market
                               </button>
                             </div>
                           ) : !ttScannerLoading ? (
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-text-faint">
                               No scanner data available.{' '}
-                              <button onClick={() => startScan()} className="text-[#2d1b4e] hover:underline font-medium">Retry</button>
+                              <button onClick={() => startScan()} className="text-brand-purple hover:underline font-medium">Retry</button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
-                              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="flex items-center justify-center py-4 gap-2 text-xs text-text-faint">
+                              <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                               Loading scanner data...
                             </div>
                           )}
                         </div>
 
                         {/* Card 1 — Account Overview */}
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Account Overview</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Account Overview</div>
                           {ttBalances.length === 0 ? (
-                            <div className="text-sm text-gray-400">No account data available</div>
+                            <div className="text-sm text-text-faint">No account data available</div>
                           ) : (
                             <div className="space-y-3">
                               {ttBalances.map((bal: any) => (
-                                <div key={bal.accountNumber} className="border border-gray-100 p-3">
-                                  <div className="text-xs font-medium text-gray-700 mb-2">{bal.accountNumber}</div>
+                                <div key={bal.accountNumber} className="border border-border-light p-3">
+                                  <div className="text-xs font-medium text-text-secondary mb-2">{bal.accountNumber}</div>
                                   <div className="grid grid-cols-3 gap-3">
                                     <div>
-                                      <div className="text-[10px] text-gray-400 uppercase">Net Liq</div>
+                                      <div className="text-[10px] text-text-faint uppercase">Net Liq</div>
                                       <div className="text-sm font-mono font-medium">{fmtCurrency(bal.netLiq)}</div>
                                     </div>
                                     <div>
-                                      <div className="text-[10px] text-gray-400 uppercase">Cash</div>
+                                      <div className="text-[10px] text-text-faint uppercase">Cash</div>
                                       <div className="text-sm font-mono">{fmtCurrency(bal.cashBalance)}</div>
                                     </div>
                                     <div>
-                                      <div className="text-[10px] text-gray-400 uppercase">Buying Power</div>
+                                      <div className="text-[10px] text-text-faint uppercase">Buying Power</div>
                                       <div className="text-sm font-mono">{fmtCurrency(bal.buyingPower)}</div>
                                     </div>
                                   </div>
@@ -2579,15 +2579,15 @@ export default function TradingPage() {
                         </div>
 
                         {/* Card 2 — Open Positions */}
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Open Positions</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Open Positions</div>
                           {ttPositions.length === 0 ? (
-                            <div className="text-sm text-gray-400">No open positions</div>
+                            <div className="text-sm text-text-faint">No open positions</div>
                           ) : (
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className="border-b border-gray-200 text-gray-500">
+                                  <tr className="border-b border-border text-text-muted">
                                     <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
                                     <th className="text-left px-2 py-1.5 font-medium">Type</th>
                                     <th className="text-right px-2 py-1.5 font-medium">Qty</th>
@@ -2598,17 +2598,17 @@ export default function TradingPage() {
                                 </thead>
                                 <tbody>
                                   {ttPositions.map((pos: any, i: number) => (
-                                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                                    <tr key={i} className="border-b border-border-light hover:bg-bg-row">
                                       <td className="px-2 py-1.5 font-medium">{pos.symbol}</td>
                                       <td className="px-2 py-1.5">
-                                        <span className={`px-1.5 py-0.5 text-[10px] ${pos.instrumentType === 'Equity' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                        <span className={`px-1.5 py-0.5 text-[10px] ${pos.instrumentType === 'Equity' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-purple-50 text-purple-600'}`}>
                                           {pos.instrumentType}
                                         </span>
                                       </td>
                                       <td className="px-2 py-1.5 text-right font-mono">{pos.quantity}</td>
                                       <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.averageOpenPrice)}</td>
                                       <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.marketValue)}</td>
-                                      <td className={`px-2 py-1.5 text-right font-mono ${pos.unrealizedPL >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                      <td className={`px-2 py-1.5 text-right font-mono ${pos.unrealizedPL >= 0 ? 'text-emerald-600' : 'text-brand-red'}`}>
                                         {pos.unrealizedPL >= 0 ? '+' : ''}{fmtCurrency(pos.unrealizedPL)}
                                       </td>
                                     </tr>
@@ -2620,8 +2620,8 @@ export default function TradingPage() {
                         </div>
 
                         {/* Card 3 — Quick Quote */}
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Quick Quote</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Quick Quote</div>
                           <div className="flex gap-2 mb-3">
                             <input
                               type="text"
@@ -2629,40 +2629,40 @@ export default function TradingPage() {
                               value={ttQuoteSymbol}
                               onChange={e => setTtQuoteSymbol(e.target.value.toUpperCase())}
                               onKeyDown={e => e.key === 'Enter' && handleTtQuote()}
-                              className="flex-1 border border-gray-200 px-3 py-2 text-sm font-mono"
+                              className="flex-1 border border-border px-3 py-2 text-sm font-mono"
                             />
                             <button
                               onClick={handleTtQuote}
                               disabled={ttQuoteLoading || !ttQuoteSymbol.trim()}
-                              className="px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                              className="px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
                             >
                               {ttQuoteLoading ? 'Loading...' : 'Get Quote'}
                             </button>
                           </div>
                           {ttQuoteData && Object.keys(ttQuoteData).length > 0 && (
-                            <div className="border border-gray-100 p-3">
+                            <div className="border border-border-light p-3">
                               {Object.entries(ttQuoteData).map(([sym, q]: [string, any]) => (
                                 <div key={sym}>
-                                  <div className="text-sm font-medium text-gray-900 mb-2">{sym}</div>
+                                  <div className="text-sm font-medium text-text-primary mb-2">{sym}</div>
                                   <div className="grid grid-cols-5 gap-3 text-xs">
-                                    <div><span className="text-gray-400">Bid</span><div className="font-mono">{q.bid?.toFixed(2)}</div></div>
-                                    <div><span className="text-gray-400">Ask</span><div className="font-mono">{q.ask?.toFixed(2)}</div></div>
-                                    <div><span className="text-gray-400">Mid</span><div className="font-mono">{q.mid?.toFixed(2)}</div></div>
-                                    <div><span className="text-gray-400">Last</span><div className="font-mono">{q.last?.toFixed(2) || '—'}</div></div>
-                                    <div><span className="text-gray-400">Volume</span><div className="font-mono">{(q.volume || 0).toLocaleString()}</div></div>
+                                    <div><span className="text-text-faint">Bid</span><div className="font-mono">{q.bid?.toFixed(2)}</div></div>
+                                    <div><span className="text-text-faint">Ask</span><div className="font-mono">{q.ask?.toFixed(2)}</div></div>
+                                    <div><span className="text-text-faint">Mid</span><div className="font-mono">{q.mid?.toFixed(2)}</div></div>
+                                    <div><span className="text-text-faint">Last</span><div className="font-mono">{q.last?.toFixed(2) || '—'}</div></div>
+                                    <div><span className="text-text-faint">Volume</span><div className="font-mono">{(q.volume || 0).toLocaleString()}</div></div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           )}
                           {ttQuoteData && Object.keys(ttQuoteData).length === 0 && (
-                            <div className="text-xs text-gray-400">No quote data received — market may be closed</div>
+                            <div className="text-xs text-text-faint">No quote data received — market may be closed</div>
                           )}
                         </div>
 
                         {/* Card 4 — Option Chain Lookup */}
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Option Chain Lookup</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Option Chain Lookup</div>
                           <div className="flex gap-2 mb-3">
                             <input
                               type="text"
@@ -2670,12 +2670,12 @@ export default function TradingPage() {
                               value={ttChainSymbol}
                               onChange={e => setTtChainSymbol(e.target.value.toUpperCase())}
                               onKeyDown={e => e.key === 'Enter' && handleTtChain()}
-                              className="flex-1 border border-gray-200 px-3 py-2 text-sm font-mono"
+                              className="flex-1 border border-border px-3 py-2 text-sm font-mono"
                             />
                             <button
                               onClick={handleTtChain}
                               disabled={ttChainLoading || !ttChainSymbol.trim()}
-                              className="px-4 py-2 text-xs font-medium bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50"
+                              className="px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
                             >
                               {ttChainLoading ? 'Loading...' : 'Load Chain'}
                             </button>
@@ -2690,23 +2690,23 @@ export default function TradingPage() {
                                   return ttGreeksData[s.callStreamerSymbol] || ttGreeksData[s.putStreamerSymbol];
                                 });
                                 return (
-                                  <div key={i} className="border border-gray-100">
+                                  <div key={i} className="border border-border-light">
                                     <div
-                                      className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50"
+                                      className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-bg-row"
                                       onClick={() => handleExpandExp(i, exp)}
                                     >
-                                      <div className="font-medium text-gray-700">{exp.date}</div>
-                                      <div className="flex gap-4 text-gray-500 items-center">
+                                      <div className="font-medium text-text-secondary">{exp.date}</div>
+                                      <div className="flex gap-4 text-text-muted items-center">
                                         <span>{exp.dte} DTE</span>
                                         <span>{exp.strikes?.length || 0} strikes</span>
                                         <span className="text-[10px]">{isExp ? '\u25B2' : '\u25BC'}</span>
                                       </div>
                                     </div>
                                     {isExp && (
-                                      <div className="border-t border-gray-100 px-2 py-2">
+                                      <div className="border-t border-border-light px-2 py-2">
                                         {ttGreeksLoading && !hasFetched ? (
-                                          <div className="flex items-center justify-center py-4 gap-2 text-xs text-gray-400">
-                                            <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                          <div className="flex items-center justify-center py-4 gap-2 text-xs text-text-faint">
+                                            <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
                                             Loading Greeks...
                                           </div>
                                         ) : (
@@ -2715,7 +2715,7 @@ export default function TradingPage() {
                                               <div className="flex justify-end mb-1">
                                                 <button
                                                   onClick={(e) => { e.stopPropagation(); setTtShowAllStrikes(p => !p); }}
-                                                  className="text-[10px] text-gray-400 hover:text-gray-600 underline"
+                                                  className="text-[10px] text-text-faint hover:text-text-secondary underline"
                                                 >
                                                   {ttShowAllStrikes ? 'Show active only' : 'Show all strikes'}
                                                 </button>
@@ -2724,7 +2724,7 @@ export default function TradingPage() {
                                             <div className="overflow-x-auto">
                                               <table className="w-full text-[10px]">
                                                 <thead>
-                                                  <tr className="border-b border-gray-200 text-gray-500">
+                                                  <tr className="border-b border-border text-text-muted">
                                                     <th className="text-right px-1 py-1 font-medium">Bid</th>
                                                     <th className="text-right px-1 py-1 font-medium">Ask</th>
                                                     <th className="text-right px-1 py-1 font-medium">Vol</th>
@@ -2735,7 +2735,7 @@ export default function TradingPage() {
                                                     <th className="text-right px-1 py-1 font-medium">{'\u0398'}</th>
                                                     <th className="text-right px-1 py-1 font-medium">{'\u03BD'}</th>
                                                     <th className="text-right px-1 py-1 font-medium">{'\u03C1'}</th>
-                                                    <th className="text-center px-1 py-1 font-semibold bg-gray-50">Strike</th>
+                                                    <th className="text-center px-1 py-1 font-semibold bg-bg-row">Strike</th>
                                                     <th className="text-left px-1 py-1 font-medium">{'\u03C1'}</th>
                                                     <th className="text-left px-1 py-1 font-medium">{'\u03BD'}</th>
                                                     <th className="text-left px-1 py-1 font-medium">{'\u0398'}</th>
@@ -2754,33 +2754,33 @@ export default function TradingPage() {
                                                     const pg = ttGreeksData[s.putStreamerSymbol];
                                                     const d = '\u2014';
                                                     return (
-                                                      <tr key={j} className="border-b border-gray-50 hover:bg-gray-50">
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.bid != null ? cg.bid.toFixed(2) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.ask != null ? cg.ask.toFixed(2) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.volume != null ? cg.volume.toLocaleString() : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.openInterest != null ? cg.openInterest.toLocaleString() : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-600">{cg?.iv != null ? (cg.iv * 100).toFixed(1) + '%' : d}</td>
+                                                      <tr key={j} className="border-b border-border-light hover:bg-bg-row">
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.bid != null ? cg.bid.toFixed(2) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.ask != null ? cg.ask.toFixed(2) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.volume != null ? cg.volume.toLocaleString() : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.openInterest != null ? cg.openInterest.toLocaleString() : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.iv != null ? (cg.iv * 100).toFixed(1) + '%' : d}</td>
                                                         <td className="text-right px-1 py-0.5 font-mono text-emerald-600">{cg?.delta != null ? cg.delta.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.gamma != null ? cg.gamma.toFixed(4) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.theta != null ? cg.theta.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.vega != null ? cg.vega.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-gray-500">{cg?.rho != null ? cg.rho.toFixed(4) : d}</td>
-                                                        <td className="text-center px-1 py-0.5 font-mono font-semibold bg-gray-50">{s.strike.toFixed(2)}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.rho != null ? pg.rho.toFixed(4) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.vega != null ? pg.vega.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.theta != null ? pg.theta.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.gamma != null ? pg.gamma.toFixed(4) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-red-600">{pg?.delta != null ? pg.delta.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.iv != null ? (pg.iv * 100).toFixed(1) + '%' : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.openInterest != null ? pg.openInterest.toLocaleString() : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-500">{pg?.volume != null ? pg.volume.toLocaleString() : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.bid != null ? pg.bid.toFixed(2) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-gray-600">{pg?.ask != null ? pg.ask.toFixed(2) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.gamma != null ? cg.gamma.toFixed(4) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.theta != null ? cg.theta.toFixed(3) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.vega != null ? cg.vega.toFixed(3) : d}</td>
+                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.rho != null ? cg.rho.toFixed(4) : d}</td>
+                                                        <td className="text-center px-1 py-0.5 font-mono font-semibold bg-bg-row">{s.strike.toFixed(2)}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.rho != null ? pg.rho.toFixed(4) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.vega != null ? pg.vega.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.theta != null ? pg.theta.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.gamma != null ? pg.gamma.toFixed(4) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-brand-red">{pg?.delta != null ? pg.delta.toFixed(3) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.iv != null ? (pg.iv * 100).toFixed(1) + '%' : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.openInterest != null ? pg.openInterest.toLocaleString() : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.volume != null ? pg.volume.toLocaleString() : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.bid != null ? pg.bid.toFixed(2) : d}</td>
+                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.ask != null ? pg.ask.toFixed(2) : d}</td>
                                                       </tr>
                                                     );
                                                   })}
                                                   {visibleStrikes.length === 0 && hasFetched && (
-                                                    <tr><td colSpan={21} className="text-center py-3 text-gray-400 text-xs">No active strikes with data</td></tr>
+                                                    <tr><td colSpan={21} className="text-center py-3 text-text-faint text-xs">No active strikes with data</td></tr>
                                                   )}
                                                 </tbody>
                                               </table>
@@ -2795,33 +2795,33 @@ export default function TradingPage() {
                             </div>
                           )}
                           {ttChainData && ttChainData.expirations?.length === 0 && (
-                            <div className="text-xs text-gray-400">No expirations found in 0–45 DTE range</div>
+                            <div className="text-xs text-text-faint">No expirations found in 0–45 DTE range</div>
                           )}
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Account Overview</div>
-                          <div className="text-sm text-gray-400">Connect brokerage to view account data</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Account Overview</div>
+                          <div className="text-sm text-text-faint">Connect brokerage to view account data</div>
                         </div>
-                        <div className="bg-white border border-gray-200 p-6">
-                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Positions</div>
-                          <div className="text-sm text-gray-400">Connect brokerage to view positions</div>
+                        <div className="bg-white border border-border p-6">
+                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Positions</div>
+                          <div className="text-sm text-text-faint">Connect brokerage to view positions</div>
                         </div>
                       </>
                     )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center min-h-[500px] p-8">
-                    <div className="max-w-md w-full bg-gradient-to-b from-[#1a0f2e] to-[#2d1b4e] border border-[#3d2b5e] p-8 text-center">
+                    <div className="max-w-md w-full bg-gradient-to-b from-panel-highlight to-brand-purple-deep border border-brand-purple-hover p-8 text-center">
                       <div className="mb-4">
-                        <svg className="w-12 h-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <svg className="w-12 h-12 mx-auto text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                         </svg>
                       </div>
-                      <h2 className="text-xl font-bold text-white mb-2">Market Intelligence</h2>
-                      <p className="text-sm text-gray-400 mb-6">Real-time market data, AI-powered strategy builder, and live trading signals</p>
+                      <h2 className="text-sm font-bold text-white mb-2">Market Intelligence</h2>
+                      <p className="text-sm text-text-faint mb-6">Real-time market data, AI-powered strategy builder, and live trading signals</p>
                       <div className="text-left space-y-3 mb-8">
                         {[
                           'Live stock, options, crypto & futures data',
@@ -2830,16 +2830,16 @@ export default function TradingPage() {
                           'Live signal alerts',
                           'Tax-aware trade warnings (wash sales, ST/LT impact)',
                         ].map((feature, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                          <div key={i} className="flex items-center gap-2 text-sm text-text-faint">
                             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0"></div>
                             <span>{feature}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="inline-block px-6 py-2 bg-white/10 border border-white/20 text-sm font-medium text-gray-300 cursor-default">
+                      <div className="inline-block px-6 py-2 bg-white/10 border border-white/20 text-sm font-medium text-text-faint cursor-default">
                         Coming Soon
                       </div>
-                      <p className="text-xs text-gray-500 mt-4">Included in the Trader Pro plan</p>
+                      <p className="text-xs text-text-muted mt-4">Included in the Trader Pro plan</p>
                     </div>
                   </div>
                 )}
@@ -2855,19 +2855,19 @@ export default function TradingPage() {
       {journalModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setJournalModal(null)}>
           <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="bg-[#2d1b4e] text-white px-4 py-3 flex justify-between items-center sticky top-0">
+            <div className="bg-brand-purple text-white px-4 py-3 flex justify-between items-center sticky top-0">
               <div>
                 <div className="font-semibold">Trade Journal</div>
-                <div className="text-xs text-gray-300">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
+                <div className="text-xs text-text-faint">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
               </div>
-              <button onClick={() => setJournalModal(null)} className="text-white/60 hover:text-white text-xl">×</button>
+              <button onClick={() => setJournalModal(null)} className="text-white/60 hover:text-white text-sm">×</button>
             </div>
             
             <div className="p-4 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Entry Type</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Entry Type</label>
                 <select value={journalForm.entryType} onChange={e => setJournalForm(p => ({ ...p, entryType: e.target.value }))}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm">
+                  className="w-full border border-border px-3 py-2 text-sm">
                   <option value="pre-trade">Pre-Trade (Planning)</option>
                   <option value="during">During Trade</option>
                   <option value="post-trade">Post-Trade (Review)</option>
@@ -2875,47 +2875,47 @@ export default function TradingPage() {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Thesis / Reason</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Thesis / Reason</label>
                 <textarea value={journalForm.thesis} onChange={e => setJournalForm(p => ({ ...p, thesis: e.target.value }))}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm h-20" placeholder="Why did you take this trade?" />
+                  className="w-full border border-border px-3 py-2 text-sm h-20" placeholder="Why did you take this trade?" />
               </div>
               
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Setup</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Setup</label>
                   <select value={journalForm.setup} onChange={e => setJournalForm(p => ({ ...p, setup: e.target.value }))}
-                    className="w-full border border-gray-200 px-3 py-2 text-sm">
+                    className="w-full border border-border px-3 py-2 text-sm">
                     <option value="">Select...</option>
                     {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Emotion</label>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Emotion</label>
                   <select value={journalForm.emotion} onChange={e => setJournalForm(p => ({ ...p, emotion: e.target.value }))}
-                    className="w-full border border-gray-200 px-3 py-2 text-sm">
+                    className="w-full border border-border px-3 py-2 text-sm">
                     {EMOTIONS.map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Mistakes</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Mistakes</label>
                 <textarea value={journalForm.mistakes} onChange={e => setJournalForm(p => ({ ...p, mistakes: e.target.value }))}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm h-16" placeholder="What went wrong?" />
+                  className="w-full border border-border px-3 py-2 text-sm h-16" placeholder="What went wrong?" />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Lessons Learned</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Lessons Learned</label>
                 <textarea value={journalForm.lessons} onChange={e => setJournalForm(p => ({ ...p, lessons: e.target.value }))}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm h-16" placeholder="What will you do differently?" />
+                  className="w-full border border-border px-3 py-2 text-sm h-16" placeholder="What will you do differently?" />
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Rating (1-5)</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(n => (
                     <button key={n} onClick={() => setJournalForm(p => ({ ...p, rating: n }))}
-                      className={`w-10 h-10 text-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-gray-300'}`}>
+                      className={`w-10 h-10 text-terminal-lg ${journalForm.rating >= n ? 'text-amber-500' : 'text-text-faint'}`}>
                       {journalForm.rating >= n ? '★' : '☆'}
                     </button>
                   ))}
@@ -2923,18 +2923,18 @@ export default function TradingPage() {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Tags (comma separated)</label>
                 <input type="text" value={journalForm.tags} onChange={e => setJournalForm(p => ({ ...p, tags: e.target.value }))}
-                  className="w-full border border-gray-200 px-3 py-2 text-sm" placeholder="e.g., earnings, scalp, swing" />
+                  className="w-full border border-border px-3 py-2 text-sm" placeholder="e.g., earnings, scalp, swing" />
               </div>
             </div>
             
-            <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
-              <button onClick={() => setJournalModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            <div className="bg-bg-row px-4 py-3 flex justify-end gap-2 sticky bottom-0 border-t">
+              <button onClick={() => setJournalModal(null)} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">
                 Cancel
               </button>
               <button onClick={saveJournalEntry} disabled={saving}
-                className="px-4 py-2 text-sm bg-[#2d1b4e] text-white hover:bg-[#3d2b5e] disabled:opacity-50">
+                className="px-4 py-2 text-sm bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50">
                 {saving ? 'Saving...' : 'Save Entry'}
               </button>
             </div>
