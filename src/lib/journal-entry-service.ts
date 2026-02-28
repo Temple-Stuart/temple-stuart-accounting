@@ -5,6 +5,7 @@ type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction'
 interface CommitPlaidTransactionParams {
   userId: string;
   entityId: string;
+  bankEntityId?: string;
   transactionId: string;
   accountCode: string;
   bankAccountCode: string;
@@ -40,6 +41,7 @@ export async function commitPlaidTransaction(
   const {
     userId,
     entityId,
+    bankEntityId,
     transactionId,
     accountCode,
     bankAccountCode,
@@ -63,15 +65,18 @@ export async function commitPlaidTransaction(
       );
     }
 
-    // Look up bank COA account
+    // Look up bank COA account — use bankEntityId (the bank account's entity)
+    // which may differ from entityId (the expense COA's entity) in cross-entity
+    // categorization scenarios (e.g., personal bank pays business expense).
+    const resolvedBankEntityId = bankEntityId || entityId;
     const bankAccount = await tx.chart_of_accounts.findUnique({
       where: {
-        userId_entity_id_code: { userId, entity_id: entityId, code: bankAccountCode },
+        userId_entity_id_code: { userId, entity_id: resolvedBankEntityId, code: bankAccountCode },
       },
     });
     if (!bankAccount) {
       throw new Error(
-        `Bank COA account not found: code=${bankAccountCode}, entityId=${entityId}, userId=${userId}`
+        `Bank COA account not found: code=${bankAccountCode}, entityId=${resolvedBankEntityId}, userId=${userId}`
       );
     }
 
