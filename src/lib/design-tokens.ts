@@ -1,0 +1,27 @@
+export const tokens = {
+  colors: {
+    purple: '#3b2d6b',
+    purpleDeep: '#2d1b4e',
+    purpleHover: '#4e3e85',
+    purpleLight: '#7b6baa',
+    purpleWash: '#eae7f2',
+    gold: '#b8960f',
+    goldBright: '#d4af37',
+    goldWash: 'rgba(184,150,15,0.07)',
+    green: '#16a34a',
+    red: '#c53030',
+    amber: '#d97706',
+    textPrimary: '#1a1a2e',
+    textSecondary: '#4a4a5a',
+    textMuted: '#7a7488',
+    textFaint: '#a8a2b0',
+    bgTerminal: '#f7f6f3',
+    bgRow: '#f0eee9',
+    border: '#e2e0da',
+    borderLight: '#f0eee9',
+  },
+  fonts: {
+    mono: "'IBM Plex Mono', ui-monospace, monospace",
+    sans: "'Inter', -apple-system, sans-serif",
+  },
+} as const;
