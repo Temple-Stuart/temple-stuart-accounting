@@ -1272,9 +1272,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         setBatchCoa('');
         setBatchSub('');
         await onReload();
+      } else {
+        const errMsg = data.error || data.errors?.map((e: { error: string }) => e.error).join(', ') || 'Commit failed';
+        alert(`Commit failed: ${errMsg}`);
       }
     } catch (e) {
       console.error('Batch commit error:', e);
+      alert(`Commit error: ${e instanceof Error ? e.message : 'Network error'}`);
     }
     setCommitting(false);
   };
@@ -1300,9 +1304,12 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         setToast(`Committed ${committed} transaction${committed !== 1 ? 's' : ''}`);
         setRowChanges({});
         await onReload();
+      } else {
+        alert('No transactions were committed — check that accounts have COA codes mapped');
       }
     } catch (e) {
       console.error('Row commit error:', e);
+      alert(`Commit error: ${e instanceof Error ? e.message : 'Network error'}`);
     }
     setCommitting(false);
   };
@@ -1323,9 +1330,12 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
         setToast(`Uncommitted ${data.uncommitted} transaction${data.uncommitted !== 1 ? 's' : ''}`);
         setSelectedCommitted(new Set());
         await onReload();
+      } else {
+        alert(`Uncommit failed: ${data.error || 'Unknown error'}`);
       }
     } catch (e) {
       console.error('Uncommit error:', e);
+      alert(`Uncommit error: ${e instanceof Error ? e.message : 'Network error'}`);
     }
     setUncommitting(false);
   };
