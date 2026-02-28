@@ -2,11 +2,18 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
-interface AppLayoutProps {
+export interface AppLayoutProps {
   children: React.ReactNode;
+  metrics?: {
+    balance?: number;
+    pending?: number;
+    revenue?: number;
+    expenses?: number;
+    committed?: number;
+  };
 }
 
 interface CookieUser {
@@ -14,11 +21,16 @@ interface CookieUser {
   name: string;
 }
 
-const navigation = [
-  { name: 'Hub', href: '/hub' },
-  { name: 'Books', href: '/dashboard' },
+// ─── Route Groups ────────────────────────────────────────────────────────────
+
+const BOOKKEEPING_PREFIXES = [
+  '/dashboard', '/accounts', '/chart-of-accounts',
+  '/journal-entries', '/ledger', '/statements',
+  '/transactions', '/net-worth',
+];
+
+const BUDGETING_ITEMS = [
   { name: 'Business', href: '/business' },
-  { name: 'Trading', href: '/trading' },
   { name: 'Home', href: '/home' },
   { name: 'Auto', href: '/auto' },
   { name: 'Shopping', href: '/shopping' },
@@ -30,14 +42,28 @@ const navigation = [
   { name: 'Budget', href: '/hub/itinerary' },
 ];
 
+const BUDGETING_PREFIXES = BUDGETING_ITEMS.map(i => i.href);
 
-export default function AppLayout({ children }: AppLayoutProps) {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtMetric(n: number | undefined): string {
+  if (n == null) return '\u2014';
+  return Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function AppLayout({ children, metrics }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [budgetingOpen, setBudgetingOpen] = useState(false);
   const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const budgetingRef = useRef<HTMLDivElement>(null);
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const checkCookieAuth = async () => {
@@ -58,9 +84,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
     checkCookieAuth();
   }, []);
 
-  // Cookie is now HMAC-signed server-side (login/register/nextauth).
-  // Client-side writes removed to prevent overwriting signed cookies.
-
   const isAuthenticated = session?.user || cookieUser;
   const currentUser = session?.user || cookieUser;
 
@@ -70,12 +93,33 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [checkingAuth, status, isAuthenticated, router]);
 
+  // Close budgeting dropdown on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (budgetingRef.current && !budgetingRef.current.contains(e.target as Node)) {
+        setBudgetingOpen(false);
+      }
+    };
+    if (budgetingOpen) {
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }
+  }, [budgetingOpen]);
+
+  // Close budgeting dropdown on route change
+  useEffect(() => {
+    setBudgetingOpen(false);
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // ─── Auth Guards ───────────────────────────────────────────────────────────
+
   if (status === 'loading' || checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+      <div className="min-h-screen bg-bg-terminal flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-[#2d1b4e] border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-600 font-mono text-sm">Loading...</span>
+          <div className="w-5 h-5 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+          <span className="text-text-muted font-mono text-terminal-base">Loading...</span>
         </div>
       </div>
     );
@@ -95,83 +139,193 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   };
 
+  // ─── Active State Detection ────────────────────────────────────────────────
+
+  const isHubActive = pathname === '/hub';
+  const isBookkeepingActive = BOOKKEEPING_PREFIXES.some(p => pathname?.startsWith(p));
+  const isTradingActive = pathname?.startsWith('/trading');
+  const isBudgetingActive = BUDGETING_PREFIXES.some(p => pathname?.startsWith(p));
+
+  const navTabClass = (active: boolean) =>
+    `relative px-3 flex items-center text-terminal-lg font-medium transition-all h-full ${
+      active
+        ? 'text-white bg-white/[.07]'
+        : 'text-white/60 hover:text-white hover:bg-white/[.04]'
+    }`;
+
+  const navTabBorder = (active: boolean) =>
+    active ? 'absolute bottom-0 left-0 right-0 h-[2px] bg-brand-gold' : '';
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      {/* Wall Street Style Header */}
-      <header className="bg-[#2d1b4e] text-white sticky top-0 z-50">
-        <div className="max-w-[1800px] mx-auto">
-          <div className="flex items-center justify-between h-12 px-4 lg:px-6">
+    <div className="min-h-screen bg-bg-terminal">
+      <header className="sticky top-0 z-50">
+        {/* ROW 1 — Navigation (28px) */}
+        <div className="bg-brand-purple" style={{ height: 28 }}>
+          <div className="max-w-[1800px] mx-auto flex items-center h-full px-3">
             {/* Logo */}
-            <Link href="/hub" className="flex items-center gap-2 group">
-              <div className="w-7 h-7 bg-white/10 border border-white/20 flex items-center justify-center">
-                <span className="text-white font-bold text-xs font-mono">TS</span>
+            <Link href="/hub" className="flex items-center gap-1.5 mr-4 flex-shrink-0">
+              <div className="w-4 h-4 rounded-sm bg-white/10 flex items-center justify-center">
+                <span className="text-white font-bold text-[7px] font-mono leading-none">TS</span>
               </div>
-              <div className="hidden sm:block">
-                <div className="font-semibold text-white text-sm tracking-tight">Temple Stuart</div>
-              </div>
+              <span className="hidden sm:inline text-[11px] font-semibold text-white tracking-tight">Temple Stuart</span>
             </Link>
 
-            {/* Navigation */}
-            <nav className="hidden lg:flex items-center">
-              {navigation.map((item, idx) => {
-                const isActive = pathname === item.href || 
-                  (item.href !== '/hub' && item.href !== '/dashboard' && pathname?.startsWith(item.href));
-                return (
-                  <Link key={item.name} href={item.href}
-                    className={`px-3 py-1.5 text-xs font-medium transition-all border-b-2 ${
-                      isActive 
-                        ? 'text-white border-white bg-white/10' 
-                        : 'text-gray-300 border-transparent hover:text-white hover:bg-white/5'
-                    }`}>
-                    {item.name}
-                  </Link>
-                );
-              })}
+            {/* Desktop Nav */}
+            <nav className="hidden lg:flex items-center h-full gap-0">
+              {/* Hub */}
+              <Link href="/hub" className={navTabClass(isHubActive)}>
+                Hub
+                <div className={navTabBorder(isHubActive)} />
+              </Link>
+
+              {/* Bookkeeping */}
+              <Link href="/dashboard" className={navTabClass(isBookkeepingActive)}>
+                Bookkeeping
+                <div className={navTabBorder(isBookkeepingActive)} />
+              </Link>
+
+              {/* Trading */}
+              <Link href="/trading" className={navTabClass(isTradingActive)}>
+                Trading
+                <div className={navTabBorder(isTradingActive)} />
+              </Link>
+
+              {/* Budgeting (with dropdown) */}
+              <div ref={budgetingRef} className="relative h-full">
+                <button
+                  onClick={() => setBudgetingOpen(!budgetingOpen)}
+                  className={navTabClass(isBudgetingActive)}
+                >
+                  Budgeting
+                  <svg className="w-2.5 h-2.5 ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  <div className={navTabBorder(isBudgetingActive)} />
+                </button>
+
+                {/* Budgeting Dropdown */}
+                {budgetingOpen && (
+                  <div className="absolute top-full left-0 mt-0 bg-brand-purple-deep border border-white/10 shadow-xl z-50 min-w-[140px]">
+                    {BUDGETING_ITEMS.map(item => {
+                      const isSubActive = pathname?.startsWith(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`block px-3 py-1.5 text-[10px] font-medium transition-colors ${
+                            isSubActive
+                              ? 'text-brand-gold bg-white/[.05]'
+                              : 'text-white/70 hover:text-white hover:bg-white/[.05]'
+                          }`}
+                        >
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </nav>
 
-            {/* User */}
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:block text-right">
-                <div className="text-xs font-medium text-white">{currentUser?.name || currentUser?.email?.split('@')[0]}</div>
-                <div className="text-[10px] text-gray-400 font-mono">{currentUser?.email}</div>
-              </div>
-              <button onClick={handleSignOut} className="px-3 py-1 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-colors">
-                Sign out
+            {/* Right side */}
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden sm:inline text-[9px] text-white/50 font-mono">
+                {currentUser?.name || currentUser?.email?.split('@')[0]}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-[9px] text-white/40 hover:text-white transition-colors font-mono"
+              >
+                sign out
               </button>
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-1.5 hover:bg-white/10">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen 
-                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> 
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-1 hover:bg-white/10 rounded-sm"
+              >
+                <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {mobileMenuOpen
+                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   }
                 </svg>
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="lg:hidden border-t border-white/10 bg-[#1a0f2e] px-4 py-2">
-              <div className="grid grid-cols-3 gap-1">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href || 
-                    (item.href !== '/hub' && item.href !== '/dashboard' && pathname?.startsWith(item.href));
-                  return (
-                    <Link key={item.name} href={item.href} onClick={() => setMobileMenuOpen(false)}
-                      className={`px-3 py-2 text-xs font-medium text-center transition-all ${
-                        isActive 
-                          ? 'bg-white/20 text-white' 
-                          : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                      }`}>
-                      {item.name}
-                    </Link>
-                  );
-                })}
+        {/* ROW 2 — Metrics Bar (20px) */}
+        {metrics && (
+          <div className="bg-brand-purple border-t border-white/[.05]" style={{ height: 20 }}>
+            <div className="max-w-[1800px] mx-auto flex items-center h-full px-3 text-[9px] font-mono">
+              {/* Left: Key metrics */}
+              <div className="flex items-center gap-0">
+                <span className="text-white/40 mr-1">BAL</span>
+                <span className="text-brand-gold-bright font-semibold">${fmtMetric(metrics.balance)}</span>
+
+                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+
+                <span className="text-white/40 mr-1">PEND</span>
+                <span className="text-brand-amber font-medium">{fmtMetric(metrics.pending)}</span>
+
+                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+
+                <span className="text-white/40 mr-1">REV</span>
+                <span className="text-brand-green font-medium">${fmtMetric(metrics.revenue)}</span>
+
+                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+
+                <span className="text-white/40 mr-1">EXP</span>
+                <span className="text-brand-red font-medium">${fmtMetric(metrics.expenses)}</span>
+
+                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+
+                <span className="text-white/40 mr-1">COM</span>
+                <span className="text-brand-gold font-medium">{fmtMetric(metrics.committed)}</span>
+              </div>
+
+              {/* Right: Equation */}
+              <div className="ml-auto hidden sm:flex items-center gap-1 text-white/30">
+                <span>A</span>
+                <span className="text-white/20">=</span>
+                <span>L</span>
+                <span className="text-white/20">+</span>
+                <span>E</span>
+                <span className="ml-1.5 px-1 py-px bg-white/[.06] text-white/50 text-[8px]">BAL</span>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-brand-purple-deep border-t border-white/10 px-3 py-2">
+            <div className="grid grid-cols-2 gap-0.5">
+              <Link href="/hub" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isHubActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
+                Hub
+              </Link>
+              <Link href="/dashboard" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isBookkeepingActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
+                Bookkeeping
+              </Link>
+              <Link href="/trading" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isTradingActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
+                Trading
+              </Link>
+              {BUDGETING_ITEMS.map(item => {
+                const isSubActive = pathname?.startsWith(item.href);
+                return (
+                  <Link key={item.href} href={item.href}
+                    className={`px-2 py-1.5 text-[10px] font-medium text-center ${isSubActive ? 'text-brand-gold bg-white/[.05]' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
+
       <main className="max-w-[1800px] mx-auto">{children}</main>
     </div>
   );
