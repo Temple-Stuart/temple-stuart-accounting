@@ -1479,13 +1479,13 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                 </span>
               ))}
               {pendingFilters.dateFrom && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-border text-text-secondary rounded-full text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-bg-row text-text-secondary rounded-full text-[10px]">
                   From: {pendingFilters.dateFrom}
                   <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>
               )}
               {pendingFilters.dateTo && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-border text-text-secondary rounded-full text-[10px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-bg-row text-text-secondary rounded-full text-[10px]">
                   To: {pendingFilters.dateTo}
                   <button onClick={() => removeFilterPill('dateTo')} className="hover:text-brand-red">{'\u00D7'}</button>
                 </span>

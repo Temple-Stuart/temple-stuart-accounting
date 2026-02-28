@@ -799,7 +799,7 @@ export default function Dashboard() {
 
               <div className="bg-bg-row px-4 py-3 flex justify-between items-center border-t">
                 <span className="font-semibold text-text-primary text-xs">Total: {fmt(drilldownTransactions.reduce((s, t) => s + Math.abs(t.amount), 0))}</span>
-                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-border text-text-secondary text-xs font-medium hover:bg-border">Close</button>
+                <button onClick={() => { setDrilldownCell(null); setSelectedDrilldownTxns([]); }} className="px-4 py-1.5 bg-bg-row text-text-secondary text-xs font-medium hover:bg-border">Close</button>
               </div>
             </div>
           </div>
