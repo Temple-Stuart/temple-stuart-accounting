@@ -95,8 +95,13 @@ export default function HubPage() {
     startDate: string | null; endDate: string | null; totalBudget: number; destinationPhoto: string | null;
   }>>([]);
   
-  const [yearBudget, setYearBudget] = useState<Record<number, Record<string, number>>>({});
-  const [yearActual, setYearActual] = useState<Record<number, Record<string, number>>>({});
+  const [homebaseBudget, setHomebaseBudget] = useState<{
+    budgetData: Record<string, Record<number, number>>;
+    actualData: Record<string, Record<number, number>>;
+    coaNames: Record<string, string>;
+    budgetGrandTotal: number;
+    actualGrandTotal: number;
+  }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
   const [travelMonths, setTravelMonths] = useState<number[]>([]);
   const [nomadBudget, setNomadBudget] = useState<{ 
     budgetData: Record<string, Record<number, number>>; 
@@ -144,8 +149,13 @@ export default function HubPage() {
       const res = await fetch(`/api/hub/year-calendar?year=${selectedYear}`);
       if (res.ok) {
         const data = await res.json();
-        setYearBudget(data.budgetData || data.monthlyData || {});
-        setYearActual(data.actualData || {});
+        setHomebaseBudget({
+          budgetData: data.budgetData || {},
+          actualData: data.actualData || {},
+          coaNames: data.coaNames || {},
+          budgetGrandTotal: data.budgetGrandTotal || 0,
+          actualGrandTotal: data.actualGrandTotal || 0
+        });
       }
     } catch (err) { console.error("Failed to load year calendar:", err); }
   };
@@ -223,29 +233,19 @@ export default function HubPage() {
 
   // Calculator logic
   const homeMonths = MONTHS.map((_, i) => i).filter(i => !travelMonths.includes(i));
-  const travelMonthsHomebaseBudget = travelMonths.reduce((sum, i) => sum + (yearBudget[i]?.total || 0), 0);
+  const travelMonthsHomebaseBudget = travelMonths.reduce((sum, i) => sum + Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
   const travelMonthsTravelBudget = travelMonths.reduce((sum, i) => sum + Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
   const travelSavings = travelMonthsHomebaseBudget - travelMonthsTravelBudget;
-  const homeMonthsHomebaseBudget = homeMonths.reduce((sum, i) => sum + (yearBudget[i]?.total || 0), 0);
+  const homeMonthsHomebaseBudget = homeMonths.reduce((sum, i) => sum + Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
   const homeMonthsTravelBudget = homeMonths.reduce((sum, i) => sum + Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0), 0);
   const homeMonthsCombined = homeMonthsHomebaseBudget + homeMonthsTravelBudget;
-  const yearlyHomebaseBudget = Object.values(yearBudget).reduce((sum, m) => sum + (m.total || 0), 0);
-  const yearlyHomebaseActual = Object.values(yearActual).reduce((sum, m) => sum + (m.total || 0), 0);
+  const yearlyHomebaseBudget = homebaseBudget.budgetGrandTotal;
+  const yearlyHomebaseActual = homebaseBudget.actualGrandTotal;
   const yearlyTravelBudget = nomadBudget.budgetGrandTotal;
   const yearlyTravelActual = nomadBudget.actualGrandTotal;
   const yearlyBusinessBudget = businessBudget.budgetGrandTotal;
   const yearlyBusinessActual = businessBudget.actualGrandTotal;
   const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget + yearlyBusinessBudget;
-
-  // Category name mapping for homebase
-  const CATEGORY_NAMES: Record<string, string> = {
-    home: 'Housing & Utilities',
-    auto: 'Transportation',
-    shopping: 'Shopping & Retail',
-    personal: 'Personal & Lifestyle',
-    health: 'Health & Fitness',
-    growth: 'Education & Growth',
-  };
 
   return (
     <AppLayout>
@@ -454,7 +454,7 @@ export default function HubPage() {
                   <tr className="border-b border-border bg-white hover:bg-brand-purple-wash/30">
                     <td className="py-2 px-3 font-medium text-text-primary border-r border-border">Homebase</td>
                     {MONTHS_SHORT.map((_, i) => {
-                      const val = yearBudget[i]?.total || 0;
+                      const val = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const isTraveling = travelMonths.includes(i);
                       return (
                         <td key={i} className={`py-2 px-2 text-right font-mono border-r border-border-light ${isTraveling ? 'bg-bg-row' : ''}`}>
@@ -485,7 +485,7 @@ export default function HubPage() {
                   <tr className="bg-brand-purple text-white font-semibold">
                     <td className="py-2 px-3 border-r border-brand-purple-hover">Monthly Total</td>
                     {MONTHS_SHORT.map((_, i) => {
-                      const homebase = yearBudget[i]?.total || 0;
+                      const homebase = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const business = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const travel = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const isTraveling = travelMonths.includes(i);
@@ -536,36 +536,31 @@ export default function HubPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(SOURCE_CONFIG).filter(([s]) => s !== 'trip').map(([source, config], idx) => {
-                    const budgetTotal = Object.values(yearBudget).reduce((sum, m) => sum + (m[source] || 0), 0);
-                    const actualTotal = Object.values(yearActual).reduce((sum, m) => sum + (m[source] || 0), 0);
+                  {Object.entries(homebaseBudget.coaNames).map(([code, name], idx) => {
+                    const budgetRow = homebaseBudget.budgetData[code] || {};
+                    const actualRow = homebaseBudget.actualData[code] || {};
+                    const budgetTotal = Object.values(budgetRow).reduce((s, v) => s + v, 0);
+                    const actualTotal = Object.values(actualRow).reduce((s, v) => s + v, 0);
+                    if (budgetTotal === 0 && actualTotal === 0) return null;
                     return (
-                      <Fragment key={source}>
+                      <Fragment key={code}>
                         <tr className={`hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
                           <td rowSpan={2} className="py-1.5 px-3 border-r border-border align-top">
-                            <div className="font-medium text-text-primary">{CATEGORY_NAMES[source] || source}</div>
-                            <div className="text-[10px] text-text-faint font-mono uppercase">{source}</div>
+                            <div className="font-medium text-text-primary">{name}</div>
+                            <div className="text-[10px] text-text-faint font-mono">{code}</div>
                           </td>
                           <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">BUD</td>
-                          {MONTHS_SHORT.map((_, i) => (
-                            <td key={i} className="py-1.5 px-2 text-right font-mono text-text-secondary border-r border-border-light">{fmt(yearBudget[i]?.[source] || 0)}</td>
-                          ))}
+                          {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-1.5 px-2 text-right font-mono text-text-secondary border-r border-border-light">{fmt(budgetRow[i] || 0)}</td>))}
                           <td className="py-1.5 px-3 text-right font-mono font-semibold text-text-primary bg-bg-row/50">{fmt(budgetTotal)}</td>
                         </tr>
                         <tr className={`border-b border-border hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
                           <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">ACT</td>
                           {MONTHS_SHORT.map((_, i) => {
-                            const bud = yearBudget[i]?.[source] || 0;
-                            const act = yearActual[i]?.[source] || 0;
-                            return (
-                              <td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>
-                                {fmt(act)}
-                              </td>
-                            );
+                            const bud = budgetRow[i] || 0;
+                            const act = actualRow[i] || 0;
+                            return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                           })}
-                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>
-                            {fmt(actualTotal)}
-                          </td>
+                          <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                         </tr>
                       </Fragment>
                     );
@@ -575,16 +570,19 @@ export default function HubPage() {
                   <tr className="bg-brand-purple text-white font-semibold">
                     <td className="py-2 px-3 border-r border-brand-purple-hover">Total</td>
                     <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">BUD</td>
-                    {MONTHS_SHORT.map((_, i) => (<td key={i} className="py-2 px-2 text-right font-mono border-r border-brand-purple-hover">{fmt(yearBudget[i]?.total || 0)}</td>))}
+                    {MONTHS_SHORT.map((_, i) => {
+                      const monthTotal = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (<td key={i} className="py-2 px-2 text-right font-mono border-r border-brand-purple-hover">{fmt(monthTotal)}</td>);
+                    })}
                     <td className="py-2 px-3 text-right font-mono bg-panel-highlight">{fmt(yearlyHomebaseBudget)}</td>
                   </tr>
                   <tr className="bg-brand-purple-hover text-white">
                     <td className="py-2 px-3 border-r border-brand-purple-hover"></td>
                     <td className="py-2 px-2 text-[10px] border-r border-brand-purple-hover text-center">ACT</td>
                     {MONTHS_SHORT.map((_, i) => {
-                      const bud = yearBudget[i]?.total || 0;
-                      const act = yearActual[i]?.total || 0;
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${act > 0 && act > bud ? 'text-red-300' : act > 0 ? 'text-emerald-300' : ''}`}>{fmt(act)}</td>);
+                      const budMonth = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      const actMonth = Object.values(homebaseBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
+                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                     })}
                     <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
                   </tr>
@@ -624,7 +622,7 @@ export default function HubPage() {
                       <Fragment key={code}>
                         <tr className={`hover:bg-brand-purple-wash/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-row/50'}`}>
                           <td rowSpan={2} className="py-1.5 px-3 border-r border-border align-top">
-                            <div className="font-medium text-text-primary">{name.replace(/^[^\w]+/, '')}</div>
+                            <div className="font-medium text-text-primary">{name}</div>
                             <div className="text-[10px] text-text-faint font-mono">{code}</div>
                           </td>
                           <td className="py-1.5 px-2 text-[10px] text-text-muted border-r border-border text-center font-medium">BUD</td>
