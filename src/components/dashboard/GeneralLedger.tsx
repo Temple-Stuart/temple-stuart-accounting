@@ -56,12 +56,14 @@ type SortDir = 'asc' | 'desc';
 
 const ROW_HEIGHT = 30;
 
-const fmtMoney = (n: number): string =>
-  '$' +
-  Math.abs(n).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const fmtMoney = (n: number): string => {
+  const sign = n < 0 ? '-' : '';
+  return sign + '$' +
+    Math.abs(n).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+};
 
 const fmtDate = (iso: string): string => {
   const d = new Date(iso);
