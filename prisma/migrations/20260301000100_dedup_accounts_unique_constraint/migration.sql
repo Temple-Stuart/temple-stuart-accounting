@@ -1,0 +1,21 @@
+-- PREREQUISITE: Before running this migration, remove duplicate accounts.
+--
+-- Identify duplicates:
+--   SELECT id, "accountId", mask, "entityType", "currentBalance", "createdAt"
+--   FROM accounts
+--   WHERE "userId" = 'cmfi3rcrl0000zcj0ajbj4za5' AND mask = '7948'
+--   ORDER BY "createdAt";
+--
+-- The OLDER record (earlier createdAt, has entityType set) is the keeper.
+-- The NEWER record (UNASSIGNED entityType) is the duplicate to delete.
+--
+-- Before deleting, check for linked transactions:
+--   SELECT COUNT(*) FROM transactions WHERE "accountId" = '<duplicate_id>';
+--   If > 0, reassign: UPDATE transactions SET "accountId" = '<keeper_id>' WHERE "accountId" = '<duplicate_id>';
+--
+-- Then delete the duplicate:
+--   DELETE FROM accounts WHERE id = '<duplicate_id>';
+
+-- Add composite unique constraint: one Plaid account per user
+-- (accountId already has @unique globally; this adds user-scoping as a safety net)
+CREATE UNIQUE INDEX "accounts_userId_accountId_key" ON "accounts"("userId", "accountId");

@@ -75,8 +75,41 @@ export async function POST(request: Request) {
     });
 
     for (const account of accountsResponse.data.accounts) {
+      // Dedup: check if this account already exists
+      // Check 1: exact Plaid account_id match (same link)
+      let existing = await prisma.accounts.findUnique({
+        where: { accountId: account.account_id }
+      });
+
+      // Check 2: same user + mask + type (re-link scenario where Plaid
+      // issues a new account_id for the same physical account)
+      if (!existing && account.mask) {
+        existing = await prisma.accounts.findFirst({
+          where: {
+            userId: user.id,
+            mask: account.mask,
+            type: account.type,
+          }
+        });
+      }
+
+      if (existing) {
+        // Update existing account: refresh balance, re-link to new Plaid item
+        await prisma.accounts.update({
+          where: { id: existing.id },
+          data: {
+            accountId: account.account_id,
+            plaidItemId: plaidItemId,
+            currentBalance: account.balances.current || 0,
+            availableBalance: account.balances.available || account.balances.current || 0,
+            updatedAt: new Date(),
+          }
+        });
+        continue;
+      }
+
       const accountId = `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       await prisma.accounts.create({
         data: {
           id: accountId,

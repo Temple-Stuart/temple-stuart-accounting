@@ -51,6 +51,8 @@ model accounts {
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
   transactions            transactions[]
+
+  @@unique([userId, accountId])
 }
 
 // ═══════════════════════════════════════════════════════════════════
