@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Button, Badge } from '@/components/ui';
+import { Button } from '@/components/ui';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -975,132 +975,6 @@ function VirtualTable({
   );
 }
 
-// ─── Merchant Group Table ────────────────────────────────────────────────────
-
-function MerchantGroupTable({
-  rows,
-  coaOptions,
-  coaGroupedByEntity,
-  selected,
-  setSelected,
-  rowChanges,
-  setRowChanges,
-  coaLookup,
-}: {
-  rows: SpendingTransaction[];
-  coaOptions: CoaOption[];
-  coaGroupedByEntity: Record<string, CoaOption[]>;
-  selected: Set<string>;
-  setSelected: (fn: (prev: Set<string>) => Set<string>) => void;
-  rowChanges: Record<string, { coa: string; sub: string }>;
-  setRowChanges: React.Dispatch<React.SetStateAction<Record<string, { coa: string; sub: string }>>>;
-  coaLookup: Map<string, CoaOption>;
-}) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
-  const groups = useMemo(() => {
-    const map = new Map<string, SpendingTransaction[]>();
-    rows.forEach(r => {
-      const key = r.merchantName || r.name;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length);
-  }, [rows]);
-
-  const toggleGroup = (merchant: string) => {
-    setCollapsed(prev => {
-      const next = new Set(prev);
-      if (next.has(merchant)) next.delete(merchant); else next.add(merchant);
-      return next;
-    });
-  };
-
-  const selectGroup = (txns: SpendingTransaction[], allSelected: boolean) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      txns.forEach(t => allSelected ? next.delete(t.id) : next.add(t.id));
-      return next;
-    });
-  };
-
-  return (
-    <div className="overflow-auto" style={{ maxHeight: '600px' }}>
-      <table className="w-full text-xs border-collapse min-w-[1000px]">
-        <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
-          <tr>
-            <th className="px-2 py-1 w-10"></th>
-            <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest">Merchant</th>
-            <th className="px-2 py-1 text-right text-terminal-xs font-semibold font-mono uppercase tracking-widest w-16">Count</th>
-            <th className="px-2 py-1 text-right text-terminal-xs font-semibold font-mono uppercase tracking-widest w-28">Total</th>
-            <th className="px-2 py-1 text-left text-terminal-xs font-semibold font-mono uppercase tracking-widest min-w-[180px]">Batch COA</th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map(([merchant, txns]) => {
-            const allSel = txns.every(t => selected.has(t.id));
-            const isCollapsed = collapsed.has(merchant);
-            const total = txns.reduce((s, t) => s + Math.abs(t.amount), 0);
-
-            return (
-              <Fragment key={merchant}>
-                <tr className="bg-bg-row border-b border-border-light hover:bg-border cursor-pointer" onClick={() => toggleGroup(merchant)}>
-                  <td className="px-2 py-1" onClick={e => { e.stopPropagation(); selectGroup(txns, allSel); }}>
-                    <input type="checkbox" checked={allSel} onChange={() => selectGroup(txns, allSel)} className="w-3 h-3 rounded" />
-                  </td>
-                  <td className="px-2 py-1 font-medium text-terminal-base">
-                    <span className="text-[8px] text-text-faint mr-1">{isCollapsed ? '▶' : '▼'}</span>
-                    {merchant}
-                  </td>
-                  <td className="px-2 py-1 text-right font-mono text-text-muted text-terminal-base">{txns.length}</td>
-                  <td className="px-2 py-1 text-right font-mono font-semibold text-terminal-base">{formatMoney(total)}</td>
-                  <td className="px-2 py-1" onClick={e => e.stopPropagation()}>
-                    {/* placeholder for group-level COA if needed */}
-                  </td>
-                </tr>
-                {!isCollapsed && txns.map((txn, i) => (
-                  <tr key={txn.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-bg-row'} hover:bg-brand-purple-deep/[.05] border-b border-border-light`}>
-                    <td className="px-2 py-1 pl-6">
-                      <input type="checkbox" checked={selected.has(txn.id)} onChange={() => setSelected(prev => {
-                        const next = new Set(prev);
-                        if (next.has(txn.id)) next.delete(txn.id); else next.add(txn.id);
-                        return next;
-                      })} className="w-3 h-3 rounded" />
-                    </td>
-                    <td className="px-2 py-1 text-text-secondary text-terminal-sm" colSpan={1}>
-                      <span className="font-mono text-text-faint mr-2">{formatDate(txn.date)}</span>
-                      {txn.name}
-                    </td>
-                    <td className="px-2 py-1 text-right font-mono text-text-muted text-terminal-sm">{txn.personal_finance_category?.primary || ''}</td>
-                    <td className="px-2 py-1 text-right font-mono text-terminal-base">
-                      <span className={txn.amount > 0 ? 'text-brand-red' : 'text-brand-green'}>
-                        {formatMoney(txn.amount)}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1">
-                      <select
-                        value={rowChanges[txn.id]?.coa || ''}
-                        onChange={e => setRowChanges(prev => ({ ...prev, [txn.id]: { ...(prev[txn.id] || { coa: '', sub: '' }), coa: e.target.value } }))}
-                        className="w-full text-terminal-sm font-mono border border-border rounded px-1 py-0.5 bg-white"
-                      >
-                        <option value="">Select...</option>
-                        {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
-                          <optgroup key={entity} label={entity || 'General'}>
-                            {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 
@@ -1126,13 +1000,11 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
   const [rowChanges, setRowChanges] = useState<Record<string, { coa: string; sub: string }>>({});
   const [batchCoa, setBatchCoa] = useState('');
   const [batchSub, setBatchSub] = useState('');
-  const [viewMode, setViewMode] = useState<'flat' | 'merchant'>('flat');
   const [showCreateCoa, setShowCreateCoa] = useState(false);
   const [localCoaOptions, setLocalCoaOptions] = useState<CoaOption[]>(coaOptions);
   const [committing, setCommitting] = useState(false);
   const [uncommitting, setUncommitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [activeTable, setActiveTable] = useState<'pending' | 'committed'>('pending');
   const [pendingColFilters, setPendingColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
   const [committedColFilters, setCommittedColFilters] = useState<ColumnFilters>(EMPTY_COL_FILTERS);
@@ -1355,161 +1227,41 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
 
   return (
     <div className="space-y-2">
-      {/* Stats Row */}
-      <div className="flex items-center justify-between flex-wrap gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <Badge variant="warning">{transactions.length} pending</Badge>
-          <Badge variant="success">{committedTransactions.length} committed</Badge>
-          {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && activeTable === 'pending' && (
-            <Badge variant="info">Showing {pendingRows.length} of {transactions.length}</Badge>
-          )}
-          {(hasActiveFilters(committedFilters) || hasCommittedColFilters) && activeTable === 'committed' && (
-            <Badge variant="info">Showing {committedRows.length} of {committedTransactions.length}</Badge>
-          )}
-          {hasPendingColFilters && activeTable === 'pending' && (
-            <Badge variant="warning">{pendingColFilterCount} col filter{pendingColFilterCount !== 1 ? 's' : ''}</Badge>
-          )}
-          {hasCommittedColFilters && activeTable === 'committed' && (
-            <Badge variant="warning">{committedColFilterCount} col filter{committedColFilterCount !== 1 ? 's' : ''}</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5">
-          {rowsWithCoa > 0 && (
-            <Button size="sm" loading={committing} onClick={handleRowCommit}>
-              Commit {rowsWithCoa} Row{rowsWithCoa !== 1 ? 's' : ''}
-            </Button>
-          )}
-          <button
-            onClick={() => setViewMode(viewMode === 'flat' ? 'merchant' : 'flat')}
-            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${viewMode === 'merchant' ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'}`}
-          >
-            {viewMode === 'flat' ? 'Group by Merchant' : 'Flat View'}
-          </button>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`px-2 py-1 text-terminal-sm font-mono border rounded transition-colors ${showFilters ? 'bg-brand-purple-deep text-white border-brand-purple-deep' : 'bg-white hover:border-border'}`}
-          >
-            Filters
-          </button>
-        </div>
+      {/* Compact Filter Bar — always visible */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="text"
+          placeholder="Search..."
+          value={activeTable === 'pending' ? pendingFilters.search : committedFilters.search}
+          onChange={e => activeTable === 'pending'
+            ? setPendingFilters(prev => ({ ...prev, search: e.target.value }))
+            : setCommittedFilters(prev => ({ ...prev, search: e.target.value }))}
+          className="flex-1 min-w-[120px] max-w-[200px] h-7 px-2 text-terminal-sm font-mono border border-border rounded bg-white focus:border-brand-purple-deep outline-none"
+        />
+        <input type="date" value={pendingFilters.dateFrom} onChange={e => setPendingFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+          className="h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
+        <span className="text-terminal-xs text-text-faint">{'\u2192'}</span>
+        <input type="date" value={pendingFilters.dateTo} onChange={e => setPendingFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+          className="h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
+        <input type="number" placeholder="Min $" value={pendingFilters.amountMin} onChange={e => setPendingFilters(prev => ({ ...prev, amountMin: e.target.value }))}
+          className="w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
+        <span className="text-terminal-xs text-text-faint">-</span>
+        <input type="number" placeholder="Max $" value={pendingFilters.amountMax} onChange={e => setPendingFilters(prev => ({ ...prev, amountMax: e.target.value }))}
+          className="w-16 h-7 px-1.5 text-terminal-sm font-mono border border-border rounded bg-white" />
+        <MultiSelectFilter label="Merchant" options={pendingMerchants} selected={pendingFilters.merchants}
+          onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'merchants', val)} />
+        <MultiSelectFilter label="Account" options={pendingAccounts} selected={pendingFilters.accounts}
+          onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'accounts', val)} />
+        {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && (
+          <button onClick={() => { setPendingFilters(EMPTY_FILTERS); setPendingColFilters(EMPTY_COL_FILTERS); }}
+            className="text-terminal-sm text-brand-red hover:underline font-mono">Clear</button>
+        )}
+        {rowsWithCoa > 0 && (
+          <Button size="sm" loading={committing} onClick={handleRowCommit} className="ml-auto">
+            Commit {rowsWithCoa} Row{rowsWithCoa !== 1 ? 's' : ''}
+          </Button>
+        )}
       </div>
-
-      {/* Filter Bar */}
-      {showFilters && (
-        <div className="p-2 bg-bg-terminal border border-border rounded space-y-2">
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {/* Search */}
-            <input
-              type="text"
-              placeholder="Search name, merchant, category..."
-              value={pendingFilters.search}
-              onChange={e => setPendingFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="flex-1 min-w-[200px] px-2 py-1 text-terminal-base font-mono border rounded bg-white focus:border-brand-purple-deep focus:ring-1 focus:ring-brand-purple-deep outline-none"
-            />
-            {/* Multi-selects */}
-            <MultiSelectFilter
-              label="Merchant"
-              options={pendingMerchants}
-              selected={pendingFilters.merchants}
-              onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'merchants', val)}
-            />
-            <MultiSelectFilter
-              label="Account"
-              options={pendingAccounts}
-              selected={pendingFilters.accounts}
-              onToggle={val => toggleFilter(pendingFilters, setPendingFilters, 'accounts', val)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-[10px] text-text-muted uppercase font-semibold">Date:</span>
-            <input
-              type="date"
-              value={pendingFilters.dateFrom}
-              onChange={e => setPendingFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-              className="px-2 py-1 text-xs border rounded bg-white"
-            />
-            <span className="text-xs text-text-faint">to</span>
-            <input
-              type="date"
-              value={pendingFilters.dateTo}
-              onChange={e => setPendingFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-              className="px-2 py-1 text-xs border rounded bg-white"
-            />
-            <span className="text-[10px] text-text-muted uppercase font-semibold ml-2">Amount:</span>
-            <input
-              type="number"
-              placeholder="Min"
-              value={pendingFilters.amountMin}
-              onChange={e => setPendingFilters(prev => ({ ...prev, amountMin: e.target.value }))}
-              className="w-20 px-2 py-1 text-xs border rounded bg-white"
-            />
-            <span className="text-xs text-text-faint">-</span>
-            <input
-              type="number"
-              placeholder="Max"
-              value={pendingFilters.amountMax}
-              onChange={e => setPendingFilters(prev => ({ ...prev, amountMax: e.target.value }))}
-              className="w-20 px-2 py-1 text-xs border rounded bg-white"
-            />
-            {hasActiveFilters(pendingFilters) && (
-              <button
-                onClick={() => setPendingFilters(EMPTY_FILTERS)}
-                className="ml-auto text-xs text-brand-red hover:text-brand-red"
-              >
-                Clear All
-              </button>
-            )}
-          </div>
-
-          {/* Active filter pills */}
-          {(hasActiveFilters(pendingFilters) || hasPendingColFilters) && (
-            <div className="flex flex-wrap gap-1.5">
-              {pendingFilters.search && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-purple-deep/10 text-brand-purple-deep rounded-full text-[10px]">
-                  Search: &quot;{pendingFilters.search}&quot;
-                  <button onClick={() => removeFilterPill('search')} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              )}
-              {pendingFilters.merchants.map(m => (
-                <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-purple-wash text-brand-purple rounded-full text-[10px]">
-                  {m.slice(0, 20)}
-                  <button onClick={() => removeFilterPill('merchants', m)} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              ))}
-              {pendingFilters.accounts.map(a => (
-                <span key={a} className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-brand-green rounded-full text-[10px]">
-                  {a}
-                  <button onClick={() => removeFilterPill('accounts', a)} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              ))}
-              {pendingFilters.dateFrom && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-bg-row text-text-secondary rounded-full text-[10px]">
-                  From: {pendingFilters.dateFrom}
-                  <button onClick={() => removeFilterPill('dateFrom')} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              )}
-              {pendingFilters.dateTo && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-bg-row text-text-secondary rounded-full text-[10px]">
-                  To: {pendingFilters.dateTo}
-                  <button onClick={() => removeFilterPill('dateTo')} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              )}
-              {/* Column filter pills */}
-              {(Object.entries(pendingColFilters) as [SortField, ColumnFilterValue][]).map(([field, filter]) => filter && (
-                <span key={`col-${field}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px]">
-                  {columnFilterLabel(field)}: {columnFilterSummary(filter)}
-                  <button onClick={() => handlePendingColFilter(field, undefined)} className="hover:text-brand-red">{'\u00D7'}</button>
-                </span>
-              ))}
-              {hasPendingColFilters && (
-                <button onClick={() => setPendingColFilters(EMPTY_COL_FILTERS)} className="text-[10px] text-amber-700 hover:text-brand-red underline">
-                  Clear column filters
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Table Tabs */}
       <div className="flex border-b border-border">
@@ -1552,7 +1304,7 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
                 </>
               )}
             </div>
-          ) : viewMode === 'flat' ? (
+          ) : (
             <VirtualTable
               rows={pendingRows}
               coaOptions={localCoaOptions}
@@ -1569,17 +1321,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               allTransactions={transactions}
               columnFilters={pendingColFilters}
               onApplyColumnFilter={handlePendingColFilter}
-            />
-          ) : (
-            <MerchantGroupTable
-              rows={pendingRows}
-              coaOptions={localCoaOptions}
-              coaGroupedByEntity={coaGroupedByEntity}
-              selected={selectedPending}
-              setSelected={setSelectedPending}
-              rowChanges={rowChanges}
-              setRowChanges={setRowChanges}
-              coaLookup={coaLookup}
             />
           )}
         </>

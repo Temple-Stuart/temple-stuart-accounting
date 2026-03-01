@@ -5,15 +5,41 @@ import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
+export interface LedgerMetrics {
+  balance: number;
+  expYtd: number;
+  revYtd: number;
+  net: number;
+  bizExpYtd: number;
+  persExpYtd: number;
+  bizPercent: number;
+  committed: number;
+  total: number;
+  donePercent: number;
+  currentMonth: number;
+  priorMonth: number;
+  momChange: number;
+  deductible: number;
+}
+
+export interface EngineMetrics {
+  totalEstimatedTax: number;
+  quarterlyDue: number;
+  effectiveRate: number;
+  totalDeductions: number;
+  selfEmploymentTax: number;
+  federalIncomeTax: number;
+  stateTax: number;
+  safeHarborPercent: number;
+  remainingDue: number;
+  brackets?: { rate: number; taxableInRange: number; tax: number }[];
+}
+
 export interface AppLayoutProps {
   children: React.ReactNode;
-  metrics?: {
-    balance?: number;
-    pending?: number;
-    revenue?: number;
-    expenses?: number;
-    committed?: number;
-  };
+  ledgerMetrics?: LedgerMetrics | null;
+  engineMetrics?: EngineMetrics | null;
+  onOpenTaxSettings?: () => void;
 }
 
 interface CookieUser {
@@ -46,14 +72,26 @@ const BUDGETING_PREFIXES = BUDGETING_ITEMS.map(i => i.href);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtMetric(n: number | undefined): string {
+function fmtDollars(cents: number | undefined): string {
+  if (cents == null) return '\u2014';
+  const dollars = Math.abs(cents) / 100;
+  return '$' + dollars.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtPct(n: number | undefined): string {
   if (n == null) return '\u2014';
-  return Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return n.toFixed(1) + '%';
+}
+
+function fmtMom(n: number | undefined): string {
+  if (n == null || n === 0) return '\u2014';
+  const prefix = n < 0 ? '\u25BC' : '\u25B2';
+  return prefix + Math.abs(n) + '%';
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppLayout({ children, metrics }: AppLayoutProps) {
+export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -256,45 +294,75 @@ export default function AppLayout({ children, metrics }: AppLayoutProps) {
           </div>
         </div>
 
-        {/* ROW 2 — Metrics Bar (20px) */}
-        {metrics && (
+        {/* ROW 2 — LEDGER (facts from /api/metrics) */}
+        {ledgerMetrics && (
           <div className="bg-brand-purple border-t border-white/[.05]" style={{ height: 20 }}>
             <div className="max-w-[1800px] mx-auto flex items-center h-full px-3 text-[9px] font-mono">
-              {/* Left: Key metrics */}
-              <div className="flex items-center gap-0">
-                <span className="text-white/40 mr-1">BAL</span>
-                <span className="text-brand-gold-bright font-semibold">${fmtMetric(metrics.balance)}</span>
+              <span className="text-white/25 uppercase tracking-wider text-[7px] mr-2">LEDGER</span>
 
-                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+              <span className="text-white/40 mr-1">BAL</span>
+              <span className={`font-semibold ${ledgerMetrics.balance >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.balance)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="text-white/40 mr-1">PEND</span>
-                <span className="text-brand-amber font-medium">{fmtMetric(metrics.pending)}</span>
+              <span className="text-white/40 mr-1">EXP</span>
+              <span className="text-brand-red font-medium">{fmtDollars(ledgerMetrics.expYtd)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+              <span className="text-white/40 mr-1">REV</span>
+              <span className="text-brand-green font-medium">{fmtDollars(ledgerMetrics.revYtd)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="text-white/40 mr-1">REV</span>
-                <span className="text-brand-green font-medium">${fmtMetric(metrics.revenue)}</span>
+              <span className="text-white/40 mr-1">NET</span>
+              <span className={`font-semibold ${ledgerMetrics.net >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtDollars(ledgerMetrics.net)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+              <span className="text-white/40 mr-1">BIZ</span>
+              <span className="text-brand-purple-light font-medium">{fmtPct(ledgerMetrics.bizPercent)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="text-white/40 mr-1">EXP</span>
-                <span className="text-brand-red font-medium">${fmtMetric(metrics.expenses)}</span>
+              <span className="text-white/40 mr-1">DONE</span>
+              <span className={`font-medium ${ledgerMetrics.donePercent > 80 ? 'text-brand-green' : ledgerMetrics.donePercent < 50 ? 'text-brand-gold' : 'text-brand-amber'}`}>{fmtPct(ledgerMetrics.donePercent)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
 
-                <span className="mx-2 w-px h-2.5 bg-white/[.07]" />
+              <span className="text-white/40 mr-1">{'\u0394'}</span>
+              <span className={`font-medium ${ledgerMetrics.momChange <= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtMom(ledgerMetrics.momChange)}</span>
+            </div>
+          </div>
+        )}
 
-                <span className="text-white/40 mr-1">COM</span>
-                <span className="text-brand-gold font-medium">{fmtMetric(metrics.committed)}</span>
-              </div>
+        {/* ROW 3 — ENGINE (estimates from /api/tax-estimate) */}
+        {engineMetrics && (
+          <div className="bg-brand-purple/80 border-t border-white/[.03]" style={{ height: 20 }}>
+            <div className="max-w-[1800px] mx-auto flex items-center h-full px-3 text-[9px] font-mono">
+              <span className="text-white/25 uppercase tracking-wider text-[7px] mr-2">ENGINE</span>
 
-              {/* Right: Equation */}
-              <div className="ml-auto hidden sm:flex items-center gap-1 text-white/30">
-                <span>A</span>
-                <span className="text-white/20">=</span>
-                <span>L</span>
-                <span className="text-white/20">+</span>
-                <span>E</span>
-                <span className="ml-1.5 px-1 py-px bg-white/[.06] text-white/50 text-[8px]">BAL</span>
-              </div>
+              <span className="text-white/40 mr-1">EST TAX</span>
+              <span className="text-brand-amber font-semibold">{fmtDollars(engineMetrics.totalEstimatedTax)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
+
+              <span className="text-white/40 mr-1">Q DUE</span>
+              <span className="text-brand-amber font-medium">{fmtDollars(engineMetrics.quarterlyDue)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
+
+              <span className="text-white/40 mr-1">EFF</span>
+              <span className="text-white/70 font-medium">{fmtPct(engineMetrics.effectiveRate)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
+
+              <span className="text-white/40 mr-1">DEDUCT</span>
+              <span className="text-brand-green font-medium">{fmtDollars(engineMetrics.totalDeductions)}</span>
+              <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
+
+              <span className="text-white/40 mr-1">SAFE</span>
+              <span className={`font-medium ${engineMetrics.safeHarborPercent >= 100 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtPct(engineMetrics.safeHarborPercent)}</span>
+
+              {onOpenTaxSettings && (
+                <>
+                  <span className="mx-1.5 w-px h-2.5 bg-white/[.07]" />
+                  <button onClick={onOpenTaxSettings} className="text-white/40 hover:text-white transition-colors" title="Tax Settings">{'\u2699'}</button>
+                </>
+              )}
+
+              <span className="ml-auto text-white/20 text-[7px] uppercase tracking-wider">ESTIMATE</span>
             </div>
           </div>
         )}

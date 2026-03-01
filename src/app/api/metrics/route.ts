@@ -10,98 +10,162 @@ export async function GET() {
     }
 
     const user = await prisma.users.findFirst({
-      where: { email: { equals: userEmail, mode: 'insensitive' } }
+      where: { email: { equals: userEmail, mode: 'insensitive' } },
     });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const accounts = await prisma.chart_of_accounts.findMany({
-      where: { userId: user.id, is_archived: false }
-    });
+    const userId = user.id;
 
-    let revenue = 0, expenses = 0, assets = 0, liabilities = 0, equity = 0;
-    let cashAssets = 0, currentAssets = 0;
+    // 1. BALANCE — Sum of all connected account balances (currentBalance is dollars, convert to cents)
+    const balanceRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM("currentBalance")::numeric, 0) as total_balance
+      FROM accounts
+      WHERE "userId" = ${userId}
+    `;
+    const balance = Math.round(Number(balanceRows[0]?.total_balance ?? 0) * 100);
 
-    accounts.forEach(acc => {
-      const balance = Number(acc.settled_balance) / 100;
-      const type = acc.account_type.toLowerCase();
+    // 2. EXP YTD — Total expense debits from ledger this year
+    const expRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as total_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'expense'
+        AND le.entry_type = 'D'
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM NOW())
+    `;
+    const expYtd = Number(expRows[0]?.total_cents ?? 0);
 
-      if (type === 'revenue') revenue += balance;
-      else if (type === 'expense') expenses += balance;
-      else if (type === 'asset') {
-        assets += balance;
-        if (acc.code === '1010' || acc.code === '1020' || acc.code === '1200') {
-          cashAssets += balance;
-        }
-        if (acc.code.startsWith('1')) {
-          currentAssets += balance;
-        }
-      }
-      else if (type === 'liability') liabilities += balance;
-      else if (type === 'equity') equity += balance;
-    });
+    // 3. REV YTD — Total revenue credits from ledger this year
+    const revRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as total_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'revenue'
+        AND le.entry_type = 'C'
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM NOW())
+    `;
+    const revYtd = Number(revRows[0]?.total_cents ?? 0);
 
-    const netIncome = revenue - expenses;
-    const grossProfitMargin = revenue !== 0 ? ((revenue - expenses) / revenue) * 100 : 0;
-    const netProfitMargin = revenue !== 0 ? (netIncome / revenue) * 100 : 0;
-    const returnOnAssets = assets !== 0 ? (netIncome / assets) * 100 : 0;
-    const returnOnEquity = equity !== 0 ? (netIncome / equity) * 100 : 0;
-    const currentRatio = liabilities !== 0 ? Math.abs(currentAssets / liabilities) : 0;
-    const quickRatio = liabilities !== 0 ? Math.abs(currentAssets / liabilities) : 0;
-    const cashRatio = liabilities !== 0 ? Math.abs(cashAssets / liabilities) : 0;
-    const expenseRatio = revenue !== 0 ? (expenses / revenue) * 100 : 0;
-    const assetTurnover = assets !== 0 ? revenue / assets : 0;
+    // 4. BIZ EXP — Business entity expenses only
+    const bizExpRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as total_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'expense'
+        AND le.entry_type = 'D'
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM NOW())
+        AND coa.entity_id IN (
+          SELECT id FROM entities WHERE "userId" = ${userId} AND entity_type = 'business'
+        )
+    `;
+    const bizExpYtd = Number(bizExpRows[0]?.total_cents ?? 0);
 
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    // 5. DONE — Categorization completeness
+    const doneRows: any[] = await prisma.$queryRaw`
+      SELECT
+        COUNT(*) FILTER (WHERE review_status = 'committed')::bigint as committed,
+        COUNT(*)::bigint as total
+      FROM transactions
+      WHERE "userId" = ${userId}
+    `;
+    const committed = Number(doneRows[0]?.committed ?? 0);
+    const total = Number(doneRows[0]?.total ?? 0);
 
-    const oldJournals = await prisma.journal_entries.findMany({
-      where: {
-        userId: user.id,
-        date: { lt: threeMonthsAgo },
-        status: 'posted',
-      },
-      include: {
-        ledger_entries: { include: { account: true } }
-      }
-    });
+    // 6. MONTH vs PRIOR MONTH — Current month and prior month expenses
+    const currentMonthRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as current_month_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'expense'
+        AND le.entry_type = 'D'
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM NOW())
+        AND EXTRACT(MONTH FROM je.date) = EXTRACT(MONTH FROM NOW())
+    `;
+    const currentMonth = Number(currentMonthRows[0]?.current_month_cents ?? 0);
 
-    let oldRevenue = 0, oldIncome = 0, oldAssets = 0;
-    for (const je of oldJournals) {
-      for (const le of je.ledger_entries) {
-        if (le.account.userId !== user.id) continue;
-        const amt = Number(le.amount) / 100;
-        const type = le.account.account_type.toLowerCase();
-        if (type === 'revenue') oldRevenue += amt;
-        else if (type === 'expense') oldIncome -= amt;
-        else if (type === 'asset') oldAssets += amt;
-      }
-    }
+    const priorMonthRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as prior_month_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'expense'
+        AND le.entry_type = 'D'
+        AND EXTRACT(MONTH FROM je.date) = CASE
+          WHEN EXTRACT(MONTH FROM NOW()) = 1 THEN 12
+          ELSE EXTRACT(MONTH FROM NOW()) - 1
+        END
+        AND EXTRACT(YEAR FROM je.date) = CASE
+          WHEN EXTRACT(MONTH FROM NOW()) = 1 THEN EXTRACT(YEAR FROM NOW()) - 1
+          ELSE EXTRACT(YEAR FROM NOW())
+        END
+    `;
+    const priorMonth = Number(priorMonthRows[0]?.prior_month_cents ?? 0);
 
-    const revenueGrowth = oldRevenue !== 0 ? ((revenue - oldRevenue) / Math.abs(oldRevenue)) * 100 : 0;
-    const incomeGrowth = oldIncome !== 0 ? ((netIncome - oldIncome) / Math.abs(oldIncome)) * 100 : 0;
-    const assetGrowth = oldAssets !== 0 ? ((assets - oldAssets) / Math.abs(oldAssets)) * 100 : 0;
-    const revenueMonthlyGrowth = revenueGrowth / 3;
-    const incomeMonthlyGrowth = incomeGrowth / 3;
+    // 7. DEDUCTIBLE — Business expenses mapped to tax form lines
+    const deductibleRows: any[] = await prisma.$queryRaw`
+      SELECT COALESCE(SUM(le.amount)::bigint, 0) as deductible_cents
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${userId}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND coa.account_type = 'expense'
+        AND le.entry_type = 'D'
+        AND coa.tax_form_line IS NOT NULL
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM NOW())
+    `;
+    const deductible = Number(deductibleRows[0]?.deductible_cents ?? 0);
 
-    const projections = [
-      { metric: 'Revenue', current: revenue, projected3Month: revenue * (1 + revenueMonthlyGrowth * 3 / 100), projected6Month: revenue * (1 + revenueMonthlyGrowth * 6 / 100), projected12Month: revenue * (1 + revenueMonthlyGrowth * 12 / 100), trend: revenueGrowth > 5 ? 'up' : revenueGrowth < -5 ? 'down' : 'stable' },
-      { metric: 'Net Income', current: netIncome, projected3Month: netIncome * (1 + incomeMonthlyGrowth * 3 / 100), projected6Month: netIncome * (1 + incomeMonthlyGrowth * 6 / 100), projected12Month: netIncome * (1 + incomeMonthlyGrowth * 12 / 100), trend: incomeGrowth > 5 ? 'up' : incomeGrowth < -5 ? 'down' : 'stable' },
-      { metric: 'Total Assets', current: assets, projected3Month: assets * 1.02, projected6Month: assets * 1.04, projected12Month: assets * 1.08, trend: assetGrowth > 0 ? 'up' : 'stable' }
-    ];
+    // Derived values
+    const net = revYtd - expYtd;
+    const persExpYtd = expYtd - bizExpYtd;
+    const bizPercent = expYtd > 0 ? Math.round((bizExpYtd / expYtd) * 100) : 0;
+    const donePercent = total > 0 ? Math.round((committed / total) * 100) : 0;
+    const momChange = priorMonth === 0
+      ? 0
+      : Math.round(((currentMonth - priorMonth) / priorMonth) * 100);
 
     return NextResponse.json({
-      metrics: {
-        profitability: { grossProfitMargin, netProfitMargin, returnOnAssets, returnOnEquity },
-        liquidity: { currentRatio, quickRatio, cashRatio },
-        efficiency: { expenseRatio, assetTurnover },
-        growth: { revenueGrowth, incomeGrowth, assetGrowth }
-      },
-      projections
+      balance,
+      expYtd,
+      revYtd,
+      net,
+      bizExpYtd,
+      persExpYtd,
+      bizPercent,
+      committed,
+      total,
+      donePercent,
+      currentMonth,
+      priorMonth,
+      momChange,
+      deductible,
     });
   } catch (error) {
-    console.error('Metrics error:', error);
-    return NextResponse.json({ error: 'Failed to calculate metrics' }, { status: 500 });
+    console.error('Metrics API error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
