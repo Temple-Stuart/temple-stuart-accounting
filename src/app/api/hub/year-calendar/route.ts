@@ -3,23 +3,6 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
-// COA code → homebase budget category mapping
-const CODE_TO_CATEGORY: Record<string, string> = {
-  '8100': 'home', '8110': 'home', '8120': 'home', '8200': 'home',
-  '8210': 'home', '8220': 'home', '8230': 'home', '8310': 'home',
-  '8320': 'home', '8330': 'home',
-  '6400': 'auto', '6500': 'auto', '6510': 'auto', '6520': 'auto',
-  '6530': 'auto', '6610': 'auto', '6620': 'auto', '6630': 'auto',
-  '8160': 'shopping',
-  '6100': 'personal', '6110': 'personal', '6120': 'personal', '6150': 'personal',
-  '8150': 'personal', '8170': 'personal', '8180': 'personal', '8190': 'personal',
-  '8520': 'personal', '8900': 'personal',
-  '8130': 'health', '8140': 'health', '8410': 'health', '8420': 'health', '8430': 'health',
-  '8510': 'growth', '8530': 'growth',
-};
-
-const HOMEBASE_CODES = Object.keys(CODE_TO_CATEGORY);
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -39,46 +22,79 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-
     // ═══════════════════════════════════════════════════════════════════
-    // BUDGET DATA - From calendar_events
+    // Get Personal COA expense accounts (exclude travel 7xxx codes)
     // ═══════════════════════════════════════════════════════════════════
-    const events = await prisma.$queryRaw<Array<{
-      source: string;
-      start_date: Date;
-      budget_amount: number;
-    }>>`
-      SELECT source, start_date, budget_amount
-      FROM calendar_events
-      WHERE user_id = ${user.id}
-        AND start_date >= ${startOfYear}
-        AND start_date <= ${endOfYear}
-    `;
+    const personalEntity = await prisma.entities.findFirst({
+      where: { userId: user.id, entity_type: 'personal' }
+    });
 
-    const budgetData: Record<number, Record<string, number>> = {};
-    for (let m = 0; m < 12; m++) {
-      budgetData[m] = { home: 0, auto: 0, shopping: 0, personal: 0, health: 0, growth: 0, trip: 0, total: 0 };
+    const personalAccounts = personalEntity
+      ? await prisma.chart_of_accounts.findMany({
+          where: {
+            userId: user.id,
+            entity_id: personalEntity.id,
+            account_type: 'expense',
+            is_archived: false,
+          },
+          select: { code: true, name: true }
+        })
+      : [];
+
+    // Exclude travel codes (7xxx) — handled by nomad-budget API
+    const homebaseAccounts = personalAccounts.filter(acc => !acc.code.startsWith('7'));
+
+    // Build COA name mapping dynamically from database
+    const COA_NAMES: Record<string, string> = {};
+    homebaseAccounts.forEach(acc => {
+      COA_NAMES[acc.code] = acc.name;
+    });
+
+    // If no homebase accounts exist yet, return empty data
+    if (Object.keys(COA_NAMES).length === 0) {
+      return NextResponse.json({
+        year,
+        budgetData: {},
+        actualData: {},
+        coaNames: {},
+        budgetGrandTotal: 0,
+        actualGrandTotal: 0
+      });
     }
 
-    for (const event of events) {
-      const month = new Date(event.start_date).getMonth();
-      const amount = Number(event.budget_amount || 0);
-      const source = event.source || 'personal';
+    // ═══════════════════════════════════════════════════════════════════
+    // BUDGET DATA - From budget_line_items (homebase source)
+    // ═══════════════════════════════════════════════════════════════════
+    const items = await prisma.budget_line_items.findMany({
+      where: {
+        userId: user.id,
+        year: year,
+        source: 'homebase'
+      }
+    });
 
-      if (budgetData[month][source] !== undefined) {
-        budgetData[month][source] += amount;
+    // Aggregate budget by COA and month
+    const budgetData: Record<string, Record<number, number>> = {};
+    let budgetGrandTotal = 0;
+
+    for (const item of items) {
+      const coa = item.coaCode || 'UNCATEGORIZED';
+      const month = item.month - 1; // 0-indexed
+      const amount = Number(item.amount || 0);
+
+      if (!budgetData[coa]) {
+        budgetData[coa] = {};
       }
-      if (source !== 'trip') {
-        budgetData[month].total += amount;
-      }
+      budgetData[coa][month] = (budgetData[coa][month] || 0) + amount;
+      budgetGrandTotal += amount;
     }
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From ledger_entries (single source of truth)
     // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
+    const homebaseCodes = Object.keys(COA_NAMES);
+
     const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
       SELECT
         coa.code,
@@ -94,38 +110,35 @@ export async function GET(request: Request) {
         AND EXTRACT(YEAR FROM je.date) = ${year}
         AND e.entity_type = 'personal'
         AND coa.account_type = 'expense'
-        AND coa.code IN (${Prisma.join(HOMEBASE_CODES)})
+        AND coa.code IN (${Prisma.join(homebaseCodes)})
       GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
     `;
 
-    const actualData: Record<number, Record<string, number>> = {};
-    for (let m = 0; m < 12; m++) {
-      actualData[m] = { home: 0, auto: 0, shopping: 0, personal: 0, health: 0, growth: 0, trip: 0, total: 0 };
-    }
+    // Aggregate actuals by COA and month
+    const actualData: Record<string, Record<number, number>> = {};
+    let actualGrandTotal = 0;
 
     for (const row of ledgerRows) {
-      const category = CODE_TO_CATEGORY[row.code];
-      if (!category) continue;
+      const coa = row.code;
       const month = Number(row.month) - 1; // EXTRACT(MONTH) is 1-based → 0-based
-      const dollars = Number(row.debits) / 100; // ledger stores cents
-      if (month >= 0 && month < 12) {
-        actualData[month][category] += dollars;
-        actualData[month].total += dollars;
+      const dollars = Math.round(Number(row.debits) / 100 * 100) / 100; // cents → dollars
+
+      if (!actualData[coa]) {
+        actualData[coa] = {};
       }
+      actualData[coa][month] = (actualData[coa][month] || 0) + dollars;
+      actualGrandTotal += dollars;
     }
 
-    // Round to 2 decimal places
-    for (let m = 0; m < 12; m++) {
-      Object.keys(actualData[m]).forEach(key => {
-        actualData[m][key] = Math.round(actualData[m][key] * 100) / 100;
-      });
-    }
+    actualGrandTotal = Math.round(actualGrandTotal * 100) / 100;
 
     return NextResponse.json({
       year,
       budgetData,
       actualData,
-      monthlyData: budgetData
+      coaNames: COA_NAMES,
+      budgetGrandTotal,
+      actualGrandTotal
     });
   } catch (error) {
     console.error('Year calendar error:', error);

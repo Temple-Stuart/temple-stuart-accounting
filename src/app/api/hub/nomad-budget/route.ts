@@ -3,6 +3,18 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+// Fallback names used before travel COA codes are created in DB
+const FALLBACK_NAMES: Record<string, string> = {
+  '7100': 'Flight',
+  '7200': 'Lodging',
+  '7300': 'Travel Transport',
+  '7400': 'Activities',
+  '7500': 'Travel Equipment',
+  '7600': 'Ground Transport',
+  '7700': 'Travel Dining',
+  '7800': 'Tips & Misc',
+};
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -23,6 +35,34 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
+    // Get Travel COA accounts from DB (7xxx codes under personal entity)
+    // ═══════════════════════════════════════════════════════════════════
+    const personalEntity = await prisma.entities.findFirst({
+      where: { userId: user.id, entity_type: 'personal' }
+    });
+
+    const travelAccounts = personalEntity
+      ? await prisma.chart_of_accounts.findMany({
+          where: {
+            userId: user.id,
+            entity_id: personalEntity.id,
+            account_type: 'expense',
+            is_archived: false,
+            code: { startsWith: '7' }
+          },
+          select: { code: true, name: true }
+        })
+      : [];
+
+    // Use DB names if available, otherwise fallback
+    const COA_NAMES: Record<string, string> = {};
+    if (travelAccounts.length > 0) {
+      travelAccounts.forEach(acc => { COA_NAMES[acc.code] = acc.name; });
+    } else {
+      Object.assign(COA_NAMES, FALLBACK_NAMES);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
     // BUDGET DATA - From budget_line_items (trip source)
     // ═══════════════════════════════════════════════════════════════════
     const items = await prisma.budget_line_items.findMany({
@@ -37,19 +77,6 @@ export async function GET(request: Request) {
         }
       }
     });
-
-    // COA code to name mapping — uses actual COA codes (no P- prefix)
-    const COA_NAMES: Record<string, string> = {
-      '7100': '✈️ Flight',
-      '7200': '🏨 Lodging',
-      '7300': '🚗 Transportation',
-      '7400': '🎟️ Activities',
-      '7500': '🎿 Equipment',
-      '7600': '🚕 Ground Transport',
-      '7700': '🍽️ Food & Dining',
-      '7800': '💵 Tips & Misc',
-      '8220': '💼 Business Dev',
-    };
 
     // Aggregate budget by COA and month
     const budgetData: Record<string, Record<number, number>> = {};
@@ -74,21 +101,23 @@ export async function GET(request: Request) {
     // ═══════════════════════════════════════════════════════════════════
     const tripCodes = Object.keys(COA_NAMES);
 
-    const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
-      SELECT
-        coa.code,
-        EXTRACT(MONTH FROM je.date)::int as month,
-        SUM(CASE WHEN le.entry_type = 'D' THEN le.amount ELSE 0 END)::text as debits
-      FROM ledger_entries le
-      JOIN journal_entries je ON le.journal_entry_id = je.id
-      JOIN chart_of_accounts coa ON le.account_id = coa.id
-      WHERE je."userId" = ${user.id}
-        AND je.is_reversal = false
-        AND je.reversed_by_entry_id IS NULL
-        AND EXTRACT(YEAR FROM je.date) = ${year}
-        AND coa.code IN (${Prisma.join(tripCodes)})
-      GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
-    `;
+    const ledgerRows: Array<{ code: string; month: number; debits: string }> = tripCodes.length > 0
+      ? await prisma.$queryRaw`
+        SELECT
+          coa.code,
+          EXTRACT(MONTH FROM je.date)::int as month,
+          SUM(CASE WHEN le.entry_type = 'D' THEN le.amount ELSE 0 END)::text as debits
+        FROM ledger_entries le
+        JOIN journal_entries je ON le.journal_entry_id = je.id
+        JOIN chart_of_accounts coa ON le.account_id = coa.id
+        WHERE je."userId" = ${user.id}
+          AND je.is_reversal = false
+          AND je.reversed_by_entry_id IS NULL
+          AND EXTRACT(YEAR FROM je.date) = ${year}
+          AND coa.code IN (${Prisma.join(tripCodes)})
+        GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
+      `
+      : [];
 
     // Aggregate actuals by COA and month
     const actualData: Record<string, Record<number, number>> = {};
@@ -114,10 +143,7 @@ export async function GET(request: Request) {
       actualData,
       coaNames: COA_NAMES,
       budgetGrandTotal,
-      actualGrandTotal,
-      // Legacy support
-      monthlyData: budgetData,
-      grandTotal: budgetGrandTotal
+      actualGrandTotal
     });
   } catch (error) {
     console.error('Nomad budget error:', error);
