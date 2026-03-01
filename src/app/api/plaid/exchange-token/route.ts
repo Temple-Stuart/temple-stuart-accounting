@@ -95,6 +95,7 @@ export async function POST(request: Request) {
 
       if (existing) {
         // Update existing account: refresh balance, re-link to new Plaid item
+        console.log(`[Plaid Sync] Account dedup: updated existing ${existing.name} (••••${existing.mask}) instead of creating duplicate`);
         await prisma.accounts.update({
           where: { id: existing.id },
           data: {
