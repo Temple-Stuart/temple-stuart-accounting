@@ -77,10 +77,11 @@ export async function GET() {
     // 5. DONE — Categorization completeness
     const doneRows: any[] = await prisma.$queryRaw`
       SELECT
-        COUNT(*) FILTER (WHERE review_status = 'committed')::bigint as committed,
+        COUNT(*) FILTER (WHERE t.review_status = 'committed')::bigint as committed,
         COUNT(*)::bigint as total
-      FROM transactions
-      WHERE "userId" = ${userId}
+      FROM transactions t
+      JOIN accounts a ON t."accountId" = a.id
+      WHERE a."userId" = ${userId}
     `;
     const committed = Number(doneRows[0]?.committed ?? 0);
     const total = Number(doneRows[0]?.total ?? 0);

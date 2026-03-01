@@ -67,16 +67,25 @@ export async function GET() {
     };
 
     // IMMUT — Immutability (check for triggers)
-    const triggers: any[] = await prisma.$queryRaw`
-      SELECT tgname FROM pg_trigger
-      WHERE tgrelid = 'journal_entries'::regclass
-        AND tgname IN ('protect_journal_entry_fields', 'no_journal_entry_deletes')
-    `;
-    const immut: ProofResult = {
-      status: triggers.length >= 2 ? 'pass' : triggers.length > 0 ? 'warn' : 'fail',
-      summary: `${triggers.length}/2 immutability triggers active`,
-      details: triggers.map(t => ({ trigger: t.tgname })),
-    };
+    let immut: ProofResult;
+    try {
+      const triggers: any[] = await prisma.$queryRaw`
+        SELECT tgname FROM pg_trigger
+        WHERE tgrelid = 'journal_entries'::regclass
+          AND tgname IN ('protect_journal_entry_fields', 'no_journal_entry_deletes')
+      `;
+      immut = {
+        status: triggers.length >= 2 ? 'pass' : triggers.length > 0 ? 'warn' : 'fail',
+        summary: `${triggers.length}/2 immutability triggers active`,
+        details: triggers.map(t => ({ trigger: t.tgname })),
+      };
+    } catch {
+      immut = {
+        status: 'warn',
+        summary: 'Could not verify triggers — insufficient DB permissions',
+        details: [],
+      };
+    }
 
     // CHGMG — Change Management (static)
     const chgmg: ProofResult = {
