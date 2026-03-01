@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -6,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    
+
     const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
@@ -89,57 +90,53 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // ACTUALS DATA - From transactions with business COA codes
-    // SECURITY: Scoped to user's accounts only
+    // ACTUALS DATA - From ledger_entries (single source of truth)
+    // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
     const businessCodes = Object.keys(COA_NAMES).filter(c => c !== 'UNCATEGORIZED');
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
-    const transactions = await prisma.transactions.findMany({
-      where: {
-        accounts: { userId: user.id },
-        accountCode: { in: businessCodes },
-        date: {
-          gte: startOfYear,
-          lte: endOfYear
-        }
-      },
-      select: {
-        date: true,
-        amount: true,
-        accountCode: true
-      }
-    });
+    const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
+      SELECT
+        coa.code,
+        EXTRACT(MONTH FROM je.date)::int as month,
+        SUM(CASE WHEN le.entry_type = 'D' THEN le.amount ELSE 0 END)::text as debits
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      JOIN entities e ON coa.entity_id = e.id
+      WHERE je."userId" = ${user.id}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND EXTRACT(YEAR FROM je.date) = ${year}
+        AND e.entity_type IN (${Prisma.join(['sole_prop', 'business'])})
+        AND coa.account_type = 'expense'
+        AND coa.code IN (${Prisma.join(businessCodes)})
+      GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
+    `;
 
     // Aggregate actuals by COA and month
     const actualData: Record<string, Record<number, number>> = {};
     let actualGrandTotal = 0;
 
-    for (const txn of transactions) {
-      const coa = txn.accountCode || 'UNCATEGORIZED';
-      const month = new Date(txn.date).getMonth();
-      const amount = Math.abs(txn.amount);
+    for (const row of ledgerRows) {
+      const coa = row.code;
+      const month = Number(row.month) - 1; // EXTRACT(MONTH) is 1-based → 0-based
+      const dollars = Math.round(Number(row.debits) / 100 * 100) / 100; // cents → dollars
 
       if (!actualData[coa]) {
         actualData[coa] = {};
       }
-      actualData[coa][month] = (actualData[coa][month] || 0) + amount;
-      actualGrandTotal += amount;
+      actualData[coa][month] = (actualData[coa][month] || 0) + dollars;
+      actualGrandTotal += dollars;
     }
 
-    // Round actuals
-    Object.keys(actualData).forEach(coa => {
-      Object.keys(actualData[coa]).forEach(month => {
-        actualData[coa][parseInt(month)] = Math.round(actualData[coa][parseInt(month)] * 100) / 100;
-      });
-    });
+    actualGrandTotal = Math.round(actualGrandTotal * 100) / 100;
 
-    return NextResponse.json({ 
-      year, 
+    return NextResponse.json({
+      year,
       budgetData,
       actualData,
-      coaNames: COA_NAMES, 
+      coaNames: COA_NAMES,
       budgetGrandTotal,
       actualGrandTotal
     });

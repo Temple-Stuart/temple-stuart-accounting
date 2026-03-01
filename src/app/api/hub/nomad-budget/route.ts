@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -6,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    
+
     const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
@@ -37,17 +38,17 @@ export async function GET(request: Request) {
       }
     });
 
-    // COA code to name mapping
+    // COA code to name mapping — uses actual COA codes (no P- prefix)
     const COA_NAMES: Record<string, string> = {
-      'P-7100': '✈️ Flight',
-      'P-7200': '🏨 Lodging',
-      'P-7300': '🚗 Transportation',
-      'P-7400': '🎟️ Activities',
-      'P-7500': '🎿 Equipment',
-      'P-7600': '🚕 Ground Transport',
-      'P-7700': '🍽️ Food & Dining',
-      'P-7800': '💵 Tips & Misc',
-      'P-8220': '💼 Business Dev',
+      '7100': '✈️ Flight',
+      '7200': '🏨 Lodging',
+      '7300': '🚗 Transportation',
+      '7400': '🎟️ Activities',
+      '7500': '🎿 Equipment',
+      '7600': '🚕 Ground Transport',
+      '7700': '🍽️ Food & Dining',
+      '7800': '💵 Tips & Misc',
+      '8220': '💼 Business Dev',
     };
 
     // Aggregate budget by COA and month
@@ -55,7 +56,8 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     for (const item of items) {
-      const coa = item.coaCode || 'P-7800';
+      // Normalize: strip P- prefix if budget_line_items stored it
+      const coa = (item.coaCode || '7800').replace(/^P-/, '');
       const month = item.month - 1; // 0-indexed
       const amount = Number(item.amount || 0);
 
@@ -67,57 +69,50 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // ACTUALS DATA - From transactions with trip COA codes (P-7xxx)
-    // SECURITY: Scoped to user's accounts only
+    // ACTUALS DATA - From ledger_entries (single source of truth)
+    // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
     const tripCodes = Object.keys(COA_NAMES);
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
-    const transactions = await prisma.transactions.findMany({
-      where: {
-        accounts: { userId: user.id },
-        accountCode: { in: tripCodes },
-        date: {
-          gte: startOfYear,
-          lte: endOfYear
-        }
-      },
-      select: {
-        date: true,
-        amount: true,
-        accountCode: true
-      }
-    });
+    const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
+      SELECT
+        coa.code,
+        EXTRACT(MONTH FROM je.date)::int as month,
+        SUM(CASE WHEN le.entry_type = 'D' THEN le.amount ELSE 0 END)::text as debits
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      WHERE je."userId" = ${user.id}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND EXTRACT(YEAR FROM je.date) = ${year}
+        AND coa.code IN (${Prisma.join(tripCodes)})
+      GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
+    `;
 
     // Aggregate actuals by COA and month
     const actualData: Record<string, Record<number, number>> = {};
     let actualGrandTotal = 0;
 
-    for (const txn of transactions) {
-      const coa = txn.accountCode || 'P-7800';
-      const month = new Date(txn.date).getMonth();
-      const amount = Math.abs(txn.amount);
+    for (const row of ledgerRows) {
+      const coa = row.code;
+      const month = Number(row.month) - 1; // EXTRACT(MONTH) is 1-based → 0-based
+      const dollars = Math.round(Number(row.debits) / 100 * 100) / 100; // cents → dollars
 
       if (!actualData[coa]) {
         actualData[coa] = {};
       }
-      actualData[coa][month] = (actualData[coa][month] || 0) + amount;
-      actualGrandTotal += amount;
+      actualData[coa][month] = (actualData[coa][month] || 0) + dollars;
+      actualGrandTotal += dollars;
     }
 
-    // Round actuals
-    Object.keys(actualData).forEach(coa => {
-      Object.keys(actualData[coa]).forEach(month => {
-        actualData[coa][parseInt(month)] = Math.round(actualData[coa][parseInt(month)] * 100) / 100;
-      });
-    });
+    actualGrandTotal = Math.round(actualGrandTotal * 100) / 100;
 
-    return NextResponse.json({ 
-      year, 
+    return NextResponse.json({
+      year,
       budgetData,
       actualData,
-      coaNames: COA_NAMES, 
+      coaNames: COA_NAMES,
       budgetGrandTotal,
       actualGrandTotal,
       // Legacy support

@@ -1,12 +1,30 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+
+// COA code → homebase budget category mapping
+const CODE_TO_CATEGORY: Record<string, string> = {
+  '8100': 'home', '8110': 'home', '8120': 'home', '8200': 'home',
+  '8210': 'home', '8220': 'home', '8230': 'home', '8310': 'home',
+  '8320': 'home', '8330': 'home',
+  '6400': 'auto', '6500': 'auto', '6510': 'auto', '6520': 'auto',
+  '6530': 'auto', '6610': 'auto', '6620': 'auto', '6630': 'auto',
+  '8160': 'shopping',
+  '6100': 'personal', '6110': 'personal', '6120': 'personal', '6150': 'personal',
+  '8150': 'personal', '8170': 'personal', '8180': 'personal', '8190': 'personal',
+  '8520': 'personal', '8900': 'personal',
+  '8130': 'health', '8140': 'health', '8410': 'health', '8420': 'health', '8430': 'health',
+  '8510': 'growth', '8530': 'growth',
+};
+
+const HOMEBASE_CODES = Object.keys(CODE_TO_CATEGORY);
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
-    
+
     const userEmail = await getVerifiedEmail();
 
     if (!userEmail) {
@@ -48,7 +66,7 @@ export async function GET(request: Request) {
       const month = new Date(event.start_date).getMonth();
       const amount = Number(event.budget_amount || 0);
       const source = event.source || 'personal';
-      
+
       if (budgetData[month][source] !== undefined) {
         budgetData[month][source] += amount;
       }
@@ -58,68 +76,41 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // ACTUALS DATA - From transactions via chart_of_accounts.module
-    // SECURITY: Scoped to user's accounts only
+    // ACTUALS DATA - From ledger_entries (single source of truth)
+    // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
-    const modules = ['home', 'auto', 'shopping', 'personal', 'health', 'growth'];
-    
-    // Get COA codes grouped by module
-    const coaByModule = await prisma.chart_of_accounts.findMany({
-      where: {
-        userId: user.id,
-        module: { in: modules },
-        is_archived: false
-      },
-      select: { code: true, module: true }
-    });
+    const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
+      SELECT
+        coa.code,
+        EXTRACT(MONTH FROM je.date)::int as month,
+        SUM(CASE WHEN le.entry_type = 'D' THEN le.amount ELSE 0 END)::text as debits
+      FROM ledger_entries le
+      JOIN journal_entries je ON le.journal_entry_id = je.id
+      JOIN chart_of_accounts coa ON le.account_id = coa.id
+      JOIN entities e ON coa.entity_id = e.id
+      WHERE je."userId" = ${user.id}
+        AND je.is_reversal = false
+        AND je.reversed_by_entry_id IS NULL
+        AND EXTRACT(YEAR FROM je.date) = ${year}
+        AND e.entity_type = 'personal'
+        AND coa.account_type = 'expense'
+        AND coa.code IN (${Prisma.join(HOMEBASE_CODES)})
+      GROUP BY coa.code, EXTRACT(MONTH FROM je.date)
+    `;
 
-    const moduleCodeMap: Record<string, string[]> = {};
-    modules.forEach(m => moduleCodeMap[m] = []);
-    coaByModule.forEach(coa => {
-      if (coa.module && moduleCodeMap[coa.module]) {
-        moduleCodeMap[coa.module].push(coa.code);
-      }
-    });
-
-    // Get all transactions for the year with relevant COA codes
-    const allCodes = coaByModule.map(c => c.code);
-    
-    const transactions = await prisma.transactions.findMany({
-      where: {
-        accounts: { userId: user.id },
-        accountCode: { in: allCodes },
-        date: {
-          gte: startOfYear,
-          lte: endOfYear
-        }
-      },
-      select: {
-        date: true,
-        amount: true,
-        accountCode: true
-      }
-    });
-
-    // Build actuals data structure
     const actualData: Record<number, Record<string, number>> = {};
     for (let m = 0; m < 12; m++) {
       actualData[m] = { home: 0, auto: 0, shopping: 0, personal: 0, health: 0, growth: 0, trip: 0, total: 0 };
     }
 
-    // Map transactions to modules
-    const codeToModule: Record<string, string> = {};
-    coaByModule.forEach(coa => {
-      if (coa.module) codeToModule[coa.code] = coa.module;
-    });
-
-    for (const txn of transactions) {
-      const month = new Date(txn.date).getMonth();
-      const amount = Math.abs(txn.amount);
-      const module = txn.accountCode ? codeToModule[txn.accountCode] : null;
-      
-      if (module && actualData[month][module] !== undefined) {
-        actualData[month][module] += amount;
-        actualData[month].total += amount;
+    for (const row of ledgerRows) {
+      const category = CODE_TO_CATEGORY[row.code];
+      if (!category) continue;
+      const month = Number(row.month) - 1; // EXTRACT(MONTH) is 1-based → 0-based
+      const dollars = Number(row.debits) / 100; // ledger stores cents
+      if (month >= 0 && month < 12) {
+        actualData[month][category] += dollars;
+        actualData[month].total += dollars;
       }
     }
 
@@ -130,11 +121,11 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json({ 
-      year, 
+    return NextResponse.json({
+      year,
       budgetData,
       actualData,
-      monthlyData: budgetData 
+      monthlyData: budgetData
     });
   } catch (error) {
     console.error('Year calendar error:', error);
