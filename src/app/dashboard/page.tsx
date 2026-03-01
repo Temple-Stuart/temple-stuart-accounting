@@ -346,18 +346,25 @@ export default function Dashboard() {
     setShowTaxSettings(false);
   };
   const pipelineSrc = transactions.length + investmentTransactions.length;
-  const pipelineCat = transactions.filter(t => t.accountCode).length;
+  const pipelineCat = committedCount;
   const pipelineJe = committedCount;
-  const pipelineLdg = journalEntries.length;
+  const pipelineLdg = committedCount * 2;
 
   const PIPELINE_STEPS = [
-    { code: 'SRC', count: pipelineSrc },
-    { code: 'CAT', count: pipelineCat },
-    { code: 'JE', count: pipelineJe },
-    { code: 'LDG', count: pipelineLdg },
-    { code: 'TB', count: null as number | null },
-    { code: 'STMT', count: null as number | null },
-    { code: 'TAX', count: null as number | null },
+    { code: 'SRC', count: pipelineSrc, section: 'accounts' },
+    { code: 'CAT', count: pipelineCat, section: 'mapping' },
+    { code: 'JE', count: pipelineJe, section: 'journal' },
+    { code: 'LDG', count: pipelineLdg, section: 'ledger' },
+    { code: 'REC', count: null as number | null, section: 'reconcile' },
+    { code: 'STMT', count: statementYears.length > 0 ? statementYears.length : null as number | null, section: 'statements', suffix: statementYears.length > 0 ? 'yr' : '' },
+    { code: 'TAX', count: null as number | null, section: 'tax' },
+  ];
+
+  const SECONDARY_TABS = [
+    { key: 'close', label: 'Period Close' },
+    { key: 'positions', label: 'Positions' },
+    { key: 'wash-sales', label: 'Wash Sales' },
+    { key: 'export', label: 'Export' },
   ];
 
   const SOC2_CODES = ['BAL', 'AUTH', 'IMMUT', 'CHGMG', 'IDEMP', 'SCOPE', 'TRACE', 'COMPL'] as const;
@@ -406,69 +413,83 @@ export default function Dashboard() {
         <div className="min-h-screen bg-bg-terminal">
           <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
 
-            {/* Pipeline + SOC 2 Bar */}
-            <div className="mb-2 flex items-center border border-border bg-white overflow-x-auto">
-              <div className="flex items-center h-6 px-2 gap-0">
-                {PIPELINE_STEPS.map((step, i) => (
-                  <div key={step.code} className="flex items-center">
-                    {i > 0 && <span className="text-text-faint text-terminal-xs mx-1.5">›</span>}
-                    <div className={`flex items-center gap-1 px-1.5 py-0.5 ${step.count != null && step.count > 0 ? 'bg-brand-purple-wash' : ''}`}>
-                      <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted">{step.code}</span>
-                      <span className={`text-terminal-base font-mono font-bold ${step.count != null && step.count > 0 ? 'text-brand-gold' : 'text-text-faint'}`}>
-                        {step.count != null ? step.count.toLocaleString() : '\u2014'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="ml-auto flex items-center h-6 px-2 bg-brand-purple-wash border-l border-border gap-2">
-                <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted mr-0.5">SOC 2</span>
-                {SOC2_CODES.map(code => {
-                  const status = getSoc2Status(code);
+            {/* Unified Pipeline Navigation Bar */}
+            <div className="mb-3 flex items-center border border-border bg-white overflow-x-auto" style={{ height: 28 }}>
+              {/* Pipeline steps — clickable navigation */}
+              <div className="flex items-center h-full px-1.5 gap-0">
+                {PIPELINE_STEPS.map((step, i) => {
+                  const isActive = activeSection === step.section;
+                  const hasData = step.count != null && step.count > 0;
                   return (
-                    <button key={code} onClick={() => setSoc2Modal(code)} className="flex items-center gap-0.5 hover:bg-brand-purple-deep/10 px-0.5 rounded cursor-pointer" title={SOC2_LABELS[code]}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${status === 'pass' ? 'bg-brand-green' : status === 'fail' ? 'bg-brand-red' : 'bg-brand-gold'}`} />
-                      <span className="text-[7px] font-mono text-text-muted">{code}</span>
+                    <div key={step.code} className="flex items-center h-full">
+                      {i > 0 && <span className="text-text-faint/30 text-terminal-xs mx-1">{'\u203A'}</span>}
+                      <button
+                        onClick={() => setActiveSection(step.section)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded transition-colors h-6 ${
+                          isActive
+                            ? 'bg-brand-purple text-white'
+                            : hasData
+                              ? 'hover:bg-bg-row cursor-pointer'
+                              : 'hover:bg-bg-row cursor-pointer'
+                        }`}
+                      >
+                        <span className={`text-[7px] font-mono uppercase tracking-wider font-semibold ${isActive ? 'text-white/80' : 'text-text-muted'}`}>{step.code}</span>
+                        <span className={`text-terminal-sm font-mono font-bold ${
+                          isActive ? 'text-white' : hasData ? 'text-brand-gold' : 'text-text-faint/50'
+                        }`}>
+                          {step.count != null ? step.count.toLocaleString() + ((step as any).suffix || '') : '\u2014'}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Separator */}
+              <span className="mx-2 w-px h-4 bg-border" />
+
+              {/* Secondary tabs */}
+              <div className="flex items-center h-full gap-0">
+                {SECONDARY_TABS.map((tab, i) => {
+                  const isActive = activeSection === tab.key;
+                  return (
+                    <button key={tab.key} onClick={() => setActiveSection(tab.key)}
+                      className={`px-2 h-full text-terminal-xs font-mono whitespace-nowrap transition-colors ${
+                        i > 0 ? 'border-l border-border-light' : ''
+                      } ${isActive
+                        ? 'text-brand-purple font-semibold border-b-2 border-brand-purple'
+                        : 'text-text-muted hover:text-text-primary hover:bg-bg-row'
+                      }`}>
+                      {tab.label}
                     </button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* Section Tabs — compact terminal */}
-            <div className="flex items-center mb-3 overflow-x-auto border border-border bg-white" style={{ height: 24 }}>
-              {[
-                { key: 'accounts', label: 'Accounts' },
-                { key: 'mapping', label: `Map COA${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
-                { key: 'statements', label: 'Statements' },
-                { key: 'ledger', label: 'Ledger' },
-                { key: 'journal', label: 'Journal' },
-                { key: 'reconcile', label: 'Reconcile' },
-                { key: 'close', label: 'Period Close' },
-                { key: 'positions', label: 'Positions' },
-                { key: 'wash-sales', label: 'Wash Sales' },
-                { key: 'tax', label: 'Tax Forms' },
-                { key: 'export', label: 'Export' },
-              ].map((tab, i) => (
-                <button key={tab.key} onClick={() => setActiveSection(tab.key)}
-                  className={`px-2 py-1 text-[10px] font-medium font-mono whitespace-nowrap transition-colors h-full ${
-                    i > 0 ? 'border-l border-border-light' : ''
-                  } ${activeSection === tab.key
-                    ? 'bg-brand-purple text-white'
-                    : 'text-text-muted hover:text-text-primary hover:bg-bg-row'
-                  }`}>
-                  {tab.label}
-                </button>
-              ))}
-              <div className="ml-auto flex items-center gap-1 px-1.5">
-                <button onClick={syncAccounts} disabled={syncing}
-                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
-                  {syncing ? 'Syncing...' : 'Sync'}
-                </button>
-                <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
-                  className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
-                  + Account
-                </button>
+              {/* Right side: SOC 2 + Sync + Account */}
+              <div className="ml-auto flex items-center h-full">
+                <div className="flex items-center h-full px-2 bg-brand-purple-wash border-l border-border gap-1.5">
+                  <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted">SOC2</span>
+                  {SOC2_CODES.map(code => {
+                    const status = getSoc2Status(code);
+                    return (
+                      <button key={code} onClick={() => setSoc2Modal(code)} className="flex items-center gap-0.5 hover:bg-brand-purple-deep/10 px-0.5 rounded cursor-pointer" title={SOC2_LABELS[code]}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${status === 'pass' ? 'bg-brand-green' : status === 'fail' ? 'bg-brand-red' : 'bg-brand-gold'}`} />
+                        <span className="text-[7px] font-mono text-text-muted">{code}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1 px-1.5 border-l border-border h-full">
+                  <button onClick={syncAccounts} disabled={syncing}
+                    className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                    {syncing ? 'Syncing...' : 'Sync'}
+                  </button>
+                  <button onClick={handleAddAccount} disabled={userTier !== "free" && !linkToken}
+                    className="px-2 py-0.5 text-terminal-sm font-mono bg-brand-purple-wash text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                    + Account
+                  </button>
+                </div>
               </div>
             </div>
 
