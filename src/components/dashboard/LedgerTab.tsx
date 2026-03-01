@@ -127,11 +127,11 @@ export default function LedgerTab() {
                 <div className="text-right">
                   <div className="text-sm text-text-secondary">Closing Balance</div>
                   <div className={`text-sm font-bold ${
-                    ledger.closingBalance > 0 ? 'text-brand-green' : 
-                    ledger.closingBalance < 0 ? 'text-brand-red' : 
+                    ledger.closingBalance > 0 ? 'text-brand-green' :
+                    ledger.closingBalance < 0 ? 'text-brand-red' :
                     'text-text-faint'
                   }`}>
-                    ${Math.abs(ledger.closingBalance).toFixed(2)}
+                    {ledger.closingBalance < 0 ? '-' : ''}${Math.abs(ledger.closingBalance).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function LedgerTab() {
                           {entry.entryType === 'C' ? `$${entry.amount.toFixed(2)}` : '—'}
                         </td>
                         <td className="px-4 py-2 text-right font-bold">
-                          ${Math.abs(entry.runningBalance).toFixed(2)}
+                          {entry.runningBalance < 0 ? '-' : ''}${Math.abs(entry.runningBalance).toFixed(2)}
                         </td>
                       </tr>
                     ))}
