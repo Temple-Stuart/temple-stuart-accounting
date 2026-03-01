@@ -60,6 +60,7 @@ interface Account {
   type: string;
   balance: number;
   institutionName: string;
+  entityType: string | null;
 }
 
 interface CoaOption {
@@ -137,7 +138,7 @@ export default function Dashboard() {
         const allAccounts: Account[] = [];
         (data.items || []).forEach((item: any) => {
           (item.accounts || []).forEach((acc: any) => {
-            allAccounts.push({ id: acc.id, name: acc.name, mask: acc.mask, type: acc.type, balance: acc.balance || 0, institutionName: item.institutionName || 'Unknown' });
+            allAccounts.push({ id: acc.id, name: acc.name, mask: acc.mask, type: acc.type, balance: acc.balance || 0, institutionName: item.institutionName || 'Unknown', entityType: acc.entityType || null });
           });
         });
         setAccounts(allAccounts);
@@ -302,6 +303,21 @@ export default function Dashboard() {
     await fetch('/api/transactions/sync-complete', { method: 'POST' });
     await loadData();
     setSyncing(false);
+  };
+
+  const updateAccountEntity = async (accountId: string, entityType: string) => {
+    const prev = accounts.find(a => a.id === accountId);
+    setAccounts(accs => accs.map(a => a.id === accountId ? { ...a, entityType } : a));
+    try {
+      const res = await fetch('/api/accounts/update-entity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, entityType }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAccounts(accs => accs.map(a => a.id === accountId ? { ...a, entityType: prev?.entityType ?? null } : a));
+    }
   };
 
   const handleBulkAssign = async () => {
@@ -509,25 +525,45 @@ export default function Dashboard() {
                           <th className="px-3 py-2 text-left font-medium">Institution</th>
                           <th className="px-3 py-2 text-left font-medium">Account</th>
                           <th className="px-3 py-2 text-left font-medium">Type</th>
+                          <th className="px-3 py-2 text-left font-medium">Entity</th>
                           <th className="px-3 py-2 text-right font-medium">Balance</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {accounts.map(acc => (
+                        {accounts.map(acc => {
+                          const et = acc.entityType;
+                          const pillColor = et === 'personal' ? 'bg-blue-100 text-blue-700'
+                            : et === 'business' ? 'bg-purple-100 text-purple-700'
+                            : et === 'trading' ? 'bg-green-100 text-green-700'
+                            : 'bg-orange-100 text-orange-700';
+                          return (
                           <tr key={acc.id} className="hover:bg-bg-row">
                             <td className="px-3 py-2 font-medium text-text-primary">{acc.institutionName}</td>
                             <td className="px-3 py-2 text-text-secondary font-mono">•••• {acc.mask || '----'}</td>
                             <td className="px-3 py-2"><span className="px-2 py-0.5 bg-bg-row text-text-secondary text-[10px] uppercase">{acc.type}</span></td>
+                            <td className="px-3 py-2">
+                              <select
+                                value={acc.entityType || ''}
+                                onChange={e => updateAccountEntity(acc.id, e.target.value)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border-0 cursor-pointer ${pillColor}`}
+                              >
+                                {!acc.entityType && <option value="" disabled>{'\u26A0'} Unassigned</option>}
+                                <option value="personal">Personal</option>
+                                <option value="business">Business</option>
+                                <option value="trading">Trading</option>
+                              </select>
+                            </td>
                             <td className="px-3 py-2 text-right font-mono font-semibold">{fmt(acc.balance)}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                         {accounts.length === 0 && (
-                          <tr><td colSpan={4} className="px-3 py-8 text-center text-text-faint">No accounts connected</td></tr>
+                          <tr><td colSpan={5} className="px-3 py-8 text-center text-text-faint">No accounts connected</td></tr>
                         )}
                       </tbody>
                       <tfoot className="bg-bg-row border-t border-border">
                         <tr>
-                          <td colSpan={3} className="px-3 py-2 font-semibold text-text-primary">Total</td>
+                          <td colSpan={4} className="px-3 py-2 font-semibold text-text-primary">Total</td>
                           <td className="px-3 py-2 text-right font-mono font-bold text-text-primary">{fmt(totalBalance)}</td>
                         </tr>
                       </tfoot>

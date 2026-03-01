@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         subtype: account.subtype,
         mask: account.mask,
         balance: account.currentBalance || 0,
+        entityType: account.entityType || null,
       }))
     }));
 
