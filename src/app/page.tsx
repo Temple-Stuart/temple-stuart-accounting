@@ -7,7 +7,7 @@ import LoginBox from '@/components/LoginBox';
 
 const MODULES = [
   { name: 'Hub', desc: 'Command center', href: '/hub' },
-  { name: 'Books', desc: 'Double-entry accounting', href: '/dashboard' },
+  { name: 'Books', desc: 'GAAP accounting engine', href: '/dashboard' },
   { name: 'Business', desc: 'Business expenses', href: '/business' },
   { name: 'Trading', desc: 'AI scanner + strategy builder', href: '/trading', featured: true },
   { name: 'Home', desc: 'Rent, mortgage, utilities, household', href: '/home' },
@@ -22,7 +22,7 @@ const MODULES = [
 
 const FEATURES = [
   { title: 'Plaid Integration', desc: 'Bank sync for all accounts' },
-  { title: 'Double-Entry', desc: 'CPA-grade bookkeeping' },
+  { title: 'GAAP Accounting', desc: 'Trial balance, period close, year-end close, audit trail' },
   { title: 'AI Vol Scanner', desc: 'Institutional pre-filter, 3-tier filter panel' },
   { title: 'Strategy Builder', desc: 'N(d2) PoP, three-outcome EV, auto-spreads' },
   { title: 'AI Market Brief', desc: 'Regime, risk clusters, top picks' },
@@ -156,20 +156,21 @@ export default function LandingPage() {
               <div className="p-4">
                 <p className="text-sm text-text-secondary mb-4">
                   Plaid-synced transactions flow into a spending queue. Map to your Chart of Accounts,
-                  commit to the ledger. Schedule C, SE, and a Form 1040 estimator with manual W-2/1099-R entry.
+                  commit to the general ledger. Real-time trial balance, entity-isolated financial statements,
+                  bank reconciliation, and period close with year-end closing entries to Retained Earnings.
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-text-secondary">Balance sheet + income statement</span>
+                    <span className="text-text-secondary">Trial balance, balance sheet + income statement</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-text-secondary">Schedule C, D, SE + Form 8949</span>
+                    <span className="text-text-secondary">Period close + year-end close to Retained Earnings</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                    <span className="text-text-secondary">Form 1040 tax estimator with manual W-2/1099-R entry</span>
+                    <span className="text-text-secondary">Bank reconciliation with immutable audit trail</span>
                   </div>
                 </div>
               </div>
@@ -340,7 +341,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Double-entry bookkeeping</span>
+                  <span>Double-entry bookkeeping with trial balance</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
@@ -378,7 +379,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-emerald-500 rounded-full"></div>
-                  <span>Bank reconciliation</span>
+                  <span>Bank reconciliation + period close</span>
                 </div>
               </div>
               <button onClick={() => { setLoginMode('login'); setLoginRedirect('/pricing'); setShowLogin(true); }}
