@@ -15,11 +15,11 @@ export async function verifyAuth(request: NextRequest): Promise<string | null> {
   try {
     // Check for auth token in cookies
     const token = request.cookies.get('auth-token')?.value;
-    
+
     if (!token) {
       console.log('No auth token found in cookies');
-      // For development, create a default user ID
-      if (process.env.NODE_ENV === 'development') {
+      // For local development only — never on Vercel
+      if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
         return 'default-dev-user';
       }
       return null;
@@ -27,7 +27,7 @@ export async function verifyAuth(request: NextRequest): Promise<string | null> {
 
     // Verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
-    
+
     if (!decoded.userId) {
       console.log('Invalid token payload');
       return null;
@@ -36,8 +36,8 @@ export async function verifyAuth(request: NextRequest): Promise<string | null> {
     return decoded.userId;
   } catch (error) {
     console.error('Auth verification failed:', error);
-    // For development, return a default user ID
-    if (process.env.NODE_ENV === 'development') {
+    // For local development only — never on Vercel
+    if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
       return 'default-dev-user';
     }
     return null;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { requireAdmin } from '@/lib/require-admin';
 
 /**
  * POST /api/admin/fix-coa-ownership
@@ -14,10 +14,9 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  */
 export async function POST() {
   try {
-    const userEmail = await getVerifiedEmail();
-    if (!userEmail) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const adminResult = await requireAdmin();
+    if (adminResult instanceof NextResponse) return adminResult;
+    const userEmail = adminResult;
 
     const user = await prisma.users.findFirst({
       where: { email: { equals: userEmail, mode: 'insensitive' } }
