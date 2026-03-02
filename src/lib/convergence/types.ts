@@ -167,6 +167,15 @@ export interface ConvergenceInput {
   sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
 }
 
+// ===== DATA CONFIDENCE =====
+
+export interface DataConfidence {
+  total_sub_scores: number;
+  imputed_sub_scores: number;
+  confidence: number; // 1 - (imputed / total), range 0 to 1
+  imputed_fields: string[];
+}
+
 // ===== SCORING TRACES =====
 
 export interface SubScoreTrace {
@@ -230,6 +239,7 @@ export interface TechnicalsTrace extends SubScoreTrace {
 
 export interface VolEdgeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     mispricing: MispricingTrace;
     term_structure: TermStructureTrace;
@@ -321,6 +331,7 @@ export interface EfficiencyTrace extends SubScoreTrace {
 export interface QualityGateResult {
   score: number;
   mspr_adjustment: number;
+  data_confidence: DataConfidence;
   breakdown: {
     safety: SafetyTrace;
     profitability: ProfitabilityTrace;
@@ -340,6 +351,7 @@ export interface StrategyRegimeScore {
 
 export interface RegimeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     growth_signal: {
       score: number;
@@ -484,6 +496,7 @@ export interface NewsSentimentTrace {
 
 export interface InfoEdgeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
     insider_activity: InsiderActivityTrace;
@@ -508,6 +521,7 @@ export interface CompositeResult {
     info_edge: number;
   };
   categories_above_50: number;
+  data_confidence: DataConfidence;
 }
 
 // -- Strategy Suggestion --

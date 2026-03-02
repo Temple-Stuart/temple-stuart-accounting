@@ -6,6 +6,7 @@ import type {
   InfoEdgeResult,
   CompositeResult,
   StrategySuggestion,
+  DataConfidence,
 } from './types';
 import { scoreVolEdge } from './vol-edge';
 import { scoreQualityGate } from './quality-gate';
@@ -68,6 +69,25 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
   else if (infoEdge.score < 35) direction = 'BEARISH';
   else direction = 'NEUTRAL';
 
+  // Aggregate DataConfidence from all 4 gates
+  const allImputed = [
+    ...volEdge.data_confidence.imputed_fields.map(f => `vol_edge.${f}`),
+    ...quality.data_confidence.imputed_fields.map(f => `quality.${f}`),
+    ...regime.data_confidence.imputed_fields.map(f => `regime.${f}`),
+    ...infoEdge.data_confidence.imputed_fields.map(f => `info_edge.${f}`),
+  ];
+  const totalSub =
+    volEdge.data_confidence.total_sub_scores +
+    quality.data_confidence.total_sub_scores +
+    regime.data_confidence.total_sub_scores +
+    infoEdge.data_confidence.total_sub_scores;
+  const compositeConfidence: DataConfidence = {
+    total_sub_scores: totalSub,
+    imputed_sub_scores: allImputed.length,
+    confidence: round(1 - allImputed.length / totalSub, 4),
+    imputed_fields: allImputed,
+  };
+
   const composite: CompositeResult = {
     score: compositeScore,
     rank_method: 'equal_weighted_percentile_rank',
@@ -81,6 +101,7 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
       info_edge: infoEdge.score,
     },
     categories_above_50: above50,
+    data_confidence: compositeConfidence,
   };
 
   // Strategy suggestion

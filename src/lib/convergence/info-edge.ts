@@ -6,6 +6,7 @@ import type {
   EarningsMomentumTrace,
   FlowSignalTrace,
   NewsSentimentTrace,
+  DataConfidence,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -24,12 +25,12 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   if (recs.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.15,
       inputs: { periods_available: 0 },
-      formula: 'No analyst recommendation data → default 50',
+      formula: 'No analyst recommendation data → penalty default 40 (missing data)',
       notes: 'No Finnhub recommendation data available',
-      sub_scores: { buy_sell_ratio_score: 50, strong_conviction_score: 50, coverage_score: 50 },
+      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
       raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
     };
   }
@@ -42,12 +43,12 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   if (total === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.15,
       inputs: { periods_available: sorted.length, total_analysts: 0 },
-      formula: 'Zero analyst coverage → default 50',
+      formula: 'Zero analyst coverage → penalty default 40 (missing data)',
       notes: 'Latest period has 0 analysts',
-      sub_scores: { buy_sell_ratio_score: 50, strong_conviction_score: 50, coverage_score: 50 },
+      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
       raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
     };
   }
@@ -60,7 +61,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const consensusScore = clamp(15 + bullishPct * 70, 0, 100);
 
   // Momentum score (65%): compare current vs previous period bullish count
-  let momentumScore = 50;
+  let momentumScore = 40; // penalty default — insufficient periods for momentum
   if (sorted.length >= 2) {
     const previous = sorted[1];
     const bullishCurrent = latest.strongBuy + latest.buy;
@@ -118,12 +119,12 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
 
   if (sentiment.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.25,
       inputs: { months_available: 0 },
-      formula: 'No insider sentiment data → default 50',
+      formula: 'No insider sentiment data → penalty default 40 (missing data)',
       notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
-      sub_scores: { mspr_score: 50, trend_score: 50 },
+      sub_scores: { mspr_score: 40, trend_score: 40 },
       insider_detail: {
         months_available: 0,
         latest_mspr: null,
@@ -218,12 +219,12 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
 
   if (earnings.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.25,
       inputs: { quarters_available: 0 },
-      formula: 'No earnings data → default 50',
+      formula: 'No earnings data → penalty default 40 (missing data)',
       notes: 'No Finnhub earnings history available',
-      sub_scores: { beat_streak_score: 50, surprise_magnitude_score: 50, consistency_score: 50 },
+      sub_scores: { beat_streak_score: 40, surprise_magnitude_score: 40, consistency_score: 40 },
       momentum_detail: {
         last_4_surprises: [],
         consecutive_beats: 0,
@@ -393,15 +394,15 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
   // Score each sub-component
   const pcrScore = flow.put_call_ratio !== null
     ? round(scorePutCallRatio(flow.put_call_ratio))
-    : 50;
+    : 40; // penalty default — missing PCR data
 
   const biasScore = flow.volume_bias !== null
     ? round(scoreVolumeBias(flow.volume_bias))
-    : 50;
+    : 40; // penalty default — missing volume bias
 
   const activityScore = flow.unusual_activity_ratio !== null
     ? round(scoreUnusualActivity(flow.unusual_activity_ratio))
-    : 50;
+    : 40; // penalty default — missing activity data
 
   // Weighted: PCR 40%, volume bias 35%, unusual activity 25%
   const score = round(0.40 * pcrScore + 0.35 * biasScore + 0.25 * activityScore, 1);
@@ -573,8 +574,32 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     1,
   );
 
+  // Build DataConfidence
+  const imputedFields: string[] = [];
+  if (input.finnhubRecommendations.length === 0) imputedFields.push('analyst_consensus');
+  else if (input.finnhubRecommendations.length < 2) imputedFields.push('analyst_consensus.momentum');
+  if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity');
+  if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
+  if (!input.optionsFlow) {
+    imputedFields.push('flow_signal');
+  } else {
+    if (input.optionsFlow.put_call_ratio == null) imputedFields.push('flow_signal.pcr');
+    if (input.optionsFlow.volume_bias == null) imputedFields.push('flow_signal.volume_bias');
+    if (input.optionsFlow.unusual_activity_ratio == null) imputedFields.push('flow_signal.unusual_activity');
+  }
+  if (!input.newsSentiment) imputedFields.push('news_sentiment');
+
+  const totalSubScores = 5; // analyst, insider, earnings, flow, news
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
+    data_confidence: dataConfidence,
     breakdown: {
       analyst_consensus: analystConsensus,
       insider_activity: insiderActivity,

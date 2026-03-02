@@ -5,6 +5,7 @@ import type {
   ProfitabilityTrace,
   GrowthTrace,
   EfficiencyTrace,
+  DataConfidence,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -25,7 +26,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Liquidity rating (15%) ---
   const liqRating = tt?.liquidityRating ?? null;
-  let liquidityRatingScore = 50;
+  let liquidityRatingScore = 40; // penalty default — missing data
   if (liqRating !== null) {
     // TT uses ~1-5 scale. Map: 5->95, 4->80, 3->60, 2->40, 1->20
     liquidityRatingScore = clamp(liqRating * 20 - 5, 0, 100);
@@ -33,7 +34,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Market cap (15%) ---
   const marketCap = tt?.marketCap ?? null;
-  let marketCapScore = 50;
+  let marketCapScore = 40; // penalty default — missing data
   if (marketCap !== null) {
     if (marketCap > 200_000_000_000) marketCapScore = 90;
     else if (marketCap > 10_000_000_000) marketCapScore = 75;
@@ -43,7 +44,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   }
 
   // --- Volume (15%) ---
-  let volumeScore = 50;
+  let volumeScore = 40; // penalty default — missing data
   let avgVol20d: number | null = null;
   if (candles.length >= 20) {
     const vols = candles.slice(-20).map(c => c.volume);
@@ -67,7 +68,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Beta (20%) ---
   const beta = tt?.beta ?? (typeof metric['beta'] === 'number' ? metric['beta'] as number : null);
-  let betaScore = 50;
+  let betaScore = 40; // penalty default — missing data
   if (beta !== null) {
     if (beta < 0.8) betaScore = 90;
     else if (beta <= 1.0) betaScore = 80;
@@ -79,7 +80,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   // --- Debt-to-Equity (25%) ---
   const debtToEquity = typeof metric['totalDebt/totalEquityQuarterly'] === 'number'
     ? metric['totalDebt/totalEquityQuarterly'] as number : null;
-  let debtToEquityScore = 50;
+  let debtToEquityScore = 40; // penalty default — missing data
   if (debtToEquity !== null) {
     if (debtToEquity < 0.3) debtToEquityScore = 95;
     else if (debtToEquity <= 0.5) debtToEquityScore = 80;
@@ -252,7 +253,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- Gross margin (15%) ---
   const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let grossMarginScore = 50;
+  let grossMarginScore = 40; // penalty default — missing data
   if (grossMargin !== null) {
     if (grossMargin > 60) grossMarginScore = 85;
     else if (grossMargin > 40) grossMarginScore = 70;
@@ -263,7 +264,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROE (15%) ---
   const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
-  let roeScore = 50;
+  let roeScore = 40; // penalty default — missing data
   if (roe !== null) {
     if (roe > 25) roeScore = 90;
     else if (roe > 15) roeScore = 75;
@@ -275,7 +276,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROA (10%) ---
   const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
-  let roaScore = 50;
+  let roaScore = 40; // penalty default — missing data
   if (roa !== null) {
     if (roa > 15) roaScore = 90;
     else if (roa > 10) roaScore = 75;
@@ -287,7 +288,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- P/E ratio (15%) ---
   const pe = tt?.peRatio ?? (typeof metric['peNormalizedAnnual'] === 'number' ? metric['peNormalizedAnnual'] : null);
-  let peScore = 50;
+  let peScore = 40; // penalty default — missing data
   if (pe !== null && typeof pe === 'number') {
     if (pe < 0) peScore = 20;           // Negative earnings
     else if (pe < 5) peScore = 35;      // Suspiciously cheap
@@ -303,7 +304,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
     : null;
-  let fcfScore = 50;
+  let fcfScore = 40; // penalty default — missing data
   if (fcfShareTTM !== null && currentPrice !== null && currentPrice > 0) {
     const fcfYield = (fcfShareTTM / currentPrice) * 100;
     if (fcfYield > 8) fcfScore = 85;
@@ -314,8 +315,8 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   }
 
   // --- Earnings quality (25%) — full scoreEarningsQuality logic inlined ---
-  let surpriseConsistency = 50;
-  let dteScore = 50;
+  let surpriseConsistency = 40; // penalty default — missing earnings data
+  let dteScore = 40; // penalty default — missing earnings date
   let beatRate = 0;
   let totalQ = 0;
   let beats = 0;
@@ -437,7 +438,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Revenue growth (40%) ---
   const revGrowth = typeof metric['revenueGrowthTTMYoy'] === 'number' ? metric['revenueGrowthTTMYoy'] as number : null;
-  let revenueGrowthScore = 50;
+  let revenueGrowthScore = 40; // penalty default — missing data
   if (revGrowth !== null) {
     if (revGrowth > 20) revenueGrowthScore = 90;
     else if (revGrowth > 10) revenueGrowthScore = 75;
@@ -448,7 +449,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- EPS growth (40%) ---
   const epsGrowth = typeof metric['epsGrowthTTMYoy'] === 'number' ? metric['epsGrowthTTMYoy'] as number : null;
-  let epsGrowthScore = 50;
+  let epsGrowthScore = 40; // penalty default — missing data
   if (epsGrowth !== null) {
     if (epsGrowth > 25) epsGrowthScore = 90;
     else if (epsGrowth > 15) epsGrowthScore = 75;
@@ -459,7 +460,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Dividend growth (20%) ---
   const divGrowth = typeof metric['dividendGrowthRate5Y'] === 'number' ? metric['dividendGrowthRate5Y'] as number : null;
-  let dividendGrowthScore = 50;
+  let dividendGrowthScore = 40; // penalty default — missing data
   if (divGrowth !== null) {
     if (divGrowth > 10) dividendGrowthScore = 85;
     else if (divGrowth > 5) dividendGrowthScore = 70;
@@ -499,7 +500,7 @@ function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
 
   // --- Asset turnover (40%) ---
   const assetTurnover = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
-  let assetTurnoverScore = 50;
+  let assetTurnoverScore = 40; // penalty default — missing data
   if (assetTurnover !== null) {
     if (assetTurnover > 1.5) assetTurnoverScore = 90;
     else if (assetTurnover > 1.0) assetTurnoverScore = 75;
@@ -511,7 +512,7 @@ function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
   // --- Margin spread (30%): operatingMarginTTM / grossMarginTTM ---
   const operatingMargin = typeof metric['operatingMarginTTM'] === 'number' ? metric['operatingMarginTTM'] as number : null;
   const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let marginSpreadScore = 50;
+  let marginSpreadScore = 40; // penalty default — missing data
   if (operatingMargin !== null && grossMargin !== null && grossMargin > 0) {
     const ratio = operatingMargin / grossMargin;
     if (ratio > 0.7) marginSpreadScore = 90;
@@ -523,7 +524,7 @@ function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
 
   // --- Inventory turnover (30%) ---
   const invTurnover = typeof metric['inventoryTurnoverTTM'] === 'number' ? metric['inventoryTurnoverTTM'] as number : null;
-  let inventoryTurnoverScore = 50;
+  let inventoryTurnoverScore = 40; // penalty default — missing data
   if (invTurnover !== null) {
     if (invTurnover > 10) inventoryTurnoverScore = 90;
     else if (invTurnover > 5) inventoryTurnoverScore = 70;
@@ -589,9 +590,45 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   }
   score = clamp(round(score + msprAdjustment, 1), 0, 100);
 
+  // Build DataConfidence
+  const tt = input.ttScanner;
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const imputedFields: string[] = [];
+  // Safety sub-scores
+  if (tt?.liquidityRating == null) imputedFields.push('safety.liquidity_rating');
+  if (tt?.marketCap == null) imputedFields.push('safety.market_cap');
+  if (input.candles.length < 20) imputedFields.push('safety.volume');
+  if (tt?.beta == null && typeof metric['beta'] !== 'number') imputedFields.push('safety.beta');
+  if (typeof metric['totalDebt/totalEquityQuarterly'] !== 'number') imputedFields.push('safety.debt_to_equity');
+  // Profitability sub-scores
+  if (typeof metric['grossMarginTTM'] !== 'number') imputedFields.push('profitability.gross_margin');
+  if (typeof metric['roeTTM'] !== 'number') imputedFields.push('profitability.roe');
+  if (typeof metric['roaTTM'] !== 'number') imputedFields.push('profitability.roa');
+  if (tt?.peRatio == null && typeof metric['peNormalizedAnnual'] !== 'number') imputedFields.push('profitability.pe_ratio');
+  if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
+  if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
+  if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
+  // Growth sub-scores
+  if (typeof metric['revenueGrowthTTMYoy'] !== 'number') imputedFields.push('growth.revenue');
+  if (typeof metric['epsGrowthTTMYoy'] !== 'number') imputedFields.push('growth.eps');
+  if (typeof metric['dividendGrowthRate5Y'] !== 'number') imputedFields.push('growth.dividend');
+  // Efficiency sub-scores
+  if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('efficiency.asset_turnover');
+  if (typeof metric['operatingMarginTTM'] !== 'number' || typeof metric['grossMarginTTM'] !== 'number') imputedFields.push('efficiency.margin_spread');
+  if (typeof metric['inventoryTurnoverTTM'] !== 'number') imputedFields.push('efficiency.inventory_turnover');
+
+  const totalSubScores = 5 + 7 + 3 + 3; // safety(5 main) + profitability(7) + growth(3) + efficiency(3)
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
     mspr_adjustment: msprAdjustment,
+    data_confidence: dataConfidence,
     breakdown: {
       safety,
       profitability,

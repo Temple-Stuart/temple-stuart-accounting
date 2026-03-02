@@ -1,4 +1,4 @@
-import type { ConvergenceInput, RegimeResult } from './types';
+import type { ConvergenceInput, RegimeResult, DataConfidence } from './types';
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -282,8 +282,27 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
     modifierNote = 'spy_correlation: not_available — using base regime score unmodified';
   }
 
+  // Build DataConfidence — track which macro fields are imputed (null → default 50)
+  const imputedFields: string[] = [];
+  if (macro.gdp === null) imputedFields.push('growth.gdp');
+  if (macro.unemployment === null) imputedFields.push('growth.unemployment');
+  if (macro.nonfarmPayrolls === null) imputedFields.push('growth.nfp');
+  if (macro.consumerConfidence === null) imputedFields.push('growth.consumer_confidence');
+  if (macro.cpi === null) imputedFields.push('inflation.cpi_yoy');
+  if ((macro.cpiMom ?? null) === null) imputedFields.push('inflation.cpi_mom');
+  if (macro.fedFunds === null) imputedFields.push('inflation.fed_funds');
+  if (macro.treasury10y === null) imputedFields.push('inflation.treasury_10y');
+  const totalSubScores = 8; // 4 growth + 4 inflation
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
+    data_confidence: dataConfidence,
     breakdown: {
       growth_signal: {
         score: growth.score,

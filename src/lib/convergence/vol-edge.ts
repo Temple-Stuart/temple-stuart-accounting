@@ -5,6 +5,7 @@ import type {
   TermStructureTrace,
   TechnicalsTrace,
   CandleData,
+  DataConfidence,
 } from './types';
 
 // ===== HELPERS =====
@@ -234,23 +235,23 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // --- Raw scores (baseline, always computed) ---
 
   // VRP component (0.30): normalized VRP ratio
-  let vrpScoreRaw = 50;
+  let vrpScoreRaw = 40; // penalty default — missing IV30/HV30 data
   if (iv30 !== null && hv30 !== null && iv30 > 0) {
     const vrpRatio = (iv30 - hv30) / iv30; // -1 to +1 range
     vrpScoreRaw = clamp(50 + vrpRatio * 50, 0, 100);
   }
 
   // IVP component (0.30): IVP directly maps 0-100
-  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 50;
+  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 40; // penalty default — missing IVP
 
   // IV-HV spread component (0.25): higher absolute spread = more mispricing
-  let ivHvSpreadScoreRaw = 50;
+  let ivHvSpreadScoreRaw = 40; // penalty default — missing IV-HV spread
   if (ivHvSpread !== null) {
     ivHvSpreadScoreRaw = clamp((Math.abs(ivHvSpread) / 20) * 100, 0, 100);
   }
 
   // HV acceleration component (0.15): HV30 vs HV60 vs HV90 trend
-  let hvAccelScoreRaw = 50;
+  let hvAccelScoreRaw = 40; // penalty default — missing HV data
   let hvTrend = 'UNKNOWN (missing HV data)';
   if (hv30 !== null && hv60 !== null && hv90 !== null) {
     if (hv30 < hv60 && hv60 < hv90) {
@@ -331,10 +332,10 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
 
   if (ts.length < 2) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.30,
       inputs: { expirations_available: ts.length },
-      formula: 'Insufficient term structure data (< 2 expirations) → default 50',
+      formula: 'Insufficient term structure data (< 2 expirations) → penalty default 40 (missing data)',
       notes: 'Need at least 2 expirations to compute slope',
       shape: 'UNKNOWN',
       richest_tenor: null,
@@ -474,12 +475,12 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   if (candles.length < 20) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.20,
       inputs: { candles_available: candles.length },
-      formula: `Insufficient candle data (${candles.length} < 20 required) → default 50`,
+      formula: `Insufficient candle data (${candles.length} < 20 required) → penalty default 40 (missing data)`,
       notes: 'Need at least 20 candles for Bollinger Bands and SMA calculations',
-      sub_scores: { rsi_score: 50, trend_score: 50, bollinger_score: 50, volume_score: 50, macd_score: 50 },
+      sub_scores: { rsi_score: 40, trend_score: 40, bollinger_score: 40, volume_score: 40, macd_score: 40 },
       indicators: {
         rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
         bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
@@ -556,7 +557,7 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   // MACD
   const macd = computeMACD(candles, 12, 26, 9);
-  let macdScore = 50;
+  let macdScore = 40; // penalty default — needs 35+ candles for MACD
   if (macd.histogram !== null) {
     // Positive histogram = bullish momentum, negative = bearish
     // For neutral strategies, near-zero is ideal
@@ -662,8 +663,34 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
     };
   }
 
+  // Build DataConfidence
+  const tt = input.ttScanner;
+  const imputedFields: string[] = [];
+  // Mispricing sub-scores
+  if (tt?.iv30 == null || tt?.hv30 == null) imputedFields.push('mispricing.vrp');
+  if (tt?.ivPercentile == null) imputedFields.push('mispricing.ivp');
+  if (tt?.ivHvSpread == null) imputedFields.push('mispricing.iv_hv_spread');
+  if (tt?.hv30 == null || tt?.hv60 == null || tt?.hv90 == null) imputedFields.push('mispricing.hv_accel');
+  // Term structure
+  const tsLen = tt?.termStructure?.length ?? 0;
+  if (tsLen < 2) imputedFields.push('term_structure');
+  // Technicals
+  if (!hasCandles) {
+    imputedFields.push('technicals');
+  } else {
+    if (input.candles.length < 35) imputedFields.push('technicals.macd');
+  }
+  const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1); // mispricing(4) + term(1) + technicals(5 or 1 if excluded)
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
+    data_confidence: dataConfidence,
     breakdown: {
       mispricing,
       term_structure: termStructure,
