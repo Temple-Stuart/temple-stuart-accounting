@@ -98,9 +98,11 @@ export async function fetchFinnhubTicker(
   }
 
   // 3. Insider sentiment
+  // Rolling 18-month window for insider sentiment data
+  const insiderFrom = new Date(Date.now() - 18 * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   try {
     const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${key}`,
+      `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=${insiderFrom}&token=${key}`,
     );
     if (resp.ok) {
       const json = await resp.json();
