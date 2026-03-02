@@ -55,5 +55,7 @@ export async function getVerifiedEmail(): Promise<string | null> {
   const cookieStore = await cookies();
   const raw = cookieStore.get('userEmail')?.value;
   if (!raw) return null;
-  return verifyCookie(raw);
+  const email = verifyCookie(raw);
+  // Normalize to lowercase — prevents case-variant email collisions
+  return email ? email.toLowerCase() : null;
 }

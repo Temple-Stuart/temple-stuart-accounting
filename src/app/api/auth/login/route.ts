@@ -5,7 +5,7 @@ import { signCookie } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    let { email, password } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -13,6 +13,8 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    email = email.toLowerCase().trim();
 
     const user = await prisma.users.findFirst({
       where: {

@@ -9,7 +9,7 @@ export async function GET() {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const expenses = await prisma.$queryRaw`
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { name, coa_code, amount, cadence, target_date } = await request.json();
