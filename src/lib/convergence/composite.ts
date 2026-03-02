@@ -47,20 +47,23 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
   const scores = [volEdge.score, quality.score, regime.score, infoEdge.score];
   const above50 = scores.filter(s => s > 50).length;
 
+  // Continuous position sizing (Kelly 1956, Grinold & Kahn 1999)
+  // Gate qualification preserved as circuit-breaker; sizing is continuous for 3+ gates.
+  let positionSizePct: number;
   let convergenceGate: string;
-  let positionSize: string;
-  if (above50 === 4) {
-    convergenceGate = `4/4 above 50 → 100% position size`;
-    positionSize = '100%';
-  } else if (above50 === 3) {
-    convergenceGate = `3/4 above 50 → 60% position size`;
-    positionSize = '60%';
-  } else if (above50 === 2) {
-    convergenceGate = `2/4 above 50 → 30% position size`;
-    positionSize = '30%';
-  } else {
+  if (above50 < 2) {
+    positionSizePct = 0;
     convergenceGate = `${above50}/4 above 50 → NO TRADE (convergence too weak)`;
-    positionSize = '0%';
+  } else if (above50 === 2) {
+    positionSizePct = 20;
+    convergenceGate = `2/4 above 50 → 20% position size (marginal signal)`;
+  } else {
+    // 3+ gates: continuous sizing from composite score
+    // composite=50 → 30%, composite=75 → 65%, composite=100 → 100%
+    const clampedComposite = Math.max(50, Math.min(100, compositeScore));
+    positionSizePct = 30 + ((clampedComposite - 50) / 50) * 70;
+    positionSizePct = Math.round(positionSizePct / 5) * 5; // Round to nearest 5%
+    convergenceGate = `${above50}/4 above 50 → ${positionSizePct}% position size (continuous)`;
   }
 
   // Direction signal from Info Edge
@@ -101,6 +104,8 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
       info_edge: infoEdge.score,
     },
     categories_above_50: above50,
+    position_size_pct: positionSizePct,
+    sizing_method: 'continuous_v1',
     data_confidence: compositeConfidence,
   };
 

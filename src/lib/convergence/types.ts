@@ -533,6 +533,8 @@ export interface CompositeResult {
     info_edge: number;
   };
   categories_above_50: number;
+  position_size_pct: number;
+  sizing_method: string;
   data_confidence: DataConfidence;
 }
 
