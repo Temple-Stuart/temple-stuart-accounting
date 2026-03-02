@@ -142,6 +142,19 @@ function computeBollinger(candles: CandleData[], period = 20, mult = 2): {
   };
 }
 
+// ===== PERCENTILE RANKING (Mandelbrot 1963; Fama 1965) =====
+// Nonparametric — immune to fat-tail distortions in financial data.
+
+function percentileRank(value: number, sortedValues: number[]): number {
+  if (sortedValues.length === 0) return 50;
+  let count = 0;
+  for (const v of sortedValues) {
+    if (v < value) count++;
+    else if (v === value) count += 0.5;
+  }
+  return (count / sortedValues.length) * 100;
+}
+
 // ===== Z-SCORE COMPUTATION =====
 
 function zScore(value: number | null, m: number, s: number): number | null {
@@ -167,6 +180,7 @@ function computeZScores(
       iv_hv_z: null,
       hv_accel_z: null,
       note: 'sector_z: null (no sector peer data available)',
+      transform: 'raw' as const,
     };
   }
 
@@ -192,12 +206,18 @@ function computeZScores(
   // VRP z-score: use iv_hv_spread stats as proxy for VRP distribution
   const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
 
+  // Determine transform type based on peer count
+  const peerCount = (stats as unknown as { ticker_count?: number }).ticker_count ?? 0;
+  const transform: 'percentile' | 'z-score-fallback' | 'raw' =
+    peerCount >= 5 ? 'percentile' : peerCount >= 3 ? 'z-score-fallback' : 'raw';
+
   return {
     vrp_z: vrpZ,
     ivp_z: ivpZ,
     iv_hv_z: ivHvZ,
     hv_accel_z: hvAccelZ,
-    note: `sector z-scores vs ${sector} peers`,
+    note: `sector z-scores vs ${sector} peers (n=${peerCount}, transform=${transform})`,
+    transform,
   };
 }
 
@@ -272,34 +292,64 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     }
   }
 
-  // --- Apply z-score transform when sector peers available (pipeline mode) ---
-  // Transform: score = 50 + clip(z × 15, -50, 50)
-  //   z=0 → 50 (sector average), z=+3.33 → 100, z=-3.33 → 0
+  // --- Apply sector-relative transform when peers available (pipeline mode) ---
+  // Mandelbrot 1963; Fama 1965: fat-tailed financial data distorts linear z-score transforms.
+  // ≥5 peers → percentile ranking (nonparametric, immune to distributional assumptions)
+  // 3-4 peers → z-score fallback (multiplier=10, clip=±5 SD — less aggressive)
+  // <3 peers → raw scores (no normalization)
   let vrpScore = vrpScoreRaw;
   let ivpScore = ivpScoreRaw;
   let ivHvSpreadScore = ivHvSpreadScoreRaw;
   let hvAccelScore = hvAccelScoreRaw;
 
-  if (hasZScores) {
+  const sectorMetrics = sectorEntry?.metrics;
+
+  if (hasZScores && zScores.transform === 'percentile' && sectorMetrics) {
+    // Percentile ranking: value's rank within sorted peer values → 0-100 score
+    const rawIvpSorted = sectorMetrics['iv_percentile']?.sortedValues;
+    const ivHvSorted = sectorMetrics['iv_hv_spread']?.sortedValues;
+    // VRP uses iv_hv_spread peers as proxy; HV accel uses hv30 peers
+    const hv30Sorted = sectorMetrics['hv30']?.sortedValues;
+
+    if (vrp !== null && ivHvSorted?.length) {
+      vrpScore = round(percentileRank(vrp, ivHvSorted), 1);
+    }
+    if (ivp !== null && rawIvpSorted?.length) {
+      // Align scale: sorted values may be 0-1, ivp is 0-100
+      const ivpSorted = rawIvpSorted[0] <= 1.0 && rawIvpSorted.length > 0
+        ? rawIvpSorted.map(v => v * 100)
+        : rawIvpSorted;
+      ivpScore = round(percentileRank(ivp, ivpSorted), 1);
+    }
+    if (ivHvSpread !== null && ivHvSorted?.length) {
+      ivHvSpreadScore = round(percentileRank(ivHvSpread, ivHvSorted), 1);
+    }
+    if (hv30 !== null && hv60 !== null && hv30Sorted?.length) {
+      const hvAccelVal = hv30 - hv60;
+      hvAccelScore = round(percentileRank(hvAccelVal, hv30Sorted), 1);
+    }
+  } else if (hasZScores && zScores.transform === 'z-score-fallback') {
+    // 3-4 peers: z-score with reduced multiplier (10) and extended clip (±5 SD)
     if (zScores.vrp_z !== null) {
-      vrpScore = round(50 + clamp(zScores.vrp_z * 15, -50, 50), 1);
+      vrpScore = round(50 + clamp(zScores.vrp_z * 10, -50, 50), 1);
     }
     if (zScores.ivp_z !== null) {
-      ivpScore = round(50 + clamp(zScores.ivp_z * 15, -50, 50), 1);
+      ivpScore = round(50 + clamp(zScores.ivp_z * 10, -50, 50), 1);
     }
     if (zScores.iv_hv_z !== null) {
-      ivHvSpreadScore = round(50 + clamp(zScores.iv_hv_z * 15, -50, 50), 1);
+      ivHvSpreadScore = round(50 + clamp(zScores.iv_hv_z * 10, -50, 50), 1);
     }
     if (zScores.hv_accel_z !== null) {
-      hvAccelScore = round(50 + clamp(zScores.hv_accel_z * 15, -50, 50), 1);
+      hvAccelScore = round(50 + clamp(zScores.hv_accel_z * 10, -50, 50), 1);
     }
   }
+  // else: transform === 'raw' — use raw scores unchanged
 
   // Spec-compliant weights: 0.30×VRP + 0.30×IVP + 0.25×IV_HV_spread + 0.15×HV_accel
   const score = round(0.30 * vrpScore + 0.30 * ivpScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
 
   const mode = hasZScores
-    ? `z-score mode (sector: ${sector}, n=${peerCount})`
+    ? `${zScores.transform} mode (sector: ${sector}, n=${peerCount})`
     : 'raw mode (single ticker, no sector peers)';
   const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVP(${round(ivpScore, 1)}) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${score} [${mode}]`;
 

@@ -164,7 +164,7 @@ export interface ConvergenceInput {
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
-  sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
+  sectorStats?: Record<string, { ticker_count?: number; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
 }
 
 // ===== DATA CONFIDENCE =====
@@ -195,6 +195,7 @@ export interface MispricingTrace extends SubScoreTrace {
     iv_hv_z: number | null;
     hv_accel_z: number | null;
     note: string;
+    transform: 'percentile' | 'z-score-fallback' | 'raw';
   };
   hv_trend: string;
 }

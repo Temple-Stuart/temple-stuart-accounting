@@ -5,6 +5,7 @@ import type { TTScannerData } from './types';
 export interface SectorMetricStats {
   mean: number;
   std: number;
+  sortedValues: number[];  // Sorted peer values for percentile ranking (Mandelbrot 1963; Fama 1965)
 }
 
 export interface SectorStats {
@@ -51,6 +52,7 @@ function computeMetricStats(values: (number | null | undefined)[]): SectorMetric
   return {
     mean: round(mean(valid), 2),
     std: round(stddev(valid), 2),
+    sortedValues: [...valid].sort((a, b) => a - b),
   };
 }
 
@@ -72,21 +74,22 @@ export function computeSectorStats(scannerResults: TTScannerData[]): SectorStats
   for (const [sector, tickers] of bySector) {
     if (tickers.length < 3) {
       // Flag as insufficient peers
+      const empty: SectorMetricStats = { mean: 0, std: 0, sortedValues: [] };
       result[sector] = {
         ticker_count: tickers.length,
         metrics: {
-          iv_percentile: { mean: 0, std: 0 },
-          iv_hv_spread: { mean: 0, std: 0 },
-          hv30: { mean: 0, std: 0 },
-          hv60: { mean: 0, std: 0 },
-          hv90: { mean: 0, std: 0 },
-          iv30: { mean: 0, std: 0 },
-          pe_ratio: { mean: 0, std: 0 },
-          market_cap: { mean: 0, std: 0 },
-          beta: { mean: 0, std: 0 },
-          corr_spy: { mean: 0, std: 0 },
-          dividend_yield: { mean: 0, std: 0 },
-          eps: { mean: 0, std: 0 },
+          iv_percentile: { ...empty },
+          iv_hv_spread: { ...empty },
+          hv30: { ...empty },
+          hv60: { ...empty },
+          hv90: { ...empty },
+          iv30: { ...empty },
+          pe_ratio: { ...empty },
+          market_cap: { ...empty },
+          beta: { ...empty },
+          corr_spy: { ...empty },
+          dividend_yield: { ...empty },
+          eps: { ...empty },
         },
         insufficient_peers: true,
       };
