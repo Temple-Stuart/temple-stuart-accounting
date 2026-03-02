@@ -36,6 +36,7 @@ const FEATURES = [
 export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [loginRedirect, setLoginRedirect] = useState('/hub');
+  const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
 
   return (
     <div className="min-h-screen bg-bg-terminal">
@@ -59,7 +60,7 @@ export default function LandingPage() {
               <a href="mailto:astuart@templestuart.com" className="text-xs text-text-faint hover:text-white hidden sm:block">
                 Contact
               </a>
-              <button onClick={() => setShowLogin(true)}
+              <button onClick={() => { setLoginMode('login'); setShowLogin(true); }}
                 className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
                 Enter →
               </button>
@@ -81,7 +82,7 @@ export default function LandingPage() {
               Bookkeeping, AI-powered options analytics, trip planning, and budgeting &mdash; one platform.
             </p>
             <div className="flex items-center gap-4">
-              <button onClick={() => setShowLogin(true)}
+              <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="px-6 py-3 bg-white text-brand-purple font-medium hover:bg-bg-row text-sm">
                 Get Started
               </button>
@@ -131,7 +132,7 @@ export default function LandingPage() {
                 className={`bg-white p-4 hover:border-brand-purple transition-colors cursor-pointer group ${
                   (mod as any).featured ? 'border-2 border-brand-accent relative' : 'border border-border'
                 }`}
-                onClick={() => setShowLogin(true)}>
+                onClick={() => { setLoginMode('register'); setShowLogin(true); }}>
                 {(mod as any).featured && (
                   <div className="absolute -top-2 right-2 bg-brand-accent text-white text-[8px] px-1.5 py-0.5 uppercase tracking-wider font-semibold">New</div>
                 )}
@@ -346,7 +347,7 @@ export default function LandingPage() {
                   <span>Hub command center</span>
                 </div>
               </div>
-              <button onClick={() => setShowLogin(true)}
+              <button onClick={() => { setLoginMode('register'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">
                 Get Started Free
               </button>
@@ -380,7 +381,7 @@ export default function LandingPage() {
                   <span>Bank reconciliation</span>
                 </div>
               </div>
-              <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
+              <button onClick={() => { setLoginMode('login'); setLoginRedirect('/pricing'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">
                 Subscribe
               </button>
@@ -413,7 +414,7 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <button onClick={() => { setLoginRedirect('/pricing'); setShowLogin(true); }}
+              <button onClick={() => { setLoginMode('login'); setLoginRedirect('/pricing'); setShowLogin(true); }}
                 className="mt-6 w-full px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">
                 Subscribe
               </button>
@@ -553,7 +554,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogin(false)} />
           <div className="relative z-10">
-            <LoginBox onClose={() => setShowLogin(false)} redirectTo={loginRedirect} />
+            <LoginBox onClose={() => setShowLogin(false)} redirectTo={loginRedirect} initialMode={loginMode} />
           </div>
         </div>
       )}

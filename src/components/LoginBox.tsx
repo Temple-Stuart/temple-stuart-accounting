@@ -8,10 +8,11 @@ interface LoginBoxProps {
   onClose?: () => void;
   onSuccess?: () => void;
   redirectTo?: string;
+  initialMode?: 'login' | 'register';
 }
 
-export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub' }: LoginBoxProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+export default function LoginBox({ onClose, onSuccess, redirectTo = '/hub', initialMode = 'login' }: LoginBoxProps) {
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
