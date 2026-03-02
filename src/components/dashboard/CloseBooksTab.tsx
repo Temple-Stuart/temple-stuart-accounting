@@ -1,263 +1,170 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-interface ClosingPeriod {
-  id: string;
-  periodType: 'monthly' | 'quarterly' | 'yearly';
-  periodEnd: string;
-  status: 'open' | 'closed';
-  closedAt?: Date;
-  closedBy?: string;
+interface YearEndStatus {
+  isClosed: boolean;
+  closingEntryId: string | null;
+  netIncome: number | null;
+  closedAt: string | null;
 }
 
-export default function CloseBooksTab() {
-  const [periods, setPeriods] = useState<ClosingPeriod[]>([]);
+interface CloseBooksTabProps {
+  entityId: string | null;
+  selectedYear: number;
+}
+
+export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabProps) {
+  const [status, setStatus] = useState<YearEndStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [periodType, setPeriodType] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
-    loadPeriods();
-  }, []);
-
-  const loadPeriods = async () => {
+  const loadStatus = useCallback(async () => {
+    if (!entityId) return;
+    setChecking(true);
     try {
-      const res = await fetch('/api/closing-periods');
+      const res = await fetch(`/api/year-end-close?entityId=${entityId}&year=${selectedYear}`);
       if (res.ok) {
         const data = await res.json();
-        setPeriods(data.periods || []);
+        setStatus(data);
       }
     } catch (error) {
-      console.error('Error loading periods:', error);
+      console.error('Error loading year-end close status:', error);
     }
-  };
+    setChecking(false);
+  }, [entityId, selectedYear]);
 
-  const generatePeriodEnd = () => {
-    const now = new Date();
-    if (periodType === 'monthly') {
-      return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]; // Last day of previous month
-    } else if (periodType === 'quarterly') {
-      const quarter = Math.floor(now.getMonth() / 3);
-      return new Date(now.getFullYear(), quarter * 3, 0).toISOString().split('T')[0];
-    } else {
-      return new Date(now.getFullYear() - 1, 11, 31).toISOString().split('T')[0];
-    }
-  };
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
-  const handleClosePeriod = async () => {
-    if (!selectedPeriod) {
-      alert('Please enter a period end date');
+  const handleYearEndClose = async () => {
+    if (!entityId) {
+      alert('No entity found. Create an entity first.');
       return;
     }
 
     const confirm = window.confirm(
-      `Are you sure you want to close the books for period ending ${selectedPeriod}?\n\n` +
+      `Are you sure you want to perform the year-end close for ${selectedYear}?\n\n` +
       `This will:\n` +
-      `• Close all revenue and expense accounts\n` +
-      `• Transfer net income to equity\n` +
-      `• Mark the period as closed\n\n` +
-      `This action cannot be easily undone.`
+      `• Close all revenue and expense accounts to zero\n` +
+      `• Transfer net income to Retained Earnings (3900)\n` +
+      `• Create a closing journal entry dated Dec 31, ${selectedYear}\n\n` +
+      `All 12 months must be period-closed first.`
     );
 
     if (!confirm) return;
 
     setLoading(true);
     try {
-      const res = await fetch('/api/closing-periods/close', {
+      const res = await fetch('/api/year-end-close', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          periodEnd: selectedPeriod,
-          periodType
-        })
+        body: JSON.stringify({ entityId, year: selectedYear }),
       });
 
       const result = await res.json();
 
       if (res.ok) {
-        alert(`✅ Books closed successfully!\n\nNet Income: $${result.netIncome?.toFixed(2) || '0.00'}\nClosing Entry ID: ${result.closingEntryId}`);
-        loadPeriods();
-        setSelectedPeriod('');
+        const netDollars = (result.netIncome / 100).toFixed(2);
+        alert(
+          `Books closed successfully!\n\n` +
+          `Net Income: $${netDollars}\n` +
+          `Accounts Closed: ${result.accountsClosed}\n` +
+          `Closing Entry ID: ${result.closingEntryId}`
+        );
+        loadStatus();
       } else {
-        alert(`❌ Error: ${result.error || 'Failed to close books'}`);
+        alert(`Error: ${result.error || 'Failed to close year'}`);
       }
     } catch (error) {
-      alert('Failed to close period');
+      alert('Failed to perform year-end close');
     }
     setLoading(false);
   };
 
-  const handleReopenPeriod = async (periodId: string) => {
-    const confirm = window.confirm(
-      'Are you sure you want to reopen this period?\n\n' +
-      'This will reverse the closing entries and allow modifications.'
-    );
-
-    if (!confirm) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch('/api/closing-periods/reopen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ periodId })
-      });
-
-      if (res.ok) {
-        alert('✅ Period reopened successfully!');
-        loadPeriods();
-      } else {
-        alert('❌ Failed to reopen period');
-      }
-    } catch (error) {
-      alert('Failed to reopen period');
-    }
-    setLoading(false);
+  const formatCents = (cents: number | null) => {
+    if (cents === null) return '—';
+    const dollars = cents / 100;
+    return dollars < 0
+      ? `-$${Math.abs(dollars).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-sm font-bold">Close Books</h2>
-          <p className="text-sm text-text-secondary mt-1">Period-end closing process</p>
+          <h2 className="text-sm font-bold">Year-End Close</h2>
+          <p className="text-sm text-text-secondary mt-1">GAAP year-end closing entries for {selectedYear}</p>
         </div>
-        <button 
-          onClick={loadPeriods}
+        <button
+          onClick={loadStatus}
+          disabled={checking}
           className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
         >
           Refresh
         </button>
       </div>
 
-      {/* Close New Period */}
-      <div className="bg-white border rounded p-6">
-        <h3 className="text-terminal-lg font-semibold mb-4">Close New Period</h3>
-        
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      {/* Status */}
+      {status?.isClosed ? (
+        <div className="bg-green-50 border border-green-200 rounded p-6">
+          <h3 className="text-terminal-lg font-semibold text-green-900 mb-3">Year {selectedYear} Closed</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Period Type</label>
-              <select
-                value={periodType}
-                onChange={(e) => {
-                  setPeriodType(e.target.value as any);
-                  setSelectedPeriod(generatePeriodEnd());
-                }}
-                className="w-full px-3 py-2 border rounded"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+              <span className="text-green-700 font-medium">Net Income:</span>
+              <span className="ml-2 text-green-900 font-semibold">{formatCents(status.netIncome)}</span>
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Period End Date</label>
-              <input
-                type="date"
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="w-full px-3 py-2 border rounded"
-              />
+              <span className="text-green-700 font-medium">Closed At:</span>
+              <span className="ml-2 text-green-900">{status.closedAt ? new Date(status.closedAt).toLocaleString() : '—'}</span>
+            </div>
+            <div className="col-span-2">
+              <span className="text-green-700 font-medium">Closing Entry:</span>
+              <span className="ml-2 text-green-900 font-mono text-xs">{status.closingEntryId}</span>
             </div>
           </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
-            <h4 className="text-sm font-semibold text-yellow-900 mb-2">Pre-Closing Checklist</h4>
-            <ul className="text-sm text-yellow-800 space-y-1">
-              <li>✓ All transactions for the period have been recorded</li>
-              <li>✓ Bank accounts have been reconciled</li>
-              <li>✓ All adjusting entries have been made</li>
-              <li>✓ Financial statements have been reviewed</li>
-              <li>✓ All accounts are accurate and balanced</li>
-            </ul>
-          </div>
-
-          <button
-            onClick={handleClosePeriod}
-            disabled={!selectedPeriod || loading}
-            className={`w-full py-3 rounded text-sm font-medium ${
-              selectedPeriod && !loading
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-border text-text-muted cursor-not-allowed'
-            }`}
-          >
-            {loading ? 'Closing Period...' : 'Close Books for This Period'}
-          </button>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white border rounded p-6">
+          <h3 className="text-terminal-lg font-semibold mb-4">Close Year {selectedYear}</h3>
 
-      {/* Closed Periods History */}
-      <div className="bg-white border rounded overflow-hidden">
-        <div className="bg-bg-row px-6 py-4 border-b">
-          <h3 className="text-terminal-lg font-semibold">Closed Periods History</h3>
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+              <h4 className="text-sm font-semibold text-yellow-900 mb-2">Pre-Closing Checklist</h4>
+              <ul className="text-sm text-yellow-800 space-y-1">
+                <li>All 12 months must be period-closed</li>
+                <li>All transactions for the year have been recorded</li>
+                <li>Bank accounts have been reconciled</li>
+                <li>All adjusting entries have been made</li>
+                <li>Financial statements have been reviewed</li>
+              </ul>
+            </div>
+
+            <button
+              onClick={handleYearEndClose}
+              disabled={loading || !entityId}
+              className={`w-full py-3 rounded text-sm font-medium ${
+                !loading && entityId
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-border text-text-muted cursor-not-allowed'
+              }`}
+            >
+              {loading ? 'Closing Year...' : `Close Books for ${selectedYear}`}
+            </button>
+          </div>
         </div>
-        
-        {periods.length === 0 ? (
-          <div className="px-6 py-8 text-center text-text-muted text-sm">
-            No periods have been closed yet
-          </div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full">
-              <thead className="bg-bg-row">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Period End</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary">Closed At</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-text-secondary">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {periods.map((period) => (
-                  <tr key={period.id} className="hover:bg-bg-row">
-                    <td className="px-4 py-3 text-sm font-medium">
-                      {new Date(period.periodEnd).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm capitalize">{period.periodType}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        period.status === 'closed' 
-                          ? 'bg-green-100 text-brand-green' 
-                          : 'bg-bg-row text-text-secondary'
-                      }`}>
-                        {period.status === 'closed' ? 'Closed' : 'Open'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text-secondary">
-                      {period.closedAt 
-                        ? new Date(period.closedAt).toLocaleString()
-                        : '—'
-                      }
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {period.status === 'closed' && (
-                        <button
-                          onClick={() => handleReopenPeriod(period.id)}
-                          disabled={loading}
-                          className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 disabled:opacity-50"
-                        >
-                          Reopen
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Info Box */}
       <div className="bg-brand-purple-wash border border-blue-200 rounded p-4">
-        <h3 className="text-sm font-semibold text-blue-900 mb-2">About Closing Books</h3>
+        <h3 className="text-sm font-semibold text-blue-900 mb-2">About Year-End Close</h3>
         <p className="text-sm text-blue-800">
-          Closing the books is the final step in the accounting cycle. It transfers all revenue and expense 
-          balances to equity (retained earnings), resetting them to zero for the next period. This process 
-          creates a clear separation between accounting periods and ensures accurate financial reporting.
+          Year-end close is the final step in the annual accounting cycle. It creates closing journal entries that
+          zero out all revenue and expense accounts, transferring the net income (or loss) to Retained Earnings (3900).
+          This ensures clean income statement balances for the next fiscal year while preserving the cumulative
+          equity position on the balance sheet.
         </p>
       </div>
     </div>
