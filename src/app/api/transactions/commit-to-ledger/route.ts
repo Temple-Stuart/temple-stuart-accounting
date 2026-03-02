@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { commitPlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function POST(request: NextRequest) {
   try {
@@ -209,6 +210,10 @@ export async function POST(request: NextRequest) {
 
         results.push({ txnId, journalEntryId: journalEntry.id, success: true, alreadyExisted: journalEntry.alreadyExisted || false });
       } catch (error: unknown) {
+        if (error instanceof PeriodClosedError) {
+          return NextResponse.json({ error: error.message }, { status: 409 });
+        }
+
         const message = error instanceof Error ? error.message : 'Unknown error';
 
         // Handle duplicate commit (unique constraint on source_type + source_id)

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function POST(request: Request) {
   try {
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Account codes not found: ${missing.join(', ')}` }, { status: 400 });
     }
 
+    // Period close enforcement
+    await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
+
     // Create journal entry in transaction
     const requestId = randomUUID();
     const result = await prisma.$transaction(async (tx) => {
@@ -105,6 +109,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, journalEntryId: result.id });
   } catch (error) {
+    if (error instanceof PeriodClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Manual journal entry error:', error);
     return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 });
   }

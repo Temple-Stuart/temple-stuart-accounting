@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
 // POST: Commit a sale using the selected matching method
 export async function POST(request: Request) {
@@ -92,6 +93,9 @@ export async function POST(request: Request) {
     }
 
     // Execute the matching in a transaction
+    // Period close enforcement
+    await assertPeriodOpen(prisma, user.id, entityId, saleDateObj);
+
     const result = await prisma.$transaction(async (tx) => {
       const dispositions = [];
       let remaining = saleQuantity;
@@ -330,6 +334,9 @@ export async function POST(request: Request) {
       ...result
     });
   } catch (error) {
+    if (error instanceof PeriodClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Stock lots commit error:', error);
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Failed to commit sale'
