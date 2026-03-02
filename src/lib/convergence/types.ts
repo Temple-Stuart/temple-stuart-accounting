@@ -263,6 +263,12 @@ export interface SafetyTrace extends SubScoreTrace {
     available_signals: number;
     total_signals: number;
     computable: Record<string, boolean | null>;
+    change_signals: {
+      computable_count: number;
+      passed_count: number;
+      change_score: number | null;  // passed/computable ratio (0-1), null if 0 computable
+      modifier: number;             // ±10 adjustment applied to profitability
+    };
     note: string;
   };
   altman_z: {

@@ -153,6 +153,23 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const computedSignals = Object.values(piotroskiSignals).filter(v => v !== null);
   const passedSignals = computedSignals.filter(v => v === true).length;
 
+  // Schwartz & Hanauer (2024): F-Score alpha explained by style factors.
+  // Level signals (1-4) duplicate ROE/ROA/FCF already in profitability.
+  // Change signals (5-9) provide unique directional info → used as ±10 modifier.
+  const changeSignalKeys = [
+    'current_ratio_improving', 'gross_margin_expanding',
+    'asset_turnover_improving', 'no_equity_issuance', 'leverage_decreasing',
+  ] as const;
+  const changeComputable = changeSignalKeys.filter(k => piotroskiSignals[k] !== null);
+  const changePassed = changeComputable.filter(k => piotroskiSignals[k] === true).length;
+  const changeScore = changeComputable.length > 0
+    ? round(changePassed / changeComputable.length, 2)
+    : null;
+  // Map 0-1 ratio to ±10: 1.0→+10, 0.5→0, 0.0→-10
+  const piotroskiChangeModifier = changeScore !== null
+    ? round((changeScore - 0.5) * 20, 1)
+    : 0;
+
   // --- Altman Z-Score (partial) ---
   // Z = 1.2*X1 + 1.4*X2 + 3.3*X3 + 0.6*X4 + 1.0*X5
   const hasX1 = cfoa !== null; // Current ratio as WC/TA proxy
@@ -245,9 +262,15 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       available_signals: computedSignals.length,
       total_signals: 9,
       computable: piotroskiSignals,
+      change_signals: {
+        computable_count: changeComputable.length,
+        passed_count: changePassed,
+        change_score: changeScore,
+        modifier: piotroskiChangeModifier,
+      },
       note: computedSignals.length === 9
-        ? `${passedSignals}/9 signals passing (all computable)`
-        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable — missing annual financial data)`,
+        ? `${passedSignals}/9 signals passing (all computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`
+        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`,
     },
     altman_z: {
       score: altmanScore,
@@ -616,6 +639,14 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   const growth = scoreGrowth(input);
   const fundamentalRisk = scoreFundamentalRisk(input);
 
+  // Piotroski change-signal modifier on profitability (Schwartz & Hanauer 2024)
+  // Level signals (1-4) already captured by ROE/ROA/FCF; change signals (5-9) are unique.
+  const fScoreModifier = safety.piotroski.change_signals.modifier;
+  profitability.score = clamp(round(profitability.score + fScoreModifier, 1), 0, 100);
+  if (fScoreModifier !== 0) {
+    profitability.formula += ` → ${fScoreModifier > 0 ? '+' : ''}${fScoreModifier} (F-Score change signals) = ${profitability.score}`;
+  }
+
   let score = round(
     safety.weight * safety.score +
     profitability.weight * profitability.score +
@@ -658,6 +689,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
   if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
   if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
+  if (safety.piotroski.change_signals.computable_count === 0) imputedFields.push('profitability.fscore_change_signals');
   // Growth sub-scores
   if (typeof metric['revenueGrowthTTMYoy'] !== 'number') imputedFields.push('growth.revenue');
   if (typeof metric['epsGrowthTTMYoy'] !== 'number') imputedFields.push('growth.eps');
