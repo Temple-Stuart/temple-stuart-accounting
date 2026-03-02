@@ -46,13 +46,17 @@ model accounts {
   accountCode             String?
   subAccount              String?
   entityType              String?
+  entity_id               String?
   source                  String                    @default("plaid") @db.VarChar(20)
   plaid_items             plaid_items?              @relation(fields: [plaidItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                   users?                    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  entity                  entities?                 @relation(fields: [entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   investment_transactions investment_transactions[]
   transactions            transactions[]
+  bank_reconciliations    bank_reconciliations[]
 
   @@unique([userId, accountId])
+  @@index([userId, entity_id])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -81,6 +85,8 @@ model entities {
   investment_transactions investment_transactions[]
   budgets               budgets[]
   closing_periods       closing_periods[]
+  accounts              accounts[]
+  bank_reconciliations  bank_reconciliations[]
 
   @@unique([userId, name])
   @@index([userId, is_default])
@@ -461,6 +467,7 @@ model users {
   trade_cards           trade_cards[]
   tax_overrides         tax_overrides[]
   closing_periods       closing_periods[]
+  bank_reconciliations  bank_reconciliations[]
 }
 
 model budgets {
@@ -1399,5 +1406,37 @@ model closing_periods {
   entity entities @relation(fields: [entity_id], references: [id])
 
   @@unique([userId, entity_id, year, month])
+  @@index([userId, entity_id, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BANK RECONCILIATIONS — Per-account, per-period reconciliation records
+// ═══════════════════════════════════════════════════════════════════
+
+model bank_reconciliations {
+  id                String    @id @default(uuid())
+  userId            String
+  entity_id         String
+  account_id        String
+  year              Int
+  month             Int
+  statement_balance Decimal   @db.Decimal(14, 2)
+  book_balance      Decimal   @db.Decimal(14, 2)
+  adjusted_bank     Decimal   @db.Decimal(14, 2)
+  adjusted_book     Decimal   @db.Decimal(14, 2)
+  difference        Decimal   @db.Decimal(14, 2)
+  status            String    @default("draft") @db.VarChar(20)
+  reconciled_at     DateTime?
+  reconciled_by     String?
+  items             Json?
+  notes             String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  user    users    @relation(fields: [userId], references: [id])
+  entity  entities @relation(fields: [entity_id], references: [id])
+  account accounts @relation(fields: [account_id], references: [id])
+
+  @@unique([userId, entity_id, account_id, year, month])
   @@index([userId, entity_id, status])
 }

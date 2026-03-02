@@ -16,6 +16,8 @@ import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
 import TaxReportTab from '@/components/dashboard/TaxReportTab';
 import TaxSettings, { loadTaxSettings } from '@/components/dashboard/TaxSettings';
 import type { TaxSettingsValues } from '@/components/dashboard/TaxSettings';
+import BankReconciliation from '@/components/dashboard/BankReconciliation';
+import PeriodClose from '@/components/dashboard/PeriodClose';
 
 
 interface Transaction {
@@ -122,6 +124,9 @@ export default function Dashboard() {
   const [ledgerMetrics, setLedgerMetrics] = useState<LedgerMetrics | null>(null);
   const [engineMetrics, setEngineMetrics] = useState<EngineMetrics | null>(null);
   const [showTaxSettings, setShowTaxSettings] = useState(false);
+  const [reconciliations, setReconciliations] = useState<any[]>([]);
+  const [periodCloses, setPeriodCloses] = useState<any[]>([]);
+  const [defaultEntityId, setDefaultEntityId] = useState<string | null>(null);
 
   // Cookie is now HMAC-signed server-side (login/register/nextauth).
   // Client-side writes removed to prevent overwriting signed cookies.
@@ -165,6 +170,45 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Load reconciliations and period closes
+  const loadReconciliations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bank-reconciliations');
+      if (res.ok) {
+        const data = await res.json();
+        setReconciliations(data.reconciliations || []);
+      }
+    } catch (err) { console.error('Failed to load reconciliations:', err); }
+  }, []);
+
+  const loadPeriodCloses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/closing-periods');
+      if (res.ok) {
+        const data = await res.json();
+        setPeriodCloses(data.periods || []);
+      }
+    } catch (err) { console.error('Failed to load period closes:', err); }
+  }, []);
+
+  // Fetch default entity for close/recon operations
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/entities');
+        if (res.ok) {
+          const data = await res.json();
+          const entities = data.entities || [];
+          const def = entities.find((e: any) => e.is_default) || entities[0];
+          if (def) setDefaultEntityId(def.id);
+        }
+      } catch (err) { console.error('Failed to load entities:', err); }
+    })();
+  }, []);
+
+  useEffect(() => { loadReconciliations(); }, [loadReconciliations]);
+  useEffect(() => { loadPeriodCloses(); }, [loadPeriodCloses]);
 
   // Fetch statements data when year changes
   useEffect(() => {
@@ -816,24 +860,70 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Bank Reconciliation — disabled until tables are rebuilt */}
+              {/* Bank Reconciliation */}
               {activeSection === 'reconcile' && (
                 <div>
                   <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Bank Reconciliation</span></div>
-                  <div className="p-8 text-center text-text-faint">
-                    <p className="text-sm font-medium">Bank Reconciliation</p>
-                    <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
+                  <div className="p-2">
+                    <BankReconciliation
+                      accounts={accounts}
+                      transactions={transactions}
+                      reconciliations={reconciliations}
+                      onSave={async (data) => {
+                        const res = await fetch('/api/bank-reconciliations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(data),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json();
+                          alert(err.error || 'Failed to save reconciliation');
+                        }
+                      }}
+                      onReload={loadReconciliations}
+                    />
                   </div>
                 </div>
               )}
 
-              {/* Period Close — disabled until tables are rebuilt */}
+              {/* Period Close */}
               {activeSection === 'close' && (
                 <div>
                   <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Period Close</span></div>
-                  <div className="p-8 text-center text-text-faint">
-                    <p className="text-sm font-medium">Period Close</p>
-                    <p className="text-xs mt-1">Being rebuilt for the new double-entry schema. Coming soon.</p>
+                  <div className="p-2">
+                    <PeriodClose
+                      transactions={transactions}
+                      reconciliations={reconciliations}
+                      periodCloses={periodCloses}
+                      selectedYear={selectedYear}
+                      onClose={async (year, month, notes) => {
+                        if (!defaultEntityId) { alert('No entity found. Create an entity first.'); return; }
+                        const res = await fetch('/api/closing-periods/close', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ entityId: defaultEntityId, year, month }),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json();
+                          alert(err.error || 'Failed to close period');
+                        }
+                      }}
+                      onReopen={async (year, month) => {
+                        if (!defaultEntityId) { alert('No entity found.'); return; }
+                        const reason = prompt('Reason for reopening (required for audit trail):');
+                        if (!reason || !reason.trim()) { alert('A reason is required to reopen a period.'); return; }
+                        const res = await fetch('/api/closing-periods/reopen', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ entityId: defaultEntityId, year, month, notes: reason }),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json();
+                          alert(err.error || 'Failed to reopen period');
+                        }
+                      }}
+                      onReload={() => { loadPeriodCloses(); loadReconciliations(); }}
+                    />
                   </div>
                 </div>
               )}
