@@ -177,21 +177,25 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   let score: number;
   let formula: string;
 
+  // Christoffersen, Goyenko, Jacobs & Karoui (2018, RFS): options illiquidity
+  // premium is ~3.4%/day for ATM calls — liquidity dominates beta for spread traders.
+  // Cao & Han (2013, JFE): idiosyncratic vol, not beta, predicts option returns.
+  // Weights: 0.25 liq + 0.15 mktcap + 0.15 vol + 0.10 lend + 0.10 beta + 0.25 D/E = 1.0
   if (hasCandles) {
     score = round(
-      0.15 * liquidityRatingScore + 0.15 * marketCapScore + 0.15 * volumeScore +
-      0.10 * lendabilityScore + 0.20 * betaScore + 0.25 * debtToEquityScore,
+      0.25 * liquidityRatingScore + 0.15 * marketCapScore + 0.15 * volumeScore +
+      0.10 * lendabilityScore + 0.10 * betaScore + 0.25 * debtToEquityScore,
       1,
     );
-    formula = `0.15*LiqRating(${round(liquidityRatingScore)}) + 0.15*MktCap(${round(marketCapScore)}) + 0.15*Vol(${round(volumeScore)}) + 0.10*Lend(${round(lendabilityScore)}) + 0.20*Beta(${round(betaScore)}) + 0.25*D/E(${round(debtToEquityScore)}) = ${score}`;
+    formula = `0.25*LiqRating(${round(liquidityRatingScore)}) + 0.15*MktCap(${round(marketCapScore)}) + 0.15*Vol(${round(volumeScore)}) + 0.10*Lend(${round(lendabilityScore)}) + 0.10*Beta(${round(betaScore)}) + 0.25*D/E(${round(debtToEquityScore)}) = ${score}`;
   } else {
     // No candle data: exclude volume (15%), renormalize remaining 85% to 100%
     volumeScore = 0;
     avgVol20d = null;
     const w = 0.85;
     score = round(
-      (0.15 / w) * liquidityRatingScore + (0.15 / w) * marketCapScore +
-      (0.10 / w) * lendabilityScore + (0.20 / w) * betaScore + (0.25 / w) * debtToEquityScore,
+      (0.25 / w) * liquidityRatingScore + (0.15 / w) * marketCapScore +
+      (0.10 / w) * lendabilityScore + (0.10 / w) * betaScore + (0.25 / w) * debtToEquityScore,
       1,
     );
     formula = `Volume EXCLUDED (no candles). Renorm: LiqRating(${round(liquidityRatingScore)}) + MktCap(${round(marketCapScore)}) + Lend(${round(lendabilityScore)}) + Beta(${round(betaScore)}) + D/E(${round(debtToEquityScore)}) = ${score}`;
