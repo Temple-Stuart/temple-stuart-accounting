@@ -205,8 +205,10 @@ function scoreStrategies(
   let longVolAdj = 0;
 
   if (vix !== null) {
-    if (vix > 30) {
-      adjustmentType = 'HIGH_FEAR';
+    // Bansal & Stivers 2023: VIX 80th percentile ≈ 23-25; most excess short-vol
+    // returns earned above this level. VIX >30 only ~5-8% of the time; >24 ≈ 15-20%.
+    if (vix > 24) {
+      adjustmentType = 'ELEVATED_VOL';
       shortVolAdj = 10;
       longVolAdj = -5;
     } else if (vix < 15) {
