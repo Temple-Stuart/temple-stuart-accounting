@@ -51,6 +51,7 @@ const PUBLIC_PATHS = [
   '/',
   '/admin',
   '/api/admin/verify',
+  '/api/admin/users',
   '/api/auth',
   '/_next',
   '/favicon.ico',

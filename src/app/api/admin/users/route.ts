@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/require-admin';
+import { cookies } from 'next/headers';
+import { verifyCookie } from '@/lib/cookie-auth';
 
 export async function GET() {
   try {
-    const adminResult = await requireAdmin();
-    if (adminResult instanceof NextResponse) return adminResult;
+    const cookieStore = await cookies();
+    const raw = cookieStore.get('adminSession')?.value;
+    if (!raw || verifyCookie(raw) !== 'admin-session') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const users = await prisma.users.findMany({
       orderBy: { createdAt: 'desc' },

@@ -153,8 +153,9 @@ export default function AdminPage() {
             Admin Dashboard
           </h1>
           <button
-            onClick={() => {
+            onClick={async () => {
               sessionStorage.removeItem('adminAuth');
+              await fetch('/api/admin/verify', { method: 'DELETE' });
               router.push('/');
             }}
             className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
