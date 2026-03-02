@@ -23,6 +23,7 @@ export interface SectorStats {
     corr_spy: SectorMetricStats;
     dividend_yield: SectorMetricStats;
     eps: SectorMetricStats;
+    term_structure_slope: SectorMetricStats;
   };
   insufficient_peers?: boolean;
 }
@@ -54,6 +55,15 @@ function computeMetricStats(values: (number | null | undefined)[]): SectorMetric
     std: round(stddev(valid), 2),
     sortedValues: [...valid].sort((a, b) => a - b),
   };
+}
+
+function computeTermStructureSlope(ts: { date: string; iv: number }[]): number | null {
+  if (ts.length < 2) return null;
+  const sorted = [...ts].sort((a, b) => a.date.localeCompare(b.date));
+  const frontIV = sorted[0].iv;
+  const backIV = sorted[sorted.length - 1].iv;
+  if (frontIV <= 0) return null;
+  return (backIV - frontIV) / frontIV;
 }
 
 // ===== MAIN FUNCTIONS =====
@@ -90,6 +100,7 @@ export function computeSectorStats(scannerResults: TTScannerData[]): SectorStats
           corr_spy: { ...empty },
           dividend_yield: { ...empty },
           eps: { ...empty },
+          term_structure_slope: { ...empty },
         },
         insufficient_peers: true,
       };
@@ -111,6 +122,7 @@ export function computeSectorStats(scannerResults: TTScannerData[]): SectorStats
         corr_spy: computeMetricStats(tickers.map(t => t.corrSpy)),
         dividend_yield: computeMetricStats(tickers.map(t => t.dividendYield)),
         eps: computeMetricStats(tickers.map(t => t.eps)),
+        term_structure_slope: computeMetricStats(tickers.map(t => computeTermStructureSlope(t.termStructure))),
       },
     };
   }

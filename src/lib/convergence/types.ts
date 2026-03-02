@@ -321,13 +321,16 @@ export interface GrowthTrace extends SubScoreTrace {
   };
 }
 
-export interface EfficiencyTrace extends SubScoreTrace {
+export interface FundamentalRiskTrace extends SubScoreTrace {
   sub_scores: {
+    cash_flow_stability_score: number;
+    earnings_predictability_score: number;
     asset_turnover_score: number;
-    margin_spread_score: number;
-    inventory_turnover_score: number;
   };
 }
+
+/** @deprecated Use FundamentalRiskTrace */
+export type EfficiencyTrace = FundamentalRiskTrace;
 
 export interface QualityGateResult {
   score: number;
@@ -337,7 +340,7 @@ export interface QualityGateResult {
     safety: SafetyTrace;
     profitability: ProfitabilityTrace;
     growth: GrowthTrace;
-    efficiency: EfficiencyTrace;
+    fundamentalRisk: FundamentalRiskTrace;
   };
 }
 

@@ -444,24 +444,40 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     optimalExpirationStr = `${richest.date} — highest IV tenor at ${richestDte} DTE (no expirations in 20-90 DTE range)`;
   }
 
-  // Shape classification
+  // Shape classification (kept for trace output; score may be overridden by percentile ranking)
   let shape: string;
+  if (slope > 0.15) shape = 'STEEP_CONTANGO';
+  else if (slope > 0.05) shape = 'CONTANGO';
+  else if (slope > -0.05) shape = 'FLAT';
+  else if (slope > -0.15) shape = 'BACKWARDATION';
+  else shape = 'STEEP_BACKWARDATION';
+
+  // Percentile-based scoring (Vasquez 2017, JFQA — uses decile sorts, not fixed cutoffs)
+  const sector = input.ttScanner?.sector ?? null;
+  const sectorEntry = sector ? input.sectorStats?.[sector] : undefined;
+  const slopeSorted = sectorEntry?.metrics?.['term_structure_slope']?.sortedValues;
+  const slopeStats = sectorEntry?.metrics?.['term_structure_slope'];
+  const peerCount = (sectorEntry as unknown as { ticker_count?: number })?.ticker_count ?? 0;
+
   let shapeScore: number;
-  if (slope > 0.15) {
-    shape = 'STEEP_CONTANGO';
-    shapeScore = 85;
-  } else if (slope > 0.05) {
-    shape = 'CONTANGO';
-    shapeScore = 70;
-  } else if (slope > -0.05) {
-    shape = 'FLAT';
-    shapeScore = 50;
-  } else if (slope > -0.15) {
-    shape = 'BACKWARDATION';
-    shapeScore = 35;
+  let tsTransform: string;
+  if (slopeSorted && slopeSorted.length >= 5 && peerCount >= 5) {
+    // >=5 peers: percentile ranking of slope within sector
+    shapeScore = round(percentileRank(slope, slopeSorted), 1);
+    tsTransform = 'percentile';
+  } else if (slopeStats && slopeStats.std > 0.001 && peerCount >= 3) {
+    // 3-4 peers: z-score fallback (multiplier=10, clip=±5 SD)
+    const z = (slope - slopeStats.mean) / slopeStats.std;
+    shapeScore = round(50 + clamp(z * 10, -50, 50), 1);
+    tsTransform = 'z-score-fallback';
   } else {
-    shape = 'STEEP_BACKWARDATION';
-    shapeScore = 20;
+    // <3 peers or no sector stats: fixed tier fallback
+    if (slope > 0.15) shapeScore = 85;
+    else if (slope > 0.05) shapeScore = 70;
+    else if (slope > -0.05) shapeScore = 50;
+    else if (slope > -0.15) shapeScore = 35;
+    else shapeScore = 20;
+    tsTransform = 'fixed-tiers';
   }
 
   // Earnings kink detection: if there's an expiration near earnings with notably higher IV
@@ -491,7 +507,7 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     shapeScore = clamp(shapeScore - 5, 0, 100);
   }
 
-  const formula = `slope=${slopeStr} → shape=${shape} → base=${shapeScore}${earningsKinkDetected ? ' − 5 (earnings kink)' : ''} = ${shapeScore}`;
+  const formula = `slope=${slopeStr} → shape=${shape} → score=${shapeScore} [${tsTransform}${peerCount > 0 ? ', n=' + peerCount : ''}]${earningsKinkDetected ? ' − 5 (earnings kink)' : ''}`;
 
   return {
     score: round(shapeScore),
