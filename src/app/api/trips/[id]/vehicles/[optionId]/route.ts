@@ -8,7 +8,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
@@ -57,7 +57,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const userEmail = await getVerifiedEmail();
     if (!userEmail) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const user = await prisma.users.findFirst({ where: { email: userEmail } });
+    const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });

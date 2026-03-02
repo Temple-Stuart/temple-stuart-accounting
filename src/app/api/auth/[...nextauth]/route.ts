@@ -27,26 +27,27 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user }) {
       if (user.email) {
-        // Check if user exists in our users table
-        const existingUser = await prisma.users.findUnique({
-          where: { email: user.email }
+        const normalizedEmail = user.email.toLowerCase().trim();
+        // Check if user exists in our users table (case-insensitive)
+        const existingUser = await prisma.users.findFirst({
+          where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
         });
         if (!existingUser) {
           // Create user in our users table
           await prisma.users.create({
             data: {
               id: generateId(),
-              email: user.email,
-              name: user.name || user.email.split('@')[0],
+              email: normalizedEmail,
+              name: user.name || normalizedEmail.split('@')[0],
               password: '',
               updatedAt: new Date(),
             }
           });
         }
-        
+
         // Set the userEmail cookie for API routes
         const cookieStore = await cookies();
-        cookieStore.set('userEmail', signCookie(user.email), {
+        cookieStore.set('userEmail', signCookie(normalizedEmail), {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',

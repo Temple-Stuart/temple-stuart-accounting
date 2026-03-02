@@ -6,7 +6,7 @@ import { signCookie } from '@/lib/cookie-auth';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    let { email, password, name } = await request.json();
 
     if (!email || !password || !name) {
       return NextResponse.json(
@@ -15,11 +15,13 @@ export async function POST(request: Request) {
       );
     }
 
+    email = email.toLowerCase().trim();
+
     const genericMessage = 'If this email is valid, you will receive a confirmation.';
 
-    // Check if user exists — return same response to prevent enumeration
-    const existingUser = await prisma.users.findUnique({
-      where: { email }
+    // Check if user exists — case-insensitive to prevent duplicate accounts
+    const existingUser = await prisma.users.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } }
     });
 
     if (existingUser) {
