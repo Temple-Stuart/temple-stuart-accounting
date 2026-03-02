@@ -53,6 +53,19 @@ export async function commitPlaidTransaction(
   } = params;
 
   return prisma.$transaction(async (tx: Tx) => {
+    // ═══════════════════════════════════════════════════════════════════
+    // IDEMPOTENCY GUARD — Prevent duplicate JEs on retry
+    // If a JE with this request_id already exists, return it immediately.
+    // ═══════════════════════════════════════════════════════════════════
+    if (requestId) {
+      const existing = await tx.journal_entries.findFirst({
+        where: { request_id: requestId, userId },
+      });
+      if (existing) {
+        return Object.assign(existing, { alreadyExisted: true });
+      }
+    }
+
     // Look up expense/income COA account
     const expenseOrIncomeAccount = await tx.chart_of_accounts.findUnique({
       where: {
