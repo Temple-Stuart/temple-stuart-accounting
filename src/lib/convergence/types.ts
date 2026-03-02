@@ -473,9 +473,11 @@ export interface FlowSignalTrace {
     put_call_ratio_score: number;
     unusual_activity_score: number;
     volume_bias_score: number;
+    option_stock_ratio_score: number;
   };
   flow_detail: {
     data_available: boolean;
+    option_stock_ratio: number | null;
     note: string;
   };
 }
