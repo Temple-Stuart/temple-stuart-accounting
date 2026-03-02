@@ -8,7 +8,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('rfps');
   const [rfps, setRfps] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState('createdAt');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -50,9 +50,11 @@ export default function AdminPage() {
       const rfpData = await rfpResponse.json();
       setRfps(rfpData);
 
-      const userResponse = await fetch('/api/auth/users');
-      const userData = await userResponse.json();
-      setUsers(userData);
+      const userResponse = await fetch('/api/admin/users');
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUsers(Array.isArray(userData) ? userData : []);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -324,31 +326,40 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-purple-600 to-amber-500 text-white">
                   <tr>
-                    <th 
+                    <th
                       className="px-4 py-3 text-left cursor-pointer hover:bg-purple-700"
                       onClick={() => handleSort('createdAt')}
                     >
-                      Signup Date {sortField === 'createdAt' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      Date {sortField === 'createdAt' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th 
+                    <th
                       className="px-4 py-3 text-left cursor-pointer hover:bg-purple-700"
                       onClick={() => handleSort('name')}
                     >
                       Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th 
+                    <th
                       className="px-4 py-3 text-left cursor-pointer hover:bg-purple-700"
                       onClick={() => handleSort('email')}
                     >
                       Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th className="px-4 py-3 text-left">Accounts Connected</th>
+                    <th
+                      className="px-4 py-3 text-left cursor-pointer hover:bg-purple-700"
+                      onClick={() => handleSort('tier')}
+                    >
+                      Tier {sortField === 'tier' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="px-4 py-3 text-left">Stripe</th>
+                    <th className="px-4 py-3 text-left">Books</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayData.map((user: any, index: number) => (
+                  {displayData.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-text-muted">No users found</td></tr>
+                  ) : displayData.map((user: any, index: number) => (
                     <tr key={user.id} className={index % 2 === 0 ? 'bg-bg-row' : 'bg-white'}>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-sm">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3 font-semibold">{user.name}</td>
@@ -357,7 +368,23 @@ export default function AdminPage() {
                           {user.email}
                         </a>
                       </td>
-                      <td className="px-4 py-3">{user.accounts?.length || 0}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          user.tier === 'free'
+                            ? 'bg-gray-100 text-text-muted'
+                            : 'bg-green-100 text-brand-green'
+                        }`}>
+                          {user.tier || 'free'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.stripeSubscriptionId ? <span title="Customer + Subscription">&#x2705;</span>
+                          : user.stripeCustomerId ? <span className="text-yellow-600" title="Customer only, no subscription">&#x26A0;</span>
+                          : <span className="text-text-faint">&mdash;</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {user.bookkeeping_initialized ? <span>&#x2705;</span> : <span className="text-text-faint">&mdash;</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
