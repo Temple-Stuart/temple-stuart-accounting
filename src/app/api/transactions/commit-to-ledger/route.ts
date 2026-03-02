@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const requestId = randomUUID();
+    const batchRequestId = randomUUID();
     const results = [];
     const errors = [];
 
@@ -99,6 +99,10 @@ export async function POST(request: NextRequest) {
             bankEntityId = bankEntity.id;
           }
         }
+
+        // Per-transaction request_id: batch prefix + transaction ID
+        // Enables individual idempotency checks while preserving batch traceability
+        const requestId = `${batchRequestId}-${plaidTxn.transactionId}`;
 
         const journalEntry = await commitPlaidTransaction(prisma, {
           userId: user.id,
@@ -203,7 +207,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        results.push({ txnId, journalEntryId: journalEntry.id, success: true });
+        results.push({ txnId, journalEntryId: journalEntry.id, success: true, alreadyExisted: journalEntry.alreadyExisted || false });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
 
