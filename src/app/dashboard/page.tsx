@@ -485,7 +485,7 @@ export default function Dashboard() {
               {/* Right side: SOC 2 + Sync + Account */}
               <div className="ml-auto flex items-center h-full">
                 <div className="flex items-center h-full px-2 bg-brand-purple-wash border-l border-border gap-1.5">
-                  <span className="text-[7px] font-mono uppercase tracking-wider text-text-muted">SOC2</span>
+                  <a href="/soc2" className="text-[7px] font-mono uppercase tracking-wider text-text-muted hover:text-brand-purple transition-colors" title="Open SOC 2 Dashboard">SOC2</a>
                   {SOC2_CODES.map(code => {
                     const status = getSoc2Status(code);
                     return (
