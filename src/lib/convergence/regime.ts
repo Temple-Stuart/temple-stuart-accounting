@@ -266,16 +266,21 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const baseScore = best.final_score;
 
   // Step F: SPY correlation modifier — scales regime influence per-ticker
+  // Longin & Solnik 2001: correlations rise in bear markets, but we use a static
+  // floor here. Uncorrelated stocks should get minimal regime effect (10%), not 50%.
+  // Negative correlations are floored at 10% — inverted signals are Phase 4.
   // corrSpy = 1.0 → multiplier = 1.0 (full regime signal)
-  // corrSpy = 0.5 → multiplier = 0.75 (dampened)
-  // corrSpy = 0.0 → multiplier = 0.5 (regime halved toward neutral)
+  // corrSpy = 0.5 → multiplier = 0.55 (moderate regime effect)
+  // corrSpy = 0.0 → multiplier = 0.10 (minimal regime effect)
+  // corrSpy < 0  → multiplier = 0.10 (floored)
+  // TODO Phase 4: handle negative correlations with inverted regime signals
   const corrSpy = input.ttScanner?.corrSpy ?? null;
   let score: number;
   let multiplier: number;
   let modifierNote: string;
 
   if (corrSpy != null) {
-    multiplier = round(0.5 + 0.5 * corrSpy, 4);
+    multiplier = round(0.1 + 0.9 * Math.max(0, corrSpy), 4);
     score = round(baseScore * multiplier, 1);
     modifierNote = `corrSpy=${corrSpy} → multiplier=${multiplier} → ${baseScore} * ${multiplier} = ${score}`;
   } else {
@@ -349,7 +354,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         multiplier,
         base_regime_score: baseScore,
         adjusted_regime_score: score,
-        formula: 'adjusted_regime = base_regime * (0.5 + 0.5 * corrSpy)',
+        formula: 'adjusted_regime = base_regime * (0.1 + 0.9 * max(0, corrSpy))',
         note: modifierNote,
       },
     },
