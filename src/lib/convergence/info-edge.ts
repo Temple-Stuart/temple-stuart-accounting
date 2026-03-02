@@ -530,6 +530,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
         tier1_ratio: null,
         source_distribution: {},
         headlines: [],
+        classification_method: 'none',
       },
     };
   }
@@ -572,6 +573,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
 
   const formula = `0.30×Buzz(${buzzScore}) + 0.40×Sentiment(${sentimentScore}) + 0.30×SourceQuality(${sourceQualityScore}) = ${score}`;
 
+  const classMethod = news.classification_method ?? 'keyword-fallback';
   const notes = [
     `${news.articles_7d} articles (7d), ${news.articles_8_30d} articles (8-30d)`,
     `buzz_ratio=${news.buzz_ratio ?? 'N/A'}`,
@@ -579,6 +581,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
     `momentum=${news.sentiment_momentum}`,
     `tier1=${round(news.tier1_ratio * 100, 1)}%`,
     `7d: ${news.sentiment_7d.bullish_matches}B/${news.sentiment_7d.bearish_matches}b/${news.sentiment_7d.neutral}N`,
+    `method=${classMethod}`,
   ].join(', ');
 
   return {
@@ -593,6 +596,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
       sentiment_7d_score: news.sentiment_7d.score,
       sentiment_momentum: news.sentiment_momentum,
       tier1_ratio: news.tier1_ratio,
+      classification_method: classMethod,
     },
     formula,
     notes,
@@ -611,6 +615,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
       tier1_ratio: news.tier1_ratio,
       source_distribution: news.source_distribution,
       headlines: news.headlines,
+      classification_method: classMethod,
     },
   };
 }

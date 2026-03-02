@@ -128,6 +128,7 @@ export interface NewsHeadlineEntry {
   url: string;
   sentiment_keywords: string[];
   sentiment: 'bullish' | 'bearish' | 'neutral';
+  confidence?: number; // 0-1; 1.0 for keyword, actual for LLM
 }
 
 export interface NewsSentimentPeriod {
@@ -148,6 +149,7 @@ export interface NewsSentimentData {
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
+  classification_method: string; // 'llm-haiku' | 'keyword-fallback'
 }
 
 // ===== COMBINED RAW INPUT =====
@@ -503,6 +505,7 @@ export interface NewsSentimentTrace {
     tier1_ratio: number | null;
     source_distribution: Record<string, number>;
     headlines: NewsHeadlineEntry[];
+    classification_method: string;
   };
 }
 
