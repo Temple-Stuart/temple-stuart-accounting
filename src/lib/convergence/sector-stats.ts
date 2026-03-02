@@ -5,6 +5,7 @@ import type { TTScannerData } from './types';
 export interface SectorMetricStats {
   mean: number;
   std: number;
+  sortedValues: number[];  // Sorted peer values for percentile ranking (Mandelbrot 1963; Fama 1965)
 }
 
 export interface SectorStats {
@@ -22,6 +23,7 @@ export interface SectorStats {
     corr_spy: SectorMetricStats;
     dividend_yield: SectorMetricStats;
     eps: SectorMetricStats;
+    term_structure_slope: SectorMetricStats;
   };
   insufficient_peers?: boolean;
 }
@@ -51,7 +53,17 @@ function computeMetricStats(values: (number | null | undefined)[]): SectorMetric
   return {
     mean: round(mean(valid), 2),
     std: round(stddev(valid), 2),
+    sortedValues: [...valid].sort((a, b) => a - b),
   };
+}
+
+function computeTermStructureSlope(ts: { date: string; iv: number }[]): number | null {
+  if (ts.length < 2) return null;
+  const sorted = [...ts].sort((a, b) => a.date.localeCompare(b.date));
+  const frontIV = sorted[0].iv;
+  const backIV = sorted[sorted.length - 1].iv;
+  if (frontIV <= 0) return null;
+  return (backIV - frontIV) / frontIV;
 }
 
 // ===== MAIN FUNCTIONS =====
@@ -72,21 +84,23 @@ export function computeSectorStats(scannerResults: TTScannerData[]): SectorStats
   for (const [sector, tickers] of bySector) {
     if (tickers.length < 3) {
       // Flag as insufficient peers
+      const empty: SectorMetricStats = { mean: 0, std: 0, sortedValues: [] };
       result[sector] = {
         ticker_count: tickers.length,
         metrics: {
-          iv_percentile: { mean: 0, std: 0 },
-          iv_hv_spread: { mean: 0, std: 0 },
-          hv30: { mean: 0, std: 0 },
-          hv60: { mean: 0, std: 0 },
-          hv90: { mean: 0, std: 0 },
-          iv30: { mean: 0, std: 0 },
-          pe_ratio: { mean: 0, std: 0 },
-          market_cap: { mean: 0, std: 0 },
-          beta: { mean: 0, std: 0 },
-          corr_spy: { mean: 0, std: 0 },
-          dividend_yield: { mean: 0, std: 0 },
-          eps: { mean: 0, std: 0 },
+          iv_percentile: { ...empty },
+          iv_hv_spread: { ...empty },
+          hv30: { ...empty },
+          hv60: { ...empty },
+          hv90: { ...empty },
+          iv30: { ...empty },
+          pe_ratio: { ...empty },
+          market_cap: { ...empty },
+          beta: { ...empty },
+          corr_spy: { ...empty },
+          dividend_yield: { ...empty },
+          eps: { ...empty },
+          term_structure_slope: { ...empty },
         },
         insufficient_peers: true,
       };
@@ -108,6 +122,7 @@ export function computeSectorStats(scannerResults: TTScannerData[]): SectorStats
         corr_spy: computeMetricStats(tickers.map(t => t.corrSpy)),
         dividend_yield: computeMetricStats(tickers.map(t => t.dividendYield)),
         eps: computeMetricStats(tickers.map(t => t.eps)),
+        term_structure_slope: computeMetricStats(tickers.map(t => computeTermStructureSlope(t.termStructure))),
       },
     };
   }

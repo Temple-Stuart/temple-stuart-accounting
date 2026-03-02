@@ -5,6 +5,7 @@ import type {
   TermStructureTrace,
   TechnicalsTrace,
   CandleData,
+  DataConfidence,
 } from './types';
 
 // ===== HELPERS =====
@@ -141,6 +142,19 @@ function computeBollinger(candles: CandleData[], period = 20, mult = 2): {
   };
 }
 
+// ===== PERCENTILE RANKING (Mandelbrot 1963; Fama 1965) =====
+// Nonparametric — immune to fat-tail distortions in financial data.
+
+function percentileRank(value: number, sortedValues: number[]): number {
+  if (sortedValues.length === 0) return 50;
+  let count = 0;
+  for (const v of sortedValues) {
+    if (v < value) count++;
+    else if (v === value) count += 0.5;
+  }
+  return (count / sortedValues.length) * 100;
+}
+
 // ===== Z-SCORE COMPUTATION =====
 
 function zScore(value: number | null, m: number, s: number): number | null {
@@ -166,6 +180,7 @@ function computeZScores(
       iv_hv_z: null,
       hv_accel_z: null,
       note: 'sector_z: null (no sector peer data available)',
+      transform: 'raw' as const,
     };
   }
 
@@ -191,12 +206,18 @@ function computeZScores(
   // VRP z-score: use iv_hv_spread stats as proxy for VRP distribution
   const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
 
+  // Determine transform type based on peer count
+  const peerCount = (stats as unknown as { ticker_count?: number }).ticker_count ?? 0;
+  const transform: 'percentile' | 'z-score-fallback' | 'raw' =
+    peerCount >= 5 ? 'percentile' : peerCount >= 3 ? 'z-score-fallback' : 'raw';
+
   return {
     vrp_z: vrpZ,
     ivp_z: ivpZ,
     iv_hv_z: ivHvZ,
     hv_accel_z: hvAccelZ,
-    note: `sector z-scores vs ${sector} peers`,
+    note: `sector z-scores vs ${sector} peers (n=${peerCount}, transform=${transform})`,
+    transform,
   };
 }
 
@@ -213,12 +234,13 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
   const ivHvSpread = tt?.ivHvSpread ?? null;
 
-  // VRP = IV30² - HV30² (variance risk premium)
+  // VRP = IV30 - HV30 simple difference (Goyal & Saretto 2009, JFE; Carr & Wu 2009, RFS)
+  // Simple difference avoids ratio-form compression in high-IV environments
   let vrp: number | null = null;
   let vrpStr = 'N/A (missing IV30 or HV30)';
-  if (iv30 !== null && hv30 !== null && iv30 > 0) {
-    vrp = iv30 ** 2 - hv30 ** 2;
-    vrpStr = `${iv30}² − ${hv30}² = ${round(vrp, 2)} (${vrp > 0 ? 'positive = IV overpricing RV' : 'negative = IV underpricing RV'})`;
+  if (iv30 !== null && hv30 !== null) {
+    vrp = iv30 - hv30;
+    vrpStr = `${iv30} − ${hv30} = ${round(vrp, 2)} (${vrp > 0 ? 'positive = IV overpriced vs RV' : 'negative = IV underpriced vs RV'})`;
   }
 
   // Compute z-scores for sector-relative comparison
@@ -233,24 +255,27 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
 
   // --- Raw scores (baseline, always computed) ---
 
-  // VRP component (0.30): normalized VRP ratio
-  let vrpScoreRaw = 50;
-  if (iv30 !== null && hv30 !== null && iv30 > 0) {
-    const vrpRatio = (iv30 - hv30) / iv30; // -1 to +1 range
-    vrpScoreRaw = clamp(50 + vrpRatio * 50, 0, 100);
+  // VRP component (0.30): simple difference (Goyal & Saretto 2009)
+  // iv30 - hv30: positive = IV overpriced vs realized = good for selling premium
+  // Scale: 20-point diff → score 100, 0-point diff → score 50, -20 → score 0
+  // Raw score used as fallback for < 3 peers; percentile ranking overrides otherwise
+  let vrpScoreRaw = 40; // penalty default — missing IV30/HV30 data
+  if (iv30 !== null && hv30 !== null) {
+    const vrpDiff = iv30 - hv30;
+    vrpScoreRaw = clamp(50 + (vrpDiff / 20) * 50, 0, 100);
   }
 
   // IVP component (0.30): IVP directly maps 0-100
-  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 50;
+  const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 40; // penalty default — missing IVP
 
   // IV-HV spread component (0.25): higher absolute spread = more mispricing
-  let ivHvSpreadScoreRaw = 50;
+  let ivHvSpreadScoreRaw = 40; // penalty default — missing IV-HV spread
   if (ivHvSpread !== null) {
     ivHvSpreadScoreRaw = clamp((Math.abs(ivHvSpread) / 20) * 100, 0, 100);
   }
 
   // HV acceleration component (0.15): HV30 vs HV60 vs HV90 trend
-  let hvAccelScoreRaw = 50;
+  let hvAccelScoreRaw = 40; // penalty default — missing HV data
   let hvTrend = 'UNKNOWN (missing HV data)';
   if (hv30 !== null && hv60 !== null && hv90 !== null) {
     if (hv30 < hv60 && hv60 < hv90) {
@@ -271,34 +296,64 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     }
   }
 
-  // --- Apply z-score transform when sector peers available (pipeline mode) ---
-  // Transform: score = 50 + clip(z × 15, -50, 50)
-  //   z=0 → 50 (sector average), z=+3.33 → 100, z=-3.33 → 0
+  // --- Apply sector-relative transform when peers available (pipeline mode) ---
+  // Mandelbrot 1963; Fama 1965: fat-tailed financial data distorts linear z-score transforms.
+  // ≥5 peers → percentile ranking (nonparametric, immune to distributional assumptions)
+  // 3-4 peers → z-score fallback (multiplier=10, clip=±5 SD — less aggressive)
+  // <3 peers → raw scores (no normalization)
   let vrpScore = vrpScoreRaw;
   let ivpScore = ivpScoreRaw;
   let ivHvSpreadScore = ivHvSpreadScoreRaw;
   let hvAccelScore = hvAccelScoreRaw;
 
-  if (hasZScores) {
+  const sectorMetrics = sectorEntry?.metrics;
+
+  if (hasZScores && zScores.transform === 'percentile' && sectorMetrics) {
+    // Percentile ranking: value's rank within sorted peer values → 0-100 score
+    const rawIvpSorted = sectorMetrics['iv_percentile']?.sortedValues;
+    const ivHvSorted = sectorMetrics['iv_hv_spread']?.sortedValues;
+    // VRP uses iv_hv_spread peers as proxy; HV accel uses hv30 peers
+    const hv30Sorted = sectorMetrics['hv30']?.sortedValues;
+
+    if (vrp !== null && ivHvSorted?.length) {
+      vrpScore = round(percentileRank(vrp, ivHvSorted), 1);
+    }
+    if (ivp !== null && rawIvpSorted?.length) {
+      // Align scale: sorted values may be 0-1, ivp is 0-100
+      const ivpSorted = rawIvpSorted[0] <= 1.0 && rawIvpSorted.length > 0
+        ? rawIvpSorted.map(v => v * 100)
+        : rawIvpSorted;
+      ivpScore = round(percentileRank(ivp, ivpSorted), 1);
+    }
+    if (ivHvSpread !== null && ivHvSorted?.length) {
+      ivHvSpreadScore = round(percentileRank(ivHvSpread, ivHvSorted), 1);
+    }
+    if (hv30 !== null && hv60 !== null && hv30Sorted?.length) {
+      const hvAccelVal = hv30 - hv60;
+      hvAccelScore = round(percentileRank(hvAccelVal, hv30Sorted), 1);
+    }
+  } else if (hasZScores && zScores.transform === 'z-score-fallback') {
+    // 3-4 peers: z-score with reduced multiplier (10) and extended clip (±5 SD)
     if (zScores.vrp_z !== null) {
-      vrpScore = round(50 + clamp(zScores.vrp_z * 15, -50, 50), 1);
+      vrpScore = round(50 + clamp(zScores.vrp_z * 10, -50, 50), 1);
     }
     if (zScores.ivp_z !== null) {
-      ivpScore = round(50 + clamp(zScores.ivp_z * 15, -50, 50), 1);
+      ivpScore = round(50 + clamp(zScores.ivp_z * 10, -50, 50), 1);
     }
     if (zScores.iv_hv_z !== null) {
-      ivHvSpreadScore = round(50 + clamp(zScores.iv_hv_z * 15, -50, 50), 1);
+      ivHvSpreadScore = round(50 + clamp(zScores.iv_hv_z * 10, -50, 50), 1);
     }
     if (zScores.hv_accel_z !== null) {
-      hvAccelScore = round(50 + clamp(zScores.hv_accel_z * 15, -50, 50), 1);
+      hvAccelScore = round(50 + clamp(zScores.hv_accel_z * 10, -50, 50), 1);
     }
   }
+  // else: transform === 'raw' — use raw scores unchanged
 
   // Spec-compliant weights: 0.30×VRP + 0.30×IVP + 0.25×IV_HV_spread + 0.15×HV_accel
   const score = round(0.30 * vrpScore + 0.30 * ivpScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
 
   const mode = hasZScores
-    ? `z-score mode (sector: ${sector}, n=${peerCount})`
+    ? `${zScores.transform} mode (sector: ${sector}, n=${peerCount})`
     : 'raw mode (single ticker, no sector peers)';
   const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVP(${round(ivpScore, 1)}) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${score} [${mode}]`;
 
@@ -331,10 +386,10 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
 
   if (ts.length < 2) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.30,
       inputs: { expirations_available: ts.length },
-      formula: 'Insufficient term structure data (< 2 expirations) → default 50',
+      formula: 'Insufficient term structure data (< 2 expirations) → penalty default 40 (missing data)',
       notes: 'Need at least 2 expirations to compute slope',
       shape: 'UNKNOWN',
       richest_tenor: null,
@@ -389,24 +444,40 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     optimalExpirationStr = `${richest.date} — highest IV tenor at ${richestDte} DTE (no expirations in 20-90 DTE range)`;
   }
 
-  // Shape classification
+  // Shape classification (kept for trace output; score may be overridden by percentile ranking)
   let shape: string;
+  if (slope > 0.15) shape = 'STEEP_CONTANGO';
+  else if (slope > 0.05) shape = 'CONTANGO';
+  else if (slope > -0.05) shape = 'FLAT';
+  else if (slope > -0.15) shape = 'BACKWARDATION';
+  else shape = 'STEEP_BACKWARDATION';
+
+  // Percentile-based scoring (Vasquez 2017, JFQA — uses decile sorts, not fixed cutoffs)
+  const sector = input.ttScanner?.sector ?? null;
+  const sectorEntry = sector ? input.sectorStats?.[sector] : undefined;
+  const slopeSorted = sectorEntry?.metrics?.['term_structure_slope']?.sortedValues;
+  const slopeStats = sectorEntry?.metrics?.['term_structure_slope'];
+  const peerCount = (sectorEntry as unknown as { ticker_count?: number })?.ticker_count ?? 0;
+
   let shapeScore: number;
-  if (slope > 0.15) {
-    shape = 'STEEP_CONTANGO';
-    shapeScore = 85;
-  } else if (slope > 0.05) {
-    shape = 'CONTANGO';
-    shapeScore = 70;
-  } else if (slope > -0.05) {
-    shape = 'FLAT';
-    shapeScore = 50;
-  } else if (slope > -0.15) {
-    shape = 'BACKWARDATION';
-    shapeScore = 35;
+  let tsTransform: string;
+  if (slopeSorted && slopeSorted.length >= 5 && peerCount >= 5) {
+    // >=5 peers: percentile ranking of slope within sector
+    shapeScore = round(percentileRank(slope, slopeSorted), 1);
+    tsTransform = 'percentile';
+  } else if (slopeStats && slopeStats.std > 0.001 && peerCount >= 3) {
+    // 3-4 peers: z-score fallback (multiplier=10, clip=±5 SD)
+    const z = (slope - slopeStats.mean) / slopeStats.std;
+    shapeScore = round(50 + clamp(z * 10, -50, 50), 1);
+    tsTransform = 'z-score-fallback';
   } else {
-    shape = 'STEEP_BACKWARDATION';
-    shapeScore = 20;
+    // <3 peers or no sector stats: fixed tier fallback
+    if (slope > 0.15) shapeScore = 85;
+    else if (slope > 0.05) shapeScore = 70;
+    else if (slope > -0.05) shapeScore = 50;
+    else if (slope > -0.15) shapeScore = 35;
+    else shapeScore = 20;
+    tsTransform = 'fixed-tiers';
   }
 
   // Earnings kink detection: if there's an expiration near earnings with notably higher IV
@@ -436,7 +507,7 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     shapeScore = clamp(shapeScore - 5, 0, 100);
   }
 
-  const formula = `slope=${slopeStr} → shape=${shape} → base=${shapeScore}${earningsKinkDetected ? ' − 5 (earnings kink)' : ''} = ${shapeScore}`;
+  const formula = `slope=${slopeStr} → shape=${shape} → score=${shapeScore} [${tsTransform}${peerCount > 0 ? ', n=' + peerCount : ''}]${earningsKinkDetected ? ' − 5 (earnings kink)' : ''}`;
 
   return {
     score: round(shapeScore),
@@ -474,12 +545,12 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   if (candles.length < 20) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.20,
       inputs: { candles_available: candles.length },
-      formula: `Insufficient candle data (${candles.length} < 20 required) → default 50`,
+      formula: `Insufficient candle data (${candles.length} < 20 required) → penalty default 40 (missing data)`,
       notes: 'Need at least 20 candles for Bollinger Bands and SMA calculations',
-      sub_scores: { rsi_score: 50, trend_score: 50, bollinger_score: 50, volume_score: 50, macd_score: 50 },
+      sub_scores: { rsi_score: 40, trend_score: 40, bollinger_score: 40, volume_score: 40, macd_score: 40 },
       indicators: {
         rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
         bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
@@ -492,13 +563,21 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   const latestClose = candles[candles.length - 1].close;
 
-  // RSI
+  // RSI — asymmetric scoring for premium-selling context.
+  // Oversold (low RSI) drives IV higher than overbought via leverage effect
+  // (Carr & Wu 2009, Bollerslev et al. 2009). VRP is highest during elevated
+  // uncertainty, making post-selloff environments the best premium-selling setups.
   const rsiResult = computeRSI(candles, 14);
-  // For neutral/premium-selling: penalize extremes. RSI near 50 = best
-  let rsiScore = 50;
+  let rsiScore = 55;
   if (rsiResult.rsi !== null) {
-    rsiScore = round(100 - 2 * Math.abs(rsiResult.rsi - 50));
-    rsiScore = clamp(rsiScore, 0, 100);
+    const rsi = rsiResult.rsi;
+    if (rsi <= 20) rsiScore = 90;       // Extreme oversold — peak premium opportunity
+    else if (rsi <= 30) rsiScore = 80;  // Oversold — strong premium opportunity
+    else if (rsi <= 40) rsiScore = 65;  // Mildly oversold — above average
+    else if (rsi <= 60) rsiScore = 55;  // Neutral — baseline, no edge signal
+    else if (rsi <= 70) rsiScore = 60;  // Mildly overbought — slightly above neutral
+    else if (rsi <= 80) rsiScore = 70;  // Overbought — elevated IV, good for premium
+    else rsiScore = 75;                  // Extreme overbought — high IV but less reliable
   }
 
   // SMAs
@@ -548,7 +627,7 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   // MACD
   const macd = computeMACD(candles, 12, 26, 9);
-  let macdScore = 50;
+  let macdScore = 40; // penalty default — needs 35+ candles for MACD
   if (macd.histogram !== null) {
     // Positive histogram = bullish momentum, negative = bearish
     // For neutral strategies, near-zero is ideal
@@ -654,8 +733,34 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
     };
   }
 
+  // Build DataConfidence
+  const tt = input.ttScanner;
+  const imputedFields: string[] = [];
+  // Mispricing sub-scores
+  if (tt?.iv30 == null || tt?.hv30 == null) imputedFields.push('mispricing.vrp');
+  if (tt?.ivPercentile == null) imputedFields.push('mispricing.ivp');
+  if (tt?.ivHvSpread == null) imputedFields.push('mispricing.iv_hv_spread');
+  if (tt?.hv30 == null || tt?.hv60 == null || tt?.hv90 == null) imputedFields.push('mispricing.hv_accel');
+  // Term structure
+  const tsLen = tt?.termStructure?.length ?? 0;
+  if (tsLen < 2) imputedFields.push('term_structure');
+  // Technicals
+  if (!hasCandles) {
+    imputedFields.push('technicals');
+  } else {
+    if (input.candles.length < 35) imputedFields.push('technicals.macd');
+  }
+  const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1); // mispricing(4) + term(1) + technicals(5 or 1 if excluded)
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
+    data_confidence: dataConfidence,
     breakdown: {
       mispricing,
       term_structure: termStructure,

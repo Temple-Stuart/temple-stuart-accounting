@@ -6,6 +6,7 @@ import type {
   EarningsMomentumTrace,
   FlowSignalTrace,
   NewsSentimentTrace,
+  DataConfidence,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -17,6 +18,18 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
+// Bernard & Thomas (1989, 1990 JAR): SUE-relative thresholds — beat/miss
+// classification should scale with the stock's own surprise variability.
+// Threshold = max(1%, 0.5 × stdDev of historical surprise percentages).
+// Falls back to ±2% with fewer than 3 quarters of history.
+function computeSurpriseThreshold(surprises: number[]): number {
+  if (surprises.length < 3) return 2.0; // Fallback: insufficient history
+  const mean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+  const variance = surprises.reduce((a, b) => a + (b - mean) ** 2, 0) / (surprises.length - 1);
+  const stdDev = Math.sqrt(variance);
+  return Math.max(1.0, 0.5 * stdDev);
+}
+
 // ===== ANALYST CONSENSUS SUB-SCORE (15%) =====
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
@@ -24,12 +37,12 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   if (recs.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.15,
       inputs: { periods_available: 0 },
-      formula: 'No analyst recommendation data → default 50',
+      formula: 'No analyst recommendation data → penalty default 40 (missing data)',
       notes: 'No Finnhub recommendation data available',
-      sub_scores: { buy_sell_ratio_score: 50, strong_conviction_score: 50, coverage_score: 50 },
+      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
       raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
     };
   }
@@ -42,12 +55,12 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
 
   if (total === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.15,
       inputs: { periods_available: sorted.length, total_analysts: 0 },
-      formula: 'Zero analyst coverage → default 50',
+      formula: 'Zero analyst coverage → penalty default 40 (missing data)',
       notes: 'Latest period has 0 analysts',
-      sub_scores: { buy_sell_ratio_score: 50, strong_conviction_score: 50, coverage_score: 50 },
+      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
       raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
     };
   }
@@ -60,7 +73,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const consensusScore = clamp(15 + bullishPct * 70, 0, 100);
 
   // Momentum score (65%): compare current vs previous period bullish count
-  let momentumScore = 50;
+  let momentumScore = 40; // penalty default — insufficient periods for momentum
   if (sorted.length >= 2) {
     const previous = sorted[1];
     const bullishCurrent = latest.strongBuy + latest.buy;
@@ -118,12 +131,12 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
 
   if (sentiment.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.25,
       inputs: { months_available: 0 },
-      formula: 'No insider sentiment data → default 50',
+      formula: 'No insider sentiment data → penalty default 40 (missing data)',
       notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
-      sub_scores: { mspr_score: 50, trend_score: 50 },
+      sub_scores: { mspr_score: 40, trend_score: 40 },
       insider_detail: {
         months_available: 0,
         latest_mspr: null,
@@ -218,12 +231,12 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
 
   if (earnings.length === 0) {
     return {
-      score: 50,
+      score: 40,
       weight: 0.25,
       inputs: { quarters_available: 0 },
-      formula: 'No earnings data → default 50',
+      formula: 'No earnings data → penalty default 40 (missing data)',
       notes: 'No Finnhub earnings history available',
-      sub_scores: { beat_streak_score: 50, surprise_magnitude_score: 50, consistency_score: 50 },
+      sub_scores: { beat_streak_score: 40, surprise_magnitude_score: 40, consistency_score: 40 },
       momentum_detail: {
         last_4_surprises: [],
         consecutive_beats: 0,
@@ -238,14 +251,19 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   const recent = earnings.slice(0, 4);
   const surprises = recent.map(e => e.surprisePercent);
 
-  // Beat streak
+  // SUE-relative threshold (Bernard & Thomas 1989) — uses all available earnings
+  // for stdDev, not just last 4, to get a more stable estimate
+  const allSurprises = earnings.map(e => e.surprisePercent);
+  const sueThreshold = computeSurpriseThreshold(allSurprises);
+
+  // Beat streak — uses SUE threshold instead of fixed 0%
   let consecutiveBeats = 0;
   let consecutiveMisses = 0;
   for (const e of recent) {
-    if (e.surprisePercent > 0) {
+    if (e.surprisePercent > sueThreshold) {
       if (consecutiveMisses === 0) consecutiveBeats++;
       else break;
-    } else if (e.surprisePercent < 0) {
+    } else if (e.surprisePercent < -sueThreshold) {
       if (consecutiveBeats === 0) consecutiveMisses++;
       else break;
     } else {
@@ -342,12 +360,14 @@ function lerp(value: number, inLow: number, inHigh: number, outLow: number, outH
 }
 
 function scorePutCallRatio(pcr: number): number {
-  // PCR < 0.7 → 80 (bullish), 0.7-0.9 → 65, 0.9-1.1 → 50, 1.1-1.3 → 35, > 1.3 → 20
-  if (pcr <= 0.7) return lerp(pcr, 0.3, 0.7, 90, 80);
-  if (pcr <= 0.9) return lerp(pcr, 0.7, 0.9, 80, 65);
-  if (pcr <= 1.1) return lerp(pcr, 0.9, 1.1, 65, 35);
-  if (pcr <= 1.3) return lerp(pcr, 1.1, 1.3, 35, 20);
-  return lerp(pcr, 1.3, 1.6, 20, 10);
+  // Compressed range: unsigned public PCR has weak predictive power (Johnson & So 2012).
+  // Pan & Poteshman (2006): predictive PCR power comes from signed (buy-to-open) flow.
+  // Old: 70-point range (90→10). New: 35-point range (70→30), half conviction.
+  if (pcr <= 0.7) return lerp(pcr, 0.3, 0.7, 70, 65);
+  if (pcr <= 0.9) return lerp(pcr, 0.7, 0.9, 65, 55);
+  if (pcr <= 1.1) return lerp(pcr, 0.9, 1.1, 55, 45);
+  if (pcr <= 1.3) return lerp(pcr, 1.1, 1.3, 45, 35);
+  return lerp(pcr, 1.3, 1.6, 35, 30);
 }
 
 function scoreVolumeBias(bias: number): number {
@@ -360,12 +380,24 @@ function scoreVolumeBias(bias: number): number {
 }
 
 function scoreUnusualActivity(ratio: number): number {
-  // ratio > 0.3 → 80 (lots of new positioning = conviction)
-  // 0.15-0.3 → 65, 0.05-0.15 → 50, < 0.05 → 35 (quiet)
-  if (ratio >= 0.3) return lerp(ratio, 0.3, 0.5, 80, 90);
-  if (ratio >= 0.15) return lerp(ratio, 0.15, 0.3, 65, 80);
-  if (ratio >= 0.05) return lerp(ratio, 0.05, 0.15, 50, 65);
-  return lerp(ratio, 0.0, 0.05, 35, 50);
+  // Continuous tiered scoring replacing binary 2× OI threshold.
+  // Stock-specific norms vary widely (TSLA routinely >2× OI, JNJ never).
+  // Tiers reflect how extreme the vol/OI ratio is on an absolute basis.
+  if (ratio >= 0.5) return lerp(ratio, 0.5, 0.8, 85, 90);
+  if (ratio >= 0.3) return lerp(ratio, 0.3, 0.5, 72, 85);
+  if (ratio >= 0.15) return lerp(ratio, 0.15, 0.3, 58, 72);
+  if (ratio >= 0.05) return lerp(ratio, 0.05, 0.15, 45, 58);
+  return lerp(ratio, 0.0, 0.05, 35, 45);
+}
+
+function scoreOptionStockRatio(osRatio: number): number {
+  // Johnson & So (2012, JFE): O/S ratio is a stronger predictor than unsigned PCR.
+  // Lowest O/S decile outperforms highest by 0.34%/week (19.3% annualized).
+  // Low O/S = less informed option trading = bullish for stock.
+  if (osRatio < 0.1) return lerp(osRatio, 0.0, 0.1, 75, 70);
+  if (osRatio <= 0.3) return lerp(osRatio, 0.1, 0.3, 70, 55);
+  if (osRatio <= 0.5) return lerp(osRatio, 0.3, 0.5, 55, 45);
+  return lerp(osRatio, 0.5, 1.0, 45, 35);
 }
 
 function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
@@ -382,9 +414,11 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
         put_call_ratio_score: 50,
         unusual_activity_score: 50,
         volume_bias_score: 50,
+        option_stock_ratio_score: 50,
       },
       flow_detail: {
         data_available: false,
+        option_stock_ratio: null,
         note: 'Finnhub option chain fetch failed or returned no data.',
       },
     };
@@ -393,25 +427,48 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
   // Score each sub-component
   const pcrScore = flow.put_call_ratio !== null
     ? round(scorePutCallRatio(flow.put_call_ratio))
-    : 50;
+    : 40; // penalty default — missing PCR data
 
   const biasScore = flow.volume_bias !== null
     ? round(scoreVolumeBias(flow.volume_bias))
-    : 50;
+    : 40; // penalty default — missing volume bias
 
   const activityScore = flow.unusual_activity_ratio !== null
     ? round(scoreUnusualActivity(flow.unusual_activity_ratio))
-    : 50;
+    : 40; // penalty default — missing activity data
 
-  // Weighted: PCR 40%, volume bias 35%, unusual activity 25%
-  const score = round(0.40 * pcrScore + 0.35 * biasScore + 0.25 * activityScore, 1);
+  // O/S ratio: total option volume / avg daily stock volume (Johnson & So 2012, JFE)
+  const candles = input.candles;
+  let osRatio: number | null = null;
+  let osScore: number | null = null;
+  if (candles.length >= 20) {
+    const recentVols = candles.slice(-20).map(c => c.volume);
+    const avgStockVol = recentVols.reduce((a, b) => a + b, 0) / recentVols.length;
+    if (avgStockVol > 0) {
+      const totalOptionVol = flow.total_call_volume + flow.total_put_volume;
+      osRatio = round(totalOptionVol / avgStockVol, 4);
+      osScore = round(scoreOptionStockRatio(osRatio));
+    }
+  }
 
-  const formula = `0.40×PCR(${pcrScore}) + 0.35×Bias(${biasScore}) + 0.25×Activity(${activityScore}) = ${score}`;
+  // Weights depend on O/S availability
+  let score: number;
+  let formula: string;
+  if (osScore !== null) {
+    // Full weights: 0.25 PCR + 0.25 bias + 0.25 activity + 0.25 O/S
+    score = round(0.25 * pcrScore + 0.25 * biasScore + 0.25 * activityScore + 0.25 * osScore, 1);
+    formula = `0.25×PCR(${pcrScore}) + 0.25×Bias(${biasScore}) + 0.25×Activity(${activityScore}) + 0.25×O/S(${osScore}) = ${score}`;
+  } else {
+    // No candle data for O/S: 0.30 PCR + 0.35 bias + 0.35 activity
+    score = round(0.30 * pcrScore + 0.35 * biasScore + 0.35 * activityScore, 1);
+    formula = `0.30×PCR(${pcrScore}) + 0.35×Bias(${biasScore}) + 0.35×Activity(${activityScore}) = ${score} [no O/S — missing candle data]`;
+  }
 
   const notes = [
     `PCR=${flow.put_call_ratio ?? 'N/A'}`,
     `bias=${flow.volume_bias ?? 'N/A'}`,
     `unusual=${flow.unusual_activity_ratio ?? 'N/A'}`,
+    `O/S=${osRatio ?? 'N/A'}`,
     `${flow.strikes_analyzed} strikes across ${flow.expirations_analyzed} exps`,
     `call_vol=${flow.total_call_volume} put_vol=${flow.total_put_volume}`,
     `${flow.high_activity_strikes} high-activity strikes`,
@@ -425,6 +482,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
       put_call_ratio: flow.put_call_ratio,
       volume_bias: flow.volume_bias,
       unusual_activity_ratio: flow.unusual_activity_ratio,
+      option_stock_ratio: osRatio,
       total_call_volume: flow.total_call_volume,
       total_put_volume: flow.total_put_volume,
       total_call_oi: flow.total_call_oi,
@@ -439,10 +497,12 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
       put_call_ratio_score: pcrScore,
       unusual_activity_score: activityScore,
       volume_bias_score: biasScore,
+      option_stock_ratio_score: osScore ?? 50,
     },
     flow_detail: {
       data_available: true,
-      note: `Finnhub option chain: ${flow.expirations_analyzed} expirations, ${flow.strikes_analyzed} strikes analyzed.`,
+      option_stock_ratio: osRatio,
+      note: `Finnhub option chain: ${flow.expirations_analyzed} expirations, ${flow.strikes_analyzed} strikes analyzed.${osRatio !== null ? ` O/S ratio: ${osRatio}` : ' O/S unavailable (no candle data).'}`,
     },
   };
 }
@@ -470,6 +530,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
         tier1_ratio: null,
         source_distribution: {},
         headlines: [],
+        classification_method: 'none',
       },
     };
   }
@@ -512,6 +573,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
 
   const formula = `0.30×Buzz(${buzzScore}) + 0.40×Sentiment(${sentimentScore}) + 0.30×SourceQuality(${sourceQualityScore}) = ${score}`;
 
+  const classMethod = news.classification_method ?? 'keyword-fallback';
   const notes = [
     `${news.articles_7d} articles (7d), ${news.articles_8_30d} articles (8-30d)`,
     `buzz_ratio=${news.buzz_ratio ?? 'N/A'}`,
@@ -519,6 +581,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
     `momentum=${news.sentiment_momentum}`,
     `tier1=${round(news.tier1_ratio * 100, 1)}%`,
     `7d: ${news.sentiment_7d.bullish_matches}B/${news.sentiment_7d.bearish_matches}b/${news.sentiment_7d.neutral}N`,
+    `method=${classMethod}`,
   ].join(', ');
 
   return {
@@ -533,6 +596,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
       sentiment_7d_score: news.sentiment_7d.score,
       sentiment_momentum: news.sentiment_momentum,
       tier1_ratio: news.tier1_ratio,
+      classification_method: classMethod,
     },
     formula,
     notes,
@@ -551,6 +615,7 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
       tier1_ratio: news.tier1_ratio,
       source_distribution: news.source_distribution,
       headlines: news.headlines,
+      classification_method: classMethod,
     },
   };
 }
@@ -573,8 +638,32 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     1,
   );
 
+  // Build DataConfidence
+  const imputedFields: string[] = [];
+  if (input.finnhubRecommendations.length === 0) imputedFields.push('analyst_consensus');
+  else if (input.finnhubRecommendations.length < 2) imputedFields.push('analyst_consensus.momentum');
+  if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity');
+  if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
+  if (!input.optionsFlow) {
+    imputedFields.push('flow_signal');
+  } else {
+    if (input.optionsFlow.put_call_ratio == null) imputedFields.push('flow_signal.pcr');
+    if (input.optionsFlow.volume_bias == null) imputedFields.push('flow_signal.volume_bias');
+    if (input.optionsFlow.unusual_activity_ratio == null) imputedFields.push('flow_signal.unusual_activity');
+  }
+  if (!input.newsSentiment) imputedFields.push('news_sentiment');
+
+  const totalSubScores = 5; // analyst, insider, earnings, flow, news
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
+    data_confidence: dataConfidence,
     breakdown: {
       analyst_consensus: analystConsensus,
       insider_activity: insiderActivity,

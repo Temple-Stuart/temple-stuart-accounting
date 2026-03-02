@@ -82,6 +82,7 @@ function calculateBreakevenPoP(
   iv: number,
   dte: number,
   isCredit: boolean,
+  riskFreeRate?: number,
 ): { pop: number; method: 'breakeven_d2' } | null {
   if (breakevens.length === 0 || spotPrice <= 0 || iv <= 0 || dte <= 0) return null;
 
@@ -96,11 +97,11 @@ function calculateBreakevenPoP(
       // Put credit spread: breakeven is below spot → profit if price ABOVE breakeven
       // Call credit spread: breakeven is above spot → profit if price BELOW breakeven
       if (be < spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
         if (p === null) return null;
         // Price needs to stay below breakeven
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
@@ -110,11 +111,11 @@ function calculateBreakevenPoP(
       // Bull call spread: breakeven above spot → profit if price ABOVE breakeven
       // Bear put spread: breakeven below spot → profit if price BELOW breakeven
       if (be > spotPrice) {
-        const p = probAbove(spotPrice, be, iv, dteYears);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
       } else {
-        const p = probAbove(spotPrice, be, iv, dteYears);
+        const p = probAbove(spotPrice, be, iv, dteYears, riskFreeRate);
         if (p === null) return null;
         return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
       }
@@ -125,12 +126,12 @@ function calculateBreakevenPoP(
     const [lowerBE, upperBE] = sorted;
     if (isCredit) {
       // Iron condor, short strangle, short straddle: profit if price stays BETWEEN breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, p)), method: 'breakeven_d2' };
     } else {
       // Long straddle, long strangle: profit if price goes OUTSIDE breakevens
-      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears);
+      const p = probBetween(spotPrice, lowerBE, upperBE, iv, dteYears, riskFreeRate);
       if (p === null) return null;
       return { pop: Math.max(0, Math.min(1, 1 - p)), method: 'breakeven_d2' };
     }
@@ -214,9 +215,11 @@ export interface GenerateParams {
   ivRank: number;
   expiration: string;
   dte: number;
-  symbol?: string; // for debug logging
-  iv30?: number;   // implied volatility decimal (e.g. 0.42 for 42%)
-  hv30?: number;   // 30-day HV decimal (e.g. 0.25 for 25%)
+  symbol?: string;        // for debug logging
+  iv30?: number;          // implied volatility decimal (e.g. 0.42 for 42%)
+  hv30?: number;          // 30-day HV decimal (e.g. 0.25 for 25%)
+  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
+  riskFreeRate?: number;
 }
 
 // ─── Rejection Tracking ─────────────────────────────────────────────
@@ -806,7 +809,7 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
   for (const card of cards) {
     if (card.breakevens.length === 0 || card.pop == null) continue;
     const isCredit = CREDIT_STRATEGIES.includes(card.name) || (card.netCredit != null && card.netCredit > 0);
-    const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit);
+    const bePoP = calculateBreakevenPoP(card.breakevens, currentPrice, iv, dte, isCredit, params.riskFreeRate);
     if (bePoP) {
       const deltaPop = card.pop;
       card.pop = Math.round(bePoP.pop * 100) / 100;

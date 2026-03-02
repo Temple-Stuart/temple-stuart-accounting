@@ -128,6 +128,7 @@ export interface NewsHeadlineEntry {
   url: string;
   sentiment_keywords: string[];
   sentiment: 'bullish' | 'bearish' | 'neutral';
+  confidence?: number; // 0-1; 1.0 for keyword, actual for LLM
 }
 
 export interface NewsSentimentPeriod {
@@ -148,6 +149,7 @@ export interface NewsSentimentData {
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
+  classification_method: string; // 'llm-haiku' | 'keyword-fallback'
 }
 
 // ===== COMBINED RAW INPUT =====
@@ -164,7 +166,16 @@ export interface ConvergenceInput {
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
-  sectorStats?: Record<string, { metrics: Record<string, { mean: number; std: number }> }>;
+  sectorStats?: Record<string, { ticker_count?: number; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
+}
+
+// ===== DATA CONFIDENCE =====
+
+export interface DataConfidence {
+  total_sub_scores: number;
+  imputed_sub_scores: number;
+  confidence: number; // 1 - (imputed / total), range 0 to 1
+  imputed_fields: string[];
 }
 
 // ===== SCORING TRACES =====
@@ -186,6 +197,7 @@ export interface MispricingTrace extends SubScoreTrace {
     iv_hv_z: number | null;
     hv_accel_z: number | null;
     note: string;
+    transform: 'percentile' | 'z-score-fallback' | 'raw';
   };
   hv_trend: string;
 }
@@ -230,6 +242,7 @@ export interface TechnicalsTrace extends SubScoreTrace {
 
 export interface VolEdgeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     mispricing: MispricingTrace;
     term_structure: TermStructureTrace;
@@ -252,6 +265,12 @@ export interface SafetyTrace extends SubScoreTrace {
     available_signals: number;
     total_signals: number;
     computable: Record<string, boolean | null>;
+    change_signals: {
+      computable_count: number;
+      passed_count: number;
+      change_score: number | null;  // passed/computable ratio (0-1), null if 0 computable
+      modifier: number;             // ±10 adjustment applied to profitability
+    };
     note: string;
   };
   altman_z: {
@@ -310,22 +329,26 @@ export interface GrowthTrace extends SubScoreTrace {
   };
 }
 
-export interface EfficiencyTrace extends SubScoreTrace {
+export interface FundamentalRiskTrace extends SubScoreTrace {
   sub_scores: {
+    cash_flow_stability_score: number;
+    earnings_predictability_score: number;
     asset_turnover_score: number;
-    margin_spread_score: number;
-    inventory_turnover_score: number;
   };
 }
+
+/** @deprecated Use FundamentalRiskTrace */
+export type EfficiencyTrace = FundamentalRiskTrace;
 
 export interface QualityGateResult {
   score: number;
   mspr_adjustment: number;
+  data_confidence: DataConfidence;
   breakdown: {
     safety: SafetyTrace;
     profitability: ProfitabilityTrace;
     growth: GrowthTrace;
-    efficiency: EfficiencyTrace;
+    fundamentalRisk: FundamentalRiskTrace;
   };
 }
 
@@ -340,6 +363,7 @@ export interface StrategyRegimeScore {
 
 export interface RegimeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     growth_signal: {
       score: number;
@@ -451,9 +475,11 @@ export interface FlowSignalTrace {
     put_call_ratio_score: number;
     unusual_activity_score: number;
     volume_bias_score: number;
+    option_stock_ratio_score: number;
   };
   flow_detail: {
     data_available: boolean;
+    option_stock_ratio: number | null;
     note: string;
   };
 }
@@ -479,11 +505,13 @@ export interface NewsSentimentTrace {
     tier1_ratio: number | null;
     source_distribution: Record<string, number>;
     headlines: NewsHeadlineEntry[];
+    classification_method: string;
   };
 }
 
 export interface InfoEdgeResult {
   score: number;
+  data_confidence: DataConfidence;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
     insider_activity: InsiderActivityTrace;
@@ -508,6 +536,9 @@ export interface CompositeResult {
     info_edge: number;
   };
   categories_above_50: number;
+  position_size_pct: number;
+  sizing_method: string;
+  data_confidence: DataConfidence;
 }
 
 // -- Strategy Suggestion --

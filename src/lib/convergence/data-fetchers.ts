@@ -12,6 +12,7 @@ import type {
   NewsHeadlineEntry,
   NewsSentimentPeriod,
 } from './types';
+import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 
@@ -98,9 +99,11 @@ export async function fetchFinnhubTicker(
   }
 
   // 3. Insider sentiment
+  // Rolling 18-month window for insider sentiment data
+  const insiderFrom = new Date(Date.now() - 18 * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   try {
     const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${key}`,
+      `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=${insiderFrom}&token=${key}`,
     );
     if (resp.ok) {
       const json = await resp.json();
@@ -594,23 +597,22 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
   let bullish = 0;
   let bearish = 0;
   let neutral = 0;
+  let bullishWeight = 0;
+  let bearishWeight = 0;
 
   for (const h of headlines) {
-    if (h.sentiment === 'bullish') bullish++;
-    else if (h.sentiment === 'bearish') bearish++;
+    const conf = h.confidence ?? 1.0;
+    if (h.sentiment === 'bullish') { bullish++; bullishWeight += conf; }
+    else if (h.sentiment === 'bearish') { bearish++; bearishWeight += conf; }
     else neutral++;
   }
 
   const total = headlines.length;
-  // Score: ((bullish - bearish + total) / (2 * total)) * 100
-  // All bullish → (total + total) / (2*total) → 100
-  // All bearish → (0 - total + total) / (2*total) → 0 ... wait, (-total + total) = 0, so 0/(2*total) = 0
-  // Actually: (bullish - bearish + total) / (2 * total) * 100
-  // All bearish: (0 - total + total) / (2*total) * 100 = 0
-  // All bullish: (total - 0 + total) / (2*total) * 100 = 100
-  // Neutral: (0 - 0 + total) / (2*total) * 100 = 50
+  // Confidence-weighted sentiment: 50 + ((bullishWeight - bearishWeight) / total) × 50
+  // When all confidence=1.0: identical to old formula ((bullish - bearish + total) / (2*total)) * 100
+  // With LLM confidence: high-confidence classifications count more than low-confidence
   const score = total > 0
-    ? Math.round(((bullish - bearish + total) / (2 * total)) * 10000) / 100
+    ? Math.round(Math.max(0, Math.min(100, 50 + ((bullishWeight - bearishWeight) / total) * 50)) * 100) / 100
     : 50;
 
   return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
@@ -691,7 +693,7 @@ export async function fetchNewsSentiment(
       const datetime = article.datetime || 0;
       const url = article.url || '';
       const { sentiment, keywords } = classifyHeadline(headline);
-      return { datetime, headline, source, url, sentiment_keywords: keywords, sentiment };
+      return { datetime, headline, source, url, sentiment_keywords: keywords, sentiment, confidence: 1.0 };
     }
 
     for (const article of articles7dRaw) {
@@ -710,6 +712,27 @@ export async function fetchNewsSentiment(
 
     // Sort all headlines by datetime descending (most recent first)
     allHeadlines.sort((a, b) => b.datetime - a.datetime);
+
+    // Attempt LLM classification for improved accuracy (Kirtac & Germano 2024)
+    // ~$0.01-0.05 per scan of 50-200 headlines via Haiku
+    let classificationMethod: 'llm-haiku' | 'keyword-fallback' = 'keyword-fallback';
+    if (allHeadlines.length > 0) {
+      try {
+        const llmResults = await classifyNewsHeadlines(
+          allHeadlines.map(h => h.headline),
+          symbol,
+        );
+        if (llmResults) {
+          classificationMethod = 'llm-haiku';
+          for (let i = 0; i < allHeadlines.length && i < llmResults.length; i++) {
+            allHeadlines[i].sentiment = llmResults[i].sentiment;
+            allHeadlines[i].confidence = llmResults[i].confidence;
+          }
+        }
+      } catch {
+        // Keep keyword fallback — already classified
+      }
+    }
 
     const articles7d = headlines7d.length;
     const articles8_30d = headlines8_30d.length;
@@ -752,9 +775,10 @@ export async function fetchNewsSentiment(
       source_distribution: sourceDistribution,
       tier1_ratio: tier1Ratio,
       headlines: allHeadlines,
+      classification_method: classificationMethod,
     };
 
-    // Cache
+    // Cache (LLM classification cached with the result — classify once per 30 min)
     newsSentimentCache.set(symbol, { data: result, fetchedAt: Date.now() });
 
     return { data: result, error: null };

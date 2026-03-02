@@ -4,7 +4,8 @@ import type {
   SafetyTrace,
   ProfitabilityTrace,
   GrowthTrace,
-  EfficiencyTrace,
+  FundamentalRiskTrace,
+  DataConfidence,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -16,6 +17,18 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
+// Bernard & Thomas (1989, 1990 JAR): SUE-relative thresholds — beat/miss
+// classification should scale with the stock's own surprise variability.
+// Threshold = max(1%, 0.5 × stdDev of historical surprise percentages).
+// Falls back to ±2% with fewer than 3 quarters of history.
+function computeSurpriseThreshold(surprises: number[]): number {
+  if (surprises.length < 3) return 2.0; // Fallback: insufficient history
+  const mean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+  const variance = surprises.reduce((a, b) => a + (b - mean) ** 2, 0) / (surprises.length - 1);
+  const stdDev = Math.sqrt(variance);
+  return Math.max(1.0, 0.5 * stdDev);
+}
+
 // ===== SAFETY SUB-SCORE (40%) =====
 
 function scoreSafety(input: ConvergenceInput): SafetyTrace {
@@ -25,7 +38,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Liquidity rating (15%) ---
   const liqRating = tt?.liquidityRating ?? null;
-  let liquidityRatingScore = 50;
+  let liquidityRatingScore = 40; // penalty default — missing data
   if (liqRating !== null) {
     // TT uses ~1-5 scale. Map: 5->95, 4->80, 3->60, 2->40, 1->20
     liquidityRatingScore = clamp(liqRating * 20 - 5, 0, 100);
@@ -33,7 +46,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Market cap (15%) ---
   const marketCap = tt?.marketCap ?? null;
-  let marketCapScore = 50;
+  let marketCapScore = 40; // penalty default — missing data
   if (marketCap !== null) {
     if (marketCap > 200_000_000_000) marketCapScore = 90;
     else if (marketCap > 10_000_000_000) marketCapScore = 75;
@@ -43,7 +56,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   }
 
   // --- Volume (15%) ---
-  let volumeScore = 50;
+  let volumeScore = 40; // penalty default — missing data
   let avgVol20d: number | null = null;
   if (candles.length >= 20) {
     const vols = candles.slice(-20).map(c => c.volume);
@@ -67,7 +80,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   // --- Beta (20%) ---
   const beta = tt?.beta ?? (typeof metric['beta'] === 'number' ? metric['beta'] as number : null);
-  let betaScore = 50;
+  let betaScore = 40; // penalty default — missing data
   if (beta !== null) {
     if (beta < 0.8) betaScore = 90;
     else if (beta <= 1.0) betaScore = 80;
@@ -79,7 +92,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   // --- Debt-to-Equity (25%) ---
   const debtToEquity = typeof metric['totalDebt/totalEquityQuarterly'] === 'number'
     ? metric['totalDebt/totalEquityQuarterly'] as number : null;
-  let debtToEquityScore = 50;
+  let debtToEquityScore = 40; // penalty default — missing data
   if (debtToEquity !== null) {
     if (debtToEquity < 0.3) debtToEquityScore = 95;
     else if (debtToEquity <= 0.5) debtToEquityScore = 80;
@@ -140,6 +153,23 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const computedSignals = Object.values(piotroskiSignals).filter(v => v !== null);
   const passedSignals = computedSignals.filter(v => v === true).length;
 
+  // Schwartz & Hanauer (2024): F-Score alpha explained by style factors.
+  // Level signals (1-4) duplicate ROE/ROA/FCF already in profitability.
+  // Change signals (5-9) provide unique directional info → used as ±10 modifier.
+  const changeSignalKeys = [
+    'current_ratio_improving', 'gross_margin_expanding',
+    'asset_turnover_improving', 'no_equity_issuance', 'leverage_decreasing',
+  ] as const;
+  const changeComputable = changeSignalKeys.filter(k => piotroskiSignals[k] !== null);
+  const changePassed = changeComputable.filter(k => piotroskiSignals[k] === true).length;
+  const changeScore = changeComputable.length > 0
+    ? round(changePassed / changeComputable.length, 2)
+    : null;
+  // Map 0-1 ratio to ±10: 1.0→+10, 0.5→0, 0.0→-10
+  const piotroskiChangeModifier = changeScore !== null
+    ? round((changeScore - 0.5) * 20, 1)
+    : 0;
+
   // --- Altman Z-Score (partial) ---
   // Z = 1.2*X1 + 1.4*X2 + 3.3*X3 + 0.6*X4 + 1.0*X5
   const hasX1 = cfoa !== null; // Current ratio as WC/TA proxy
@@ -176,21 +206,25 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   let score: number;
   let formula: string;
 
+  // Christoffersen, Goyenko, Jacobs & Karoui (2018, RFS): options illiquidity
+  // premium is ~3.4%/day for ATM calls — liquidity dominates beta for spread traders.
+  // Cao & Han (2013, JFE): idiosyncratic vol, not beta, predicts option returns.
+  // Weights: 0.25 liq + 0.15 mktcap + 0.15 vol + 0.10 lend + 0.10 beta + 0.25 D/E = 1.0
   if (hasCandles) {
     score = round(
-      0.15 * liquidityRatingScore + 0.15 * marketCapScore + 0.15 * volumeScore +
-      0.10 * lendabilityScore + 0.20 * betaScore + 0.25 * debtToEquityScore,
+      0.25 * liquidityRatingScore + 0.15 * marketCapScore + 0.15 * volumeScore +
+      0.10 * lendabilityScore + 0.10 * betaScore + 0.25 * debtToEquityScore,
       1,
     );
-    formula = `0.15*LiqRating(${round(liquidityRatingScore)}) + 0.15*MktCap(${round(marketCapScore)}) + 0.15*Vol(${round(volumeScore)}) + 0.10*Lend(${round(lendabilityScore)}) + 0.20*Beta(${round(betaScore)}) + 0.25*D/E(${round(debtToEquityScore)}) = ${score}`;
+    formula = `0.25*LiqRating(${round(liquidityRatingScore)}) + 0.15*MktCap(${round(marketCapScore)}) + 0.15*Vol(${round(volumeScore)}) + 0.10*Lend(${round(lendabilityScore)}) + 0.10*Beta(${round(betaScore)}) + 0.25*D/E(${round(debtToEquityScore)}) = ${score}`;
   } else {
     // No candle data: exclude volume (15%), renormalize remaining 85% to 100%
     volumeScore = 0;
     avgVol20d = null;
     const w = 0.85;
     score = round(
-      (0.15 / w) * liquidityRatingScore + (0.15 / w) * marketCapScore +
-      (0.10 / w) * lendabilityScore + (0.20 / w) * betaScore + (0.25 / w) * debtToEquityScore,
+      (0.25 / w) * liquidityRatingScore + (0.15 / w) * marketCapScore +
+      (0.10 / w) * lendabilityScore + (0.10 / w) * betaScore + (0.25 / w) * debtToEquityScore,
       1,
     );
     formula = `Volume EXCLUDED (no candles). Renorm: LiqRating(${round(liquidityRatingScore)}) + MktCap(${round(marketCapScore)}) + Lend(${round(lendabilityScore)}) + Beta(${round(betaScore)}) + D/E(${round(debtToEquityScore)}) = ${score}`;
@@ -228,9 +262,15 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       available_signals: computedSignals.length,
       total_signals: 9,
       computable: piotroskiSignals,
+      change_signals: {
+        computable_count: changeComputable.length,
+        passed_count: changePassed,
+        change_score: changeScore,
+        modifier: piotroskiChangeModifier,
+      },
       note: computedSignals.length === 9
-        ? `${passedSignals}/9 signals passing (all computable)`
-        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable — missing annual financial data)`,
+        ? `${passedSignals}/9 signals passing (all computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`
+        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`,
     },
     altman_z: {
       score: altmanScore,
@@ -252,7 +292,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- Gross margin (15%) ---
   const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let grossMarginScore = 50;
+  let grossMarginScore = 40; // penalty default — missing data
   if (grossMargin !== null) {
     if (grossMargin > 60) grossMarginScore = 85;
     else if (grossMargin > 40) grossMarginScore = 70;
@@ -263,7 +303,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROE (15%) ---
   const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
-  let roeScore = 50;
+  let roeScore = 40; // penalty default — missing data
   if (roe !== null) {
     if (roe > 25) roeScore = 90;
     else if (roe > 15) roeScore = 75;
@@ -275,7 +315,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- ROA (10%) ---
   const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
-  let roaScore = 50;
+  let roaScore = 40; // penalty default — missing data
   if (roa !== null) {
     if (roa > 15) roaScore = 90;
     else if (roa > 10) roaScore = 75;
@@ -287,7 +327,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // --- P/E ratio (15%) ---
   const pe = tt?.peRatio ?? (typeof metric['peNormalizedAnnual'] === 'number' ? metric['peNormalizedAnnual'] : null);
-  let peScore = 50;
+  let peScore = 40; // penalty default — missing data
   if (pe !== null && typeof pe === 'number') {
     if (pe < 0) peScore = 20;           // Negative earnings
     else if (pe < 5) peScore = 35;      // Suspiciously cheap
@@ -303,7 +343,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
     : null;
-  let fcfScore = 50;
+  let fcfScore = 40; // penalty default — missing data
   if (fcfShareTTM !== null && currentPrice !== null && currentPrice > 0) {
     const fcfYield = (fcfShareTTM / currentPrice) * 100;
     if (fcfYield > 8) fcfScore = 85;
@@ -314,8 +354,8 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   }
 
   // --- Earnings quality (25%) — full scoreEarningsQuality logic inlined ---
-  let surpriseConsistency = 50;
-  let dteScore = 50;
+  let surpriseConsistency = 40; // penalty default — missing earnings data
+  let dteScore = 40; // penalty default — missing earnings date
   let beatRate = 0;
   let totalQ = 0;
   let beats = 0;
@@ -327,10 +367,15 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   if (earnings.length > 0) {
     const surprises: number[] = [];
     for (const e of earnings) {
-      const surp = e.surprisePercent;
-      surprises.push(surp);
-      if (surp > 2) beats++;
-      else if (surp < -2) misses++;
+      surprises.push(e.surprisePercent);
+    }
+
+    // SUE-relative threshold (Bernard & Thomas 1989)
+    const sueThreshold = computeSurpriseThreshold(surprises);
+
+    for (const surp of surprises) {
+      if (surp > sueThreshold) beats++;
+      else if (surp < -sueThreshold) misses++;
       else inLine++;
     }
 
@@ -341,14 +386,14 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       ? round(surprises.reduce((a, b) => a + b, 0) / surprises.length, 2)
       : null;
 
-    // Streak detection (most recent first)
+    // Streak detection (most recent first) — uses same SUE threshold
     let consecutiveBeats = 0;
     let consecutiveMisses = 0;
     for (const e of earnings) {
-      if (e.surprisePercent > 2) {
+      if (e.surprisePercent > sueThreshold) {
         if (consecutiveMisses === 0) consecutiveBeats++;
         else break;
-      } else if (e.surprisePercent < -2) {
+      } else if (e.surprisePercent < -sueThreshold) {
         if (consecutiveBeats === 0) consecutiveMisses++;
         else break;
       } else {
@@ -437,7 +482,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Revenue growth (40%) ---
   const revGrowth = typeof metric['revenueGrowthTTMYoy'] === 'number' ? metric['revenueGrowthTTMYoy'] as number : null;
-  let revenueGrowthScore = 50;
+  let revenueGrowthScore = 40; // penalty default — missing data
   if (revGrowth !== null) {
     if (revGrowth > 20) revenueGrowthScore = 90;
     else if (revGrowth > 10) revenueGrowthScore = 75;
@@ -448,7 +493,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- EPS growth (40%) ---
   const epsGrowth = typeof metric['epsGrowthTTMYoy'] === 'number' ? metric['epsGrowthTTMYoy'] as number : null;
-  let epsGrowthScore = 50;
+  let epsGrowthScore = 40; // penalty default — missing data
   if (epsGrowth !== null) {
     if (epsGrowth > 25) epsGrowthScore = 90;
     else if (epsGrowth > 15) epsGrowthScore = 75;
@@ -459,7 +504,7 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 
   // --- Dividend growth (20%) ---
   const divGrowth = typeof metric['dividendGrowthRate5Y'] === 'number' ? metric['dividendGrowthRate5Y'] as number : null;
-  let dividendGrowthScore = 50;
+  let dividendGrowthScore = 40; // penalty default — missing data
   if (divGrowth !== null) {
     if (divGrowth > 10) dividendGrowthScore = 85;
     else if (divGrowth > 5) dividendGrowthScore = 70;
@@ -492,14 +537,67 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
   };
 }
 
-// ===== EFFICIENCY SUB-SCORE (15%) =====
+// ===== FUNDAMENTAL RISK SUB-SCORE (15%) =====
+// Zhan, Han, Cao & Tong (2022, RFS): cash flow variance and earnings predictability
+// predict delta-hedged option returns; traditional efficiency metrics do not.
 
-function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
+function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
   const metric = input.finnhubFundamentals?.metric ?? {};
+  const af = input.annualFinancials;
+  const earnings = input.finnhubEarnings;
 
-  // --- Asset turnover (40%) ---
+  // --- Cash flow stability (40%) ---
+  // Prefer multi-year CoV from annual financials; fall back to TTM sign check
+  let cashFlowStabilityScore = 40; // penalty default — missing data
+  let cfSource = 'missing';
+
+  const curOCF = af?.currentYear?.operatingCashFlow ?? null;
+  const priOCF = af?.priorYear?.operatingCashFlow ?? null;
+
+  if (curOCF !== null && priOCF !== null) {
+    // 2-year coefficient of variation
+    const cfValues = [curOCF, priOCF];
+    const cfMean = cfValues.reduce((a, b) => a + b, 0) / cfValues.length;
+    const cfStd = Math.sqrt(cfValues.reduce((s, v) => s + (v - cfMean) ** 2, 0) / (cfValues.length - 1));
+    const cov = cfMean !== 0 ? Math.abs(cfStd / cfMean) : Infinity;
+
+    if (cov < 0.2) cashFlowStabilityScore = 85;
+    else if (cov < 0.5) cashFlowStabilityScore = 70;
+    else if (cov < 1.0) cashFlowStabilityScore = 55;
+    else if (cov < 2.0) cashFlowStabilityScore = 40;
+    else cashFlowStabilityScore = 25;
+    cfSource = `annual CoV=${round(cov, 2)}`;
+  } else {
+    // Fallback: TTM free cash flow sign check
+    const fcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+    if (fcfTTM !== null) {
+      cashFlowStabilityScore = fcfTTM > 0 ? 60 : 35;
+      cfSource = `TTM FCF/sh=${round(fcfTTM, 2)} (${fcfTTM > 0 ? 'positive' : 'negative'})`;
+    }
+  }
+
+  // --- Earnings predictability (35%) ---
+  // StdDev of surprise percentages — same computation as computeSurpriseThreshold
+  let earningsPredictabilityScore = 40; // penalty default — missing or insufficient data
+  let epSource = 'missing';
+
+  if (earnings.length >= 2) {
+    const surprises = earnings.map(e => e.surprisePercent);
+    const surpriseMean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+    const surpriseVariance = surprises.reduce((s, v) => s + (v - surpriseMean) ** 2, 0) / (surprises.length - 1);
+    const surpriseStdDev = Math.sqrt(surpriseVariance);
+
+    if (surpriseStdDev < 2) earningsPredictabilityScore = 85;
+    else if (surpriseStdDev < 5) earningsPredictabilityScore = 70;
+    else if (surpriseStdDev < 10) earningsPredictabilityScore = 55;
+    else if (surpriseStdDev < 20) earningsPredictabilityScore = 40;
+    else earningsPredictabilityScore = 25;
+    epSource = `stdDev=${round(surpriseStdDev, 2)}% over ${surprises.length}Q`;
+  }
+
+  // --- Asset turnover (25%) — retained from original efficiency score ---
   const assetTurnover = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
-  let assetTurnoverScore = 50;
+  let assetTurnoverScore = 40; // penalty default — missing data
   if (assetTurnover !== null) {
     if (assetTurnover > 1.5) assetTurnoverScore = 90;
     else if (assetTurnover > 1.0) assetTurnoverScore = 75;
@@ -508,51 +606,27 @@ function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
     else assetTurnoverScore = 30;
   }
 
-  // --- Margin spread (30%): operatingMarginTTM / grossMarginTTM ---
-  const operatingMargin = typeof metric['operatingMarginTTM'] === 'number' ? metric['operatingMarginTTM'] as number : null;
-  const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let marginSpreadScore = 50;
-  if (operatingMargin !== null && grossMargin !== null && grossMargin > 0) {
-    const ratio = operatingMargin / grossMargin;
-    if (ratio > 0.7) marginSpreadScore = 90;
-    else if (ratio > 0.5) marginSpreadScore = 75;
-    else if (ratio > 0.3) marginSpreadScore = 60;
-    else if (ratio > 0.1) marginSpreadScore = 40;
-    else marginSpreadScore = 25;
-  }
-
-  // --- Inventory turnover (30%) ---
-  const invTurnover = typeof metric['inventoryTurnoverTTM'] === 'number' ? metric['inventoryTurnoverTTM'] as number : null;
-  let inventoryTurnoverScore = 50;
-  if (invTurnover !== null) {
-    if (invTurnover > 10) inventoryTurnoverScore = 90;
-    else if (invTurnover > 5) inventoryTurnoverScore = 70;
-    else if (invTurnover > 2) inventoryTurnoverScore = 55;
-    else inventoryTurnoverScore = 35;
-  }
-
   const score = round(
-    0.40 * assetTurnoverScore + 0.30 * marginSpreadScore + 0.30 * inventoryTurnoverScore,
+    0.40 * cashFlowStabilityScore + 0.35 * earningsPredictabilityScore + 0.25 * assetTurnoverScore,
     1,
   );
 
-  const formula = `0.40*AssetTurn(${round(assetTurnoverScore)}) + 0.30*MarginSpread(${round(marginSpreadScore)}) + 0.30*InvTurn(${round(inventoryTurnoverScore)}) = ${score}`;
+  const formula = `0.40*CFStability(${round(cashFlowStabilityScore)}) + 0.35*EarnPredict(${round(earningsPredictabilityScore)}) + 0.25*AssetTurn(${round(assetTurnoverScore)}) = ${score}`;
 
   return {
     score: round(score),
     weight: 0.15,
     inputs: {
+      cash_flow_stability: cfSource,
+      earnings_predictability: epSource,
       asset_turnover_ttm: assetTurnover,
-      operating_margin_ttm: operatingMargin,
-      gross_margin_ttm: grossMargin,
-      inventory_turnover_ttm: invTurnover,
     },
     formula,
-    notes: `AssetTurn=${assetTurnover ?? 'N/A'}, OpMargin/GrossMargin=${operatingMargin !== null && grossMargin !== null && grossMargin > 0 ? round(operatingMargin / grossMargin, 2) : 'N/A'}, InvTurn=${invTurnover ?? 'N/A'}`,
+    notes: `CF: ${cfSource}, Earnings: ${epSource}, AssetTurn=${assetTurnover ?? 'N/A'}`,
     sub_scores: {
+      cash_flow_stability_score: round(cashFlowStabilityScore),
+      earnings_predictability_score: round(earningsPredictabilityScore),
       asset_turnover_score: round(assetTurnoverScore),
-      margin_spread_score: round(marginSpreadScore),
-      inventory_turnover_score: round(inventoryTurnoverScore),
     },
   };
 }
@@ -563,13 +637,21 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   const safety = scoreSafety(input);
   const profitability = scoreProfitability(input);
   const growth = scoreGrowth(input);
-  const efficiency = scoreEfficiency(input);
+  const fundamentalRisk = scoreFundamentalRisk(input);
+
+  // Piotroski change-signal modifier on profitability (Schwartz & Hanauer 2024)
+  // Level signals (1-4) already captured by ROE/ROA/FCF; change signals (5-9) are unique.
+  const fScoreModifier = safety.piotroski.change_signals.modifier;
+  profitability.score = clamp(round(profitability.score + fScoreModifier, 1), 0, 100);
+  if (fScoreModifier !== 0) {
+    profitability.formula += ` → ${fScoreModifier > 0 ? '+' : ''}${fScoreModifier} (F-Score change signals) = ${profitability.score}`;
+  }
 
   let score = round(
     safety.weight * safety.score +
     profitability.weight * profitability.score +
     growth.weight * growth.score +
-    efficiency.weight * efficiency.score,
+    fundamentalRisk.weight * fundamentalRisk.score,
     1,
   );
 
@@ -589,14 +671,54 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   }
   score = clamp(round(score + msprAdjustment, 1), 0, 100);
 
+  // Build DataConfidence
+  const tt = input.ttScanner;
+  const metric = input.finnhubFundamentals?.metric ?? {};
+  const imputedFields: string[] = [];
+  // Safety sub-scores
+  if (tt?.liquidityRating == null) imputedFields.push('safety.liquidity_rating');
+  if (tt?.marketCap == null) imputedFields.push('safety.market_cap');
+  if (input.candles.length < 20) imputedFields.push('safety.volume');
+  if (tt?.beta == null && typeof metric['beta'] !== 'number') imputedFields.push('safety.beta');
+  if (typeof metric['totalDebt/totalEquityQuarterly'] !== 'number') imputedFields.push('safety.debt_to_equity');
+  // Profitability sub-scores
+  if (typeof metric['grossMarginTTM'] !== 'number') imputedFields.push('profitability.gross_margin');
+  if (typeof metric['roeTTM'] !== 'number') imputedFields.push('profitability.roe');
+  if (typeof metric['roaTTM'] !== 'number') imputedFields.push('profitability.roa');
+  if (tt?.peRatio == null && typeof metric['peNormalizedAnnual'] !== 'number') imputedFields.push('profitability.pe_ratio');
+  if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
+  if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
+  if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
+  if (safety.piotroski.change_signals.computable_count === 0) imputedFields.push('profitability.fscore_change_signals');
+  // Growth sub-scores
+  if (typeof metric['revenueGrowthTTMYoy'] !== 'number') imputedFields.push('growth.revenue');
+  if (typeof metric['epsGrowthTTMYoy'] !== 'number') imputedFields.push('growth.eps');
+  if (typeof metric['dividendGrowthRate5Y'] !== 'number') imputedFields.push('growth.dividend');
+  // Fundamental risk sub-scores
+  const af = input.annualFinancials;
+  const hasCfData = af?.currentYear?.operatingCashFlow != null && af?.priorYear?.operatingCashFlow != null;
+  const hasFcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number';
+  if (!hasCfData && !hasFcfTTM) imputedFields.push('fundamentalRisk.cash_flow_stability');
+  if (input.finnhubEarnings.length < 2) imputedFields.push('fundamentalRisk.earnings_predictability');
+  if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('fundamentalRisk.asset_turnover');
+
+  const totalSubScores = 5 + 7 + 3 + 3; // safety(5 main) + profitability(7) + growth(3) + fundamentalRisk(3)
+  const dataConfidence: DataConfidence = {
+    total_sub_scores: totalSubScores,
+    imputed_sub_scores: imputedFields.length,
+    confidence: round(1 - imputedFields.length / totalSubScores, 4),
+    imputed_fields: imputedFields,
+  };
+
   return {
     score,
     mspr_adjustment: msprAdjustment,
+    data_confidence: dataConfidence,
     breakdown: {
       safety,
       profitability,
       growth,
-      efficiency,
+      fundamentalRisk,
     },
   };
 }

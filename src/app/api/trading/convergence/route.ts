@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 300;
 
@@ -72,8 +73,18 @@ export async function GET(request: Request) {
 
     // Cache miss or refresh — run full pipeline
     console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh})`);
+
+    // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
+    let userId: string | undefined;
+    try {
+      const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
+      userId = user?.id;
+    } catch {
+      // Non-critical — snapshot logging will be skipped
+    }
+
     const start = Date.now();
-    const result = await runPipeline(limit);
+    const result = await runPipeline(limit, userId);
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 

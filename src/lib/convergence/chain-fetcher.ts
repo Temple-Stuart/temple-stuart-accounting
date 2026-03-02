@@ -10,9 +10,11 @@ export interface ChainTickerInput {
   suggested_dte: number;
   direction: string;
   currentPrice: number;
-  ivRank: number;   // 0-1 scale
-  iv30: number;     // decimal e.g. 0.42
-  hv30: number;     // decimal e.g. 0.25
+  ivRank: number;        // 0-1 scale
+  iv30: number;          // decimal e.g. 0.42
+  hv30: number;          // decimal e.g. 0.25
+  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
+  riskFreeRate?: number;
 }
 
 export interface ChainFetchStats {
@@ -315,6 +317,7 @@ export async function fetchChainAndBuildCards(
           symbol: ticker.symbol,
           iv30: ticker.iv30,
           hv30: ticker.hv30,
+          riskFreeRate: ticker.riskFreeRate,
         });
         cards.set(ticker.symbol, result.strategies);
         if (result.rejections.length > 0) {

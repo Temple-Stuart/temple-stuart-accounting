@@ -468,6 +468,7 @@ model users {
   tax_overrides         tax_overrides[]
   closing_periods       closing_periods[]
   bank_reconciliations  bank_reconciliations[]
+  scan_snapshots        scan_snapshots[]
 }
 
 model budgets {
@@ -1439,4 +1440,66 @@ model bank_reconciliations {
 
   @@unique([userId, entity_id, account_id, year, month])
   @@index([userId, entity_id, status])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONVERGENCE SCANNER — SCORE SNAPSHOT LOGGING (Phase 0 feedback infra)
+// Persists every scan result for outcome tracking and backtesting.
+// NOTE: Run `npx prisma migrate dev --name add-scan-snapshot` to apply.
+// ═══════════════════════════════════════════════════════════════════
+
+model scan_snapshots {
+  id              String   @id @default(cuid())
+  userId          String
+  ticker          String   @db.VarChar(20)
+  scanDate        DateTime @default(now())
+
+  // Price context at scan time
+  spotPrice       Float?
+  iv30            Float?
+  hv30            Float?
+  ivPercentile    Float?
+
+  // Gate scores (0-100)
+  volEdgeScore    Float
+  qualityScore    Float
+  regimeScore     Float
+  infoEdgeScore   Float
+  compositeScore  Float
+
+  // Position sizing
+  gatesAbove50    Int
+  positionSizePct Float
+  sizingMethod    String   @default("continuous_v1") @db.VarChar(30)
+
+  // Data confidence
+  dataConfidence  Float    // Overall confidence 0-1
+  imputedCount    Int      // Total imputed sub-scores
+
+  // Regime context
+  regimeLabel     String?  @db.VarChar(30)  // "goldilocks", "stagflation", etc.
+  vixLevel        Float?
+
+  // Strategy suggested
+  suggestedStrategy String? @db.VarChar(100)
+  suggestedDTE      Int?
+
+  // Outcome tracking (filled in later by scheduled job after DTE expiry)
+  outcomeDate     DateTime?
+  outcomePnl      Float?       // Actual P&L if trade was taken
+  outcomeSpotPrice Float?      // Spot price at expiry/close
+  outcomeIV       Float?       // IV at expiry/close
+  ivCompressed    Boolean?     // Did IV mean-revert as predicted?
+  stayedInRange   Boolean?     // Did price stay within expected range?
+
+  // Full trace (JSON blob for detailed analysis / replay)
+  fullTrace       Json?
+
+  // Relations
+  user            users    @relation(fields: [userId], references: [id])
+
+  @@index([userId, scanDate])
+  @@index([ticker, scanDate])
+  @@index([compositeScore])
+  @@index([regimeLabel])
 }

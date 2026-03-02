@@ -37,7 +37,7 @@ export function normalCDF(x: number): number {
  * Where:
  *   S = current underlying price
  *   K = target price (breakeven)
- *   r = risk-free rate (default 0.045, ~current fed funds)
+ *   r = risk-free rate (default 0.045). Prefer passing FRED FEDFUNDS rate when available.
  *   sigma = implied volatility (annualized, as decimal e.g. 0.25 for 25%)
  *   T = time to expiration in years
  *
