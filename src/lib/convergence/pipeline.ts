@@ -625,6 +625,11 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
       const latestClose = s.vol_edge.breakdown.technicals.indicators.latest_close;
       if (latestClose == null || latestClose <= 0) return null;
 
+      // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
+      const fedFundsRate = fredResult.data.fedFunds != null
+        ? fredResult.data.fedFunds / 100
+        : undefined;
+
       return {
         symbol: row.symbol,
         suggested_dte: s.strategy_suggestion.suggested_dte,
@@ -633,6 +638,7 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
         ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number ?? 50) / 100,
         iv30: tt.iv30 ?? 0.30,
         hv30: tt.hv30 ?? 0.25,
+        riskFreeRate: fedFundsRate,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
 
