@@ -20,11 +20,26 @@ export async function GET(request: Request) {
     const period = searchParams.get('period') || 'monthly';
     const yearParam = searchParams.get('year');
     const selectedYear = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
+    const entityId = searchParams.get('entityId');
+
+    // Verify entity belongs to authenticated user before filtering
+    if (entityId) {
+      const entity = await prisma.entities.findFirst({
+        where: { id: entityId, userId: user.id },
+      });
+      if (!entity) {
+        return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
+      }
+    }
 
     const BS_TYPES = new Set(['asset', 'liability', 'equity']);
 
     const journalEntries = await prisma.journal_entries.findMany({
-      where: { userId: user.id, status: 'posted' },
+      where: {
+        userId: user.id,
+        status: 'posted',
+        ...(entityId ? { entity_id: entityId } : {}),
+      },
       include: {
         ledger_entries: {
           include: { account: true }
