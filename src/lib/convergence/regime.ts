@@ -202,17 +202,33 @@ const STRATEGIES = [
 type Strategy = (typeof STRATEGIES)[number];
 
 // [Goldilocks, Reflation, Stagflation, Deflation]
+// Calibrated per CBOE index evidence (PUT, BXM, iron butterfly benchmarks)
+// and MSCI 2022 regime-dependent premium-selling returns.
+// Key insight: stagflation scores increased for premium sellers — elevated IV
+// provides edge when managed with appropriate position sizing. The VIX overlay
+// (Step D) already handles extreme fear (VIX >24) with separate adjustments.
+// Direction of adjustments matters more than exact values — validate in Phase 5.
 const STRATEGY_REGIME_MATRIX: Record<Strategy, [number, number, number, number]> = {
-  'Iron Condor':       [90, 60, 30, 70],
-  'Short Put Spread':  [85, 70, 25, 50],
-  'Short Call Spread': [40, 30, 75, 85],
-  'Long Call Spread':  [85, 75, 20, 35],
-  'Long Put Spread':   [30, 25, 80, 75],
-  'Short Straddle':    [85, 55, 25, 65],
-  'Short Strangle':    [90, 60, 30, 70],
-  'Covered Call':      [70, 60, 50, 60],
-  'Cash Secured Put':  [80, 65, 30, 45],
-  'Calendar Spread':   [75, 65, 45, 55],
+  // Iron Condor: range-bound best; trending hurts. Stag 30→50: elevated premium compensates
+  'Iron Condor':       [85, 55, 50, 45],
+  // Short Put Spread: CBOE PUT outperforms in moderate stress. Gold 85→70: low premium
+  'Short Put Spread':  [70, 75, 45, 40],
+  // Short Call Spread: bearish bias; stag/defl less extreme than intuition
+  'Short Call Spread': [40, 30, 65, 75],
+  // Long Call Spread: refl best (strong trend); stag/defl poor (no premium income)
+  'Long Call Spread':  [80, 80, 20, 30],
+  // Long Put Spread: hedging vehicle; defl best, gold/refl worst
+  'Long Put Spread':   [25, 20, 75, 80],
+  // Short Straddle: highest vega risk; stag 25→45: premium compensates but gap risk
+  'Short Straddle':    [80, 50, 45, 40],
+  // Short Strangle: similar to iron condor profile. Stag 30→50: elevated premium
+  'Short Strangle':    [85, 55, 50, 45],
+  // Covered Call: CBOE BXM underperforms in bull (capped). Refl 60→70: premium + trend
+  'Covered Call':      [65, 70, 55, 50],
+  // Cash Secured Put: CBOE PUT index evidence — premium income in moderate stress
+  'Cash Secured Put':  [75, 65, 50, 45],
+  // Calendar Spread: needs contango; refl vol expansion hurts, stag backwardation hurts
+  'Calendar Spread':   [70, 60, 40, 55],
 };
 
 // ===== STEP D — VIX OVERLAY CLASSIFICATION =====
