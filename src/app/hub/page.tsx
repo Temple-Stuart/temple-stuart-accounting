@@ -4,6 +4,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
+import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 
 import dynamic from 'next/dynamic';
 
@@ -123,6 +124,15 @@ export default function HubPage() {
     home: true, auto: true, shopping: true, personal: true, health: true, growth: true, trip: true,
   });
 
+  const [drillDown, setDrillDown] = useState<{
+    coaCodes: string[];
+    month: number;
+    year: number;
+    categoryName: string;
+    cellAmount: number;
+    entityType: string;
+  } | null>(null);
+
   useEffect(() => { loadCalendar(); }, [selectedYear, selectedMonth]);
 
   const loadCalendar = async () => {
@@ -196,6 +206,9 @@ export default function HubPage() {
 
   const fmt = (n: number) => n ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—';
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
+  const openDrill = (coaCodes: string[], month: number, name: string, amount: number, entityType: string) => {
+    if (amount > 0) setDrillDown({ coaCodes, month, year: selectedYear, categoryName: name, cellAmount: amount, entityType });
+  };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -558,7 +571,7 @@ export default function HubPage() {
                           {MONTHS_SHORT.map((_, i) => {
                             const bud = budgetRow[i] || 0;
                             const act = actualRow[i] || 0;
-                            return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
+                            return (<td key={i} onClick={() => openDrill([code], i, name, act, 'personal')} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 ? 'cursor-pointer' : ''} ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                           })}
                           <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                         </tr>
@@ -582,7 +595,7 @@ export default function HubPage() {
                     {MONTHS_SHORT.map((_, i) => {
                       const budMonth = Object.values(homebaseBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const actMonth = Object.values(homebaseBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                      return (<td key={i} onClick={() => openDrill(Object.keys(homebaseBudget.coaNames), i, 'Homebase Total', actMonth, 'personal')} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 ? 'cursor-pointer' : ''} ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                     })}
                     <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyHomebaseActual > yearlyHomebaseBudget ? 'text-red-300' : yearlyHomebaseActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyHomebaseActual)}</td>
                   </tr>
@@ -634,7 +647,7 @@ export default function HubPage() {
                           {MONTHS_SHORT.map((_, i) => {
                             const bud = budgetRow[i] || 0;
                             const act = actualRow[i] || 0;
-                            return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
+                            return (<td key={i} onClick={() => openDrill([code], i, name, act, 'personal')} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 ? 'cursor-pointer' : ''} ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                           })}
                           <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                         </tr>
@@ -658,7 +671,7 @@ export default function HubPage() {
                     {MONTHS_SHORT.map((_, i) => {
                       const budMonth = Object.values(nomadBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                       const actMonth = Object.values(nomadBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                      return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                      return (<td key={i} onClick={() => openDrill(Object.keys(nomadBudget.coaNames), i, 'Travel Total', actMonth, 'personal')} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 ? 'cursor-pointer' : ''} ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                     })}
                     <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyTravelActual > yearlyTravelBudget ? 'text-red-300' : yearlyTravelActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyTravelActual)}</td>
                   </tr>
@@ -711,7 +724,7 @@ export default function HubPage() {
                             {MONTHS_SHORT.map((_, i) => {
                               const bud = budgetRow[i] || 0;
                               const act = actualRow[i] || 0;
-                              return (<td key={i} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
+                              return (<td key={i} onClick={() => openDrill([code], i, name, act, 'sole_prop')} className={`py-1.5 px-2 text-right font-mono border-r border-border-light ${act > 0 ? 'cursor-pointer' : ''} ${act > 0 && act > bud ? 'text-brand-red bg-red-50' : act > 0 ? 'text-emerald-700 bg-emerald-50' : 'text-text-faint'}`}>{fmt(act)}</td>);
                             })}
                             <td className={`py-1.5 px-3 text-right font-mono font-semibold ${actualTotal > 0 && actualTotal > budgetTotal ? 'text-brand-red bg-red-100/50' : actualTotal > 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-text-faint bg-bg-row/50'}`}>{fmt(actualTotal)}</td>
                           </tr>
@@ -735,7 +748,7 @@ export default function HubPage() {
                       {MONTHS_SHORT.map((_, i) => {
                         const budMonth = Object.values(businessBudget.budgetData).reduce((s, coa) => s + (coa[i] || 0), 0);
                         const actMonth = Object.values(businessBudget.actualData).reduce((s, coa) => s + (coa[i] || 0), 0);
-                        return (<td key={i} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
+                        return (<td key={i} onClick={() => openDrill(Object.keys(businessBudget.coaNames), i, 'Business Total', actMonth, 'sole_prop')} className={`py-2 px-2 text-right font-mono border-r border-brand-purple-hover ${actMonth > 0 ? 'cursor-pointer' : ''} ${actMonth > 0 && actMonth > budMonth ? 'text-red-300' : actMonth > 0 ? 'text-emerald-300' : ''}`}>{fmt(actMonth)}</td>);
                       })}
                       <td className={`py-2 px-3 text-right font-mono bg-panel-highlight ${yearlyBusinessActual > yearlyBusinessBudget ? 'text-red-300' : yearlyBusinessActual > 0 ? 'text-emerald-300' : ''}`}>{fmt(yearlyBusinessActual)}</td>
                     </tr>
@@ -757,6 +770,13 @@ export default function HubPage() {
 
         </div>
       </div>
+      {drillDown && (
+        <BudgetDrillDown
+          isOpen={true}
+          onClose={() => setDrillDown(null)}
+          {...drillDown}
+        />
+      )}
     </AppLayout>
   );
 }
