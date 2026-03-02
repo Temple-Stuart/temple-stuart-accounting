@@ -13,54 +13,89 @@ function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x / 10));
 }
 
-// ===== STEP A — NORMALIZE MACRO INDICATORS TO 0-100 =====
+// Baselines derived from FRED series medians 1990-2024. Review annually.
+// Hamilton (1989): regime detection should use data-estimated thresholds.
+// EIB (2019): fixed thresholds unlikely to anticipate structural breaks.
+// Rate-of-change note: GDP, NFP, CPI are already rate-of-change indicators.
+// Unemployment, sentiment, fed funds, 10Y are levels — rate-of-change for
+// these would require historical FRED storage (not yet implemented).
+const MACRO_BASELINES = {
+  gdp_growth:         { median: 2.5,   spread: 2.0 },   // QoQ annualized %
+  unemployment:       { median: 5.0,   spread: 1.5 },   // Unemployment rate %
+  nfp:                { median: 150,   spread: 150 },    // Monthly change (thousands)
+  consumer_sentiment: { median: 85,    spread: 15 },     // U of Michigan index
+  cpi_yoy:            { median: 2.5,   spread: 1.5 },   // CPI YoY %
+  cpi_mom:            { median: 0.2,   spread: 0.3 },   // CPI MoM % (~2.4% ann.)
+  fed_funds:          { median: 3.0,   spread: 2.5 },   // Fed Funds rate %
+  treasury_10y:       { median: 3.5,   spread: 1.5 },   // 10Y yield %
+};
 
-// GDP growth (%): Range -2% to 6%. Higher = stronger economy.
+// ===== STEP A — NORMALIZE MACRO INDICATORS TO 0-100 =====
+// Each indicator scored relative to its long-run median via sigmoid.
+// At median → 50. Above → >50. Below → <50.
+// spread ≈ 1 std dev of the series; controls sensitivity.
+// invert=true for indicators where lower is better (e.g., unemployment).
+
+function baselineScore(value: number, median: number, spread: number, invert = false): number {
+  const deviation = (value - median) / spread;
+  const oriented = invert ? -deviation : deviation;
+  return round(clamp(100 / (1 + Math.exp(-oriented)), 0, 100), 1);
+}
+
+// GDP growth (%): Higher = stronger economy. Baseline 2.5%.
 function normalizeGdp(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp((v + 2) * (100 / 8), 0, 100), 1);
+  const b = MACRO_BASELINES.gdp_growth;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// Unemployment (%): Range 3% to 10%. INVERTED — lower = better.
+// Unemployment (%): INVERTED — lower = better. Baseline 5.0%.
 function normalizeUnemployment(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp((10 - v) * (100 / 7), 0, 100), 1);
+  const b = MACRO_BASELINES.unemployment;
+  return baselineScore(v, b.median, b.spread, true);
 }
 
-// Non-farm payrolls (thousands/month): Range -200K to 500K. Higher = better.
+// Non-farm payrolls (thousands/month): Higher = better. Baseline 150K.
 function normalizeNfp(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp((v + 200) * (100 / 700), 0, 100), 1);
+  const b = MACRO_BASELINES.nfp;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// Consumer Confidence Index: Range 60 to 140. Higher = better.
+// Consumer Confidence (U of Michigan): Higher = better. Baseline 85.
 function normalizeConsumerConfidence(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp((v - 60) * (100 / 80), 0, 100), 1);
+  const b = MACRO_BASELINES.consumer_sentiment;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// CPI YoY (%): Range 0% to 10%. Higher = more inflation.
+// CPI YoY (%): Higher = more inflation. Baseline 2.5%.
 function normalizeCpiYoy(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp(v * 10, 0, 100), 1);
+  const b = MACRO_BASELINES.cpi_yoy;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// CPI MoM (%): Range -0.5% to 1.0%. Higher = more inflation.
+// CPI MoM (%): Higher = more inflation. Baseline 0.2%.
 function normalizeCpiMom(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp((v + 0.5) * (100 / 1.5), 0, 100), 1);
+  const b = MACRO_BASELINES.cpi_mom;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// Fed Funds Rate (%): Range 0% to 8%. Higher = tighter / more inflationary signal.
+// Fed Funds Rate (%): Higher = tighter / more inflationary signal. Baseline 3.0%.
 function normalizeFedFunds(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp(v * (100 / 8), 0, 100), 1);
+  const b = MACRO_BASELINES.fed_funds;
+  return baselineScore(v, b.median, b.spread);
 }
 
-// 10Y Treasury Yield (%): Range 0% to 8%. Higher = more inflation signal.
+// 10Y Treasury Yield (%): Higher = more inflation signal. Baseline 3.5%.
 function normalizeTreasury10y(v: number | null): number {
   if (v === null) return 50;
-  return round(clamp(v * (100 / 8), 0, 100), 1);
+  const b = MACRO_BASELINES.treasury_10y;
+  return baselineScore(v, b.median, b.spread);
 }
 
 // ===== STEP A — COMPOSITE GROWTH & INFLATION SIGNALS =====
@@ -124,10 +159,13 @@ interface RegimeClassification {
 }
 
 function classifyRegime(growth: number, inflation: number): RegimeClassification {
-  const rawGold = sigmoid(growth - 60) * sigmoid(40 - inflation);
-  const rawRefl = sigmoid(growth - 60) * sigmoid(inflation - 60);
-  const rawStag = sigmoid(40 - growth) * sigmoid(inflation - 60);
-  const rawDefl = sigmoid(40 - growth) * sigmoid(40 - inflation);
+  // Inflection at 50 = long-run baseline (was fixed 60/40).
+  // Above baseline → "high" branch, below → "low" branch.
+  // At exactly baseline, all 4 regimes get equal probability (0.25).
+  const rawGold = sigmoid(growth - 50) * sigmoid(50 - inflation);
+  const rawRefl = sigmoid(growth - 50) * sigmoid(inflation - 50);
+  const rawStag = sigmoid(50 - growth) * sigmoid(inflation - 50);
+  const rawDefl = sigmoid(50 - growth) * sigmoid(50 - inflation);
 
   const total = rawGold + rawRefl + rawStag + rawDefl;
 
