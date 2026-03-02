@@ -18,6 +18,18 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
+// Bernard & Thomas (1989, 1990 JAR): SUE-relative thresholds — beat/miss
+// classification should scale with the stock's own surprise variability.
+// Threshold = max(1%, 0.5 × stdDev of historical surprise percentages).
+// Falls back to ±2% with fewer than 3 quarters of history.
+function computeSurpriseThreshold(surprises: number[]): number {
+  if (surprises.length < 3) return 2.0; // Fallback: insufficient history
+  const mean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+  const variance = surprises.reduce((a, b) => a + (b - mean) ** 2, 0) / (surprises.length - 1);
+  const stdDev = Math.sqrt(variance);
+  return Math.max(1.0, 0.5 * stdDev);
+}
+
 // ===== ANALYST CONSENSUS SUB-SCORE (15%) =====
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
@@ -239,14 +251,19 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   const recent = earnings.slice(0, 4);
   const surprises = recent.map(e => e.surprisePercent);
 
-  // Beat streak
+  // SUE-relative threshold (Bernard & Thomas 1989) — uses all available earnings
+  // for stdDev, not just last 4, to get a more stable estimate
+  const allSurprises = earnings.map(e => e.surprisePercent);
+  const sueThreshold = computeSurpriseThreshold(allSurprises);
+
+  // Beat streak — uses SUE threshold instead of fixed 0%
   let consecutiveBeats = 0;
   let consecutiveMisses = 0;
   for (const e of recent) {
-    if (e.surprisePercent > 0) {
+    if (e.surprisePercent > sueThreshold) {
       if (consecutiveMisses === 0) consecutiveBeats++;
       else break;
-    } else if (e.surprisePercent < 0) {
+    } else if (e.surprisePercent < -sueThreshold) {
       if (consecutiveBeats === 0) consecutiveMisses++;
       else break;
     } else {

@@ -17,6 +17,18 @@ function round(v: number, decimals = 2): number {
   return Math.round(v * f) / f;
 }
 
+// Bernard & Thomas (1989, 1990 JAR): SUE-relative thresholds — beat/miss
+// classification should scale with the stock's own surprise variability.
+// Threshold = max(1%, 0.5 × stdDev of historical surprise percentages).
+// Falls back to ±2% with fewer than 3 quarters of history.
+function computeSurpriseThreshold(surprises: number[]): number {
+  if (surprises.length < 3) return 2.0; // Fallback: insufficient history
+  const mean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+  const variance = surprises.reduce((a, b) => a + (b - mean) ** 2, 0) / (surprises.length - 1);
+  const stdDev = Math.sqrt(variance);
+  return Math.max(1.0, 0.5 * stdDev);
+}
+
 // ===== SAFETY SUB-SCORE (40%) =====
 
 function scoreSafety(input: ConvergenceInput): SafetyTrace {
@@ -332,10 +344,15 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   if (earnings.length > 0) {
     const surprises: number[] = [];
     for (const e of earnings) {
-      const surp = e.surprisePercent;
-      surprises.push(surp);
-      if (surp > 2) beats++;
-      else if (surp < -2) misses++;
+      surprises.push(e.surprisePercent);
+    }
+
+    // SUE-relative threshold (Bernard & Thomas 1989)
+    const sueThreshold = computeSurpriseThreshold(surprises);
+
+    for (const surp of surprises) {
+      if (surp > sueThreshold) beats++;
+      else if (surp < -sueThreshold) misses++;
       else inLine++;
     }
 
@@ -346,14 +363,14 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       ? round(surprises.reduce((a, b) => a + b, 0) / surprises.length, 2)
       : null;
 
-    // Streak detection (most recent first)
+    // Streak detection (most recent first) — uses same SUE threshold
     let consecutiveBeats = 0;
     let consecutiveMisses = 0;
     for (const e of earnings) {
-      if (e.surprisePercent > 2) {
+      if (e.surprisePercent > sueThreshold) {
         if (consecutiveMisses === 0) consecutiveBeats++;
         else break;
-      } else if (e.surprisePercent < -2) {
+      } else if (e.surprisePercent < -sueThreshold) {
         if (consecutiveBeats === 0) consecutiveMisses++;
         else break;
       } else {
