@@ -49,6 +49,7 @@ async function verifyCookieEdge(cookieValue: string): Promise<string | null> {
 
 const PUBLIC_PATHS = [
   '/',
+  '/admin',
   '/api/auth',
   '/_next',
   '/favicon.ico',
