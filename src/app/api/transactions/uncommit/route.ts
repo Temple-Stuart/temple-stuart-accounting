@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { reversePlaidTransaction } from '@/lib/journal-entry-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function POST(request: Request) {
   try {
@@ -76,6 +77,9 @@ export async function POST(request: Request) {
           success: true,
         });
       } catch (error: unknown) {
+        if (error instanceof PeriodClosedError) {
+          return NextResponse.json({ error: error.message }, { status: 409 });
+        }
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error('Error uncommitting transaction:', txn.id, error);
         errors.push({ txnId: txn.id, error: message });

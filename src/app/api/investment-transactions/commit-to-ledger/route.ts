@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { positionTrackerService } from '@/lib/position-tracker-service';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function POST(request: Request) {
   try {
@@ -100,6 +101,11 @@ export async function POST(request: Request) {
       };
     });
 
+    // Period close enforcement — check all leg dates
+    for (const leg of legs) {
+      await assertPeriodOpen(prisma, user.id, resolvedEntityId, new Date(leg.date));
+    }
+
     const result = await prisma.$transaction(
       async (tx) => {
         return await positionTrackerService.commitOptionsTrade({
@@ -127,6 +133,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
+    if (error instanceof PeriodClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Investment commit error:', error);
 
     // Duplicate commit (unique constraint violation)

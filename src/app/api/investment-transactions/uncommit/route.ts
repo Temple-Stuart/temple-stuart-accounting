@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function POST(request: Request) {
   try {
@@ -88,6 +89,11 @@ export async function POST(request: Request) {
         }
       });
 
+      // Period close enforcement — reversals are dated today
+      for (const original of journals) {
+        await assertPeriodOpen(tx, user.id, original.entity_id, now);
+      }
+
       // Create reversing entries for each original journal entry
       for (const original of journals) {
         // Create the reversing journal entry
@@ -172,6 +178,9 @@ export async function POST(request: Request) {
       message: `Uncommitted ${transactionIds.length} transaction(s) with ${reversalIds.length} reversing journal entr${reversalIds.length === 1 ? 'y' : 'ies'} created`
     });
   } catch (error) {
+    if (error instanceof PeriodClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Uncommit error:', error);
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Failed to uncommit'

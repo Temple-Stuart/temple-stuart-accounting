@@ -1,4 +1,5 @@
 import { PrismaClient, journal_entries } from '@prisma/client';
+import { assertPeriodOpen } from '@/lib/period-close-guard';
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -67,6 +68,9 @@ export async function commitPlaidTransaction(
         return Object.assign(existing, { alreadyExisted: true });
       }
     }
+
+    // Period close enforcement — reject if target period is closed
+    await assertPeriodOpen(tx, userId, entityId, date);
 
     // Look up expense/income COA account
     const expenseOrIncomeAccount = await tx.chart_of_accounts.findUnique({
@@ -208,12 +212,16 @@ export async function reversePlaidTransaction(
       throw new Error('Cannot reverse a reversal entry');
     }
 
+    // Period close enforcement — reversals are dated today
+    const reversalDate = new Date();
+    await assertPeriodOpen(tx, userId, original.entity_id, reversalDate);
+
     // Create reversal journal entry
     const reversalEntry = await tx.journal_entries.create({
       data: {
         userId,
         entity_id: original.entity_id,
-        date: new Date(),
+        date: reversalDate,
         description: `REVERSAL: ${original.description}`,
         source_type: 'reversal',
         source_id: null,

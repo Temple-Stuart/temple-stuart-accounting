@@ -80,6 +80,7 @@ model entities {
   transactions          transactions[]
   investment_transactions investment_transactions[]
   budgets               budgets[]
+  closing_periods       closing_periods[]
 
   @@unique([userId, name])
   @@index([userId, is_default])
@@ -459,6 +460,7 @@ model users {
   merchant_coa_mappings merchant_coa_mappings[]
   trade_cards           trade_cards[]
   tax_overrides         tax_overrides[]
+  closing_periods       closing_periods[]
 }
 
 model budgets {
@@ -1374,4 +1376,28 @@ model tax_overrides {
 
   @@unique([userId, tax_year, field_key])
   @@index([userId, tax_year])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CLOSING PERIODS — Period close enforcement for JE creation
+// ═══════════════════════════════════════════════════════════════════
+
+model closing_periods {
+  id          String    @id @default(uuid())
+  userId      String
+  entity_id   String
+  year        Int
+  month       Int
+  status      String    @default("closed") @db.VarChar(20)
+  closed_at   DateTime  @default(now())
+  closed_by   String?
+  reopened_at DateTime?
+  reopened_by String?
+  notes       String?
+
+  user   users    @relation(fields: [userId], references: [id])
+  entity entities @relation(fields: [entity_id], references: [id])
+
+  @@unique([userId, entity_id, year, month])
+  @@index([userId, entity_id, status])
 }

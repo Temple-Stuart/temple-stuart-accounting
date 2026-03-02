@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
+import { assertPeriodOpen, PeriodClosedError } from '@/lib/period-close-guard';
 
 export async function GET() {
   try {
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Entity not found' }, { status: 404 });
     }
 
+    // Period close enforcement
+    await assertPeriodOpen(prisma, user.id, entityId, new Date(date));
+
     const entry = await prisma.journal_entries.create({
       data: {
         userId: user.id,
@@ -92,6 +96,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ entry });
   } catch (error) {
+    if (error instanceof PeriodClosedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 });
   }
