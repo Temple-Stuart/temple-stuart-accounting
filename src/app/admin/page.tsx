@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('rfps');
-  const [rfps, setRfps] = useState([]);
+  const [activeTab, setActiveTab] = useState('users');
+  const [rfps, setRfps] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState('createdAt');
@@ -46,14 +46,16 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const rfpResponse = await fetch('/api/rfp');
-      const rfpData = await rfpResponse.json();
-      setRfps(rfpData);
+      const [rfpResult, userResult] = await Promise.allSettled([
+        fetch('/api/rfp', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+        fetch('/api/admin/users', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+      ]);
 
-      const userResponse = await fetch('/api/admin/users');
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setUsers(Array.isArray(userData) ? userData : []);
+      if (rfpResult.status === 'fulfilled') {
+        setRfps(Array.isArray(rfpResult.value) ? rfpResult.value : []);
+      }
+      if (userResult.status === 'fulfilled') {
+        setUsers(Array.isArray(userResult.value) ? userResult.value : []);
       }
     } catch (error) {
       console.error('Error loading data:', error);
