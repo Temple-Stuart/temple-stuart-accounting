@@ -1,6 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, journal_entries } from '@prisma/client';
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+
+export type CommitResult = journal_entries & { alreadyExisted?: boolean };
 
 interface CommitPlaidTransactionParams {
   userId: string;
@@ -37,7 +39,7 @@ function updateBalance(entryType: string, accountBalanceType: string, amountCent
 export async function commitPlaidTransaction(
   prisma: PrismaClient,
   params: CommitPlaidTransactionParams
-) {
+): Promise<CommitResult> {
   const {
     userId,
     entityId,
