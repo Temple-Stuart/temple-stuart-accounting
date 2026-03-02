@@ -7,7 +7,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
-  const [rfps, setRfps] = useState([]);
+  const [rfps, setRfps] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState('createdAt');
