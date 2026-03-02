@@ -492,13 +492,21 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
 
   const latestClose = candles[candles.length - 1].close;
 
-  // RSI
+  // RSI — asymmetric scoring for premium-selling context.
+  // Oversold (low RSI) drives IV higher than overbought via leverage effect
+  // (Carr & Wu 2009, Bollerslev et al. 2009). VRP is highest during elevated
+  // uncertainty, making post-selloff environments the best premium-selling setups.
   const rsiResult = computeRSI(candles, 14);
-  // For neutral/premium-selling: penalize extremes. RSI near 50 = best
-  let rsiScore = 50;
+  let rsiScore = 55;
   if (rsiResult.rsi !== null) {
-    rsiScore = round(100 - 2 * Math.abs(rsiResult.rsi - 50));
-    rsiScore = clamp(rsiScore, 0, 100);
+    const rsi = rsiResult.rsi;
+    if (rsi <= 20) rsiScore = 90;       // Extreme oversold — peak premium opportunity
+    else if (rsi <= 30) rsiScore = 80;  // Oversold — strong premium opportunity
+    else if (rsi <= 40) rsiScore = 65;  // Mildly oversold — above average
+    else if (rsi <= 60) rsiScore = 55;  // Neutral — baseline, no edge signal
+    else if (rsi <= 70) rsiScore = 60;  // Mildly overbought — slightly above neutral
+    else if (rsi <= 80) rsiScore = 70;  // Overbought — elevated IV, good for premium
+    else rsiScore = 75;                  // Extreme overbought — high IV but less reliable
   }
 
   // SMAs
