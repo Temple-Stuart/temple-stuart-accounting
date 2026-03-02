@@ -18,6 +18,7 @@ import TaxSettings, { loadTaxSettings } from '@/components/dashboard/TaxSettings
 import type { TaxSettingsValues } from '@/components/dashboard/TaxSettings';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
 import PeriodClose from '@/components/dashboard/PeriodClose';
+import CloseBooksTab from '@/components/dashboard/CloseBooksTab';
 
 
 interface Transaction {
@@ -422,6 +423,7 @@ export default function Dashboard() {
 
   const SECONDARY_TABS = [
     { key: 'close', label: 'Period Close' },
+    { key: 'year-end-close', label: 'Year-End Close' },
     { key: 'positions', label: 'Positions' },
     { key: 'wash-sales', label: 'Wash Sales' },
     { key: 'export', label: 'Export' },
@@ -923,6 +925,19 @@ export default function Dashboard() {
                         }
                       }}
                       onReload={() => { loadPeriodCloses(); loadReconciliations(); }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Year-End Close */}
+              {activeSection === 'year-end-close' && (
+                <div>
+                  <div className="px-3 py-1.5 bg-bg-row border-b border-border"><span className="text-terminal-base font-mono font-semibold text-text-primary">Year-End Close</span></div>
+                  <div className="p-2">
+                    <CloseBooksTab
+                      entityId={defaultEntityId}
+                      selectedYear={selectedYear}
                     />
                   </div>
                 </div>

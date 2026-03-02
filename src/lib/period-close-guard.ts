@@ -6,6 +6,8 @@
  *
  * Must be called before EVERY journal entry creation pathway.
  * See audit: 7 pathways identified (5 commits + 2 reversals).
+ *
+ * Pathway 8: year-end-close/route.ts — BYPASSES this guard (privileged system operation)
  */
 
 // Accept any Prisma-like client (PrismaClient or transaction context)
