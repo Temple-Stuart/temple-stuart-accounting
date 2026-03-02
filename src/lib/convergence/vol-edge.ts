@@ -234,12 +234,13 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
   const ivHvSpread = tt?.ivHvSpread ?? null;
 
-  // VRP = IV30² - HV30² (variance risk premium)
+  // VRP = IV30 - HV30 simple difference (Goyal & Saretto 2009, JFE; Carr & Wu 2009, RFS)
+  // Simple difference avoids ratio-form compression in high-IV environments
   let vrp: number | null = null;
   let vrpStr = 'N/A (missing IV30 or HV30)';
-  if (iv30 !== null && hv30 !== null && iv30 > 0) {
-    vrp = iv30 ** 2 - hv30 ** 2;
-    vrpStr = `${iv30}² − ${hv30}² = ${round(vrp, 2)} (${vrp > 0 ? 'positive = IV overpricing RV' : 'negative = IV underpricing RV'})`;
+  if (iv30 !== null && hv30 !== null) {
+    vrp = iv30 - hv30;
+    vrpStr = `${iv30} − ${hv30} = ${round(vrp, 2)} (${vrp > 0 ? 'positive = IV overpriced vs RV' : 'negative = IV underpriced vs RV'})`;
   }
 
   // Compute z-scores for sector-relative comparison
@@ -254,11 +255,14 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
 
   // --- Raw scores (baseline, always computed) ---
 
-  // VRP component (0.30): normalized VRP ratio
+  // VRP component (0.30): simple difference (Goyal & Saretto 2009)
+  // iv30 - hv30: positive = IV overpriced vs realized = good for selling premium
+  // Scale: 20-point diff → score 100, 0-point diff → score 50, -20 → score 0
+  // Raw score used as fallback for < 3 peers; percentile ranking overrides otherwise
   let vrpScoreRaw = 40; // penalty default — missing IV30/HV30 data
-  if (iv30 !== null && hv30 !== null && iv30 > 0) {
-    const vrpRatio = (iv30 - hv30) / iv30; // -1 to +1 range
-    vrpScoreRaw = clamp(50 + vrpRatio * 50, 0, 100);
+  if (iv30 !== null && hv30 !== null) {
+    const vrpDiff = iv30 - hv30;
+    vrpScoreRaw = clamp(50 + (vrpDiff / 20) * 50, 0, 100);
   }
 
   // IVP component (0.30): IVP directly maps 0-100
