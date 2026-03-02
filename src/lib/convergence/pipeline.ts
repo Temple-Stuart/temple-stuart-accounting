@@ -12,6 +12,7 @@ import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
+import { logScanSnapshotBatch } from './snapshot-logger';
 import type {
   TTScannerData,
   ConvergenceInput,
@@ -322,7 +323,7 @@ function parseMarketMetrics(items: Record<string, unknown>[]): TTScannerData[] {
 
 // ===== MAIN PIPELINE =====
 
-export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
+export async function runPipeline(limit: number = 20, userId?: string): Promise<PipelineResult> {
   const pipelineStart = Date.now();
   const errors: string[] = [];
   const dataGaps: string[] = [];
@@ -781,6 +782,25 @@ export async function runPipeline(limit: number = 20): Promise<PipelineResult> {
   };
 
   console.log(`[Pipeline] Complete in ${pipelineMs}ms. Final 9: ${top9.map(r => r.symbol).join(', ')}`);
+
+  // ===== SNAPSHOT LOGGING (fire-and-forget) =====
+  // Persist scored results for outcome tracking / backtesting (Phase 5).
+  // Does not block the response; errors logged but never propagate.
+  if (userId) {
+    void logScanSnapshotBatch(
+      userId,
+      scoredTickers.map(t => ({
+        symbol: t.symbol,
+        scoring: t.scoring,
+        spotPrice: t.scoring.vol_edge.breakdown.technicals.indicators.latest_close ?? undefined,
+        iv30: t.scannerData.iv30 ?? undefined,
+        hv30: t.scannerData.hv30 ?? undefined,
+        ivPercentile: t.scannerData.ivPercentile ?? undefined,
+        vixLevel: fredResult.data.vix ?? undefined,
+      })),
+    );
+  }
+
   return result;
 }
 
