@@ -4,7 +4,7 @@ import type {
   SafetyTrace,
   ProfitabilityTrace,
   GrowthTrace,
-  EfficiencyTrace,
+  FundamentalRiskTrace,
   DataConfidence,
 } from './types';
 
@@ -514,12 +514,65 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
   };
 }
 
-// ===== EFFICIENCY SUB-SCORE (15%) =====
+// ===== FUNDAMENTAL RISK SUB-SCORE (15%) =====
+// Zhan, Han, Cao & Tong (2022, RFS): cash flow variance and earnings predictability
+// predict delta-hedged option returns; traditional efficiency metrics do not.
 
-function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
+function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
   const metric = input.finnhubFundamentals?.metric ?? {};
+  const af = input.annualFinancials;
+  const earnings = input.finnhubEarnings;
 
-  // --- Asset turnover (40%) ---
+  // --- Cash flow stability (40%) ---
+  // Prefer multi-year CoV from annual financials; fall back to TTM sign check
+  let cashFlowStabilityScore = 40; // penalty default — missing data
+  let cfSource = 'missing';
+
+  const curOCF = af?.currentYear?.operatingCashFlow ?? null;
+  const priOCF = af?.priorYear?.operatingCashFlow ?? null;
+
+  if (curOCF !== null && priOCF !== null) {
+    // 2-year coefficient of variation
+    const cfValues = [curOCF, priOCF];
+    const cfMean = cfValues.reduce((a, b) => a + b, 0) / cfValues.length;
+    const cfStd = Math.sqrt(cfValues.reduce((s, v) => s + (v - cfMean) ** 2, 0) / (cfValues.length - 1));
+    const cov = cfMean !== 0 ? Math.abs(cfStd / cfMean) : Infinity;
+
+    if (cov < 0.2) cashFlowStabilityScore = 85;
+    else if (cov < 0.5) cashFlowStabilityScore = 70;
+    else if (cov < 1.0) cashFlowStabilityScore = 55;
+    else if (cov < 2.0) cashFlowStabilityScore = 40;
+    else cashFlowStabilityScore = 25;
+    cfSource = `annual CoV=${round(cov, 2)}`;
+  } else {
+    // Fallback: TTM free cash flow sign check
+    const fcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+    if (fcfTTM !== null) {
+      cashFlowStabilityScore = fcfTTM > 0 ? 60 : 35;
+      cfSource = `TTM FCF/sh=${round(fcfTTM, 2)} (${fcfTTM > 0 ? 'positive' : 'negative'})`;
+    }
+  }
+
+  // --- Earnings predictability (35%) ---
+  // StdDev of surprise percentages — same computation as computeSurpriseThreshold
+  let earningsPredictabilityScore = 40; // penalty default — missing or insufficient data
+  let epSource = 'missing';
+
+  if (earnings.length >= 2) {
+    const surprises = earnings.map(e => e.surprisePercent);
+    const surpriseMean = surprises.reduce((a, b) => a + b, 0) / surprises.length;
+    const surpriseVariance = surprises.reduce((s, v) => s + (v - surpriseMean) ** 2, 0) / (surprises.length - 1);
+    const surpriseStdDev = Math.sqrt(surpriseVariance);
+
+    if (surpriseStdDev < 2) earningsPredictabilityScore = 85;
+    else if (surpriseStdDev < 5) earningsPredictabilityScore = 70;
+    else if (surpriseStdDev < 10) earningsPredictabilityScore = 55;
+    else if (surpriseStdDev < 20) earningsPredictabilityScore = 40;
+    else earningsPredictabilityScore = 25;
+    epSource = `stdDev=${round(surpriseStdDev, 2)}% over ${surprises.length}Q`;
+  }
+
+  // --- Asset turnover (25%) — retained from original efficiency score ---
   const assetTurnover = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
   let assetTurnoverScore = 40; // penalty default — missing data
   if (assetTurnover !== null) {
@@ -530,51 +583,27 @@ function scoreEfficiency(input: ConvergenceInput): EfficiencyTrace {
     else assetTurnoverScore = 30;
   }
 
-  // --- Margin spread (30%): operatingMarginTTM / grossMarginTTM ---
-  const operatingMargin = typeof metric['operatingMarginTTM'] === 'number' ? metric['operatingMarginTTM'] as number : null;
-  const grossMargin = typeof metric['grossMarginTTM'] === 'number' ? metric['grossMarginTTM'] as number : null;
-  let marginSpreadScore = 40; // penalty default — missing data
-  if (operatingMargin !== null && grossMargin !== null && grossMargin > 0) {
-    const ratio = operatingMargin / grossMargin;
-    if (ratio > 0.7) marginSpreadScore = 90;
-    else if (ratio > 0.5) marginSpreadScore = 75;
-    else if (ratio > 0.3) marginSpreadScore = 60;
-    else if (ratio > 0.1) marginSpreadScore = 40;
-    else marginSpreadScore = 25;
-  }
-
-  // --- Inventory turnover (30%) ---
-  const invTurnover = typeof metric['inventoryTurnoverTTM'] === 'number' ? metric['inventoryTurnoverTTM'] as number : null;
-  let inventoryTurnoverScore = 40; // penalty default — missing data
-  if (invTurnover !== null) {
-    if (invTurnover > 10) inventoryTurnoverScore = 90;
-    else if (invTurnover > 5) inventoryTurnoverScore = 70;
-    else if (invTurnover > 2) inventoryTurnoverScore = 55;
-    else inventoryTurnoverScore = 35;
-  }
-
   const score = round(
-    0.40 * assetTurnoverScore + 0.30 * marginSpreadScore + 0.30 * inventoryTurnoverScore,
+    0.40 * cashFlowStabilityScore + 0.35 * earningsPredictabilityScore + 0.25 * assetTurnoverScore,
     1,
   );
 
-  const formula = `0.40*AssetTurn(${round(assetTurnoverScore)}) + 0.30*MarginSpread(${round(marginSpreadScore)}) + 0.30*InvTurn(${round(inventoryTurnoverScore)}) = ${score}`;
+  const formula = `0.40*CFStability(${round(cashFlowStabilityScore)}) + 0.35*EarnPredict(${round(earningsPredictabilityScore)}) + 0.25*AssetTurn(${round(assetTurnoverScore)}) = ${score}`;
 
   return {
     score: round(score),
     weight: 0.15,
     inputs: {
+      cash_flow_stability: cfSource,
+      earnings_predictability: epSource,
       asset_turnover_ttm: assetTurnover,
-      operating_margin_ttm: operatingMargin,
-      gross_margin_ttm: grossMargin,
-      inventory_turnover_ttm: invTurnover,
     },
     formula,
-    notes: `AssetTurn=${assetTurnover ?? 'N/A'}, OpMargin/GrossMargin=${operatingMargin !== null && grossMargin !== null && grossMargin > 0 ? round(operatingMargin / grossMargin, 2) : 'N/A'}, InvTurn=${invTurnover ?? 'N/A'}`,
+    notes: `CF: ${cfSource}, Earnings: ${epSource}, AssetTurn=${assetTurnover ?? 'N/A'}`,
     sub_scores: {
+      cash_flow_stability_score: round(cashFlowStabilityScore),
+      earnings_predictability_score: round(earningsPredictabilityScore),
       asset_turnover_score: round(assetTurnoverScore),
-      margin_spread_score: round(marginSpreadScore),
-      inventory_turnover_score: round(inventoryTurnoverScore),
     },
   };
 }
@@ -585,13 +614,13 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   const safety = scoreSafety(input);
   const profitability = scoreProfitability(input);
   const growth = scoreGrowth(input);
-  const efficiency = scoreEfficiency(input);
+  const fundamentalRisk = scoreFundamentalRisk(input);
 
   let score = round(
     safety.weight * safety.score +
     profitability.weight * profitability.score +
     growth.weight * growth.score +
-    efficiency.weight * efficiency.score,
+    fundamentalRisk.weight * fundamentalRisk.score,
     1,
   );
 
@@ -633,12 +662,15 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (typeof metric['revenueGrowthTTMYoy'] !== 'number') imputedFields.push('growth.revenue');
   if (typeof metric['epsGrowthTTMYoy'] !== 'number') imputedFields.push('growth.eps');
   if (typeof metric['dividendGrowthRate5Y'] !== 'number') imputedFields.push('growth.dividend');
-  // Efficiency sub-scores
-  if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('efficiency.asset_turnover');
-  if (typeof metric['operatingMarginTTM'] !== 'number' || typeof metric['grossMarginTTM'] !== 'number') imputedFields.push('efficiency.margin_spread');
-  if (typeof metric['inventoryTurnoverTTM'] !== 'number') imputedFields.push('efficiency.inventory_turnover');
+  // Fundamental risk sub-scores
+  const af = input.annualFinancials;
+  const hasCfData = af?.currentYear?.operatingCashFlow != null && af?.priorYear?.operatingCashFlow != null;
+  const hasFcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number';
+  if (!hasCfData && !hasFcfTTM) imputedFields.push('fundamentalRisk.cash_flow_stability');
+  if (input.finnhubEarnings.length < 2) imputedFields.push('fundamentalRisk.earnings_predictability');
+  if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('fundamentalRisk.asset_turnover');
 
-  const totalSubScores = 5 + 7 + 3 + 3; // safety(5 main) + profitability(7) + growth(3) + efficiency(3)
+  const totalSubScores = 5 + 7 + 3 + 3; // safety(5 main) + profitability(7) + growth(3) + fundamentalRisk(3)
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
@@ -654,7 +686,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
       safety,
       profitability,
       growth,
-      efficiency,
+      fundamentalRisk,
     },
   };
 }

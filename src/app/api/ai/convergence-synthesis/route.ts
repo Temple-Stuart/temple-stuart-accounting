@@ -166,7 +166,7 @@ function condenseScoringDetail(detail: any): any {
       profitability_sub: qual?.profitability?.sub_scores,
       earnings_quality: qual?.profitability?.earnings_quality,
       growth_sub: qual?.growth?.sub_scores,
-      efficiency_sub: qual?.efficiency?.sub_scores,
+      fundamentalRisk_sub: qual?.fundamentalRisk?.sub_scores,
     },
     regime: {
       score: detail.regime?.score,
