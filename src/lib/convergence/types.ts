@@ -217,7 +217,7 @@ export interface TechnicalsTrace extends SubScoreTrace {
     trend_score: number;
     bollinger_score: number;
     volume_score: number;
-    macd_score: number;
+    high52w_score: number;
   };
   indicators: {
     rsi_14: number | null;
@@ -230,9 +230,8 @@ export interface TechnicalsTrace extends SubScoreTrace {
     bb_middle: number | null;
     bb_position: number | null;
     bb_width: number | null;
-    macd_line: number | null;
-    macd_signal: number | null;
-    macd_histogram: number | null;
+    high52w_ratio: number | null;
+    high52w_range_position: number | null;
     avg_volume_5d: number | null;
     avg_volume_20d: number | null;
     volume_ratio: number | null;
