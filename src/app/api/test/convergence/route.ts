@@ -300,6 +300,7 @@ export async function GET(request: Request) {
     finnhubRecommendations: fhRecsResult.data,
     finnhubInsiderSentiment: fhInsiderResult.data,
     finnhubEarnings: fhEarningsResult.data,
+    finnhubEstimates: null,
     fredMacro: fredResult.data,
     annualFinancials: annualFinancialsResult.data,
     optionsFlow: optionsFlowResult.data,

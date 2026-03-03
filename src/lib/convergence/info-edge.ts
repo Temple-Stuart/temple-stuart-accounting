@@ -30,101 +30,218 @@ function computeSurpriseThreshold(surprises: number[]): number {
   return Math.max(1.0, 0.5 * stdDev);
 }
 
-// ===== ANALYST CONSENSUS SUB-SCORE (15%) =====
+// ===== ANALYST CONSENSUS SUB-SCORE (25%) =====
+// Expanded with Finnhub premium data: EPS estimates, revenue estimates,
+// price targets, upgrade/downgrade events (Chan, Jegadeesh & Lakonishok 1996).
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const recs = input.finnhubRecommendations;
+  const estimates = input.finnhubEstimates;
+  const earnings = input.finnhubEarnings;
 
-  if (recs.length === 0) {
-    return {
-      score: 40,
-      weight: 0.15,
-      inputs: { periods_available: 0 },
-      formula: 'No analyst recommendation data → penalty default 40 (missing data)',
-      notes: 'No Finnhub recommendation data available',
-      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
-      raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
-    };
-  }
-
-  // Sort by period descending to ensure latest first
+  // --- Extract latest recommendation counts ---
   const sorted = [...recs].sort((a, b) => b.period.localeCompare(a.period));
+  const latest = sorted.length > 0 ? sorted[0] : null;
+  const total = latest
+    ? latest.strongBuy + latest.buy + latest.hold + latest.sell + latest.strongSell
+    : 0;
 
-  const latest = sorted[0];
-  const total = latest.strongBuy + latest.buy + latest.hold + latest.sell + latest.strongSell;
+  // --- Find next-quarter forward EPS estimate ---
+  const today = new Date().toISOString().slice(0, 10);
+  const futureEps = estimates?.epsEstimates
+    .filter(e => e.period >= today)
+    .sort((a, b) => a.period.localeCompare(b.period)) ?? [];
+  const nextQEps = futureEps.length > 0 ? futureEps[0] : null;
+  const forwardEps = nextQEps?.epsAvg ?? null;
 
-  if (total === 0) {
-    return {
-      score: 40,
-      weight: 0.15,
-      inputs: { periods_available: sorted.length, total_analysts: 0 },
-      formula: 'Zero analyst coverage → penalty default 40 (missing data)',
-      notes: 'Latest period has 0 analysts',
-      sub_scores: { buy_sell_ratio_score: 40, strong_conviction_score: 40, coverage_score: 40 },
-      raw_counts: { strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0, total: 0 },
-    };
+  // --- Find trailing actual EPS (latest reported quarter) ---
+  const trailingActualEps = earnings.length > 0 ? earnings[0].actual : null;
+
+  // --- Find next-quarter forward revenue estimate ---
+  const futureRev = estimates?.revenueEstimates
+    .filter(e => e.period >= today)
+    .sort((a, b) => a.period.localeCompare(b.period)) ?? [];
+  const nextQRev = futureRev.length > 0 ? futureRev[0] : null;
+
+  // --- Get latest close for price target comparison ---
+  const latestClose = input.candles.length > 0
+    ? input.candles[input.candles.length - 1].close
+    : null;
+
+  // ===== SUB-SCORE 1: Estimate Level (20%) =====
+  // Chan, Jegadeesh & Lakonishok 1996: forward-vs-trailing EPS growth proxy
+  let estimateLevelScore = 40; // penalty default
+  let epsGrowthDirection: string | null = null;
+  if (forwardEps !== null && trailingActualEps !== null && Math.abs(trailingActualEps) > 0.01) {
+    const growth = (forwardEps - trailingActualEps) / Math.abs(trailingActualEps);
+    epsGrowthDirection = growth > 0 ? 'UP' : growth < 0 ? 'DOWN' : 'FLAT';
+    if (growth > 0.20) estimateLevelScore = 80;
+    else if (growth > 0.10) estimateLevelScore = 70;
+    else if (growth > 0) estimateLevelScore = 60;
+    else if (growth > -0.10) estimateLevelScore = 45;
+    else estimateLevelScore = 30;
   }
 
-  // Consensus score (35%): ratio of bullish to total analysts
-  const bullish = latest.strongBuy + latest.buy;
-  const bearish = latest.sell + latest.strongSell;
-  const bullishPct = bullish / total;
-  // Map: 100% bullish = 85, 50% = 50, 0% = 15
-  const consensusScore = clamp(15 + bullishPct * 70, 0, 100);
-
-  // Momentum score (65%): compare current vs previous period bullish count
-  let momentumScore = 40; // penalty default — insufficient periods for momentum
-  if (sorted.length >= 2) {
-    const previous = sorted[1];
-    const bullishCurrent = latest.strongBuy + latest.buy;
-    const bullishPrevious = previous.strongBuy + previous.buy;
-    if (bullishCurrent > bullishPrevious) momentumScore = 75;
-    else if (bullishCurrent === bullishPrevious) momentumScore = 50;
-    else momentumScore = 35;
+  // ===== SUB-SCORE 2: Estimate Dispersion (15%) =====
+  // Diether, Malloy & Scherbina 2002: high disagreement predicts low returns
+  let estimateDispersionScore = 40; // penalty default
+  let epsDispersionPct: number | null = null;
+  if (nextQEps && Math.abs(nextQEps.epsAvg) > 0.01) {
+    epsDispersionPct = round(((nextQEps.epsHigh - nextQEps.epsLow) / Math.abs(nextQEps.epsAvg)) * 100, 2);
+    if (epsDispersionPct < 5) estimateDispersionScore = 85;
+    else if (epsDispersionPct < 10) estimateDispersionScore = 75;
+    else if (epsDispersionPct < 20) estimateDispersionScore = 60;
+    else if (epsDispersionPct < 35) estimateDispersionScore = 45;
+    else if (epsDispersionPct < 50) estimateDispersionScore = 35;
+    else estimateDispersionScore = 20;
   }
 
-  // Coverage score: kept as trace field, not in weighted formula
-  let coverageScore = 50;
-  if (total >= 30) coverageScore = 80;
-  else if (total >= 20) coverageScore = 70;
-  else if (total >= 10) coverageScore = 60;
-  else if (total >= 5) coverageScore = 50;
-  else coverageScore = 35;
+  // ===== SUB-SCORE 3: Revenue-EPS Alignment (15%) =====
+  // Cross-validates earnings quality: both up = organic growth, mixed = fragile
+  let revenueEpsAlignmentScore = 50; // neutral default
+  let revenueGrowthDirection: string | null = null;
+  if (nextQRev && nextQRev.revenueAvg > 0) {
+    // Compare next-Q revenue estimate to trailing revenue (prior-year same-Q if available)
+    // Use the earliest estimate period as a trailing proxy — revenue estimates include past periods
+    const pastRev = estimates?.revenueEstimates
+      .filter(e => e.period < today)
+      .sort((a, b) => b.period.localeCompare(a.period)) ?? [];
+    const trailingRev = pastRev.length > 0 ? pastRev[0] : null;
 
-  // Weighted: consensus 35%, momentum 65%
-  const score = round(0.35 * consensusScore + 0.65 * momentumScore, 1);
+    if (trailingRev && trailingRev.revenueAvg > 0) {
+      revenueGrowthDirection = nextQRev.revenueAvg > trailingRev.revenueAvg ? 'UP' : 'DOWN';
+    }
 
-  const formula = `0.35×Consensus(${round(consensusScore)}) + 0.65×Momentum(${round(momentumScore)}) = ${score}`;
+    if (epsGrowthDirection !== null && revenueGrowthDirection !== null) {
+      if (epsGrowthDirection === 'UP' && revenueGrowthDirection === 'UP') revenueEpsAlignmentScore = 80;
+      else if (epsGrowthDirection === 'DOWN' && revenueGrowthDirection === 'DOWN') revenueEpsAlignmentScore = 30;
+      else revenueEpsAlignmentScore = 50;
+    }
+  }
+
+  // ===== SUB-SCORE 4: Price Target Implied Return (20%) =====
+  let priceTargetReturnScore = 40; // penalty default
+  const ptMedian = estimates?.priceTarget?.targetMedian ?? null;
+  let impliedReturnPct: number | null = null;
+  if (ptMedian !== null && latestClose !== null && latestClose > 0) {
+    impliedReturnPct = round(((ptMedian - latestClose) / latestClose) * 100, 2);
+    if (impliedReturnPct > 30) priceTargetReturnScore = 85;
+    else if (impliedReturnPct > 15) priceTargetReturnScore = 70;
+    else if (impliedReturnPct > 5) priceTargetReturnScore = 60;
+    else if (impliedReturnPct > -5) priceTargetReturnScore = 50;
+    else if (impliedReturnPct > -15) priceTargetReturnScore = 35;
+    else priceTargetReturnScore = 20;
+  }
+
+  // ===== SUB-SCORE 5: Consensus Breadth (30%) =====
+  // Composite of buy/sell ratio (60%) + coverage depth (40%) + upgrade/downgrade overlay
+  let consensusBreadthScore = 40; // penalty default
+  if (latest && total > 0) {
+    const bullish = latest.strongBuy + latest.buy;
+    const bullishPct = bullish / total;
+    // Buy/sell ratio: 100% bullish = 85, 50% = 50, 0% = 15
+    const ratioScore = clamp(15 + bullishPct * 70, 0, 100);
+
+    // Coverage depth from best available source
+    const numAnalysts = Math.max(
+      nextQEps?.numberAnalysts ?? 0,
+      estimates?.priceTarget?.numberAnalysts ?? 0,
+      total,
+    );
+    let coverageScore: number;
+    if (numAnalysts >= 25) coverageScore = 80;
+    else if (numAnalysts >= 15) coverageScore = 70;
+    else if (numAnalysts >= 8) coverageScore = 60;
+    else if (numAnalysts >= 3) coverageScore = 45;
+    else coverageScore = 30;
+
+    consensusBreadthScore = round(0.60 * ratioScore + 0.40 * coverageScore, 1);
+
+    // Upgrade/downgrade overlay: net actions in last 90 days
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    const recentUd = estimates?.upgradeDowngrade.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo) ?? [];
+    const upgrades = recentUd.filter(ud => ud.action === 'up').length;
+    const downgrades = recentUd.filter(ud => ud.action === 'down').length;
+    if (upgrades > downgrades) consensusBreadthScore = clamp(consensusBreadthScore + 5, 0, 100);
+    else if (downgrades > upgrades) consensusBreadthScore = clamp(consensusBreadthScore - 5, 0, 100);
+  }
+
+  // ===== Weighted combination =====
+  // 0.20 EstLevel + 0.15 Dispersion + 0.15 RevEpsAlign + 0.20 PriceTarget + 0.30 ConsensusBreadth
+  const score = round(
+    0.20 * estimateLevelScore +
+    0.15 * estimateDispersionScore +
+    0.15 * revenueEpsAlignmentScore +
+    0.20 * priceTargetReturnScore +
+    0.30 * consensusBreadthScore,
+    1,
+  );
+
+  const formula = `0.20×EstLevel(${round(estimateLevelScore)}) + 0.15×Dispersion(${round(estimateDispersionScore)}) + 0.15×RevEpsAlign(${round(revenueEpsAlignmentScore)}) + 0.20×PriceTarget(${round(priceTargetReturnScore)}) + 0.30×Breadth(${round(consensusBreadthScore)}) = ${score}`;
+
+  // --- Upgrade/downgrade counts for trace ---
+  const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const recentUd = estimates?.upgradeDowngrade.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo) ?? [];
+  const upgrades90d = recentUd.filter(ud => ud.action === 'up').length;
+  const downgrades90d = recentUd.filter(ud => ud.action === 'down').length;
+
+  const notes = [
+    `fwdEPS=${forwardEps ?? 'N/A'}`,
+    `trailEPS=${trailingActualEps ?? 'N/A'}`,
+    `dispersion=${epsDispersionPct ?? 'N/A'}%`,
+    `ptMedian=${ptMedian ?? 'N/A'}`,
+    `impliedReturn=${impliedReturnPct ?? 'N/A'}%`,
+    `upgrades90d=${upgrades90d}`,
+    `downgrades90d=${downgrades90d}`,
+    latest ? `${latest.strongBuy}SB/${latest.buy}B/${latest.hold}H/${latest.sell}S/${latest.strongSell}SS` : 'no recs',
+  ].join(', ');
 
   return {
     score: round(score),
-    weight: 0.15,
+    weight: 0.25,
     inputs: {
       periods_available: sorted.length,
-      latest_period: latest.period,
+      latest_period: latest?.period ?? null,
       total_analysts: total,
-      bullish_pct: round(bullishPct * 100, 1),
-      bearish_count: bearish,
+      forward_eps: forwardEps,
+      trailing_actual_eps: trailingActualEps,
+      eps_dispersion_pct: epsDispersionPct,
+      price_target_implied_return_pct: impliedReturnPct,
     },
     formula,
-    notes: `${latest.strongBuy} StrongBuy, ${latest.buy} Buy, ${latest.hold} Hold, ${latest.sell} Sell, ${latest.strongSell} StrongSell (${total} analysts)`,
+    notes,
     sub_scores: {
-      buy_sell_ratio_score: round(consensusScore),
-      strong_conviction_score: round(momentumScore),
-      coverage_score: round(coverageScore),
+      estimate_level_score: round(estimateLevelScore),
+      estimate_dispersion_score: round(estimateDispersionScore),
+      revenue_eps_alignment_score: round(revenueEpsAlignmentScore),
+      price_target_return_score: round(priceTargetReturnScore),
+      consensus_breadth_score: round(consensusBreadthScore),
+    },
+    indicators: {
+      forward_eps: forwardEps,
+      trailing_actual_eps: trailingActualEps,
+      eps_dispersion_pct: epsDispersionPct,
+      revenue_growth_direction: revenueGrowthDirection,
+      eps_growth_direction: epsGrowthDirection,
+      price_target_median: ptMedian,
+      price_target_implied_return_pct: impliedReturnPct,
+      recent_upgrades_90d: upgrades90d,
+      recent_downgrades_90d: downgrades90d,
+      number_analysts_estimates: nextQEps?.numberAnalysts ?? null,
+      number_analysts_recommendations: total > 0 ? total : null,
     },
     raw_counts: {
-      strongBuy: latest.strongBuy,
-      buy: latest.buy,
-      hold: latest.hold,
-      sell: latest.sell,
-      strongSell: latest.strongSell,
+      strongBuy: latest?.strongBuy ?? 0,
+      buy: latest?.buy ?? 0,
+      hold: latest?.hold ?? 0,
+      sell: latest?.sell ?? 0,
+      strongSell: latest?.strongSell ?? 0,
       total,
     },
   };
 }
 
-// ===== INSIDER ACTIVITY SUB-SCORE (25%) =====
+// ===== INSIDER ACTIVITY SUB-SCORE (20%) =====
 
 function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   const sentiment = input.finnhubInsiderSentiment;
@@ -132,7 +249,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   if (sentiment.length === 0) {
     return {
       score: 40,
-      weight: 0.25,
+      weight: 0.20,
       inputs: { months_available: 0 },
       formula: 'No insider sentiment data → penalty default 40 (missing data)',
       notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
@@ -203,7 +320,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
 
   return {
     score: round(score),
-    weight: 0.25,
+    weight: 0.20,
     inputs: {
       months_available: sorted.length,
       latest_mspr: latestMspr,
@@ -350,7 +467,7 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   };
 }
 
-// ===== FLOW SIGNAL SUB-SCORE (20%) =====
+// ===== FLOW SIGNAL SUB-SCORE (15%) =====
 
 /** Linear interpolation: map value in [inLow, inHigh] to [outLow, outHigh], clamped. */
 function lerp(value: number, inLow: number, inHigh: number, outLow: number, outHigh: number): number {
@@ -406,7 +523,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
   if (!flow) {
     return {
       score: 50,
-      weight: 0.20,
+      weight: 0.15,
       inputs: { data_available: false },
       formula: 'No options flow data → neutral 50',
       notes: 'Finnhub option chain fetch failed or returned no data.',
@@ -476,7 +593,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
 
   return {
     score: round(score),
-    weight: 0.20,
+    weight: 0.15,
     inputs: {
       data_available: true,
       put_call_ratio: flow.put_call_ratio,
@@ -640,8 +757,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
 
   // Build DataConfidence
   const imputedFields: string[] = [];
-  if (input.finnhubRecommendations.length === 0) imputedFields.push('analyst_consensus');
-  else if (input.finnhubRecommendations.length < 2) imputedFields.push('analyst_consensus.momentum');
+  if (input.finnhubRecommendations.length === 0 && !input.finnhubEstimates) imputedFields.push('analyst_consensus');
+  else if (!input.finnhubEstimates) imputedFields.push('analyst_consensus.estimates');
   if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity');
   if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
   if (!input.optionsFlow) {

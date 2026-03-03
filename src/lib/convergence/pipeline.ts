@@ -490,6 +490,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       recommendations: [],
       insiderSentiment: [],
       earnings: [],
+      estimateData: null,
     };
 
     // Assemble ConvergenceInput (same structure as single-ticker route)
@@ -501,6 +502,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       finnhubRecommendations: finnhubData.recommendations,
       finnhubInsiderSentiment: finnhubData.insiderSentiment,
       finnhubEarnings: finnhubData.earnings,
+      finnhubEstimates: finnhubData.estimateData ?? null,
       fredMacro: fredResult.data,
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
@@ -543,6 +545,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         finnhubRecommendations: ticker.finnhubData.recommendations,
         finnhubInsiderSentiment: ticker.finnhubData.insiderSentiment,
         finnhubEarnings: ticker.finnhubData.earnings,
+        finnhubEstimates: ticker.finnhubData.estimateData ?? null,
         fredMacro: fredResult.data,
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,

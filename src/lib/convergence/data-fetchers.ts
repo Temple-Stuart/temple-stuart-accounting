@@ -4,6 +4,11 @@ import type {
   FinnhubRecommendation,
   FinnhubInsiderSentiment,
   FinnhubEarnings,
+  FinnhubEstimateData,
+  FinnhubEpsEstimate,
+  FinnhubRevenueEstimate,
+  FinnhubPriceTarget,
+  FinnhubUpgradeDowngrade,
   FredMacroData,
   AnnualFinancials,
   AnnualFinancialPeriod,
@@ -23,6 +28,7 @@ export interface FinnhubData {
   recommendations: FinnhubRecommendation[];
   insiderSentiment: FinnhubInsiderSentiment[];
   earnings: FinnhubEarnings[];
+  estimateData: FinnhubEstimateData | null;
 }
 
 export interface FinnhubBatchStats {
@@ -45,6 +51,80 @@ async function fetchWithRetry(url: string): Promise<Response> {
   return resp;
 }
 
+// ===== FINNHUB ESTIMATE CACHE (1-hour TTL) =====
+
+const estimateCache = new Map<string, { data: FinnhubEstimateData; timestamp: number }>();
+const ESTIMATE_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function fetchFinnhubEstimates(symbol: string, key: string): Promise<FinnhubEstimateData> {
+  const cached = estimateCache.get(symbol);
+  if (cached && Date.now() - cached.timestamp < ESTIMATE_CACHE_TTL) {
+    return cached.data;
+  }
+
+  let epsEstimates: FinnhubEpsEstimate[] = [];
+  let revenueEstimates: FinnhubRevenueEstimate[] = [];
+  let priceTarget: FinnhubPriceTarget | null = null;
+  let upgradeDowngrade: FinnhubUpgradeDowngrade[] = [];
+
+  const [epsResp, revResp, ptResp, udResp] = await Promise.all([
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch(() => null),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch(() => null),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch(() => null),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch(() => null),
+  ]);
+
+  if (epsResp?.ok) {
+    try {
+      const json = await epsResp.json();
+      epsEstimates = Array.isArray(json?.data) ? json.data : [];
+    } catch (e: unknown) {
+      console.error(`[Finnhub] eps-estimate ${symbol}:`, e instanceof Error ? e.message : String(e));
+    }
+  } else if (epsResp) {
+    console.error(`[Finnhub] eps-estimate ${symbol}: HTTP ${epsResp.status}`);
+  }
+
+  if (revResp?.ok) {
+    try {
+      const json = await revResp.json();
+      revenueEstimates = Array.isArray(json?.data) ? json.data : [];
+    } catch (e: unknown) {
+      console.error(`[Finnhub] revenue-estimate ${symbol}:`, e instanceof Error ? e.message : String(e));
+    }
+  } else if (revResp) {
+    console.error(`[Finnhub] revenue-estimate ${symbol}: HTTP ${revResp.status}`);
+  }
+
+  if (ptResp?.ok) {
+    try {
+      const json = await ptResp.json();
+      if (json && typeof json.targetMedian === 'number') {
+        priceTarget = json as FinnhubPriceTarget;
+      }
+    } catch (e: unknown) {
+      console.error(`[Finnhub] price-target ${symbol}:`, e instanceof Error ? e.message : String(e));
+    }
+  } else if (ptResp) {
+    console.error(`[Finnhub] price-target ${symbol}: HTTP ${ptResp.status}`);
+  }
+
+  if (udResp?.ok) {
+    try {
+      const json = await udResp.json();
+      upgradeDowngrade = Array.isArray(json) ? json : [];
+    } catch (e: unknown) {
+      console.error(`[Finnhub] upgrade-downgrade ${symbol}:`, e instanceof Error ? e.message : String(e));
+    }
+  } else if (udResp) {
+    console.error(`[Finnhub] upgrade-downgrade ${symbol}: HTTP ${udResp.status}`);
+  }
+
+  const result: FinnhubEstimateData = { epsEstimates, revenueEstimates, priceTarget, upgradeDowngrade };
+  estimateCache.set(symbol, { data: result, timestamp: Date.now() });
+  return result;
+}
+
 // ===== FINNHUB SINGLE-TICKER FETCHER =====
 
 export async function fetchFinnhubTicker(
@@ -58,14 +138,16 @@ export async function fetchFinnhubTicker(
       recommendations: [],
       insiderSentiment: [],
       earnings: [],
+      estimateData: null,
     };
   }
 
-  // Fetch all 4 endpoints, each resilient to failure
+  // Fetch all 5 endpoints, each resilient to failure
   let fundamentals: FinnhubFundamentals | null = null;
   let recommendations: FinnhubRecommendation[] = [];
   let insiderSentiment: FinnhubInsiderSentiment[] = [];
   let earnings: FinnhubEarnings[] = [];
+  let estimateData: FinnhubEstimateData | null = null;
 
   // 1. Fundamentals
   try {
@@ -130,7 +212,14 @@ export async function fetchFinnhubTicker(
     console.error(`[Finnhub] earnings ${symbol}:`, e instanceof Error ? e.message : String(e));
   }
 
-  return { fundamentals, recommendations, insiderSentiment, earnings };
+  // 5. Premium estimates (EPS, revenue, price target, upgrade/downgrade)
+  try {
+    estimateData = await fetchFinnhubEstimates(symbol, key);
+  } catch (e: unknown) {
+    console.error(`[Finnhub] estimates ${symbol}:`, e instanceof Error ? e.message : String(e));
+  }
+
+  return { fundamentals, recommendations, insiderSentiment, earnings, estimateData };
 }
 
 // ===== FINNHUB BATCH FETCHER =====
@@ -145,7 +234,7 @@ export async function fetchFinnhubBatch(
 
   for (let i = 0; i < symbols.length; i++) {
     const symbol = symbols[i];
-    stats.calls_made += 4; // 4 endpoints per ticker
+    stats.calls_made += 8; // 4 free + 4 premium endpoints per ticker
 
     try {
       const result = await fetchFinnhubTicker(symbol, apiKey);
@@ -162,6 +251,7 @@ export async function fetchFinnhubBatch(
         recommendations: [],
         insiderSentiment: [],
         earnings: [],
+        estimateData: null,
       });
     }
 
