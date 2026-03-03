@@ -246,6 +246,15 @@ export interface MispricingTrace extends SubScoreTrace {
     transform: 'percentile' | 'z-score-fallback' | 'raw';
   };
   hv_trend: string;
+  iv_composite: {
+    iv_rank: number | null;
+    iv_percentile: number | null;
+    iv_composite_score: number;
+    iv_composite_method: string;
+    high_conviction_iv: boolean;
+    vol_regime: 'POST_SPIKE' | 'SPIKE_BUILDING' | 'NORMAL';
+    vol_regime_note: string;
+  };
 }
 
 export interface TermStructureTrace extends SubScoreTrace {
@@ -324,6 +333,11 @@ export interface SafetyTrace extends SubScoreTrace {
     components_total: number;
     computable: Record<string, boolean>;
     capped: boolean;
+  };
+  borrow_rate_adjustment: {
+    borrow_rate: number | null;
+    penalty: number;
+    score_before_penalty: number;
   };
 }
 
@@ -712,6 +726,7 @@ export interface TradeCardKeyStats {
   dividend_yield: number | null;
   liquidity_rating: number | null;
   lendability: string | null;
+  borrow_rate: number | null;
   buzz_ratio: number | null;
   sentiment_momentum: number | null;
   analyst_consensus: string | null;

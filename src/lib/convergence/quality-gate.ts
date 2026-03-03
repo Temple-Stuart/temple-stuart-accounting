@@ -236,6 +236,17 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     altmanCapped = true;
   }
 
+  // Borrow rate continuous penalty (Drechsler & Drechsler 2016, JFE)
+  // Higher borrow cost directly reduces premium-selling edge through friction.
+  // Penalty = min(20, borrowRate × 0.8): 5%→-4pts, 12.5%→-10pts, 25%+→-20pts cap
+  const borrowRate = tt?.borrowRate ?? null;
+  const borrowRatePenalty = round(Math.min(20, (borrowRate ?? 0) * 0.8), 1);
+  const safetyScorePreBorrowPenalty = score;
+  if (borrowRatePenalty > 0) {
+    score = Math.max(0, round(score - borrowRatePenalty, 1));
+    formula += ` → -${borrowRatePenalty} borrow rate penalty (${borrowRate}% × 0.8) = ${score}`;
+  }
+
   return {
     score: round(score),
     weight: 0.40,
@@ -278,6 +289,11 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       components_total: 5,
       computable: altmanComputable,
       capped: altmanCapped,
+    },
+    borrow_rate_adjustment: {
+      borrow_rate: borrowRate,
+      penalty: borrowRatePenalty,
+      score_before_penalty: safetyScorePreBorrowPenalty,
     },
   };
 }
