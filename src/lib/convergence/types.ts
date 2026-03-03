@@ -70,6 +70,51 @@ export interface FinnhubEarnings {
   symbol: string;
 }
 
+export interface FinnhubEpsEstimate {
+  epsAvg: number;
+  epsHigh: number;
+  epsLow: number;
+  numberAnalysts: number;
+  period: string;
+  quarter: number;
+  year: number;
+}
+
+export interface FinnhubRevenueEstimate {
+  revenueAvg: number;
+  revenueHigh: number;
+  revenueLow: number;
+  numberAnalysts: number;
+  period: string;
+  quarter: number;
+  year: number;
+}
+
+export interface FinnhubPriceTarget {
+  targetHigh: number;
+  targetLow: number;
+  targetMean: number;
+  targetMedian: number;
+  numberAnalysts: number;
+  lastUpdated: string;
+}
+
+export interface FinnhubUpgradeDowngrade {
+  symbol: string;
+  gradeTime: number;
+  company: string;
+  fromGrade: string;
+  toGrade: string;
+  action: string;
+}
+
+export interface FinnhubEstimateData {
+  epsEstimates: FinnhubEpsEstimate[];
+  revenueEstimates: FinnhubRevenueEstimate[];
+  priceTarget: FinnhubPriceTarget | null;
+  upgradeDowngrade: FinnhubUpgradeDowngrade[];
+}
+
 export interface FredMacroData {
   vix: number | null;
   treasury10y: number | null;
@@ -162,6 +207,7 @@ export interface ConvergenceInput {
   finnhubRecommendations: FinnhubRecommendation[];
   finnhubInsiderSentiment: FinnhubInsiderSentiment[];
   finnhubEarnings: FinnhubEarnings[];
+  finnhubEstimates: FinnhubEstimateData | null;
   fredMacro: FredMacroData;
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
@@ -422,9 +468,24 @@ export interface RegimeResult {
 
 export interface AnalystConsensusTrace extends SubScoreTrace {
   sub_scores: {
-    buy_sell_ratio_score: number;
-    strong_conviction_score: number;
-    coverage_score: number;
+    estimate_level_score: number;
+    estimate_dispersion_score: number;
+    revenue_eps_alignment_score: number;
+    price_target_return_score: number;
+    consensus_breadth_score: number;
+  };
+  indicators: {
+    forward_eps: number | null;
+    trailing_actual_eps: number | null;
+    eps_dispersion_pct: number | null;
+    revenue_growth_direction: string | null;
+    eps_growth_direction: string | null;
+    price_target_median: number | null;
+    price_target_implied_return_pct: number | null;
+    recent_upgrades_90d: number | null;
+    recent_downgrades_90d: number | null;
+    number_analysts_estimates: number | null;
+    number_analysts_recommendations: number | null;
   };
   raw_counts: {
     strongBuy: number;
