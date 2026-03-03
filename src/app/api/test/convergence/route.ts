@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
 import { generateTradeCards } from '@/lib/convergence/trade-cards';
@@ -11,10 +11,6 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import type {
   CandleData,
   TTScannerData,
-  FinnhubFundamentals,
-  FinnhubRecommendation,
-  FinnhubInsiderSentiment,
-  FinnhubEarnings,
   FredMacroData,
   ConvergenceInput,
   ConvergenceResponse,
@@ -151,52 +147,6 @@ async function fetchTTCandles(symbol: string, days: number): Promise<{ candles: 
   }
 }
 
-async function fetchFinnhubFundamentals(symbol: string, apiKey: string): Promise<{ data: FinnhubFundamentals | null; error: string | null }> {
-  try {
-    const resp = await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${apiKey}`);
-    if (!resp.ok) return { data: null, error: `HTTP ${resp.status}` };
-    const json = await resp.json();
-    const metric = json?.metric || {};
-    return { data: { metric, fieldCount: Object.keys(metric).length }, error: null };
-  } catch (e: unknown) {
-    return { data: null, error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-async function fetchFinnhubRecommendations(symbol: string, apiKey: string): Promise<{ data: FinnhubRecommendation[]; error: string | null }> {
-  try {
-    const resp = await fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${symbol}&token=${apiKey}`);
-    if (!resp.ok) return { data: [], error: `HTTP ${resp.status}` };
-    const json = await resp.json();
-    return { data: Array.isArray(json) ? json : [], error: null };
-  } catch (e: unknown) {
-    return { data: [], error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-async function fetchFinnhubInsiderSentiment(symbol: string, apiKey: string): Promise<{ data: FinnhubInsiderSentiment[]; error: string | null }> {
-  try {
-    const now = new Date().toISOString().slice(0, 10);
-    const resp = await fetch(`https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&to=${now}&token=${apiKey}`);
-    if (!resp.ok) return { data: [], error: `HTTP ${resp.status}` };
-    const json = await resp.json();
-    return { data: json?.data || [], error: null };
-  } catch (e: unknown) {
-    return { data: [], error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-async function fetchFinnhubEarnings(symbol: string, apiKey: string): Promise<{ data: FinnhubEarnings[]; error: string | null }> {
-  try {
-    const resp = await fetch(`https://finnhub.io/api/v1/stock/earnings?symbol=${symbol}&token=${apiKey}`);
-    if (!resp.ok) return { data: [], error: `HTTP ${resp.status}` };
-    const json = await resp.json();
-    return { data: Array.isArray(json) ? json : [], error: null };
-  } catch (e: unknown) {
-    return { data: [], error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
 
 // ===== MAIN ROUTE =====
 
@@ -228,10 +178,7 @@ export async function GET(request: Request) {
   const [
     ttScannerResult,
     ttCandleResult,
-    fhFundamentalsResult,
-    fhRecsResult,
-    fhInsiderResult,
-    fhEarningsResult,
+    finnhubResult,
     fredResult,
     annualFinancialsResult,
     optionsFlowResult,
@@ -245,18 +192,10 @@ export async function GET(request: Request) {
       fetchErrors.tt_candles = e instanceof Error ? e.message : String(e);
       return { candles: [] as CandleData[], error: String(e) };
     }),
-    finnhubKey
-      ? fetchFinnhubFundamentals(symbol, finnhubKey).catch(e => ({ data: null, error: String(e) }))
-      : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
-    finnhubKey
-      ? delay(200).then(() => fetchFinnhubRecommendations(symbol, finnhubKey)).catch(e => ({ data: [] as FinnhubRecommendation[], error: String(e) }))
-      : Promise.resolve({ data: [] as FinnhubRecommendation[], error: 'FINNHUB_API_KEY not configured' }),
-    finnhubKey
-      ? delay(400).then(() => fetchFinnhubInsiderSentiment(symbol, finnhubKey)).catch(e => ({ data: [] as FinnhubInsiderSentiment[], error: String(e) }))
-      : Promise.resolve({ data: [] as FinnhubInsiderSentiment[], error: 'FINNHUB_API_KEY not configured' }),
-    finnhubKey
-      ? delay(600).then(() => fetchFinnhubEarnings(symbol, finnhubKey)).catch(e => ({ data: [] as FinnhubEarnings[], error: String(e) }))
-      : Promise.resolve({ data: [] as FinnhubEarnings[], error: 'FINNHUB_API_KEY not configured' }),
+    fetchFinnhubTicker(symbol, finnhubKey || undefined).catch((e): FinnhubData => {
+      fetchErrors.finnhub = e instanceof Error ? e.message : String(e);
+      return { fundamentals: null, recommendations: [], insiderSentiment: [], earnings: [], estimateData: null };
+    }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
           data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
@@ -269,23 +208,19 @@ export async function GET(request: Request) {
           error: 'FRED_API_KEY not configured',
         }),
     finnhubKey
-      ? delay(800).then(() => fetchAnnualFinancials(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      ? fetchAnnualFinancials(symbol, finnhubKey).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
     finnhubKey
-      ? delay(1000).then(() => fetchOptionsFlow(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      ? delay(200).then(() => fetchOptionsFlow(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
     finnhubKey
-      ? delay(1200).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      ? delay(400).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
   ]);
 
-  // Collect fetch errors
+  // Collect fetch errors (Finnhub per-endpoint errors logged internally by fetchFinnhubTicker)
   if (ttScannerResult.error) fetchErrors.tt_scanner = ttScannerResult.error;
   if (ttCandleResult.error) fetchErrors.tt_candles = ttCandleResult.error;
-  if (fhFundamentalsResult.error) fetchErrors.finnhub_fundamentals = fhFundamentalsResult.error;
-  if (fhRecsResult.error) fetchErrors.finnhub_recommendations = fhRecsResult.error;
-  if (fhInsiderResult.error) fetchErrors.finnhub_insider_sentiment = fhInsiderResult.error;
-  if (fhEarningsResult.error) fetchErrors.finnhub_earnings = fhEarningsResult.error;
   if (fredResult.error) fetchErrors.fred_macro = fredResult.error;
   if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
   if (optionsFlowResult.error) fetchErrors.options_flow = optionsFlowResult.error;
@@ -296,11 +231,11 @@ export async function GET(request: Request) {
     symbol,
     ttScanner: ttScannerResult.data,
     candles: ttCandleResult.candles,
-    finnhubFundamentals: fhFundamentalsResult.data,
-    finnhubRecommendations: fhRecsResult.data,
-    finnhubInsiderSentiment: fhInsiderResult.data,
-    finnhubEarnings: fhEarningsResult.data,
-    finnhubEstimates: null,
+    finnhubFundamentals: finnhubResult.fundamentals,
+    finnhubRecommendations: finnhubResult.recommendations,
+    finnhubInsiderSentiment: finnhubResult.insiderSentiment,
+    finnhubEarnings: finnhubResult.earnings,
+    finnhubEstimates: finnhubResult.estimateData,
     fredMacro: fredResult.data,
     annualFinancials: annualFinancialsResult.data,
     optionsFlow: optionsFlowResult.data,
@@ -372,9 +307,9 @@ export async function GET(request: Request) {
 
   // ===== BUILD RESPONSE =====
   const candles = ttCandleResult.candles;
-  const latestRec = fhRecsResult.data.length > 0 ? fhRecsResult.data[0] : null;
-  const latestEarnings = fhEarningsResult.data.length > 0 ? fhEarningsResult.data[0] : null;
-  const insiderSorted = [...fhInsiderResult.data].sort((a, b) => {
+  const latestRec = finnhubResult.recommendations.length > 0 ? finnhubResult.recommendations[0] : null;
+  const latestEarnings = finnhubResult.earnings.length > 0 ? finnhubResult.earnings[0] : null;
+  const insiderSorted = [...finnhubResult.insiderSentiment].sort((a, b) => {
     if (a.year !== b.year) return b.year - a.year;
     return b.month - a.month;
   });
@@ -382,10 +317,10 @@ export async function GET(request: Request) {
 
   // Build sample fields from Finnhub fundamentals (first 15 fields)
   const sampleFields: Record<string, number | string | null> = {};
-  if (fhFundamentalsResult.data) {
-    const keys = Object.keys(fhFundamentalsResult.data.metric).slice(0, 15);
+  if (finnhubResult.fundamentals) {
+    const keys = Object.keys(finnhubResult.fundamentals.metric).slice(0, 15);
     for (const k of keys) {
-      sampleFields[k] = fhFundamentalsResult.data.metric[k];
+      sampleFields[k] = finnhubResult.fundamentals.metric[k];
     }
   }
 
@@ -401,20 +336,20 @@ export async function GET(request: Request) {
         newest: candles.length > 0 ? candles[candles.length - 1].date : null,
         sample: candles.length > 0 ? candles[candles.length - 1] : null,
       },
-      finnhub_fundamentals: fhFundamentalsResult.data
-        ? { field_count: fhFundamentalsResult.data.fieldCount, sample_fields: sampleFields }
+      finnhub_fundamentals: finnhubResult.fundamentals
+        ? { field_count: finnhubResult.fundamentals.fieldCount, sample_fields: sampleFields }
         : null,
       finnhub_recommendations: {
         latest: latestRec,
-        history_count: fhRecsResult.data.length,
+        history_count: finnhubResult.recommendations.length,
       },
       finnhub_insider_sentiment: {
         latest_mspr: latestMspr,
-        months_available: fhInsiderResult.data.length,
+        months_available: finnhubResult.insiderSentiment.length,
       },
       finnhub_earnings: {
         latest: latestEarnings,
-        quarters_available: fhEarningsResult.data.length,
+        quarters_available: finnhubResult.earnings.length,
       },
       fred_macro: fredResult.data,
     },
