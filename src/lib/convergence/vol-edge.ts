@@ -200,6 +200,9 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // TastyTrade returns IVP as decimal (0.693 = 69.3%); normalize to 0-100 scale
   if (ivp !== null && ivp <= 1.0) ivp = round(ivp * 100, 1);
   const ivHvSpread = tt?.ivHvSpread ?? null;
+  let ivr = tt?.ivRank ?? null;
+  // TastyTrade may return IVR as decimal; normalize to 0-100 scale
+  if (ivr !== null && ivr > 0 && ivr <= 1.0) ivr = round(ivr * 100, 1);
 
   // VRP = IV30 - HV30 simple difference (Goyal & Saretto 2009, JFE; Carr & Wu 2009, RFS)
   // Simple difference avoids ratio-form compression in high-IV environments
@@ -234,6 +237,9 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
 
   // IVP component (0.30): IVP directly maps 0-100
   const ivpScoreRaw = ivp !== null ? clamp(ivp, 0, 100) : 40; // penalty default — missing IVP
+
+  // IVR component: same identity mapping as IVP (null if unavailable → fallback to IVP only)
+  const ivrScoreRaw = ivr !== null ? clamp(ivr, 0, 100) : null;
 
   // IV-HV spread component (0.25): higher absolute spread = more mispricing
   let ivHvSpreadScoreRaw = 40; // penalty default — missing IV-HV spread
@@ -316,13 +322,46 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   }
   // else: transform === 'raw' — use raw scores unchanged
 
-  // Spec-compliant weights: 0.30×VRP + 0.30×IVP + 0.25×IV_HV_spread + 0.15×HV_accel
-  const score = round(0.30 * vrpScore + 0.30 * ivpScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
+  // --- IV Composite: blend IVP and IVR when both available ---
+  // IVR uses raw score (no IVR-specific sector stats); IVP retains sector transform.
+  const ivrScore = ivrScoreRaw; // null if IVR unavailable
+  let ivCompositeScore: number;
+  let ivCompositeMethod: string;
+  if (ivrScore !== null) {
+    ivCompositeScore = round(0.60 * ivpScore + 0.40 * ivrScore, 1);
+    ivCompositeMethod = '0.60×IVP + 0.40×IVR';
+  } else {
+    ivCompositeScore = ivpScore;
+    ivCompositeMethod = 'IVP only (IVR unavailable)';
+  }
+
+  // Weights: 0.30×VRP + 0.30×IVComposite + 0.25×IV_HV_spread + 0.15×HV_accel
+  let score = round(0.30 * vrpScore + 0.30 * ivCompositeScore + 0.25 * ivHvSpreadScore + 0.15 * hvAccelScore, 1);
+
+  // High Conviction Bonus: when IVP and IVR both > 50 and within 15 points, add +5
+  const highConvictionIv = ivp !== null && ivr !== null &&
+    ivp > 50 && ivr > 50 && Math.abs(ivp - ivr) <= 15;
+  if (highConvictionIv) {
+    score = Math.min(100, round(score + 5, 1));
+  }
+
+  // Post-Spike Detector (trace only — does NOT affect score)
+  let volRegime: 'POST_SPIKE' | 'SPIKE_BUILDING' | 'NORMAL' = 'NORMAL';
+  let volRegimeNote = '';
+  if (ivp !== null && ivr !== null) {
+    if (ivp > 60 && ivr < 30) {
+      volRegime = 'POST_SPIKE';
+      volRegimeNote = 'IVP>60 + IVR<30 = vol recently spiked, now normalizing — historically favorable for premium selling (mean reversion)';
+    } else if (ivp < 30 && ivr > 60) {
+      volRegime = 'SPIKE_BUILDING';
+      volRegimeNote = 'IVP<30 + IVR>60 = vol building from low base — watch for breakout';
+    }
+  }
 
   const mode = hasZScores
     ? `${zScores.transform} mode (sector: ${sector}, n=${peerCount})`
     : 'raw mode (single ticker, no sector peers)';
-  const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVP(${round(ivpScore, 1)}) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${score} [${mode}]`;
+  const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVComposite(${round(ivCompositeScore, 1)} [${ivCompositeMethod}]) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${round(score)}${highConvictionIv ? ' +5 high conviction' : ''} [${mode}]`;
 
   return {
     score: round(score),
@@ -332,6 +371,7 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
       HV_30: hv30,
       HV_60: hv60,
       HV_90: hv90,
+      IV_rank: ivr,
       IV_percentile: ivp,
       IV_HV_spread: ivHvSpread,
       VRP: vrpStr,
@@ -339,9 +379,18 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     z_scores: zScores,
     formula,
     notes: hasZScores
-      ? `VRP=${round(vrpScore)}(raw=${round(vrpScoreRaw)},z=${zScores.vrp_z}), IVP=${round(ivpScore)}(raw=${round(ivpScoreRaw)},z=${zScores.ivp_z}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
-      : `VRP=${round(vrpScore)}, IVP=${round(ivpScore)}, IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
+      ? `VRP=${round(vrpScore)}(raw=${round(vrpScoreRaw)},z=${zScores.vrp_z}), IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}(raw=${round(ivHvSpreadScoreRaw)},z=${zScores.iv_hv_z}), HV_accel=${round(hvAccelScore)}(raw=${round(hvAccelScoreRaw)},z=${zScores.hv_accel_z})`
+      : `VRP=${round(vrpScore)}, IVComposite=${round(ivCompositeScore)}(IVP=${round(ivpScore)},IVR=${ivrScore !== null ? round(ivrScore) : 'N/A'}), IV_HV=${round(ivHvSpreadScore)}, HV_accel=${round(hvAccelScore)}`,
     hv_trend: hvTrend,
+    iv_composite: {
+      iv_rank: ivr,
+      iv_percentile: ivp,
+      iv_composite_score: round(ivCompositeScore, 1),
+      iv_composite_method: ivCompositeMethod,
+      high_conviction_iv: highConvictionIv,
+      vol_regime: volRegime,
+      vol_regime_note: volRegimeNote,
+    },
   };
 }
 

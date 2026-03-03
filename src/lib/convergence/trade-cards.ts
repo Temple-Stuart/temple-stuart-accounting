@@ -192,6 +192,12 @@ function computeRiskFlags(
     flags.push(`WEAK CONVERGENCE (${above50}/4 categories above 50) — signals are not well-aligned.`);
   }
 
+  // Borrow rate risk
+  const borrowRate = input.ttScanner?.borrowRate ?? null;
+  if (borrowRate !== null && borrowRate > 10) {
+    flags.push(`HIGH BORROW COST (${borrowRate}%) — reduces premium-selling edge by ~${Math.round(borrowRate * 0.8)} points`);
+  }
+
   // Insider selling pressure
   const insiderTrace = scoring.info_edge.breakdown.insider_activity;
   const avgMspr3m = insiderTrace.insider_detail.avg_mspr_3m;
@@ -261,6 +267,7 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
     dividend_yield: tt?.dividendYield ?? null,
     liquidity_rating: tt?.liquidityRating ?? null,
     lendability: tt?.lendability ?? null,
+    borrow_rate: tt?.borrowRate ?? null,
     buzz_ratio: news?.buzz_ratio ?? null,
     sentiment_momentum: news?.sentiment_momentum ?? null,
     analyst_consensus: analystConsensusLabel(scoring),
