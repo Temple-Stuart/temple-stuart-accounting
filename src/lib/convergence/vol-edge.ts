@@ -81,39 +81,6 @@ function computeSMA(candles: CandleData[], period: number): number | null {
   return round(mean(slice.map(c => c.close)), 2);
 }
 
-function computeEMA(values: number[], period: number): number[] {
-  if (values.length === 0) return [];
-  const k = 2 / (period + 1);
-  const ema: number[] = [values[0]];
-  for (let i = 1; i < values.length; i++) {
-    ema.push(values[i] * k + ema[i - 1] * (1 - k));
-  }
-  return ema;
-}
-
-function computeMACD(candles: CandleData[], fast = 12, slow = 26, signal = 9): {
-  macdLine: number | null;
-  signalLine: number | null;
-  histogram: number | null;
-} {
-  if (candles.length < slow + signal) {
-    return { macdLine: null, signalLine: null, histogram: null };
-  }
-  const closes = candles.map(c => c.close);
-  const emaFast = computeEMA(closes, fast);
-  const emaSlow = computeEMA(closes, slow);
-  const macdValues = emaFast.map((v, i) => v - emaSlow[i]);
-  const signalValues = computeEMA(macdValues.slice(slow - 1), signal);
-
-  const macdLine = round(macdValues[macdValues.length - 1], 4);
-  const signalLine = round(signalValues[signalValues.length - 1], 4);
-  return {
-    macdLine,
-    signalLine,
-    histogram: round(macdLine - signalLine, 4),
-  };
-}
-
 function computeBollinger(candles: CandleData[], period = 20, mult = 2): {
   upper: number | null;
   lower: number | null;
@@ -550,11 +517,11 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
       inputs: { candles_available: candles.length },
       formula: `Insufficient candle data (${candles.length} < 20 required) → penalty default 40 (missing data)`,
       notes: 'Need at least 20 candles for Bollinger Bands and SMA calculations',
-      sub_scores: { rsi_score: 40, trend_score: 40, bollinger_score: 40, volume_score: 40, macd_score: 40 },
+      sub_scores: { rsi_score: 40, trend_score: 40, bollinger_score: 40, volume_score: 40, high52w_score: 40 },
       indicators: {
         rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
         bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
-        macd_line: null, macd_signal: null, macd_histogram: null,
+        high52w_ratio: null, high52w_range_position: null,
         avg_volume_5d: null, avg_volume_20d: null, volume_ratio: null,
       },
       candles_used: candles.length,
@@ -625,28 +592,35 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
     else volumeScore = 40;                          // Low volume → less liquid
   }
 
-  // MACD
-  const macd = computeMACD(candles, 12, 26, 9);
-  let macdScore = 40; // penalty default — needs 35+ candles for MACD
-  if (macd.histogram !== null) {
-    // Positive histogram = bullish momentum, negative = bearish
-    // For neutral strategies, near-zero is ideal
-    const absHist = Math.abs(macd.histogram);
-    const lastClose = candles[candles.length - 1].close;
-    const normalizedHist = lastClose > 0 ? absHist / lastClose * 100 : 0;
-    // Small histogram = 60 (range-bound, good for neutral), large = lower
-    if (normalizedHist < 0.5) macdScore = 60;
-    else if (normalizedHist < 1.0) macdScore = 50;
-    else if (normalizedHist < 2.0) macdScore = 40;
-    else macdScore = 30;
+  // 52-Week High Ratio (George & Hwang 2004, Journal of Finance)
+  // Strongest documented momentum signal: 0.65% monthly returns, dominates
+  // Jegadeesh-Titman momentum (0.38%), does not reverse long-run.
+  // Stocks near 52-week highs have lower realized vol and cleaner VRP capture.
+  const high52w = input.finnhubFundamentals?.metric?.['52WeekHigh'];
+  const low52w = input.finnhubFundamentals?.metric?.['52WeekLow'];
+  const high52wNum = typeof high52w === 'number' && high52w > 0 ? high52w : null;
+  const low52wNum = typeof low52w === 'number' && low52w > 0 ? low52w : null;
+  const high52wRatio = high52wNum !== null ? round(latestClose / high52wNum, 4) : null;
+  const high52wRangePosition = high52wNum !== null && low52wNum !== null && high52wNum > low52wNum
+    ? round((latestClose - low52wNum) / (high52wNum - low52wNum), 4)
+    : null;
+
+  let high52wScore = 40; // penalty default — missing Finnhub 52-week data
+  if (high52wRatio !== null) {
+    if (high52wRatio >= 0.95) high52wScore = 85;
+    else if (high52wRatio >= 0.90) high52wScore = 75;
+    else if (high52wRatio >= 0.80) high52wScore = 60;
+    else if (high52wRatio >= 0.70) high52wScore = 45;
+    else if (high52wRatio >= 0.60) high52wScore = 35;
+    else high52wScore = 25;
   }
 
-  // Weighted combination: RSI 25%, trend 25%, bollinger 20%, volume 15%, MACD 15%
+  // Weighted combination: RSI 25%, trend 25%, bollinger 20%, volume 15%, 52-week high 15%
   const score = round(
-    0.25 * rsiScore + 0.25 * trendScore + 0.20 * bollingerScore + 0.15 * volumeScore + 0.15 * macdScore, 1,
+    0.25 * rsiScore + 0.25 * trendScore + 0.20 * bollingerScore + 0.15 * volumeScore + 0.15 * high52wScore, 1,
   );
 
-  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${round(volumeScore)}) + 0.15×MACD(${round(macdScore)}) = ${score}`;
+  const formula = `0.25×RSI(${round(rsiScore)}) + 0.25×Trend(${round(trendScore)}) + 0.20×BB(${round(bollingerScore)}) + 0.15×Vol(${round(volumeScore)}) + 0.15×52WkHigh(${round(high52wScore)}) = ${score}`;
 
   return {
     score: round(score),
@@ -656,13 +630,13 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
       latest_close: latestClose,
     },
     formula,
-    notes: `RSI(14)=${rsiResult.rsi ?? 'N/A'}, SMA20=${sma20 ?? 'N/A'}, SMA50=${sma50 ?? 'N/A'}, BB_pos=${bb.position ?? 'N/A'}, MACD_hist=${macd.histogram ?? 'N/A'}`,
+    notes: `RSI(14)=${rsiResult.rsi ?? 'N/A'}, SMA20=${sma20 ?? 'N/A'}, SMA50=${sma50 ?? 'N/A'}, BB_pos=${bb.position ?? 'N/A'}, 52WkHigh_ratio=${high52wRatio ?? 'N/A'}`,
     sub_scores: {
       rsi_score: round(rsiScore),
       trend_score: round(trendScore),
       bollinger_score: round(bollingerScore),
       volume_score: round(volumeScore),
-      macd_score: round(macdScore),
+      high52w_score: round(high52wScore),
     },
     indicators: {
       rsi_14: rsiResult.rsi,
@@ -675,9 +649,8 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
       bb_middle: bb.middle,
       bb_position: bb.position,
       bb_width: bb.width,
-      macd_line: macd.macdLine,
-      macd_signal: macd.signalLine,
-      macd_histogram: macd.histogram,
+      high52w_ratio: high52wRatio,
+      high52w_range_position: high52wRangePosition,
       avg_volume_5d: vol5d,
       avg_volume_20d: vol20d,
       volume_ratio: volumeRatio,
@@ -722,11 +695,11 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
       inputs: { candles_available: input.candles.length },
       formula: 'EXCLUDED — no candle data available. Vol edge scored from mispricing (62.5%) + term structure (37.5%) only.',
       notes: 'Technicals excluded. No fabricated scores.',
-      sub_scores: { rsi_score: 0, trend_score: 0, bollinger_score: 0, volume_score: 0, macd_score: 0 },
+      sub_scores: { rsi_score: 0, trend_score: 0, bollinger_score: 0, volume_score: 0, high52w_score: 0 },
       indicators: {
         rsi_14: null, rsi_trace: null, sma_20: null, sma_50: null, latest_close: null,
         bb_upper: null, bb_lower: null, bb_middle: null, bb_position: null, bb_width: null,
-        macd_line: null, macd_signal: null, macd_histogram: null,
+        high52w_ratio: null, high52w_range_position: null,
         avg_volume_5d: null, avg_volume_20d: null, volume_ratio: null,
       },
       candles_used: 0,
@@ -748,7 +721,7 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   if (!hasCandles) {
     imputedFields.push('technicals');
   } else {
-    if (input.candles.length < 35) imputedFields.push('technicals.macd');
+    if (!input.finnhubFundamentals?.metric?.['52WeekHigh']) imputedFields.push('technicals.high52w');
   }
   const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1); // mispricing(4) + term(1) + technicals(5 or 1 if excluded)
   const dataConfidence: DataConfidence = {
