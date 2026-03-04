@@ -28,7 +28,23 @@ const MACRO_BASELINES = {
   cpi_mom:            { median: 0.2,   spread: 0.3 },   // CPI MoM % (~2.4% ann.)
   fed_funds:          { median: 3.0,   spread: 2.5 },   // Fed Funds rate %
   treasury_10y:       { median: 3.5,   spread: 1.5 },   // 10Y yield %
+  // New institutional-grade baselines
+  icsa:               { median: 225,   spread: 50 },     // Initial claims (thousands) — INVERTED (lower = better)
+  nfci:               { median: -0.5,  spread: 0.5 },    // NFCI: negative = loose (bullish), positive = tight (bearish) — INVERTED
+  breakeven_5y:       { median: 2.0,   spread: 0.75 },   // T5YIE: deviation from 2% Fed target
+  yield_curve:        { median: 1.0,   spread: 1.5 },    // T10Y2Y: positive = normal, negative = inverted
+  hy_spread:          { median: 4.0,   spread: 2.0 },    // BAMLH0A0HYM2: HY credit spread %
 };
+
+// ===== STALENESS DETECTION =====
+const STALE_THRESHOLD_DAYS = 14;
+
+function isStale(dateStr: string | null): boolean {
+  if (!dateStr) return false; // can't determine — don't flag
+  const obsDate = new Date(dateStr + 'T00:00:00Z').getTime();
+  const now = Date.now();
+  return (now - obsDate) / 86400000 > STALE_THRESHOLD_DAYS;
+}
 
 // ===== STEP A — NORMALIZE MACRO INDICATORS TO 0-100 =====
 // Each indicator scored relative to its long-run median via sigmoid.
@@ -70,6 +86,22 @@ function normalizeConsumerConfidence(v: number | null): number {
   return baselineScore(v, b.median, b.spread);
 }
 
+// Initial Jobless Claims (thousands): INVERTED — lower = better. Baseline 225K.
+// Rising claims (above trailing average) = bearish labor signal.
+function normalizeIcsa(v: number | null): number {
+  if (v === null) return 50;
+  const b = MACRO_BASELINES.icsa;
+  return baselineScore(v, b.median, b.spread, true);
+}
+
+// NFCI: INVERTED — negative values = loose conditions (bullish), positive = tight (bearish).
+// Zero = neutral. Positive values signal tightening financial conditions.
+function normalizeNfci(v: number | null): number {
+  if (v === null) return 50;
+  const b = MACRO_BASELINES.nfci;
+  return baselineScore(v, b.median, b.spread, true);
+}
+
 // CPI YoY (%): Higher = more inflation. Baseline 2.5%.
 function normalizeCpiYoy(v: number | null): number {
   if (v === null) return 50;
@@ -98,6 +130,14 @@ function normalizeTreasury10y(v: number | null): number {
   return baselineScore(v, b.median, b.spread);
 }
 
+// 5-Year Breakeven Inflation (%): Score as deviation from 2.0% Fed target.
+// > 3.0% → elevated inflation expectations. < 1.5% → deflation risk. 2.0-2.5% → neutral.
+function normalizeBreakeven5y(v: number | null): number {
+  if (v === null) return 50;
+  const b = MACRO_BASELINES.breakeven_5y;
+  return baselineScore(v, b.median, b.spread);
+}
+
 // ===== STEP A — COMPOSITE GROWTH & INFLATION SIGNALS =====
 
 interface SignalResult {
@@ -111,9 +151,14 @@ function computeGrowthSignal(input: ConvergenceInput): SignalResult {
   const unempScore = normalizeUnemployment(m.unemployment);
   const nfpScore = normalizeNfp(m.nonfarmPayrolls);
   const ccScore = normalizeConsumerConfidence(m.consumerConfidence);
+  const icsaScore = normalizeIcsa(m.initialClaims);
+  const nfciScore = normalizeNfci(m.nfci);
 
+  // Reweighted: original 4 indicators + 2 new ones
+  // GDP 0.25, Unemployment 0.20, NFP 0.20, Consumer Confidence 0.15, ICSA 0.10, NFCI 0.10
   const score = round(
-    0.30 * gdpScore + 0.25 * unempScore + 0.25 * nfpScore + 0.20 * ccScore,
+    0.25 * gdpScore + 0.20 * unempScore + 0.20 * nfpScore +
+    0.15 * ccScore + 0.10 * icsaScore + 0.10 * nfciScore,
     1,
   );
 
@@ -124,6 +169,8 @@ function computeGrowthSignal(input: ConvergenceInput): SignalResult {
       unemployment_score: unempScore,
       nfp_score: nfpScore,
       consumer_confidence_score: ccScore,
+      icsa_score: icsaScore,
+      nfci_score: nfciScore,
     },
   };
 }
@@ -134,9 +181,13 @@ function computeInflationSignal(input: ConvergenceInput): SignalResult {
   const cpiMomScore = normalizeCpiMom(m.cpiMom ?? null);
   const fedFundsScore = normalizeFedFunds(m.fedFunds);
   const t10yScore = normalizeTreasury10y(m.treasury10y);
+  const breakeven5yScore = normalizeBreakeven5y(m.breakeven5y);
 
+  // Reweighted: original 4 + breakeven5y
+  // CPI YoY 0.30, CPI MoM 0.20, Fed Funds 0.15, Treasury 10Y 0.15, Breakeven 5Y 0.20
   const score = round(
-    0.40 * cpiYoyScore + 0.30 * cpiMomScore + 0.15 * fedFundsScore + 0.15 * t10yScore,
+    0.30 * cpiYoyScore + 0.20 * cpiMomScore + 0.15 * fedFundsScore +
+    0.15 * t10yScore + 0.20 * breakeven5yScore,
     1,
   );
 
@@ -147,25 +198,54 @@ function computeInflationSignal(input: ConvergenceInput): SignalResult {
       cpi_mom_score: cpiMomScore,
       fed_funds_score: fedFundsScore,
       treasury_10y_score: t10yScore,
+      breakeven_5y_score: breakeven5yScore,
     },
   };
 }
 
-// ===== STEP B — REGIME CLASSIFICATION (SIGMOID) =====
+// ===== STEP B — REGIME CLASSIFICATION (SIGMOID + STRESS SIGNALS) =====
 
 interface RegimeClassification {
   probabilities: { goldilocks: number; reflation: number; stagflation: number; deflation: number };
   dominant: string;
 }
 
-function classifyRegime(growth: number, inflation: number): RegimeClassification {
+function classifyRegime(
+  growth: number,
+  inflation: number,
+  yieldCurveSpread: number | null,
+  hySpread: number | null,
+): RegimeClassification {
   // Inflection at 50 = long-run baseline (was fixed 60/40).
   // Above baseline → "high" branch, below → "low" branch.
   // At exactly baseline, all 4 regimes get equal probability (0.25).
-  const rawGold = sigmoid(growth - 50) * sigmoid(50 - inflation);
-  const rawRefl = sigmoid(growth - 50) * sigmoid(inflation - 50);
-  const rawStag = sigmoid(50 - growth) * sigmoid(inflation - 50);
-  const rawDefl = sigmoid(50 - growth) * sigmoid(50 - inflation);
+  let rawGold = sigmoid(growth - 50) * sigmoid(50 - inflation);
+  let rawRefl = sigmoid(growth - 50) * sigmoid(inflation - 50);
+  let rawStag = sigmoid(50 - growth) * sigmoid(inflation - 50);
+  let rawDefl = sigmoid(50 - growth) * sigmoid(50 - inflation);
+
+  // T10Y2Y modifier: yield curve inversion is a strong recession signal
+  // When inverted (< 0), boost contraction regimes (stagflation, deflation)
+  if (yieldCurveSpread !== null && yieldCurveSpread < 0) {
+    // Inversion strength: -0.5 → moderate, -1.0+ → strong
+    const inversionFactor = 1 + clamp(Math.abs(yieldCurveSpread) * 0.3, 0, 0.5);
+    rawStag *= inversionFactor;
+    rawDefl *= inversionFactor;
+    rawGold /= inversionFactor;
+  }
+
+  // BAMLH0A0HYM2 modifier: elevated HY spreads signal credit stress
+  // > 5.0% → elevated → boost contraction regimes
+  // > 8.0% → crisis levels → strong boost
+  if (hySpread !== null && hySpread > 5.0) {
+    const stressFactor = hySpread > 8.0
+      ? 1.4  // crisis
+      : 1 + (hySpread - 5.0) / 7.5;  // gradual: 5% → 1.0, 8% → 1.4
+    rawStag *= stressFactor;
+    rawDefl *= stressFactor;
+    rawGold /= stressFactor;
+    rawRefl /= stressFactor;
+  }
 
   const total = rawGold + rawRefl + rawStag + rawDefl;
 
@@ -309,8 +389,21 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const growth = computeGrowthSignal(input);
   const inflation = computeInflationSignal(input);
 
-  // Step B: Regime classification
-  const { probabilities, dominant } = classifyRegime(growth.score, inflation.score);
+  // Step B: Regime classification (with yield curve + credit stress modifiers)
+  const { probabilities, dominant } = classifyRegime(
+    growth.score,
+    inflation.score,
+    macro.yieldCurveSpread,
+    macro.hySpread,
+  );
+
+  // Regime stress signals for trace output
+  const yieldCurveInverted = macro.yieldCurveSpread !== null && macro.yieldCurveSpread < 0;
+  const hyStressLevel: 'normal' | 'elevated' | 'crisis' | null =
+    macro.hySpread === null ? null
+      : macro.hySpread > 8.0 ? 'crisis'
+      : macro.hySpread > 5.0 ? 'elevated'
+      : 'normal';
 
   // Steps C + D: Strategy scoring with VIX overlay
   const { scores: strategyScores, adjustmentType } = scoreStrategies(probabilities, macro.vix);
@@ -349,17 +442,28 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   if (macro.unemployment === null) imputedFields.push('growth.unemployment');
   if (macro.nonfarmPayrolls === null) imputedFields.push('growth.nfp');
   if (macro.consumerConfidence === null) imputedFields.push('growth.consumer_confidence');
+  if (macro.initialClaims === null) imputedFields.push('growth.initial_claims');
+  if (macro.nfci === null) imputedFields.push('growth.nfci');
   if (macro.cpi === null) imputedFields.push('inflation.cpi_yoy');
   if ((macro.cpiMom ?? null) === null) imputedFields.push('inflation.cpi_mom');
   if (macro.fedFunds === null) imputedFields.push('inflation.fed_funds');
   if (macro.treasury10y === null) imputedFields.push('inflation.treasury_10y');
-  const totalSubScores = 8; // 4 growth + 4 inflation
+  if (macro.breakeven5y === null) imputedFields.push('inflation.breakeven_5y');
+  // Regime signals (not scored directly but tracked for completeness)
+  if (macro.yieldCurveSpread === null) imputedFields.push('regime.yield_curve_spread');
+  if (macro.hySpread === null) imputedFields.push('regime.hy_spread');
+  const totalSubScores = 13; // 6 growth + 5 inflation + 2 regime signals
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
     confidence: round(1 - imputedFields.length / totalSubScores, 4),
     imputed_fields: imputedFields,
   };
+
+  // Staleness flags for weekly series
+  const staleFlags: string[] = [];
+  if (isStale(macro.initialClaimsDate)) staleFlags.push(`ICSA stale (last obs: ${macro.initialClaimsDate})`);
+  if (isStale(macro.nfciDate)) staleFlags.push(`NFCI stale (last obs: ${macro.nfciDate})`);
 
   return {
     score,
@@ -372,13 +476,18 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
           unemployment_score: growth.sub_scores.unemployment_score,
           nfp_score: growth.sub_scores.nfp_score,
           consumer_confidence_score: growth.sub_scores.consumer_confidence_score,
+          icsa_score: growth.sub_scores.icsa_score,
+          nfci_score: growth.sub_scores.nfci_score,
         },
         raw_values: {
           gdp: macro.gdp,
           unemployment: macro.unemployment,
           nfp: macro.nonfarmPayrolls,
           consumer_confidence: macro.consumerConfidence,
+          initial_claims: macro.initialClaims,
+          nfci: macro.nfci,
         },
+        stale_flags: staleFlags.length > 0 ? staleFlags : undefined,
       },
       inflation_signal: {
         score: inflation.score,
@@ -387,16 +496,24 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
           cpi_mom_score: inflation.sub_scores.cpi_mom_score,
           fed_funds_score: inflation.sub_scores.fed_funds_score,
           treasury_10y_score: inflation.sub_scores.treasury_10y_score,
+          breakeven_5y_score: inflation.sub_scores.breakeven_5y_score,
         },
         raw_values: {
           cpi_yoy: macro.cpi,
           cpi_mom: macro.cpiMom,
           fed_funds: macro.fedFunds,
           treasury_10y: macro.treasury10y,
+          breakeven_5y: macro.breakeven5y,
         },
       },
       regime_probabilities: probabilities,
       dominant_regime: dominant,
+      regime_signals: {
+        yield_curve_spread: macro.yieldCurveSpread,
+        yield_curve_inverted: yieldCurveInverted,
+        hy_spread: macro.hySpread,
+        hy_stress_level: hyStressLevel,
+      },
       vix_overlay: {
         vix: macro.vix,
         adjustment_type: adjustmentType,

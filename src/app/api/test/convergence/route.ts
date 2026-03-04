@@ -198,12 +198,12 @@ export async function GET(request: Request) {
     }),
     fredKey
       ? fetchFredMacro(fredKey).catch(e => ({
-          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
+          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null, initialClaimsDate: null, nfciDate: null } as FredMacroData,
           cached: false,
           error: String(e),
         }))
       : Promise.resolve({
-          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null } as FredMacroData,
+          data: { vix: null, treasury10y: null, fedFunds: null, unemployment: null, cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null, initialClaimsDate: null, nfciDate: null } as FredMacroData,
           cached: false,
           error: 'FRED_API_KEY not configured',
         }),
