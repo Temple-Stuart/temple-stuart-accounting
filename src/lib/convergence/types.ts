@@ -346,7 +346,10 @@ export interface ProfitabilityTrace extends SubScoreTrace {
     gross_margin_score: number;
     roe_score: number;
     roa_score: number;
+    roic_score: number;
     pe_score: number;
+    ps_score: number;
+    ev_ebitda_score: number;
     fcf_score: number;
   };
   earnings_quality: {
