@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -23,6 +23,8 @@ import type {
   NewsSentimentData,
   FinnhubNewsSentiment,
   FinnhubEarningsQuality,
+  FinnhubInstitutionalOwnership,
+  FinnhubRevenueBreakdown,
 } from './types';
 
 // ===== TYPES =====
@@ -504,6 +506,36 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E5: Earnings quality fetched for ${topSymbols.length} symbols`);
 
+  // Fetch institutional ownership per symbol (for ΔIO in Info-Edge)
+  console.log('[Pipeline] Step E6: Fetching institutional ownership data...');
+  const institutionalOwnershipMap = new Map<string, FinnhubInstitutionalOwnership | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchFinnhubInstitutionalOwnership(symbol);
+      institutionalOwnershipMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      institutionalOwnershipMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E6: Institutional ownership fetched for ${topSymbols.length} symbols`);
+
+  // Fetch revenue breakdown per symbol (for HHI in Quality gate)
+  console.log('[Pipeline] Step E7: Fetching revenue breakdown data...');
+  const revenueBreakdownMap = new Map<string, FinnhubRevenueBreakdown | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchFinnhubRevenueBreakdown(symbol);
+      revenueBreakdownMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      revenueBreakdownMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E7: Revenue breakdown fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -541,6 +573,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       newsSentiment: newsSentimentMap.get(symbol) ?? null,
       finnhubNewsSentiment: finbertMap.get(symbol) ?? null,
       finnhubEarningsQuality: earningsQualityMap.get(symbol) ?? null,
+      finnhubInstitutionalOwnership: institutionalOwnershipMap.get(symbol) ?? null,
+      finnhubRevenueBreakdown: revenueBreakdownMap.get(symbol) ?? null,
       peerStats,
       peerGroupAssignment,
     };
@@ -587,6 +621,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
         finnhubNewsSentiment: finbertMap.get(ticker.symbol) ?? null,
         finnhubEarningsQuality: earningsQualityMap.get(ticker.symbol) ?? null,
+        finnhubInstitutionalOwnership: institutionalOwnershipMap.get(ticker.symbol) ?? null,
+        finnhubRevenueBreakdown: revenueBreakdownMap.get(ticker.symbol) ?? null,
         peerStats,
         peerGroupAssignment,
       };

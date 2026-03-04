@@ -247,6 +247,35 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     formula += ` → -${borrowRatePenalty} borrow rate penalty (${borrowRate}% × 0.8) = ${score}`;
   }
 
+  // Revenue concentration HHI modifier
+  // HHI > 0.70 = concentrated revenue → higher fundamental risk → penalty
+  // HHI < 0.30 = diversified → lower risk → small bonus
+  const revBreakdown = input.finnhubRevenueBreakdown;
+  let concentrationModifier = 0;
+  let hhi: number | null = null;
+  let segmentCount = 0;
+  let largestSegmentPct: number | null = null;
+
+  if (revBreakdown) {
+    hhi = revBreakdown.hhi;
+    segmentCount = revBreakdown.segments.length;
+    if (revBreakdown.totalRevenue > 0 && revBreakdown.segments.length > 0) {
+      const largestRev = Math.max(...revBreakdown.segments.map(s => s.revenue));
+      largestSegmentPct = round((largestRev / revBreakdown.totalRevenue) * 100, 1);
+    }
+
+    if (hhi > 0.85) concentrationModifier = -0.15;       // Extremely concentrated
+    else if (hhi > 0.70) concentrationModifier = -0.10;   // Highly concentrated
+    else if (hhi < 0.20) concentrationModifier = 0.03;    // Well diversified — small bonus
+    else if (hhi < 0.30) concentrationModifier = 0.01;    // Moderately diversified
+    // 0.30-0.70: no modifier
+
+    if (concentrationModifier !== 0) {
+      score = clamp(round(score * (1 + concentrationModifier), 1), 0, 100);
+      formula += ` → ×${round(1 + concentrationModifier, 2)} HHI(${hhi}) = ${score}`;
+    }
+  }
+
   return {
     score: round(score),
     weight: 0.40,
@@ -260,7 +289,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       debt_to_equity: debtToEquity,
     },
     formula,
-    notes: `Liquidity: ${liqRating ?? 'N/A'}, MktCap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}, Beta: ${beta ?? 'N/A'}, D/E: ${debtToEquity ?? 'N/A'}${altmanCapped ? '. ALTMAN Z CAPPED: Z=' + altmanScore + ' < 1.8' : ''}${!hasCandles ? '. Volume excluded (no candle data)' : ''}`,
+    notes: `Liquidity: ${liqRating ?? 'N/A'}, MktCap: ${marketCap ? '$' + (marketCap / 1e9).toFixed(1) + 'B' : 'N/A'}, Beta: ${beta ?? 'N/A'}, D/E: ${debtToEquity ?? 'N/A'}${altmanCapped ? '. ALTMAN Z CAPPED: Z=' + altmanScore + ' < 1.8' : ''}${!hasCandles ? '. Volume excluded (no candle data)' : ''}${revBreakdown ? `. HHI=${hhi}, ${segmentCount} segments, largest=${largestSegmentPct}%` : ''}`,
     sub_scores: {
       liquidity_rating_score: round(liquidityRatingScore),
       market_cap_score: round(marketCapScore),
@@ -294,6 +323,12 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       borrow_rate: borrowRate,
       penalty: borrowRatePenalty,
       score_before_penalty: safetyScorePreBorrowPenalty,
+    },
+    revenue_concentration: {
+      hhi,
+      segment_count: segmentCount,
+      largest_segment_pct: largestSegmentPct,
+      concentration_modifier: concentrationModifier,
     },
   };
 }

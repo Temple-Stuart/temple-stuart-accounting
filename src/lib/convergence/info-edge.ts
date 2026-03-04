@@ -8,6 +8,7 @@ import type {
   EarningsMomentumTrace,
   FlowSignalTrace,
   NewsSentimentTrace,
+  InstitutionalOwnershipTrace,
   DataConfidence,
 } from './types';
 
@@ -718,7 +719,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
   if (!flow) {
     return {
       score: 50,
-      weight: 0.15,
+      weight: 0.10,
       inputs: { data_available: false },
       formula: 'No options flow data → neutral 50',
       notes: 'Finnhub option chain fetch failed or returned no data.',
@@ -788,7 +789,7 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
 
   return {
     score: round(score),
-    weight: 0.15,
+    weight: 0.10,
     inputs: {
       data_available: true,
       put_call_ratio: flow.put_call_ratio,
@@ -1030,18 +1031,113 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   };
 }
 
-// ===== MAIN INFO EDGE SCORER =====
+// ===== INSTITUTIONAL OWNERSHIP SUB-SCORE =====
+// Chen, Jegadeesh & Wermers (2000): ΔIO — institutional purchases outperform sales.
+// Score the CHANGE in ownership, not the level.
+
+function scoreInstitutionalOwnership(input: ConvergenceInput): InstitutionalOwnershipTrace {
+  const ownership = input.finnhubInstitutionalOwnership;
+
+  if (!ownership) {
+    return {
+      score: 50,
+      weight: 0.05,
+      inputs: { data_available: false },
+      formula: 'No institutional ownership data → neutral 50',
+      notes: 'Finnhub ownership endpoints returned no data',
+      sub_scores: { institutional_ownership_score: 50 },
+      indicators: {
+        net_buyer_ratio: null,
+        net_buyers: 0,
+        net_sellers: 0,
+        total_holders: 0,
+        total_change: 0,
+        filing_staleness_days: null,
+        staleness_discounted: false,
+      },
+    };
+  }
+
+  const { netBuyerCount, netSellerCount, latestFilingDate, totalInstitutionalChange, topHolderCount } = ownership;
+  const totalActive = netBuyerCount + netSellerCount;
+
+  // Net buyer ratio: what fraction of active holders are buying?
+  let netBuyerRatio: number | null = null;
+  let ioScore = 50; // neutral default
+
+  if (totalActive > 0) {
+    netBuyerRatio = round(netBuyerCount / totalActive, 4);
+
+    // Map ratio to score: 1.0 → 85, 0.65 → 70, 0.50 → 50, 0.35 → 30, 0.0 → 15
+    if (netBuyerRatio > 0.80) ioScore = lerp(netBuyerRatio, 0.80, 1.0, 75, 85);
+    else if (netBuyerRatio > 0.65) ioScore = lerp(netBuyerRatio, 0.65, 0.80, 65, 75);
+    else if (netBuyerRatio > 0.50) ioScore = lerp(netBuyerRatio, 0.50, 0.65, 50, 65);
+    else if (netBuyerRatio > 0.35) ioScore = lerp(netBuyerRatio, 0.35, 0.50, 35, 50);
+    else if (netBuyerRatio > 0.20) ioScore = lerp(netBuyerRatio, 0.20, 0.35, 20, 35);
+    else ioScore = lerp(netBuyerRatio, 0.0, 0.20, 15, 20);
+
+    ioScore = round(clamp(ioScore, 0, 100));
+  }
+
+  // Staleness discount: 13F filings have 45-day delay; if > 90 days old, compress toward neutral by 30%
+  let stalenessDays: number | null = null;
+  let stalenessDiscounted = false;
+  if (latestFilingDate) {
+    stalenessDays = Math.round((Date.now() - new Date(latestFilingDate).getTime()) / (24 * 60 * 60 * 1000));
+    if (stalenessDays > 90) {
+      const distFromNeutral = ioScore - 50;
+      ioScore = round(50 + distFromNeutral * 0.70); // compress 30% toward neutral
+      stalenessDiscounted = true;
+    }
+  }
+
+  const formula = `NetBuyerRatio(${netBuyerRatio ?? 'N/A'}) → ${ioScore}${stalenessDiscounted ? ` [staleness discount: ${stalenessDays}d > 90d]` : ''} [${topHolderCount} holders]`;
+  const notes = [
+    `buyers=${netBuyerCount}`,
+    `sellers=${netSellerCount}`,
+    `ratio=${netBuyerRatio ?? 'N/A'}`,
+    `holders=${topHolderCount}`,
+    `change=${totalInstitutionalChange}`,
+    `filing=${latestFilingDate ?? 'N/A'}`,
+    stalenessDiscounted ? `stale(${stalenessDays}d)` : '',
+  ].filter(Boolean).join(', ');
+
+  return {
+    score: ioScore,
+    weight: 0.05,
+    inputs: {
+      data_available: true,
+      net_buyer_ratio: netBuyerRatio,
+      net_buyers: netBuyerCount,
+      net_sellers: netSellerCount,
+    },
+    formula,
+    notes,
+    sub_scores: { institutional_ownership_score: ioScore },
+    indicators: {
+      net_buyer_ratio: netBuyerRatio,
+      net_buyers: netBuyerCount,
+      net_sellers: netSellerCount,
+      total_holders: topHolderCount,
+      total_change: totalInstitutionalChange,
+      filing_staleness_days: stalenessDays,
+      staleness_discounted: stalenessDiscounted,
+    },
+  };
+}
 
 // ===== MAIN INFO EDGE SCORER =====
-// Weight rebalance (before → after):
-//   analyst_consensus:  0.25 → 0.15  (price target + U/D extracted to independent sub-scores)
-//   price_target:       (new) → 0.10  (ΔTPER, Da & Schaumburg 2011)
-//   upgrade_downgrade:  (new) → 0.10  (Womack 1996 asymmetric decay)
-//   insider_activity:   0.20 → 0.15
-//   earnings_momentum:  0.20 → 0.20  (unchanged — strongest academic signal)
-//   flow_signal:        0.20 → 0.15
-//   news_sentiment:     0.15 → 0.15  (unchanged)
-//   Total:              1.00    1.00
+// Weight rebalance history:
+//   Round 1 (2A/2B):                    Round 2 (2F):
+//   analyst_consensus:  0.15             0.15  (unchanged)
+//   price_target:       0.10             0.10  (unchanged)
+//   upgrade_downgrade:  0.10             0.10  (unchanged)
+//   insider_activity:   0.15             0.15  (unchanged)
+//   earnings_momentum:  0.20             0.20  (unchanged)
+//   flow_signal:        0.15          →  0.10  (reduced — weakest academic signal)
+//   news_sentiment:     0.15             0.15  (unchanged)
+//   institutional_own:  (new)            0.05  (Chen, Jegadeesh & Wermers 2000)
+//   Total:              1.00             1.00
 
 export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const analystConsensus = scoreAnalystConsensus(input);
@@ -1051,6 +1147,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const earningsMomentum = scoreEarningsMomentum(input);
   const flowSignal = scoreFlowSignal(input);
   const newsSentiment = scoreNewsSentiment(input);
+  const institutionalOwnership = scoreInstitutionalOwnership(input);
 
   const score = round(
     analystConsensus.weight * analystConsensus.score +
@@ -1059,7 +1156,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     insiderActivity.weight * insiderActivity.score +
     earningsMomentum.weight * earningsMomentum.score +
     flowSignal.weight * flowSignal.score +
-    newsSentiment.weight * newsSentiment.score,
+    newsSentiment.weight * newsSentiment.score +
+    institutionalOwnership.weight * institutionalOwnership.score,
     1,
   );
 
@@ -1079,8 +1177,9 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     if (input.optionsFlow.unusual_activity_ratio == null) imputedFields.push('flow_signal.unusual_activity');
   }
   if (!input.newsSentiment) imputedFields.push('news_sentiment');
+  if (!input.finnhubInstitutionalOwnership) imputedFields.push('institutional_ownership');
 
-  const totalSubScores = 7; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news
+  const totalSubScores = 8; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
@@ -1099,6 +1198,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       earnings_momentum: earningsMomentum,
       flow_signal: flowSignal,
       news_sentiment: newsSentiment,
+      institutional_ownership: institutionalOwnership,
     },
   };
 }

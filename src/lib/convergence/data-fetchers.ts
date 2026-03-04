@@ -18,6 +18,8 @@ import type {
   NewsSentimentPeriod,
   FinnhubNewsSentiment,
   FinnhubEarningsQuality,
+  FinnhubInstitutionalOwnership,
+  FinnhubRevenueBreakdown,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -741,6 +743,163 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
     : 50;
 
   return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
+}
+
+// ===== FINNHUB INSTITUTIONAL OWNERSHIP FETCHER =====
+
+const institutionalOwnershipCache = new Map<string, { data: FinnhubInstitutionalOwnership; fetchedAt: number }>();
+const INSTITUTIONAL_OWNERSHIP_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchFinnhubInstitutionalOwnership(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubInstitutionalOwnership | null; error: string | null }> {
+  const cached = institutionalOwnershipCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < INSTITUTIONAL_OWNERSHIP_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    // Fetch both ownership endpoints in parallel
+    const [ownershipResp, fundResp] = await Promise.all([
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/ownership?symbol=${symbol}&token=${key}`).catch(() => null),
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&token=${key}`).catch(() => null),
+    ]);
+
+    type OwnershipEntry = { share?: number; change?: number; filingDate?: string };
+
+    let holders: OwnershipEntry[] = [];
+
+    if (ownershipResp?.ok) {
+      try {
+        const json = await ownershipResp.json();
+        if (Array.isArray(json?.ownership)) holders.push(...(json.ownership as OwnershipEntry[]));
+      } catch { /* ignore parse errors */ }
+    }
+
+    if (fundResp?.ok) {
+      try {
+        const json = await fundResp.json();
+        if (Array.isArray(json?.ownership)) holders.push(...(json.ownership as OwnershipEntry[]));
+      } catch { /* ignore parse errors */ }
+    }
+
+    if (holders.length === 0) {
+      return { data: null, error: 'institutional-ownership: no data from either endpoint' };
+    }
+
+    let totalShares = 0;
+    let totalChange = 0;
+    let netBuyers = 0;
+    let netSellers = 0;
+    let latestFilingDate: string | null = null;
+
+    for (const h of holders) {
+      totalShares += h.share ?? 0;
+      const change = h.change ?? 0;
+      totalChange += change;
+      if (change > 0) netBuyers++;
+      else if (change < 0) netSellers++;
+      if (h.filingDate && (!latestFilingDate || h.filingDate > latestFilingDate)) {
+        latestFilingDate = h.filingDate;
+      }
+    }
+
+    const result: FinnhubInstitutionalOwnership = {
+      totalInstitutionalShares: totalShares,
+      totalInstitutionalChange: totalChange,
+      topHolderCount: holders.length,
+      netBuyerCount: netBuyers,
+      netSellerCount: netSellers,
+      latestFilingDate,
+    };
+
+    institutionalOwnershipCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `institutional-ownership: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB REVENUE BREAKDOWN FETCHER =====
+
+const revenueBreakdownCache = new Map<string, { data: FinnhubRevenueBreakdown; fetchedAt: number }>();
+const REVENUE_BREAKDOWN_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchFinnhubRevenueBreakdown(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubRevenueBreakdown | null; error: string | null }> {
+  const cached = revenueBreakdownCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < REVENUE_BREAKDOWN_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/revenue-breakdown?symbol=${symbol}&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `revenue-breakdown: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    // Finnhub returns { data: [{ period, revenue: [{ name, value }] }] }
+    const entries = json?.data;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { data: null, error: 'revenue-breakdown: no data returned' };
+    }
+
+    // Use most recent period
+    const latest = entries.sort((a: { period?: string }, b: { period?: string }) =>
+      (b.period ?? '').localeCompare(a.period ?? ''),
+    )[0];
+
+    const rawSegments: Array<{ name?: string; value?: number }> = latest.revenue ?? [];
+    if (!Array.isArray(rawSegments) || rawSegments.length === 0) {
+      return { data: null, error: 'revenue-breakdown: no segments in latest period' };
+    }
+
+    const segments: Array<{ name: string; revenue: number }> = [];
+    let totalRevenue = 0;
+
+    for (const seg of rawSegments) {
+      const revenue = typeof seg.value === 'number' ? seg.value : 0;
+      if (revenue > 0) {
+        segments.push({ name: seg.name ?? 'Unknown', revenue });
+        totalRevenue += revenue;
+      }
+    }
+
+    if (totalRevenue <= 0 || segments.length === 0) {
+      return { data: null, error: 'revenue-breakdown: no positive revenue segments' };
+    }
+
+    // Compute HHI: sum of (segment_share²)
+    let hhi = 0;
+    for (const seg of segments) {
+      const share = seg.revenue / totalRevenue;
+      hhi += share * share;
+    }
+    hhi = Math.round(hhi * 10000) / 10000; // 4 decimal places
+
+    const result: FinnhubRevenueBreakdown = {
+      segments,
+      totalRevenue,
+      hhi,
+    };
+
+    revenueBreakdownCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `revenue-breakdown: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // ===== FINNHUB FINBERT SENTIMENT FETCHER =====
