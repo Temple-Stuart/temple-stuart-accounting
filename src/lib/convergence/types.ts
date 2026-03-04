@@ -355,7 +355,7 @@ export interface FinnhubInstitutionalOwnership {
   latestFilingDate: string | null;
 }
 
-// ===== FINNHUB REVENUE BREAKDOWN (from /stock/revenue-breakdown) =====
+// ===== FINNHUB REVENUE BREAKDOWN (from /stock/revenue-breakdown2) =====
 
 export interface FinnhubRevenueBreakdown {
   segments: Array<{ name: string; revenue: number }>;
