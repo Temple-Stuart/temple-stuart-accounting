@@ -68,10 +68,10 @@ async function fetchFinnhubEstimates(symbol: string, key: string): Promise<Finnh
   let upgradeDowngrade: FinnhubUpgradeDowngrade[] = [];
 
   const [epsResp, revResp, ptResp, udResp] = await Promise.all([
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch(() => null),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch(() => null),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch(() => null),
-    fetchWithRetry(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch(() => null),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/eps-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { console.error(`[Finnhub] eps-estimate ${symbol} fetch error:`, e instanceof Error ? e.message : String(e)); return null; }),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/revenue-estimate?symbol=${symbol}&freq=quarterly&token=${key}`).catch((e) => { console.error(`[Finnhub] revenue-estimate ${symbol} fetch error:`, e instanceof Error ? e.message : String(e)); return null; }),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/price-target?symbol=${symbol}&token=${key}`).catch((e) => { console.error(`[Finnhub] price-target ${symbol} fetch error:`, e instanceof Error ? e.message : String(e)); return null; }),
+    fetchWithRetry(`https://finnhub.io/api/v1/stock/upgrade-downgrade?symbol=${symbol}&token=${key}`).catch((e) => { console.error(`[Finnhub] upgrade-downgrade ${symbol} fetch error:`, e instanceof Error ? e.message : String(e)); return null; }),
   ]);
 
   if (epsResp?.ok) {
@@ -121,7 +121,18 @@ async function fetchFinnhubEstimates(symbol: string, key: string): Promise<Finnh
   }
 
   const result: FinnhubEstimateData = { epsEstimates, revenueEstimates, priceTarget, upgradeDowngrade };
-  estimateCache.set(symbol, { data: result, timestamp: Date.now() });
+
+  // Only cache if we got meaningful data — prevents poisoning cache with empty results from rate limits / network errors
+  const hasData = epsEstimates.length > 0 || revenueEstimates.length > 0 || priceTarget !== null || upgradeDowngrade.length > 0;
+  if (hasData) {
+    estimateCache.set(symbol, { data: result, timestamp: Date.now() });
+  } else {
+    // Clear any stale cached empty entry so next call retries
+    estimateCache.delete(symbol);
+  }
+
+  console.log(`[DEBUG-ESTIMATES] ${symbol}: eps=${epsEstimates.length}, rev=${revenueEstimates.length}, pt=${priceTarget !== null}, ud=${upgradeDowngrade.length}, cached=${hasData}`);
+
   return result;
 }
 
