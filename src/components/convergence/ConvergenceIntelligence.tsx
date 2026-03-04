@@ -796,7 +796,7 @@ export default function ConvergenceIntelligence() {
     }
   }, []);
 
-  // Scan market — fetch batch, then enrich each winner
+  // Scan market — run pipeline, then synthesize with Claude, then enrich each winner
   const scanMarket = useCallback(async () => {
     setScanning(true);
     setBatchError(null);
@@ -804,10 +804,23 @@ export default function ConvergenceIntelligence() {
     setEnriched([]);
     setEnriching(false);
     try {
-      const resp = await fetch(`/api/ai/convergence-synthesis?limit=9&universe=${universe}&refresh=true`);
+      // Step 1: Run the convergence pipeline
+      const pipelineResp = await fetch(`/api/trading/convergence?limit=9&refresh=true`);
+      if (!pipelineResp.ok) {
+        const body = await pipelineResp.json().catch(() => ({ error: `Pipeline HTTP ${pipelineResp.status}` }));
+        throw new Error(body.error || `Pipeline HTTP ${pipelineResp.status}`);
+      }
+      const pipelineResults = await pipelineResp.json();
+
+      // Step 2: Send pipeline results to Claude for synthesis (no re-run)
+      const resp = await fetch('/api/ai/convergence-synthesis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineResults, refresh: true }),
+      });
       if (!resp.ok) {
-        const body = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-        throw new Error(body.error || `HTTP ${resp.status}`);
+        const body = await resp.json().catch(() => ({ error: `Synthesis HTTP ${resp.status}` }));
+        throw new Error(body.error || `Synthesis HTTP ${resp.status}`);
       }
       const json: BatchResponse = await resp.json();
       setBatchData(json);
