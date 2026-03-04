@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -25,6 +25,7 @@ import type {
   FinnhubEarningsQuality,
   FinnhubInstitutionalOwnership,
   FinnhubRevenueBreakdown,
+  QuarterlyFinancials,
 } from './types';
 
 // ===== TYPES =====
@@ -536,6 +537,21 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E7: Revenue breakdown fetched for ${topSymbols.length} symbols`);
 
+  // Fetch quarterly financials per symbol (bs/ic/cf, up to 40 quarters)
+  console.log('[Pipeline] Step E8: Fetching quarterly financials (bs/ic/cf)...');
+  const quarterlyFinancialsMap = new Map<string, QuarterlyFinancials | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchQuarterlyFinancials(symbol);
+      quarterlyFinancialsMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      quarterlyFinancialsMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit (3 calls per symbol already batched)
+  }
+  console.log(`[Pipeline] Step E8: Quarterly financials fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -569,6 +585,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       finnhubEstimates: finnhubData.estimateData ?? null,
       fredMacro: fredResult.data,
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
+      quarterlyFinancials: quarterlyFinancialsMap.get(symbol) ?? null,
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
       newsSentiment: newsSentimentMap.get(symbol) ?? null,
       finnhubNewsSentiment: finbertMap.get(symbol) ?? null,
@@ -617,6 +634,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         finnhubEstimates: ticker.finnhubData.estimateData ?? null,
         fredMacro: fredResult.data,
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
+        quarterlyFinancials: quarterlyFinancialsMap.get(ticker.symbol) ?? null,
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
         newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
         finnhubNewsSentiment: finbertMap.get(ticker.symbol) ?? null,

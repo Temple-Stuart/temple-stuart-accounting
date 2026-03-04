@@ -165,6 +165,42 @@ export interface AnnualFinancials {
   priorYear: AnnualFinancialPeriod;
 }
 
+// ===== QUARTERLY FINANCIALS (from Finnhub /stock/financials bs/ic/cf quarterly) =====
+
+export interface QuarterlyFinancialPeriod {
+  period: string;           // "2024-12-31"
+  year: number;
+  quarter: number;
+  // Balance Sheet
+  totalAssets: number | null;
+  totalCurrentAssets: number | null;
+  totalCurrentLiabilities: number | null;
+  totalLiabilities: number | null;
+  stockholdersEquity: number | null;
+  retainedEarnings: number | null;
+  longTermDebt: number | null;
+  cashAndEquivalents: number | null;
+  totalDebt: number | null;
+  workingCapital: number | null;       // currentAssets - currentLiabilities
+  sharesOutstanding: number | null;
+  // Income Statement
+  revenue: number | null;
+  netIncome: number | null;
+  operatingIncome: number | null;
+  ebit: number | null;
+  grossProfit: number | null;
+  // Cash Flow
+  operatingCashFlow: number | null;
+  capitalExpenditure: number | null;
+  freeCashFlow: number | null;         // operatingCashFlow - |capex|
+}
+
+export interface QuarterlyFinancials {
+  symbol: string;
+  periods: QuarterlyFinancialPeriod[];  // sorted newest first
+  quarterCount: number;
+}
+
 // ===== OPTIONS FLOW DATA (from Finnhub option chain) =====
 
 export interface OptionsFlowData {
@@ -263,6 +299,7 @@ export interface ConvergenceInput {
   finnhubEstimates: FinnhubEstimateData | null;
   fredMacro: FredMacroData;
   annualFinancials: AnnualFinancials | null;
+  quarterlyFinancials: QuarterlyFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
   finnhubNewsSentiment: FinnhubNewsSentiment | null;
@@ -385,12 +422,15 @@ export interface SafetyTrace extends SubScoreTrace {
     };
     note: string;
   };
+  piotroski_source: string;  // "quarterly_financials" | "annual_financials" | "proxy_imputed"
   altman_z: {
     score: number | null;
     components_available: number;
     components_total: number;
     computable: Record<string, boolean>;
+    component_values?: Record<string, number | null>;
     capped: boolean;
+    source: string;           // "quarterly_financials" | "proxy_imputed"
   };
   borrow_rate_adjustment: {
     borrow_rate: number | null;
@@ -467,6 +507,12 @@ export interface FundamentalRiskTrace extends SubScoreTrace {
     cash_flow_stability_score: number;
     earnings_predictability_score: number;
     asset_turnover_score: number;
+  };
+  cash_flow_detail?: {
+    cf_stability_source: string;
+    cf_quarters_used: number;
+    cov: number | null;
+    fcf_positive_pct: number | null;
   };
 }
 

@@ -20,6 +20,8 @@ import type {
   FinnhubEarningsQuality,
   FinnhubInstitutionalOwnership,
   FinnhubRevenueBreakdown,
+  QuarterlyFinancials,
+  QuarterlyFinancialPeriod,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -351,6 +353,138 @@ export async function fetchAnnualFinancials(
     return { data: { currentYear, priorYear }, error: null };
   } catch (e: unknown) {
     return { data: null, error: `financials-reported: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== QUARTERLY FINANCIALS FETCHER (bs/ic/cf, up to 40 quarters) =====
+
+const quarterlyFinancialsCache = new Map<string, { data: QuarterlyFinancials; fetchedAt: number }>();
+const QUARTERLY_FINANCIALS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+/**
+ * Fetches up to 40 quarters of balance sheet, income statement, and cash flow
+ * from Finnhub's /stock/financials endpoint (standardized, not reported).
+ */
+export async function fetchQuarterlyFinancials(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: QuarterlyFinancials | null; error: string | null }> {
+  const cached = quarterlyFinancialsCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < QUARTERLY_FINANCIALS_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    // Three calls: balance sheet, income statement, cash flow
+    const [bsResp, icResp, cfResp] = await Promise.all([
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=bs&freq=quarterly&token=${key}`).catch(() => null),
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${key}`).catch(() => null),
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=cf&freq=quarterly&token=${key}`).catch(() => null),
+    ]);
+
+    type FinRow = Record<string, number | string | null | undefined>;
+    type FinResp = { financials?: FinRow[] };
+
+    const bsData: FinRow[] = bsResp?.ok ? ((await bsResp.json()) as FinResp)?.financials ?? [] : [];
+    const icData: FinRow[] = icResp?.ok ? ((await icResp.json()) as FinResp)?.financials ?? [] : [];
+    const cfData: FinRow[] = cfResp?.ok ? ((await cfResp.json()) as FinResp)?.financials ?? [] : [];
+
+    if (bsData.length === 0 && icData.length === 0 && cfData.length === 0) {
+      return { data: null, error: 'quarterly-financials: no data from any statement endpoint' };
+    }
+
+    // Index by period string for cross-statement join
+    const bsByPeriod = new Map<string, FinRow>();
+    for (const row of bsData) {
+      const p = String(row['period'] ?? '');
+      if (p) bsByPeriod.set(p, row);
+    }
+    const icByPeriod = new Map<string, FinRow>();
+    for (const row of icData) {
+      const p = String(row['period'] ?? '');
+      if (p) icByPeriod.set(p, row);
+    }
+    const cfByPeriod = new Map<string, FinRow>();
+    for (const row of cfData) {
+      const p = String(row['period'] ?? '');
+      if (p) cfByPeriod.set(p, row);
+    }
+
+    // Collect all unique periods
+    const allPeriods = new Set([...bsByPeriod.keys(), ...icByPeriod.keys(), ...cfByPeriod.keys()]);
+    const periods: QuarterlyFinancialPeriod[] = [];
+
+    const num = (row: FinRow | undefined, ...keys: string[]): number | null => {
+      if (!row) return null;
+      for (const k of keys) {
+        const v = row[k];
+        if (typeof v === 'number' && isFinite(v)) return v;
+      }
+      return null;
+    };
+
+    for (const period of allPeriods) {
+      const bs = bsByPeriod.get(period);
+      const ic = icByPeriod.get(period);
+      const cf = cfByPeriod.get(period);
+
+      const d = new Date(period);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const quarter = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+
+      const totalCurrentAssets = num(bs, 'totalCurrentAssets', 'currentAssets');
+      const totalCurrentLiabilities = num(bs, 'totalCurrentLiabilities', 'currentLiabilities');
+      const workingCapital = totalCurrentAssets !== null && totalCurrentLiabilities !== null
+        ? totalCurrentAssets - totalCurrentLiabilities : null;
+      const operatingCashFlow = num(cf, 'netCashProvidedByOperatingActivities', 'operatingCashflow', 'cashFromOperatingActivities');
+      const capitalExpenditure = num(cf, 'capitalExpenditure', 'capitalExpenditures', 'purchaseOfPropertyPlantAndEquipment');
+      const capexAbs = capitalExpenditure !== null ? Math.abs(capitalExpenditure) : null;
+      const freeCashFlow = operatingCashFlow !== null && capexAbs !== null
+        ? operatingCashFlow - capexAbs : null;
+
+      periods.push({
+        period,
+        year,
+        quarter,
+        totalAssets: num(bs, 'totalAssets'),
+        totalCurrentAssets,
+        totalCurrentLiabilities,
+        totalLiabilities: num(bs, 'totalLiabilities'),
+        stockholdersEquity: num(bs, 'totalStockholderEquity', 'stockholdersEquity', 'totalEquity'),
+        retainedEarnings: num(bs, 'retainedEarnings'),
+        longTermDebt: num(bs, 'longTermDebt', 'longTermDebtNoncurrent'),
+        cashAndEquivalents: num(bs, 'cashAndCashEquivalents', 'cashAndShortTermInvestments', 'cash'),
+        totalDebt: num(bs, 'totalDebt', 'netDebt'),
+        workingCapital,
+        sharesOutstanding: num(bs, 'commonStockSharesOutstanding', 'sharesOutstanding'),
+        revenue: num(ic, 'revenue', 'totalRevenue', 'netRevenue'),
+        netIncome: num(ic, 'netIncome', 'netIncomeLoss'),
+        operatingIncome: num(ic, 'operatingIncome', 'operatingIncomeLoss'),
+        ebit: num(ic, 'ebit', 'operatingIncome', 'operatingIncomeLoss'),
+        grossProfit: num(ic, 'grossProfit'),
+        operatingCashFlow,
+        capitalExpenditure: capexAbs,
+        freeCashFlow,
+      });
+    }
+
+    // Sort newest first
+    periods.sort((a, b) => b.period.localeCompare(a.period));
+
+    const result: QuarterlyFinancials = {
+      symbol,
+      periods,
+      quarterCount: periods.length,
+    };
+
+    quarterlyFinancialsCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `quarterly-financials: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 

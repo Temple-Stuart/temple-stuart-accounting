@@ -238,6 +238,7 @@ export async function GET(request: Request) {
     finnhubEstimates: finnhubResult.estimateData,
     fredMacro: fredResult.data,
     annualFinancials: annualFinancialsResult.data,
+    quarterlyFinancials: null, // Single-ticker route: fetched in pipeline batch mode
     optionsFlow: optionsFlowResult.data,
     newsSentiment: newsSentimentResult.data,
     finnhubNewsSentiment: null, // Single-ticker route: FinBERT fetched separately in pipeline batch mode
