@@ -29,6 +29,7 @@ import type {
   FredDailyHistory,
   SECForm4Transaction,
   SECForm4Data,
+  CompanyTextProfile,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -1389,6 +1390,302 @@ function extractNestedValue(xml: string, parentTag: string, childTag: string): s
   const parentRegex = new RegExp(`<${parentTag}>[\\s\\S]*?<${childTag}>\\s*([^<]+)\\s*<\\/`, 'i');
   const match = xml.match(parentRegex);
   return match?.[1]?.trim() ?? null;
+}
+
+// ===== SEC 10-K BUSINESS DESCRIPTION FETCHER (Hoberg & Phillips 2010, 2016) =====
+// Fetches Item 1 (Business Description) from the most recent 10-K filing.
+// Text-based peer classification uses TF-IDF cosine similarity on business descriptions
+// to identify economic peers that static GICS codes miss.
+
+const tenKTextCache = new Map<string, { data: CompanyTextProfile; fetchedAt: number }>();
+const TEN_K_TEXT_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days (10-K only changes annually)
+
+// Common stop words + legal boilerplate terms to filter from TF-IDF
+const STOP_WORDS = new Set([
+  // Standard English stop words
+  'the','be','to','of','and','a','in','that','have','i','it','for','not','on','with','he',
+  'as','you','do','at','this','but','his','by','from','they','we','her','she','or','an',
+  'will','my','one','all','would','there','their','what','so','up','out','if','about','who',
+  'get','which','go','me','when','make','can','like','time','no','just','him','know','take',
+  'people','into','year','your','good','some','could','them','see','other','than','then',
+  'now','look','only','come','its','over','think','also','back','after','use','two','how',
+  'our','work','first','well','way','even','new','want','because','any','these','give',
+  'day','most','us','are','is','was','were','been','being','has','had','does','did','may',
+  'might','shall','should','must','need','such','each','every','both','few','more','many',
+  'very','own','same','much','through','during','before','between','under','above','below',
+  // SEC / 10-K boilerplate terms
+  'company','corporation','incorporated','llc','inc','ltd','pursuant','herein','thereof',
+  'foregoing','fiscal','quarter','annual','report','filing','securities','exchange',
+  'commission','act','section','item','form','filed','registrant','subsidiary','subsidiaries',
+  'respectively','approximately','certain','significant','various','following','described',
+  'including','related','primarily','generally','operations','business','financial',
+  'statements','management','results','period','ended','year','ended','december','january',
+  'february','march','april','june','july','august','september','october','november',
+  'million','billion','thousand','percent','total','net','gross','operating',
+]);
+
+// Product/service indicator terms for extracting productTerms
+const PRODUCT_INDICATORS = new Set([
+  'platform','software','service','product','solution','technology','system','application',
+  'device','equipment','tool','engine','network','infrastructure','cloud','data','analytics',
+  'ai','machine','learning','automation','semiconductor','chip','processor','sensor',
+  'pharmaceutical','drug','therapy','treatment','vaccine','diagnostic','medical','device',
+  'energy','oil','gas','renewable','solar','wind','electric','battery','power',
+  'financial','banking','insurance','lending','payment','trading','investment','asset',
+  'retail','commerce','marketplace','delivery','logistics','shipping','warehouse',
+  'media','content','streaming','advertising','entertainment','gaming','social',
+  'automotive','vehicle','mobility','transportation','aerospace','defense',
+  'food','beverage','restaurant','consumer','healthcare','biotech','genomics',
+  'telecom','wireless','broadband','satellite','cybersecurity','security',
+]);
+
+export async function fetch10KBusinessDescription(
+  symbol: string,
+  finnhubApiKey?: string,
+): Promise<{ data: CompanyTextProfile | null; error: string | null }> {
+  const cached = tenKTextCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < TEN_K_TEXT_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  // Step 1: Get CIK (reuses existing CIK lookup + cache)
+  const cik = await lookupCIK(symbol, finnhubApiKey);
+  if (!cik) {
+    return { data: null, error: 'sec-10k-text: CIK lookup failed' };
+  }
+
+  try {
+    // Step 2: Search for most recent 10-K filing via EFTS full-text search
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    const startDt = twoYearsAgo.toISOString().slice(0, 10);
+    const endDt = new Date().toISOString().slice(0, 10);
+
+    const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(symbol)}%22&dateRange=custom&startdt=${startDt}&enddt=${endDt}&forms=10-K`;
+    const searchResp = await fetch(searchUrl, {
+      headers: { 'User-Agent': SEC_USER_AGENT },
+    });
+
+    let accessionNumber: string | null = null;
+    let filingDate: string = '';
+
+    if (searchResp.ok) {
+      const searchJson = await searchResp.json();
+      const hits = searchJson?.hits?.hits;
+      if (Array.isArray(hits) && hits.length > 0) {
+        accessionNumber = hits[0]?._source?.file_num || hits[0]?._id;
+        filingDate = hits[0]?._source?.file_date || '';
+      }
+    }
+
+    // Fallback: use submissions endpoint to find 10-K accession number
+    if (!accessionNumber) {
+      const subsResp = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, {
+        headers: { 'User-Agent': SEC_USER_AGENT },
+      });
+
+      if (!subsResp.ok) {
+        return { data: null, error: `sec-10k-text: submissions HTTP ${subsResp.status}` };
+      }
+
+      const subsJson = await subsResp.json();
+      const recent = subsJson?.filings?.recent;
+      if (!recent || !Array.isArray(recent.form)) {
+        return { data: null, error: 'sec-10k-text: no recent filings' };
+      }
+
+      // Find most recent 10-K
+      for (let i = 0; i < recent.form.length; i++) {
+        if (recent.form[i] === '10-K' || recent.form[i] === '10-K/A') {
+          accessionNumber = recent.accessionNumber?.[i];
+          filingDate = recent.filingDate?.[i] || '';
+          break;
+        }
+      }
+    }
+
+    if (!accessionNumber) {
+      return { data: null, error: 'sec-10k-text: no 10-K filing found' };
+    }
+
+    await delay(150); // SEC rate limit
+
+    // Step 3: Fetch filing index to find the primary document
+    const accClean = accessionNumber.replace(/-/g, '');
+    const cikTrimmed = cik.replace(/^0+/, '');
+    const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikTrimmed}/${accClean}/index.json`;
+    const indexResp = await fetch(indexUrl, {
+      headers: { 'User-Agent': SEC_USER_AGENT },
+    });
+
+    if (!indexResp.ok) {
+      return { data: null, error: `sec-10k-text: filing index HTTP ${indexResp.status}` };
+    }
+
+    const indexJson = await indexResp.json();
+    const items = indexJson?.directory?.item;
+    if (!Array.isArray(items)) {
+      return { data: null, error: 'sec-10k-text: no items in filing index' };
+    }
+
+    // Find the primary .htm document (usually the largest .htm file, not R9999.htm)
+    let primaryDoc: string | null = null;
+    let maxSize = 0;
+    for (const item of items) {
+      const name = item?.name as string;
+      if (!name) continue;
+      const lowerName = name.toLowerCase();
+      // Look for .htm files that aren't exhibits (ex*) or R-files
+      if ((lowerName.endsWith('.htm') || lowerName.endsWith('.html')) &&
+          !lowerName.startsWith('r') && !lowerName.startsWith('ex')) {
+        const size = Number(item?.size ?? 0);
+        if (size > maxSize) {
+          maxSize = size;
+          primaryDoc = name;
+        }
+      }
+    }
+
+    if (!primaryDoc) {
+      // Fallback: just pick the first .htm file
+      for (const item of items) {
+        const name = item?.name as string;
+        if (name && (name.toLowerCase().endsWith('.htm') || name.toLowerCase().endsWith('.html'))) {
+          primaryDoc = name;
+          break;
+        }
+      }
+    }
+
+    if (!primaryDoc) {
+      return { data: null, error: 'sec-10k-text: no primary document found' };
+    }
+
+    await delay(150); // SEC rate limit
+
+    // Step 4: Fetch the primary document and extract business description
+    const docUrl = `https://www.sec.gov/Archives/edgar/data/${cikTrimmed}/${accClean}/${primaryDoc}`;
+    const docResp = await fetch(docUrl, {
+      headers: { 'User-Agent': SEC_USER_AGENT },
+    });
+
+    if (!docResp.ok) {
+      return { data: null, error: `sec-10k-text: document HTTP ${docResp.status}` };
+    }
+
+    const htmlText = await docResp.text();
+
+    // Extract business description from Item 1
+    const businessDescription = extractBusinessDescription(htmlText);
+
+    if (!businessDescription || businessDescription.split(/\s+/).length < 50) {
+      return { data: null, error: 'sec-10k-text: business description too short or not found' };
+    }
+
+    // Extract keywords and product terms
+    const words = tokenize(businessDescription);
+    const keywords = extractTopTerms(words, 20);
+    const productTerms = words.filter(w => PRODUCT_INDICATORS.has(w));
+    const uniqueProductTerms = [...new Set(productTerms)].slice(0, 20);
+
+    const result: CompanyTextProfile = {
+      symbol,
+      businessDescription,
+      filingDate,
+      keywords,
+      productTerms: uniqueProductTerms,
+    };
+
+    tenKTextCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `sec-10k-text: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+/**
+ * Extract Item 1 (Business Description) from a 10-K HTML filing.
+ * Strips HTML tags and extracts the section between Item 1 and Item 1A (or Item 2).
+ * Returns at most 2000 words of text content.
+ */
+function extractBusinessDescription(html: string): string {
+  // Strip HTML tags to get raw text
+  const text = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#\d+;/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Try to locate Item 1 / Business section boundaries
+  // Common patterns: "Item 1." "ITEM 1." "Item\s+1\b" followed by "Business"
+  const item1Pattern = /item\s*1[\.\s]*[\-–—]?\s*(?:business|overview|general)/i;
+  const item1SimplePattern = /item\s*1[\.\s]+(?!a\b|b\b)/i;
+  const item1APattern = /item\s*1a[\.\s]*[\-–—]?\s*risk\s*factors/i;
+  const item2Pattern = /item\s*2[\.\s]*[\-–—]?\s*properties/i;
+
+  let startIdx = text.search(item1Pattern);
+  if (startIdx === -1) {
+    startIdx = text.search(item1SimplePattern);
+  }
+
+  // Find end boundary (Item 1A or Item 2)
+  let endIdx = -1;
+  if (startIdx >= 0) {
+    const afterStart = text.slice(startIdx + 20); // skip past "Item 1. Business" header
+    const endMatch1A = afterStart.search(item1APattern);
+    const endMatch2 = afterStart.search(item2Pattern);
+
+    if (endMatch1A >= 0 && endMatch2 >= 0) {
+      endIdx = startIdx + 20 + Math.min(endMatch1A, endMatch2);
+    } else if (endMatch1A >= 0) {
+      endIdx = startIdx + 20 + endMatch1A;
+    } else if (endMatch2 >= 0) {
+      endIdx = startIdx + 20 + endMatch2;
+    }
+  }
+
+  let rawSection: string;
+  if (startIdx >= 0 && endIdx > startIdx) {
+    rawSection = text.slice(startIdx, endIdx);
+  } else if (startIdx >= 0) {
+    // No clear end boundary: take next 15000 chars
+    rawSection = text.slice(startIdx, startIdx + 15000);
+  } else {
+    // Could not find Item 1 — take a chunk from early in the document
+    // Skip the first 2000 chars (usually cover page / TOC)
+    rawSection = text.slice(2000, 17000);
+  }
+
+  // Limit to 2000 words
+  const words = rawSection.split(/\s+/).filter(w => w.length > 0);
+  return words.slice(0, 2000).join(' ');
+}
+
+/** Tokenize text into lowercase words, removing stop words and short tokens */
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+/** Extract top N terms by frequency (simple TF for a single document) */
+function extractTopTerms(words: string[], n: number): string[] {
+  const freq = new Map<string, number>();
+  for (const w of words) {
+    freq.set(w, (freq.get(w) ?? 0) + 1);
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([word]) => word);
 }
 
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP FETCHER =====

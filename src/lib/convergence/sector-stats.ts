@@ -1,4 +1,4 @@
-import type { TTScannerData } from './types';
+import type { TTScannerData, CompanyTextProfile, TextBasedPeerGroup } from './types';
 
 // ===== TYPES =====
 
@@ -10,7 +10,7 @@ export interface PeerMetricStats {
 
 export interface PeerStats {
   ticker_count: number;
-  peer_group_type: 'industry' | 'sector_fallback' | 'unknown';
+  peer_group_type: 'industry' | 'sector_fallback' | 'unknown' | 'text_nlp';
   peer_group_name: string;
   metrics: {
     iv_percentile: PeerMetricStats;
@@ -28,6 +28,12 @@ export interface PeerStats {
     term_structure_slope: PeerMetricStats;
   };
   insufficient_peers?: boolean;
+  text_peer_trace?: {
+    peer_source: 'text_nlp' | 'gics_industry' | 'gics_sector';
+    text_peers: string[];
+    avg_similarity: number;
+    keywords_shared: string[];
+  };
 }
 
 export type PeerStatsMap = Record<string, PeerStats>;
@@ -73,8 +79,9 @@ function computeTermStructureSlope(ts: { date: string; iv: number }[]): number |
 
 function buildPeerStats(
   tickers: TTScannerData[],
-  peerGroupType: 'industry' | 'sector_fallback' | 'unknown',
+  peerGroupType: 'industry' | 'sector_fallback' | 'unknown' | 'text_nlp',
   peerGroupName: string,
+  textPeerTrace?: PeerStats['text_peer_trace'],
 ): PeerStats {
   if (tickers.length < 3) {
     const empty: PeerMetricStats = { mean: 0, std: 0, sortedValues: [] };
@@ -98,6 +105,7 @@ function buildPeerStats(
         term_structure_slope: { ...empty },
       },
       insufficient_peers: true,
+      ...(textPeerTrace ? { text_peer_trace: textPeerTrace } : {}),
     };
   }
 
@@ -120,15 +128,250 @@ function buildPeerStats(
       eps: computeMetricStats(tickers.map(t => t.eps)),
       term_structure_slope: computeMetricStats(tickers.map(t => computeTermStructureSlope(t.termStructure))),
     },
+    ...(textPeerTrace ? { text_peer_trace: textPeerTrace } : {}),
   };
+}
+
+// ===== TF-IDF TEXT SIMILARITY ENGINE (Hoberg & Phillips 2010, 2016) =====
+// Firms that use similar product descriptions in 10-K filings are better economic peers
+// than static GICS industry codes. Runs in milliseconds on ~16 documents.
+
+const MIN_TEXT_PEERS = 3;
+const TEXT_SIMILARITY_THRESHOLD = 0.40;
+
+/** Tokenize business description into lowercase words */
+function tokenizeForTfIdf(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+}
+
+/** Compute TF (term frequency) for a single document */
+function computeTF(words: string[]): Map<string, number> {
+  const freq = new Map<string, number>();
+  for (const w of words) {
+    freq.set(w, (freq.get(w) ?? 0) + 1);
+  }
+  // Normalize by document length
+  const len = words.length || 1;
+  for (const [word, count] of freq) {
+    freq.set(word, count / len);
+  }
+  return freq;
+}
+
+/** Compute IDF (inverse document frequency) across all documents */
+function computeIDF(documents: Map<string, number>[]): Map<string, number> {
+  const docCount = documents.length;
+  if (docCount === 0) return new Map();
+
+  // Count how many documents contain each term
+  const docFreq = new Map<string, number>();
+  for (const doc of documents) {
+    for (const word of doc.keys()) {
+      docFreq.set(word, (docFreq.get(word) ?? 0) + 1);
+    }
+  }
+
+  // IDF = log(N / df) — standard formula
+  const idf = new Map<string, number>();
+  for (const [word, df] of docFreq) {
+    idf.set(word, Math.log(docCount / df));
+  }
+  return idf;
+}
+
+/** Compute TF-IDF vector for a single document */
+function computeTfIdfVector(tf: Map<string, number>, idf: Map<string, number>): Map<string, number> {
+  const vec = new Map<string, number>();
+  for (const [word, tfVal] of tf) {
+    const idfVal = idf.get(word) ?? 0;
+    const tfidf = tfVal * idfVal;
+    if (tfidf > 0) {
+      vec.set(word, tfidf);
+    }
+  }
+  return vec;
+}
+
+/** Compute cosine similarity between two TF-IDF vectors */
+function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (const [word, valA] of a) {
+    normA += valA * valA;
+    const valB = b.get(word);
+    if (valB !== undefined) {
+      dotProduct += valA * valB;
+    }
+  }
+  for (const valB of b.values()) {
+    normB += valB * valB;
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) return 0;
+  return dotProduct / denominator;
+}
+
+/** Get top N keywords from a TF-IDF vector */
+function getTopKeywords(vec: Map<string, number>, n: number): string[] {
+  return [...vec.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([word]) => word);
+}
+
+/** Find shared keywords between two TF-IDF vectors (top 5 by combined weight) */
+function getSharedKeywords(a: Map<string, number>, b: Map<string, number>, n: number): string[] {
+  const shared: [string, number][] = [];
+  for (const [word, valA] of a) {
+    const valB = b.get(word);
+    if (valB !== undefined) {
+      shared.push([word, valA + valB]);
+    }
+  }
+  return shared
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([word]) => word);
+}
+
+/**
+ * Compute text-based peer groups from 10-K business descriptions.
+ * Uses TF-IDF with cosine similarity (Hoberg & Phillips 2010, 2016).
+ *
+ * @param profiles - CompanyTextProfile for each scored ticker
+ * @returns Map of symbol → TextBasedPeerGroup
+ */
+export function computeTextPeerGroups(
+  profiles: CompanyTextProfile[],
+): Record<string, TextBasedPeerGroup> {
+  if (profiles.length < 2) return {};
+
+  // Step 1: Tokenize and compute TF for each document
+  const symbolWords = new Map<string, string[]>();
+  const tfMaps: Map<string, number>[] = [];
+  const symbols: string[] = [];
+
+  for (const profile of profiles) {
+    const words = tokenizeForTfIdf(profile.businessDescription);
+    if (words.length < 20) continue; // Skip profiles with too little text
+    symbolWords.set(profile.symbol, words);
+    tfMaps.push(computeTF(words));
+    symbols.push(profile.symbol);
+  }
+
+  if (symbols.length < 2) return {};
+
+  // Step 2: Compute IDF across all documents
+  const idf = computeIDF(tfMaps);
+
+  // Step 3: Compute TF-IDF vectors
+  const tfidfVectors = new Map<string, Map<string, number>>();
+  for (let i = 0; i < symbols.length; i++) {
+    tfidfVectors.set(symbols[i], computeTfIdfVector(tfMaps[i], idf));
+  }
+
+  // Step 4: Compute pairwise cosine similarity
+  const similarities = new Map<string, Map<string, number>>();
+  for (const sym of symbols) {
+    similarities.set(sym, new Map());
+  }
+
+  for (let i = 0; i < symbols.length; i++) {
+    for (let j = i + 1; j < symbols.length; j++) {
+      const sim = round(cosineSimilarity(
+        tfidfVectors.get(symbols[i])!,
+        tfidfVectors.get(symbols[j])!,
+      ), 4);
+      similarities.get(symbols[i])!.set(symbols[j], sim);
+      similarities.get(symbols[j])!.set(symbols[i], sim);
+    }
+  }
+
+  // Step 5: Build text peer groups for each symbol
+  const result: Record<string, TextBasedPeerGroup> = {};
+
+  for (const sym of symbols) {
+    const simMap = similarities.get(sym)!;
+    const peers: [string, number][] = [];
+
+    for (const [peerSym, sim] of simMap) {
+      if (sim >= TEXT_SIMILARITY_THRESHOLD) {
+        peers.push([peerSym, sim]);
+      }
+    }
+
+    // Sort by similarity descending
+    peers.sort((a, b) => b[1] - a[1]);
+
+    const textPeers = peers.map(([s]) => s);
+    const similarityScores: Record<string, number> = {};
+    for (const [s, sim] of peers) {
+      similarityScores[s] = sim;
+    }
+
+    // Generate group name from shared keywords across peers
+    let textPeerGroupName = 'text_peers';
+    if (peers.length > 0) {
+      const myVec = tfidfVectors.get(sym)!;
+      // Collect shared keywords across all peers
+      const allShared: Map<string, number> = new Map();
+      for (const [peerSym] of peers) {
+        const peerVec = tfidfVectors.get(peerSym)!;
+        const shared = getSharedKeywords(myVec, peerVec, 10);
+        for (const kw of shared) {
+          allShared.set(kw, (allShared.get(kw) ?? 0) + 1);
+        }
+      }
+      const topShared = [...allShared.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([w]) => w);
+      if (topShared.length > 0) {
+        textPeerGroupName = topShared.join('_');
+      }
+    }
+
+    // Determine peer source based on whether we have enough text peers
+    const peerSource: TextBasedPeerGroup['peerSource'] =
+      textPeers.length >= MIN_TEXT_PEERS ? 'text_nlp' : 'gics_industry';
+
+    result[sym] = {
+      symbol: sym,
+      textPeers,
+      similarityScores,
+      textPeerGroupName,
+      peerSource,
+    };
+  }
+
+  console.log(`[TextPeers] Computed pairwise similarity for ${symbols.length} tickers, ${Object.values(result).filter(g => g.peerSource === 'text_nlp').length} using text-based peers`);
+
+  return result;
 }
 
 // ===== MAIN FUNCTIONS =====
 
 const MIN_INDUSTRY_PEERS = 5;
 
+/**
+ * Compute peer group statistics with 3-tier grouping (Hoberg & Phillips 2010, 2016):
+ *   1. Text-based peers (cosine similarity > 0.40, min 3 peers) — most precise
+ *   2. GICS industry (min 5 peers) — standard fallback
+ *   3. GICS sector — broadest fallback
+ *
+ * @param scannerResults - All scanner data (full universe after hard filters)
+ * @param textPeerGroups - Optional text-based peer groups from 10-K analysis
+ */
 export function computePeerStats(
   scannerResults: TTScannerData[],
+  textPeerGroups?: Record<string, TextBasedPeerGroup>,
 ): { stats: PeerStatsMap; assignment: PeerGroupAssignment } {
   // Step 1: Group by industry
   const byIndustry = new Map<string, TTScannerData[]>();
@@ -137,12 +380,15 @@ export function computePeerStats(
   // Track each ticker's industry and sector for assignment
   const tickerIndustry = new Map<string, string | null>();
   const tickerSector = new Map<string, string | null>();
+  // Quick scanner data lookup
+  const scannerBySymbol = new Map<string, TTScannerData>();
 
   for (const item of scannerResults) {
     const industry = item.industry || null;
     const sector = item.sector || null;
     tickerIndustry.set(item.symbol, industry);
     tickerSector.set(item.symbol, sector);
+    scannerBySymbol.set(item.symbol, item);
 
     // Always add to sector group (used for fallback)
     const sectorKey = sector || 'UNKNOWN';
@@ -158,10 +404,48 @@ export function computePeerStats(
 
   const result: PeerStatsMap = {};
   const assignment: PeerGroupAssignment = {};
+  const textNlpUsed: string[] = [];
   const industryFallbacks: string[] = [];
   const industryUsed: string[] = [];
 
-  // Step 3: Build industry-level stats for groups with >= MIN_INDUSTRY_PEERS
+  // Step 3: Build text-based peer group stats (highest priority)
+  if (textPeerGroups) {
+    for (const [symbol, group] of Object.entries(textPeerGroups)) {
+      if (group.peerSource !== 'text_nlp' || group.textPeers.length < MIN_TEXT_PEERS) continue;
+
+      const key = `text_nlp:${symbol}`;
+      // Collect scanner data for all peers + the symbol itself
+      const peerTickers: TTScannerData[] = [];
+      const selfData = scannerBySymbol.get(symbol);
+      if (selfData) peerTickers.push(selfData);
+      for (const peerSym of group.textPeers) {
+        const peerData = scannerBySymbol.get(peerSym);
+        if (peerData) peerTickers.push(peerData);
+      }
+
+      if (peerTickers.length < MIN_TEXT_PEERS) continue;
+
+      // Find shared keywords for trace
+      const simScores = Object.values(group.similarityScores);
+      const avgSim = simScores.length > 0
+        ? round(simScores.reduce((a, b) => a + b, 0) / simScores.length, 4)
+        : 0;
+
+      // Get top 5 shared keywords from the group name or group data
+      const sharedKeywords = group.textPeerGroupName.split('_').slice(0, 5);
+
+      const trace: PeerStats['text_peer_trace'] = {
+        peer_source: 'text_nlp',
+        text_peers: group.textPeers,
+        avg_similarity: avgSim,
+        keywords_shared: sharedKeywords,
+      };
+
+      result[key] = buildPeerStats(peerTickers, 'text_nlp', group.textPeerGroupName, trace);
+    }
+  }
+
+  // Step 4: Build industry-level stats for groups with >= MIN_INDUSTRY_PEERS
   const validIndustries = new Set<string>();
   for (const [industry, tickers] of byIndustry) {
     if (tickers.length >= MIN_INDUSTRY_PEERS) {
@@ -171,35 +455,47 @@ export function computePeerStats(
     }
   }
 
-  // Step 4: Build sector-level stats (used as fallback)
-  const sectorKeys = new Map<string, string>();
+  // Step 5: Build sector-level stats (used as fallback)
   for (const [sector, tickers] of bySector) {
     const key = `sector:${sector}`;
-    sectorKeys.set(sector, key);
     result[key] = buildPeerStats(tickers, 'sector_fallback', sector);
   }
 
-  // Step 5: Assign each ticker to its peer group
+  // Step 6: Assign each ticker to its peer group (3-tier priority)
   for (const item of scannerResults) {
-    const industry = tickerIndustry.get(item.symbol);
-    const sector = tickerSector.get(item.symbol);
+    const symbol = item.symbol;
+    const industry = tickerIndustry.get(symbol);
+    const sector = tickerSector.get(symbol);
+    const textGroup = textPeerGroups?.[symbol];
 
+    // Tier 1: Text-based peers (highest precision)
+    if (textGroup && textGroup.peerSource === 'text_nlp' && textGroup.textPeers.length >= MIN_TEXT_PEERS) {
+      const key = `text_nlp:${symbol}`;
+      if (result[key] && !result[key].insufficient_peers) {
+        assignment[symbol] = key;
+        textNlpUsed.push(symbol);
+        continue;
+      }
+    }
+
+    // Tier 2: GICS industry (min 5 peers)
     if (industry && validIndustries.has(industry)) {
-      // Industry group has >= 5 peers — use industry
-      assignment[item.symbol] = `industry:${industry}`;
-      industryUsed.push(item.symbol);
+      assignment[symbol] = `industry:${industry}`;
+      industryUsed.push(symbol);
     } else if (sector) {
-      // Industry too small or null — fall back to sector
-      assignment[item.symbol] = `sector:${sector}`;
-      industryFallbacks.push(item.symbol);
+      // Tier 3: GICS sector (broadest)
+      assignment[symbol] = `sector:${sector}`;
+      industryFallbacks.push(symbol);
     } else {
-      // Both null — use UNKNOWN
-      assignment[item.symbol] = `sector:UNKNOWN`;
-      industryFallbacks.push(item.symbol);
+      assignment[symbol] = `sector:UNKNOWN`;
+      industryFallbacks.push(symbol);
     }
   }
 
   // Log peer group assignments
+  if (textNlpUsed.length > 0) {
+    console.log(`[PeerStats] ${textNlpUsed.length} tickers using text-based NLP peers: ${textNlpUsed.slice(0, 10).join(', ')}${textNlpUsed.length > 10 ? '...' : ''}`);
+  }
   if (industryUsed.length > 0) {
     console.log(`[PeerStats] ${industryUsed.length} tickers using industry-level peers`);
   }
