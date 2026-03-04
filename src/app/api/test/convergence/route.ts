@@ -364,6 +364,17 @@ export async function GET(request: Request) {
     data_gaps: scoringResult.data_gaps,
   };
 
+  // DEBUG: Dump Finnhub metric fields matching ROIC/EV-EBITDA/P-S substrings
+  const debugFinnhubFields: Record<string, unknown> = {};
+  if (finnhubResult.fundamentals) {
+    const patterns = [/roic/i, /return/i, /invested/i, /capital/i, /ebitda/i, /ev\b/i, /enterprise/i, /\bps\b/i, /sale/i, /revenue/i];
+    for (const [key, value] of Object.entries(finnhubResult.fundamentals.metric)) {
+      if (patterns.some(p => p.test(key))) {
+        debugFinnhubFields[key] = value;
+      }
+    }
+  }
+
   return NextResponse.json({
     ...response,
     trade_cards: tradeCards.length > 0 ? tradeCards : undefined,
@@ -371,5 +382,6 @@ export async function GET(request: Request) {
     _fetch_errors: Object.keys(fetchErrors).length > 0 ? fetchErrors : undefined,
     _rejection_reasons: chainRejections.length > 0 ? chainRejections : undefined,
     _raw_tt_fields: ttScannerResult.raw ? Object.keys(ttScannerResult.raw as object).sort() : undefined,
+    _debug_finnhub_fields: Object.keys(debugFinnhubFields).length > 0 ? debugFinnhubFields : 'NO_MATCHING_FIELDS',
   });
 }
