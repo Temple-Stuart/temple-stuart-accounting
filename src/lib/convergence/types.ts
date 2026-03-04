@@ -326,6 +326,24 @@ export interface EarningsSurpriseSignal {
   isRecentFiling: boolean;          // filed within 72 hours
 }
 
+// ===== SEC 10-K TEXT PROFILE (Hoberg & Phillips 2010, 2016) =====
+
+export interface CompanyTextProfile {
+  symbol: string;
+  businessDescription: string;       // extracted text (max 2000 words)
+  filingDate: string;
+  keywords: string[];                // top 20 TF-IDF keywords
+  productTerms: string[];            // product/service terms extracted
+}
+
+export interface TextBasedPeerGroup {
+  symbol: string;
+  textPeers: string[];               // symbols of closest text-based peers
+  similarityScores: Record<string, number>;  // symbol → cosine similarity
+  textPeerGroupName: string;         // auto-generated label from shared keywords
+  peerSource: 'text_nlp' | 'gics_industry' | 'gics_sector';
+}
+
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP (from /stock/ownership + /stock/fund-ownership) =====
 
 export interface FinnhubInstitutionalOwnership {
@@ -413,6 +431,7 @@ export interface ConvergenceInput {
   crossAssetCorrelations: CrossAssetCorrelations | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
+  textPeerGroups?: Record<string, TextBasedPeerGroup>;
 }
 
 // ===== DATA CONFIDENCE =====

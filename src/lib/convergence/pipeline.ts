@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchSECForm4Data } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchSECForm4Data, fetch10KBusinessDescription } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -8,7 +8,7 @@ import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
 import type { RejectionReason } from '@/lib/strategy-builder';
 import { fetchSentimentBatch } from './sentiment';
 import type { SentimentResult } from './sentiment';
-import { computePeerStats } from './sector-stats';
+import { computePeerStats, computeTextPeerGroups } from './sector-stats';
 import type { PeerStatsMap, PeerGroupAssignment } from './sector-stats';
 import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
@@ -30,6 +30,8 @@ import type {
   QuarterlyFinancials,
   SECFilingData,
   SECForm4Data,
+  CompanyTextProfile,
+  TextBasedPeerGroup,
 } from './types';
 
 // ===== TYPES =====
@@ -103,6 +105,7 @@ export interface PipelineResult {
   };
   hard_filters: HardFiltersResult;
   peer_stats: PeerStatsMap;
+  text_peer_groups: Record<string, TextBasedPeerGroup>;
   pre_scores: PreScoreRow[];
   rankings: {
     scored_count: number;
@@ -409,9 +412,10 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
 
   const survivors = hardFilters.survivors.map(s => scannerMap.get(s)!).filter(Boolean);
 
-  // ===== STEP C: Sector Stats =====
-  console.log('[Pipeline] Step C: Computing peer stats (industry-first, sector fallback)...');
-  const { stats: peerStats, assignment: peerGroupAssignment } = computePeerStats(survivors);
+  // ===== STEP C: Initial Sector Stats (will be enhanced with text peers in Step E11) =====
+  console.log('[Pipeline] Step C: Computing initial peer stats (industry-first, sector fallback)...');
+  let { stats: peerStats, assignment: peerGroupAssignment } = computePeerStats(survivors);
+  let textPeerGroups: Record<string, TextBasedPeerGroup> = {};
 
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
@@ -593,6 +597,33 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E10: SEC Form 4 data fetched for ${topSymbols.length} symbols`);
 
+  // Fetch 10-K business descriptions for text-based peer classification (Hoberg & Phillips 2010, 2016)
+  console.log('[Pipeline] Step E11: Fetching 10-K business descriptions for text peer classification...');
+  const textProfiles: CompanyTextProfile[] = [];
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetch10KBusinessDescription(symbol);
+      if (result.data) {
+        textProfiles.push(result.data);
+      }
+      if (result.error) errors.push(`Step E11 (10k-text ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      // Non-fatal: text peer classification is an enhancement, not required
+    }
+    await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
+  }
+  console.log(`[Pipeline] Step E11: 10-K text profiles fetched for ${textProfiles.length}/${topSymbols.length} symbols`);
+
+  // Compute text-based peer groups from 10-K descriptions
+  if (textProfiles.length >= 2) {
+    textPeerGroups = computeTextPeerGroups(textProfiles);
+    // Re-compute peer stats with text-based peer groups (3-tier: text_nlp → industry → sector)
+    console.log('[Pipeline] Step E11b: Re-computing peer stats with text-based peer groups...');
+    const enhanced = computePeerStats(survivors, textPeerGroups);
+    peerStats = enhanced.stats;
+    peerGroupAssignment = enhanced.assignment;
+  }
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -638,6 +669,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       crossAssetCorrelations,
       peerStats,
       peerGroupAssignment,
+      textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
     };
 
     try {
@@ -690,6 +722,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         crossAssetCorrelations,
         peerStats,
         peerGroupAssignment,
+        textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
       };
 
       try {
@@ -907,6 +940,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     },
     hard_filters: hardFilters,
     peer_stats: peerStats,
+    text_peer_groups: textPeerGroups,
     pre_scores: preScores,
     rankings: {
       scored_count: scoredTickers.length,
