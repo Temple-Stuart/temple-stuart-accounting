@@ -421,7 +421,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     else evEbitdaScore = 20;                      // Very expensive
   }
 
-  // --- FCF yield (18%) — calculated from XBRL financials, Finnhub metric fallback ---
+  // --- FCF yield (18%) — calculated from XBRL financials ---
   let fcfShareTTM: number | null = null;
   let fcfSource = 'N/A';
   if (afCur) {
@@ -433,11 +433,6 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       fcfShareTTM = round(fcf / shares, 4);
       fcfSource = 'CALCULATED';
     }
-  }
-  // Fallback to Finnhub pre-calculated metric if XBRL calculation failed
-  if (fcfShareTTM === null && typeof metric['freeCashFlowPerShareTTM'] === 'number') {
-    fcfShareTTM = metric['freeCashFlowPerShareTTM'] as number;
-    fcfSource = 'TTM';
   }
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
