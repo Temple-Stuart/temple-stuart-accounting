@@ -518,10 +518,52 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
 
   // Earnings quality composite: consistency 50%, DTE 30%, beat_rate 20%
   const beatRateScore = clamp(beatRate, 0, 100);
-  const earningsQualityScore = round(
+  let earningsQualityScore = round(
     0.50 * surpriseConsistency + 0.30 * dteScore + 0.20 * beatRateScore,
     1,
   );
+
+  // --- SUE + Finnhub ML Ensemble ---
+  // Cross-validate our SUE-based score against Finnhub's ML earnings quality score.
+  // Agreement increases confidence; disagreement compresses toward neutral.
+  const finnhubEQ = input.finnhubEarningsQuality;
+  let eqEnsembleAgreement: 'agree' | 'disagree' | 'unavailable' = 'unavailable';
+  let eqConfidenceModifier = 0;
+  let finnhubEqScore: number | null = null;
+  let finnhubEqLetter: string | null = null;
+
+  if (finnhubEQ) {
+    finnhubEqScore = finnhubEQ.score;
+    finnhubEqLetter = finnhubEQ.letterScore;
+
+    // Both scores on 0-100 scale. Determine if they agree on quality level.
+    // SUE score is earningsQualityScore (0-100), Finnhub score is 0-100.
+    // "High quality" = both > 60, "Low quality" = both < 40
+    const sueHigh = earningsQualityScore > 60;
+    const sueLow = earningsQualityScore < 40;
+    const mlHigh = finnhubEqScore > 60;
+    const mlLow = finnhubEqScore < 40;
+
+    if ((sueHigh && mlHigh) || (sueLow && mlLow)) {
+      // Both agree on direction (both high or both low)
+      eqEnsembleAgreement = 'agree';
+      eqConfidenceModifier = 0.15; // Boost: move 15% further from neutral
+    } else if ((sueHigh && mlLow) || (sueLow && mlHigh)) {
+      // Strong disagreement: one sees high quality, other sees low
+      eqEnsembleAgreement = 'disagree';
+      eqConfidenceModifier = -0.20; // Compress: move 20% closer to neutral
+    } else {
+      // One is neutral zone — mild signal, no modifier
+      eqEnsembleAgreement = 'agree'; // No strong disagreement
+      eqConfidenceModifier = 0;
+    }
+
+    // Apply modifier: scale distance from neutral (50)
+    if (eqConfidenceModifier !== 0) {
+      const distFromNeutral = earningsQualityScore - 50;
+      earningsQualityScore = round(clamp(50 + distFromNeutral * (1 + eqConfidenceModifier), 0, 100), 1);
+    }
+  }
 
   // --- Weighted sum (9 components, sum=1.00) ---
   // 0.10+0.10+0.07+0.08+0.10+0.07+0.07+0.18+0.23 = 1.00
@@ -532,7 +574,10 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     1,
   );
 
-  const formula = `0.10*Margin(${round(grossMarginScore)}) + 0.10*ROE(${round(roeScore)}) + 0.07*ROA(${round(roaScore)}) + 0.08*ROIC(${round(roicScore)}) + 0.10*PE(${round(peScore)}) + 0.07*PS(${round(psScore)}) + 0.07*EV/EBITDA(${round(evEbitdaScore)}) + 0.18*FCF(${round(fcfScore)}) + 0.23*EQ(${round(earningsQualityScore)}) = ${score}`;
+  const ensembleTag = finnhubEQ
+    ? ` [EQ_ensemble=${eqEnsembleAgreement}, mod=${eqConfidenceModifier > 0 ? '+' : ''}${round(eqConfidenceModifier * 100)}%]`
+    : '';
+  const formula = `0.10*Margin(${round(grossMarginScore)}) + 0.10*ROE(${round(roeScore)}) + 0.07*ROA(${round(roaScore)}) + 0.08*ROIC(${round(roicScore)}) + 0.10*PE(${round(peScore)}) + 0.07*PS(${round(psScore)}) + 0.07*EV/EBITDA(${round(evEbitdaScore)}) + 0.18*FCF(${round(fcfScore)}) + 0.23*EQ(${round(earningsQualityScore)})${ensembleTag} = ${score}`;
 
   return {
     score: round(score),
@@ -554,7 +599,7 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       days_till_earnings: daysTillEarnings,
     },
     formula,
-    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}(${fcfSource}). ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q`,
+    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}(${fcfSource}). ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q${finnhubEQ ? `. EQ_ML=${finnhubEqLetter}(${finnhubEqScore}), ensemble=${eqEnsembleAgreement}` : ''}`,
     sub_scores: {
       gross_margin_score: round(grossMarginScore),
       roe_score: round(roeScore),
@@ -576,6 +621,13 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
         in_line: inLine,
         avg_surprise_pct: avgSurprise,
         streak,
+      },
+      earnings_quality_ensemble: {
+        finnhub_eq_score: finnhubEqScore,
+        finnhub_eq_letter: finnhubEqLetter,
+        sue_score: round(0.50 * round(surpriseConsistency) + 0.30 * round(dteScore) + 0.20 * beatRateScore, 1), // pre-ensemble SUE score
+        ensemble_agreement: eqEnsembleAgreement,
+        confidence_modifier: eqConfidenceModifier,
       },
     },
   };

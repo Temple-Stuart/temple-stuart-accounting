@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -22,6 +22,7 @@ import type {
   OptionsFlowData,
   NewsSentimentData,
   FinnhubNewsSentiment,
+  FinnhubEarningsQuality,
 } from './types';
 
 // ===== TYPES =====
@@ -488,6 +489,21 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E4: FinBERT sentiment fetched for ${topSymbols.length} symbols`);
 
+  // Fetch Finnhub earnings quality score per symbol (for SUE cross-validation in Quality gate)
+  console.log('[Pipeline] Step E5: Fetching Finnhub earnings quality scores...');
+  const earningsQualityMap = new Map<string, FinnhubEarningsQuality | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchFinnhubEarningsQuality(symbol);
+      earningsQualityMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      earningsQualityMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E5: Earnings quality fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -524,6 +540,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
       newsSentiment: newsSentimentMap.get(symbol) ?? null,
       finnhubNewsSentiment: finbertMap.get(symbol) ?? null,
+      finnhubEarningsQuality: earningsQualityMap.get(symbol) ?? null,
       peerStats,
       peerGroupAssignment,
     };
@@ -569,6 +586,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
         newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
         finnhubNewsSentiment: finbertMap.get(ticker.symbol) ?? null,
+        finnhubEarningsQuality: earningsQualityMap.get(ticker.symbol) ?? null,
         peerStats,
         peerGroupAssignment,
       };

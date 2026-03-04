@@ -213,6 +213,13 @@ export interface NewsSentimentData {
   classification_method: string; // 'llm-haiku' | 'keyword-fallback'
 }
 
+// ===== FINNHUB EARNINGS QUALITY (from /stock/earnings-quality-score endpoint) =====
+
+export interface FinnhubEarningsQuality {
+  score: number;               // Composite earnings quality score (0-100 typically)
+  letterScore: string;         // Letter grade: A+, A, B+, B, C+, C, D
+}
+
 // ===== FINNHUB FINBERT SENTIMENT (from /news-sentiment endpoint) =====
 
 export interface FinnhubNewsSentiment {
@@ -240,6 +247,7 @@ export interface ConvergenceInput {
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
   finnhubNewsSentiment: FinnhubNewsSentiment | null;
+  finnhubEarningsQuality: FinnhubEarningsQuality | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -392,6 +400,13 @@ export interface ProfitabilityTrace extends SubScoreTrace {
       in_line: number;
       avg_surprise_pct: number | null;
       streak: string;
+    };
+    earnings_quality_ensemble?: {
+      finnhub_eq_score: number | null;
+      finnhub_eq_letter: string | null;
+      sue_score: number;
+      ensemble_agreement: 'agree' | 'disagree' | 'unavailable';
+      confidence_modifier: number;
     };
   };
 }

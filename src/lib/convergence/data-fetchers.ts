@@ -17,6 +17,7 @@ import type {
   NewsHeadlineEntry,
   NewsSentimentPeriod,
   FinnhubNewsSentiment,
+  FinnhubEarningsQuality,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -789,6 +790,59 @@ export async function fetchFinnhubNewsSentiment(
     return { data: result, error: null };
   } catch (e: unknown) {
     return { data: null, error: `news-sentiment: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB EARNINGS QUALITY SCORE FETCHER =====
+
+const earningsQualityCache = new Map<string, { data: FinnhubEarningsQuality; fetchedAt: number }>();
+const EARNINGS_QUALITY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchFinnhubEarningsQuality(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubEarningsQuality | null; error: string | null }> {
+  const cached = earningsQualityCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < EARNINGS_QUALITY_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/earnings-quality-score?symbol=${symbol}&freq=quarterly&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `earnings-quality-score: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    // Finnhub returns { data: [{ period, score, letterScore }], symbol }
+    const entries = json?.data;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { data: null, error: 'earnings-quality-score: no data returned' };
+    }
+
+    // Use most recent entry (sorted by period descending)
+    const latest = entries.sort((a: { period?: string }, b: { period?: string }) =>
+      (b.period ?? '').localeCompare(a.period ?? ''),
+    )[0];
+
+    if (typeof latest.score !== 'number') {
+      return { data: null, error: 'earnings-quality-score: missing score field' };
+    }
+
+    const result: FinnhubEarningsQuality = {
+      score: latest.score,
+      letterScore: typeof latest.letterScore === 'string' ? latest.letterScore : 'N/A',
+    };
+
+    earningsQualityCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `earnings-quality-score: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
