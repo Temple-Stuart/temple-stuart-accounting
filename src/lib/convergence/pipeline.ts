@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -21,6 +21,7 @@ import type {
   AnnualFinancials,
   OptionsFlowData,
   NewsSentimentData,
+  FinnhubNewsSentiment,
 } from './types';
 
 // ===== TYPES =====
@@ -472,6 +473,21 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E3: News sentiment fetched for ${topSymbols.length} symbols`);
 
+  // Fetch Finnhub FinBERT sentiment per symbol (for 3-leg ensemble in info-edge)
+  console.log('[Pipeline] Step E4: Fetching Finnhub FinBERT sentiment...');
+  const finbertMap = new Map<string, FinnhubNewsSentiment | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchFinnhubNewsSentiment(symbol);
+      finbertMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      finbertMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+  }
+  console.log(`[Pipeline] Step E4: FinBERT sentiment fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -507,6 +523,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
       newsSentiment: newsSentimentMap.get(symbol) ?? null,
+      finnhubNewsSentiment: finbertMap.get(symbol) ?? null,
       peerStats,
       peerGroupAssignment,
     };
@@ -551,6 +568,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
         newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
+        finnhubNewsSentiment: finbertMap.get(ticker.symbol) ?? null,
         peerStats,
         peerGroupAssignment,
       };

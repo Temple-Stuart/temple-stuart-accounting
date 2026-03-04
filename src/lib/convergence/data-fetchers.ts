@@ -16,6 +16,7 @@ import type {
   NewsSentimentData,
   NewsHeadlineEntry,
   NewsSentimentPeriod,
+  FinnhubNewsSentiment,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -740,6 +741,58 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
 
   return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
 }
+
+// ===== FINNHUB FINBERT SENTIMENT FETCHER =====
+
+const finbertCache = new Map<string, { data: FinnhubNewsSentiment; fetchedAt: number }>();
+const FINBERT_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchFinnhubNewsSentiment(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubNewsSentiment | null; error: string | null }> {
+  const cached = finbertCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < FINBERT_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/news-sentiment?symbol=${symbol}&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `news-sentiment: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    // Finnhub returns { buzz: {}, sentiment: {}, companyNewsScore, ... }
+    const sentiment = json?.sentiment;
+    const buzz = json?.buzz;
+
+    if (!sentiment || typeof json.companyNewsScore !== 'number') {
+      return { data: null, error: 'news-sentiment: no data or missing companyNewsScore' };
+    }
+
+    const result: FinnhubNewsSentiment = {
+      companyNewsScore: json.companyNewsScore,
+      sectorAverageNewsScore: typeof json.sectorAverageNewsScore === 'number' ? json.sectorAverageNewsScore : null,
+      sectorAverageBullishPercent: typeof json.sectorAverageBullishPercent === 'number' ? json.sectorAverageBullishPercent : null,
+      buzz: typeof buzz?.buzz === 'number' ? buzz.buzz : null,
+      bullishPercent: typeof sentiment?.bullishPercent === 'number' ? sentiment.bullishPercent : null,
+      bearishPercent: typeof sentiment?.bearishPercent === 'number' ? sentiment.bearishPercent : null,
+    };
+
+    finbertCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `news-sentiment: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== NEWS SENTIMENT FETCHER (company-news + keyword/LLM classification) =====
 
 const newsSentimentCache = new Map<string, { data: NewsSentimentData; fetchedAt: number }>();
 const NEWS_SENTIMENT_CACHE_TTL = 30 * 60 * 1000; // 30 minutes

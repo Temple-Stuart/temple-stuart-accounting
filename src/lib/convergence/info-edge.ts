@@ -626,6 +626,17 @@ function scoreFlowSignal(input: ConvergenceInput): FlowSignalTrace {
 
 // ===== NEWS SENTIMENT SUB-SCORE (15%) =====
 
+function scoreToDirection(score: number): 'bullish' | 'bearish' | 'neutral' {
+  if (score > 55) return 'bullish';
+  if (score < 45) return 'bearish';
+  return 'neutral';
+}
+
+function directionsAgree(a: 'bullish' | 'bearish' | 'neutral', b: 'bullish' | 'bearish' | 'neutral'): boolean {
+  // Two directions agree if they're the same, or if one is neutral (not opposing)
+  return a === b;
+}
+
 function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   const news = input.newsSentiment;
 
@@ -686,12 +697,84 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   sourceQualityScore = round(sourceQualityScore);
 
   // Weighted: buzz 30%, sentiment 40%, source quality 30%
-  const score = round(0.30 * buzzScore + 0.40 * sentimentScore + 0.30 * sourceQualityScore, 1);
+  let score = round(0.30 * buzzScore + 0.40 * sentimentScore + 0.30 * sourceQualityScore, 1);
 
-  const formula = `0.30×Buzz(${buzzScore}) + 0.40×Sentiment(${sentimentScore}) + 0.30×SourceQuality(${sourceQualityScore}) = ${score}`;
-
+  // --- 3-Leg Ensemble: Keyword + Haiku LLM + Finnhub FinBERT ---
   const classMethod = news.classification_method ?? 'keyword-fallback';
-  const notes = [
+  const finbert = input.finnhubNewsSentiment;
+
+  // Determine direction from each leg:
+  // Leg 1 (keyword): always available — uses the raw keyword-based sentiment from 7d headlines
+  const keywordDirection = scoreToDirection(news.sentiment_7d.score);
+
+  // Leg 2 (Haiku LLM): available when classification_method === 'llm-haiku'
+  // The LLM classification overwrites headline sentiments in-place, so sentiment_7d.score
+  // already reflects LLM when available. Use classification method to determine if LLM ran.
+  const haikuDirection: 'bullish' | 'bearish' | 'neutral' | null =
+    classMethod === 'llm-haiku' ? scoreToDirection(sentimentScore) : null;
+
+  // Leg 3 (FinBERT): companyNewsScore from /news-sentiment (0-1, 0.5 = neutral)
+  let finbertDirection: 'bullish' | 'bearish' | 'neutral' | null = null;
+  let finbertScore: number | null = null;
+  if (finbert) {
+    // Convert 0-1 scale to 0-100
+    finbertScore = round(finbert.companyNewsScore * 100, 1);
+    finbertDirection = scoreToDirection(finbertScore);
+  }
+
+  // Compute ensemble agreement and confidence modifier
+  const activeLegDirections: ('bullish' | 'bearish' | 'neutral')[] = [keywordDirection];
+  if (haikuDirection) activeLegDirections.push(haikuDirection);
+  if (finbertDirection) activeLegDirections.push(finbertDirection);
+
+  let ensembleAgreement: 'unanimous' | 'majority' | 'split' | 'two-leg';
+  let ensembleConfidenceModifier: number;
+
+  if (activeLegDirections.length <= 2) {
+    // 2-leg mode: FinBERT unavailable (or Haiku unavailable)
+    if (activeLegDirections.length === 2 && directionsAgree(activeLegDirections[0], activeLegDirections[1])) {
+      ensembleAgreement = 'two-leg';
+      ensembleConfidenceModifier = 0; // Standard weight — 2 legs agree but missing 3rd
+    } else if (activeLegDirections.length === 2) {
+      ensembleAgreement = 'two-leg';
+      ensembleConfidenceModifier = -0.15; // 2 legs disagree — mild reduction
+    } else {
+      ensembleAgreement = 'two-leg';
+      ensembleConfidenceModifier = 0; // Only 1 leg — no ensemble signal
+    }
+  } else {
+    // 3-leg mode: all three available
+    const allSame = activeLegDirections.every(d => d === activeLegDirections[0]);
+    if (allSame) {
+      ensembleAgreement = 'unanimous';
+      ensembleConfidenceModifier = 0.20; // High confidence — increase weight by 20%
+    } else {
+      // Check for majority (2 of 3 agree)
+      const counts = { bullish: 0, bearish: 0, neutral: 0 };
+      for (const d of activeLegDirections) counts[d]++;
+      const hasMajority = counts.bullish >= 2 || counts.bearish >= 2 || counts.neutral >= 2;
+      if (hasMajority) {
+        ensembleAgreement = 'majority';
+        ensembleConfidenceModifier = 0; // Normal confidence — standard weight
+      } else {
+        ensembleAgreement = 'split';
+        ensembleConfidenceModifier = -0.30; // Low confidence — reduce weight by 30%
+      }
+    }
+  }
+
+  // Apply ensemble confidence modifier to final score
+  // Modifier scales the distance from neutral (50):
+  // unanimous: score moves 20% further from 50
+  // split: score moves 30% closer to 50
+  if (ensembleConfidenceModifier !== 0) {
+    const distFromNeutral = score - 50;
+    score = round(clamp(50 + distFromNeutral * (1 + ensembleConfidenceModifier), 0, 100), 1);
+  }
+
+  const formula = `0.30×Buzz(${buzzScore}) + 0.40×Sentiment(${sentimentScore}) + 0.30×SourceQuality(${sourceQualityScore}) [ensemble=${ensembleAgreement}, modifier=${ensembleConfidenceModifier > 0 ? '+' : ''}${round(ensembleConfidenceModifier * 100)}%] = ${score}`;
+
+  const notesParts = [
     `${news.articles_7d} articles (7d), ${news.articles_8_30d} articles (8-30d)`,
     `buzz_ratio=${news.buzz_ratio ?? 'N/A'}`,
     `sentiment_7d=${news.sentiment_7d.score}`,
@@ -699,7 +782,10 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
     `tier1=${round(news.tier1_ratio * 100, 1)}%`,
     `7d: ${news.sentiment_7d.bullish_matches}B/${news.sentiment_7d.bearish_matches}b/${news.sentiment_7d.neutral}N`,
     `method=${classMethod}`,
-  ].join(', ');
+    `ensemble=${ensembleAgreement}`,
+  ];
+  if (!finbert) notesParts.push('finnhub_sentiment_unavailable');
+  const notes = notesParts.join(', ');
 
   return {
     score: round(score),
@@ -733,6 +819,18 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
       source_distribution: news.source_distribution,
       headlines: news.headlines,
       classification_method: classMethod,
+    },
+    ensemble: {
+      finnhub_sentiment_score: finbertScore,
+      finnhub_buzz: finbert?.buzz ?? null,
+      finnhub_sector_avg: finbert?.sectorAverageNewsScore ?? null,
+      ensemble_agreement: ensembleAgreement,
+      ensemble_confidence_modifier: ensembleConfidenceModifier,
+      leg_directions: {
+        keyword: keywordDirection,
+        haiku: haikuDirection,
+        finbert: finbertDirection,
+      },
     },
   };
 }
