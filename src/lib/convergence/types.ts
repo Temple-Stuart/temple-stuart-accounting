@@ -328,6 +328,38 @@ export interface FinnhubNewsSentiment {
   bearishPercent: number | null;
 }
 
+// ===== FRED DAILY HISTORY (for cross-asset correlations) =====
+
+export interface FredDailyObservation {
+  date: string;   // "2024-01-15"
+  value: number;
+}
+
+export interface FredDailyHistory {
+  seriesId: string;
+  observations: FredDailyObservation[];  // sorted oldest → newest
+}
+
+// ===== CROSS-ASSET CORRELATIONS (Bridgewater All Weather / AQR factor timing) =====
+
+export interface CrossAssetCorrelations {
+  // Rolling 60-day Pearson correlations on daily returns
+  bond_equity: number | null;       // DGS10 returns vs SP500 returns
+  oil_equity: number | null;        // DCOILWTICO returns vs SP500 returns
+  oil_bond: number | null;          // DCOILWTICO returns vs DGS10 returns
+  // Trailing 252-day (full-year) correlations for comparison
+  bond_equity_252d: number | null;
+  oil_equity_252d: number | null;
+  oil_bond_252d: number | null;
+  // Regime shift detection: 60d vs 252d divergence
+  regime_shift_detected: boolean;
+  regime_shift_magnitude: number;   // max |60d - 252d| across pairs
+  // Cluster classification
+  cluster: 'risk_on' | 'risk_off' | 'inflation' | 'deflation' | 'transition';
+  cluster_confidence: number;       // 0 to 1
+  note: string;
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -349,6 +381,7 @@ export interface ConvergenceInput {
   finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
   secFilingData: SECFilingData | null;
+  crossAssetCorrelations: CrossAssetCorrelations | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -666,6 +699,16 @@ export interface RegimeResult {
       base_regime_score: number;
       adjusted_regime_score: number;
       formula: string;
+      note: string;
+    };
+    cross_asset_correlations?: {
+      correlations: CrossAssetCorrelations;
+      probability_adjustment: {
+        goldilocks: number;
+        reflation: number;
+        stagflation: number;
+        deflation: number;
+      };
       note: string;
     };
   };

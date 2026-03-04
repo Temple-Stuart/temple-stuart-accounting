@@ -1,5 +1,7 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData } from './data-fetchers';
+import { computeCrossAssetCorrelations } from './cross-asset';
+import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -424,17 +426,24 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
   const finnhubStart = Date.now();
 
-  const [finnhubResult, fredResult] = await Promise.all([
+  const [finnhubResult, fredResult, fredDailyResult] = await Promise.all([
     fetchFinnhubBatch(topSymbols, 200),
     fetchFredMacro(),
+    fetchFredDailySeries(),
   ]);
 
   const finnhubMs = Date.now() - finnhubStart;
-  console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms, FRED cached=${fredResult.cached}`);
+  console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms, FRED cached=${fredResult.cached}, FRED daily cached=${fredDailyResult.cached}`);
 
   if (fredResult.error) {
     errors.push(`Step E (FRED): ${fredResult.error}`);
   }
+  if (fredDailyResult.error) {
+    errors.push(`Step E (FRED daily): ${fredDailyResult.error}`);
+  }
+
+  // Compute cross-asset correlations from daily FRED history (shared across all tickers)
+  const crossAssetCorrelations: CrossAssetCorrelations | null = computeCrossAssetCorrelations(fredDailyResult.data);
 
   // Fetch annual financials per symbol (for Piotroski YoY signals)
   const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
@@ -609,6 +618,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       finnhubInstitutionalOwnership: institutionalOwnershipMap.get(symbol) ?? null,
       finnhubRevenueBreakdown: revenueBreakdownMap.get(symbol) ?? null,
       secFilingData: secFilingMap.get(symbol) ?? null,
+      crossAssetCorrelations,
       peerStats,
       peerGroupAssignment,
     };
@@ -659,6 +669,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         finnhubInstitutionalOwnership: institutionalOwnershipMap.get(ticker.symbol) ?? null,
         finnhubRevenueBreakdown: revenueBreakdownMap.get(ticker.symbol) ?? null,
         secFilingData: secFilingMap.get(ticker.symbol) ?? null,
+        crossAssetCorrelations,
         peerStats,
         peerGroupAssignment,
       };

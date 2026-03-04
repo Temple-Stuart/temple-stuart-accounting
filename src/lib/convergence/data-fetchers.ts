@@ -25,6 +25,8 @@ import type {
   QuarterlyFinancials,
   SECFilingData,
   QuarterlyFinancialPeriod,
+  FredDailyObservation,
+  FredDailyHistory,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -625,6 +627,79 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
 
   // Cache the result
   fredCache = { data: result, fetchedAt: Date.now() };
+
+  return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
+}
+
+// ===== FRED DAILY HISTORY FETCHER (for cross-asset correlations) =====
+// Fetches N trading days of daily observations for a given FRED series.
+// Used to compute rolling correlations between asset classes (Bridgewater All Weather).
+
+let fredDailyCache: { data: Map<string, FredDailyHistory>; fetchedAt: number } | null = null;
+const FRED_DAILY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Default series for cross-asset correlations
+const CROSS_ASSET_SERIES = ['DGS10', 'SP500', 'DCOILWTICO'] as const;
+
+export async function fetchFredDailySeries(
+  seriesIds: readonly string[] = CROSS_ASSET_SERIES,
+  tradingDays: number = 252,
+  apiKey?: string,
+): Promise<{ data: Map<string, FredDailyHistory>; cached: boolean; error: string | null }> {
+  // Check cache
+  if (fredDailyCache && Date.now() - fredDailyCache.fetchedAt < FRED_DAILY_CACHE_TTL) {
+    // Verify all requested series are in cache
+    const allCached = seriesIds.every(id => fredDailyCache!.data.has(id));
+    if (allCached) {
+      return { data: fredDailyCache.data, cached: true, error: null };
+    }
+  }
+
+  const key = apiKey || process.env.FRED_API_KEY;
+  if (!key) {
+    return { data: new Map(), cached: false, error: 'FRED_API_KEY not configured' };
+  }
+
+  const result = new Map<string, FredDailyHistory>();
+  const errors: string[] = [];
+
+  // Fetch ~2x trading days of calendar days to ensure we get enough observations
+  // (weekends + holidays mean ~252 trading days ≈ 365 calendar days)
+  const calendarDays = Math.ceil(tradingDays * 1.5);
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - calendarDays);
+  const startStr = startDate.toISOString().slice(0, 10);
+
+  for (const seriesId of seriesIds) {
+    try {
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${key}&file_type=json&sort_order=asc&observation_start=${startStr}`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const json = await resp.json();
+        const obs = json?.observations;
+        if (Array.isArray(obs)) {
+          const observations: FredDailyObservation[] = [];
+          for (const o of obs) {
+            if (o.value !== '.' && o.date) {
+              const val = parseFloat(o.value);
+              if (!isNaN(val)) {
+                observations.push({ date: o.date, value: val });
+              }
+            }
+          }
+          result.set(seriesId, { seriesId, observations });
+        }
+      } else {
+        errors.push(`${seriesId}: HTTP ${resp.status}`);
+      }
+    } catch (e: unknown) {
+      errors.push(`${seriesId}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    await delay(100); // Rate limit respect
+  }
+
+  // Cache the result
+  fredDailyCache = { data: result, fetchedAt: Date.now() };
 
   return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
 }
