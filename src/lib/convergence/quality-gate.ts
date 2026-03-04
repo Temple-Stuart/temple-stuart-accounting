@@ -6,6 +6,7 @@ import type {
   GrowthTrace,
   FundamentalRiskTrace,
   DataConfidence,
+  QuarterlyFinancialPeriod,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -108,8 +109,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   let piotroskiSource = 'proxy_imputed';
 
   // Helper: sum last N quarters of a numeric field (TTM = 4 quarters)
-  type QFPeriod = NonNullable<typeof qf>['periods'][number];
-  const sumQ = (periods: QFPeriod[], field: keyof QFPeriod, n: number): number | null => {
+  const sumQ = (periods: QuarterlyFinancialPeriod[], field: keyof QuarterlyFinancialPeriod, n: number): number | null => {
     const valid = periods.slice(0, n).filter(p => p[field] !== null && p[field] !== undefined);
     if (valid.length < n) return null;
     return valid.reduce((s, p) => s + (p[field] as number), 0);
