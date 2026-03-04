@@ -107,9 +107,9 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   const af = input.annualFinancials;
   let piotroskiSource = 'proxy_imputed';
 
-  // Helper: sum last N quarters of a field (TTM = 4 quarters)
-  const sumQ = (periods: typeof qf extends { periods: infer P } ? P : never[], field: keyof NonNullable<typeof qf>['periods'][number], n: number): number | null => {
-    if (!Array.isArray(periods)) return null;
+  // Helper: sum last N quarters of a numeric field (TTM = 4 quarters)
+  type QFPeriod = NonNullable<typeof qf>['periods'][number];
+  const sumQ = (periods: QFPeriod[], field: keyof QFPeriod, n: number): number | null => {
     const valid = periods.slice(0, n).filter(p => p[field] !== null && p[field] !== undefined);
     if (valid.length < n) return null;
     return valid.reduce((s, p) => s + (p[field] as number), 0);

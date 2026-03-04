@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData } from './data-fetchers';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
@@ -26,6 +26,7 @@ import type {
   FinnhubInstitutionalOwnership,
   FinnhubRevenueBreakdown,
   QuarterlyFinancials,
+  SECFilingData,
 } from './types';
 
 // ===== TYPES =====
@@ -552,6 +553,21 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E8: Quarterly financials fetched for ${topSymbols.length} symbols`);
 
+  // Fetch SEC EDGAR filing data per symbol (CIK lookup + XBRL companyfacts)
+  console.log('[Pipeline] Step E9: Fetching SEC EDGAR filing data...');
+  const secFilingMap = new Map<string, SECFilingData | null>();
+  for (const symbol of topSymbols) {
+    try {
+      const result = await fetchSECFilingData(symbol);
+      secFilingMap.set(symbol, result.data);
+      if (result.error) errors.push(`Step E9 (sec-edgar ${symbol}): ${result.error}`);
+    } catch (e: unknown) {
+      secFilingMap.set(symbol, null);
+    }
+    await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
+  }
+  console.log(`[Pipeline] Step E9: SEC EDGAR filing data fetched for ${topSymbols.length} symbols`);
+
   // ===== STEP F: Score All 4 Categories =====
   console.log('[Pipeline] Step F: Scoring all categories...');
   const scoredTickers: {
@@ -592,6 +608,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       finnhubEarningsQuality: earningsQualityMap.get(symbol) ?? null,
       finnhubInstitutionalOwnership: institutionalOwnershipMap.get(symbol) ?? null,
       finnhubRevenueBreakdown: revenueBreakdownMap.get(symbol) ?? null,
+      secFilingData: secFilingMap.get(symbol) ?? null,
       peerStats,
       peerGroupAssignment,
     };
@@ -641,6 +658,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         finnhubEarningsQuality: earningsQualityMap.get(ticker.symbol) ?? null,
         finnhubInstitutionalOwnership: institutionalOwnershipMap.get(ticker.symbol) ?? null,
         finnhubRevenueBreakdown: revenueBreakdownMap.get(ticker.symbol) ?? null,
+        secFilingData: secFilingMap.get(ticker.symbol) ?? null,
         peerStats,
         peerGroupAssignment,
       };

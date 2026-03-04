@@ -256,6 +256,30 @@ export interface FinnhubEarningsQuality {
   letterScore: string;         // Letter grade: A+, A, B+, B, C+, C, D
 }
 
+// ===== SEC EDGAR XBRL FILING DATA =====
+
+export interface SECFilingData {
+  cik: string;
+  latestFilingDate: string;         // "2025-01-31"
+  latestFilingType: string;         // "10-Q" or "10-K"
+  filingAgeHours: number;           // hours since filing
+  epsActual: number | null;         // EPS from the filing
+  revenueActual: number | null;     // Revenue from the filing
+  netIncomeActual: number | null;   // Net income from the filing
+  fiscalPeriod: string;             // "Q1 2025" or "FY 2024"
+}
+
+export interface EarningsSurpriseSignal {
+  epsActual: number | null;
+  epsEstimate: number | null;       // from Finnhub estimates (already fetched)
+  epsSurprisePct: number | null;    // (actual - estimate) / |estimate| * 100
+  revenueActual: number | null;
+  revenueEstimate: number | null;
+  revenueSurprisePct: number | null;
+  filingAgeHours: number;
+  isRecentFiling: boolean;          // filed within 72 hours
+}
+
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP (from /stock/ownership + /stock/fund-ownership) =====
 
 export interface FinnhubInstitutionalOwnership {
@@ -306,6 +330,7 @@ export interface ConvergenceInput {
   finnhubEarningsQuality: FinnhubEarningsQuality | null;
   finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
+  secFilingData: SECFilingData | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -769,9 +794,21 @@ export interface InstitutionalOwnershipTrace extends SubScoreTrace {
   };
 }
 
+export interface FilingRecencyTrace {
+  filing_signal_active: boolean;
+  filing_type: string | null;
+  filing_age_hours: number | null;
+  eps_surprise_pct: number | null;
+  revenue_surprise_pct: number | null;
+  filing_recency_score: number;
+  filing_modifier: number;          // additive modifier on Info-Edge score
+  earnings_surprise: EarningsSurpriseSignal | null;
+}
+
 export interface InfoEdgeResult {
   score: number;
   data_confidence: DataConfidence;
+  filing_recency: FilingRecencyTrace;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
     price_target_signal: PriceTargetSignalTrace;

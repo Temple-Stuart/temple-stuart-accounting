@@ -245,6 +245,7 @@ export async function GET(request: Request) {
     finnhubEarningsQuality: null, // Single-ticker route: EQ fetched separately in pipeline batch mode
     finnhubInstitutionalOwnership: null, // Single-ticker route: fetched in pipeline batch mode
     finnhubRevenueBreakdown: null, // Single-ticker route: fetched in pipeline batch mode
+    secFilingData: null, // Single-ticker route: fetched in pipeline batch mode
   };
 
   // ===== RUN SCORING =====

@@ -9,6 +9,8 @@ import type {
   FlowSignalTrace,
   NewsSentimentTrace,
   InstitutionalOwnershipTrace,
+  FilingRecencyTrace,
+  EarningsSurpriseSignal,
   DataConfidence,
 } from './types';
 
@@ -1031,6 +1033,126 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   };
 }
 
+// ===== FILING RECENCY SIGNAL (SEC EDGAR) =====
+// Event-driven overlay: fires when a 10-Q/10-K was filed within 72 hours.
+// Asymmetric response: bad news travels faster (Barberis, Shleifer & Vishny 1998).
+
+function scoreFilingRecency(input: ConvergenceInput): FilingRecencyTrace {
+  const filing = input.secFilingData;
+  const estimates = input.finnhubEstimates;
+
+  // Dormant state: no filing or filing older than 72 hours
+  if (!filing || filing.filingAgeHours > 72) {
+    return {
+      filing_signal_active: false,
+      filing_type: filing?.latestFilingType ?? null,
+      filing_age_hours: filing?.filingAgeHours ?? null,
+      eps_surprise_pct: null,
+      revenue_surprise_pct: null,
+      filing_recency_score: 50,
+      filing_modifier: 0,
+      earnings_surprise: null,
+    };
+  }
+
+  // Active state: recent filing within 72 hours
+  const epsActual = filing.epsActual;
+  const revenueActual = filing.revenueActual;
+
+  // Cross-reference with Finnhub estimates
+  // Find the estimate matching the filing's fiscal period
+  let epsEstimate: number | null = null;
+  let revenueEstimate: number | null = null;
+
+  if (estimates?.epsEstimates && epsActual !== null) {
+    // Match by period end date (filing period end ≈ estimate period)
+    const match = estimates.epsEstimates.find(e => {
+      // Fuzzy match: same quarter/year
+      return e.period <= filing.latestFilingDate;
+    });
+    if (match) epsEstimate = match.epsAvg;
+  }
+
+  if (estimates?.revenueEstimates && revenueActual !== null) {
+    const match = estimates.revenueEstimates.find(e => {
+      return e.period <= filing.latestFilingDate;
+    });
+    if (match) revenueEstimate = match.revenueAvg;
+  }
+
+  // Compute surprise percentages
+  const epsSurprisePct = epsActual !== null && epsEstimate !== null && Math.abs(epsEstimate) > 0.001
+    ? round(((epsActual - epsEstimate) / Math.abs(epsEstimate)) * 100, 2)
+    : null;
+
+  const revenueSurprisePct = revenueActual !== null && revenueEstimate !== null && revenueEstimate > 0
+    ? round(((revenueActual - revenueEstimate) / revenueEstimate) * 100, 2)
+    : null;
+
+  // Compute filing recency score (0-100)
+  let filingRecencyScore = 50;
+
+  // EPS surprise is primary signal
+  if (epsSurprisePct !== null) {
+    if (epsSurprisePct > 20) filingRecencyScore = 85;
+    else if (epsSurprisePct > 10) filingRecencyScore = 78;
+    else if (epsSurprisePct > 5) filingRecencyScore = 70;
+    else if (epsSurprisePct > 2) filingRecencyScore = 60;
+    else if (epsSurprisePct > -2) filingRecencyScore = 50;
+    else if (epsSurprisePct > -5) filingRecencyScore = 40;
+    else if (epsSurprisePct > -10) filingRecencyScore = 30;
+    else if (epsSurprisePct > -20) filingRecencyScore = 20;
+    else filingRecencyScore = 15;
+  }
+
+  // Revenue surprise secondary modifier (±5 pts)
+  if (revenueSurprisePct !== null) {
+    if (revenueSurprisePct > 5) filingRecencyScore = clamp(filingRecencyScore + 5, 0, 100);
+    else if (revenueSurprisePct < -5) filingRecencyScore = clamp(filingRecencyScore - 5, 0, 100);
+  }
+
+  // Filing age modifier: fresher = stronger signal
+  // 0-6 hours: full weight, 6-24h: 80%, 24-72h: 50%
+  let ageMultiplier = 1.0;
+  if (filing.filingAgeHours <= 6) ageMultiplier = 1.0;
+  else if (filing.filingAgeHours <= 24) ageMultiplier = 0.80;
+  else ageMultiplier = 0.50; // 24-72h
+
+  // Compute additive modifier on Info-Edge score
+  // Positive surprise: up to +8, Negative surprise: up to -12 (asymmetric)
+  const distFromNeutral = filingRecencyScore - 50;
+  let filingModifier: number;
+  if (distFromNeutral > 0) {
+    // Bullish: scale 0-35 range → 0 to +8
+    filingModifier = round((distFromNeutral / 35) * 8 * ageMultiplier, 1);
+  } else {
+    // Bearish: scale 0 to -35 range → 0 to -12 (asymmetric penalty)
+    filingModifier = round((distFromNeutral / 35) * 12 * ageMultiplier, 1);
+  }
+
+  const earningsSurprise: EarningsSurpriseSignal = {
+    epsActual,
+    epsEstimate,
+    epsSurprisePct,
+    revenueActual,
+    revenueEstimate,
+    revenueSurprisePct,
+    filingAgeHours: filing.filingAgeHours,
+    isRecentFiling: true,
+  };
+
+  return {
+    filing_signal_active: true,
+    filing_type: filing.latestFilingType,
+    filing_age_hours: filing.filingAgeHours,
+    eps_surprise_pct: epsSurprisePct,
+    revenue_surprise_pct: revenueSurprisePct,
+    filing_recency_score: filingRecencyScore,
+    filing_modifier: filingModifier,
+    earnings_surprise: earningsSurprise,
+  };
+}
+
 // ===== INSTITUTIONAL OWNERSHIP SUB-SCORE =====
 // Chen, Jegadeesh & Wermers (2000): ΔIO — institutional purchases outperform sales.
 // Score the CHANGE in ownership, not the level.
@@ -1148,8 +1270,9 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const flowSignal = scoreFlowSignal(input);
   const newsSentiment = scoreNewsSentiment(input);
   const institutionalOwnership = scoreInstitutionalOwnership(input);
+  const filingRecency = scoreFilingRecency(input);
 
-  const score = round(
+  let score = round(
     analystConsensus.weight * analystConsensus.score +
     priceTargetSignal.weight * priceTargetSignal.score +
     upgradeDowngradeSignal.weight * upgradeDowngradeSignal.score +
@@ -1160,6 +1283,12 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     institutionalOwnership.weight * institutionalOwnership.score,
     1,
   );
+
+  // Filing recency: event-driven overlay (does NOT rebalance weights)
+  // Positive surprise: up to +8 pts, Negative surprise: up to -12 pts (asymmetric)
+  if (filingRecency.filing_signal_active && filingRecency.filing_modifier !== 0) {
+    score = clamp(round(score + filingRecency.filing_modifier, 1), 0, 100);
+  }
 
   // Build DataConfidence
   const imputedFields: string[] = [];
@@ -1190,6 +1319,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   return {
     score,
     data_confidence: dataConfidence,
+    filing_recency: filingRecency,
     breakdown: {
       analyst_consensus: analystConsensus,
       price_target_signal: priceTargetSignal,
