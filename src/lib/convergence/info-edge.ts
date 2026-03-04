@@ -439,52 +439,40 @@ function scoreUpgradeDowngradeSignal(input: ConvergenceInput): UpgradeDowngradeS
   };
 }
 
-// ===== INSIDER ACTIVITY SUB-SCORE (20%) =====
+// ===== INSIDER ACTIVITY SUB-SCORE (15%) =====
+// Ensemble: Finnhub MSPR (0.40) + SEC Form 4 net dollar flow (0.30) + opportunistic score (0.30)
+// When Form 4 unavailable: MSPR-only (existing behavior, no degradation)
 
-function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
-  const sentiment = input.finnhubInsiderSentiment;
-
+function scoreMsprComponent(sentiment: ConvergenceInput['finnhubInsiderSentiment']): {
+  msprScore: number;
+  trendScore: number;
+  latestMspr: number | null;
+  avgMspr3m: number | null;
+  netDirection: string;
+  monthsAvailable: number;
+} {
   if (sentiment.length === 0) {
-    return {
-      score: 40,
-      weight: 0.15,
-      inputs: { months_available: 0 },
-      formula: 'No insider sentiment data → penalty default 40 (missing data)',
-      notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
-      sub_scores: { mspr_score: 40, trend_score: 40 },
-      insider_detail: {
-        months_available: 0,
-        latest_mspr: null,
-        avg_mspr_3m: null,
-        net_direction: 'UNKNOWN',
-      },
-    };
+    return { msprScore: 40, trendScore: 40, latestMspr: null, avgMspr3m: null, netDirection: 'UNKNOWN', monthsAvailable: 0 };
   }
 
-  // Sort by most recent first (year desc, month desc)
   const sorted = [...sentiment].sort((a, b) => {
     if (a.year !== b.year) return b.year - a.year;
     return b.month - a.month;
   });
 
   const latestMspr = sorted[0].mspr;
-
-  // Average MSPR over last 3 months
   const recent3 = sorted.slice(0, 3);
   const avgMspr3m = recent3.length > 0
     ? round(recent3.reduce((s, r) => s + r.mspr, 0) / recent3.length, 4)
     : null;
 
-  // MSPR (Monthly Share Purchase Ratio): >0 = net buying, <0 = net selling
-  // Range is typically -100 to +100
   let msprScore = 50;
-  if (latestMspr > 20) msprScore = 80;       // Strong insider buying
-  else if (latestMspr > 5) msprScore = 65;   // Moderate buying
-  else if (latestMspr > -5) msprScore = 50;  // Neutral
-  else if (latestMspr > -20) msprScore = 35; // Moderate selling
-  else msprScore = 20;                         // Heavy selling
+  if (latestMspr > 20) msprScore = 80;
+  else if (latestMspr > 5) msprScore = 65;
+  else if (latestMspr > -5) msprScore = 50;
+  else if (latestMspr > -20) msprScore = 35;
+  else msprScore = 20;
 
-  // Trend score: is insider sentiment improving or deteriorating?
   let trendScore = 50;
   let netDirection = 'NEUTRAL';
   if (sorted.length >= 3) {
@@ -511,30 +499,81 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
     trendScore = 40;
   }
 
-  // Weighted: MSPR 60%, trend 40%
-  const score = round(0.60 * msprScore + 0.40 * trendScore, 1);
+  return { msprScore, trendScore, latestMspr, avgMspr3m, netDirection, monthsAvailable: sorted.length };
+}
 
-  const formula = `0.60×MSPR(${round(msprScore)}) + 0.40×Trend(${round(trendScore)}) = ${score}`;
+function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
+  const mspr = scoreMsprComponent(input.finnhubInsiderSentiment);
+  const form4 = input.secForm4Data;
+
+  // Base MSPR composite (existing logic)
+  const msprComposite = round(0.60 * mspr.msprScore + 0.40 * mspr.trendScore, 1);
+
+  // Check if Form 4 data is available and has meaningful transactions
+  const hasForm4 = form4 !== null && (form4.totalBuyCount + form4.totalSellCount) > 0;
+
+  let score: number;
+  let formula: string;
+  let form4FlowScore = 50;
+  let form4OpportunisticComponent = 50;
+
+  if (hasForm4 && form4) {
+    // Form 4 net dollar flow score (0-100)
+    // Positive netDollarFlow = net buying (bullish), negative = net selling (bearish)
+    if (form4.netDollarFlow > 1_000_000) form4FlowScore = 85;
+    else if (form4.netDollarFlow > 100_000) form4FlowScore = 70;
+    else if (form4.netDollarFlow > 0) form4FlowScore = 60;
+    else if (form4.netDollarFlow > -100_000) form4FlowScore = 45;
+    else if (form4.netDollarFlow > -1_000_000) form4FlowScore = 30;
+    else form4FlowScore = 15;
+
+    // Officer buys are strongest signal (Seyhun 1986)
+    if (form4.officerBuyCount >= 2) form4FlowScore = Math.min(100, form4FlowScore + 10);
+    else if (form4.officerBuyCount === 1) form4FlowScore = Math.min(100, form4FlowScore + 5);
+
+    // Opportunistic score (already 0-100 from fetcher)
+    form4OpportunisticComponent = form4.opportunisticScore ?? 50;
+
+    // Full ensemble: MSPR 0.40 + Form 4 flow 0.30 + Opportunistic 0.30
+    score = round(0.40 * msprComposite + 0.30 * form4FlowScore + 0.30 * form4OpportunisticComponent, 1);
+    formula = `0.40×MSPR(${round(msprComposite)}) + 0.30×Form4Flow(${round(form4FlowScore)}) + 0.30×Opportunistic(${round(form4OpportunisticComponent)}) = ${score}`;
+  } else {
+    // MSPR-only mode (no degradation from existing behavior)
+    score = msprComposite;
+    formula = `0.60×MSPR(${round(mspr.msprScore)}) + 0.40×Trend(${round(mspr.trendScore)}) = ${score} [mspr_only]`;
+  }
 
   return {
     score: round(score),
     weight: 0.15,
     inputs: {
-      months_available: sorted.length,
-      latest_mspr: latestMspr,
-      avg_mspr_3m: avgMspr3m,
+      months_available: mspr.monthsAvailable,
+      latest_mspr: mspr.latestMspr,
+      avg_mspr_3m: mspr.avgMspr3m,
+      form4_available: hasForm4,
     },
     formula,
-    notes: `Latest MSPR: ${latestMspr}, 3mo avg: ${avgMspr3m ?? 'N/A'}, direction: ${netDirection}`,
+    notes: `Latest MSPR: ${mspr.latestMspr}, 3mo avg: ${mspr.avgMspr3m ?? 'N/A'}, direction: ${mspr.netDirection}${hasForm4 ? `, Form4: ${form4!.totalBuyCount}B/${form4!.totalSellCount}S, net=$${form4!.netDollarFlow}` : ''}`,
     sub_scores: {
-      mspr_score: round(msprScore),
-      trend_score: round(trendScore),
+      mspr_score: round(mspr.msprScore),
+      trend_score: round(mspr.trendScore),
     },
     insider_detail: {
-      months_available: sorted.length,
-      latest_mspr: latestMspr,
-      avg_mspr_3m: avgMspr3m,
-      net_direction: netDirection,
+      months_available: mspr.monthsAvailable,
+      latest_mspr: mspr.latestMspr,
+      avg_mspr_3m: mspr.avgMspr3m,
+      net_direction: mspr.netDirection,
+    },
+    form4: {
+      form4_available: hasForm4,
+      insider_ensemble_mode: hasForm4 ? 'full' : 'mspr_only',
+      form4_buy_count: form4?.totalBuyCount ?? 0,
+      form4_sell_count: form4?.totalSellCount ?? 0,
+      net_dollar_flow: form4?.netDollarFlow ?? 0,
+      officer_buys: form4?.officerBuyCount ?? 0,
+      opportunistic_score: form4?.opportunisticScore ?? null,
+      form4_flow_score: round(form4FlowScore),
+      form4_opportunistic_score_component: round(form4OpportunisticComponent),
     },
   };
 }
@@ -1296,7 +1335,9 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   else if (!input.finnhubEstimates) imputedFields.push('analyst_consensus.estimates');
   if (!input.finnhubEstimates?.priceTarget) imputedFields.push('price_target_signal');
   if ((input.finnhubEstimates?.upgradeDowngrade ?? []).length === 0) imputedFields.push('upgrade_downgrade_signal');
-  if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity');
+  if (input.finnhubInsiderSentiment.length === 0 && !input.secForm4Data) imputedFields.push('insider_activity');
+  else if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity.mspr');
+  else if (!input.secForm4Data) imputedFields.push('insider_activity.form4');
   if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
   if (!input.optionsFlow) {
     imputedFields.push('flow_signal');

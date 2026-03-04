@@ -287,6 +287,34 @@ export interface SECFilingData {
   fiscalPeriod: string;             // "Q1 2025" or "FY 2024"
 }
 
+// ===== SEC FORM 4 INSIDER TRANSACTIONS (Cohen, Malloy & Pomorski 2012) =====
+
+export interface SECForm4Transaction {
+  filerName: string;
+  transactionDate: string;          // "2025-01-15"
+  transactionType: string;          // "P" (purchase), "S" (sale), "A" (award), "M" (exercise), "G" (gift)
+  sharesTraded: number;
+  pricePerShare: number | null;
+  sharesOwnedAfter: number | null;
+  isDirector: boolean;
+  isOfficer: boolean;
+  isTenPercentOwner: boolean;
+  dollarValue: number | null;       // shares × price
+}
+
+export interface SECForm4Data {
+  transactions: SECForm4Transaction[];
+  totalBuyCount: number;
+  totalSellCount: number;
+  totalBuyDollarValue: number;
+  totalSellDollarValue: number;
+  netDollarFlow: number;            // buys - sells
+  uniqueFilers: number;
+  officerBuyCount: number;          // C-suite buys are strongest signal (Seyhun 1986)
+  latestTransactionDate: string | null;
+  opportunisticScore: number | null; // 0-100, computed from opportunistic vs routine classification
+}
+
 export interface EarningsSurpriseSignal {
   epsActual: number | null;
   epsEstimate: number | null;       // from Finnhub estimates (already fetched)
@@ -381,6 +409,7 @@ export interface ConvergenceInput {
   finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
   secFilingData: SECFilingData | null;
+  secForm4Data: SECForm4Data | null;
   crossAssetCorrelations: CrossAssetCorrelations | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
@@ -783,6 +812,17 @@ export interface InsiderActivityTrace extends SubScoreTrace {
     latest_mspr: number | null;
     avg_mspr_3m: number | null;
     net_direction: string;
+  };
+  form4?: {
+    form4_available: boolean;
+    insider_ensemble_mode: 'full' | 'mspr_only';
+    form4_buy_count: number;
+    form4_sell_count: number;
+    net_dollar_flow: number;
+    officer_buys: number;
+    opportunistic_score: number | null;
+    form4_flow_score: number;
+    form4_opportunistic_score_component: number;
   };
 }
 
