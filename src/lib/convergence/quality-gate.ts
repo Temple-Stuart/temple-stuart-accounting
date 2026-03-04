@@ -341,7 +341,22 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     else roaScore = 15;
   }
 
-  // --- P/E ratio (15%) ---
+  // --- ROIC (8%) — capital efficiency (TTM preferred, Annual fallback) ---
+  const roicTTM = typeof metric['roicTTM'] === 'number' ? metric['roicTTM'] as number : null;
+  const roicAnnual = typeof metric['roicAnnual'] === 'number' ? metric['roicAnnual'] as number : null;
+  const roic = roicTTM ?? roicAnnual;
+  const roicSource = roicTTM !== null ? 'TTM' : roicAnnual !== null ? 'Annual' : 'N/A';
+  let roicScore = 50; // neutral default — missing data
+  if (roic !== null) {
+    if (roic > 25) roicScore = 90;
+    else if (roic > 15) roicScore = 80;
+    else if (roic > 10) roicScore = 65;
+    else if (roic > 5) roicScore = 50;
+    else if (roic > 0) roicScore = 30;
+    else roicScore = 15;
+  }
+
+  // --- P/E ratio (10%) ---
   const pe = tt?.peRatio ?? (typeof metric['peNormalizedAnnual'] === 'number' ? metric['peNormalizedAnnual'] : null);
   let peScore = 40; // penalty default — missing data
   if (pe !== null && typeof pe === 'number') {
@@ -354,7 +369,39 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     else peScore = 25;                  // Extremely expensive
   }
 
-  // --- FCF yield (20%) ---
+  // --- P/S ratio (7%) — revenue-based valuation (TTM preferred, Annual fallback) ---
+  const psTTM = typeof metric['psTTM'] === 'number' ? metric['psTTM'] as number : null;
+  const psAnnual = typeof metric['psAnnual'] === 'number' ? metric['psAnnual'] as number : null;
+  const ps = psTTM ?? psAnnual;
+  const psSource = psTTM !== null ? 'TTM' : psAnnual !== null ? 'Annual' : 'N/A';
+  let psScore = 50; // neutral default — missing data
+  if (ps !== null) {
+    if (ps < 0) psScore = 20;           // Negative revenue
+    else if (ps < 1) psScore = 70;       // Very low — possible distress, don't reward maximally
+    else if (ps < 3) psScore = 80;       // Value
+    else if (ps < 5) psScore = 65;       // Fair
+    else if (ps < 10) psScore = 50;      // Growth premium
+    else if (ps < 20) psScore = 30;      // Expensive
+    else psScore = 15;                    // Extremely expensive
+  }
+
+  // --- EV/EBITDA (7%) — enterprise valuation (TTM preferred, Annual fallback) ---
+  const evEbitdaTTM = typeof metric['currentEv/ebitdaTTM'] === 'number' ? metric['currentEv/ebitdaTTM'] as number : null;
+  const evEbitdaAnnual = typeof metric['currentEv/ebitdaAnnual'] === 'number' ? metric['currentEv/ebitdaAnnual'] as number : null;
+  const evEbitda = evEbitdaTTM ?? evEbitdaAnnual;
+  const evEbitdaSource = evEbitdaTTM !== null ? 'TTM' : evEbitdaAnnual !== null ? 'Annual' : 'N/A';
+  let evEbitdaScore = 50; // neutral default — missing data
+  if (evEbitda !== null) {
+    if (evEbitda < 0) evEbitdaScore = 20;       // Negative EBITDA
+    else if (evEbitda < 4) evEbitdaScore = 50;   // Suspiciously cheap — possible distress
+    else if (evEbitda < 7) evEbitdaScore = 85;   // Attractive
+    else if (evEbitda < 10) evEbitdaScore = 70;  // Good
+    else if (evEbitda < 15) evEbitdaScore = 55;  // Fair
+    else if (evEbitda < 25) evEbitdaScore = 35;  // Expensive
+    else evEbitdaScore = 20;                      // Very expensive
+  }
+
+  // --- FCF yield (18%) ---
   const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
@@ -445,14 +492,16 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     1,
   );
 
-  // --- Weighted sum ---
+  // --- Weighted sum (9 components, sum=1.00) ---
+  // 0.10+0.10+0.07+0.08+0.10+0.07+0.07+0.18+0.23 = 1.00
   const score = round(
-    0.15 * grossMarginScore + 0.15 * roeScore + 0.10 * roaScore +
-    0.15 * peScore + 0.20 * fcfScore + 0.25 * earningsQualityScore,
+    0.10 * grossMarginScore + 0.10 * roeScore + 0.07 * roaScore +
+    0.08 * roicScore + 0.10 * peScore + 0.07 * psScore +
+    0.07 * evEbitdaScore + 0.18 * fcfScore + 0.23 * earningsQualityScore,
     1,
   );
 
-  const formula = `0.15*Margin(${round(grossMarginScore)}) + 0.15*ROE(${round(roeScore)}) + 0.10*ROA(${round(roaScore)}) + 0.15*PE(${round(peScore)}) + 0.20*FCF(${round(fcfScore)}) + 0.25*EQ(${round(earningsQualityScore)}) = ${score}`;
+  const formula = `0.10*Margin(${round(grossMarginScore)}) + 0.10*ROE(${round(roeScore)}) + 0.07*ROA(${round(roaScore)}) + 0.08*ROIC(${round(roicScore)}) + 0.10*PE(${round(peScore)}) + 0.07*PS(${round(psScore)}) + 0.07*EV/EBITDA(${round(evEbitdaScore)}) + 0.18*FCF(${round(fcfScore)}) + 0.23*EQ(${round(earningsQualityScore)}) = ${score}`;
 
   return {
     score: round(score),
@@ -461,18 +510,27 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       gross_margin_ttm: grossMargin,
       roe_ttm: roe,
       roa_ttm: roa,
+      roic: roic,
+      roic_source: roicSource,
       pe_ratio: pe as number | null,
+      ps_ratio: ps,
+      ps_source: psSource,
+      ev_ebitda: evEbitda,
+      ev_ebitda_source: evEbitdaSource,
       fcf_per_share_ttm: fcfShareTTM,
       quarters_available: totalQ,
       days_till_earnings: daysTillEarnings,
     },
     formula,
-    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, PE=${pe ?? 'N/A'}, FCF/sh=${fcfShareTTM ?? 'N/A'}. ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q`,
+    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}. ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q`,
     sub_scores: {
       gross_margin_score: round(grossMarginScore),
       roe_score: round(roeScore),
       roa_score: round(roaScore),
+      roic_score: round(roicScore),
       pe_score: round(peScore),
+      ps_score: round(psScore),
+      ev_ebitda_score: round(evEbitdaScore),
       fcf_score: round(fcfScore),
     },
     earnings_quality: {
@@ -703,6 +761,9 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (typeof metric['roaTTM'] !== 'number') imputedFields.push('profitability.roa');
   if (tt?.peRatio == null && typeof metric['peNormalizedAnnual'] !== 'number') imputedFields.push('profitability.pe_ratio');
   if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
+  if (typeof metric['roicTTM'] !== 'number' && typeof metric['roicAnnual'] !== 'number') imputedFields.push('profitability.roic');
+  if (typeof metric['psTTM'] !== 'number' && typeof metric['psAnnual'] !== 'number') imputedFields.push('profitability.ps');
+  if (typeof metric['currentEv/ebitdaTTM'] !== 'number' && typeof metric['currentEv/ebitdaAnnual'] !== 'number') imputedFields.push('profitability.ev_ebitda');
   if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
   if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
   if (safety.piotroski.change_signals.computable_count === 0) imputedFields.push('profitability.fscore_change_signals');
@@ -718,7 +779,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (input.finnhubEarnings.length < 2) imputedFields.push('fundamentalRisk.earnings_predictability');
   if (typeof metric['assetTurnoverTTM'] !== 'number') imputedFields.push('fundamentalRisk.asset_turnover');
 
-  const totalSubScores = 5 + 7 + 3 + 3; // safety(5 main) + profitability(7) + growth(3) + fundamentalRisk(3)
+  const totalSubScores = 5 + 10 + 3 + 3; // safety(5 main) + profitability(10: 6 margin/return/valuation + 1 fcf + 3 earnings) + growth(3) + fundamentalRisk(3)
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
