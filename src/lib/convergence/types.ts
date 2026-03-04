@@ -213,6 +213,32 @@ export interface NewsSentimentData {
   classification_method: string; // 'llm-haiku' | 'keyword-fallback'
 }
 
+// ===== FINNHUB EARNINGS QUALITY (from /stock/earnings-quality-score endpoint) =====
+
+export interface FinnhubEarningsQuality {
+  score: number;               // Composite earnings quality score (0-100 typically)
+  letterScore: string;         // Letter grade: A+, A, B+, B, C+, C, D
+}
+
+// ===== FINNHUB INSTITUTIONAL OWNERSHIP (from /stock/ownership + /stock/fund-ownership) =====
+
+export interface FinnhubInstitutionalOwnership {
+  totalInstitutionalShares: number;
+  totalInstitutionalChange: number; // net share change from most recent filings
+  topHolderCount: number;
+  netBuyerCount: number;           // holders who increased positions
+  netSellerCount: number;          // holders who decreased positions
+  latestFilingDate: string | null;
+}
+
+// ===== FINNHUB REVENUE BREAKDOWN (from /stock/revenue-breakdown) =====
+
+export interface FinnhubRevenueBreakdown {
+  segments: Array<{ name: string; revenue: number }>;
+  totalRevenue: number;
+  hhi: number; // Herfindahl-Hirschman Index (0-1, 1.0 = single segment)
+}
+
 // ===== FINNHUB FINBERT SENTIMENT (from /news-sentiment endpoint) =====
 
 export interface FinnhubNewsSentiment {
@@ -240,6 +266,9 @@ export interface ConvergenceInput {
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
   finnhubNewsSentiment: FinnhubNewsSentiment | null;
+  finnhubEarningsQuality: FinnhubEarningsQuality | null;
+  finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
+  finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -368,6 +397,12 @@ export interface SafetyTrace extends SubScoreTrace {
     penalty: number;
     score_before_penalty: number;
   };
+  revenue_concentration?: {
+    hhi: number | null;
+    segment_count: number;
+    largest_segment_pct: number | null;
+    concentration_modifier: number; // 0 to -0.15
+  };
 }
 
 export interface ProfitabilityTrace extends SubScoreTrace {
@@ -392,6 +427,13 @@ export interface ProfitabilityTrace extends SubScoreTrace {
       in_line: number;
       avg_surprise_pct: number | null;
       streak: string;
+    };
+    earnings_quality_ensemble?: {
+      finnhub_eq_score: number | null;
+      finnhub_eq_letter: string | null;
+      sue_score: number;
+      ensemble_agreement: 'agree' | 'disagree' | 'unavailable';
+      confidence_modifier: number;
     };
   };
 }
@@ -666,6 +708,21 @@ export interface NewsSentimentTrace {
   };
 }
 
+export interface InstitutionalOwnershipTrace extends SubScoreTrace {
+  sub_scores: {
+    institutional_ownership_score: number;
+  };
+  indicators: {
+    net_buyer_ratio: number | null;
+    net_buyers: number;
+    net_sellers: number;
+    total_holders: number;
+    total_change: number;
+    filing_staleness_days: number | null;
+    staleness_discounted: boolean;
+  };
+}
+
 export interface InfoEdgeResult {
   score: number;
   data_confidence: DataConfidence;
@@ -677,6 +734,7 @@ export interface InfoEdgeResult {
     earnings_momentum: EarningsMomentumTrace;
     flow_signal: FlowSignalTrace;
     news_sentiment: NewsSentimentTrace;
+    institutional_ownership: InstitutionalOwnershipTrace;
   };
 }
 
