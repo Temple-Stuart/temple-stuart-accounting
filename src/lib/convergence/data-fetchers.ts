@@ -20,6 +20,9 @@ import type {
   FinnhubEarningsQuality,
   FinnhubInstitutionalOwnership,
   FinnhubRevenueBreakdown,
+  QuarterlyFinancials,
+  SECFilingData,
+  QuarterlyFinancialPeriod,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -351,6 +354,138 @@ export async function fetchAnnualFinancials(
     return { data: { currentYear, priorYear }, error: null };
   } catch (e: unknown) {
     return { data: null, error: `financials-reported: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== QUARTERLY FINANCIALS FETCHER (bs/ic/cf, up to 40 quarters) =====
+
+const quarterlyFinancialsCache = new Map<string, { data: QuarterlyFinancials; fetchedAt: number }>();
+const QUARTERLY_FINANCIALS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+/**
+ * Fetches up to 40 quarters of balance sheet, income statement, and cash flow
+ * from Finnhub's /stock/financials endpoint (standardized, not reported).
+ */
+export async function fetchQuarterlyFinancials(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: QuarterlyFinancials | null; error: string | null }> {
+  const cached = quarterlyFinancialsCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < QUARTERLY_FINANCIALS_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    // Three calls: balance sheet, income statement, cash flow
+    const [bsResp, icResp, cfResp] = await Promise.all([
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=bs&freq=quarterly&token=${key}`).catch(() => null),
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=ic&freq=quarterly&token=${key}`).catch(() => null),
+      fetchWithRetry(`https://finnhub.io/api/v1/stock/financials?symbol=${symbol}&statement=cf&freq=quarterly&token=${key}`).catch(() => null),
+    ]);
+
+    type FinRow = Record<string, number | string | null | undefined>;
+    type FinResp = { financials?: FinRow[] };
+
+    const bsData: FinRow[] = bsResp?.ok ? ((await bsResp.json()) as FinResp)?.financials ?? [] : [];
+    const icData: FinRow[] = icResp?.ok ? ((await icResp.json()) as FinResp)?.financials ?? [] : [];
+    const cfData: FinRow[] = cfResp?.ok ? ((await cfResp.json()) as FinResp)?.financials ?? [] : [];
+
+    if (bsData.length === 0 && icData.length === 0 && cfData.length === 0) {
+      return { data: null, error: 'quarterly-financials: no data from any statement endpoint' };
+    }
+
+    // Index by period string for cross-statement join
+    const bsByPeriod = new Map<string, FinRow>();
+    for (const row of bsData) {
+      const p = String(row['period'] ?? '');
+      if (p) bsByPeriod.set(p, row);
+    }
+    const icByPeriod = new Map<string, FinRow>();
+    for (const row of icData) {
+      const p = String(row['period'] ?? '');
+      if (p) icByPeriod.set(p, row);
+    }
+    const cfByPeriod = new Map<string, FinRow>();
+    for (const row of cfData) {
+      const p = String(row['period'] ?? '');
+      if (p) cfByPeriod.set(p, row);
+    }
+
+    // Collect all unique periods
+    const allPeriods = new Set([...bsByPeriod.keys(), ...icByPeriod.keys(), ...cfByPeriod.keys()]);
+    const periods: QuarterlyFinancialPeriod[] = [];
+
+    const num = (row: FinRow | undefined, ...keys: string[]): number | null => {
+      if (!row) return null;
+      for (const k of keys) {
+        const v = row[k];
+        if (typeof v === 'number' && isFinite(v)) return v;
+      }
+      return null;
+    };
+
+    for (const period of allPeriods) {
+      const bs = bsByPeriod.get(period);
+      const ic = icByPeriod.get(period);
+      const cf = cfByPeriod.get(period);
+
+      const d = new Date(period);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const quarter = month <= 3 ? 1 : month <= 6 ? 2 : month <= 9 ? 3 : 4;
+
+      const totalCurrentAssets = num(bs, 'totalCurrentAssets', 'currentAssets');
+      const totalCurrentLiabilities = num(bs, 'totalCurrentLiabilities', 'currentLiabilities');
+      const workingCapital = totalCurrentAssets !== null && totalCurrentLiabilities !== null
+        ? totalCurrentAssets - totalCurrentLiabilities : null;
+      const operatingCashFlow = num(cf, 'netCashProvidedByOperatingActivities', 'operatingCashflow', 'cashFromOperatingActivities');
+      const capitalExpenditure = num(cf, 'capitalExpenditure', 'capitalExpenditures', 'purchaseOfPropertyPlantAndEquipment');
+      const capexAbs = capitalExpenditure !== null ? Math.abs(capitalExpenditure) : null;
+      const freeCashFlow = operatingCashFlow !== null && capexAbs !== null
+        ? operatingCashFlow - capexAbs : null;
+
+      periods.push({
+        period,
+        year,
+        quarter,
+        totalAssets: num(bs, 'totalAssets'),
+        totalCurrentAssets,
+        totalCurrentLiabilities,
+        totalLiabilities: num(bs, 'totalLiabilities'),
+        stockholdersEquity: num(bs, 'totalStockholderEquity', 'stockholdersEquity', 'totalEquity'),
+        retainedEarnings: num(bs, 'retainedEarnings'),
+        longTermDebt: num(bs, 'longTermDebt', 'longTermDebtNoncurrent'),
+        cashAndEquivalents: num(bs, 'cashAndCashEquivalents', 'cashAndShortTermInvestments', 'cash'),
+        totalDebt: num(bs, 'totalDebt', 'netDebt'),
+        workingCapital,
+        sharesOutstanding: num(bs, 'commonStockSharesOutstanding', 'sharesOutstanding'),
+        revenue: num(ic, 'revenue', 'totalRevenue', 'netRevenue'),
+        netIncome: num(ic, 'netIncome', 'netIncomeLoss'),
+        operatingIncome: num(ic, 'operatingIncome', 'operatingIncomeLoss'),
+        ebit: num(ic, 'ebit', 'operatingIncome', 'operatingIncomeLoss'),
+        grossProfit: num(ic, 'grossProfit'),
+        operatingCashFlow,
+        capitalExpenditure: capexAbs,
+        freeCashFlow,
+      });
+    }
+
+    // Sort newest first
+    periods.sort((a, b) => b.period.localeCompare(a.period));
+
+    const result: QuarterlyFinancials = {
+      symbol,
+      periods,
+      quarterCount: periods.length,
+    };
+
+    quarterlyFinancialsCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `quarterly-financials: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 
@@ -743,6 +878,146 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
     : 50;
 
   return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
+}
+
+// ===== SEC EDGAR XBRL FILING FETCHER =====
+
+const SEC_USER_AGENT = 'TempleStuart/1.0 (astuart@templestuart.com)';
+
+// CIK cache: CIK never changes, cache 30 days
+const cikCache = new Map<string, { cik: string; fetchedAt: number }>();
+const CIK_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+async function lookupCIK(
+  symbol: string,
+  finnhubApiKey?: string,
+): Promise<string | null> {
+  const cached = cikCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < CIK_CACHE_TTL) {
+    return cached.cik;
+  }
+
+  const key = finnhubApiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return null;
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${key}`,
+    );
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const cik = json?.cik;
+    if (!cik) return null;
+
+    // Pad CIK to 10 digits (SEC format)
+    const paddedCik = String(cik).padStart(10, '0');
+    cikCache.set(symbol, { cik: paddedCik, fetchedAt: Date.now() });
+    return paddedCik;
+  } catch {
+    return null;
+  }
+}
+
+// SEC filing data cache: 1 hour
+const secFilingCache = new Map<string, { data: SECFilingData; fetchedAt: number }>();
+const SEC_FILING_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchSECFilingData(
+  symbol: string,
+  finnhubApiKey?: string,
+): Promise<{ data: SECFilingData | null; error: string | null }> {
+  const cached = secFilingCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < SEC_FILING_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  // Step 1: Look up CIK
+  const cik = await lookupCIK(symbol, finnhubApiKey);
+  if (!cik) {
+    return { data: null, error: 'sec-edgar: CIK lookup failed' };
+  }
+
+  try {
+    // Step 2: Fetch company facts from EDGAR XBRL
+    const resp = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`, {
+      headers: { 'User-Agent': SEC_USER_AGENT },
+    });
+
+    if (!resp.ok) {
+      return { data: null, error: `sec-edgar: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    const facts = json?.facts;
+    if (!facts) {
+      return { data: null, error: 'sec-edgar: no facts in response' };
+    }
+
+    // Parse US-GAAP facts (prefer over DEI for financial data)
+    const usGaap = facts['us-gaap'] ?? {};
+    const dei = facts['dei'] ?? {};
+
+    // Helper: get the most recent filing unit value for a concept
+    type FactUnit = { end?: string; val?: number; form?: string; filed?: string; fy?: number; fp?: string };
+    const getLatest = (concept: Record<string, { units?: Record<string, FactUnit[]> }> | undefined, ...names: string[]): FactUnit | null => {
+      if (!concept) return null;
+      for (const name of names) {
+        const entry = concept[name];
+        const units = entry?.units;
+        if (!units) continue;
+        // Try USD first, then shares, then any
+        const values = units['USD'] ?? units['USD/shares'] ?? units['shares'] ?? Object.values(units)[0];
+        if (!Array.isArray(values) || values.length === 0) continue;
+        // Sort by filed date descending, filter to 10-Q/10-K
+        const filings = values
+          .filter((v: FactUnit) => v.form === '10-Q' || v.form === '10-K')
+          .sort((a: FactUnit, b: FactUnit) => (b.filed ?? '').localeCompare(a.filed ?? ''));
+        if (filings.length > 0) return filings[0];
+      }
+      return null;
+    };
+
+    // Find the most recent filing
+    const latestEps = getLatest(usGaap, 'EarningsPerShareBasic', 'EarningsPerShareDiluted');
+    const latestRevenue = getLatest(usGaap, 'Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet', 'RevenueFromContractWithCustomerIncludingAssessedTax');
+    const latestNetIncome = getLatest(usGaap, 'NetIncomeLoss');
+
+    // Determine the most recent filing date across all facts
+    const allLatest = [latestEps, latestRevenue, latestNetIncome].filter(Boolean) as FactUnit[];
+    if (allLatest.length === 0) {
+      return { data: null, error: 'sec-edgar: no 10-Q/10-K filings found in XBRL data' };
+    }
+
+    allLatest.sort((a, b) => (b.filed ?? '').localeCompare(a.filed ?? ''));
+    const mostRecent = allLatest[0];
+    const filedDate = mostRecent.filed ?? '';
+    const filingType = mostRecent.form ?? 'unknown';
+
+    // Compute filing age in hours
+    const filedTime = new Date(filedDate).getTime();
+    const filingAgeHours = isNaN(filedTime) ? Infinity : Math.round((Date.now() - filedTime) / (60 * 60 * 1000));
+
+    // Determine fiscal period
+    const fy = mostRecent.fy ?? 0;
+    const fp = mostRecent.fp ?? '';
+    const fiscalPeriod = filingType === '10-K' ? `FY ${fy}` : `${fp} ${fy}`;
+
+    const result: SECFilingData = {
+      cik,
+      latestFilingDate: filedDate,
+      latestFilingType: filingType,
+      filingAgeHours,
+      epsActual: latestEps?.val ?? null,
+      revenueActual: latestRevenue?.val ?? null,
+      netIncomeActual: latestNetIncome?.val ?? null,
+      fiscalPeriod,
+    };
+
+    secFilingCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `sec-edgar: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP FETCHER =====

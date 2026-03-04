@@ -165,6 +165,42 @@ export interface AnnualFinancials {
   priorYear: AnnualFinancialPeriod;
 }
 
+// ===== QUARTERLY FINANCIALS (from Finnhub /stock/financials bs/ic/cf quarterly) =====
+
+export interface QuarterlyFinancialPeriod {
+  period: string;           // "2024-12-31"
+  year: number;
+  quarter: number;
+  // Balance Sheet
+  totalAssets: number | null;
+  totalCurrentAssets: number | null;
+  totalCurrentLiabilities: number | null;
+  totalLiabilities: number | null;
+  stockholdersEquity: number | null;
+  retainedEarnings: number | null;
+  longTermDebt: number | null;
+  cashAndEquivalents: number | null;
+  totalDebt: number | null;
+  workingCapital: number | null;       // currentAssets - currentLiabilities
+  sharesOutstanding: number | null;
+  // Income Statement
+  revenue: number | null;
+  netIncome: number | null;
+  operatingIncome: number | null;
+  ebit: number | null;
+  grossProfit: number | null;
+  // Cash Flow
+  operatingCashFlow: number | null;
+  capitalExpenditure: number | null;
+  freeCashFlow: number | null;         // operatingCashFlow - |capex|
+}
+
+export interface QuarterlyFinancials {
+  symbol: string;
+  periods: QuarterlyFinancialPeriod[];  // sorted newest first
+  quarterCount: number;
+}
+
 // ===== OPTIONS FLOW DATA (from Finnhub option chain) =====
 
 export interface OptionsFlowData {
@@ -220,6 +256,30 @@ export interface FinnhubEarningsQuality {
   letterScore: string;         // Letter grade: A+, A, B+, B, C+, C, D
 }
 
+// ===== SEC EDGAR XBRL FILING DATA =====
+
+export interface SECFilingData {
+  cik: string;
+  latestFilingDate: string;         // "2025-01-31"
+  latestFilingType: string;         // "10-Q" or "10-K"
+  filingAgeHours: number;           // hours since filing
+  epsActual: number | null;         // EPS from the filing
+  revenueActual: number | null;     // Revenue from the filing
+  netIncomeActual: number | null;   // Net income from the filing
+  fiscalPeriod: string;             // "Q1 2025" or "FY 2024"
+}
+
+export interface EarningsSurpriseSignal {
+  epsActual: number | null;
+  epsEstimate: number | null;       // from Finnhub estimates (already fetched)
+  epsSurprisePct: number | null;    // (actual - estimate) / |estimate| * 100
+  revenueActual: number | null;
+  revenueEstimate: number | null;
+  revenueSurprisePct: number | null;
+  filingAgeHours: number;
+  isRecentFiling: boolean;          // filed within 72 hours
+}
+
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP (from /stock/ownership + /stock/fund-ownership) =====
 
 export interface FinnhubInstitutionalOwnership {
@@ -263,12 +323,14 @@ export interface ConvergenceInput {
   finnhubEstimates: FinnhubEstimateData | null;
   fredMacro: FredMacroData;
   annualFinancials: AnnualFinancials | null;
+  quarterlyFinancials: QuarterlyFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
   finnhubNewsSentiment: FinnhubNewsSentiment | null;
   finnhubEarningsQuality: FinnhubEarningsQuality | null;
   finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
+  secFilingData: SECFilingData | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -385,12 +447,15 @@ export interface SafetyTrace extends SubScoreTrace {
     };
     note: string;
   };
+  piotroski_source: string;  // "quarterly_financials" | "annual_financials" | "proxy_imputed"
   altman_z: {
     score: number | null;
     components_available: number;
     components_total: number;
     computable: Record<string, boolean>;
+    component_values?: Record<string, number | null>;
     capped: boolean;
+    source: string;           // "quarterly_financials" | "proxy_imputed"
   };
   borrow_rate_adjustment: {
     borrow_rate: number | null;
@@ -467,6 +532,12 @@ export interface FundamentalRiskTrace extends SubScoreTrace {
     cash_flow_stability_score: number;
     earnings_predictability_score: number;
     asset_turnover_score: number;
+  };
+  cash_flow_detail?: {
+    cf_stability_source: string;
+    cf_quarters_used: number;
+    cov: number | null;
+    fcf_positive_pct: number | null;
   };
 }
 
@@ -723,9 +794,21 @@ export interface InstitutionalOwnershipTrace extends SubScoreTrace {
   };
 }
 
+export interface FilingRecencyTrace {
+  filing_signal_active: boolean;
+  filing_type: string | null;
+  filing_age_hours: number | null;
+  eps_surprise_pct: number | null;
+  revenue_surprise_pct: number | null;
+  filing_recency_score: number;
+  filing_modifier: number;          // additive modifier on Info-Edge score
+  earnings_surprise: EarningsSurpriseSignal | null;
+}
+
 export interface InfoEdgeResult {
   score: number;
   data_confidence: DataConfidence;
+  filing_recency: FilingRecencyTrace;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
     price_target_signal: PriceTargetSignalTrace;

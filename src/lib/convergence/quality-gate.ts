@@ -6,6 +6,7 @@ import type {
   GrowthTrace,
   FundamentalRiskTrace,
   DataConfidence,
+  QuarterlyFinancialPeriod,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -102,53 +103,149 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
   }
 
   // --- Piotroski F-Score ---
-  const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
-  const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
-  const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
-  const netIncomePerShare = typeof metric['netIncomePerShareTTM'] === 'number' ? metric['netIncomePerShareTTM'] as number : null;
-  const cfoa = typeof metric['currentRatioQuarterly'] === 'number' ? metric['currentRatioQuarterly'] as number : null;
-
-  // YoY signals from annual financial statements
+  // Try quarterly financials first (real), then annual financials, then proxy/metric
+  const qf = input.quarterlyFinancials;
   const af = input.annualFinancials;
-  const cur = af?.currentYear ?? null;
-  const pri = af?.priorYear ?? null;
+  let piotroskiSource = 'proxy_imputed';
 
+  // Helper: sum last N quarters of a numeric field (TTM = 4 quarters)
+  const sumQ = (periods: QuarterlyFinancialPeriod[], field: keyof QuarterlyFinancialPeriod, n: number): number | null => {
+    const valid = periods.slice(0, n).filter(p => p[field] !== null && p[field] !== undefined);
+    if (valid.length < n) return null;
+    return valid.reduce((s, p) => s + (p[field] as number), 0);
+  };
+
+  // Build Piotroski signals with best available data
   const piotroskiSignals: Record<string, boolean | null> = {
-    positive_net_income: roe !== null ? roe > 0 : null,
-    positive_roa: roa !== null ? roa > 0 : null,
-    positive_fcf:
+    positive_net_income: null,
+    positive_roa: null,
+    positive_fcf: null,
+    fcf_exceeds_net_income: null,
+    current_ratio_improving: null,
+    gross_margin_expanding: null,
+    asset_turnover_improving: null,
+    no_equity_issuance: null,
+    leverage_decreasing: null,
+  };
+
+  if (qf && qf.periods.length >= 4) {
+    // REAL quarterly data available
+    piotroskiSource = 'quarterly_financials';
+    const q = qf.periods;
+    const latestTA = q[0]?.totalAssets;
+
+    // Signal 1: ROA > 0 (net income TTM / total assets)
+    const niTTM = sumQ(q, 'netIncome', 4);
+    piotroskiSignals.positive_net_income = niTTM !== null ? niTTM > 0 : null;
+    piotroskiSignals.positive_roa = niTTM !== null && latestTA !== null && latestTA > 0
+      ? (niTTM / latestTA) > 0 : null;
+
+    // Signal 3: Operating Cash Flow > 0 (TTM)
+    const ocfTTM = sumQ(q, 'operatingCashFlow', 4);
+    piotroskiSignals.positive_fcf = ocfTTM !== null ? ocfTTM > 0 : null;
+
+    // Signal 4: Accruals — CFO > Net Income (quality of earnings)
+    piotroskiSignals.fcf_exceeds_net_income = ocfTTM !== null && niTTM !== null ? ocfTTM > niTTM : null;
+
+    // YoY comparisons (need 8 quarters)
+    if (q.length >= 8) {
+      // Current TTM = q[0..3], Prior TTM = q[4..7]
+      const curNI = sumQ(q, 'netIncome', 4);
+      const priQ = q.slice(4);
+      const priNI = sumQ(priQ, 'netIncome', 4);
+      const curTA = q[0]?.totalAssets;
+      const priTA = q[4]?.totalAssets;
+
+      // Signal 3 (revised): ΔROA > 0
+      if (curNI !== null && priNI !== null && curTA && curTA > 0 && priTA && priTA > 0) {
+        piotroskiSignals.positive_roa = (curNI / curTA) > (priNI / priTA);
+      }
+
+      // Signal 5: ΔLeverage — long-term debt decreased YoY
+      const curLTD = q[0]?.longTermDebt;
+      const priLTD = q[4]?.longTermDebt;
+      if (curLTD !== null && priLTD !== null && curTA && curTA > 0 && priTA && priTA > 0) {
+        piotroskiSignals.leverage_decreasing = (curLTD / curTA) < (priLTD / priTA);
+      }
+
+      // Signal 6: ΔLiquidity — current ratio improved YoY
+      const curCA = q[0]?.totalCurrentAssets;
+      const curCL = q[0]?.totalCurrentLiabilities;
+      const priCA = q[4]?.totalCurrentAssets;
+      const priCL = q[4]?.totalCurrentLiabilities;
+      if (curCA !== null && curCL !== null && curCL > 0 && priCA !== null && priCL !== null && priCL > 0) {
+        piotroskiSignals.current_ratio_improving = (curCA / curCL) > (priCA / priCL);
+      }
+
+      // Signal 7: No equity dilution
+      const curShares = q[0]?.sharesOutstanding;
+      const priShares = q[4]?.sharesOutstanding;
+      if (curShares !== null && priShares !== null) {
+        piotroskiSignals.no_equity_issuance = curShares <= priShares;
+      }
+
+      // Signal 8: ΔGross Margin > 0 YoY
+      const curGP = sumQ(q, 'grossProfit', 4);
+      const curRev = sumQ(q, 'revenue', 4);
+      const priGP = sumQ(priQ, 'grossProfit', 4);
+      const priRev = sumQ(priQ, 'revenue', 4);
+      if (curGP !== null && curRev !== null && curRev > 0 && priGP !== null && priRev !== null && priRev > 0) {
+        piotroskiSignals.gross_margin_expanding = (curGP / curRev) > (priGP / priRev);
+      }
+
+      // Signal 9: ΔAsset Turnover > 0 YoY
+      if (curRev !== null && curTA && curTA > 0 && priRev !== null && priTA && priTA > 0) {
+        piotroskiSignals.asset_turnover_improving = (curRev / curTA) > (priRev / priTA);
+      }
+    }
+  } else {
+    // Fallback: annual financials or metric proxies
+    const roe = typeof metric['roeTTM'] === 'number' ? metric['roeTTM'] as number : null;
+    const roa = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
+    const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+    const netIncomePerShare = typeof metric['netIncomePerShareTTM'] === 'number' ? metric['netIncomePerShareTTM'] as number : null;
+
+    const cur = af?.currentYear ?? null;
+    const pri = af?.priorYear ?? null;
+
+    if (af) piotroskiSource = 'annual_financials';
+    // else remains 'proxy_imputed'
+
+    piotroskiSignals.positive_net_income = roe !== null ? roe > 0 : null;
+    piotroskiSignals.positive_roa = roa !== null ? roa > 0 : null;
+    piotroskiSignals.positive_fcf =
       cur?.operatingCashFlow != null && cur?.capitalExpenditure != null
         ? (cur.operatingCashFlow - cur.capitalExpenditure) > 0
-        : fcfShareTTM !== null ? fcfShareTTM > 0 : null,
-    fcf_exceeds_net_income:
+        : fcfShareTTM !== null ? fcfShareTTM > 0 : null;
+    piotroskiSignals.fcf_exceeds_net_income =
       cur?.operatingCashFlow != null && cur?.capitalExpenditure != null && cur?.netIncome != null
         ? (cur.operatingCashFlow - cur.capitalExpenditure) > cur.netIncome
-        : fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null,
-    current_ratio_improving:
+        : fcfShareTTM !== null && netIncomePerShare !== null ? fcfShareTTM > netIncomePerShare : null;
+    piotroskiSignals.current_ratio_improving =
       cur?.currentAssets != null && cur?.currentLiabilities != null && cur.currentLiabilities > 0 &&
       pri?.currentAssets != null && pri?.currentLiabilities != null && pri.currentLiabilities > 0
         ? (cur.currentAssets / cur.currentLiabilities) > (pri.currentAssets / pri.currentLiabilities)
-        : null,
-    gross_margin_expanding:
+        : null;
+    piotroskiSignals.gross_margin_expanding =
       cur?.grossProfit != null && cur?.revenue != null && cur.revenue > 0 &&
       pri?.grossProfit != null && pri?.revenue != null && pri.revenue > 0
         ? (cur.grossProfit / cur.revenue) > (pri.grossProfit / pri.revenue)
-        : null,
-    asset_turnover_improving:
+        : null;
+    piotroskiSignals.asset_turnover_improving =
       cur?.revenue != null && cur?.totalAssets != null && cur.totalAssets > 0 &&
       pri?.revenue != null && pri?.totalAssets != null && pri.totalAssets > 0
         ? (cur.revenue / cur.totalAssets) > (pri.revenue / pri.totalAssets)
-        : null,
-    no_equity_issuance:
+        : null;
+    piotroskiSignals.no_equity_issuance =
       cur?.sharesOutstanding != null && pri?.sharesOutstanding != null
         ? cur.sharesOutstanding <= pri.sharesOutstanding
-        : null,
-    leverage_decreasing:
+        : null;
+    piotroskiSignals.leverage_decreasing =
       cur?.longTermDebt != null && cur?.totalAssets != null && cur.totalAssets > 0 &&
       pri?.longTermDebt != null && pri?.totalAssets != null && pri.totalAssets > 0
         ? (cur.longTermDebt / cur.totalAssets) < (pri.longTermDebt / pri.totalAssets)
-        : null,
-  };
+        : null;
+  }
 
   const computedSignals = Object.values(piotroskiSignals).filter(v => v !== null);
   const passedSignals = computedSignals.filter(v => v === true).length;
@@ -170,22 +267,85 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
     ? round((changeScore - 0.5) * 20, 1)
     : 0;
 
-  // --- Altman Z-Score (partial) ---
-  // Z = 1.2*X1 + 1.4*X2 + 3.3*X3 + 0.6*X4 + 1.0*X5
-  const hasX1 = cfoa !== null; // Current ratio as WC/TA proxy
-  const hasX2 = roa !== null;  // ROA as RE/TA proxy
-  const opMargin = typeof metric['operatingMarginTTM'] === 'number' ? metric['operatingMarginTTM'] as number : null;
-  const hasX3 = opMargin !== null; // Operating margin as EBIT/TA proxy
-  const hasX4 = debtToEquity !== null && debtToEquity > 0; // 1/(D/E) as MV Equity/Liab proxy
-  const assetTurnoverAZ = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
-  const hasX5 = assetTurnoverAZ !== null; // Asset turnover as Sales/TA
+  // --- Altman Z-Score ---
+  // Z = 1.2*(WC/TA) + 1.4*(RE/TA) + 3.3*(EBIT/TA) + 0.6*(MVE/TL) + 1.0*(Sales/TA)
+  // Prefer real quarterly financials. Fall back to metric proxies.
+  let altmanSource = 'proxy_imputed';
+  let x1_wc_ta: number | null = null;
+  let x2_re_ta: number | null = null;
+  let x3_ebit_ta: number | null = null;
+  let x4_mve_tl: number | null = null;
+  let x5_sales_ta: number | null = null;
+
+  if (qf && qf.periods.length >= 4) {
+    // REAL Altman Z from quarterly financials
+    altmanSource = 'quarterly_financials';
+    const latest = qf.periods[0];
+    const ta = latest.totalAssets;
+    const tl = latest.totalLiabilities;
+
+    if (ta && ta > 0) {
+      // X1: WC / TA (balance sheet: most recent quarter)
+      if (latest.workingCapital !== null) x1_wc_ta = latest.workingCapital / ta;
+
+      // X2: RE / TA (balance sheet: most recent quarter)
+      if (latest.retainedEarnings !== null) x2_re_ta = latest.retainedEarnings / ta;
+
+      // X3: EBIT / TA (income stmt: TTM — sum 4 quarters)
+      const ebitTTM = sumQ(qf.periods, 'ebit', 4);
+      if (ebitTTM !== null) x3_ebit_ta = ebitTTM / ta;
+
+      // X5: Sales / TA (income stmt: TTM)
+      const revTTM = sumQ(qf.periods, 'revenue', 4);
+      if (revTTM !== null) x5_sales_ta = revTTM / ta;
+    }
+
+    // X4: MVE / TL (market data for MVE, balance sheet for TL)
+    const marketCap2 = tt?.marketCap ?? null;
+    if (marketCap2 !== null && tl && tl > 0) {
+      x4_mve_tl = marketCap2 / tl;
+    }
+  }
+
+  // Fill any remaining null components with proxy metrics
+  if (x1_wc_ta === null) {
+    const cfoa = typeof metric['currentRatioQuarterly'] === 'number' ? metric['currentRatioQuarterly'] as number : null;
+    if (cfoa !== null) x1_wc_ta = (cfoa - 1) * 0.5; // proxy
+    if (altmanSource === 'quarterly_financials') altmanSource = 'mixed'; // partial real
+  }
+  if (x2_re_ta === null) {
+    const roa2 = typeof metric['roaTTM'] === 'number' ? metric['roaTTM'] as number : null;
+    if (roa2 !== null) x2_re_ta = roa2 / 100; // proxy
+    if (altmanSource === 'quarterly_financials') altmanSource = 'mixed';
+  }
+  if (x3_ebit_ta === null) {
+    const opMargin = typeof metric['operatingMarginTTM'] === 'number' ? metric['operatingMarginTTM'] as number : null;
+    if (opMargin !== null) x3_ebit_ta = opMargin / 100; // proxy
+    if (altmanSource === 'quarterly_financials') altmanSource = 'mixed';
+  }
+  if (x4_mve_tl === null) {
+    if (debtToEquity !== null && debtToEquity > 0) x4_mve_tl = 1 / debtToEquity; // proxy
+    if (altmanSource === 'quarterly_financials') altmanSource = 'mixed';
+  }
+  if (x5_sales_ta === null) {
+    const assetTurnoverAZ = typeof metric['assetTurnoverTTM'] === 'number' ? metric['assetTurnoverTTM'] as number : null;
+    if (assetTurnoverAZ !== null) x5_sales_ta = assetTurnoverAZ;
+    if (altmanSource === 'quarterly_financials') altmanSource = 'mixed';
+  }
 
   const altmanComputable: Record<string, boolean> = {
-    x1_working_capital: hasX1,
-    x2_retained_earnings: hasX2,
-    x3_ebit: hasX3,
-    x4_equity_to_liabilities: hasX4,
-    x5_asset_turnover: hasX5,
+    x1_working_capital: x1_wc_ta !== null,
+    x2_retained_earnings: x2_re_ta !== null,
+    x3_ebit: x3_ebit_ta !== null,
+    x4_equity_to_liabilities: x4_mve_tl !== null,
+    x5_asset_turnover: x5_sales_ta !== null,
+  };
+  const altmanComponentValues: Record<string, number | null> = {
+    x1_wc_ta: x1_wc_ta !== null ? round(x1_wc_ta, 4) : null,
+    x2_re_ta: x2_re_ta !== null ? round(x2_re_ta, 4) : null,
+    x3_ebit_ta: x3_ebit_ta !== null ? round(x3_ebit_ta, 4) : null,
+    x4_mve_tl: x4_mve_tl !== null ? round(x4_mve_tl, 4) : null,
+    x5_sales_ta: x5_sales_ta !== null ? round(x5_sales_ta, 4) : null,
   };
   const altmanComponentsAvailable = Object.values(altmanComputable).filter(Boolean).length;
   let altmanScore: number | null = null;
@@ -193,11 +353,11 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
 
   if (altmanComponentsAvailable >= 3) {
     let z = 0;
-    if (hasX1) z += 1.2 * Math.max(Math.min((cfoa! - 1) * 0.5, 1), -1);
-    if (hasX2) z += 1.4 * Math.max(Math.min(roa! / 100, 0.5), -0.5);
-    if (hasX3) z += 3.3 * Math.max(Math.min(opMargin! / 100, 0.5), -0.5);
-    if (hasX4) z += 0.6 * Math.min(1 / debtToEquity!, 5);
-    if (hasX5) z += 1.0 * Math.min(assetTurnoverAZ!, 3);
+    if (x1_wc_ta !== null) z += 1.2 * clamp(x1_wc_ta, -1, 1);
+    if (x2_re_ta !== null) z += 1.4 * clamp(x2_re_ta, -0.5, 0.5);
+    if (x3_ebit_ta !== null) z += 3.3 * clamp(x3_ebit_ta, -0.5, 0.5);
+    if (x4_mve_tl !== null) z += 0.6 * Math.min(x4_mve_tl, 5);
+    if (x5_sales_ta !== null) z += 1.0 * Math.min(x5_sales_ta, 3);
     altmanScore = round(z, 2);
   }
 
@@ -298,6 +458,7 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
       beta_score: round(betaScore),
       debt_to_equity_score: round(debtToEquityScore),
     },
+    piotroski_source: piotroskiSource,
     piotroski: {
       available_signals: computedSignals.length,
       total_signals: 9,
@@ -309,15 +470,17 @@ function scoreSafety(input: ConvergenceInput): SafetyTrace {
         modifier: piotroskiChangeModifier,
       },
       note: computedSignals.length === 9
-        ? `${passedSignals}/9 signals passing (all computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`
-        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability`,
+        ? `${passedSignals}/9 signals passing (all computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability. Source: ${piotroskiSource}`
+        : `${passedSignals}/${computedSignals.length} signals passing (${9 - computedSignals.length} not computable). Change signals: ${changePassed}/${changeComputable.length} → modifier ${piotroskiChangeModifier > 0 ? '+' : ''}${piotroskiChangeModifier} on profitability. Source: ${piotroskiSource}`,
     },
     altman_z: {
       score: altmanScore,
       components_available: altmanComponentsAvailable,
       components_total: 5,
       computable: altmanComputable,
+      component_values: altmanComponentValues,
       capped: altmanCapped,
+      source: altmanSource,
     },
     borrow_rate_adjustment: {
       borrow_rate: borrowRate,
@@ -737,35 +900,82 @@ function scoreGrowth(input: ConvergenceInput): GrowthTrace {
 function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
   const metric = input.finnhubFundamentals?.metric ?? {};
   const af = input.annualFinancials;
+  const qf = input.quarterlyFinancials;
   const earnings = input.finnhubEarnings;
 
   // --- Cash flow stability (40%) ---
-  // Prefer multi-year CoV from annual financials; fall back to TTM sign check
+  // Prefer quarterly financials (up to 40 quarters), then annual, then TTM sign check
   let cashFlowStabilityScore = 40; // penalty default — missing data
   let cfSource = 'missing';
+  let cfQuartersUsed = 0;
+  let cfCoV: number | null = null;
+  let fcfPositivePct: number | null = null;
 
-  const curOCF = af?.currentYear?.operatingCashFlow ?? null;
-  const priOCF = af?.priorYear?.operatingCashFlow ?? null;
+  if (qf && qf.periods.length >= 4) {
+    // REAL quarterly cash flow data
+    const ocfValues = qf.periods
+      .map(p => p.operatingCashFlow)
+      .filter((v): v is number => v !== null);
+    cfQuartersUsed = ocfValues.length;
 
-  if (curOCF !== null && priOCF !== null) {
-    // 2-year coefficient of variation
-    const cfValues = [curOCF, priOCF];
-    const cfMean = cfValues.reduce((a, b) => a + b, 0) / cfValues.length;
-    const cfStd = Math.sqrt(cfValues.reduce((s, v) => s + (v - cfMean) ** 2, 0) / (cfValues.length - 1));
-    const cov = cfMean !== 0 ? Math.abs(cfStd / cfMean) : Infinity;
+    if (ocfValues.length >= 4) {
+      // Coefficient of variation over all available quarters
+      const cfMean = ocfValues.reduce((a, b) => a + b, 0) / ocfValues.length;
+      const cfStd = Math.sqrt(ocfValues.reduce((s, v) => s + (v - cfMean) ** 2, 0) / (ocfValues.length - 1));
+      const cov = cfMean !== 0 ? Math.abs(cfStd / cfMean) : Infinity;
+      cfCoV = round(cov, 4);
 
-    if (cov < 0.2) cashFlowStabilityScore = 85;
-    else if (cov < 0.5) cashFlowStabilityScore = 70;
-    else if (cov < 1.0) cashFlowStabilityScore = 55;
-    else if (cov < 2.0) cashFlowStabilityScore = 40;
-    else cashFlowStabilityScore = 25;
-    cfSource = `annual CoV=${round(cov, 2)}`;
-  } else {
-    // Fallback: TTM free cash flow sign check
-    const fcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
-    if (fcfTTM !== null) {
-      cashFlowStabilityScore = fcfTTM > 0 ? 60 : 35;
-      cfSource = `TTM FCF/sh=${round(fcfTTM, 2)} (${fcfTTM > 0 ? 'positive' : 'negative'})`;
+      // More quarters → more reliable. Continuous scoring.
+      if (cov < 0.3) cashFlowStabilityScore = 85;
+      else if (cov < 0.5) cashFlowStabilityScore = 75;
+      else if (cov < 0.8) cashFlowStabilityScore = 65;
+      else if (cov < 1.0) cashFlowStabilityScore = 55;
+      else if (cov < 1.5) cashFlowStabilityScore = 40;
+      else cashFlowStabilityScore = 25;
+
+      cfSource = `quarterly_financials CoV=${round(cov, 2)} (${ocfValues.length}Q)`;
+
+      // FCF consistency: % of quarters with positive free cash flow
+      const fcfValues = qf.periods
+        .map(p => p.freeCashFlow)
+        .filter((v): v is number => v !== null);
+      if (fcfValues.length >= 4) {
+        const posCount = fcfValues.filter(v => v > 0).length;
+        fcfPositivePct = round((posCount / fcfValues.length) * 100, 1);
+        // Blend FCF consistency into score (±10 modifier)
+        const fcfModifier = fcfPositivePct >= 80 ? 5 : fcfPositivePct >= 60 ? 0 : fcfPositivePct >= 40 ? -5 : -10;
+        cashFlowStabilityScore = clamp(cashFlowStabilityScore + fcfModifier, 0, 100);
+        cfSource += `, FCF+=${fcfPositivePct}%`;
+      }
+    }
+  }
+
+  if (cfSource === 'missing') {
+    // Fallback tier 1: 2-year annual financials
+    const curOCF = af?.currentYear?.operatingCashFlow ?? null;
+    const priOCF = af?.priorYear?.operatingCashFlow ?? null;
+
+    if (curOCF !== null && priOCF !== null) {
+      const cfValues = [curOCF, priOCF];
+      const cfMean = cfValues.reduce((a, b) => a + b, 0) / cfValues.length;
+      const cfStd = Math.sqrt(cfValues.reduce((s, v) => s + (v - cfMean) ** 2, 0) / (cfValues.length - 1));
+      const cov = cfMean !== 0 ? Math.abs(cfStd / cfMean) : Infinity;
+      cfCoV = round(cov, 4);
+      cfQuartersUsed = 0; // annual, not quarterly
+
+      if (cov < 0.2) cashFlowStabilityScore = 85;
+      else if (cov < 0.5) cashFlowStabilityScore = 70;
+      else if (cov < 1.0) cashFlowStabilityScore = 55;
+      else if (cov < 2.0) cashFlowStabilityScore = 40;
+      else cashFlowStabilityScore = 25;
+      cfSource = `annual_financials CoV=${round(cov, 2)}`;
+    } else {
+      // Fallback tier 2: TTM free cash flow sign check
+      const fcfTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+      if (fcfTTM !== null) {
+        cashFlowStabilityScore = fcfTTM > 0 ? 60 : 35;
+        cfSource = `proxy_imputed TTM FCF/sh=${round(fcfTTM, 2)} (${fcfTTM > 0 ? 'positive' : 'negative'})`;
+      }
     }
   }
 
@@ -820,6 +1030,12 @@ function scoreFundamentalRisk(input: ConvergenceInput): FundamentalRiskTrace {
       cash_flow_stability_score: round(cashFlowStabilityScore),
       earnings_predictability_score: round(earningsPredictabilityScore),
       asset_turnover_score: round(assetTurnoverScore),
+    },
+    cash_flow_detail: {
+      cf_stability_source: cfSource.split(' ')[0], // "quarterly_financials" | "annual_financials" | "proxy_imputed" | "missing"
+      cf_quarters_used: cfQuartersUsed,
+      cov: cfCoV,
+      fcf_positive_pct: fcfPositivePct,
     },
   };
 }
