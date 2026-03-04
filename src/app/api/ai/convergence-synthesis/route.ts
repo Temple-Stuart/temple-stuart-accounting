@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTier } from '@/lib/auth-helpers';
 import Anthropic from '@anthropic-ai/sdk';
-import { runPipeline } from '@/lib/convergence/pipeline';
 import type { PipelineResult } from '@/lib/convergence/pipeline';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -265,7 +264,13 @@ function prepareSynthesisPayload(pipeline: PipelineResult, maxTickers = 9): obje
 
 // ===== ROUTE =====
 
-export async function GET(request: Request) {
+/**
+ * POST: Accept pipeline results from the client and run Claude synthesis.
+ * The client should first run the pipeline via GET /api/trading/convergence,
+ * then POST the results here for AI analysis. This avoids re-running the
+ * expensive pipeline (~120-180s) inside this route.
+ */
+export async function POST(request: Request) {
   try {
     const userEmail = await getVerifiedEmail();
     if (!userEmail) {
@@ -285,15 +290,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
     }
 
-    const { searchParams } = new URL(request.url);
-    let limit = parseInt(searchParams.get('limit') || '20', 10);
-    if (isNaN(limit) || limit < 4) limit = 4;
-    if (limit > 150) limit = 150;
-    const refresh = searchParams.get('refresh') === 'true';
+    // Parse pipeline results from POST body
+    const body = await request.json();
+    const pipeline = body.pipelineResults as PipelineResult | undefined;
+    if (!pipeline || !pipeline.rankings || !pipeline.pipeline_summary) {
+      return NextResponse.json(
+        { error: 'Missing or invalid pipelineResults in request body' },
+        { status: 400 },
+      );
+    }
 
-    // Check cache
+    // Check cache keyed on pipeline run timestamp
+    const cacheKey = pipeline.rankings.scored_count ?? 0;
+    const refresh = body.refresh === true;
     if (!refresh) {
-      const cached = getFromCache(limit);
+      const cached = getFromCache(cacheKey);
       if (cached) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
         console.log(`[Convergence Synthesis] Cache HIT (age=${age}s)`);
@@ -306,15 +317,10 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`[Convergence Synthesis] Cache MISS — running pipeline (limit=${limit})...`);
+    console.log(`[Convergence Synthesis] Synthesizing ${pipeline.rankings.top_9?.length ?? 0} tickers...`);
+    const synthesisStart = Date.now();
 
-    // Step 1: Run convergence pipeline
-    const pipelineStart = Date.now();
-    const pipeline = await runPipeline(limit);
-    const pipelineMs = Date.now() - pipelineStart;
-    console.log(`[Convergence Synthesis] Pipeline done in ${pipelineMs}ms`);
-
-    // Step 2: Prepare payload for Claude (trimmed to stay under token limits)
+    // Step 1: Prepare payload for Claude (trimmed to stay under token limits)
     let maxTickers = 9;
     let payload = prepareSynthesisPayload(pipeline, maxTickers);
     let payloadStr = JSON.stringify(payload);
@@ -365,6 +371,7 @@ export async function GET(request: Request) {
     }
 
     // Step 5: Assemble final response
+    const synthesisMs = Date.now() - synthesisStart;
     const result = {
       synthesis,
       pipeline_summary: pipeline.pipeline_summary,
@@ -374,19 +381,18 @@ export async function GET(request: Request) {
       social_sentiment: pipeline.social_sentiment,
       rejection_reasons: pipeline.rejection_reasons,
       timing: {
-        pipeline_ms: pipelineMs,
+        pipeline_ms: pipeline.pipeline_summary?.pipeline_runtime_ms ?? 0,
         ai_ms: aiMs,
-        total_ms: Date.now() - pipelineStart,
+        synthesis_ms: synthesisMs,
       },
     };
 
     // Cache it
-    setCache(limit, result);
+    setCache(cacheKey, result);
 
     return NextResponse.json(result, {
       headers: {
         'X-Cache-Hit': 'false',
-        'X-Pipeline-Runtime-Ms': String(pipelineMs),
         'X-AI-Runtime-Ms': String(aiMs),
       },
     });
