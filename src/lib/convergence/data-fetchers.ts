@@ -13,6 +13,8 @@ import type {
   AnnualFinancials,
   AnnualFinancialPeriod,
   OptionsFlowData,
+  OptionsChainStrike,
+  OptionsChainExpiration,
   NewsSentimentData,
   NewsHeadlineEntry,
   NewsSentimentPeriod,
@@ -779,6 +781,45 @@ export async function fetchOptionsFlow(
       ? Math.round((highActivityStrikes / strikesWithOI) * 1000) / 1000
       : null;
 
+    // Build per-strike chain detail for skew and GEX computation in vol-edge scorer
+    const chainDetail: OptionsChainExpiration[] = [];
+    for (const exp of nearTermExps) {
+      const expDate = new Date(exp.expirationDate);
+      const dte = Math.round((expDate.getTime() - now.getTime()) / 86400000);
+      const calls = exp.options.CALL || [];
+      const puts = exp.options.PUT || [];
+
+      // Group by strike
+      const strikeMap = new Map<number, OptionsChainStrike>();
+      for (const call of calls) {
+        if (call.strike == null) continue;
+        const s = strikeMap.get(call.strike) ?? {
+          strike: call.strike, callIV: null, putIV: null,
+          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
+        };
+        s.callIV = call.impliedVolatility ?? null;
+        s.callOI = call.openInterest || 0;
+        s.callVolume = call.volume || 0;
+        strikeMap.set(call.strike, s);
+      }
+      for (const put of puts) {
+        if (put.strike == null) continue;
+        const s = strikeMap.get(put.strike) ?? {
+          strike: put.strike, callIV: null, putIV: null,
+          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
+        };
+        s.putIV = put.impliedVolatility ?? null;
+        s.putOI = put.openInterest || 0;
+        s.putVolume = put.volume || 0;
+        strikeMap.set(put.strike, s);
+      }
+
+      const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
+      if (strikes.length > 0) {
+        chainDetail.push({ expirationDate: exp.expirationDate, dte, strikes });
+      }
+    }
+
     const result: OptionsFlowData = {
       put_call_ratio: putCallRatio,
       volume_bias: volumeBias,
@@ -790,6 +831,8 @@ export async function fetchOptionsFlow(
       strikes_analyzed: strikesAnalyzed,
       high_activity_strikes: highActivityStrikes,
       expirations_analyzed: nearTermExps.length,
+      underlyingPrice,
+      chainDetail,
     };
 
     // Cache

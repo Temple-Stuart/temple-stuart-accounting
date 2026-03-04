@@ -203,6 +203,22 @@ export interface QuarterlyFinancials {
 
 // ===== OPTIONS FLOW DATA (from Finnhub option chain) =====
 
+export interface OptionsChainStrike {
+  strike: number;
+  callIV: number | null;
+  putIV: number | null;
+  callOI: number;
+  putOI: number;
+  callVolume: number;
+  putVolume: number;
+}
+
+export interface OptionsChainExpiration {
+  expirationDate: string;
+  dte: number;
+  strikes: OptionsChainStrike[];
+}
+
 export interface OptionsFlowData {
   put_call_ratio: number | null;
   volume_bias: number | null;
@@ -214,6 +230,8 @@ export interface OptionsFlowData {
   strikes_analyzed: number;
   high_activity_strikes: number;
   expirations_analyzed: number;
+  underlyingPrice: number | null;
+  chainDetail: OptionsChainExpiration[];
 }
 
 // ===== NEWS SENTIMENT DATA (from Finnhub company-news + keyword matching) =====
@@ -414,6 +432,21 @@ export interface TechnicalsTrace extends SubScoreTrace {
   candles_used: number;
 }
 
+export interface SkewTrace extends SubScoreTrace {
+  vol_skew_25d: number | null;
+  pc_iv_ratio_atm: number | null;
+  skew_direction: 'bullish' | 'bearish' | 'neutral';
+  skew_score: number;
+}
+
+export interface GEXTrace extends SubScoreTrace {
+  net_gex: number | null;
+  gex_flip_strike: number | null;
+  distance_to_flip_pct: number | null;
+  gex_regime: 'long_gamma' | 'short_gamma' | 'neutral';
+  gex_score: number;
+}
+
 export interface VolEdgeResult {
   score: number;
   data_confidence: DataConfidence;
@@ -421,6 +454,8 @@ export interface VolEdgeResult {
     mispricing: MispricingTrace;
     term_structure: TermStructureTrace;
     technicals: TechnicalsTrace;
+    skew: SkewTrace;
+    gex: GEXTrace;
   };
 }
 
