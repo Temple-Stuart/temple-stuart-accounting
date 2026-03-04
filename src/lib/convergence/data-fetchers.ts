@@ -1785,43 +1785,70 @@ export async function fetchFinnhubRevenueBreakdown(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
+    // v2 endpoint — granted under Premium Package 1 (v1 /stock/revenue-breakdown is NOT granted)
     const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/revenue-breakdown?symbol=${symbol}&token=${key}`,
+      `https://finnhub.io/api/v1/stock/revenue-breakdown2?symbol=${symbol}&token=${key}`,
     );
     if (!resp.ok) {
-      return { data: null, error: `revenue-breakdown: HTTP ${resp.status}` };
+      return { data: null, error: `revenue-breakdown2: HTTP ${resp.status}` };
     }
 
     const json = await resp.json();
-    // Finnhub returns { data: [{ period, revenue: [{ name, value }] }] }
-    const entries = json?.data;
-    if (!Array.isArray(entries) || entries.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no data returned' };
-    }
-
-    // Use most recent period
-    const latest = entries.sort((a: { period?: string }, b: { period?: string }) =>
-      (b.period ?? '').localeCompare(a.period ?? ''),
-    )[0];
-
-    const rawSegments: Array<{ name?: string; value?: number }> = latest.revenue ?? [];
-    if (!Array.isArray(rawSegments) || rawSegments.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no segments in latest period' };
+    // v2 returns { symbol, currency, data: <object> } where data has dynamic keys.
+    // Known structures:
+    //   A) { "segmentName": number, ... }  — flat segment→revenue map
+    //   B) { "period": { "segmentName": number, ... }, ... }  — periods containing segments
+    //   C) { "segmentName": [{ period, v }, ...], ... }  — segments containing period arrays
+    const dataObj = json?.data;
+    if (!dataObj || typeof dataObj !== 'object' || Object.keys(dataObj).length === 0) {
+      return { data: null, error: 'revenue-breakdown2: no data returned' };
     }
 
     const segments: Array<{ name: string; revenue: number }> = [];
     let totalRevenue = 0;
 
-    for (const seg of rawSegments) {
-      const revenue = typeof seg.value === 'number' ? seg.value : 0;
-      if (revenue > 0) {
-        segments.push({ name: seg.name ?? 'Unknown', revenue });
-        totalRevenue += revenue;
+    const values = Object.values(dataObj) as unknown[];
+    const keys = Object.keys(dataObj);
+
+    if (typeof values[0] === 'number') {
+      // Case A: flat { segmentName: revenue }
+      for (let i = 0; i < keys.length; i++) {
+        const rev = values[i] as number;
+        if (rev > 0) {
+          segments.push({ name: keys[i], revenue: rev });
+          totalRevenue += rev;
+        }
+      }
+    } else if (Array.isArray(values[0])) {
+      // Case C: { segmentName: [{ period, v }, ...] } — use most recent entry per segment
+      for (let i = 0; i < keys.length; i++) {
+        const arr = values[i] as Array<Record<string, unknown>>;
+        if (!Array.isArray(arr) || arr.length === 0) continue;
+        // Sort by period descending, pick latest
+        const sorted = [...arr].sort((a, b) =>
+          String(b.period ?? '').localeCompare(String(a.period ?? '')),
+        );
+        const rev = Number(sorted[0].v ?? sorted[0].value ?? sorted[0].revenue ?? 0);
+        if (rev > 0) {
+          segments.push({ name: keys[i], revenue: rev });
+          totalRevenue += rev;
+        }
+      }
+    } else if (typeof values[0] === 'object' && values[0] !== null) {
+      // Case B: { period: { segmentName: value } } — pick most recent period
+      const sortedPeriods = keys.sort((a, b) => b.localeCompare(a));
+      const latestPeriodData = dataObj[sortedPeriods[0]] as Record<string, unknown>;
+      for (const [segName, segVal] of Object.entries(latestPeriodData)) {
+        const rev = Number(segVal);
+        if (!isNaN(rev) && rev > 0) {
+          segments.push({ name: segName, revenue: rev });
+          totalRevenue += rev;
+        }
       }
     }
 
     if (totalRevenue <= 0 || segments.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no positive revenue segments' };
+      return { data: null, error: 'revenue-breakdown2: no positive revenue segments' };
     }
 
     // Compute HHI: sum of (segment_share²)
@@ -1841,7 +1868,7 @@ export async function fetchFinnhubRevenueBreakdown(
     revenueBreakdownCache.set(symbol, { data: result, fetchedAt: Date.now() });
     return { data: result, error: null };
   } catch (e: unknown) {
-    return { data: null, error: `revenue-breakdown: ${e instanceof Error ? e.message : String(e)}` };
+    return { data: null, error: `revenue-breakdown2: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 

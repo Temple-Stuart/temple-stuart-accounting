@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchSECForm4Data, fetch10KBusinessDescription } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchSECForm4Data, fetch10KBusinessDescription } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -462,20 +462,13 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     }
   }
 
-  // Fetch options flow per symbol (for Flow Signal in info-edge)
-  console.log('[Pipeline] Step E2: Fetching options flow data...');
+  // Options flow: Finnhub /stock/option-chain does not exist in their API.
+  // Scoring handles null optionsFlow gracefully (imputes neutral values).
+  // Real chain data comes from TastyTrade in Step G2.
   const optionsFlowMap = new Map<string, OptionsFlowData | null>();
   for (const symbol of topSymbols) {
-    try {
-      const result = await fetchOptionsFlow(symbol);
-      optionsFlowMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E2 (options-flow ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      optionsFlowMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
+    optionsFlowMap.set(symbol, null);
   }
-  console.log(`[Pipeline] Step E2: Options flow fetched for ${topSymbols.length} symbols`);
 
   // Fetch news sentiment per symbol (for News Sentiment in info-edge)
   console.log('[Pipeline] Step E3: Fetching news sentiment data...');
