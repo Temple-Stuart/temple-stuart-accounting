@@ -386,8 +386,8 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
   }
 
   // --- EV/EBITDA (7%) — enterprise valuation (TTM preferred, Annual fallback) ---
-  const evEbitdaTTM = typeof metric['currentEv/ebitdaTTM'] === 'number' ? metric['currentEv/ebitdaTTM'] as number : null;
-  const evEbitdaAnnual = typeof metric['currentEv/ebitdaAnnual'] === 'number' ? metric['currentEv/ebitdaAnnual'] as number : null;
+  const evEbitdaTTM = typeof metric['evEbitdaTTM'] === 'number' ? metric['evEbitdaTTM'] as number : null;
+  const evEbitdaAnnual = typeof metric['evEbitdaAnnual'] === 'number' ? metric['evEbitdaAnnual'] as number : null;
   const evEbitda = evEbitdaTTM ?? evEbitdaAnnual;
   const evEbitdaSource = evEbitdaTTM !== null ? 'TTM' : evEbitdaAnnual !== null ? 'Annual' : 'N/A';
   let evEbitdaScore = 50; // neutral default — missing data
@@ -763,7 +763,7 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
   if (typeof metric['roicTTM'] !== 'number' && typeof metric['roicAnnual'] !== 'number') imputedFields.push('profitability.roic');
   if (typeof metric['psTTM'] !== 'number' && typeof metric['psAnnual'] !== 'number') imputedFields.push('profitability.ps');
-  if (typeof metric['currentEv/ebitdaTTM'] !== 'number' && typeof metric['currentEv/ebitdaAnnual'] !== 'number') imputedFields.push('profitability.ev_ebitda');
+  if (typeof metric['evEbitdaTTM'] !== 'number' && typeof metric['evEbitdaAnnual'] !== 'number') imputedFields.push('profitability.ev_ebitda');
   if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');
   if (tt?.daysTillEarnings == null) imputedFields.push('profitability.earnings_dte');
   if (safety.piotroski.change_signals.computable_count === 0) imputedFields.push('profitability.fscore_change_signals');

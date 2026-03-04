@@ -375,6 +375,70 @@ export async function GET(request: Request) {
     }
   }
 
+  // DEBUG: Dump ALL XBRL fields from most recent annual financials-reported
+  // This tells us exactly what building blocks are available for ROIC calculation
+  let debugFinnhubFinancials: Record<string, unknown> = { error: 'not fetched' };
+  if (finnhubKey) {
+    try {
+      const fResp = await fetch(
+        `https://finnhub.io/api/v1/stock/financials-reported?symbol=${symbol}&freq=annual&token=${finnhubKey}`,
+      );
+      if (fResp.ok) {
+        const fJson = await fResp.json();
+        const reports = fJson?.data || [];
+        if (reports.length > 0) {
+          // Sort descending by year, take most recent
+          reports.sort((a: { year: number }, b: { year: number }) => b.year - a.year);
+          const latest = reports[0];
+          const report = latest.report || {};
+
+          // Dump all concepts from income statement (ic) and balance sheet (bs)
+          const icItems: { concept: string; value: number }[] = report.ic || [];
+          const bsItems: { concept: string; value: number }[] = report.bs || [];
+          const cfItems: { concept: string; value: number }[] = report.cf || [];
+
+          const icFields: Record<string, number> = {};
+          for (const item of icItems) icFields[item.concept] = item.value;
+
+          const bsFields: Record<string, number> = {};
+          for (const item of bsItems) bsFields[item.concept] = item.value;
+
+          const cfFields: Record<string, number> = {};
+          for (const item of cfItems) cfFields[item.concept] = item.value;
+
+          // Also filter for ROIC-relevant concepts
+          const roicRelevant: Record<string, number> = {};
+          const roicPatterns = [/operat/i, /tax/i, /income/i, /asset/i, /liabilit/i, /debt/i, /equity/i, /cash/i, /invest/i, /capital/i, /ebitda/i, /goodwill/i];
+          for (const items of [icItems, bsItems, cfItems]) {
+            for (const item of items) {
+              if (roicPatterns.some(p => p.test(item.concept))) {
+                roicRelevant[item.concept] = item.value;
+              }
+            }
+          }
+
+          debugFinnhubFinancials = {
+            year: latest.year,
+            filed_date: latest.filedDate || latest.acceptedDate || null,
+            ic_field_count: icItems.length,
+            bs_field_count: bsItems.length,
+            cf_field_count: cfItems.length,
+            ic_all_fields: icFields,
+            bs_all_fields: bsFields,
+            cf_all_fields: cfFields,
+            roic_relevant_fields: roicRelevant,
+          };
+        } else {
+          debugFinnhubFinancials = { error: 'no annual reports returned' };
+        }
+      } else {
+        debugFinnhubFinancials = { error: `HTTP ${fResp.status}` };
+      }
+    } catch (e: unknown) {
+      debugFinnhubFinancials = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   return NextResponse.json({
     ...response,
     trade_cards: tradeCards.length > 0 ? tradeCards : undefined,
@@ -383,5 +447,6 @@ export async function GET(request: Request) {
     _rejection_reasons: chainRejections.length > 0 ? chainRejections : undefined,
     _raw_tt_fields: ttScannerResult.raw ? Object.keys(ttScannerResult.raw as object).sort() : undefined,
     _debug_finnhub_fields: Object.keys(debugFinnhubFields).length > 0 ? debugFinnhubFields : 'NO_MATCHING_FIELDS',
+    _debug_finnhub_financials: debugFinnhubFinancials,
   });
 }
