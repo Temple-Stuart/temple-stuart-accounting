@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchSECForm4Data, fetch10KBusinessDescription } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetch10KBusinessDescription } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -575,20 +575,20 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   }
   console.log(`[Pipeline] Step E9: SEC EDGAR filing data fetched for ${topSymbols.length} symbols`);
 
-  // Fetch SEC Form 4 insider transactions per symbol
-  console.log('[Pipeline] Step E10: Fetching SEC Form 4 insider transactions...');
+  // Fetch insider transactions via Finnhub /stock/insider-transactions (replaces SEC EDGAR Form 4 XML chain)
+  console.log('[Pipeline] Step E10: Fetching insider transactions (Finnhub)...');
   const secForm4Map = new Map<string, SECForm4Data | null>();
   for (const symbol of topSymbols) {
     try {
-      const result = await fetchSECForm4Data(symbol);
+      const result = await fetchInsiderTransactions(symbol);
       secForm4Map.set(symbol, result.data);
-      if (result.error) errors.push(`Step E10 (sec-form4 ${symbol}): ${result.error}`);
+      if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
     } catch (e: unknown) {
       secForm4Map.set(symbol, null);
     }
-    await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
   }
-  console.log(`[Pipeline] Step E10: SEC Form 4 data fetched for ${topSymbols.length} symbols`);
+  console.log(`[Pipeline] Step E10: Insider transactions fetched for ${topSymbols.length} symbols`);
 
   // Fetch 10-K business descriptions for text-based peer classification (Hoberg & Phillips 2010, 2016)
   console.log('[Pipeline] Step E11: Fetching 10-K business descriptions for text peer classification...');
