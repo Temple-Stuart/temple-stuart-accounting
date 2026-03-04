@@ -2,6 +2,8 @@ import type {
   ConvergenceInput,
   InfoEdgeResult,
   AnalystConsensusTrace,
+  PriceTargetSignalTrace,
+  UpgradeDowngradeSignalTrace,
   InsiderActivityTrace,
   EarningsMomentumTrace,
   FlowSignalTrace,
@@ -30,9 +32,9 @@ function computeSurpriseThreshold(surprises: number[]): number {
   return Math.max(1.0, 0.5 * stdDev);
 }
 
-// ===== ANALYST CONSENSUS SUB-SCORE (25%) =====
-// Expanded with Finnhub premium data: EPS estimates, revenue estimates,
-// price targets, upgrade/downgrade events (Chan, Jegadeesh & Lakonishok 1996).
+// ===== ANALYST CONSENSUS SUB-SCORE =====
+// Estimate revision momentum: EPS level, dispersion, revenue-EPS alignment, consensus breadth
+// (Chan, Jegadeesh & Lakonishok 1996). Price targets and U/D events now scored independently.
 
 function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   const recs = input.finnhubRecommendations;
@@ -63,12 +65,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     .sort((a, b) => a.period.localeCompare(b.period)) ?? [];
   const nextQRev = futureRev.length > 0 ? futureRev[0] : null;
 
-  // --- Get latest close for price target comparison ---
-  const latestClose = input.candles.length > 0
-    ? input.candles[input.candles.length - 1].close
-    : null;
-
-  // ===== SUB-SCORE 1: Estimate Level (20%) =====
+  // ===== SUB-SCORE 1: Estimate Level (25%) =====
   // Chan, Jegadeesh & Lakonishok 1996: forward-vs-trailing EPS growth proxy
   let estimateLevelScore = 40; // penalty default
   let epsGrowthDirection: string | null = null;
@@ -82,7 +79,7 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     else estimateLevelScore = 30;
   }
 
-  // ===== SUB-SCORE 2: Estimate Dispersion (15%) =====
+  // ===== SUB-SCORE 2: Estimate Dispersion (25%) =====
   // Diether, Malloy & Scherbina 2002: high disagreement predicts low returns
   let estimateDispersionScore = 40; // penalty default
   let epsDispersionPct: number | null = null;
@@ -101,8 +98,6 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   let revenueEpsAlignmentScore = 50; // neutral default
   let revenueGrowthDirection: string | null = null;
   if (nextQRev && nextQRev.revenueAvg > 0) {
-    // Compare next-Q revenue estimate to trailing revenue (prior-year same-Q if available)
-    // Use the earliest estimate period as a trailing proxy — revenue estimates include past periods
     const pastRev = estimates?.revenueEstimates
       .filter(e => e.period < today)
       .sort((a, b) => b.period.localeCompare(a.period)) ?? [];
@@ -119,30 +114,14 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     }
   }
 
-  // ===== SUB-SCORE 4: Price Target Implied Return (20%) =====
-  let priceTargetReturnScore = 40; // penalty default
-  const ptMedian = estimates?.priceTarget?.targetMedian ?? null;
-  let impliedReturnPct: number | null = null;
-  if (ptMedian !== null && latestClose !== null && latestClose > 0) {
-    impliedReturnPct = round(((ptMedian - latestClose) / latestClose) * 100, 2);
-    if (impliedReturnPct > 30) priceTargetReturnScore = 85;
-    else if (impliedReturnPct > 15) priceTargetReturnScore = 70;
-    else if (impliedReturnPct > 5) priceTargetReturnScore = 60;
-    else if (impliedReturnPct > -5) priceTargetReturnScore = 50;
-    else if (impliedReturnPct > -15) priceTargetReturnScore = 35;
-    else priceTargetReturnScore = 20;
-  }
-
-  // ===== SUB-SCORE 5: Consensus Breadth (30%) =====
-  // Composite of buy/sell ratio (60%) + coverage depth (40%) + upgrade/downgrade overlay
+  // ===== SUB-SCORE 4: Consensus Breadth (35%) =====
+  // Buy/sell ratio (60%) + coverage depth (40%)
   let consensusBreadthScore = 40; // penalty default
   if (latest && total > 0) {
     const bullish = latest.strongBuy + latest.buy;
     const bullishPct = bullish / total;
-    // Buy/sell ratio: 100% bullish = 85, 50% = 50, 0% = 15
     const ratioScore = clamp(15 + bullishPct * 70, 0, 100);
 
-    // Coverage depth from best available source
     const numAnalysts = Math.max(
       nextQEps?.numberAnalysts ?? 0,
       estimates?.priceTarget?.numberAnalysts ?? 0,
@@ -156,49 +135,30 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
     else coverageScore = 30;
 
     consensusBreadthScore = round(0.60 * ratioScore + 0.40 * coverageScore, 1);
-
-    // Upgrade/downgrade overlay: net actions in last 90 days
-    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-    const recentUd = estimates?.upgradeDowngrade.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo) ?? [];
-    const upgrades = recentUd.filter(ud => ud.action === 'up').length;
-    const downgrades = recentUd.filter(ud => ud.action === 'down').length;
-    if (upgrades > downgrades) consensusBreadthScore = clamp(consensusBreadthScore + 5, 0, 100);
-    else if (downgrades > upgrades) consensusBreadthScore = clamp(consensusBreadthScore - 5, 0, 100);
   }
 
   // ===== Weighted combination =====
-  // 0.20 EstLevel + 0.15 Dispersion + 0.15 RevEpsAlign + 0.20 PriceTarget + 0.30 ConsensusBreadth
+  // 0.25 EstLevel + 0.25 Dispersion + 0.15 RevEpsAlign + 0.35 ConsensusBreadth
   const score = round(
-    0.20 * estimateLevelScore +
-    0.15 * estimateDispersionScore +
+    0.25 * estimateLevelScore +
+    0.25 * estimateDispersionScore +
     0.15 * revenueEpsAlignmentScore +
-    0.20 * priceTargetReturnScore +
-    0.30 * consensusBreadthScore,
+    0.35 * consensusBreadthScore,
     1,
   );
 
-  const formula = `0.20×EstLevel(${round(estimateLevelScore)}) + 0.15×Dispersion(${round(estimateDispersionScore)}) + 0.15×RevEpsAlign(${round(revenueEpsAlignmentScore)}) + 0.20×PriceTarget(${round(priceTargetReturnScore)}) + 0.30×Breadth(${round(consensusBreadthScore)}) = ${score}`;
-
-  // --- Upgrade/downgrade counts for trace ---
-  const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-  const recentUd = estimates?.upgradeDowngrade.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo) ?? [];
-  const upgrades90d = recentUd.filter(ud => ud.action === 'up').length;
-  const downgrades90d = recentUd.filter(ud => ud.action === 'down').length;
+  const formula = `0.25×EstLevel(${round(estimateLevelScore)}) + 0.25×Dispersion(${round(estimateDispersionScore)}) + 0.15×RevEpsAlign(${round(revenueEpsAlignmentScore)}) + 0.35×Breadth(${round(consensusBreadthScore)}) = ${score}`;
 
   const notes = [
     `fwdEPS=${forwardEps ?? 'N/A'}`,
     `trailEPS=${trailingActualEps ?? 'N/A'}`,
     `dispersion=${epsDispersionPct ?? 'N/A'}%`,
-    `ptMedian=${ptMedian ?? 'N/A'}`,
-    `impliedReturn=${impliedReturnPct ?? 'N/A'}%`,
-    `upgrades90d=${upgrades90d}`,
-    `downgrades90d=${downgrades90d}`,
     latest ? `${latest.strongBuy}SB/${latest.buy}B/${latest.hold}H/${latest.sell}S/${latest.strongSell}SS` : 'no recs',
   ].join(', ');
 
   return {
     score: round(score),
-    weight: 0.25,
+    weight: 0.15,
     inputs: {
       periods_available: sorted.length,
       latest_period: latest?.period ?? null,
@@ -206,7 +166,6 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
       forward_eps: forwardEps,
       trailing_actual_eps: trailingActualEps,
       eps_dispersion_pct: epsDispersionPct,
-      price_target_implied_return_pct: impliedReturnPct,
     },
     formula,
     notes,
@@ -214,7 +173,6 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
       estimate_level_score: round(estimateLevelScore),
       estimate_dispersion_score: round(estimateDispersionScore),
       revenue_eps_alignment_score: round(revenueEpsAlignmentScore),
-      price_target_return_score: round(priceTargetReturnScore),
       consensus_breadth_score: round(consensusBreadthScore),
     },
     indicators: {
@@ -223,10 +181,6 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
       eps_dispersion_pct: epsDispersionPct,
       revenue_growth_direction: revenueGrowthDirection,
       eps_growth_direction: epsGrowthDirection,
-      price_target_median: ptMedian,
-      price_target_implied_return_pct: impliedReturnPct,
-      recent_upgrades_90d: upgrades90d,
-      recent_downgrades_90d: downgrades90d,
       number_analysts_estimates: nextQEps?.numberAnalysts ?? null,
       number_analysts_recommendations: total > 0 ? total : null,
     },
@@ -241,6 +195,247 @@ function scoreAnalystConsensus(input: ConvergenceInput): AnalystConsensusTrace {
   };
 }
 
+// ===== PRICE TARGET SIGNAL SUB-SCORE =====
+// Da & Schaumburg (2011): ΔTPER — sector-neutralized change in implied return.
+// Analysts average 22-28% optimism, so we score relative to peer group, not absolute.
+
+function scorePriceTargetSignal(input: ConvergenceInput): PriceTargetSignalTrace {
+  const estimates = input.finnhubEstimates;
+  const pt = estimates?.priceTarget ?? null;
+  const latestClose = input.candles.length > 0
+    ? input.candles[input.candles.length - 1].close
+    : null;
+
+  // --- Compute raw implied return ---
+  const ptMedian = pt?.targetMedian ?? null;
+  let rawImpliedReturn: number | null = null;
+  if (ptMedian !== null && latestClose !== null && latestClose > 0) {
+    rawImpliedReturn = round(((ptMedian - latestClose) / latestClose) * 100, 2);
+  }
+
+  // --- Compute peer median implied return (ΔTPER) ---
+  // Use peerStats if available for sector neutralization
+  let peerMedianImpliedReturn: number | null = null;
+  let deltaTper: number | null = null;
+
+  const peerStats = input.peerStats;
+  if (peerStats && rawImpliedReturn !== null) {
+    // Look for price_target_implied_return or similar metric in peer stats
+    // Find any peer group that has implied return data
+    for (const [, groupData] of Object.entries(peerStats)) {
+      const irMetric = groupData.metrics?.['price_target_implied_return'];
+      if (irMetric && irMetric.mean !== undefined) {
+        // Use peer group median (mean as proxy when sorted values unavailable)
+        if (irMetric.sortedValues && irMetric.sortedValues.length > 0) {
+          const mid = Math.floor(irMetric.sortedValues.length / 2);
+          peerMedianImpliedReturn = irMetric.sortedValues.length % 2 === 0
+            ? (irMetric.sortedValues[mid - 1] + irMetric.sortedValues[mid]) / 2
+            : irMetric.sortedValues[mid];
+        } else {
+          peerMedianImpliedReturn = irMetric.mean;
+        }
+        peerMedianImpliedReturn = round(peerMedianImpliedReturn, 2);
+        break;
+      }
+    }
+  }
+
+  if (rawImpliedReturn !== null && peerMedianImpliedReturn !== null) {
+    deltaTper = round(rawImpliedReturn - peerMedianImpliedReturn, 2);
+  }
+
+  // --- Score: use ΔTPER if available, else use raw implied return as fallback ---
+  let priceTargetScore = 40; // penalty default — no data
+  const numAnalysts = pt?.numberAnalysts ?? 0;
+
+  if (rawImpliedReturn !== null) {
+    // Use the effective signal: ΔTPER when we have peer data, raw otherwise
+    const signal = deltaTper ?? rawImpliedReturn;
+
+    // Continuous mapping via lerp:
+    // ΔTPER > +20 (or raw > +30): strongly above peers → 85
+    // ΔTPER ~ 0 (or raw ~ +15): neutral vs peers → 55 (slight upward bias to account for analyst optimism)
+    // ΔTPER < -20 (or raw < -5): well below peers → 20
+    if (deltaTper !== null) {
+      // Sector-neutralized: 0 = in line with peers
+      if (deltaTper > 15) priceTargetScore = lerp(deltaTper, 15, 30, 75, 90);
+      else if (deltaTper > 5) priceTargetScore = lerp(deltaTper, 5, 15, 60, 75);
+      else if (deltaTper > -5) priceTargetScore = lerp(deltaTper, -5, 5, 45, 60);
+      else if (deltaTper > -15) priceTargetScore = lerp(deltaTper, -15, -5, 30, 45);
+      else priceTargetScore = lerp(deltaTper, -30, -15, 15, 30);
+    } else {
+      // Raw implied return: discount for analyst optimism bias (22-28%)
+      if (rawImpliedReturn > 30) priceTargetScore = 80;
+      else if (rawImpliedReturn > 15) priceTargetScore = lerp(rawImpliedReturn, 15, 30, 60, 80);
+      else if (rawImpliedReturn > 5) priceTargetScore = lerp(rawImpliedReturn, 5, 15, 50, 60);
+      else if (rawImpliedReturn > -5) priceTargetScore = lerp(rawImpliedReturn, -5, 5, 40, 50);
+      else if (rawImpliedReturn > -15) priceTargetScore = lerp(rawImpliedReturn, -15, -5, 25, 40);
+      else priceTargetScore = 20;
+    }
+    priceTargetScore = round(clamp(priceTargetScore, 0, 100));
+
+    // Confidence discount for low coverage
+    if (numAnalysts < 3) {
+      priceTargetScore = round(50 + (priceTargetScore - 50) * 0.5); // shrink toward neutral
+    }
+  }
+
+  const usedDeltaTper = deltaTper !== null;
+  const formula = usedDeltaTper
+    ? `ΔTPER(${deltaTper}) → ${priceTargetScore} [peer-neutralized, ${numAnalysts} analysts]`
+    : `RawImplied(${rawImpliedReturn ?? 'N/A'}%) → ${priceTargetScore} [no peer data, ${numAnalysts} analysts]`;
+
+  const notes = [
+    `ptMedian=${ptMedian ?? 'N/A'}`,
+    `close=${latestClose ?? 'N/A'}`,
+    `rawReturn=${rawImpliedReturn ?? 'N/A'}%`,
+    `peerMedian=${peerMedianImpliedReturn ?? 'N/A'}%`,
+    `deltaTper=${deltaTper ?? 'N/A'}`,
+    `analysts=${numAnalysts}`,
+    usedDeltaTper ? 'sector_neutralized' : 'raw_fallback',
+  ].join(', ');
+
+  return {
+    score: round(priceTargetScore),
+    weight: 0.10,
+    inputs: {
+      raw_implied_return_pct: rawImpliedReturn,
+      peer_median_implied_return_pct: peerMedianImpliedReturn,
+      delta_tper: deltaTper,
+      num_analysts: numAnalysts,
+    },
+    formula,
+    notes,
+    sub_scores: {
+      price_target_score: round(priceTargetScore),
+    },
+    indicators: {
+      raw_implied_return_pct: rawImpliedReturn,
+      peer_median_implied_return_pct: peerMedianImpliedReturn,
+      delta_tper: deltaTper,
+      num_analysts: numAnalysts,
+      price_target_median: ptMedian,
+      price_target_mean: pt?.targetMean ?? null,
+      price_target_high: pt?.targetHigh ?? null,
+      price_target_low: pt?.targetLow ?? null,
+      latest_close: latestClose,
+    },
+  };
+}
+
+// ===== UPGRADE/DOWNGRADE SIGNAL SUB-SCORE =====
+// Womack (1996): downgrades drift -9.1% vs +2.4% for upgrades → asymmetric scoring.
+// Time-decayed with different half-lives: upgrades 30d, downgrades 90d.
+
+const POSITIVE_GRADES = ['buy', 'outperform', 'overweight', 'strong buy', 'positive', 'market outperform', 'sector outperform', 'accumulate', 'add'];
+const NEGATIVE_GRADES = ['sell', 'underperform', 'underweight', 'strong sell', 'negative', 'market underperform', 'sector underperform', 'reduce'];
+
+function isPositiveGrade(grade: string): boolean {
+  return POSITIVE_GRADES.some(g => grade.toLowerCase().includes(g));
+}
+
+function isNegativeGrade(grade: string): boolean {
+  return NEGATIVE_GRADES.some(g => grade.toLowerCase().includes(g));
+}
+
+function timeDecay(daysAgo: number, halfLifeDays: number): number {
+  return Math.pow(0.5, daysAgo / halfLifeDays);
+}
+
+function scoreUpgradeDowngradeSignal(input: ConvergenceInput): UpgradeDowngradeSignalTrace {
+  const estimates = input.finnhubEstimates;
+  const allUd = estimates?.upgradeDowngrade ?? [];
+
+  const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const recentUd = allUd.filter(ud => ud.gradeTime * 1000 >= ninetyDaysAgo);
+
+  let upgradesCount = 0;
+  let downgradesCount = 0;
+  let initiationsCount = 0;
+  let reiterationsCount = 0;
+  let netMomentum = 0;
+
+  for (const ud of recentUd) {
+    const daysAgo = (Date.now() - ud.gradeTime * 1000) / (24 * 60 * 60 * 1000);
+    const action = ud.action?.toLowerCase() ?? '';
+
+    if (action === 'up' || action === 'upgrade') {
+      upgradesCount++;
+      // +1 base, half-life 30 days
+      netMomentum += 1 * timeDecay(daysAgo, 30);
+    } else if (action === 'down' || action === 'downgrade') {
+      downgradesCount++;
+      // -2 base (Womack asymmetry), half-life 90 days (3x longer persistence)
+      netMomentum += -2 * timeDecay(daysAgo, 90);
+    } else if (action === 'init' || action === 'initiated') {
+      initiationsCount++;
+      // Initiations: directional based on grade
+      if (isPositiveGrade(ud.toGrade)) {
+        netMomentum += 0.5 * timeDecay(daysAgo, 30);
+      } else if (isNegativeGrade(ud.toGrade)) {
+        netMomentum += -1.0 * timeDecay(daysAgo, 90);
+      }
+    } else if (action === 'reiterated' || action === 'main') {
+      reiterationsCount++;
+      if (isPositiveGrade(ud.toGrade)) {
+        netMomentum += 0.3 * timeDecay(daysAgo, 30);
+      } else if (isNegativeGrade(ud.toGrade)) {
+        netMomentum += -0.3 * timeDecay(daysAgo, 90);
+      }
+    }
+  }
+  netMomentum = round(netMomentum, 3);
+
+  // Normalize to 0-100 using empirical distribution:
+  // Most stocks: net momentum in range [-5, +5]
+  // Strong upgrade wave: +5 to +10
+  // Heavy downgrade: -5 to -10
+  let udScore: number;
+  if (recentUd.length === 0) {
+    udScore = 50; // No events: neutral
+  } else {
+    // Sigmoid-like mapping: momentum → 0-100
+    // 0 → 50, +5 → 75, -5 → 25, ±10 → saturates at ~90/10
+    udScore = round(clamp(50 + netMomentum * 5, 5, 95));
+  }
+
+  const formula = `netMomentum(${netMomentum}) → sigmoid → ${udScore} [${recentUd.length} events, ${upgradesCount}↑/${downgradesCount}↓]`;
+
+  const notes = [
+    `events_90d=${recentUd.length}`,
+    `up=${upgradesCount}`,
+    `down=${downgradesCount}`,
+    `init=${initiationsCount}`,
+    `reit=${reiterationsCount}`,
+    `netMomentum=${netMomentum}`,
+    recentUd.length === 0 ? 'no_recent_events' : '',
+  ].filter(Boolean).join(', ');
+
+  return {
+    score: udScore,
+    weight: 0.10,
+    inputs: {
+      total_events_90d: recentUd.length,
+      upgrades_count: upgradesCount,
+      downgrades_count: downgradesCount,
+      net_rating_momentum_raw: netMomentum,
+    },
+    formula,
+    notes,
+    sub_scores: {
+      upgrade_downgrade_score: udScore,
+    },
+    indicators: {
+      total_events_90d: recentUd.length,
+      upgrades_count: upgradesCount,
+      downgrades_count: downgradesCount,
+      initiations_count: initiationsCount,
+      reiterations_count: reiterationsCount,
+      net_rating_momentum_raw: netMomentum,
+    },
+  };
+}
+
 // ===== INSIDER ACTIVITY SUB-SCORE (20%) =====
 
 function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
@@ -249,7 +444,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   if (sentiment.length === 0) {
     return {
       score: 40,
-      weight: 0.20,
+      weight: 0.15,
       inputs: { months_available: 0 },
       formula: 'No insider sentiment data → penalty default 40 (missing data)',
       notes: 'No Finnhub insider sentiment data (may be premium endpoint)',
@@ -320,7 +515,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
 
   return {
     score: round(score),
-    weight: 0.20,
+    weight: 0.15,
     inputs: {
       months_available: sorted.length,
       latest_mspr: latestMspr,
@@ -341,7 +536,7 @@ function scoreInsiderActivity(input: ConvergenceInput): InsiderActivityTrace {
   };
 }
 
-// ===== EARNINGS MOMENTUM SUB-SCORE (25%) =====
+// ===== EARNINGS MOMENTUM SUB-SCORE (20%) =====
 
 function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   const earnings = input.finnhubEarnings;
@@ -349,7 +544,7 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
   if (earnings.length === 0) {
     return {
       score: 40,
-      weight: 0.25,
+      weight: 0.20,
       inputs: { quarters_available: 0 },
       formula: 'No earnings data → penalty default 40 (missing data)',
       notes: 'No Finnhub earnings history available',
@@ -444,7 +639,7 @@ function scoreEarningsMomentum(input: ConvergenceInput): EarningsMomentumTrace {
 
   return {
     score: round(score),
-    weight: 0.25,
+    weight: 0.20,
     inputs: {
       quarters_available: recent.length,
       consecutive_beats: consecutiveBeats,
@@ -837,8 +1032,21 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
 
 // ===== MAIN INFO EDGE SCORER =====
 
+// ===== MAIN INFO EDGE SCORER =====
+// Weight rebalance (before → after):
+//   analyst_consensus:  0.25 → 0.15  (price target + U/D extracted to independent sub-scores)
+//   price_target:       (new) → 0.10  (ΔTPER, Da & Schaumburg 2011)
+//   upgrade_downgrade:  (new) → 0.10  (Womack 1996 asymmetric decay)
+//   insider_activity:   0.20 → 0.15
+//   earnings_momentum:  0.20 → 0.20  (unchanged — strongest academic signal)
+//   flow_signal:        0.20 → 0.15
+//   news_sentiment:     0.15 → 0.15  (unchanged)
+//   Total:              1.00    1.00
+
 export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const analystConsensus = scoreAnalystConsensus(input);
+  const priceTargetSignal = scorePriceTargetSignal(input);
+  const upgradeDowngradeSignal = scoreUpgradeDowngradeSignal(input);
   const insiderActivity = scoreInsiderActivity(input);
   const earningsMomentum = scoreEarningsMomentum(input);
   const flowSignal = scoreFlowSignal(input);
@@ -846,6 +1054,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
 
   const score = round(
     analystConsensus.weight * analystConsensus.score +
+    priceTargetSignal.weight * priceTargetSignal.score +
+    upgradeDowngradeSignal.weight * upgradeDowngradeSignal.score +
     insiderActivity.weight * insiderActivity.score +
     earningsMomentum.weight * earningsMomentum.score +
     flowSignal.weight * flowSignal.score +
@@ -857,6 +1067,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const imputedFields: string[] = [];
   if (input.finnhubRecommendations.length === 0 && !input.finnhubEstimates) imputedFields.push('analyst_consensus');
   else if (!input.finnhubEstimates) imputedFields.push('analyst_consensus.estimates');
+  if (!input.finnhubEstimates?.priceTarget) imputedFields.push('price_target_signal');
+  if ((input.finnhubEstimates?.upgradeDowngrade ?? []).length === 0) imputedFields.push('upgrade_downgrade_signal');
   if (input.finnhubInsiderSentiment.length === 0) imputedFields.push('insider_activity');
   if (input.finnhubEarnings.length === 0) imputedFields.push('earnings_momentum');
   if (!input.optionsFlow) {
@@ -868,7 +1080,7 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   }
   if (!input.newsSentiment) imputedFields.push('news_sentiment');
 
-  const totalSubScores = 5; // analyst, insider, earnings, flow, news
+  const totalSubScores = 7; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
@@ -881,6 +1093,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     data_confidence: dataConfidence,
     breakdown: {
       analyst_consensus: analystConsensus,
+      price_target_signal: priceTargetSignal,
+      upgrade_downgrade_signal: upgradeDowngradeSignal,
       insider_activity: insiderActivity,
       earnings_momentum: earningsMomentum,
       flow_signal: flowSignal,
