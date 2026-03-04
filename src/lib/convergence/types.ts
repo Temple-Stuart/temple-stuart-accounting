@@ -220,7 +220,8 @@ export interface ConvergenceInput {
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
-  sectorStats?: Record<string, { ticker_count?: number; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
+  peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
+  peerGroupAssignment?: Record<string, string>;
 }
 
 // ===== DATA CONFIDENCE =====

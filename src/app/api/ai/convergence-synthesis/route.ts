@@ -75,7 +75,7 @@ You receive:
 - rankings.top_9: the final selected tickers with all scores, convergence rating, strategy suggestion, sector, IVP, IV-HV spread, HV trend, insider MSPR, beat streak, key signals
 - rankings.also_scored: runners-up that were scored but didn't make the final 9
 - diversification.adjustments: any tickers excluded (convergence gate, quality floor, sector cap)
-- sector_stats: per-sector mean/std for key metrics
+- peer_stats: per-industry/sector mean/std for key metrics
 - scoring_details: full scoring breakdown for each top-9 ticker (sub-scores, formulas, z-scores, regime classification)
 - data_gaps and errors
 
@@ -242,10 +242,10 @@ function prepareSynthesisPayload(pipeline: PipelineResult, maxTickers = 9): obje
       // Limit adjustment strings to 20 to cap verbosity
       adjustments: pipeline.diversification.adjustments.slice(0, 20),
     },
-    sector_stats_summary: Object.fromEntries(
-      Object.entries(pipeline.sector_stats).map(([sector, stats]) => [
-        sector,
-        { ticker_count: stats.ticker_count, insufficient_peers: stats.insufficient_peers || false },
+    peer_stats_summary: Object.fromEntries(
+      Object.entries(pipeline.peer_stats).map(([group, stats]) => [
+        group,
+        { ticker_count: stats.ticker_count, peer_group_type: stats.peer_group_type, peer_group_name: stats.peer_group_name, insufficient_peers: stats.insufficient_peers || false },
       ]),
     ),
     scoring_details: condensedScoring,

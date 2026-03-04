@@ -30,6 +30,14 @@ function stddev(arr: number[]): number {
   return Math.sqrt(arr.reduce((sum, v) => sum + (v - m) ** 2, 0) / (arr.length - 1));
 }
 
+/** Look up the peer stats entry for a given symbol using peerGroupAssignment. */
+function lookupPeerStats(input: ConvergenceInput): { peerEntry: { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> } | undefined; peerGroupKey: string | null } {
+  const symbol = input.symbol;
+  const groupKey = input.peerGroupAssignment?.[symbol] ?? null;
+  if (!groupKey || !input.peerStats) return { peerEntry: undefined, peerGroupKey: null };
+  return { peerEntry: input.peerStats[groupKey], peerGroupKey: groupKey };
+}
+
 // ===== TECHNICAL INDICATOR COMPUTATIONS =====
 
 function computeRSI(candles: CandleData[], period = 14): {
@@ -137,8 +145,7 @@ function computeZScores(
   hv30: number | null,
   hv60: number | null,
 ): MispricingTrace['z_scores'] {
-  const sector = input.ttScanner?.sector;
-  const stats = sector ? input.sectorStats?.[sector] : undefined;
+  const { peerEntry: stats, peerGroupKey } = lookupPeerStats(input);
 
   if (!stats?.metrics) {
     return {
@@ -146,7 +153,7 @@ function computeZScores(
       ivp_z: null,
       iv_hv_z: null,
       hv_accel_z: null,
-      note: 'sector_z: null (no sector peer data available)',
+      note: 'peer_z: null (no peer group data available)',
       transform: 'raw' as const,
     };
   }
@@ -156,7 +163,7 @@ function computeZScores(
   const ivHvStats = m['iv_hv_spread'];
   const hv30Stats = m['hv30'];
 
-  // Sector stats for IVP are computed from raw scanner data (0-1 scale),
+  // Peer stats for IVP are computed from raw scanner data (0-1 scale),
   // but the scorer normalizes IVP to 0-100. Align scales before z-score.
   let ivpStats = rawIvpStats;
   if (rawIvpStats && rawIvpStats.mean <= 1.0) {
@@ -174,7 +181,8 @@ function computeZScores(
   const vrpZ = ivHvStats && ivHvStats.std > 0.001 ? zScore(vrp, 0, ivHvStats.std * 100) : null;
 
   // Determine transform type based on peer count
-  const peerCount = (stats as unknown as { ticker_count?: number }).ticker_count ?? 0;
+  const peerCount = stats.ticker_count ?? 0;
+  const peerGroupName = stats.peer_group_name ?? peerGroupKey;
   const transform: 'percentile' | 'z-score-fallback' | 'raw' =
     peerCount >= 5 ? 'percentile' : peerCount >= 3 ? 'z-score-fallback' : 'raw';
 
@@ -183,7 +191,7 @@ function computeZScores(
     ivp_z: ivpZ,
     iv_hv_z: ivHvZ,
     hv_accel_z: hvAccelZ,
-    note: `sector z-scores vs ${sector} peers (n=${peerCount}, transform=${transform})`,
+    note: `peer z-scores vs ${peerGroupName} peers (n=${peerCount}, transform=${transform})`,
     transform,
   };
 }
@@ -215,13 +223,10 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
 
   // Compute z-scores for sector-relative comparison
   const zScores = computeZScores(input, ivp, ivHvSpread, vrp, hv30, hv60);
-  const sector = tt?.sector ?? null;
-  const sectorEntry = sector ? input.sectorStats?.[sector] : undefined;
+  const { peerEntry, peerGroupKey } = lookupPeerStats(input);
   const hasZScores = zScores.vrp_z !== null || zScores.ivp_z !== null ||
                      zScores.iv_hv_z !== null || zScores.hv_accel_z !== null;
-  const peerCount = sectorEntry
-    ? (sectorEntry as unknown as { ticker_count?: number }).ticker_count ?? 0
-    : 0;
+  const peerCount = peerEntry?.ticker_count ?? 0;
 
   // --- Raw scores (baseline, always computed) ---
 
@@ -269,7 +274,7 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     }
   }
 
-  // --- Apply sector-relative transform when peers available (pipeline mode) ---
+  // --- Apply peer-relative transform when peers available (pipeline mode) ---
   // Mandelbrot 1963; Fama 1965: fat-tailed financial data distorts linear z-score transforms.
   // ≥5 peers → percentile ranking (nonparametric, immune to distributional assumptions)
   // 3-4 peers → z-score fallback (multiplier=10, clip=±5 SD — less aggressive)
@@ -279,14 +284,14 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   let ivHvSpreadScore = ivHvSpreadScoreRaw;
   let hvAccelScore = hvAccelScoreRaw;
 
-  const sectorMetrics = sectorEntry?.metrics;
+  const peerMetrics = peerEntry?.metrics;
 
-  if (hasZScores && zScores.transform === 'percentile' && sectorMetrics) {
+  if (hasZScores && zScores.transform === 'percentile' && peerMetrics) {
     // Percentile ranking: value's rank within sorted peer values → 0-100 score
-    const rawIvpSorted = sectorMetrics['iv_percentile']?.sortedValues;
-    const ivHvSorted = sectorMetrics['iv_hv_spread']?.sortedValues;
+    const rawIvpSorted = peerMetrics['iv_percentile']?.sortedValues;
+    const ivHvSorted = peerMetrics['iv_hv_spread']?.sortedValues;
     // VRP uses iv_hv_spread peers as proxy; HV accel uses hv30 peers
-    const hv30Sorted = sectorMetrics['hv30']?.sortedValues;
+    const hv30Sorted = peerMetrics['hv30']?.sortedValues;
 
     if (vrp !== null && ivHvSorted?.length) {
       vrpScore = round(percentileRank(vrp, ivHvSorted), 1);
@@ -323,7 +328,7 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
   // else: transform === 'raw' — use raw scores unchanged
 
   // --- IV Composite: blend IVP and IVR when both available ---
-  // IVR uses raw score (no IVR-specific sector stats); IVP retains sector transform.
+  // IVR uses raw score (no IVR-specific peer stats); IVP retains peer transform.
   const ivrScore = ivrScoreRaw; // null if IVR unavailable
   let ivCompositeScore: number;
   let ivCompositeMethod: string;
@@ -358,9 +363,10 @@ function scoreMispricing(input: ConvergenceInput): MispricingTrace {
     }
   }
 
+  const peerGroupName = peerEntry?.peer_group_name ?? peerGroupKey;
   const mode = hasZScores
-    ? `${zScores.transform} mode (sector: ${sector}, n=${peerCount})`
-    : 'raw mode (single ticker, no sector peers)';
+    ? `${zScores.transform} mode (peers: ${peerGroupName}, n=${peerCount})`
+    : 'raw mode (single ticker, no peer group)';
   const formula = `0.30×VRP(${round(vrpScore, 1)}) + 0.30×IVComposite(${round(ivCompositeScore, 1)} [${ivCompositeMethod}]) + 0.25×IV_HV(${round(ivHvSpreadScore, 1)}) + 0.15×HV_accel(${round(hvAccelScore, 1)}) = ${round(score)}${highConvictionIv ? ' +5 high conviction' : ''} [${mode}]`;
 
   return {
@@ -469,25 +475,24 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
   else shape = 'STEEP_BACKWARDATION';
 
   // Percentile-based scoring (Vasquez 2017, JFQA — uses decile sorts, not fixed cutoffs)
-  const sector = input.ttScanner?.sector ?? null;
-  const sectorEntry = sector ? input.sectorStats?.[sector] : undefined;
-  const slopeSorted = sectorEntry?.metrics?.['term_structure_slope']?.sortedValues;
-  const slopeStats = sectorEntry?.metrics?.['term_structure_slope'];
-  const peerCount = (sectorEntry as unknown as { ticker_count?: number })?.ticker_count ?? 0;
+  const { peerEntry: tsPeerEntry } = lookupPeerStats(input);
+  const slopeSorted = tsPeerEntry?.metrics?.['term_structure_slope']?.sortedValues;
+  const slopeStats = tsPeerEntry?.metrics?.['term_structure_slope'];
+  const tsPeerCount = tsPeerEntry?.ticker_count ?? 0;
 
   let shapeScore: number;
   let tsTransform: string;
-  if (slopeSorted && slopeSorted.length >= 5 && peerCount >= 5) {
-    // >=5 peers: percentile ranking of slope within sector
+  if (slopeSorted && slopeSorted.length >= 5 && tsPeerCount >= 5) {
+    // >=5 peers: percentile ranking of slope within peer group
     shapeScore = round(percentileRank(slope, slopeSorted), 1);
     tsTransform = 'percentile';
-  } else if (slopeStats && slopeStats.std > 0.001 && peerCount >= 3) {
+  } else if (slopeStats && slopeStats.std > 0.001 && tsPeerCount >= 3) {
     // 3-4 peers: z-score fallback (multiplier=10, clip=±5 SD)
     const z = (slope - slopeStats.mean) / slopeStats.std;
     shapeScore = round(50 + clamp(z * 10, -50, 50), 1);
     tsTransform = 'z-score-fallback';
   } else {
-    // <3 peers or no sector stats: fixed tier fallback
+    // <3 peers or no peer stats: fixed tier fallback
     if (slope > 0.15) shapeScore = 85;
     else if (slope > 0.05) shapeScore = 70;
     else if (slope > -0.05) shapeScore = 50;
@@ -523,7 +528,7 @@ function scoreTermStructure(input: ConvergenceInput): TermStructureTrace {
     shapeScore = clamp(shapeScore - 5, 0, 100);
   }
 
-  const formula = `slope=${slopeStr} → shape=${shape} → score=${shapeScore} [${tsTransform}${peerCount > 0 ? ', n=' + peerCount : ''}]${earningsKinkDetected ? ' − 5 (earnings kink)' : ''}`;
+  const formula = `slope=${slopeStr} → shape=${shape} → score=${shapeScore} [${tsTransform}${tsPeerCount > 0 ? ', n=' + tsPeerCount : ''}]${earningsKinkDetected ? ' − 5 (earnings kink)' : ''}`;
 
   return {
     score: round(shapeScore),
