@@ -125,7 +125,15 @@ export interface FredMacroData {
   consumerConfidence: number | null;
   nonfarmPayrolls: number | null;
   cpiMom: number | null;
-  sofr: number | null;
+  // Institutional-grade series (added for regime classification)
+  yieldCurveSpread: number | null;     // T10Y2Y: 10Y-2Y Treasury spread (daily)
+  breakeven5y: number | null;          // T5YIE: 5-Year breakeven inflation (daily)
+  hySpread: number | null;             // BAMLH0A0HYM2: ICE BofA HY credit spread (daily)
+  nfci: number | null;                 // NFCI: Chicago Fed Financial Conditions (weekly)
+  initialClaims: number | null;        // ICSA: Initial jobless claims (weekly)
+  // Staleness tracking for weekly series
+  initialClaimsDate: string | null;    // Observation date of ICSA
+  nfciDate: string | null;             // Observation date of NFCI
 }
 
 // ===== ANNUAL FINANCIALS (for Piotroski YoY signals) =====
@@ -443,13 +451,18 @@ export interface RegimeResult {
         unemployment_score: number;
         nfp_score: number;
         consumer_confidence_score: number;
+        icsa_score: number;
+        nfci_score: number;
       };
       raw_values: {
         gdp: number | null;
         unemployment: number | null;
         nfp: number | null;
         consumer_confidence: number | null;
+        initial_claims: number | null;
+        nfci: number | null;
       };
+      stale_flags?: string[];
     };
     inflation_signal: {
       score: number;
@@ -458,12 +471,14 @@ export interface RegimeResult {
         cpi_mom_score: number;
         fed_funds_score: number;
         treasury_10y_score: number;
+        breakeven_5y_score: number;
       };
       raw_values: {
         cpi_yoy: number | null;
         cpi_mom: number | null;
         fed_funds: number | null;
         treasury_10y: number | null;
+        breakeven_5y: number | null;
       };
     };
     regime_probabilities: {
@@ -473,6 +488,12 @@ export interface RegimeResult {
       deflation: number;
     };
     dominant_regime: string;
+    regime_signals: {
+      yield_curve_spread: number | null;
+      yield_curve_inverted: boolean;
+      hy_spread: number | null;
+      hy_stress_level: 'normal' | 'elevated' | 'crisis' | null;
+    };
     vix_overlay: {
       vix: number | null;
       adjustment_type: string;

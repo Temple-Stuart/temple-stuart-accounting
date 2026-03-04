@@ -370,26 +370,35 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
   if (!key) {
     const empty: FredMacroData = {
       vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-      cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
+      cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
+      yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
+      initialClaimsDate: null, nfciDate: null,
     };
     return { data: empty, cached: false, error: 'FRED_API_KEY not configured' };
   }
 
   // Simple series: single latest observation is the correct value
   // GDP, NFP, and CPI are handled separately below (need rate-of-change computation)
-  const seriesMap: { key: keyof FredMacroData; id: string }[] = [
+  const seriesMap: { key: keyof FredMacroData; id: string; trackDate?: boolean }[] = [
     { key: 'vix', id: 'VIXCLS' },
     { key: 'treasury10y', id: 'DGS10' },
     { key: 'fedFunds', id: 'FEDFUNDS' },
     { key: 'unemployment', id: 'UNRATE' },
     { key: 'gdp', id: 'A191RL1Q225SBEA' },  // Real GDP growth rate (quarterly annualized %)
     { key: 'consumerConfidence', id: 'UMCSENT' },
-    { key: 'sofr', id: 'SOFR' },
+    // Institutional-grade series for regime classification
+    { key: 'yieldCurveSpread', id: 'T10Y2Y' },         // 10Y-2Y Treasury spread (daily)
+    { key: 'breakeven5y', id: 'T5YIE' },                // 5-Year breakeven inflation (daily)
+    { key: 'hySpread', id: 'BAMLH0A0HYM2' },            // ICE BofA HY credit spread (daily)
+    { key: 'nfci', id: 'NFCI', trackDate: true },        // Chicago Fed Financial Conditions (weekly)
+    { key: 'initialClaims', id: 'ICSA', trackDate: true }, // Initial jobless claims (weekly)
   ];
 
   const result: FredMacroData = {
     vix: null, treasury10y: null, fedFunds: null, unemployment: null,
-    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null, sofr: null,
+    cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
+    yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
+    initialClaimsDate: null, nfciDate: null,
   };
 
   const errors: string[] = [];
@@ -403,7 +412,12 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
         const json = await resp.json();
         const obs = json?.observations;
         if (Array.isArray(obs) && obs.length > 0 && obs[0].value !== '.') {
-          result[series.key] = parseFloat(obs[0].value);
+          (result as unknown as Record<string, number | string | null>)[series.key] = parseFloat(obs[0].value);
+          // Track observation date for weekly series (staleness detection)
+          if (series.trackDate && obs[0].date) {
+            const dateKey = series.key === 'initialClaims' ? 'initialClaimsDate' : 'nfciDate';
+            (result as unknown as Record<string, number | string | null>)[dateKey] = obs[0].date;
+          }
         }
       } else {
         errors.push(`${series.id}: HTTP ${resp.status}`);
