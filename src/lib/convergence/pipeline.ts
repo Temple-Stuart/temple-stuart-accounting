@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetch10KBusinessDescription } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -412,9 +412,28 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
 
   const survivors = hardFilters.survivors.map(s => scannerMap.get(s)!).filter(Boolean);
 
-  // ===== STEP C: Initial Sector Stats (will be enhanced with text peers in Step E11) =====
-  console.log('[Pipeline] Step C: Computing initial peer stats (industry-first, sector fallback)...');
-  let { stats: peerStats, assignment: peerGroupAssignment } = computePeerStats(survivors);
+  // ===== STEP C1: Fetch Finnhub peer tickers for each survivor =====
+  console.log('[Pipeline] Step C1: Fetching Finnhub /stock/peers for survivors...');
+  const finnhubPeersMap: Record<string, string[]> = {};
+  for (const item of survivors) {
+    try {
+      const result = await fetchPeerTickers(item.symbol);
+      if (result.data && result.data.length > 0) {
+        finnhubPeersMap[item.symbol] = result.data;
+      }
+    } catch {
+      // Non-critical — fall through to GICS grouping
+    }
+    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+  }
+  const peersFound = Object.values(finnhubPeersMap).filter(p => p.length > 0).length;
+  console.log(`[Pipeline] Step C1: Finnhub peers fetched for ${peersFound}/${survivors.length} survivors`);
+
+  // ===== STEP C2: Initial Peer Stats (will be enhanced with text peers in Step E11) =====
+  console.log('[Pipeline] Step C2: Computing initial peer stats (finnhub-peers → industry → sector fallback)...');
+  let { stats: peerStats, assignment: peerGroupAssignment } = computePeerStats(
+    survivors, undefined, finnhubPeersMap, scannerMap,
+  );
   let textPeerGroups: Record<string, TextBasedPeerGroup> = {};
 
   // ===== STEP D: Pre-Score and Limit =====
@@ -612,7 +631,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     textPeerGroups = computeTextPeerGroups(textProfiles);
     // Re-compute peer stats with text-based peer groups (3-tier: text_nlp → industry → sector)
     console.log('[Pipeline] Step E11b: Re-computing peer stats with text-based peer groups...');
-    const enhanced = computePeerStats(survivors, textPeerGroups);
+    const enhanced = computePeerStats(survivors, textPeerGroups, finnhubPeersMap, scannerMap);
     peerStats = enhanced.stats;
     peerGroupAssignment = enhanced.assignment;
   }

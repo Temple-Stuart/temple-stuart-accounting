@@ -10,7 +10,7 @@ export interface PeerMetricStats {
 
 export interface PeerStats {
   ticker_count: number;
-  peer_group_type: 'industry' | 'sector_fallback' | 'unknown' | 'text_nlp';
+  peer_group_type: 'industry' | 'sector_fallback' | 'unknown' | 'text_nlp' | 'finnhub_peers' | 'mixed';
   peer_group_name: string;
   metrics: {
     iv_percentile: PeerMetricStats;
@@ -79,7 +79,7 @@ function computeTermStructureSlope(ts: { date: string; iv: number }[]): number |
 
 function buildPeerStats(
   tickers: TTScannerData[],
-  peerGroupType: 'industry' | 'sector_fallback' | 'unknown' | 'text_nlp',
+  peerGroupType: PeerStats['peer_group_type'],
   peerGroupName: string,
   textPeerTrace?: PeerStats['text_peer_trace'],
 ): PeerStats {
@@ -361,17 +361,23 @@ export function computeTextPeerGroups(
 const MIN_INDUSTRY_PEERS = 5;
 
 /**
- * Compute peer group statistics with 3-tier grouping (Hoberg & Phillips 2010, 2016):
- *   1. Text-based peers (cosine similarity > 0.40, min 3 peers) — most precise
- *   2. GICS industry (min 5 peers) — standard fallback
- *   3. GICS sector — broadest fallback
+ * Compute peer group statistics with 4-tier grouping:
+ *   1. Text-based peers (cosine similarity > 0.40, min 3 peers) — most precise (Hoberg & Phillips 2010, 2016)
+ *   2. Finnhub /stock/peers — industry-matched peers from Finnhub, expanded with scanner universe data
+ *   3. GICS industry (min 5 peers) — standard fallback
+ *   4. GICS sector — broadest fallback
  *
- * @param scannerResults - All scanner data (full universe after hard filters)
+ * @param scannerResults - Scanner data for hard-filter survivors
  * @param textPeerGroups - Optional text-based peer groups from 10-K analysis
+ * @param finnhubPeers - Optional map: symbol → peer tickers from Finnhub /stock/peers
+ * @param fullUniverse - Optional map: symbol → TTScannerData for the full pre-filter scanner universe
+ *                       (used to resolve Finnhub peer tickers that aren't in the survivor set)
  */
 export function computePeerStats(
   scannerResults: TTScannerData[],
   textPeerGroups?: Record<string, TextBasedPeerGroup>,
+  finnhubPeers?: Record<string, string[]>,
+  fullUniverse?: Map<string, TTScannerData>,
 ): { stats: PeerStatsMap; assignment: PeerGroupAssignment } {
   // Step 1: Group by industry
   const byIndustry = new Map<string, TTScannerData[]>();
@@ -445,7 +451,35 @@ export function computePeerStats(
     }
   }
 
-  // Step 4: Build industry-level stats for groups with >= MIN_INDUSTRY_PEERS
+  // Step 4: Build Finnhub peer group stats (per symbol, from /stock/peers)
+  // Resolves peer tickers against the full scanner universe (not just survivors).
+  const finnhubPeerKeys = new Map<string, string>(); // symbol → result key
+  const finnhubPeersUsed: string[] = [];
+  if (finnhubPeers) {
+    const universe = fullUniverse ?? scannerBySymbol;
+
+    for (const [symbol, peerSymbols] of Object.entries(finnhubPeers)) {
+      if (!peerSymbols || peerSymbols.length === 0) continue;
+
+      // Collect scanner data for the symbol + its Finnhub peers from the universe
+      const peerTickers: TTScannerData[] = [];
+      const selfData = universe.get(symbol) ?? scannerBySymbol.get(symbol);
+      if (selfData) peerTickers.push(selfData);
+
+      for (const peerSym of peerSymbols) {
+        const peerData = universe.get(peerSym) ?? scannerBySymbol.get(peerSym);
+        if (peerData && peerData.symbol !== symbol) peerTickers.push(peerData);
+      }
+
+      if (peerTickers.length < 3) continue; // Need at least 3 for meaningful stats
+
+      const key = `finnhub_peers:${symbol}`;
+      result[key] = buildPeerStats(peerTickers, 'finnhub_peers', `finnhub_peers(${symbol})`);
+      finnhubPeerKeys.set(symbol, key);
+    }
+  }
+
+  // Step 5: Build industry-level stats for groups with >= MIN_INDUSTRY_PEERS
   const validIndustries = new Set<string>();
   for (const [industry, tickers] of byIndustry) {
     if (tickers.length >= MIN_INDUSTRY_PEERS) {
@@ -455,13 +489,13 @@ export function computePeerStats(
     }
   }
 
-  // Step 5: Build sector-level stats (used as fallback)
+  // Step 6: Build sector-level stats (used as broadest fallback)
   for (const [sector, tickers] of bySector) {
     const key = `sector:${sector}`;
     result[key] = buildPeerStats(tickers, 'sector_fallback', sector);
   }
 
-  // Step 6: Assign each ticker to its peer group (3-tier priority)
+  // Step 7: Assign each ticker to its peer group (4-tier priority)
   for (const item of scannerResults) {
     const symbol = item.symbol;
     const industry = tickerIndustry.get(symbol);
@@ -478,12 +512,20 @@ export function computePeerStats(
       }
     }
 
-    // Tier 2: GICS industry (min 5 peers)
+    // Tier 2: Finnhub /stock/peers (industry-matched, expanded from universe)
+    const fhKey = finnhubPeerKeys.get(symbol);
+    if (fhKey && result[fhKey] && !result[fhKey].insufficient_peers) {
+      assignment[symbol] = fhKey;
+      finnhubPeersUsed.push(symbol);
+      continue;
+    }
+
+    // Tier 3: GICS industry (min 5 peers)
     if (industry && validIndustries.has(industry)) {
       assignment[symbol] = `industry:${industry}`;
       industryUsed.push(symbol);
     } else if (sector) {
-      // Tier 3: GICS sector (broadest)
+      // Tier 4: GICS sector (broadest)
       assignment[symbol] = `sector:${sector}`;
       industryFallbacks.push(symbol);
     } else {
@@ -495,6 +537,9 @@ export function computePeerStats(
   // Log peer group assignments
   if (textNlpUsed.length > 0) {
     console.log(`[PeerStats] ${textNlpUsed.length} tickers using text-based NLP peers: ${textNlpUsed.slice(0, 10).join(', ')}${textNlpUsed.length > 10 ? '...' : ''}`);
+  }
+  if (finnhubPeersUsed.length > 0) {
+    console.log(`[PeerStats] ${finnhubPeersUsed.length} tickers using Finnhub /stock/peers: ${finnhubPeersUsed.slice(0, 10).join(', ')}${finnhubPeersUsed.length > 10 ? '...' : ''}`);
   }
   if (industryUsed.length > 0) {
     console.log(`[PeerStats] ${industryUsed.length} tickers using industry-level peers`);
