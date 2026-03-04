@@ -12,9 +12,6 @@ import type {
   FredMacroData,
   AnnualFinancials,
   AnnualFinancialPeriod,
-  OptionsFlowData,
-  OptionsChainStrike,
-  OptionsChainExpiration,
   NewsSentimentData,
   NewsHeadlineEntry,
   NewsSentimentPeriod,
@@ -705,221 +702,6 @@ export async function fetchFredDailySeries(
   fredDailyCache = { data: result, fetchedAt: Date.now() };
 
   return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
-}
-
-// ===== FINNHUB OPTIONS FLOW FETCHER (with 1-hour cache) =====
-
-interface FinnhubOptionEntry {
-  contractName?: string;
-  strike?: number;
-  lastPrice?: number;
-  volume?: number;
-  openInterest?: number;
-  impliedVolatility?: number;
-}
-
-interface FinnhubOptionChainExpiration {
-  expirationDate: string;
-  options: {
-    CALL?: FinnhubOptionEntry[];
-    PUT?: FinnhubOptionEntry[];
-  };
-}
-
-const optionsFlowCache = new Map<string, { data: OptionsFlowData; fetchedAt: number }>();
-const OPTIONS_FLOW_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
-export async function fetchOptionsFlow(
-  symbol: string,
-  apiKey?: string,
-): Promise<{ data: OptionsFlowData | null; error: string | null }> {
-  // Check cache
-  const cached = optionsFlowCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < OPTIONS_FLOW_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
-  const key = apiKey || process.env.FINNHUB_API_KEY;
-  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
-
-  try {
-    const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/option-chain?symbol=${symbol}&token=${key}`,
-    );
-    if (!resp.ok) {
-      return { data: null, error: `option-chain: HTTP ${resp.status}` };
-    }
-
-    const json = await resp.json();
-    const expirations: FinnhubOptionChainExpiration[] = json?.data || [];
-
-    if (expirations.length === 0) {
-      return { data: null, error: 'option-chain: no expirations returned' };
-    }
-
-    // Filter to expirations within 60 days (exclude LEAPS)
-    const now = new Date();
-    const maxDate = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-    const nearTermExps = expirations.filter(exp => {
-      const expDate = new Date(exp.expirationDate);
-      return expDate >= now && expDate <= maxDate;
-    });
-
-    if (nearTermExps.length === 0) {
-      return { data: null, error: 'option-chain: no expirations within 60 DTE' };
-    }
-
-    // Determine underlying price from ATM strikes
-    // Use the first expiration's smallest |call - put| price as ATM proxy
-    let underlyingPrice: number | null = null;
-    for (const exp of nearTermExps) {
-      const calls = exp.options.CALL || [];
-      const puts = exp.options.PUT || [];
-      let bestStrike: number | null = null;
-      let smallestDiff = Infinity;
-      for (const call of calls) {
-        if (call.strike == null || call.lastPrice == null) continue;
-        const matchingPut = puts.find(p => p.strike === call.strike);
-        if (!matchingPut?.lastPrice) continue;
-        const diff = Math.abs(call.lastPrice - matchingPut.lastPrice);
-        if (diff < smallestDiff) {
-          smallestDiff = diff;
-          bestStrike = call.strike;
-        }
-      }
-      if (bestStrike !== null) {
-        underlyingPrice = bestStrike;
-        break;
-      }
-    }
-
-    // Aggregate across all near-term expirations
-    let totalCallVolume = 0;
-    let totalPutVolume = 0;
-    let totalCallOI = 0;
-    let totalPutOI = 0;
-    let otmCallVolume = 0;
-    let otmPutVolume = 0;
-    let highActivityStrikes = 0;
-    let strikesWithOI = 0;
-    let strikesAnalyzed = 0;
-
-    for (const exp of nearTermExps) {
-      const calls = exp.options.CALL || [];
-      const puts = exp.options.PUT || [];
-
-      for (const call of calls) {
-        const vol = call.volume || 0;
-        const oi = call.openInterest || 0;
-        totalCallVolume += vol;
-        totalCallOI += oi;
-        strikesAnalyzed++;
-
-        if (underlyingPrice !== null && call.strike != null && call.strike > underlyingPrice) {
-          otmCallVolume += vol;
-        }
-
-        if (oi > 0) {
-          strikesWithOI++;
-          if (vol > 2 * oi) highActivityStrikes++;
-        }
-      }
-
-      for (const put of puts) {
-        const vol = put.volume || 0;
-        const oi = put.openInterest || 0;
-        totalPutVolume += vol;
-        totalPutOI += oi;
-        strikesAnalyzed++;
-
-        if (underlyingPrice !== null && put.strike != null && put.strike < underlyingPrice) {
-          otmPutVolume += vol;
-        }
-
-        if (oi > 0) {
-          strikesWithOI++;
-          if (vol > 2 * oi) highActivityStrikes++;
-        }
-      }
-    }
-
-    // Put/Call Ratio
-    const putCallRatio = totalCallVolume > 0
-      ? Math.round((totalPutVolume / totalCallVolume) * 1000) / 1000
-      : null;
-
-    // Volume Bias: (otmCallVol - otmPutVol) / (otmCallVol + otmPutVol) * 100
-    const totalOtm = otmCallVolume + otmPutVolume;
-    const volumeBias = totalOtm > 0
-      ? Math.round(((otmCallVolume - otmPutVolume) / totalOtm) * 10000) / 100
-      : null;
-
-    // Unusual Activity Ratio: high_activity_count / total_strikes_with_oi
-    const unusualActivityRatio = strikesWithOI > 0
-      ? Math.round((highActivityStrikes / strikesWithOI) * 1000) / 1000
-      : null;
-
-    // Build per-strike chain detail for skew and GEX computation in vol-edge scorer
-    const chainDetail: OptionsChainExpiration[] = [];
-    for (const exp of nearTermExps) {
-      const expDate = new Date(exp.expirationDate);
-      const dte = Math.round((expDate.getTime() - now.getTime()) / 86400000);
-      const calls = exp.options.CALL || [];
-      const puts = exp.options.PUT || [];
-
-      // Group by strike
-      const strikeMap = new Map<number, OptionsChainStrike>();
-      for (const call of calls) {
-        if (call.strike == null) continue;
-        const s = strikeMap.get(call.strike) ?? {
-          strike: call.strike, callIV: null, putIV: null,
-          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
-        };
-        s.callIV = call.impliedVolatility ?? null;
-        s.callOI = call.openInterest || 0;
-        s.callVolume = call.volume || 0;
-        strikeMap.set(call.strike, s);
-      }
-      for (const put of puts) {
-        if (put.strike == null) continue;
-        const s = strikeMap.get(put.strike) ?? {
-          strike: put.strike, callIV: null, putIV: null,
-          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
-        };
-        s.putIV = put.impliedVolatility ?? null;
-        s.putOI = put.openInterest || 0;
-        s.putVolume = put.volume || 0;
-        strikeMap.set(put.strike, s);
-      }
-
-      const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
-      if (strikes.length > 0) {
-        chainDetail.push({ expirationDate: exp.expirationDate, dte, strikes });
-      }
-    }
-
-    const result: OptionsFlowData = {
-      put_call_ratio: putCallRatio,
-      volume_bias: volumeBias,
-      unusual_activity_ratio: unusualActivityRatio,
-      total_call_volume: totalCallVolume,
-      total_put_volume: totalPutVolume,
-      total_call_oi: totalCallOI,
-      total_put_oi: totalPutOI,
-      strikes_analyzed: strikesAnalyzed,
-      high_activity_strikes: highActivityStrikes,
-      expirations_analyzed: nearTermExps.length,
-      underlyingPrice,
-      chainDetail,
-    };
-
-    // Cache
-    optionsFlowCache.set(symbol, { data: result, fetchedAt: Date.now() });
-
-    return { data: result, error: null };
-  } catch (e: unknown) {
-    return { data: null, error: `option-chain: ${e instanceof Error ? e.message : String(e)}` };
-  }
 }
 
 // ===== FINNHUB NEWS SENTIMENT FETCHER (with 30-minute cache) =====
@@ -1785,43 +1567,70 @@ export async function fetchFinnhubRevenueBreakdown(
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
   try {
+    // v2 endpoint — granted under Premium Package 1 (v1 /stock/revenue-breakdown is NOT granted)
     const resp = await fetchWithRetry(
-      `https://finnhub.io/api/v1/stock/revenue-breakdown?symbol=${symbol}&token=${key}`,
+      `https://finnhub.io/api/v1/stock/revenue-breakdown2?symbol=${symbol}&token=${key}`,
     );
     if (!resp.ok) {
-      return { data: null, error: `revenue-breakdown: HTTP ${resp.status}` };
+      return { data: null, error: `revenue-breakdown2: HTTP ${resp.status}` };
     }
 
     const json = await resp.json();
-    // Finnhub returns { data: [{ period, revenue: [{ name, value }] }] }
-    const entries = json?.data;
-    if (!Array.isArray(entries) || entries.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no data returned' };
-    }
-
-    // Use most recent period
-    const latest = entries.sort((a: { period?: string }, b: { period?: string }) =>
-      (b.period ?? '').localeCompare(a.period ?? ''),
-    )[0];
-
-    const rawSegments: Array<{ name?: string; value?: number }> = latest.revenue ?? [];
-    if (!Array.isArray(rawSegments) || rawSegments.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no segments in latest period' };
+    // v2 returns { symbol, currency, data: <object> } where data has dynamic keys.
+    // Known structures:
+    //   A) { "segmentName": number, ... }  — flat segment→revenue map
+    //   B) { "period": { "segmentName": number, ... }, ... }  — periods containing segments
+    //   C) { "segmentName": [{ period, v }, ...], ... }  — segments containing period arrays
+    const dataObj = json?.data;
+    if (!dataObj || typeof dataObj !== 'object' || Object.keys(dataObj).length === 0) {
+      return { data: null, error: 'revenue-breakdown2: no data returned' };
     }
 
     const segments: Array<{ name: string; revenue: number }> = [];
     let totalRevenue = 0;
 
-    for (const seg of rawSegments) {
-      const revenue = typeof seg.value === 'number' ? seg.value : 0;
-      if (revenue > 0) {
-        segments.push({ name: seg.name ?? 'Unknown', revenue });
-        totalRevenue += revenue;
+    const values = Object.values(dataObj) as unknown[];
+    const keys = Object.keys(dataObj);
+
+    if (typeof values[0] === 'number') {
+      // Case A: flat { segmentName: revenue }
+      for (let i = 0; i < keys.length; i++) {
+        const rev = values[i] as number;
+        if (rev > 0) {
+          segments.push({ name: keys[i], revenue: rev });
+          totalRevenue += rev;
+        }
+      }
+    } else if (Array.isArray(values[0])) {
+      // Case C: { segmentName: [{ period, v }, ...] } — use most recent entry per segment
+      for (let i = 0; i < keys.length; i++) {
+        const arr = values[i] as Array<Record<string, unknown>>;
+        if (!Array.isArray(arr) || arr.length === 0) continue;
+        // Sort by period descending, pick latest
+        const sorted = [...arr].sort((a, b) =>
+          String(b.period ?? '').localeCompare(String(a.period ?? '')),
+        );
+        const rev = Number(sorted[0].v ?? sorted[0].value ?? sorted[0].revenue ?? 0);
+        if (rev > 0) {
+          segments.push({ name: keys[i], revenue: rev });
+          totalRevenue += rev;
+        }
+      }
+    } else if (typeof values[0] === 'object' && values[0] !== null) {
+      // Case B: { period: { segmentName: value } } — pick most recent period
+      const sortedPeriods = keys.sort((a, b) => b.localeCompare(a));
+      const latestPeriodData = dataObj[sortedPeriods[0]] as Record<string, unknown>;
+      for (const [segName, segVal] of Object.entries(latestPeriodData)) {
+        const rev = Number(segVal);
+        if (!isNaN(rev) && rev > 0) {
+          segments.push({ name: segName, revenue: rev });
+          totalRevenue += rev;
+        }
       }
     }
 
     if (totalRevenue <= 0 || segments.length === 0) {
-      return { data: null, error: 'revenue-breakdown: no positive revenue segments' };
+      return { data: null, error: 'revenue-breakdown2: no positive revenue segments' };
     }
 
     // Compute HHI: sum of (segment_share²)
@@ -1841,7 +1650,7 @@ export async function fetchFinnhubRevenueBreakdown(
     revenueBreakdownCache.set(symbol, { data: result, fetchedAt: Date.now() });
     return { data: result, error: null };
   } catch (e: unknown) {
-    return { data: null, error: `revenue-breakdown: ${e instanceof Error ? e.message : String(e)}` };
+    return { data: null, error: `revenue-breakdown2: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 

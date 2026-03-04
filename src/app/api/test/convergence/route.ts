@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
 import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
@@ -183,7 +183,6 @@ export async function GET(request: Request) {
     finnhubResult,
     fredResult,
     annualFinancialsResult,
-    optionsFlowResult,
     newsSentimentResult,
     fredDailyResult,
   ] = await Promise.all([
@@ -214,10 +213,7 @@ export async function GET(request: Request) {
       ? fetchAnnualFinancials(symbol, finnhubKey).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
     finnhubKey
-      ? delay(200).then(() => fetchOptionsFlow(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
-      : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
-    finnhubKey
-      ? delay(400).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
+      ? delay(200).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
     fredKey
       ? fetchFredDailySeries(undefined, undefined, fredKey).catch(e => ({
@@ -237,7 +233,6 @@ export async function GET(request: Request) {
   if (ttCandleResult.error) fetchErrors.tt_candles = ttCandleResult.error;
   if (fredResult.error) fetchErrors.fred_macro = fredResult.error;
   if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
-  if (optionsFlowResult.error) fetchErrors.options_flow = optionsFlowResult.error;
   if (newsSentimentResult.error) fetchErrors.news_sentiment = newsSentimentResult.error;
   if (fredDailyResult.error) fetchErrors.fred_daily = fredDailyResult.error;
 
@@ -257,7 +252,7 @@ export async function GET(request: Request) {
     fredMacro: fredResult.data,
     annualFinancials: annualFinancialsResult.data,
     quarterlyFinancials: null, // Single-ticker route: fetched in pipeline batch mode
-    optionsFlow: optionsFlowResult.data,
+    optionsFlow: null,
     newsSentiment: newsSentimentResult.data,
     finnhubNewsSentiment: null, // Single-ticker route: FinBERT fetched separately in pipeline batch mode
     finnhubEarningsQuality: null, // Single-ticker route: EQ fetched separately in pipeline batch mode
