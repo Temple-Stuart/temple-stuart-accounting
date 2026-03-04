@@ -1083,6 +1083,50 @@ export async function fetchInsiderTransactions(
   }
 }
 
+// ===== FINNHUB PEER TICKERS FETCHER =====
+// Uses Finnhub /stock/peers to get peer company tickers for expanding peer groups
+// beyond hard-filter survivors. Returns tickers in the same country/sector/industry.
+
+const peerTickerCache = new Map<string, { peers: string[]; fetchedAt: number }>();
+const PEER_TICKER_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours (peer lists change slowly)
+
+export async function fetchPeerTickers(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: string[] | null; error: string | null }> {
+  const cached = peerTickerCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < PEER_TICKER_CACHE_TTL) {
+    return { data: cached.peers, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/peers?symbol=${symbol}&grouping=industry&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `stock/peers: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    if (!Array.isArray(json)) {
+      return { data: null, error: 'stock/peers: unexpected response format' };
+    }
+
+    // Finnhub returns the symbol itself in the list — filter it out
+    const peers = json.filter((t: unknown): t is string =>
+      typeof t === 'string' && t !== symbol
+    );
+
+    peerTickerCache.set(symbol, { peers, fetchedAt: Date.now() });
+    return { data: peers, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `stock/peers: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
 // ===== SEC FORM 4 INSIDER TRANSACTION FETCHER =====
 // DEPRECATED: Replaced by fetchInsiderTransactions() using Finnhub /stock/insider-transactions.
 // Kept for reference — will be removed after confirming the Finnhub path works in production.
