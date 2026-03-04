@@ -141,6 +141,14 @@ export interface AnnualFinancialPeriod {
   operatingCashFlow: number | null;
   capitalExpenditure: number | null;
   netIncome: number | null;
+  operatingIncome: number | null;
+  incomeTaxExpense: number | null;
+  preTaxIncome: number | null;
+  stockholdersEquity: number | null;
+  longTermDebtCurrent: number | null;
+  longTermDebtNoncurrent: number | null;
+  cashAndEquivalents: number | null;
+  weightedAvgShares: number | null;
   year: number;
 }
 
