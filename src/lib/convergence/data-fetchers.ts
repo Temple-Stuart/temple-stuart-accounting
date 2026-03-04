@@ -923,7 +923,169 @@ export async function fetchSECFilingData(
   }
 }
 
+// ===== FINNHUB INSIDER TRANSACTIONS FETCHER =====
+// Uses Finnhub /stock/insider-transactions (granted under Premium Package 1) to get
+// structured insider transaction data directly — same underlying SEC Form 3/4/5 data,
+// already parsed. Replaces the 3-hop SEC EDGAR chain (profile2→submissions→XML).
+// Cohen, Malloy & Pomorski (2012): "opportunistic" insiders (infrequent traders)
+// predict +7.2% annual excess returns; "routine" traders predict nothing.
+
+const insiderTxCache = new Map<string, { data: SECForm4Data; fetchedAt: number }>();
+const INSIDER_TX_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchInsiderTransactions(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: SECForm4Data | null; error: string | null }> {
+  const cached = insiderTxCache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < INSIDER_TX_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    // Fetch last 90 days of insider transactions
+    const fromDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/insider-transactions?symbol=${symbol}&from=${fromDate}&token=${key}`,
+    );
+    if (!resp.ok) {
+      return { data: null, error: `insider-transactions: HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    const rawTxs: Array<{
+      name?: string;
+      share?: number;
+      change?: number;
+      filingDate?: string;
+      transactionDate?: string;
+      transactionPrice?: number;
+      transactionCode?: string;
+    }> = json?.data ?? [];
+
+    // Map Finnhub transactions to SECForm4Transaction[]
+    const transactions: SECForm4Transaction[] = [];
+    for (const tx of rawTxs) {
+      const code = (tx.transactionCode ?? '').toUpperCase();
+      const change = tx.change ?? 0;
+      if (change === 0) continue;
+
+      const price = tx.transactionPrice != null && tx.transactionPrice > 0 ? tx.transactionPrice : null;
+      const shares = Math.abs(change);
+
+      transactions.push({
+        filerName: tx.name ?? 'Unknown',
+        transactionDate: tx.transactionDate ?? tx.filingDate ?? 'unknown',
+        transactionType: code,
+        sharesTraded: shares,
+        pricePerShare: price,
+        sharesOwnedAfter: tx.share != null ? tx.share : null,
+        // Finnhub /stock/insider-transactions does not provide role flags.
+        // Conservatively mark all as false — the opportunistic scoring still works
+        // based on trade frequency, and MSPR from /stock/insider-sentiment provides
+        // the officer/director signal via its weighted aggregate.
+        isDirector: false,
+        isOfficer: false,
+        isTenPercentOwner: false,
+        dollarValue: price !== null ? Math.round(shares * price) : null,
+      });
+    }
+
+    // Aggregate
+    let totalBuyCount = 0;
+    let totalSellCount = 0;
+    let totalBuyDollarValue = 0;
+    let totalSellDollarValue = 0;
+    let officerBuyCount = 0; // Always 0 — Finnhub doesn't provide role data
+    const filerNames = new Set<string>();
+    let latestTransactionDate: string | null = null;
+
+    for (const tx of transactions) {
+      filerNames.add(tx.filerName);
+      if (!latestTransactionDate || tx.transactionDate > latestTransactionDate) {
+        latestTransactionDate = tx.transactionDate;
+      }
+
+      if (tx.transactionType === 'P') {
+        totalBuyCount++;
+        totalBuyDollarValue += tx.dollarValue ?? 0;
+        // officerBuyCount stays 0 — role data not available from this endpoint
+      } else if (tx.transactionType === 'S') {
+        totalSellCount++;
+        totalSellDollarValue += tx.dollarValue ?? 0;
+      }
+    }
+
+    // Opportunistic score: filers with < 3 trades = likely opportunistic
+    const filerTxCounts = new Map<string, { buys: number; sells: number }>();
+    for (const tx of transactions) {
+      const existing = filerTxCounts.get(tx.filerName) ?? { buys: 0, sells: 0 };
+      if (tx.transactionType === 'P') existing.buys++;
+      else if (tx.transactionType === 'S') existing.sells++;
+      filerTxCounts.set(tx.filerName, existing);
+    }
+
+    let opportunisticSignal = 0;
+    let totalWeight = 0;
+    for (const [, counts] of filerTxCounts) {
+      const totalTrades = counts.buys + counts.sells;
+      // Opportunistic: < 3 trades in 90 days → weight 3x; routine: 3+ → weight 1x
+      const freqWeight = totalTrades < 3 ? 3 : 1;
+      const netSignal = counts.buys - counts.sells;
+      opportunisticSignal += netSignal * freqWeight;
+      totalWeight += freqWeight;
+    }
+
+    let opportunisticScore: number | null = null;
+    if (totalWeight > 0) {
+      const raw = opportunisticSignal / totalWeight;
+      opportunisticScore = Math.round(Math.max(0, Math.min(100, 50 + raw * 30)));
+    }
+
+    if (transactions.length === 0) {
+      // No transactions in 90 days — return empty (not an error)
+      const emptyResult: SECForm4Data = {
+        transactions: [],
+        totalBuyCount: 0,
+        totalSellCount: 0,
+        totalBuyDollarValue: 0,
+        totalSellDollarValue: 0,
+        netDollarFlow: 0,
+        uniqueFilers: 0,
+        officerBuyCount: 0,
+        latestTransactionDate: null,
+        opportunisticScore: null,
+      };
+      insiderTxCache.set(symbol, { data: emptyResult, fetchedAt: Date.now() });
+      return { data: emptyResult, error: null };
+    }
+
+    const result: SECForm4Data = {
+      transactions,
+      totalBuyCount,
+      totalSellCount,
+      totalBuyDollarValue: Math.round(totalBuyDollarValue),
+      totalSellDollarValue: Math.round(totalSellDollarValue),
+      netDollarFlow: Math.round(totalBuyDollarValue - totalSellDollarValue),
+      uniqueFilers: filerNames.size,
+      officerBuyCount,
+      latestTransactionDate,
+      opportunisticScore,
+    };
+
+    insiderTxCache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `insider-transactions: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
 // ===== SEC FORM 4 INSIDER TRANSACTION FETCHER =====
+// DEPRECATED: Replaced by fetchInsiderTransactions() using Finnhub /stock/insider-transactions.
+// Kept for reference — will be removed after confirming the Finnhub path works in production.
 // Parses real-time insider transactions from SEC EDGAR Form 4 filings.
 // Cohen, Malloy & Pomorski (2012): "opportunistic" insiders (infrequent traders)
 // predict +7.2% annual excess returns; "routine" traders predict nothing.
@@ -1105,6 +1267,7 @@ export async function fetchSECForm4Data(
   }
 }
 
+// DEPRECATED: Replaced by fetchInsiderTransactions() using Finnhub /stock/insider-transactions.
 // Parse Form 4 XML to extract transactions
 // SEC Form 4 XML uses a specific schema: ownershipDocument > nonDerivativeTable > nonDerivativeTransaction
 function parseForm4Xml(xml: string): SECForm4Transaction[] {
