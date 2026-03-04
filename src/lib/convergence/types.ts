@@ -858,6 +858,21 @@ export interface InfoEdgeResult {
 
 // -- Composite --
 
+export interface GateWeights {
+  vol_edge: number;
+  quality: number;
+  regime: number;
+  info_edge: number;
+}
+
+export interface GateWeightTrace {
+  gate_weights: GateWeights;
+  weight_mode: 'dynamic' | 'static_fallback';
+  regime_used: string;
+  regime_confidence: number;
+  blend_factor: number;
+}
+
 export interface CompositeResult {
   score: number;
   rank_method: string;
@@ -874,6 +889,7 @@ export interface CompositeResult {
   position_size_pct: number;
   sizing_method: string;
   data_confidence: DataConfidence;
+  gate_weight_trace: GateWeightTrace;
 }
 
 // -- Strategy Suggestion --
