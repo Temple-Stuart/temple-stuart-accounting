@@ -4,8 +4,12 @@ import type {
   MispricingTrace,
   TermStructureTrace,
   TechnicalsTrace,
+  SkewTrace,
+  GEXTrace,
   CandleData,
   DataConfidence,
+  OptionsChainExpiration,
+  OptionsChainStrike,
 } from './types';
 
 // ===== HELPERS =====
@@ -713,41 +717,363 @@ function scoreTechnicals(input: ConvergenceInput): TechnicalsTrace {
   };
 }
 
+// ===== OPTIONS SKEW SUB-SCORE (Cremers & Weinbaum 2010) =====
+// Deviations from put-call parity predict stock returns.
+// High put-vs-call skew = downside fear = bearish. Low skew = bullish.
+
+function scoreOptionsSkew(input: ConvergenceInput): SkewTrace {
+  const flow = input.optionsFlow;
+  const chain = flow?.chainDetail;
+  const spot = flow?.underlyingPrice ?? null;
+
+  if (!chain || chain.length === 0 || spot === null || spot <= 0) {
+    return {
+      score: 50, weight: 0.10,
+      inputs: { data_available: false },
+      formula: 'No options chain data → neutral default 50',
+      notes: 'Skew scoring requires per-strike IV data from options chain',
+      vol_skew_25d: null, pc_iv_ratio_atm: null,
+      skew_direction: 'neutral', skew_score: 50,
+    };
+  }
+
+  // Use nearest monthly expiration (closest to 30 DTE, minimum 7 DTE)
+  const sorted = [...chain]
+    .filter(e => e.dte >= 7)
+    .sort((a, b) => Math.abs(a.dte - 30) - Math.abs(b.dte - 30));
+
+  if (sorted.length === 0) {
+    return {
+      score: 50, weight: 0.10,
+      inputs: { data_available: false, expirations: chain.length },
+      formula: 'No expirations >= 7 DTE → neutral default 50',
+      notes: 'Need at least one expiration with 7+ DTE for skew computation',
+      vol_skew_25d: null, pc_iv_ratio_atm: null,
+      skew_direction: 'neutral', skew_score: 50,
+    };
+  }
+
+  const nearExp = sorted[0];
+  const strikes = nearExp.strikes;
+
+  // --- Metric 1: Volatility Skew (25-delta approximation) ---
+  // Use OTM puts at ~5% below spot vs OTM calls at ~5% above spot
+  const putTarget = spot * 0.95;
+  const callTarget = spot * 1.05;
+
+  // Find closest strike to each target that has IV data
+  let bestPutStrike: OptionsChainStrike | null = null;
+  let bestPutDist = Infinity;
+  let bestCallStrike: OptionsChainStrike | null = null;
+  let bestCallDist = Infinity;
+
+  for (const s of strikes) {
+    if (s.putIV !== null && s.putIV > 0 && s.strike <= spot) {
+      const dist = Math.abs(s.strike - putTarget);
+      if (dist < bestPutDist) { bestPutDist = dist; bestPutStrike = s; }
+    }
+    if (s.callIV !== null && s.callIV > 0 && s.strike >= spot) {
+      const dist = Math.abs(s.strike - callTarget);
+      if (dist < bestCallDist) { bestCallDist = dist; bestCallStrike = s; }
+    }
+  }
+
+  const putIV25d = bestPutStrike?.putIV ?? null;
+  const callIV25d = bestCallStrike?.callIV ?? null;
+  let volSkew25d: number | null = null;
+  if (putIV25d !== null && callIV25d !== null && callIV25d > 0) {
+    volSkew25d = round(putIV25d - callIV25d, 4);
+  }
+
+  // --- Metric 2: Put-Call IV Ratio (ATM) ---
+  // Find ATM strike (closest to spot)
+  let atmStrike: OptionsChainStrike | null = null;
+  let atmDist = Infinity;
+  for (const s of strikes) {
+    const dist = Math.abs(s.strike - spot);
+    if (dist < atmDist && s.callIV !== null && s.putIV !== null && s.callIV > 0 && s.putIV > 0) {
+      atmDist = dist;
+      atmStrike = s;
+    }
+  }
+
+  let pcIvRatioAtm: number | null = null;
+  if (atmStrike?.putIV !== null && atmStrike?.callIV !== null && atmStrike!.callIV! > 0) {
+    pcIvRatioAtm = round(atmStrike!.putIV! / atmStrike!.callIV!, 4);
+  }
+
+  // --- Combine into skew score (0-100) ---
+  // Bullish skew (low vol skew + low PC IV ratio) → high score
+  // Bearish skew (high vol skew + high PC IV ratio) → low score
+  let skewScoreFromVol = 50;
+  if (volSkew25d !== null) {
+    // Typical skew ranges: -0.05 (calls rich) to +0.20 (puts rich)
+    // Map: -0.05 → 90, 0.0 → 70, 0.05 → 55, 0.10 → 40, 0.15 → 25, 0.20 → 10
+    skewScoreFromVol = clamp(round(70 - (volSkew25d / 0.20) * 60), 0, 100);
+  }
+
+  let skewScoreFromPCR = 50;
+  if (pcIvRatioAtm !== null) {
+    // Ratio < 0.95 → calls overpriced → bullish → score ~70
+    // Ratio 0.95-1.05 → neutral → 50
+    // Ratio > 1.05 → puts overpriced → bearish → score ~30
+    if (pcIvRatioAtm < 0.95) {
+      skewScoreFromPCR = clamp(round(50 + (0.95 - pcIvRatioAtm) * 400), 50, 90);
+    } else if (pcIvRatioAtm > 1.05) {
+      skewScoreFromPCR = clamp(round(50 - (pcIvRatioAtm - 1.05) * 400), 10, 50);
+    }
+  }
+
+  // Weighted blend: 60% vol skew (more informative), 40% PC IV ratio
+  const hasVolSkew = volSkew25d !== null;
+  const hasPCR = pcIvRatioAtm !== null;
+  let skewScore: number;
+  if (hasVolSkew && hasPCR) {
+    skewScore = round(0.60 * skewScoreFromVol + 0.40 * skewScoreFromPCR, 1);
+  } else if (hasVolSkew) {
+    skewScore = skewScoreFromVol;
+  } else if (hasPCR) {
+    skewScore = skewScoreFromPCR;
+  } else {
+    skewScore = 50;
+  }
+
+  const skewDirection: 'bullish' | 'bearish' | 'neutral' =
+    skewScore >= 60 ? 'bullish' : skewScore <= 40 ? 'bearish' : 'neutral';
+
+  const formula = `0.60×VolSkew(${round(skewScoreFromVol)}) + 0.40×PCIVR(${round(skewScoreFromPCR)}) = ${round(skewScore)} [exp=${nearExp.expirationDate}, ${nearExp.dte}DTE]`;
+
+  return {
+    score: round(skewScore),
+    weight: 0.10,
+    inputs: {
+      data_available: true,
+      expiration_used: nearExp.expirationDate,
+      dte: nearExp.dte,
+      spot_price: round(spot, 2),
+      put_strike_25d: bestPutStrike?.strike ?? null,
+      call_strike_25d: bestCallStrike?.strike ?? null,
+      atm_strike: atmStrike?.strike ?? null,
+    },
+    formula,
+    notes: `Vol skew 25d=${volSkew25d !== null ? round(volSkew25d, 4) : 'N/A'}, PC IV ratio ATM=${pcIvRatioAtm !== null ? round(pcIvRatioAtm, 4) : 'N/A'}, direction=${skewDirection}`,
+    vol_skew_25d: volSkew25d,
+    pc_iv_ratio_atm: pcIvRatioAtm,
+    skew_direction: skewDirection,
+    skew_score: round(skewScore),
+  };
+}
+
+// ===== GAMMA EXPOSURE (GEX) SUB-SCORE =====
+// Net dealer gamma exposure predicts realized volatility.
+// Positive GEX (spot above flip) → vol suppressed → good for premium selling.
+// Negative GEX (spot below flip) → vol amplified → risky.
+
+/** Standard normal PDF */
+function normalPdf(x: number): number {
+  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+}
+
+/** Black-Scholes gamma for a single option */
+function bsGamma(spot: number, strike: number, iv: number, dte: number, riskFreeRate: number): number {
+  if (iv <= 0 || dte <= 0 || spot <= 0) return 0;
+  const T = dte / 365;
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(spot / strike) + (riskFreeRate + 0.5 * iv * iv) * T) / (iv * sqrtT);
+  return normalPdf(d1) / (spot * iv * sqrtT);
+}
+
+function scoreGammaExposure(input: ConvergenceInput): GEXTrace {
+  const flow = input.optionsFlow;
+  const chain = flow?.chainDetail;
+  const spot = flow?.underlyingPrice ?? null;
+
+  if (!chain || chain.length === 0 || spot === null || spot <= 0) {
+    return {
+      score: 50, weight: 0.10,
+      inputs: { data_available: false },
+      formula: 'No options chain data → neutral default 50',
+      notes: 'GEX scoring requires per-strike OI and IV data from options chain',
+      net_gex: null, gex_flip_strike: null,
+      distance_to_flip_pct: null, gex_regime: 'neutral', gex_score: 50,
+    };
+  }
+
+  // Risk-free rate from FRED treasury 10Y, fallback 4.5%
+  const rfr = (input.fredMacro?.treasury10y ?? 4.5) / 100;
+
+  // Compute GEX across all near-term expirations
+  // For each strike: call_GEX = call_OI × call_gamma × 100 × spot
+  //                  put_GEX  = -1 × put_OI × put_gamma × 100 × spot
+  // (puts negative because dealers are typically short puts)
+
+  let totalGex = 0;
+  const perStrikeGex: { strike: number; gex: number }[] = [];
+
+  for (const exp of chain) {
+    if (exp.dte < 1) continue;
+    for (const s of exp.strikes) {
+      let strikeGex = 0;
+
+      if (s.callIV !== null && s.callIV > 0 && s.callOI > 0) {
+        const gamma = bsGamma(spot, s.strike, s.callIV, exp.dte, rfr);
+        strikeGex += s.callOI * gamma * 100 * spot;
+      }
+      if (s.putIV !== null && s.putIV > 0 && s.putOI > 0) {
+        const gamma = bsGamma(spot, s.strike, s.putIV, exp.dte, rfr);
+        strikeGex += -1 * s.putOI * gamma * 100 * spot;
+      }
+
+      if (strikeGex !== 0) {
+        totalGex += strikeGex;
+        perStrikeGex.push({ strike: s.strike, gex: strikeGex });
+      }
+    }
+  }
+
+  // Find GEX flip point: strike where cumulative gamma crosses zero
+  // Sort by strike ascending and find zero-crossing
+  perStrikeGex.sort((a, b) => a.strike - b.strike);
+  let flipStrike: number | null = null;
+  let cumulativeGex = 0;
+  for (let i = 0; i < perStrikeGex.length; i++) {
+    const prevCumulative = cumulativeGex;
+    cumulativeGex += perStrikeGex[i].gex;
+    // Detect sign change
+    if (prevCumulative >= 0 && cumulativeGex < 0) {
+      flipStrike = perStrikeGex[i].strike;
+      break;
+    } else if (prevCumulative < 0 && cumulativeGex >= 0) {
+      flipStrike = perStrikeGex[i].strike;
+      break;
+    }
+  }
+
+  // If no flip found, set flip to highest or lowest strike based on net GEX sign
+  if (flipStrike === null && perStrikeGex.length > 0) {
+    if (totalGex > 0) {
+      // All positive — flip is below the chain
+      flipStrike = perStrikeGex[0].strike;
+    } else {
+      // All negative — flip is above the chain
+      flipStrike = perStrikeGex[perStrikeGex.length - 1].strike;
+    }
+  }
+
+  // Distance to flip
+  const distanceToFlipPct = flipStrike !== null
+    ? round((spot - flipStrike) / spot * 100, 2)
+    : null;
+
+  // Determine regime
+  let gexRegime: 'long_gamma' | 'short_gamma' | 'neutral';
+  if (distanceToFlipPct !== null) {
+    if (distanceToFlipPct > 1) gexRegime = 'long_gamma';       // spot well above flip
+    else if (distanceToFlipPct < -1) gexRegime = 'short_gamma'; // spot below flip
+    else gexRegime = 'neutral';                                  // near flip point
+  } else {
+    gexRegime = 'neutral';
+  }
+
+  // Scoring:
+  // High positive GEX (spot well above flip) → low realized vol → high score
+  // Negative GEX (spot below flip) → amplified moves → low score
+  // Near flip → neutral
+  let gexScore: number;
+  if (distanceToFlipPct !== null) {
+    // Map distance: +5% → 85, +2% → 70, 0% → 50, -2% → 30, -5% → 15
+    gexScore = clamp(round(50 + distanceToFlipPct * 7), 0, 100);
+  } else {
+    gexScore = 50;
+  }
+
+  // Normalize net GEX for display (in millions of dollar-gamma)
+  const netGexDisplay = round(totalGex / 1_000_000, 2);
+
+  const formula = `distToFlip=${distanceToFlipPct ?? 'N/A'}% → regime=${gexRegime} → score=${round(gexScore)} [netGEX=${netGexDisplay}M, flip=${flipStrike ?? 'N/A'}]`;
+
+  return {
+    score: round(gexScore),
+    weight: 0.10,
+    inputs: {
+      data_available: true,
+      spot_price: round(spot, 2),
+      risk_free_rate: round(rfr * 100, 2),
+      strikes_computed: perStrikeGex.length,
+      expirations_used: chain.filter(e => e.dte >= 1).length,
+    },
+    formula,
+    notes: `Net GEX=${netGexDisplay}M $-gamma, flip=${flipStrike ?? 'N/A'}, dist=${distanceToFlipPct ?? 'N/A'}%, regime=${gexRegime}`,
+    net_gex: netGexDisplay,
+    gex_flip_strike: flipStrike,
+    distance_to_flip_pct: distanceToFlipPct,
+    gex_regime: gexRegime,
+    gex_score: round(gexScore),
+  };
+}
+
 // ===== MAIN VOL EDGE SCORER =====
 
 export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   const mispricing = scoreMispricing(input);
   const termStructure = scoreTermStructure(input);
+  const skew = scoreOptionsSkew(input);
+  const gex = scoreGammaExposure(input);
   const hasCandles = input.candles.length >= 20;
+  const hasChainData = (input.optionsFlow?.chainDetail?.length ?? 0) > 0;
+
+  // Weight rebalance (before → after):
+  //   Mispricing:      0.50 → 0.40
+  //   Term Structure:  0.30 → 0.25
+  //   Technicals:      0.20 → 0.15
+  //   Skew (NEW):      —    → 0.10
+  //   GEX (NEW):       —    → 0.10
+  //   Total:           1.00 → 1.00
+  // Skew and GEX are partially independent from mispricing (IVP/IVR):
+  //   - Skew measures directionality of the vol surface, not the level
+  //   - GEX measures dealer positioning's effect on realized volatility
+
+  // Assign weights based on data availability
+  mispricing.weight = 0.40;
+  termStructure.weight = 0.25;
 
   let technicals: TechnicalsTrace;
   let score: number;
 
   if (hasCandles) {
-    // Real candle data available — use full 3-component weighting
     technicals = scoreTechnicals(input);
-    score = round(
-      mispricing.weight * mispricing.score +
-      termStructure.weight * termStructure.score +
-      technicals.weight * technicals.score,
-      1,
-    );
-  } else {
-    // No candle data — EXCLUDE technicals entirely, renormalize remaining weights
-    // mispricing 0.50 / 0.80 = 0.625, term structure 0.30 / 0.80 = 0.375
-    const mispricingW = 0.625;
-    const termW = 0.375;
-    score = round(
-      mispricingW * mispricing.score +
-      termW * termStructure.score,
-      1,
-    );
+    technicals.weight = 0.15;
 
+    if (hasChainData) {
+      // Full 5-component weighting
+      score = round(
+        mispricing.weight * mispricing.score +
+        termStructure.weight * termStructure.score +
+        technicals.weight * technicals.score +
+        skew.weight * skew.score +
+        gex.weight * gex.score,
+        1,
+      );
+    } else {
+      // No chain data — exclude skew+GEX, renormalize
+      // mispricing 0.40/0.80=0.50, term 0.25/0.80=0.3125, tech 0.15/0.80=0.1875
+      const denom = mispricing.weight + termStructure.weight + technicals.weight;
+      score = round(
+        (mispricing.weight / denom) * mispricing.score +
+        (termStructure.weight / denom) * termStructure.score +
+        (technicals.weight / denom) * technicals.score,
+        1,
+      );
+      skew.weight = 0;
+      gex.weight = 0;
+    }
+  } else {
+    // No candle data — exclude technicals
     technicals = {
       score: 0,
       weight: 0,
       inputs: { candles_available: input.candles.length },
-      formula: 'EXCLUDED — no candle data available. Vol edge scored from mispricing (62.5%) + term structure (37.5%) only.',
+      formula: 'EXCLUDED — no candle data available.',
       notes: 'Technicals excluded. No fabricated scores.',
       sub_scores: { rsi_score: 0, trend_score: 0, bollinger_score: 0, volume_score: 0, high52w_score: 0 },
       indicators: {
@@ -758,6 +1084,28 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
       },
       candles_used: 0,
     };
+
+    if (hasChainData) {
+      // No candles but have chain: mispricing + term + skew + gex
+      const denom = mispricing.weight + termStructure.weight + skew.weight + gex.weight;
+      score = round(
+        (mispricing.weight / denom) * mispricing.score +
+        (termStructure.weight / denom) * termStructure.score +
+        (skew.weight / denom) * skew.score +
+        (gex.weight / denom) * gex.score,
+        1,
+      );
+    } else {
+      // No candles, no chain: mispricing + term only
+      const denom = mispricing.weight + termStructure.weight;
+      score = round(
+        (mispricing.weight / denom) * mispricing.score +
+        (termStructure.weight / denom) * termStructure.score,
+        1,
+      );
+      skew.weight = 0;
+      gex.weight = 0;
+    }
   }
 
   // Build DataConfidence
@@ -777,7 +1125,13 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
   } else {
     if (!input.finnhubFundamentals?.metric?.['52WeekHigh']) imputedFields.push('technicals.high52w');
   }
-  const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1); // mispricing(4) + term(1) + technicals(5 or 1 if excluded)
+  // Skew + GEX
+  if (!hasChainData) {
+    imputedFields.push('skew');
+    imputedFields.push('gex');
+  }
+  // mispricing(4) + term(1) + technicals(5 or 1) + skew(1) + gex(1)
+  const totalSubScores = 4 + 1 + (hasCandles ? 5 : 1) + 1 + 1;
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
@@ -792,6 +1146,8 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
       mispricing,
       term_structure: termStructure,
       technicals,
+      skew,
+      gex,
     },
   };
 }

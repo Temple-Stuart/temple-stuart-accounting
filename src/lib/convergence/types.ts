@@ -203,6 +203,22 @@ export interface QuarterlyFinancials {
 
 // ===== OPTIONS FLOW DATA (from Finnhub option chain) =====
 
+export interface OptionsChainStrike {
+  strike: number;
+  callIV: number | null;
+  putIV: number | null;
+  callOI: number;
+  putOI: number;
+  callVolume: number;
+  putVolume: number;
+}
+
+export interface OptionsChainExpiration {
+  expirationDate: string;
+  dte: number;
+  strikes: OptionsChainStrike[];
+}
+
 export interface OptionsFlowData {
   put_call_ratio: number | null;
   volume_bias: number | null;
@@ -214,6 +230,8 @@ export interface OptionsFlowData {
   strikes_analyzed: number;
   high_activity_strikes: number;
   expirations_analyzed: number;
+  underlyingPrice: number | null;
+  chainDetail: OptionsChainExpiration[];
 }
 
 // ===== NEWS SENTIMENT DATA (from Finnhub company-news + keyword matching) =====
@@ -269,6 +287,34 @@ export interface SECFilingData {
   fiscalPeriod: string;             // "Q1 2025" or "FY 2024"
 }
 
+// ===== SEC FORM 4 INSIDER TRANSACTIONS (Cohen, Malloy & Pomorski 2012) =====
+
+export interface SECForm4Transaction {
+  filerName: string;
+  transactionDate: string;          // "2025-01-15"
+  transactionType: string;          // "P" (purchase), "S" (sale), "A" (award), "M" (exercise), "G" (gift)
+  sharesTraded: number;
+  pricePerShare: number | null;
+  sharesOwnedAfter: number | null;
+  isDirector: boolean;
+  isOfficer: boolean;
+  isTenPercentOwner: boolean;
+  dollarValue: number | null;       // shares × price
+}
+
+export interface SECForm4Data {
+  transactions: SECForm4Transaction[];
+  totalBuyCount: number;
+  totalSellCount: number;
+  totalBuyDollarValue: number;
+  totalSellDollarValue: number;
+  netDollarFlow: number;            // buys - sells
+  uniqueFilers: number;
+  officerBuyCount: number;          // C-suite buys are strongest signal (Seyhun 1986)
+  latestTransactionDate: string | null;
+  opportunisticScore: number | null; // 0-100, computed from opportunistic vs routine classification
+}
+
 export interface EarningsSurpriseSignal {
   epsActual: number | null;
   epsEstimate: number | null;       // from Finnhub estimates (already fetched)
@@ -310,6 +356,38 @@ export interface FinnhubNewsSentiment {
   bearishPercent: number | null;
 }
 
+// ===== FRED DAILY HISTORY (for cross-asset correlations) =====
+
+export interface FredDailyObservation {
+  date: string;   // "2024-01-15"
+  value: number;
+}
+
+export interface FredDailyHistory {
+  seriesId: string;
+  observations: FredDailyObservation[];  // sorted oldest → newest
+}
+
+// ===== CROSS-ASSET CORRELATIONS (Bridgewater All Weather / AQR factor timing) =====
+
+export interface CrossAssetCorrelations {
+  // Rolling 60-day Pearson correlations on daily returns
+  bond_equity: number | null;       // DGS10 returns vs SP500 returns
+  oil_equity: number | null;        // DCOILWTICO returns vs SP500 returns
+  oil_bond: number | null;          // DCOILWTICO returns vs DGS10 returns
+  // Trailing 252-day (full-year) correlations for comparison
+  bond_equity_252d: number | null;
+  oil_equity_252d: number | null;
+  oil_bond_252d: number | null;
+  // Regime shift detection: 60d vs 252d divergence
+  regime_shift_detected: boolean;
+  regime_shift_magnitude: number;   // max |60d - 252d| across pairs
+  // Cluster classification
+  cluster: 'risk_on' | 'risk_off' | 'inflation' | 'deflation' | 'transition';
+  cluster_confidence: number;       // 0 to 1
+  note: string;
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -331,6 +409,8 @@ export interface ConvergenceInput {
   finnhubInstitutionalOwnership: FinnhubInstitutionalOwnership | null;
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
   secFilingData: SECFilingData | null;
+  secForm4Data: SECForm4Data | null;
+  crossAssetCorrelations: CrossAssetCorrelations | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -414,6 +494,21 @@ export interface TechnicalsTrace extends SubScoreTrace {
   candles_used: number;
 }
 
+export interface SkewTrace extends SubScoreTrace {
+  vol_skew_25d: number | null;
+  pc_iv_ratio_atm: number | null;
+  skew_direction: 'bullish' | 'bearish' | 'neutral';
+  skew_score: number;
+}
+
+export interface GEXTrace extends SubScoreTrace {
+  net_gex: number | null;
+  gex_flip_strike: number | null;
+  distance_to_flip_pct: number | null;
+  gex_regime: 'long_gamma' | 'short_gamma' | 'neutral';
+  gex_score: number;
+}
+
 export interface VolEdgeResult {
   score: number;
   data_confidence: DataConfidence;
@@ -421,6 +516,8 @@ export interface VolEdgeResult {
     mispricing: MispricingTrace;
     term_structure: TermStructureTrace;
     technicals: TechnicalsTrace;
+    skew: SkewTrace;
+    gex: GEXTrace;
   };
 }
 
@@ -633,6 +730,16 @@ export interface RegimeResult {
       formula: string;
       note: string;
     };
+    cross_asset_correlations?: {
+      correlations: CrossAssetCorrelations;
+      probability_adjustment: {
+        goldilocks: number;
+        reflation: number;
+        stagflation: number;
+        deflation: number;
+      };
+      note: string;
+    };
   };
 }
 
@@ -705,6 +812,17 @@ export interface InsiderActivityTrace extends SubScoreTrace {
     latest_mspr: number | null;
     avg_mspr_3m: number | null;
     net_direction: string;
+  };
+  form4?: {
+    form4_available: boolean;
+    insider_ensemble_mode: 'full' | 'mspr_only';
+    form4_buy_count: number;
+    form4_sell_count: number;
+    net_dollar_flow: number;
+    officer_buys: number;
+    opportunistic_score: number | null;
+    form4_flow_score: number;
+    form4_opportunistic_score_component: number;
   };
 }
 
@@ -823,6 +941,21 @@ export interface InfoEdgeResult {
 
 // -- Composite --
 
+export interface GateWeights {
+  vol_edge: number;
+  quality: number;
+  regime: number;
+  info_edge: number;
+}
+
+export interface GateWeightTrace {
+  gate_weights: GateWeights;
+  weight_mode: 'dynamic' | 'static_fallback';
+  regime_used: string;
+  regime_confidence: number;
+  blend_factor: number;
+}
+
 export interface CompositeResult {
   score: number;
   rank_method: string;
@@ -839,6 +972,7 @@ export interface CompositeResult {
   position_size_pct: number;
   sizing_method: string;
   data_confidence: DataConfidence;
+  gate_weight_trace: GateWeightTrace;
 }
 
 // -- Strategy Suggestion --

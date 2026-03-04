@@ -13,6 +13,8 @@ import type {
   AnnualFinancials,
   AnnualFinancialPeriod,
   OptionsFlowData,
+  OptionsChainStrike,
+  OptionsChainExpiration,
   NewsSentimentData,
   NewsHeadlineEntry,
   NewsSentimentPeriod,
@@ -23,6 +25,10 @@ import type {
   QuarterlyFinancials,
   SECFilingData,
   QuarterlyFinancialPeriod,
+  FredDailyObservation,
+  FredDailyHistory,
+  SECForm4Transaction,
+  SECForm4Data,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -627,6 +633,79 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
   return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
 }
 
+// ===== FRED DAILY HISTORY FETCHER (for cross-asset correlations) =====
+// Fetches N trading days of daily observations for a given FRED series.
+// Used to compute rolling correlations between asset classes (Bridgewater All Weather).
+
+let fredDailyCache: { data: Map<string, FredDailyHistory>; fetchedAt: number } | null = null;
+const FRED_DAILY_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// Default series for cross-asset correlations
+const CROSS_ASSET_SERIES = ['DGS10', 'SP500', 'DCOILWTICO'] as const;
+
+export async function fetchFredDailySeries(
+  seriesIds: readonly string[] = CROSS_ASSET_SERIES,
+  tradingDays: number = 252,
+  apiKey?: string,
+): Promise<{ data: Map<string, FredDailyHistory>; cached: boolean; error: string | null }> {
+  // Check cache
+  if (fredDailyCache && Date.now() - fredDailyCache.fetchedAt < FRED_DAILY_CACHE_TTL) {
+    // Verify all requested series are in cache
+    const allCached = seriesIds.every(id => fredDailyCache!.data.has(id));
+    if (allCached) {
+      return { data: fredDailyCache.data, cached: true, error: null };
+    }
+  }
+
+  const key = apiKey || process.env.FRED_API_KEY;
+  if (!key) {
+    return { data: new Map(), cached: false, error: 'FRED_API_KEY not configured' };
+  }
+
+  const result = new Map<string, FredDailyHistory>();
+  const errors: string[] = [];
+
+  // Fetch ~2x trading days of calendar days to ensure we get enough observations
+  // (weekends + holidays mean ~252 trading days ≈ 365 calendar days)
+  const calendarDays = Math.ceil(tradingDays * 1.5);
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - calendarDays);
+  const startStr = startDate.toISOString().slice(0, 10);
+
+  for (const seriesId of seriesIds) {
+    try {
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${key}&file_type=json&sort_order=asc&observation_start=${startStr}`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const json = await resp.json();
+        const obs = json?.observations;
+        if (Array.isArray(obs)) {
+          const observations: FredDailyObservation[] = [];
+          for (const o of obs) {
+            if (o.value !== '.' && o.date) {
+              const val = parseFloat(o.value);
+              if (!isNaN(val)) {
+                observations.push({ date: o.date, value: val });
+              }
+            }
+          }
+          result.set(seriesId, { seriesId, observations });
+        }
+      } else {
+        errors.push(`${seriesId}: HTTP ${resp.status}`);
+      }
+    } catch (e: unknown) {
+      errors.push(`${seriesId}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    await delay(100); // Rate limit respect
+  }
+
+  // Cache the result
+  fredDailyCache = { data: result, fetchedAt: Date.now() };
+
+  return { data: result, cached: false, error: errors.length > 0 ? errors.join('; ') : null };
+}
+
 // ===== FINNHUB OPTIONS FLOW FETCHER (with 1-hour cache) =====
 
 interface FinnhubOptionEntry {
@@ -779,6 +858,45 @@ export async function fetchOptionsFlow(
       ? Math.round((highActivityStrikes / strikesWithOI) * 1000) / 1000
       : null;
 
+    // Build per-strike chain detail for skew and GEX computation in vol-edge scorer
+    const chainDetail: OptionsChainExpiration[] = [];
+    for (const exp of nearTermExps) {
+      const expDate = new Date(exp.expirationDate);
+      const dte = Math.round((expDate.getTime() - now.getTime()) / 86400000);
+      const calls = exp.options.CALL || [];
+      const puts = exp.options.PUT || [];
+
+      // Group by strike
+      const strikeMap = new Map<number, OptionsChainStrike>();
+      for (const call of calls) {
+        if (call.strike == null) continue;
+        const s = strikeMap.get(call.strike) ?? {
+          strike: call.strike, callIV: null, putIV: null,
+          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
+        };
+        s.callIV = call.impliedVolatility ?? null;
+        s.callOI = call.openInterest || 0;
+        s.callVolume = call.volume || 0;
+        strikeMap.set(call.strike, s);
+      }
+      for (const put of puts) {
+        if (put.strike == null) continue;
+        const s = strikeMap.get(put.strike) ?? {
+          strike: put.strike, callIV: null, putIV: null,
+          callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
+        };
+        s.putIV = put.impliedVolatility ?? null;
+        s.putOI = put.openInterest || 0;
+        s.putVolume = put.volume || 0;
+        strikeMap.set(put.strike, s);
+      }
+
+      const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
+      if (strikes.length > 0) {
+        chainDetail.push({ expirationDate: exp.expirationDate, dte, strikes });
+      }
+    }
+
     const result: OptionsFlowData = {
       put_call_ratio: putCallRatio,
       volume_bias: volumeBias,
@@ -790,6 +908,8 @@ export async function fetchOptionsFlow(
       strikes_analyzed: strikesAnalyzed,
       high_activity_strikes: highActivityStrikes,
       expirations_analyzed: nearTermExps.length,
+      underlyingPrice,
+      chainDetail,
     };
 
     // Cache
@@ -1018,6 +1138,257 @@ export async function fetchSECFilingData(
   } catch (e: unknown) {
     return { data: null, error: `sec-edgar: ${e instanceof Error ? e.message : String(e)}` };
   }
+}
+
+// ===== SEC FORM 4 INSIDER TRANSACTION FETCHER =====
+// Parses real-time insider transactions from SEC EDGAR Form 4 filings.
+// Cohen, Malloy & Pomorski (2012): "opportunistic" insiders (infrequent traders)
+// predict +7.2% annual excess returns; "routine" traders predict nothing.
+
+const secForm4Cache = new Map<string, { data: SECForm4Data; fetchedAt: number }>();
+const SEC_FORM4_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function fetchSECForm4Data(
+  symbol: string,
+  finnhubApiKey?: string,
+): Promise<{ data: SECForm4Data | null; error: string | null }> {
+  const cached = secForm4Cache.get(symbol);
+  if (cached && Date.now() - cached.fetchedAt < SEC_FORM4_CACHE_TTL) {
+    return { data: cached.data, error: null };
+  }
+
+  // Step 1: Get CIK (reuses existing CIK lookup + cache)
+  const cik = await lookupCIK(symbol, finnhubApiKey);
+  if (!cik) {
+    return { data: null, error: 'sec-form4: CIK lookup failed' };
+  }
+
+  try {
+    // Step 2: Fetch recent filings from SEC submissions endpoint
+    const resp = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, {
+      headers: { 'User-Agent': SEC_USER_AGENT },
+    });
+
+    if (!resp.ok) {
+      return { data: null, error: `sec-form4: submissions HTTP ${resp.status}` };
+    }
+
+    const json = await resp.json();
+    const recent = json?.filings?.recent;
+    if (!recent || !Array.isArray(recent.form)) {
+      return { data: null, error: 'sec-form4: no recent filings in response' };
+    }
+
+    // Filter to Form 4 filings in the last 90 days
+    const now = Date.now();
+    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+    const form4Indices: number[] = [];
+
+    for (let i = 0; i < recent.form.length; i++) {
+      if (recent.form[i] !== '4') continue;
+      const filingDate = recent.filingDate?.[i];
+      if (!filingDate) continue;
+      const filingTime = new Date(filingDate + 'T00:00:00Z').getTime();
+      if (filingTime < ninetyDaysAgo) continue;
+      form4Indices.push(i);
+    }
+
+    if (form4Indices.length === 0) {
+      // No Form 4 filings in last 90 days — return empty (not an error)
+      const emptyResult: SECForm4Data = {
+        transactions: [],
+        totalBuyCount: 0,
+        totalSellCount: 0,
+        totalBuyDollarValue: 0,
+        totalSellDollarValue: 0,
+        netDollarFlow: 0,
+        uniqueFilers: 0,
+        officerBuyCount: 0,
+        latestTransactionDate: null,
+        opportunisticScore: null,
+      };
+      secForm4Cache.set(symbol, { data: emptyResult, fetchedAt: Date.now() });
+      return { data: emptyResult, error: null };
+    }
+
+    // Step 3: Fetch and parse individual Form 4 XML filings (max 15 to limit API calls)
+    const maxFilings = Math.min(form4Indices.length, 15);
+    const transactions: SECForm4Transaction[] = [];
+
+    for (let j = 0; j < maxFilings; j++) {
+      const idx = form4Indices[j];
+      const accessionNumber = recent.accessionNumber?.[idx];
+      const primaryDocument = recent.primaryDocument?.[idx];
+
+      if (!accessionNumber || !primaryDocument) continue;
+
+      // Build URL: SEC EDGAR archives
+      const accClean = accessionNumber.replace(/-/g, '');
+      const xmlUrl = `https://www.sec.gov/Archives/edgar/data/${cik.replace(/^0+/, '')}/${accClean}/${primaryDocument}`;
+
+      try {
+        const xmlResp = await fetch(xmlUrl, {
+          headers: { 'User-Agent': SEC_USER_AGENT },
+        });
+        if (!xmlResp.ok) continue;
+
+        const xmlText = await xmlResp.text();
+        const parsed = parseForm4Xml(xmlText);
+        transactions.push(...parsed);
+      } catch {
+        // Skip individual filing parse errors
+      }
+
+      await delay(110); // SEC rate limit: 10 req/sec → 100ms between
+    }
+
+    // Step 4: Aggregate transaction data
+    let totalBuyCount = 0;
+    let totalSellCount = 0;
+    let totalBuyDollarValue = 0;
+    let totalSellDollarValue = 0;
+    let officerBuyCount = 0;
+    const filerNames = new Set<string>();
+    let latestTransactionDate: string | null = null;
+
+    for (const tx of transactions) {
+      filerNames.add(tx.filerName);
+      if (!latestTransactionDate || tx.transactionDate > latestTransactionDate) {
+        latestTransactionDate = tx.transactionDate;
+      }
+
+      if (tx.transactionType === 'P') {
+        totalBuyCount++;
+        totalBuyDollarValue += tx.dollarValue ?? 0;
+        if (tx.isOfficer || tx.isDirector) officerBuyCount++;
+      } else if (tx.transactionType === 'S') {
+        totalSellCount++;
+        totalSellDollarValue += tx.dollarValue ?? 0;
+      }
+    }
+
+    // Step 5: Compute opportunistic score
+    // Approximate: filer with only 1 transaction in 90 days = likely opportunistic
+    const filerTxCounts = new Map<string, { buys: number; sells: number; isOfficer: boolean }>();
+    for (const tx of transactions) {
+      const existing = filerTxCounts.get(tx.filerName) ?? { buys: 0, sells: 0, isOfficer: false };
+      if (tx.transactionType === 'P') existing.buys++;
+      else if (tx.transactionType === 'S') existing.sells++;
+      if (tx.isOfficer || tx.isDirector) existing.isOfficer = true;
+      filerTxCounts.set(tx.filerName, existing);
+    }
+
+    let opportunisticSignal = 0;
+    let totalWeight = 0;
+
+    for (const [, counts] of filerTxCounts) {
+      const totalTrades = counts.buys + counts.sells;
+      // Opportunistic: < 3 trades in 90 days → weight 3x; routine: 3+ → weight 1x
+      const freqWeight = totalTrades < 3 ? 3 : 1;
+      // Officer/director: 2x weight over 10% owners
+      const roleWeight = counts.isOfficer ? 2 : 1;
+      const weight = freqWeight * roleWeight;
+
+      // Net signal: buys positive, sells negative
+      const netSignal = counts.buys - counts.sells;
+      opportunisticSignal += netSignal * weight;
+      totalWeight += weight;
+    }
+
+    // Normalize to 0-100 (50 = neutral, >50 = net buying, <50 = net selling)
+    let opportunisticScore: number | null = null;
+    if (totalWeight > 0) {
+      const raw = opportunisticSignal / totalWeight; // roughly -1 to +1
+      opportunisticScore = Math.round(Math.max(0, Math.min(100, 50 + raw * 30)));
+    }
+
+    const result: SECForm4Data = {
+      transactions,
+      totalBuyCount,
+      totalSellCount,
+      totalBuyDollarValue: Math.round(totalBuyDollarValue),
+      totalSellDollarValue: Math.round(totalSellDollarValue),
+      netDollarFlow: Math.round(totalBuyDollarValue - totalSellDollarValue),
+      uniqueFilers: filerNames.size,
+      officerBuyCount,
+      latestTransactionDate,
+      opportunisticScore,
+    };
+
+    secForm4Cache.set(symbol, { data: result, fetchedAt: Date.now() });
+    return { data: result, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `sec-form4: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// Parse Form 4 XML to extract transactions
+// SEC Form 4 XML uses a specific schema: ownershipDocument > nonDerivativeTable > nonDerivativeTransaction
+function parseForm4Xml(xml: string): SECForm4Transaction[] {
+  const transactions: SECForm4Transaction[] = [];
+
+  // Extract filer info (reportingOwner section)
+  const filerName = extractXmlValue(xml, 'rptOwnerName') ?? 'Unknown';
+  const isDirector = extractXmlValue(xml, 'isDirector') === '1' || extractXmlValue(xml, 'isDirector') === 'true';
+  const isOfficer = extractXmlValue(xml, 'isOfficer') === '1' || extractXmlValue(xml, 'isOfficer') === 'true';
+  const isTenPercentOwner = extractXmlValue(xml, 'isTenPercentOwner') === '1' || extractXmlValue(xml, 'isTenPercentOwner') === 'true';
+
+  // Parse non-derivative transactions
+  const txBlocks = xml.split(/<nonDerivativeTransaction>/gi).slice(1);
+  for (const block of txBlocks) {
+    const endIdx = block.indexOf('</nonDerivativeTransaction>');
+    const txXml = endIdx >= 0 ? block.slice(0, endIdx) : block;
+
+    const transactionDate = extractXmlValue(txXml, 'transactionDate>.*?<value') ??
+      extractXmlValue(txXml, 'value', /<transactionDate>[\s\S]*?<value>(.*?)<\/value>/);
+    const sharesStr = extractXmlValue(txXml, 'transactionAmounts>.*?transactionShares>.*?<value') ??
+      extractNestedValue(txXml, 'transactionShares', 'value');
+    const priceStr = extractXmlValue(txXml, 'transactionPricePerShare>.*?<value') ??
+      extractNestedValue(txXml, 'transactionPricePerShare', 'value');
+    const codeStr = extractXmlValue(txXml, 'transactionCode');
+    const sharesAfterStr = extractNestedValue(txXml, 'sharesOwnedFollowingTransaction', 'value');
+
+    const shares = sharesStr ? parseFloat(sharesStr) : 0;
+    const price = priceStr ? parseFloat(priceStr) : null;
+    const sharesAfter = sharesAfterStr ? parseFloat(sharesAfterStr) : null;
+
+    if (shares === 0 || !codeStr) continue;
+    // Only include P (purchase) and S (sale) — skip A (award), M (exercise), G (gift) for scoring
+    // but include all types in the data for completeness
+    const txType = codeStr.toUpperCase();
+
+    transactions.push({
+      filerName,
+      transactionDate: transactionDate ?? 'unknown',
+      transactionType: txType,
+      sharesTraded: Math.abs(shares),
+      pricePerShare: price !== null && !isNaN(price) ? price : null,
+      sharesOwnedAfter: sharesAfter !== null && !isNaN(sharesAfter) ? sharesAfter : null,
+      isDirector,
+      isOfficer,
+      isTenPercentOwner,
+      dollarValue: price !== null && !isNaN(price) ? Math.round(Math.abs(shares) * price) : null,
+    });
+  }
+
+  return transactions;
+}
+
+// XML helpers — simple regex extraction (no DOM parser dependency)
+function extractXmlValue(xml: string, tag: string, customRegex?: RegExp): string | null {
+  if (customRegex) {
+    const m = xml.match(customRegex);
+    return m?.[1]?.trim() ?? null;
+  }
+  const regex = new RegExp(`<${tag}>\\s*([^<]+)\\s*<`, 'i');
+  const match = xml.match(regex);
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractNestedValue(xml: string, parentTag: string, childTag: string): string | null {
+  const parentRegex = new RegExp(`<${parentTag}>[\\s\\S]*?<${childTag}>\\s*([^<]+)\\s*<\\/`, 'i');
+  const match = xml.match(parentRegex);
+  return match?.[1]?.trim() ?? null;
 }
 
 // ===== FINNHUB INSTITUTIONAL OWNERSHIP FETCHER =====

@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchOptionsFlow, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
+import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
 import { generateTradeCards } from '@/lib/convergence/trade-cards';
@@ -12,6 +13,7 @@ import type {
   CandleData,
   TTScannerData,
   FredMacroData,
+  FredDailyHistory,
   ConvergenceInput,
   ConvergenceResponse,
   TradeCard,
@@ -183,6 +185,7 @@ export async function GET(request: Request) {
     annualFinancialsResult,
     optionsFlowResult,
     newsSentimentResult,
+    fredDailyResult,
   ] = await Promise.all([
     fetchTTScanner(symbol).catch(e => {
       fetchErrors.tt_scanner = e instanceof Error ? e.message : String(e);
@@ -216,6 +219,17 @@ export async function GET(request: Request) {
     finnhubKey
       ? delay(400).then(() => fetchNewsSentiment(symbol, finnhubKey)).catch(e => ({ data: null, error: String(e) }))
       : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
+    fredKey
+      ? fetchFredDailySeries(undefined, undefined, fredKey).catch(e => ({
+          data: new Map() as Map<string, FredDailyHistory>,
+          cached: false,
+          error: String(e),
+        }))
+      : Promise.resolve({
+          data: new Map() as Map<string, FredDailyHistory>,
+          cached: false,
+          error: 'FRED_API_KEY not configured',
+        }),
   ]);
 
   // Collect fetch errors (Finnhub per-endpoint errors logged internally by fetchFinnhubTicker)
@@ -225,6 +239,10 @@ export async function GET(request: Request) {
   if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
   if (optionsFlowResult.error) fetchErrors.options_flow = optionsFlowResult.error;
   if (newsSentimentResult.error) fetchErrors.news_sentiment = newsSentimentResult.error;
+  if (fredDailyResult.error) fetchErrors.fred_daily = fredDailyResult.error;
+
+  // Compute cross-asset correlations from daily FRED history
+  const crossAssetCorrelations = computeCrossAssetCorrelations(fredDailyResult.data);
 
   // ===== ASSEMBLE INPUT =====
   const convergenceInput: ConvergenceInput = {
@@ -246,6 +264,8 @@ export async function GET(request: Request) {
     finnhubInstitutionalOwnership: null, // Single-ticker route: fetched in pipeline batch mode
     finnhubRevenueBreakdown: null, // Single-ticker route: fetched in pipeline batch mode
     secFilingData: null, // Single-ticker route: fetched in pipeline batch mode
+    secForm4Data: null, // Single-ticker route: fetched in pipeline batch mode
+    crossAssetCorrelations,
   };
 
   // ===== RUN SCORING =====

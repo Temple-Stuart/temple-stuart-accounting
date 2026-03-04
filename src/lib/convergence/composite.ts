@@ -7,6 +7,8 @@ import type {
   CompositeResult,
   StrategySuggestion,
   DataConfidence,
+  GateWeights,
+  GateWeightTrace,
 } from './types';
 import { scoreVolEdge } from './vol-edge';
 import { scoreQualityGate } from './quality-gate';
@@ -17,6 +19,89 @@ function round(v: number, decimals = 2): number {
   const f = Math.pow(10, decimals);
   return Math.round(v * f) / f;
 }
+
+// ===== DYNAMIC GATE WEIGHTING (AQR factor timing — regime-dependent) =====
+// Signal importance shifts with market regime. In a credit crisis, Quality matters
+// more than Vol-Edge. In a low-vol expansion, Vol-Edge is king.
+
+const STATIC_WEIGHTS: GateWeights = { vol_edge: 0.25, quality: 0.25, regime: 0.25, info_edge: 0.25 };
+
+// Regime label → dynamic weight table
+// Existing regime labels: GOLDILOCKS, REFLATION, STAGFLATION, DEFLATION
+// Plus CRISIS override from HY spread stress level
+const REGIME_WEIGHT_TABLE: Record<string, GateWeights> = {
+  // GOLDILOCKS → EXPANSION: vol signals + info signals dominate in bull markets
+  GOLDILOCKS:  { vol_edge: 0.30, quality: 0.20, regime: 0.20, info_edge: 0.30 },
+  // REFLATION → RECOVERY: vol-edge returns as opportunity signal, regime confirms direction
+  REFLATION:   { vol_edge: 0.30, quality: 0.20, regime: 0.25, info_edge: 0.25 },
+  // DEFLATION → CONTRACTION: quality becomes critical — avoid blowups
+  DEFLATION:   { vol_edge: 0.20, quality: 0.35, regime: 0.25, info_edge: 0.20 },
+  // STAGFLATION: regime + quality — stagflation is hardest to trade
+  STAGFLATION: { vol_edge: 0.20, quality: 0.30, regime: 0.30, info_edge: 0.20 },
+  // CRISIS: quality + regime awareness paramount, vol surface unreliable
+  CRISIS:      { vol_edge: 0.15, quality: 0.40, regime: 0.30, info_edge: 0.15 },
+};
+
+function computeDynamicGateWeights(regime: RegimeResult | null): GateWeightTrace {
+  if (!regime) {
+    return {
+      gate_weights: { ...STATIC_WEIGHTS },
+      weight_mode: 'static_fallback',
+      regime_used: 'UNKNOWN',
+      regime_confidence: 0,
+      blend_factor: 0,
+    };
+  }
+
+  const breakdown = regime.breakdown;
+  const probs = breakdown.regime_probabilities;
+  let dominantRegime = breakdown.dominant_regime;
+
+  // Crisis override: if HY spread is at crisis levels, override to CRISIS
+  if (breakdown.regime_signals.hy_stress_level === 'crisis') {
+    dominantRegime = 'CRISIS';
+  }
+
+  // Regime confidence = dominant regime probability
+  // Normalize from [0.25, 1.0] → [0.0, 1.0] so equal probability maps to 0 confidence
+  const dominantProb = dominantRegime === 'CRISIS'
+    ? Math.max(probs.stagflation, probs.deflation)  // crisis confidence from contraction probs
+    : Math.max(probs.goldilocks, probs.reflation, probs.stagflation, probs.deflation);
+  const regimeConfidence = round(Math.max(0, (dominantProb - 0.25) / 0.75), 4);
+
+  // Blend factor = regime confidence (0 = fully static, 1 = fully dynamic)
+  const blendFactor = regimeConfidence;
+
+  // Look up dynamic weights for the regime
+  const dynamicWeights = REGIME_WEIGHT_TABLE[dominantRegime] ?? STATIC_WEIGHTS;
+
+  // Confidence-blended weights: finalWeight = blend × dynamic + (1 - blend) × static
+  const gateWeights: GateWeights = {
+    vol_edge: round(blendFactor * dynamicWeights.vol_edge + (1 - blendFactor) * STATIC_WEIGHTS.vol_edge, 4),
+    quality:  round(blendFactor * dynamicWeights.quality  + (1 - blendFactor) * STATIC_WEIGHTS.quality, 4),
+    regime:   round(blendFactor * dynamicWeights.regime   + (1 - blendFactor) * STATIC_WEIGHTS.regime, 4),
+    info_edge: round(blendFactor * dynamicWeights.info_edge + (1 - blendFactor) * STATIC_WEIGHTS.info_edge, 4),
+  };
+
+  // Normalize to ensure weights sum to exactly 1.0 (prevent floating point drift)
+  const sum = gateWeights.vol_edge + gateWeights.quality + gateWeights.regime + gateWeights.info_edge;
+  if (Math.abs(sum - 1.0) > 0.001) {
+    gateWeights.vol_edge = round(gateWeights.vol_edge / sum, 4);
+    gateWeights.quality = round(gateWeights.quality / sum, 4);
+    gateWeights.regime = round(gateWeights.regime / sum, 4);
+    gateWeights.info_edge = round(1 - gateWeights.vol_edge - gateWeights.quality - gateWeights.regime, 4);
+  }
+
+  return {
+    gate_weights: gateWeights,
+    weight_mode: blendFactor > 0 ? 'dynamic' : 'static_fallback',
+    regime_used: dominantRegime,
+    regime_confidence: round(dominantProb, 4),
+    blend_factor: round(blendFactor, 4),
+  };
+}
+
+// ===== MAIN COMPOSITE SCORER =====
 
 export interface FullScoringResult {
   vol_edge: VolEdgeResult;
@@ -34,12 +119,15 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
   const regime = scoreRegime(input);
   const infoEdge = scoreInfoEdge(input);
 
-  // Equal-weighted composite: 25% each
+  // Dynamic gate weighting: regime-dependent with confidence blending
+  const gateWeightTrace = computeDynamicGateWeights(regime);
+  const w = gateWeightTrace.gate_weights;
+
   const compositeScore = round(
-    0.25 * volEdge.score +
-    0.25 * quality.score +
-    0.25 * regime.score +
-    0.25 * infoEdge.score,
+    w.vol_edge * volEdge.score +
+    w.quality * quality.score +
+    w.regime * regime.score +
+    w.info_edge * infoEdge.score,
     1,
   );
 
@@ -93,8 +181,8 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
 
   const composite: CompositeResult = {
     score: compositeScore,
-    rank_method: 'equal_weighted_percentile_rank',
-    note: 'Single ticker — percentile ranks not meaningful. Scores shown as raw 0-100.',
+    rank_method: 'dynamic_regime_weighted',
+    note: `Gate weights: VE=${round(w.vol_edge, 2)} Q=${round(w.quality, 2)} R=${round(w.regime, 2)} IE=${round(w.info_edge, 2)} [${gateWeightTrace.weight_mode}, regime=${gateWeightTrace.regime_used}, blend=${round(gateWeightTrace.blend_factor, 2)}]`,
     convergence_gate: convergenceGate,
     direction,
     category_scores: {
@@ -107,6 +195,7 @@ export function scoreAll(input: ConvergenceInput): FullScoringResult {
     position_size_pct: positionSizePct,
     sizing_method: 'continuous_v1',
     data_confidence: compositeConfidence,
+    gate_weight_trace: gateWeightTrace,
   };
 
   // Strategy suggestion
