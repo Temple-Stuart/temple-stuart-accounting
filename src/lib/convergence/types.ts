@@ -530,7 +530,6 @@ export interface AnalystConsensusTrace extends SubScoreTrace {
     estimate_level_score: number;
     estimate_dispersion_score: number;
     revenue_eps_alignment_score: number;
-    price_target_return_score: number;
     consensus_breadth_score: number;
   };
   indicators: {
@@ -539,10 +538,6 @@ export interface AnalystConsensusTrace extends SubScoreTrace {
     eps_dispersion_pct: number | null;
     revenue_growth_direction: string | null;
     eps_growth_direction: string | null;
-    price_target_median: number | null;
-    price_target_implied_return_pct: number | null;
-    recent_upgrades_90d: number | null;
-    recent_downgrades_90d: number | null;
     number_analysts_estimates: number | null;
     number_analysts_recommendations: number | null;
   };
@@ -553,6 +548,37 @@ export interface AnalystConsensusTrace extends SubScoreTrace {
     sell: number;
     strongSell: number;
     total: number;
+  };
+}
+
+export interface PriceTargetSignalTrace extends SubScoreTrace {
+  sub_scores: {
+    price_target_score: number;
+  };
+  indicators: {
+    raw_implied_return_pct: number | null;
+    peer_median_implied_return_pct: number | null;
+    delta_tper: number | null;
+    num_analysts: number;
+    price_target_median: number | null;
+    price_target_mean: number | null;
+    price_target_high: number | null;
+    price_target_low: number | null;
+    latest_close: number | null;
+  };
+}
+
+export interface UpgradeDowngradeSignalTrace extends SubScoreTrace {
+  sub_scores: {
+    upgrade_downgrade_score: number;
+  };
+  indicators: {
+    total_events_90d: number;
+    upgrades_count: number;
+    downgrades_count: number;
+    initiations_count: number;
+    reiterations_count: number;
+    net_rating_momentum_raw: number;
   };
 }
 
@@ -645,6 +671,8 @@ export interface InfoEdgeResult {
   data_confidence: DataConfidence;
   breakdown: {
     analyst_consensus: AnalystConsensusTrace;
+    price_target_signal: PriceTargetSignalTrace;
+    upgrade_downgrade_signal: UpgradeDowngradeSignalTrace;
     insider_activity: InsiderActivityTrace;
     earnings_momentum: EarningsMomentumTrace;
     flow_signal: FlowSignalTrace;
