@@ -341,11 +341,31 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     else roaScore = 15;
   }
 
-  // --- ROIC (8%) — capital efficiency (TTM preferred, Annual fallback) ---
-  const roicTTM = typeof metric['roicTTM'] === 'number' ? metric['roicTTM'] as number : null;
-  const roicAnnual = typeof metric['roicAnnual'] === 'number' ? metric['roicAnnual'] as number : null;
-  const roic = roicTTM ?? roicAnnual;
-  const roicSource = roicTTM !== null ? 'TTM' : roicAnnual !== null ? 'Annual' : 'N/A';
+  // --- ROIC (8%) — capital efficiency, calculated from XBRL financials ---
+  const afProf = input.annualFinancials;
+  const afCur = afProf?.currentYear ?? null;
+  let roic: number | null = null;
+  let roicSource = 'N/A';
+  if (afCur) {
+    const opIncome = afCur.operatingIncome;
+    const taxExp = afCur.incomeTaxExpense;
+    const preTax = afCur.preTaxIncome;
+    const equity = afCur.stockholdersEquity;
+    const ltDebtCur = afCur.longTermDebtCurrent ?? 0;
+    const ltDebtNon = afCur.longTermDebtNoncurrent ?? 0;
+    const cash = afCur.cashAndEquivalents;
+
+    if (opIncome !== null && taxExp !== null && preTax !== null && preTax !== 0
+        && equity !== null && cash !== null) {
+      const etr = Math.max(0, Math.min(1, taxExp / preTax)); // clamp ETR to [0, 1]
+      const nopat = opIncome * (1 - etr);
+      const investedCapital = equity + ltDebtCur + ltDebtNon - cash;
+      if (investedCapital > 0) {
+        roic = round((nopat / investedCapital) * 100, 2);
+        roicSource = 'CALCULATED';
+      }
+    }
+  }
   let roicScore = 50; // neutral default — missing data
   if (roic !== null) {
     if (roic > 25) roicScore = 90;
@@ -401,8 +421,24 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
     else evEbitdaScore = 20;                      // Very expensive
   }
 
-  // --- FCF yield (18%) ---
-  const fcfShareTTM = typeof metric['freeCashFlowPerShareTTM'] === 'number' ? metric['freeCashFlowPerShareTTM'] as number : null;
+  // --- FCF yield (18%) — calculated from XBRL financials, Finnhub metric fallback ---
+  let fcfShareTTM: number | null = null;
+  let fcfSource = 'N/A';
+  if (afCur) {
+    const opCf = afCur.operatingCashFlow;
+    const capex = afCur.capitalExpenditure;
+    const shares = afCur.weightedAvgShares;
+    if (opCf !== null && capex !== null && shares !== null && shares > 0) {
+      const fcf = opCf - Math.abs(capex); // capex reported as positive outflow
+      fcfShareTTM = round(fcf / shares, 4);
+      fcfSource = 'CALCULATED';
+    }
+  }
+  // Fallback to Finnhub pre-calculated metric if XBRL calculation failed
+  if (fcfShareTTM === null && typeof metric['freeCashFlowPerShareTTM'] === 'number') {
+    fcfShareTTM = metric['freeCashFlowPerShareTTM'] as number;
+    fcfSource = 'TTM';
+  }
   const currentPrice = typeof metric['marketCapitalization'] === 'number' && typeof metric['shareOutstanding'] === 'number' && (metric['shareOutstanding'] as number) > 0
     ? (metric['marketCapitalization'] as number) * 1e6 / ((metric['shareOutstanding'] as number) * 1e6)
     : null;
@@ -518,11 +554,12 @@ function scoreProfitability(input: ConvergenceInput): ProfitabilityTrace {
       ev_ebitda: evEbitda,
       ev_ebitda_source: evEbitdaSource,
       fcf_per_share_ttm: fcfShareTTM,
+      fcf_source: fcfSource,
       quarters_available: totalQ,
       days_till_earnings: daysTillEarnings,
     },
     formula,
-    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}. ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q`,
+    notes: `Margin=${grossMargin ?? 'N/A'}%, ROE=${roe ?? 'N/A'}%, ROA=${roa ?? 'N/A'}%, ROIC=${roic ?? 'N/A'}%(${roicSource}), PE=${pe ?? 'N/A'}, P/S=${ps ?? 'N/A'}(${psSource}), EV/EBITDA=${evEbitda ?? 'N/A'}(${evEbitdaSource}), FCF/sh=${fcfShareTTM ?? 'N/A'}(${fcfSource}). ${beats} beats, ${misses} misses, ${inLine} in-line out of ${totalQ}Q`,
     sub_scores: {
       gross_margin_score: round(grossMarginScore),
       roe_score: round(roeScore),
@@ -760,8 +797,8 @@ export function scoreQualityGate(input: ConvergenceInput): QualityGateResult {
   if (typeof metric['roeTTM'] !== 'number') imputedFields.push('profitability.roe');
   if (typeof metric['roaTTM'] !== 'number') imputedFields.push('profitability.roa');
   if (tt?.peRatio == null && typeof metric['peNormalizedAnnual'] !== 'number') imputedFields.push('profitability.pe_ratio');
-  if (typeof metric['freeCashFlowPerShareTTM'] !== 'number') imputedFields.push('profitability.fcf');
-  if (typeof metric['roicTTM'] !== 'number' && typeof metric['roicAnnual'] !== 'number') imputedFields.push('profitability.roic');
+  if (profitability.inputs.fcf_source === 'N/A') imputedFields.push('profitability.fcf');
+  if (profitability.inputs.roic_source === 'N/A') imputedFields.push('profitability.roic');
   if (typeof metric['psTTM'] !== 'number' && typeof metric['psAnnual'] !== 'number') imputedFields.push('profitability.ps');
   if (typeof metric['evEbitdaTTM'] !== 'number' && typeof metric['evEbitdaAnnual'] !== 'number') imputedFields.push('profitability.ev_ebitda');
   if (input.finnhubEarnings.length === 0) imputedFields.push('profitability.earnings_consistency');

@@ -293,6 +293,14 @@ function parseAnnualReport(report: ReportData, year: number): AnnualFinancialPer
     operatingCashFlow: findConcept(cf, 'NetCashProvidedByUsedInOperatingActivities', 'NetCashProvidedByOperatingActivities'),
     capitalExpenditure: findConcept(cf, 'PaymentsToAcquirePropertyPlantAndEquipment', 'PurchaseOfPropertyPlantAndEquipment', 'CapitalExpenditure'),
     netIncome: findConcept(ic, 'NetIncomeLoss'),
+    operatingIncome: findConcept(ic, 'OperatingIncomeLoss'),
+    incomeTaxExpense: findConcept(ic, 'IncomeTaxExpenseBenefit'),
+    preTaxIncome: findConcept(ic, 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments'),
+    stockholdersEquity: findConcept(bs, 'StockholdersEquity'),
+    longTermDebtCurrent: findConcept(bs, 'LongTermDebtCurrent'),
+    longTermDebtNoncurrent: findConcept(bs, 'LongTermDebtNoncurrent'),
+    cashAndEquivalents: findConcept(bs, 'CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsAndShortTermInvestments'),
+    weightedAvgShares: findConcept(ic, 'WeightedAverageNumberOfSharesOutstandingBasic', 'WeightedAverageNumberOfDilutedSharesOutstanding'),
     year,
   };
 }
