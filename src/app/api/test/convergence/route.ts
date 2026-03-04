@@ -240,6 +240,7 @@ export async function GET(request: Request) {
     annualFinancials: annualFinancialsResult.data,
     optionsFlow: optionsFlowResult.data,
     newsSentiment: newsSentimentResult.data,
+    finnhubNewsSentiment: null, // Single-ticker route: FinBERT fetched separately in pipeline batch mode
   };
 
   // ===== RUN SCORING =====

@@ -213,6 +213,17 @@ export interface NewsSentimentData {
   classification_method: string; // 'llm-haiku' | 'keyword-fallback'
 }
 
+// ===== FINNHUB FINBERT SENTIMENT (from /news-sentiment endpoint) =====
+
+export interface FinnhubNewsSentiment {
+  companyNewsScore: number;               // FinBERT overall company sentiment score (0-1, 0.5 = neutral)
+  sectorAverageNewsScore: number | null;  // Sector average for comparison
+  sectorAverageBullishPercent: number | null;
+  buzz: number | null;                    // Buzz score (article count vs historical average)
+  bullishPercent: number | null;
+  bearishPercent: number | null;
+}
+
 // ===== COMBINED RAW INPUT =====
 
 export interface ConvergenceInput {
@@ -228,6 +239,7 @@ export interface ConvergenceInput {
   annualFinancials: AnnualFinancials | null;
   optionsFlow: OptionsFlowData | null;
   newsSentiment: NewsSentimentData | null;
+  finnhubNewsSentiment: FinnhubNewsSentiment | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
 }
@@ -613,6 +625,18 @@ export interface NewsSentimentTrace {
     source_distribution: Record<string, number>;
     headlines: NewsHeadlineEntry[];
     classification_method: string;
+  };
+  ensemble?: {
+    finnhub_sentiment_score: number | null;
+    finnhub_buzz: number | null;
+    finnhub_sector_avg: number | null;
+    ensemble_agreement: 'unanimous' | 'majority' | 'split' | 'two-leg';
+    ensemble_confidence_modifier: number; // +0.20, 0, -0.30
+    leg_directions: {
+      keyword: 'bullish' | 'bearish' | 'neutral';
+      haiku: 'bullish' | 'bearish' | 'neutral' | null;
+      finbert: 'bullish' | 'bearish' | 'neutral' | null;
+    };
   };
 }
 
