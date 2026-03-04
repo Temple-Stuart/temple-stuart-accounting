@@ -6,8 +6,8 @@ import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
 import type { RejectionReason } from '@/lib/strategy-builder';
 import { fetchSentimentBatch } from './sentiment';
 import type { SentimentResult } from './sentiment';
-import { computeSectorStats } from './sector-stats';
-import type { SectorStatsMap } from './sector-stats';
+import { computePeerStats } from './sector-stats';
+import type { PeerStatsMap, PeerGroupAssignment } from './sector-stats';
 import { scoreAll } from './composite';
 import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
@@ -93,7 +93,7 @@ export interface PipelineResult {
     timestamp: string;
   };
   hard_filters: HardFiltersResult;
-  sector_stats: SectorStatsMap;
+  peer_stats: PeerStatsMap;
   pre_scores: PreScoreRow[];
   rankings: {
     scored_count: number;
@@ -401,8 +401,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   const survivors = hardFilters.survivors.map(s => scannerMap.get(s)!).filter(Boolean);
 
   // ===== STEP C: Sector Stats =====
-  console.log('[Pipeline] Step C: Computing sector stats...');
-  const sectorStats = computeSectorStats(survivors);
+  console.log('[Pipeline] Step C: Computing peer stats (industry-first, sector fallback)...');
+  const { stats: peerStats, assignment: peerGroupAssignment } = computePeerStats(survivors);
 
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
@@ -507,7 +507,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       annualFinancials: annualFinancialsMap.get(symbol) ?? null,
       optionsFlow: optionsFlowMap.get(symbol) ?? null,
       newsSentiment: newsSentimentMap.get(symbol) ?? null,
-      sectorStats,
+      peerStats,
+      peerGroupAssignment,
     };
 
     try {
@@ -550,7 +551,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
         annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
         optionsFlow: optionsFlowMap.get(ticker.symbol) ?? null,
         newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
-        sectorStats,
+        peerStats,
+        peerGroupAssignment,
       };
 
       try {
@@ -735,7 +737,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   } else {
     dataGaps.push('candle_technicals: TastyTrade connection failed — technicals excluded from scoring (no fake data)');
   }
-  dataGaps.push('sector_z_scores: computed per-ticker using sector peer stats from hard-filter survivors');
+  dataGaps.push('peer_z_scores: computed per-ticker using industry peers (>=5) or sector fallback from hard-filter survivors');
 
   if (chainStats.chain_symbols_fetched > 0 && chainStats.total_trade_cards === 0) {
     dataGaps.push('trade_cards: option chains fetched but no strategies passed quality gates');
@@ -767,7 +769,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       timestamp: new Date().toISOString(),
     },
     hard_filters: hardFilters,
-    sector_stats: sectorStats,
+    peer_stats: peerStats,
     pre_scores: preScores,
     rankings: {
       scored_count: scoredTickers.length,
