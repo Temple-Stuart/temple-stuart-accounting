@@ -580,6 +580,13 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
               skew: 'Skew asymmetry signals directional positioning in the options market.',
               gex: 'Dealer gamma exposure is creating structural price pressure.',
             };
+            const subTooltips: Record<string, string> = {
+              mispricing: 'Mispricing (0–100): compares implied volatility to realized volatility using VRP z-score, IV percentile, and IV-HV spread. High score = options are statistically expensive relative to how much the stock actually moves.',
+              term_structure: 'Term Structure (0–100): reads the shape of the volatility surface across expiration dates. Contango (near-term IV < far-term IV) favors premium sellers. Backwardation signals stress or upcoming events.',
+              technicals: 'Technicals (0–100): confirms price action direction using RSI, trend (SMA alignment), Bollinger Band position, and volume. High score = price action aligns with the trade direction.',
+              skew: 'Skew (0–100): measures asymmetry between put and call implied volatilities. Steep put skew signals bearish positioning or fear. Steep call skew signals bullish demand. Documented in Xing, Zhang & Zhao (2010, JFQA).',
+              gex: 'Gamma Exposure (0–100): measures dealer hedging pressure from options positioning. Long gamma = dealers buy dips/sell rallies (dampening). Short gamma = dealers amplify moves (volatility). Based on Barbon & Buraschi (2021).',
+            };
             const vrpZ = bd.mispricing?.z_scores?.vrp_z;
             const gexRegimeMap: Record<string, { text: string; variant: 'success' | 'danger' | 'default' }> = {
               long_gamma: { text: 'long \u03B3', variant: 'success' },
@@ -596,7 +603,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 </div>
                 <div className="space-y-1.5">
                   {subs.map(({ key, label, score }) => (
-                    <div key={key} className="flex items-center gap-2">
+                    <div key={key} className="flex items-center gap-2" title={subTooltips[key]}>
                       <div className="w-24 shrink-0 text-[10px] font-medium text-text-secondary">{label}</div>
                       <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-terminal">
                         <div className="h-full rounded-full transition-all duration-500 bg-brand-purple" style={{ width: `${Math.min(Math.round(score), 100)}%` }} />
@@ -604,7 +611,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                       <div className="w-6 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{Math.round(score)}</div>
                       <div className="w-20 shrink-0">
                         {key === 'mispricing' && vrpZ != null && (
-                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`}>
+                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`} title="Variance Risk Premium z-score: how many standard deviations the current IV-HV spread is above its 12-month average. Above +1.5 = options historically expensive. Carr & Wu (2009, RFS).">
                             VRP z: {vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}
                           </span>
                         )}
@@ -692,7 +699,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
               {why.risk_flags.map((flag, i) => {
                 const isRed = flag.startsWith('UNLIMITED') || flag.startsWith('INSIDER');
                 return (
-                  <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`}>
+                  <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`} title="Risk flag: a condition that reduces confidence in this trade. Review before entering.">
                     <span className="shrink-0 mt-0.5">{isRed ? '\u26D4' : '\u26A0'}</span>
                     <span>{flag}</span>
                   </div>
@@ -712,10 +719,10 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
             <div>
               <span className="text-text-muted font-medium">Volatility: </span>
               <span className="text-text-secondary font-mono">
-                IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}
+                <span title="IV Rank (0–100): where current implied volatility sits relative to its 52-week range. Above 50 = IV elevated vs recent history. Formula: (IV_now - IV_low) / (IV_high - IV_low).">IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}</span>
                 {ks.iv_rank != null && <span className="text-text-muted"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
-                {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}
-                {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}
+                {' | '}<span title="30-day implied volatility: the annualized volatility the options market is currently pricing in. Derived from option prices across the chain.">IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}</span>
+                {' | '}<span title="30-day historical (realized) volatility: how much the stock has actually moved over the past 30 days, annualized. Compare to IV — the gap is the variance risk premium.">HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}</span>
                 {ks.iv_hv_spread != null && (
                   <>
                     {' | '}
@@ -733,32 +740,32 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
             <div>
               <span className="text-text-muted font-medium">Company: </span>
               <span className="text-text-secondary font-mono">
-                P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}
+                <span title="Price-to-earnings ratio. Used in Quality Gate as one input to valuation context. Extreme P/E (very high or negative) increases fundamental risk score.">P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}</span>
                 {ks.pe_ratio != null && <span className="text-text-muted"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
-                {' | '}Cap {fmtMcap(ks.market_cap)}
-                {' | '}Earnings {ks.earnings_date ?? '—'}
-                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-brand-amber"> ({ks.days_to_earnings}d away)</span>}
+                {' | '}<span title="Total market capitalization. Larger caps tend to have tighter bid-ask spreads and more liquid options chains.">Cap {fmtMcap(ks.market_cap)}</span>
+                {' | '}<span title="Next scheduled earnings announcement. Options IV typically spikes before earnings and collapses after. Know this date before entering any position.">Earnings {ks.earnings_date ?? '—'}</span>
+                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-brand-amber" title="Calendar days until next earnings. Under 21 days = elevated event risk. The scanner flags this in risk flags."> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
             {/* Market row */}
             <div>
               <span className="text-text-muted font-medium">Market: </span>
               <span className="text-text-secondary font-mono">
-                Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}
+                <span title="Beta measures how much this stock moves relative to the S&P 500. Beta 1.5 = stock moves ~50% more than the market on average. Higher beta = wider expected moves = higher IV.">Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}</span>
                 {ks.beta != null && <span className="text-text-muted"> — {statExplain('beta', ks.beta)}</span>}
-                {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}
+                {' | '}<span title="30-day rolling correlation to SPY. High correlation means the stock moves with the market — macro events affect this position. Low correlation = more idiosyncratic risk.">SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}</span>
                 {ks.spy_correlation != null && <span className="text-text-muted"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
-                {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}
+                {' | '}<span title="Options chain liquidity score. Combines bid-ask spreads, open interest, and daily volume across strikes. Low liquidity = wider fills = higher real cost of the trade.">Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}</span>
               </span>
             </div>
             {/* Sentiment row */}
             <div>
               <span className="text-text-muted font-medium">Sentiment: </span>
               <span className="text-text-secondary font-mono">
-                Analysts: {ks.analyst_consensus ?? '—'}
-                {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}
+                <span title="Aggregated analyst recommendation from Finnhub. Ranges from Strong Buy to Strong Sell. Used as one input to the Info Edge gate.">Analysts: {ks.analyst_consensus ?? '—'}</span>
+                {' | '}<span title="Social media activity ratio: recent mention volume vs baseline. From xAI/Grok real-time X/Twitter analysis. Elevated buzz can signal upcoming price movement.">Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}</span>
                 {ks.buzz_ratio != null && <span className="text-text-muted"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
-                {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
+                {' | '}<span title="Rate of change in social sentiment. Positive = sentiment improving recently. Negative = sentiment deteriorating. From xAI/Grok X/Twitter analysis.">Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}</span>
                 {ks.sentiment_momentum != null && <span className="text-text-muted"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
@@ -768,11 +775,12 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 <span className="text-text-muted font-medium">Social Pulse: </span>
                 <span
                   className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
+                  title="Aggregate sentiment score from real X (Twitter) posts analyzed by xAI Grok. Range -1.0 (fully bearish) to +1.0 (fully bullish). Based on actual post content, not price action."
                 >
                   {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
                 </span>
-                <span className="text-text-faint font-mono">
-                  {' '}({sentiment.postCount} posts
+                <span className="text-text-faint font-mono" title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
+                  {' '}(<span title="Number of recent X/Twitter posts about this ticker analyzed by xAI Grok. Higher count = more data points = higher confidence in the sentiment reading.">{sentiment.postCount} posts</span>
                   {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N)
                 </span>
                 {sentiment.themes.length > 0 && (
@@ -794,15 +802,15 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Recent Headlines</div>
           <div className="space-y-1.5">
             {headlines.map((h, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
+              <div key={i} className="flex items-start gap-2 text-xs" title="News headline from Finnhub. Sentiment scored by FinBERT — a financial-domain BERT model trained on financial phrase classification.">
                 <span className="text-text-secondary leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
                 <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
-                <Badge
+                <span title="FinBERT sentiment classification: positive, negative, or neutral. FinBERT outperforms general NLP models on financial text (Huang, Wang & Yang 2023)."><Badge
                   variant={h.sentiment === 'bullish' ? 'success' : h.sentiment === 'bearish' ? 'danger' : 'default'}
                   size="sm"
                 >
                   {h.sentiment}
-                </Badge>
+                </Badge></span>
               </div>
             ))}
           </div>
