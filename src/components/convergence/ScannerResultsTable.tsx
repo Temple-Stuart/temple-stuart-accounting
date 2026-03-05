@@ -664,7 +664,7 @@ export default function ScannerResultsTable({
               <th className={thBase + ' text-right'} onClick={() => toggleSort('dte')}>DTE{sortIndicator('dte')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {sortedRows.map((row, idx) => {
               const isExpanded = expandedRow === row.id;
               const isQueued = row.card ? savedCards.has(row.cardKey) : false;

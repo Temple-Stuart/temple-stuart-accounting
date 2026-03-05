@@ -53,8 +53,8 @@ function countActiveFilters(filters: ScannerFilters): number {
 function SectionHeader({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
   return (
     <button onClick={onToggle} className="flex items-center gap-2 w-full text-left py-1.5">
-      <span className="text-[10px] text-slate-500 font-mono">{open ? '\u25BC' : '\u25B6'}</span>
-      <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{label}</span>
+      <span className="text-[10px] text-text-muted font-mono">{open ? '\u25BC' : '\u25B6'}</span>
+      <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">{label}</span>
     </button>
   );
 }
@@ -65,14 +65,13 @@ function SliderRow({ label, value, min, max, step, format, onChange }: {
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">{label}</span>
+      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">{label}</span>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="flex-1 h-1 accent-indigo-500 cursor-pointer"
-        style={{ accentColor: '#6366F1' }}
+        className="flex-1 h-1 cursor-pointer accent-brand-purple"
       />
-      <span className="text-[10px] text-white font-mono w-16 text-right shrink-0">{format(value)}</span>
+      <span className="text-[10px] text-text-primary font-mono w-16 text-right shrink-0">{format(value)}</span>
     </div>
   );
 }
@@ -81,16 +80,16 @@ function ToggleGroup<T extends string>({ options, value, onChange }: {
   options: { label: string; value: T }[]; value: T; onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex gap-0.5 rounded overflow-hidden" style={{ background: '#0F172A' }}>
+    <div className="flex gap-0.5 rounded overflow-hidden bg-bg-terminal border border-border">
       {options.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          className="px-2 py-1 text-[10px] font-bold transition-colors"
-          style={{
-            background: value === opt.value ? '#4F46E5' : 'transparent',
-            color: value === opt.value ? '#fff' : '#94A3B8',
-          }}
+          className={`px-2 py-1 text-[10px] font-bold transition-colors ${
+            value === opt.value
+              ? 'bg-brand-purple text-white'
+              : 'bg-transparent text-text-muted hover:text-text-secondary'
+          }`}
         >
           {opt.label}
         </button>
@@ -102,20 +101,19 @@ function ToggleGroup<T extends string>({ options, value, onChange }: {
 function LiquidityStars({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Min Liquidity</span>
+      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Min Liquidity</span>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map(n => (
           <button
             key={n}
             onClick={() => onChange(n)}
-            className="text-sm transition-colors"
-            style={{ color: n <= value ? '#FBBF24' : '#475569' }}
+            className={`text-sm transition-colors ${n <= value ? 'text-brand-gold' : 'text-text-faint'}`}
           >
             &#9733;
           </button>
         ))}
       </div>
-      <span className="text-[10px] text-slate-500 font-mono">{value}/5</span>
+      <span className="text-[10px] text-text-muted font-mono">{value}/5</span>
     </div>
   );
 }
@@ -163,24 +161,23 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
   }, [onChange]);
 
   return (
-    <div className="border-b" style={{ borderColor: '#334155' }}>
+    <div className="border-b border-border">
       {/* Toggle bar */}
-      <div className="px-5 py-2 flex items-center gap-3" style={{ background: '#1E293B' }}>
+      <div className="px-4 py-2 flex items-center gap-3 bg-bg-row">
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors"
-          style={{ color: activeCount > 0 ? '#818CF8' : '#94A3B8' }}
+          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${activeCount > 0 ? 'text-brand-purple' : 'text-text-muted'}`}
         >
           <span className="font-mono">{open ? '\u25BC' : '\u25B6'}</span>
           Filters
           {activeCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold" style={{ background: '#4F46E5', color: '#fff' }}>
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-purple text-white">
               {activeCount}
             </span>
           )}
         </button>
         {activeCount > 0 && (
-          <button onClick={reset} className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors">
+          <button onClick={reset} className="text-[10px] text-text-faint hover:text-text-secondary transition-colors">
             Reset to defaults
           </button>
         )}
@@ -188,11 +185,11 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
 
       {/* Panel body */}
       {open && (
-        <div className="px-5 py-3 space-y-3" style={{ background: '#111827' }}>
+        <div className="px-4 py-3 space-y-3 bg-bg-terminal border-t border-border">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-            {/* ═══ TIER 1: Liquidity Gates ═══ */}
-            <div className="rounded p-3" style={{ background: '#1E293B' }}>
+            {/* TIER 1: Liquidity Gates */}
+            <div className="rounded border border-border bg-white p-3">
               <SectionHeader label="Liquidity Gates" open={t1Open} onToggle={() => setT1Open(!t1Open)} />
               {t1Open && (
                 <div className="space-y-2 mt-2">
@@ -222,13 +219,13 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
               )}
             </div>
 
-            {/* ═══ TIER 2: Risk Profile ═══ */}
-            <div className="rounded p-3" style={{ background: '#1E293B' }}>
+            {/* TIER 2: Risk Profile */}
+            <div className="rounded border border-border bg-white p-3">
               <SectionHeader label="Risk Profile" open={t2Open} onToggle={() => setT2Open(!t2Open)} />
               {t2Open && (
                 <div className="space-y-2.5 mt-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Risk Type</span>
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Risk Type</span>
                     <ToggleGroup<RiskType>
                       options={[
                         { label: 'Defined Only', value: 'DEFINED_ONLY' },
@@ -239,7 +236,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Direction</span>
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Direction</span>
                     <ToggleGroup<Direction>
                       options={[
                         { label: 'All', value: 'ALL' },
@@ -252,7 +249,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Premium</span>
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Premium</span>
                     <ToggleGroup<PremiumStance>
                       options={[
                         { label: 'Sell', value: 'SELL' },
@@ -290,22 +287,22 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                   {/* Strategy checkboxes */}
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Strategies</span>
+                      <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Strategies</span>
                       <button
                         onClick={() => setRisk({ strategies: [...AVAILABLE_STRATEGIES] })}
-                        className="text-[9px] text-indigo-400 hover:text-indigo-300"
+                        className="text-[9px] text-brand-purple hover:text-brand-purple-hover"
                       >
                         Select All
                       </button>
-                      <span className="text-slate-600 text-[9px]">|</span>
+                      <span className="text-text-faint text-[9px]">|</span>
                       <button
                         onClick={() => setRisk({ strategies: [] })}
-                        className="text-[9px] text-indigo-400 hover:text-indigo-300"
+                        className="text-[9px] text-brand-purple hover:text-brand-purple-hover"
                       >
                         Clear
                       </button>
                       {filters.risk.strategies.length > 0 && (
-                        <span className="text-[9px] text-slate-500 font-mono">
+                        <span className="text-[9px] text-text-muted font-mono">
                           ({filters.risk.strategies.length})
                         </span>
                       )}
@@ -317,12 +314,13 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                           <button
                             key={name}
                             onClick={() => toggleStrategy(name)}
-                            className="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
-                            style={{
-                              background: active ? '#334155' : '#0F172A',
-                              color: active ? '#E2E8F0' : '#475569',
-                              border: filters.risk.strategies.includes(name) ? '1px solid #6366F1' : '1px solid transparent',
-                            }}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors border ${
+                              filters.risk.strategies.includes(name)
+                                ? 'border-brand-purple bg-brand-purple-wash text-brand-purple'
+                                : active
+                                  ? 'border-border bg-bg-row text-text-secondary'
+                                  : 'border-transparent bg-bg-terminal text-text-faint'
+                            }`}
                           >
                             {name}
                           </button>
@@ -334,8 +332,8 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
               )}
             </div>
 
-            {/* ═══ TIER 3: Edge Metrics ═══ */}
-            <div className="rounded p-3" style={{ background: '#1E293B' }}>
+            {/* TIER 3: Edge Metrics */}
+            <div className="rounded border border-border bg-white p-3">
               <SectionHeader label="Edge Metrics" open={t3Open} onToggle={() => setT3Open(!t3Open)} />
               {t3Open && (
                 <div className="space-y-2 mt-2">
@@ -358,7 +356,7 @@ export default function FilterPanel({ filters, onChange }: FilterPanelProps) {
                     onChange={v => setEdge({ minEvPerRisk: v })}
                   />
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 w-24 shrink-0 text-right">Vol Edge</span>
+                    <span className="text-[10px] text-text-muted w-24 shrink-0 text-right">Vol Edge</span>
                     <ToggleGroup<VolEdge>
                       options={[
                         { label: 'IV > HV', value: 'IV_ABOVE_HV' },
