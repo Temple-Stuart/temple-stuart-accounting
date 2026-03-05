@@ -19,7 +19,7 @@ import type {
   TTScannerData,
   ConvergenceInput,
   FredMacroData,
-  TradeCardData,
+  LegacyTradeCardData,
   AnnualFinancials,
   OptionsFlowData,
   NewsSentimentData,
@@ -845,8 +845,8 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
       for (const ticker of scoredTickers) {
         const tickerCards = chainResult.cards.get(ticker.symbol);
         if (tickerCards && tickerCards.length > 0) {
-          // Convert StrategyCard to serializable TradeCardData
-          const tradeCards: TradeCardData[] = tickerCards.map(card => ({
+          // Convert StrategyCard to serializable LegacyTradeCardData
+          const tradeCards: LegacyTradeCardData[] = tickerCards.map(card => ({
             name: card.name,
             legs: card.legs.map(leg => ({
               type: leg.type,

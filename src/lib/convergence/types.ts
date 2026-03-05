@@ -1003,7 +1003,8 @@ export interface TradeCardLeg {
   price: number;
 }
 
-export interface TradeCardData {
+/** @deprecated Use TradeCardData (the unified setup+why+key_stats shape) for new code. */
+export interface LegacyTradeCardData {
   name: string;
   legs: TradeCardLeg[];
   expiration: string;
@@ -1025,7 +1026,7 @@ export interface StrategySuggestion {
   suggested_strategy: string;
   suggested_dte: number;
   note: string;
-  trade_cards?: TradeCardData[];
+  trade_cards?: LegacyTradeCardData[];
   full_trade_cards?: TradeCard[];
 }
 
@@ -1110,12 +1111,20 @@ export interface TradeCardKeyStats {
   buzz_ratio: number | null;
   sentiment_momentum: number | null;
   analyst_consensus: string | null;
-  social_sentiment?: SocialSentiment;
 }
 
 export interface TradeCard {
   symbol: string;
   generated_at: string;
+  label: string;
+  setup: TradeCardSetup;
+  why: TradeCardWhy;
+  key_stats: TradeCardKeyStats;
+}
+
+/** Client-side trade card shape (TradeCard minus generated_at). */
+export interface TradeCardData {
+  symbol: string;
   label: string;
   setup: TradeCardSetup;
   why: TradeCardWhy;
