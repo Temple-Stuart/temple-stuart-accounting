@@ -72,108 +72,25 @@ interface BatchResponse {
   timing: { pipeline_ms: number; ai_ms: number; total_ms: number };
 }
 
-// ── Single-ticker types (from /api/test/convergence) ────────────────
+// ── Types (canonical imports) ────────────────────────────────────────
 
-interface LegData { type: string; side: string; strike: number; price: number }
-
-interface TradeCardSetup {
-  strategy_name: string;
-  legs: LegData[];
-  expiration_date: string;
-  dte: number;
-  net_credit: number | null;
-  net_debit: number | null;
-  max_profit: number | null;
-  max_loss: number | null;
-  breakevens: number[];
-  probability_of_profit: number | null;
-  pop_method: 'breakeven_d2' | 'delta_approx';
-  hv_pop: number | null;
-  risk_reward_ratio: number | null;
-  greeks: { delta: number; gamma: number; theta: number; vega: number; theta_per_day: number };
-  ev: number;
-  ev_per_risk: number;
-  has_wide_spread: boolean;
-  is_unlimited_risk: boolean;
-}
-
-interface TradeCardWhy {
-  composite_score: number;
-  letter_grade: string;
-  direction: string;
-  convergence_gate: string;
-  category_scores: { vol_edge: number; quality: number; regime: number; info_edge: number };
-  plain_english_signals: string[];
-  regime_context: string;
-  risk_flags: string[];
-}
-
-interface TradeCardKeyStats {
-  current_price: number | null;
-  iv_rank: number | null;
-  iv_percentile: number | null;
-  iv30: number | null;
-  hv30: number | null;
-  iv_hv_spread: number | null;
-  earnings_date: string | null;
-  days_to_earnings: number | null;
-  market_cap: number | null;
-  sector: string | null;
-  beta: number | null;
-  spy_correlation: number | null;
-  pe_ratio: number | null;
-  dividend_yield: number | null;
-  liquidity_rating: number | null;
-  lendability: string | null;
-  buzz_ratio: number | null;
-  sentiment_momentum: number | null;
-  analyst_consensus: string | null;
-}
-
-interface TradeCardData {
-  symbol: string;
-  label: string;
-  setup: TradeCardSetup;
-  why: TradeCardWhy;
-  key_stats: TradeCardKeyStats;
-}
+import type {
+  VolEdgeResult,
+  QualityGateResult,
+  RegimeResult,
+  InfoEdgeResult,
+  TradeCardSetup,
+  TradeCardWhy,
+  TradeCardKeyStats,
+  TradeCardData,
+} from '@/lib/convergence/types';
+import type { TickerDetail } from '@/lib/convergence/filter-engine';
 
 interface Headline {
   datetime: number;
   headline: string;
   source: string;
   sentiment: string;
-}
-
-// ── Score breakdown types (imported from canonical types.ts) ──
-import type {
-  VolEdgeResult,
-  QualityGateResult,
-  RegimeResult,
-  InfoEdgeResult,
-} from '@/lib/convergence/types';
-
-interface TickerDetail {
-  symbol: string;
-  pipeline_runtime_ms: number;
-  scores: {
-    vol_edge: VolEdgeResult;
-    quality: QualityGateResult;
-    regime: RegimeResult;
-    info_edge: InfoEdgeResult;
-    composite: {
-      score: number;
-      direction: string;
-      convergence_gate: string;
-      categories_above_50: number;
-      category_scores: { vol_edge: number; quality: number; regime: number; info_edge: number };
-    };
-  };
-  trade_cards?: TradeCardData[];
-  data_gaps: string[];
-  _chain_stats?: Record<string, unknown>;
-  _fetch_errors?: Record<string, string>;
-  _rejection_reasons?: RejectionReason[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
