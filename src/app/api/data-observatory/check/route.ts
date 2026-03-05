@@ -15,12 +15,35 @@ interface CheckResult {
   lastValue: string;
   latency: string;
   rawData: unknown;
+  dataSource?: string;
+  lastConfirmedLive?: string | null;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const ALLOWED_SYMBOLS = ['MSFT', 'BAC', 'NFLX'];
 const FINNHUB_BASE = 'https://finnhub.io/api/v1';
+
+function isMarketHours(): boolean {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  if (day === 0 || day === 6) return false;
+  const hours = et.getHours();
+  const minutes = et.getMinutes();
+  const timeInMinutes = hours * 60 + minutes;
+  return timeInMinutes >= 570 && timeInMinutes < 960;
+}
+
+// Map source ID to data provider
+const SOURCE_PROVIDER: Record<number, string> = {
+  1: 'Finnhub', 2: 'Finnhub', 3: 'Finnhub', 4: 'Finnhub', 5: 'Finnhub',
+  6: 'Finnhub', 7: 'Finnhub', 8: 'Finnhub', 9: 'Finnhub', 10: 'Finnhub',
+  11: 'Finnhub', 12: 'Finnhub', 13: 'Finnhub', 14: 'Finnhub', 15: 'Finnhub',
+  16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
+  21: 'SEC', 22: 'xAI', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
+  26: 'SEC', 27: 'SEC', 28: 'Finnhub', 29: 'Internal', 30: 'Finnhub',
+};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -612,46 +635,29 @@ async function checkXAIGrok(symbol: string): Promise<CheckResult> {
 }
 
 function checkTastyTradeGreeks(): CheckResult {
-  const hasUsername = !!process.env.TASTYTRADE_USERNAME;
-  const hasPassword = !!process.env.TASTYTRADE_PASSWORD;
-  if (!hasUsername || !hasPassword) {
-    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'SKIPPED', records: '—', lastValue: 'TASTYTRADE credentials not set', latency: '—', rawData: null };
+  const marketOpen = isMarketHours();
+  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  if (!marketOpen) {
+    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Check market hours: Mon-Fri 9:30-16:00 ET
-  const now = new Date();
-  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = et.getDay();
-  const hours = et.getHours();
-  const mins = et.getMinutes();
-  const totalMins = hours * 60 + mins;
-  const isMarketOpen = day >= 1 && day <= 5 && totalMins >= 570 && totalMins < 960; // 9:30=570, 16:00=960
-
-  if (!isMarketOpen) {
-    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null };
+  if (!hasTTCreds) {
+    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-
-  // If market is open and credentials are set, we'd do the actual call here.
-  // For now, report MKT-HRS status since full TastyTrade auth flow (session token) is complex.
-  return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null };
+  // Only reaches here during market hours with credentials present
+  return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
 }
 
 function checkTastyTradeCandles(): CheckResult {
-  const hasUsername = !!process.env.TASTYTRADE_USERNAME;
-  const hasPassword = !!process.env.TASTYTRADE_PASSWORD;
-  if (!hasUsername || !hasPassword) {
-    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'SKIPPED', records: '—', lastValue: 'TASTYTRADE credentials not set', latency: '—', rawData: null };
+  const marketOpen = isMarketHours();
+  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  if (!marketOpen) {
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  const now = new Date();
-  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = et.getDay();
-  const hours = et.getHours();
-  const mins = et.getMinutes();
-  const totalMins = hours * 60 + mins;
-  const isMarketOpen = day >= 1 && day <= 5 && totalMins >= 570 && totalMins < 960;
-  if (!isMarketOpen) {
-    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null };
+  if (!hasTTCreds) {
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null };
+  // Only reaches here during market hours with credentials present
+  return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
 }
 
 async function checkFREDCrossAssetDaily(): Promise<CheckResult> {
@@ -941,6 +947,58 @@ export async function GET(request: NextRequest) {
 
   // Sort by id
   results.sort((a, b) => a.id - b.id);
+
+  // Assign dataSource from map for checks that don't set it inline
+  for (const r of results) {
+    if (!r.dataSource) {
+      r.dataSource = SOURCE_PROVIDER[r.id] ?? 'Internal';
+    }
+  }
+
+  // ── Write results to ObservatoryHealthLog ──
+  const marketOpen = isMarketHours();
+  try {
+    const logEntries = results.map(r => ({
+      symbol,
+      sourceId: r.id,
+      sourceName: r.source,
+      dataSource: r.dataSource ?? 'Unknown',
+      status: r.status,
+      lastValue: r.lastValue ?? null,
+      wasMarketHours: marketOpen,
+      checkedAt: new Date(),
+    }));
+    await prisma.observatoryHealthLog.createMany({
+      data: logEntries,
+      skipDuplicates: false,
+    });
+  } catch {
+    // Non-fatal: don't block response if logging fails
+  }
+
+  // ── Read last confirmed LIVE timestamps for MKT-HRS rows ──
+  const ttSourceIds = [23, 24];
+  try {
+    const lastLiveRecords = await prisma.observatoryHealthLog.findMany({
+      where: {
+        symbol,
+        sourceId: { in: ttSourceIds },
+        status: 'LIVE',
+        wasMarketHours: true,
+      },
+      orderBy: { checkedAt: 'desc' },
+      distinct: ['sourceId'],
+      select: { sourceId: true, checkedAt: true },
+    });
+    const lastLiveMap = Object.fromEntries(
+      lastLiveRecords.map(r => [r.sourceId, r.checkedAt.toISOString()])
+    );
+    for (const r of results) {
+      r.lastConfirmedLive = lastLiveMap[r.id] ?? null;
+    }
+  } catch {
+    // Non-fatal: don't block response if query fails
+  }
 
   return NextResponse.json({
     symbol,
