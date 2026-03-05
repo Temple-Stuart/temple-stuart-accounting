@@ -47,6 +47,7 @@ interface TradeCardWhy {
 }
 
 interface TradeCardKeyStats {
+  current_price: number | null;
   iv_rank: number | null;
   iv_percentile: number | null;
   iv30: number | null;
