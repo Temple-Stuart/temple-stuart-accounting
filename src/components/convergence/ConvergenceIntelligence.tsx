@@ -873,6 +873,191 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 
 // ── Filtered Results Section ────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PipelineFlowPanel({ result }: { result: any }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  if (!result) return null;
+  const ps = result.pipeline_summary;
+  const hf = result.hard_filters;
+  const rankings = result.rankings;
+  const rejections = result.rejection_reasons ?? {};
+
+  const filterRows = hf?.filters_applied?.map(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (f: any) => ({
+      name: f.filter,
+      dropped: f.failed,
+      passed: f.passed,
+    })
+  ) ?? [];
+
+  const toggle = (key: string) =>
+    setExpanded(e => ({ ...e, [key]: !e[key] }));
+
+  return (
+    <div className="border border-border rounded bg-bg-card mb-4 text-xs font-mono">
+      {/* Header */}
+      <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-text-primary font-bold uppercase tracking-wider text-[10px]">Pipeline Flow</span>
+        <span className="text-text-muted">
+          {ps?.timestamp ? new Date(ps.timestamp).toLocaleTimeString() : ''}
+          {' '}· {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : ''}
+        </span>
+      </div>
+
+      {/* Step A */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP A</span>
+            <span className="text-text-secondary">TT Scanner</span>
+            <span className="text-brand-green">{ps?.total_universe ?? 0} symbols fetched</span>
+          </div>
+          <span className="text-text-muted">{expanded['a'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['a'] && (
+          <div className="px-8 py-2 text-text-muted border-t border-border bg-bg-row">
+            Universe scanned via TastyTrade market-metrics API. Batch size: 50.
+            Market open: {ps?.market_open ? 'YES — live Greeks' : 'NO — theoretical pricing'}
+          </div>
+        )}
+      </div>
+
+      {/* Step B */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('b')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP B</span>
+            <span className="text-text-secondary">Hard Filters</span>
+            <span className="text-brand-red">{ps?.total_universe ?? 0} → {hf?.output_count ?? 0} survived</span>
+          </div>
+          <span className="text-text-muted">{expanded['b'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['b'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {filterRows.map((f: any) => (
+              <div key={f.name} className="flex justify-between">
+                <span className="text-text-muted">{f.name}</span>
+                <span>
+                  <span className="text-brand-red">-{f.dropped} dropped</span>
+                  <span className="text-text-muted"> · </span>
+                  <span className="text-brand-green">{f.passed} passed</span>
+                </span>
+              </div>
+            ))}
+            <div className="pt-1 text-text-muted">
+              Survivors: {hf?.survivors?.slice(0, 10).join(', ')}
+              {(hf?.survivors?.length ?? 0) > 10 ? ` +${hf.survivors.length - 10} more` : ''}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Step D */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP D</span>
+          <span className="text-text-secondary">Pre-Score</span>
+          <span className="text-brand-gold">{hf?.output_count ?? 0} → {ps?.finnhub_fetched ?? 0} selected for enrichment</span>
+        </div>
+      </div>
+
+      {/* Step E */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('e')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP E</span>
+            <span className="text-text-secondary">Data Enrichment</span>
+            <span className="text-text-secondary">
+              {ps?.finnhub_calls_made ?? 0} Finnhub calls
+              {ps?.finnhub_errors > 0 && (
+                <span className="text-brand-red"> · {ps.finnhub_errors} errors</span>
+              )}
+            </span>
+          </div>
+          <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['e'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
+            <div>Earnings history · Financials · Insider transactions · Institutional ownership · Revenue breakdown · SEC filings · FinBERT sentiment · FRED macro (14 series)</div>
+            {(result.data_gaps ?? []).length > 0 && (
+              <div className="text-brand-red pt-1">Data gaps: {result.data_gaps.join(', ')}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Step F */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('f')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP F</span>
+            <span className="text-text-secondary">4-Gate Scoring</span>
+            <span className="text-brand-green">{ps?.scored ?? 0} tickers scored</span>
+          </div>
+          <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['f'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {[...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])].map((r: any) => (
+              <div key={r.symbol} className="flex justify-between">
+                <span className="font-bold text-text-primary">{r.symbol}</span>
+                <span className="text-text-muted">
+                  Vol {r.vol_edge?.toFixed(0) ?? '—'} · Qual {r.quality?.toFixed(0) ?? '—'} · Reg {r.regime?.toFixed(0) ?? '—'} · Info {r.info_edge?.toFixed(0) ?? '—'} · <span className={r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}>{r.composite?.toFixed(1) ?? '—'}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Step G */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('g')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP G</span>
+            <span className="text-text-secondary">Trade Cards</span>
+            <span className="text-brand-green">{ps?.total_trade_cards ?? 0} strategies generated</span>
+          </div>
+          <span className="text-text-muted">{expanded['g'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['g'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(rankings?.top_9 ?? []).map((r: any) => {
+              const rej = rejections[r.symbol];
+              return (
+                <div key={r.symbol} className="flex justify-between">
+                  <span className="font-bold text-text-primary">{r.symbol}</span>
+                  <span className={rej?.length > 0 ? 'text-brand-red' : 'text-brand-green'}>
+                    {rej?.length > 0 ? rej[0].reason : '✓ strategy generated'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Summary */}
+      <div className="px-4 py-2 flex items-center gap-4 text-text-muted">
+        <span>{ps?.total_universe ?? 0} scanned</span>
+        <span>→</span>
+        <span>{hf?.output_count ?? 0} filtered</span>
+        <span>→</span>
+        <span>{ps?.scored ?? 0} scored</span>
+        <span>→</span>
+        <span className="text-brand-green">{ps?.final_9?.length ?? 0} selected</span>
+        <span className="ml-auto">
+          Finnhub: {ps?.finnhub_calls_made ?? 0} calls · Runtime: {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function FilteredResultsSection({
   enriched, filters, sentimentMap, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
@@ -962,6 +1147,8 @@ export default function ConvergenceIntelligence() {
   const [scanning, setScanning] = useState(false);
   const [batchData, setBatchData] = useState<BatchResponse | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pipelineResult, setPipelineResult] = useState<any>(null);
 
   // Enrichment state (individual ticker fetches)
   const [enriched, setEnriched] = useState<TickerDetail[]>([]);
@@ -1100,6 +1287,7 @@ export default function ConvergenceIntelligence() {
     setBatchData(null);
     setEnriched([]);
     setEnriching(false);
+    setPipelineResult(null);
     try {
       // Step 1: Run the convergence pipeline
       const pipelineResp = await fetch(`/api/trading/convergence?limit=9&refresh=true`);
@@ -1108,6 +1296,7 @@ export default function ConvergenceIntelligence() {
         throw new Error(body.error || `Pipeline HTTP ${pipelineResp.status}`);
       }
       const pipelineResults = await pipelineResp.json();
+      setPipelineResult(pipelineResults);
 
       // Step 2: Send pipeline results to Claude for synthesis (no re-run)
       const resp = await fetch('/api/ai/convergence-synthesis', {
@@ -1256,6 +1445,13 @@ export default function ConvergenceIntelligence() {
           <div className="text-[10px] text-text-muted font-mono shrink-0">
             {enrichProgress.done}/{enrichProgress.total} — loading {enrichProgress.current}
           </div>
+        </div>
+      )}
+
+      {/* PIPELINE FLOW PANEL */}
+      {pipelineResult && (
+        <div className="px-5 py-3">
+          <PipelineFlowPanel result={pipelineResult} />
         </div>
       )}
 
