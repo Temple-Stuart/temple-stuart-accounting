@@ -14,6 +14,7 @@
 
 import type { ScannerFilters } from './filter-types';
 import { isCreditStrategy, DEFAULT_FILTERS } from './filter-types';
+import type { VolEdgeResult, QualityGateResult, RegimeResult, InfoEdgeResult } from './types';
 
 // ── Types matching ConvergenceIntelligence / ScannerResultsTable ─────
 
@@ -84,10 +85,10 @@ export interface TickerDetail {
   symbol: string;
   pipeline_runtime_ms: number;
   scores: {
-    vol_edge: { score: number; [k: string]: unknown };
-    quality: { score: number; [k: string]: unknown };
-    regime: { score: number; [k: string]: unknown };
-    info_edge: { score: number; breakdown?: { news_sentiment?: { news_detail?: { headlines?: { datetime: number; headline: string; source: string; sentiment: string }[] } } }; [k: string]: unknown };
+    vol_edge: VolEdgeResult;
+    quality: QualityGateResult;
+    regime: RegimeResult;
+    info_edge: InfoEdgeResult;
     composite: {
       score: number;
       direction: string;
