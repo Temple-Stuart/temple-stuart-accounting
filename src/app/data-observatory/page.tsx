@@ -102,12 +102,12 @@ const STATUS_COLOR_MAP: Record<SourceStatus, string> = {
 };
 
 const PROVIDER_BADGE_CLASSES: Record<DataProvider, string> = {
-  TastyTrade: 'bg-brand-gold-wash text-brand-gold font-mono',
-  Finnhub:    'bg-brand-purple-wash text-brand-purple font-mono',
-  FRED:       'bg-green-50 text-brand-green font-mono',
-  SEC:        'bg-blue-50 text-blue-700 font-mono',
-  xAI:        'bg-amber-50 text-brand-amber font-mono',
-  Internal:   'bg-bg-row text-text-muted font-mono',
+  TastyTrade: 'bg-yellow-50 text-yellow-700 border border-yellow-200 font-mono',
+  Finnhub:    'bg-purple-50 text-purple-700 border border-purple-200 font-mono',
+  FRED:       'bg-green-50 text-green-700 border border-green-200 font-mono',
+  SEC:        'bg-blue-50 text-blue-700 border border-blue-200 font-mono',
+  xAI:        'bg-orange-50 text-orange-700 border border-orange-200 font-mono',
+  Internal:   'bg-gray-50 text-gray-500 border border-gray-200 font-mono',
 };
 
 function formatLastLive(iso: string): string {
@@ -304,7 +304,7 @@ export default function DataObservatoryPage() {
                               {row.dataSource}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-text-muted font-mono text-xs">{row.gate}</td>
+                          <td className="px-3 py-2 text-xs font-mono text-gray-500">{row.gate}</td>
                           <td className="px-3 py-2 font-medium text-text-primary">{row.source}</td>
                           <td className="px-3 py-2 font-mono text-text-secondary">{row.endpoint}</td>
                           <td className="px-3 py-2 text-center">
