@@ -52,13 +52,20 @@ const HARDCODED_SOURCES: DataSource[] = [
   { id: 21, source: 'SEC Company Tickers',     endpoint: '/files/company_tickers',   status: 'LIVE',     records: '—',        lastValue: 'CIK: 789019',            latency: '12ms' },
   { id: 22, source: 'xAI/Grok Sentiment',      endpoint: 'xAI API',                  status: 'LIVE',     records: '—',        lastValue: 'Bullish',                 latency: '287ms' },
   { id: 23, source: 'TastyTrade Greeks',       endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—' },
+  { id: 24, source: 'TastyTrade Candles',      endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—' },
+  { id: 25, source: 'FRED Cross-Asset Daily',  endpoint: 'FRED API',                 status: 'LIVE',     records: '3 series', lastValue: 'DGS10/SP500/OIL',         latency: '—' },
+  { id: 26, source: 'SEC EDGAR XBRL Facts',    endpoint: 'EDGAR XBRL API',           status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—' },
+  { id: 27, source: '10-K Business Description', endpoint: 'SEC EDGAR',              status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—' },
+  { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '—' },
+  { id: 29, source: 'News Classifier',         endpoint: '/company-news',            status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.87',           latency: '—' },
+  { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0 curr', lastValue: 'Returning 1983 data',  latency: '—' },
 ];
 
 const HARDCODED_STATUS_COUNTS: { label: string; status: SourceStatus; count: number; colorClass: string }[] = [
-  { label: 'LIVE',     status: 'LIVE',     count: 13, colorClass: 'text-brand-green' },
+  { label: 'LIVE',     status: 'LIVE',     count: 16, colorClass: 'text-brand-green' },
   { label: 'PARTIAL',  status: 'PARTIAL',  count: 5,  colorClass: 'text-brand-amber' },
-  { label: 'BROKEN',   status: 'BROKEN',   count: 4,  colorClass: 'text-brand-red' },
-  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 1,  colorClass: 'text-brand-gold' },
+  { label: 'BROKEN',   status: 'BROKEN',   count: 7,  colorClass: 'text-brand-red' },
+  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 2,  colorClass: 'text-brand-gold' },
   { label: 'SKIPPED',  status: 'SKIPPED',  count: 0,  colorClass: 'text-text-muted' },
 ];
 

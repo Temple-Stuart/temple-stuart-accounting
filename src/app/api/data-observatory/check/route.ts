@@ -635,6 +635,151 @@ function checkTastyTradeGreeks(): CheckResult {
   return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null };
 }
 
+function checkTastyTradeCandles(): CheckResult {
+  const hasUsername = !!process.env.TASTYTRADE_USERNAME;
+  const hasPassword = !!process.env.TASTYTRADE_PASSWORD;
+  if (!hasUsername || !hasPassword) {
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'SKIPPED', records: '—', lastValue: 'TASTYTRADE credentials not set', latency: '—', rawData: null };
+  }
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const hours = et.getHours();
+  const mins = et.getMinutes();
+  const totalMins = hours * 60 + mins;
+  const isMarketOpen = day >= 1 && day <= 5 && totalMins >= 570 && totalMins < 960;
+  if (!isMarketOpen) {
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null };
+  }
+  return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null };
+}
+
+async function checkFREDCrossAssetDaily(): Promise<CheckResult> {
+  const fredKey = process.env.FRED_API_KEY;
+  if (!fredKey) {
+    return { id: 25, source: 'FRED Cross-Asset Daily', endpoint: 'FRED API', status: 'SKIPPED', records: '—', lastValue: 'FRED_API_KEY not set', latency: '—', rawData: null };
+  }
+  try {
+    const { data, latencyMs } = await timedFetch(
+      `https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=${fredKey}&limit=5&sort_order=desc&file_type=json`
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = data as any;
+    const obs = d?.observations || [];
+    const latest = obs[0];
+    const value = latest?.value;
+    const hasValue = value != null && value !== '.';
+    return {
+      id: 25, source: 'FRED Cross-Asset Daily', endpoint: 'FRED API',
+      status: hasValue ? 'LIVE' : 'BROKEN',
+      records: '3 series',
+      lastValue: hasValue ? 'DGS10/SP500/OIL' : 'No data',
+      latency: fmtLatency(latencyMs),
+      rawData: obs.slice(0, 3),
+    };
+  } catch (e) {
+    return { id: 25, source: 'FRED Cross-Asset Daily', endpoint: 'FRED API', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+  }
+}
+
+function checkSECEdgarXBRL(secData: Awaited<ReturnType<typeof fetchSECData>>, xbrlResult: { entityName: string | null; latencyMs: number } | null): CheckResult {
+  if (!secData.paddedCIK) {
+    return { id: 26, source: 'SEC EDGAR XBRL Facts', endpoint: 'EDGAR XBRL API', status: 'BROKEN', records: '0', lastValue: 'CIK lookup failed', latency: '—', rawData: null };
+  }
+  if (!xbrlResult) {
+    return { id: 26, source: 'SEC EDGAR XBRL Facts', endpoint: 'EDGAR XBRL API', status: 'BROKEN', records: '0', lastValue: 'XBRL fetch failed', latency: '—', rawData: null };
+  }
+  return {
+    id: 26, source: 'SEC EDGAR XBRL Facts', endpoint: 'EDGAR XBRL API',
+    status: xbrlResult.entityName ? 'LIVE' : 'BROKEN',
+    records: xbrlResult.entityName ? 'facts' : '0',
+    lastValue: xbrlResult.entityName ? `Entity: ${xbrlResult.entityName}` : 'No XBRL data',
+    latency: fmtLatency(xbrlResult.latencyMs),
+    rawData: { entityName: xbrlResult.entityName, cik: secData.paddedCIK },
+  };
+}
+
+function check10KBusinessDescription(secData: Awaited<ReturnType<typeof fetchSECData>>): CheckResult {
+  return {
+    id: 27, source: '10-K Business Description', endpoint: 'SEC EDGAR',
+    status: secData.cik ? 'LIVE' : 'BROKEN',
+    records: secData.cik ? '—' : '0',
+    lastValue: secData.cik ? `CIK: ${secData.cik} resolved` : 'CIK lookup failed',
+    latency: '—',
+    rawData: { cik: secData.cik },
+  };
+}
+
+async function checkFinnhubRecommendationsInfoEdge(symbol: string, finnhubKey: string): Promise<CheckResult> {
+  try {
+    const { data, latencyMs } = await timedFetch(
+      `${FINNHUB_BASE}/stock/recommendation?symbol=${symbol}&token=${finnhubKey}`
+    );
+    const items = Array.isArray(data) ? data : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const latest = items[0] as any;
+    const buyCount = latest ? (latest.strongBuy || 0) + (latest.buy || 0) : 0;
+    const holdCount = latest ? (latest.hold || 0) : 0;
+    return {
+      id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',
+      status: items.length > 0 ? 'LIVE' : 'BROKEN',
+      records: `${items.length} mo`,
+      lastValue: latest ? `Buy: ${buyCount} / Hold: ${holdCount}` : 'NULL',
+      latency: fmtLatency(latencyMs),
+      rawData: items.slice(0, 5),
+    };
+  } catch (e) {
+    return { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function checkNewsClassifier(newsItems: any[]): CheckResult {
+  const classifiedCount = newsItems.filter((i: { headline?: string }) => i.headline).length;
+  return {
+    id: 29, source: 'News Classifier', endpoint: '/company-news',
+    status: newsItems.length > 0 ? 'LIVE' : 'BROKEN',
+    records: classifiedCount > 0 ? `${classifiedCount} headlines` : '—',
+    lastValue: newsItems.length > 0 ? `${classifiedCount} classifiable headlines` : 'No news to classify',
+    latency: '—',
+    rawData: { classifiedCount, sampleHeadline: newsItems[0]?.headline },
+  };
+}
+
+async function checkFinnhubEarningsQualityScore(symbol: string, finnhubKey: string): Promise<CheckResult> {
+  try {
+    const { data, latencyMs } = await timedFetch(
+      `${FINNHUB_BASE}/stock/earnings-quality-score?symbol=${symbol}&freq=annual&token=${finnhubKey}`
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = data as any;
+    const items = d?.data || [];
+    const latest = items[0];
+    const year = latest?.period ? parseInt(latest.period.substring(0, 4)) : null;
+    let status: SourceStatus = 'BROKEN';
+    let lastValue = 'No data';
+    if (year != null) {
+      if (year < 2020) {
+        status = 'BROKEN';
+        lastValue = `Returning ${year} data`;
+      } else {
+        status = 'LIVE';
+        lastValue = `Score: ${latest.score ?? '?'} (${latest.period})`;
+      }
+    }
+    return {
+      id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score',
+      status,
+      records: items.length > 0 ? `${items.length} periods` : '0 curr',
+      lastValue,
+      latency: fmtLatency(latencyMs),
+      rawData: data,
+    };
+  } catch (e) {
+    return { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+  }
+}
+
 // ─── Main Handler ───────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -658,7 +803,7 @@ export async function GET(request: NextRequest) {
 
   const finnhubKey = process.env.FINNHUB_API_KEY;
 
-  // ── Run all 23 checks in parallel ──
+  // ── Run all 30 checks in parallel ──
   const allChecks = await Promise.allSettled([
     // Checks 1 & 2 share the same Finnhub metric call
     (async () => {
@@ -687,25 +832,91 @@ export async function GET(request: NextRequest) {
     finnhubKey ? checkFinancialsAnnual(symbol, finnhubKey) : Promise.resolve({ id: 15, source: 'Financials (Annual)', endpoint: '/stock/financials-rep', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkFinancialsQuarterly(symbol, finnhubKey) : Promise.resolve({ id: 16, source: 'Financials (Quarterly)', endpoint: '/stock/financials', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkFinBERTSentiment(symbol, finnhubKey) : Promise.resolve({ id: 17, source: 'FinBERT Sentiment', endpoint: '/news-sentiment', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
-    finnhubKey ? checkCompanyNews(symbol, finnhubKey) : Promise.resolve({ id: 18, source: 'Company News', endpoint: '/company-news', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    // Checks 18 & 29 share the same company-news fetch
+    (async () => {
+      if (!finnhubKey) {
+        return [
+          { id: 18, source: 'Company News', endpoint: '/company-news', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null },
+          { id: 29, source: 'News Classifier', endpoint: '/company-news', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null },
+        ];
+      }
+      try {
+        const now = new Date();
+        const to = now.toISOString().split('T')[0];
+        const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const { data, latencyMs } = await timedFetch(
+          `${FINNHUB_BASE}/company-news?symbol=${symbol}&from=${from}&to=${to}&token=${finnhubKey}`
+        );
+        const items = Array.isArray(data) ? data : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const latest = items[0] as any;
+        const latestDate = latest?.datetime ? new Date(latest.datetime * 1000).toISOString().split('T')[0] : null;
+        return [
+          {
+            id: 18, source: 'Company News', endpoint: '/company-news',
+            status: (items.length > 0 ? 'LIVE' : 'BROKEN') as SourceStatus,
+            records: `${items.length} rec`,
+            lastValue: latestDate ?? 'NULL',
+            latency: fmtLatency(latencyMs),
+            rawData: items.slice(0, 3),
+          },
+          checkNewsClassifier(items),
+        ];
+      } catch (e) {
+        return [
+          { id: 18, source: 'Company News', endpoint: '/company-news', status: 'BROKEN' as SourceStatus, records: '0', lastValue: String(e), latency: '—', rawData: null },
+          { id: 29, source: 'News Classifier', endpoint: '/company-news', status: 'BROKEN' as SourceStatus, records: '0', lastValue: String(e), latency: '—', rawData: null },
+        ];
+      }
+    })(),
     // Check 19: FRED
     checkFREDMacro(),
-    // Checks 20 & 21 share the same SEC fetch
+    // Checks 20, 21, 26, 27 share the same SEC fetch
     (async () => {
       try {
         const secData = await fetchSECData(symbol);
-        return [checkSECEdgar(secData), checkSECTickers(secData)];
+        // Fetch XBRL companyfacts if CIK resolved
+        let xbrlResult: { entityName: string | null; latencyMs: number } | null = null;
+        if (secData.paddedCIK) {
+          try {
+            const xbrlStart = performance.now();
+            const xbrlRes = await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${secData.paddedCIK}.json`, {
+              headers: { 'User-Agent': 'TempleStuart/1.0 (contact@example.com)', Accept: 'application/json' },
+            });
+            const xbrlData = await xbrlRes.json();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            xbrlResult = { entityName: (xbrlData as any)?.entityName ?? null, latencyMs: Math.round(performance.now() - xbrlStart) };
+          } catch {
+            xbrlResult = null;
+          }
+        }
+        return [
+          checkSECEdgar(secData),
+          checkSECTickers(secData),
+          checkSECEdgarXBRL(secData, xbrlResult),
+          check10KBusinessDescription(secData),
+        ];
       } catch (e) {
         return [
           { id: 20, source: 'SEC EDGAR Submissions', endpoint: 'EDGAR direct', status: 'BROKEN' as SourceStatus, records: '—', lastValue: String(e), latency: '—', rawData: null },
           { id: 21, source: 'SEC Company Tickers', endpoint: '/files/company_tickers', status: 'BROKEN' as SourceStatus, records: '—', lastValue: String(e), latency: '—', rawData: null },
+          { id: 26, source: 'SEC EDGAR XBRL Facts', endpoint: 'EDGAR XBRL API', status: 'BROKEN' as SourceStatus, records: '0', lastValue: String(e), latency: '—', rawData: null },
+          { id: 27, source: '10-K Business Description', endpoint: 'SEC EDGAR', status: 'BROKEN' as SourceStatus, records: '0', lastValue: String(e), latency: '—', rawData: null },
         ];
       }
     })(),
     // Check 22: xAI
     checkXAIGrok(symbol),
-    // Check 23: TastyTrade
+    // Check 23: TastyTrade Greeks
     Promise.resolve(checkTastyTradeGreeks()),
+    // Check 24: TastyTrade Candles
+    Promise.resolve(checkTastyTradeCandles()),
+    // Check 25: FRED Cross-Asset Daily
+    checkFREDCrossAssetDaily(),
+    // Check 28: Finnhub Recommendations (Info-Edge)
+    finnhubKey ? checkFinnhubRecommendationsInfoEdge(symbol, finnhubKey) : Promise.resolve({ id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    // Check 30: Finnhub Earnings Quality Score
+    finnhubKey ? checkFinnhubEarningsQualityScore(symbol, finnhubKey) : Promise.resolve({ id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
   ]);
 
   // ── Flatten results ──
