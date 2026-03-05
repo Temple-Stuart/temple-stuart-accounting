@@ -493,142 +493,158 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     optionsFlowMap.set(symbol, null);
   }
 
-  // Fetch news sentiment per symbol (for News Sentiment in info-edge)
-  console.log('[Pipeline] Step E3: Fetching news sentiment data...');
+  // Steps E3-E11: Fetch enrichment data in parallel (each step loops over topSymbols with its own rate-limit delays)
+  console.log('[Pipeline] Steps E3-E11: Fetching enrichment data in parallel...');
   const newsSentimentMap = new Map<string, NewsSentimentData | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchNewsSentiment(symbol);
-      newsSentimentMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      newsSentimentMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E3: News sentiment fetched for ${topSymbols.length} symbols`);
-
-  // Fetch Finnhub FinBERT sentiment per symbol (for 3-leg ensemble in info-edge)
-  console.log('[Pipeline] Step E4: Fetching Finnhub FinBERT sentiment...');
   const finbertMap = new Map<string, FinnhubNewsSentiment | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchFinnhubNewsSentiment(symbol);
-      finbertMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      finbertMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E4: FinBERT sentiment fetched for ${topSymbols.length} symbols`);
-
-  // Fetch Finnhub earnings quality score per symbol (for SUE cross-validation in Quality gate)
-  console.log('[Pipeline] Step E5: Fetching Finnhub earnings quality scores...');
   const earningsQualityMap = new Map<string, FinnhubEarningsQuality | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchFinnhubEarningsQuality(symbol);
-      earningsQualityMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      earningsQualityMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E5: Earnings quality fetched for ${topSymbols.length} symbols`);
-
-  // Fetch institutional ownership per symbol (for ΔIO in Info-Edge)
-  console.log('[Pipeline] Step E6: Fetching institutional ownership data...');
   const institutionalOwnershipMap = new Map<string, FinnhubInstitutionalOwnership | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchFinnhubInstitutionalOwnership(symbol);
-      institutionalOwnershipMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      institutionalOwnershipMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E6: Institutional ownership fetched for ${topSymbols.length} symbols`);
-
-  // Fetch revenue breakdown per symbol (for HHI in Quality gate)
-  console.log('[Pipeline] Step E7: Fetching revenue breakdown data...');
   const revenueBreakdownMap = new Map<string, FinnhubRevenueBreakdown | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchFinnhubRevenueBreakdown(symbol);
-      revenueBreakdownMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      revenueBreakdownMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E7: Revenue breakdown fetched for ${topSymbols.length} symbols`);
-
-  // Fetch quarterly financials per symbol (bs/ic/cf, up to 40 quarters)
-  console.log('[Pipeline] Step E8: Fetching quarterly financials (bs/ic/cf)...');
   const quarterlyFinancialsMap = new Map<string, QuarterlyFinancials | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchQuarterlyFinancials(symbol);
-      quarterlyFinancialsMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      quarterlyFinancialsMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit (3 calls per symbol already batched)
-  }
-  console.log(`[Pipeline] Step E8: Quarterly financials fetched for ${topSymbols.length} symbols`);
-
-  // Fetch SEC EDGAR filing data per symbol (CIK lookup + XBRL companyfacts)
-  console.log('[Pipeline] Step E9: Fetching SEC EDGAR filing data...');
   const secFilingMap = new Map<string, SECFilingData | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchSECFilingData(symbol);
-      secFilingMap.set(symbol, result.data);
-      if (result.error) errors.push(`Step E9 (sec-edgar ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      secFilingMap.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
-  }
-  console.log(`[Pipeline] Step E9: SEC EDGAR filing data fetched for ${topSymbols.length} symbols`);
-
-  // Fetch insider transactions via Finnhub /stock/insider-transactions (replaces SEC EDGAR Form 4 XML chain)
-  console.log('[Pipeline] Step E10: Fetching insider transactions (Finnhub)...');
   const secForm4Map = new Map<string, SECForm4Data | null>();
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetchInsiderTransactions(symbol);
-      secForm4Map.set(symbol, result.data);
-      if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      secForm4Map.set(symbol, null);
-    }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
-  console.log(`[Pipeline] Step E10: Insider transactions fetched for ${topSymbols.length} symbols`);
-
-  // Fetch 10-K business descriptions for text-based peer classification (Hoberg & Phillips 2010, 2016)
-  console.log('[Pipeline] Step E11: Fetching 10-K business descriptions for text peer classification...');
   const textProfiles: CompanyTextProfile[] = [];
-  for (const symbol of topSymbols) {
-    try {
-      const result = await fetch10KBusinessDescription(symbol);
-      if (result.data) {
-        textProfiles.push(result.data);
+
+  await Promise.all([
+    // E3: News Sentiment
+    (async () => {
+      console.log('[Pipeline] Step E3: Fetching news sentiment data...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchNewsSentiment(symbol);
+          newsSentimentMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E3 (news-sentiment ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          newsSentimentMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 800)); // Finnhub rate limit
       }
-      if (result.error) errors.push(`Step E11 (10k-text ${symbol}): ${result.error}`);
-    } catch (e: unknown) {
-      // Non-fatal: text peer classification is an enhancement, not required
-    }
-    await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
-  }
-  console.log(`[Pipeline] Step E11: 10-K text profiles fetched for ${textProfiles.length}/${topSymbols.length} symbols`);
+      console.log(`[Pipeline] Step E3: News sentiment fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E4: FinBERT
+    (async () => {
+      console.log('[Pipeline] Step E4: Fetching Finnhub FinBERT sentiment...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchFinnhubNewsSentiment(symbol);
+          finbertMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E4 (finbert ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          finbertMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+      }
+      console.log(`[Pipeline] Step E4: FinBERT sentiment fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E5: Earnings Quality
+    (async () => {
+      console.log('[Pipeline] Step E5: Fetching Finnhub earnings quality scores...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchFinnhubEarningsQuality(symbol);
+          earningsQualityMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E5 (earnings-quality ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          earningsQualityMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+      }
+      console.log(`[Pipeline] Step E5: Earnings quality fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E6: Institutional Ownership
+    (async () => {
+      console.log('[Pipeline] Step E6: Fetching institutional ownership data...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchFinnhubInstitutionalOwnership(symbol);
+          institutionalOwnershipMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E6 (institutional-ownership ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          institutionalOwnershipMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+      }
+      console.log(`[Pipeline] Step E6: Institutional ownership fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E7: Revenue Breakdown
+    (async () => {
+      console.log('[Pipeline] Step E7: Fetching revenue breakdown data...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchFinnhubRevenueBreakdown(symbol);
+          revenueBreakdownMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E7 (revenue-breakdown ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          revenueBreakdownMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+      }
+      console.log(`[Pipeline] Step E7: Revenue breakdown fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E8: Quarterly Financials
+    (async () => {
+      console.log('[Pipeline] Step E8: Fetching quarterly financials (bs/ic/cf)...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchQuarterlyFinancials(symbol);
+          quarterlyFinancialsMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E8 (quarterly-financials ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          quarterlyFinancialsMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit (3 calls per symbol already batched)
+      }
+      console.log(`[Pipeline] Step E8: Quarterly financials fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E9: SEC EDGAR
+    (async () => {
+      console.log('[Pipeline] Step E9: Fetching SEC EDGAR filing data...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchSECFilingData(symbol);
+          secFilingMap.set(symbol, result.data);
+          if (result.error) errors.push(`Step E9 (sec-edgar ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          secFilingMap.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
+      }
+      console.log(`[Pipeline] Step E9: SEC EDGAR filing data fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E10: Insider Transactions
+    (async () => {
+      console.log('[Pipeline] Step E10: Fetching insider transactions (Finnhub)...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetchInsiderTransactions(symbol);
+          secForm4Map.set(symbol, result.data);
+          if (result.error) errors.push(`Step E10 (insider-tx ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          secForm4Map.set(symbol, null);
+        }
+        await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
+      }
+      console.log(`[Pipeline] Step E10: Insider transactions fetched for ${topSymbols.length} symbols`);
+    })(),
+    // E11: 10-K Text
+    (async () => {
+      console.log('[Pipeline] Step E11: Fetching 10-K business descriptions for text peer classification...');
+      for (const symbol of topSymbols) {
+        try {
+          const result = await fetch10KBusinessDescription(symbol);
+          if (result.data) {
+            textProfiles.push(result.data);
+          }
+          if (result.error) errors.push(`Step E11 (10k-text ${symbol}): ${result.error}`);
+        } catch (e: unknown) {
+          // Non-fatal: text peer classification is an enhancement, not required
+        }
+        await new Promise(r => setTimeout(r, 150)); // SEC rate limit: 10 req/sec → 150ms between
+      }
+      console.log(`[Pipeline] Step E11: 10-K text profiles fetched for ${textProfiles.length}/${topSymbols.length} symbols`);
+    })(),
+  ]);
+  console.log('[Pipeline] Steps E3-E11: All enrichment data fetched');
 
   // Compute text-based peer groups from 10-K descriptions
   if (textProfiles.length >= 2) {
