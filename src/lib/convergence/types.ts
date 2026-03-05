@@ -722,7 +722,7 @@ export interface RegimeResult {
         breakeven_5y: number | null;
       };
     };
-    regime_probabilities: {
+    regime_scores: {
       goldilocks: number;
       reflation: number;
       stagflation: number;
@@ -751,7 +751,7 @@ export interface RegimeResult {
     };
     cross_asset_correlations?: {
       correlations: CrossAssetCorrelations;
-      probability_adjustment: {
+      score_adjustment: {
         goldilocks: number;
         reflation: number;
         stagflation: number;

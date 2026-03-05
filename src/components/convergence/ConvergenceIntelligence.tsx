@@ -144,25 +144,28 @@ interface Headline {
   sentiment: string;
 }
 
+// ── Score breakdown types (imported from canonical types.ts) ──
+import type {
+  VolEdgeResult,
+  QualityGateResult,
+  RegimeResult,
+  InfoEdgeResult,
+} from '@/lib/convergence/types';
+
 interface TickerDetail {
   symbol: string;
   pipeline_runtime_ms: number;
   scores: {
+    vol_edge: VolEdgeResult;
+    quality: QualityGateResult;
+    regime: RegimeResult;
+    info_edge: InfoEdgeResult;
     composite: {
       score: number;
       direction: string;
       convergence_gate: string;
       categories_above_50: number;
       category_scores: { vol_edge: number; quality: number; regime: number; info_edge: number };
-    };
-    info_edge?: {
-      breakdown?: {
-        news_sentiment?: {
-          news_detail?: {
-            headlines?: Headline[];
-          };
-        };
-      };
     };
   };
   trade_cards?: TradeCardData[];

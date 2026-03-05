@@ -54,7 +54,7 @@ function computeDynamicGateWeights(regime: RegimeResult | null): GateWeightTrace
   }
 
   const breakdown = regime.breakdown;
-  const probs = breakdown.regime_probabilities;
+  const probs = breakdown.regime_scores;
   let dominantRegime = breakdown.dominant_regime;
 
   // Crisis override: if HY spread is at crisis levels, override to CRISIS
