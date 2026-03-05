@@ -6,6 +6,8 @@ import { AppLayout, Badge } from '@/components/ui';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type SourceStatus = 'LIVE' | 'BROKEN' | 'PARTIAL' | 'MKT-HRS' | 'SKIPPED';
+type DataProvider = 'TastyTrade' | 'Finnhub' | 'FRED' | 'SEC' | 'xAI' | 'Internal';
+type GateName = 'Vol-Edge' | 'Quality' | 'Info-Edge' | 'Regime' | 'All';
 
 interface DataSource {
   id: number;
@@ -16,6 +18,9 @@ interface DataSource {
   lastValue: string;
   latency: string;
   rawData?: unknown;
+  dataSource: DataProvider;
+  gate: GateName;
+  lastConfirmedLive?: string;
 }
 
 interface CheckResponse {
@@ -29,36 +34,36 @@ interface CheckResponse {
 const SYMBOLS = ['MSFT', 'BAC', 'NFLX'];
 
 const HARDCODED_SOURCES: DataSource[] = [
-  { id: 1,  source: 'Finnhub IV/HV',          endpoint: '/stock/metric',            status: 'BROKEN',   records: '0',        lastValue: 'iv30: NULL',              latency: '—' },
-  { id: 2,  source: 'Finnhub Basic Metrics',   endpoint: '/stock/metric',            status: 'PARTIAL',  records: '8 fields', lastValue: 'beta: 1.09',              latency: '12ms' },
-  { id: 3,  source: 'EPS Estimates',           endpoint: '/stock/eps-estimate',      status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $3.28 avg',         latency: '8ms' },
-  { id: 4,  source: 'Revenue Estimates',       endpoint: '/stock/revenue-estimate',  status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $72.1B',            latency: '9ms' },
-  { id: 5,  source: 'Price Targets',           endpoint: '/stock/price-target',      status: 'LIVE',     records: '59 anal',  lastValue: 'Mean: $608',              latency: '7ms' },
-  { id: 6,  source: 'Upgrades/Downgrades',     endpoint: '/stock/upgrade-downgrade', status: 'PARTIAL',  records: '5 rec',    lastValue: 'Date: NULL',              latency: '11ms' },
-  { id: 7,  source: 'Recommendations',         endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '6ms' },
-  { id: 8,  source: 'Earnings History',        endpoint: '/stock/earnings',          status: 'LIVE',     records: '40 qtrs',  lastValue: 'Beat rate: 87%',          latency: '14ms' },
-  { id: 9,  source: 'Earnings Quality',        endpoint: '/stock/earnings-quality',  status: 'BROKEN',   records: '0 curr',   lastValue: 'Returning 1983 data',     latency: '18ms' },
-  { id: 10, source: 'Revenue Breakdown',       endpoint: '/stock/revenue-breakdown2',status: 'PARTIAL',  records: '3 seg',    lastValue: 'Parser bug',              latency: '10ms' },
-  { id: 11, source: 'Insider Transactions',    endpoint: '/stock/insider-trans',     status: 'LIVE',     records: '5 rec',    lastValue: 'F: -639 (2026-03-02)',    latency: '9ms' },
-  { id: 12, source: 'Insider Sentiment',       endpoint: '/stock/insider-sentiment', status: 'BROKEN',   records: '0',        lastValue: 'Empty response',          latency: '8ms' },
-  { id: 13, source: 'Institutional Own.',      endpoint: '/stock/ownership',         status: 'PARTIAL',  records: '5 hold',   lastValue: 'Names: NULL',             latency: '13ms' },
-  { id: 14, source: 'Peers',                   endpoint: '/stock/peers',             status: 'LIVE',     records: '12 sym',   lastValue: 'ORCL, PLTR, CRM...',      latency: '5ms' },
-  { id: 15, source: 'Financials (Annual)',      endpoint: '/stock/financials-rep',    status: 'BROKEN',   records: '0 curr',   lastValue: 'All fields NULL',         latency: '16ms' },
-  { id: 16, source: 'Financials (Quarterly)',   endpoint: '/stock/financials',        status: 'PARTIAL',  records: '4 qtrs',   lastValue: 'grossProfit: NULL',       latency: '11ms' },
-  { id: 17, source: 'FinBERT Sentiment',       endpoint: '/news-sentiment',          status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.93',           latency: '22ms' },
-  { id: 18, source: 'Company News',            endpoint: '/company-news',            status: 'LIVE',     records: '3 rec',    lastValue: '2026-03-04',              latency: '19ms' },
-  { id: 19, source: 'FRED Macro (14 series)',  endpoint: 'FRED API',                 status: 'LIVE',     records: '14 ser',   lastValue: 'VIX: 22.1, 10Y: 4.31%',  latency: '31ms' },
-  { id: 20, source: 'SEC EDGAR Submissions',   endpoint: 'EDGAR direct',             status: 'LIVE',     records: '—',        lastValue: 'CIK: 789019',            latency: '44ms' },
-  { id: 21, source: 'SEC Company Tickers',     endpoint: '/files/company_tickers',   status: 'LIVE',     records: '—',        lastValue: 'CIK: 789019',            latency: '12ms' },
-  { id: 22, source: 'xAI/Grok Sentiment',      endpoint: 'xAI API',                  status: 'LIVE',     records: '—',        lastValue: 'Bullish',                 latency: '287ms' },
-  { id: 23, source: 'TastyTrade Greeks',       endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—' },
-  { id: 24, source: 'TastyTrade Candles',      endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—' },
-  { id: 25, source: 'FRED Cross-Asset Daily',  endpoint: 'FRED API',                 status: 'LIVE',     records: '3 series', lastValue: 'DGS10/SP500/OIL',         latency: '—' },
-  { id: 26, source: 'SEC EDGAR XBRL Facts',    endpoint: 'EDGAR XBRL API',           status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—' },
-  { id: 27, source: '10-K Business Description', endpoint: 'SEC EDGAR',              status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—' },
-  { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '—' },
-  { id: 29, source: 'News Classifier',         endpoint: '/company-news',            status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.87',           latency: '—' },
-  { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0 curr', lastValue: 'Returning 1983 data',  latency: '—' },
+  { id: 1,  source: 'Finnhub IV/HV',          endpoint: '/stock/metric',            status: 'BROKEN',   records: '0',        lastValue: 'iv30: NULL',              latency: '—',    dataSource: 'Finnhub',    gate: 'Vol-Edge' },
+  { id: 2,  source: 'Finnhub Basic Metrics',   endpoint: '/stock/metric',            status: 'PARTIAL',  records: '8 fields', lastValue: 'beta: 1.09',              latency: '12ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 3,  source: 'EPS Estimates',           endpoint: '/stock/eps-estimate',      status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $3.28 avg',         latency: '8ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 4,  source: 'Revenue Estimates',       endpoint: '/stock/revenue-estimate',  status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $72.1B',            latency: '9ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 5,  source: 'Price Targets',           endpoint: '/stock/price-target',      status: 'LIVE',     records: '59 anal',  lastValue: 'Mean: $608',              latency: '7ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 6,  source: 'Upgrades/Downgrades',     endpoint: '/stock/upgrade-downgrade', status: 'PARTIAL',  records: '5 rec',    lastValue: 'Date: NULL',              latency: '11ms', dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 7,  source: 'Recommendations',         endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '6ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 8,  source: 'Earnings History',        endpoint: '/stock/earnings',          status: 'LIVE',     records: '40 qtrs',  lastValue: 'Beat rate: 87%',          latency: '14ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 9,  source: 'Earnings Quality',        endpoint: '/stock/earnings-quality',  status: 'BROKEN',   records: '0 curr',   lastValue: 'Returning 1983 data',     latency: '18ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 10, source: 'Revenue Breakdown',       endpoint: '/stock/revenue-breakdown2',status: 'PARTIAL',  records: '3 seg',    lastValue: 'Parser bug',              latency: '10ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 11, source: 'Insider Transactions',    endpoint: '/stock/insider-trans',     status: 'LIVE',     records: '5 rec',    lastValue: 'F: -639 (2026-03-02)',    latency: '9ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 12, source: 'Insider Sentiment',       endpoint: '/stock/insider-sentiment', status: 'BROKEN',   records: '0',        lastValue: 'Empty response',          latency: '8ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 13, source: 'Institutional Own.',      endpoint: '/stock/ownership',         status: 'PARTIAL',  records: '5 hold',   lastValue: 'Names: NULL',             latency: '13ms', dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 14, source: 'Peers',                   endpoint: '/stock/peers',             status: 'LIVE',     records: '12 sym',   lastValue: 'ORCL, PLTR, CRM...',      latency: '5ms',  dataSource: 'Finnhub',    gate: 'All' },
+  { id: 15, source: 'Financials (Annual)',      endpoint: '/stock/financials-rep',    status: 'BROKEN',   records: '0 curr',   lastValue: 'All fields NULL',         latency: '16ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 16, source: 'Financials (Quarterly)',   endpoint: '/stock/financials',        status: 'PARTIAL',  records: '4 qtrs',   lastValue: 'grossProfit: NULL',       latency: '11ms', dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 17, source: 'FinBERT Sentiment',       endpoint: '/news-sentiment',          status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.93',           latency: '22ms', dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 18, source: 'Company News',            endpoint: '/company-news',            status: 'LIVE',     records: '3 rec',    lastValue: '2026-03-04',              latency: '19ms', dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 19, source: 'FRED Macro (14 series)',  endpoint: 'FRED API',                 status: 'LIVE',     records: '14 ser',   lastValue: 'VIX: 22.1, 10Y: 4.31%',  latency: '31ms', dataSource: 'FRED',       gate: 'Regime' },
+  { id: 20, source: 'SEC EDGAR Submissions',   endpoint: 'EDGAR direct',             status: 'LIVE',     records: '—',        lastValue: 'CIK: 789019',            latency: '44ms', dataSource: 'SEC',        gate: 'Info-Edge' },
+  { id: 21, source: 'SEC Company Tickers',     endpoint: '/files/company_tickers',   status: 'LIVE',     records: '—',        lastValue: 'CIK: 789019',            latency: '12ms', dataSource: 'SEC',        gate: 'Info-Edge' },
+  { id: 22, source: 'xAI/Grok Sentiment',      endpoint: 'xAI API',                  status: 'LIVE',     records: '—',        lastValue: 'Bullish',                 latency: '287ms',dataSource: 'xAI',        gate: 'Info-Edge' },
+  { id: 23, source: 'TastyTrade Greeks',       endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—',    dataSource: 'TastyTrade', gate: 'Vol-Edge' },
+  { id: 24, source: 'TastyTrade Candles',      endpoint: 'TastyTrade API',           status: 'MKT-HRS', records: '—',        lastValue: 'Requires open market',    latency: '—',    dataSource: 'TastyTrade', gate: 'Vol-Edge' },
+  { id: 25, source: 'FRED Cross-Asset Daily',  endpoint: 'FRED API',                 status: 'LIVE',     records: '3 series', lastValue: 'DGS10/SP500/OIL',         latency: '—',    dataSource: 'FRED',       gate: 'Regime' },
+  { id: 26, source: 'SEC EDGAR XBRL Facts',    endpoint: 'EDGAR XBRL API',           status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—',    dataSource: 'SEC',        gate: 'Info-Edge' },
+  { id: 27, source: '10-K Business Description', endpoint: 'SEC EDGAR',              status: 'BROKEN',   records: '0',        lastValue: 'CIK lookup failed',       latency: '—',    dataSource: 'SEC',        gate: 'All' },
+  { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '—',    dataSource: 'Finnhub',    gate: 'Info-Edge' },
+  { id: 29, source: 'News Classifier',         endpoint: '/company-news',            status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.87',           latency: '—',    dataSource: 'Internal',   gate: 'Info-Edge' },
+  { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0 curr', lastValue: 'Returning 1983 data',  latency: '—',    dataSource: 'Finnhub',    gate: 'Quality' },
 ];
 
 const HARDCODED_STATUS_COUNTS: { label: string; status: SourceStatus; count: number; colorClass: string }[] = [
@@ -95,6 +100,52 @@ const STATUS_COLOR_MAP: Record<SourceStatus, string> = {
   'MKT-HRS': 'text-brand-gold',
   SKIPPED: 'text-text-muted',
 };
+
+const PROVIDER_BADGE_CLASSES: Record<DataProvider, string> = {
+  TastyTrade: 'bg-brand-gold-wash text-brand-gold font-mono',
+  Finnhub:    'bg-brand-purple-wash text-brand-purple font-mono',
+  FRED:       'bg-green-50 text-brand-green font-mono',
+  SEC:        'bg-blue-50 text-blue-700 font-mono',
+  xAI:        'bg-amber-50 text-brand-amber font-mono',
+  Internal:   'bg-bg-row text-text-muted font-mono',
+};
+
+function formatLastLive(iso: string): string {
+  const d = new Date(iso);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const month = months[d.getMonth()];
+  const day = d.getDate();
+  const hours = d.getHours();
+  const mins = d.getMinutes().toString().padStart(2, '0');
+  return `${month} ${day}, ${hours}:${mins} ET`;
+}
+
+// Map source ID to gate for live results (API doesn't return gate)
+const SOURCE_GATE_MAP: Record<number, GateName> = {
+  1: 'Vol-Edge', 2: 'Quality', 3: 'Info-Edge', 4: 'Info-Edge', 5: 'Info-Edge',
+  6: 'Info-Edge', 7: 'Info-Edge', 8: 'Quality', 9: 'Quality', 10: 'Quality',
+  11: 'Info-Edge', 12: 'Info-Edge', 13: 'Info-Edge', 14: 'All', 15: 'Quality',
+  16: 'Quality', 17: 'Info-Edge', 18: 'Info-Edge', 19: 'Regime', 20: 'Info-Edge',
+  21: 'Info-Edge', 22: 'Info-Edge', 23: 'Vol-Edge', 24: 'Vol-Edge', 25: 'Regime',
+  26: 'Info-Edge', 27: 'All', 28: 'Info-Edge', 29: 'Info-Edge', 30: 'Quality',
+};
+
+const SOURCE_PROVIDER_MAP: Record<number, DataProvider> = {
+  1: 'Finnhub', 2: 'Finnhub', 3: 'Finnhub', 4: 'Finnhub', 5: 'Finnhub',
+  6: 'Finnhub', 7: 'Finnhub', 8: 'Finnhub', 9: 'Finnhub', 10: 'Finnhub',
+  11: 'Finnhub', 12: 'Finnhub', 13: 'Finnhub', 14: 'Finnhub', 15: 'Finnhub',
+  16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
+  21: 'SEC', 22: 'xAI', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
+  26: 'SEC', 27: 'SEC', 28: 'Finnhub', 29: 'Internal', 30: 'Finnhub',
+};
+
+function enrichLiveResults(results: DataSource[]): DataSource[] {
+  return results.map(r => ({
+    ...r,
+    gate: SOURCE_GATE_MAP[r.id] ?? 'All',
+    dataSource: (r.dataSource as DataProvider) || SOURCE_PROVIDER_MAP[r.id] || 'Internal',
+  }));
+}
 
 function computeStatusCounts(rows: DataSource[]) {
   const counts: Record<SourceStatus, number> = { LIVE: 0, PARTIAL: 0, BROKEN: 0, 'MKT-HRS': 0, SKIPPED: 0 };
@@ -160,7 +211,7 @@ export default function DataObservatoryPage() {
         throw new Error(body.error || `HTTP ${res.status}`);
       }
       const data: CheckResponse = await res.json();
-      setLiveResults(data.results);
+      setLiveResults(enrichLiveResults(data.results));
       setCheckedAt(data.checkedAt);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Check failed');
@@ -229,6 +280,8 @@ export default function DataObservatoryPage() {
                   <thead className="bg-bg-row sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left font-medium text-text-muted w-8">#</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-muted">PROVIDER</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-muted">GATE</th>
                       <th className="px-3 py-2 text-left font-medium text-text-muted">SOURCE</th>
                       <th className="px-3 py-2 text-left font-medium text-text-muted">ENDPOINT</th>
                       <th className="px-3 py-2 text-center font-medium text-text-muted">STATUS</th>
@@ -246,10 +299,21 @@ export default function DataObservatoryPage() {
                           className="hover:bg-bg-row cursor-pointer transition-colors"
                         >
                           <td className="px-3 py-2 font-mono text-text-muted">{row.id}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-block px-1.5 py-0.5 text-[10px] rounded ${PROVIDER_BADGE_CLASSES[row.dataSource]}`}>
+                              {row.dataSource}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-text-muted font-mono text-xs">{row.gate}</td>
                           <td className="px-3 py-2 font-medium text-text-primary">{row.source}</td>
                           <td className="px-3 py-2 font-mono text-text-secondary">{row.endpoint}</td>
                           <td className="px-3 py-2 text-center">
                             <Badge variant={statusBadgeVariant(row.status)} size="sm">{row.status}</Badge>
+                            {row.status === 'MKT-HRS' && (
+                              row.lastConfirmedLive
+                                ? <div className="text-[9px] text-brand-green font-mono mt-0.5">Last LIVE: {formatLastLive(row.lastConfirmedLive)}</div>
+                                : <div className="text-[9px] text-text-muted font-mono mt-0.5">Never confirmed</div>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-text-secondary">{row.records}</td>
                           <td className="px-3 py-2 font-mono text-text-primary">{row.lastValue}</td>
@@ -257,7 +321,7 @@ export default function DataObservatoryPage() {
                         </tr>
                         {expandedRow === row.id && (
                           <tr key={`${row.id}-detail`}>
-                            <td colSpan={7} className="px-0 py-0">
+                            <td colSpan={9} className="px-0 py-0">
                               <div className="bg-bg-row border-t border-border px-4 py-3">
                                 <pre className="font-mono text-terminal-sm text-text-muted whitespace-pre-wrap">{
                                   row.rawData

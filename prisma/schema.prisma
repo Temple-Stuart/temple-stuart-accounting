@@ -1503,3 +1503,18 @@ model scan_snapshots {
   @@index([compositeScore])
   @@index([regimeLabel])
 }
+
+model ObservatoryHealthLog {
+  id              Int      @id @default(autoincrement())
+  symbol          String
+  sourceId        Int
+  sourceName      String
+  dataSource      String
+  status          String
+  lastValue       String?
+  wasMarketHours  Boolean
+  checkedAt       DateTime @default(now())
+
+  @@index([symbol, sourceId])
+  @@index([checkedAt])
+}
