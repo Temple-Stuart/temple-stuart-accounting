@@ -962,7 +962,7 @@ export async function GET(request: NextRequest) {
       symbol,
       sourceId: r.id,
       sourceName: r.source,
-      dataSource: r.dataSource,
+      dataSource: r.dataSource ?? 'Unknown',
       status: r.status,
       lastValue: r.lastValue ?? null,
       wasMarketHours: marketOpen,
