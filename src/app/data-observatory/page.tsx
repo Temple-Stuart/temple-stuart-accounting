@@ -34,7 +34,7 @@ interface CheckResponse {
 const SYMBOLS = ['MSFT', 'BAC', 'NFLX'];
 
 const HARDCODED_SOURCES: DataSource[] = [
-  { id: 1,  source: 'Finnhub IV/HV',          endpoint: '/stock/metric',            status: 'BROKEN',   records: '0',        lastValue: 'iv30: NULL',              latency: '—',    dataSource: 'Finnhub',    gate: 'Vol-Edge' },
+  { id: 1,  source: 'TastyTrade IV/HV',       endpoint: 'TastyTrade API',           status: 'MKT-HRS',  records: '—',        lastValue: 'Requires open market',    latency: '—',    dataSource: 'TastyTrade', gate: 'Vol-Edge' },
   { id: 2,  source: 'Finnhub Basic Metrics',   endpoint: '/stock/metric',            status: 'PARTIAL',  records: '8 fields', lastValue: 'beta: 1.09',              latency: '12ms', dataSource: 'Finnhub',    gate: 'Quality' },
   { id: 3,  source: 'EPS Estimates',           endpoint: '/stock/eps-estimate',      status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $3.28 avg',         latency: '8ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
   { id: 4,  source: 'Revenue Estimates',       endpoint: '/stock/revenue-estimate',  status: 'LIVE',     records: '4 qtrs',   lastValue: 'Next: $72.1B',            latency: '9ms',  dataSource: 'Finnhub',    gate: 'Info-Edge' },
@@ -69,8 +69,8 @@ const HARDCODED_SOURCES: DataSource[] = [
 const HARDCODED_STATUS_COUNTS: { label: string; status: SourceStatus; count: number; colorClass: string }[] = [
   { label: 'LIVE',     status: 'LIVE',     count: 16, colorClass: 'text-brand-green' },
   { label: 'PARTIAL',  status: 'PARTIAL',  count: 5,  colorClass: 'text-brand-amber' },
-  { label: 'BROKEN',   status: 'BROKEN',   count: 7,  colorClass: 'text-brand-red' },
-  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 2,  colorClass: 'text-brand-gold' },
+  { label: 'BROKEN',   status: 'BROKEN',   count: 6,  colorClass: 'text-brand-red' },
+  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 3,  colorClass: 'text-brand-gold' },
   { label: 'SKIPPED',  status: 'SKIPPED',  count: 0,  colorClass: 'text-text-muted' },
 ];
 

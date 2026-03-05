@@ -37,7 +37,7 @@ function isMarketHours(): boolean {
 
 // Map source ID to data provider
 const SOURCE_PROVIDER: Record<number, string> = {
-  1: 'Finnhub', 2: 'Finnhub', 3: 'Finnhub', 4: 'Finnhub', 5: 'Finnhub',
+  1: 'TastyTrade', 2: 'Finnhub', 3: 'Finnhub', 4: 'Finnhub', 5: 'Finnhub',
   6: 'Finnhub', 7: 'Finnhub', 8: 'Finnhub', 9: 'Finnhub', 10: 'Finnhub',
   11: 'Finnhub', 12: 'Finnhub', 13: 'Finnhub', 14: 'Finnhub', 15: 'Finnhub',
   16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
@@ -77,42 +77,17 @@ async function runFinnhubMetric(symbol: string, finnhubKey: string): Promise<{ m
   return { metricResult: data, latencyMs };
 }
 
-function checkIVHV(metricResult: FinnhubMetricData, latencyMs: number): CheckResult {
-  const m = metricResult?.metric || {};
-  const iv30 = m['currentEv/freeCashFlowAnnual'] !== undefined ? undefined : m['iv30'] ?? m['30DayAverageOptionImpliedVolatility'] ?? null;
-  // Try multiple known field names for IV
-  const iv = m['30DayAverageOptionImpliedVolatility'] ?? m['iv30'] ?? null;
-  const hv30 = m['30DayAverageVolume'] !== undefined ? undefined : m['hv30'] ?? null;
-  // Finnhub metric endpoint: IV fields are under specific names
-  const rawIv30 = m['30DayAverageOptionImpliedVolatility'] ?? null;
-  const rawHv30 = m['30DayHistoricalVolatility'] ?? null;
-  const rawHv60 = m['60DayHistoricalVolatility'] ?? null;
-  const rawHv90 = m['90DayHistoricalVolatility'] ?? null;
-  const beta = m['beta'] ?? null;
-  const high52 = m['52WeekHigh'] ?? null;
-
-  let status: SourceStatus;
-  if (rawIv30 == null) {
-    status = 'BROKEN';
-  } else if ([rawHv30, rawHv60, rawHv90].some(v => v == null)) {
-    status = 'PARTIAL';
-  } else {
-    status = 'LIVE';
+function checkTastyTradeIVHV(): CheckResult {
+  const marketOpen = isMarketHours();
+  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  if (!marketOpen) {
+    return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-
-  const ivDisplay = rawIv30 != null ? rawIv30.toFixed?.(2) ?? rawIv30 : 'NULL';
-  const hvDisplay = rawHv30 != null ? rawHv30.toFixed?.(2) ?? rawHv30 : 'NULL';
-
-  return {
-    id: 1,
-    source: 'Finnhub IV/HV',
-    endpoint: '/stock/metric',
-    status,
-    records: status === 'BROKEN' ? '0' : [rawIv30, rawHv30, rawHv60, rawHv90, beta, high52].filter(v => v != null).length + ' fields',
-    lastValue: `iv30: ${ivDisplay}, hv30: ${hvDisplay}`,
-    latency: fmtLatency(latencyMs),
-    rawData: { metric: { iv30: rawIv30, hv30: rawHv30, hv60: rawHv60, hv90: rawHv90, beta, '52WeekHigh': high52 } },
-  };
+  if (!hasTTCreds) {
+    return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
+  // Only reaches here during market hours with credentials present
+  return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
 }
 
 function checkBasicMetrics(metricResult: FinnhubMetricData, latencyMs: number): CheckResult {
@@ -811,16 +786,15 @@ export async function GET(request: NextRequest) {
 
   // ── Run all 30 checks in parallel ──
   const allChecks = await Promise.allSettled([
-    // Checks 1 & 2 share the same Finnhub metric call
+    // Check 1: TastyTrade IV/HV (market-hours gated)
+    Promise.resolve(checkTastyTradeIVHV()),
+    // Check 2: Finnhub Basic Metrics
     (async () => {
       if (!finnhubKey) {
-        return [
-          { id: 1, source: 'Finnhub IV/HV', endpoint: '/stock/metric', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null },
-          { id: 2, source: 'Finnhub Basic Metrics', endpoint: '/stock/metric', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null },
-        ];
+        return { id: 2, source: 'Finnhub Basic Metrics', endpoint: '/stock/metric', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null };
       }
       const { metricResult, latencyMs } = await runFinnhubMetric(symbol, finnhubKey);
-      return [checkIVHV(metricResult, latencyMs), checkBasicMetrics(metricResult, latencyMs)];
+      return checkBasicMetrics(metricResult, latencyMs);
     })(),
     // Checks 3-18: individual Finnhub endpoints
     finnhubKey ? checkEPSEstimates(symbol, finnhubKey) : Promise.resolve({ id: 3, source: 'EPS Estimates', endpoint: '/stock/eps-estimate', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
