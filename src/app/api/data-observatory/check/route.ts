@@ -582,14 +582,14 @@ async function fetchSECData(symbol: string): Promise<{ cik: string | null; padde
 function checkSECEdgar(secData: Awaited<ReturnType<typeof fetchSECData>>): CheckResult {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sub = secData.submissions as any;
-  const hasEntity = sub?.entityName != null;
+  const hasEntity = sub?.name != null;
   return {
     id: 20, source: 'SEC EDGAR Submissions', endpoint: 'EDGAR direct',
     status: hasEntity ? 'LIVE' : (secData.cik ? 'PARTIAL' : 'BROKEN'),
     records: '—',
     lastValue: secData.cik ? `CIK: ${secData.cik}` : 'CIK not found',
     latency: fmtLatency(secData.latencySubmissions || secData.latencyTickers),
-    rawData: { entityName: sub?.entityName, cik: secData.cik, filingCount: sub?.filings?.recent?.accessionNumber?.length },
+    rawData: { entityName: sub?.name, cik: secData.cik, filingCount: sub?.filings?.recent?.accessionNumber?.length },
   };
 }
 
