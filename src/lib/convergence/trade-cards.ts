@@ -290,10 +290,11 @@ function computeForwardVol(termStructure: { date: string; iv: number }[]): Forwa
 
 // ===== REALIZED VOLATILITY CONE =====
 
-function computeVolCone(candles: CandleData[], currentIv: number | null): RealizedVolCone {
+function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?: number | null, ttHv90?: number | null): RealizedVolCone {
   if (!candles || candles.length < 11) {
     return {
       hv10: null, hv20: null, hv30: null, hv60: null,
+      hv90: ttHv90 ?? null,
       current_iv: currentIv,
       candles_used: candles?.length ?? 0,
       note: 'Insufficient candle data',
@@ -318,7 +319,8 @@ function computeVolCone(candles: CandleData[], currentIv: number | null): Realiz
     hv10: computeHV(10),
     hv20: computeHV(20),
     hv30: computeHV(30),
-    hv60: computeHV(60),
+    hv60: ttHv60 ?? computeHV(60),
+    hv90: ttHv90 ?? computeHV(90),
     current_iv: currentIv != null ? Math.round(currentIv * 10) / 10 : null,
     candles_used: candles.length,
     note: 'Close-to-close log returns, annualized ×√252',
@@ -341,7 +343,7 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
     iv30: tt?.iv30 ?? null,
     hv30: tt?.hv30 ?? null,
     iv_hv_spread: tt?.ivHvSpread ?? null,
-    vol_cone: computeVolCone(input.candles, tt?.iv30 ?? null),
+    vol_cone: computeVolCone(input.candles, tt?.iv30 ?? null, tt?.hv60 ?? null, tt?.hv90 ?? null),
     forward_vol: computeForwardVol(input.ttScanner?.termStructure ?? []),
     earnings_date: tt?.earningsDate ?? null,
     days_to_earnings: tt?.daysTillEarnings ?? null,

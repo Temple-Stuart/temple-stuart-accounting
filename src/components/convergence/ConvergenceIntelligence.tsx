@@ -665,6 +665,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 { label: 'HV20', val: cone.hv20 },
                 { label: 'HV30', val: cone.hv30 },
                 { label: 'HV60', val: cone.hv60 },
+                { label: 'HV90', val: cone.hv90 },
               ].filter(x => x.val != null);
               if (hvEntries.length === 0) return null;
               return (
