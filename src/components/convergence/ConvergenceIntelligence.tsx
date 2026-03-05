@@ -285,24 +285,24 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
       <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
           <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
-          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}>{comp.score.toFixed(1)}</span>
-          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}>{letterGrade(comp.score)}</span>
+          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }} title="Convergence score 0–100. Combines Vol Edge, Quality, Regime, and Info Edge gates using z-score weighted averaging. Higher = stronger multi-signal agreement.">{comp.score.toFixed(1)}</span>
+          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }} title="Letter grade derived from composite score. A = 80+, B = 65+, C = 50+, D = 35+, F = below 35.">{letterGrade(comp.score)}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge>
-          {ks?.sector && <Badge variant="default" size="sm">{ks.sector}</Badge>}
-          <Badge variant={gate.variant} size="sm">
+          <span title="Scanner-recommended trade direction based on dominant signal alignment across all four gates."><Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge></span>
+          {ks?.sector && <span title="Stock sector from market data. Useful for concentration risk — avoid over-weighting one sector."><Badge variant="default" size="sm">{ks.sector}</Badge></span>}
+          <span title="Number of scoring gates above 50. All 4 gates above 50 = full position signal. Fewer gates = reduced conviction. 4/4 is required for a full position recommendation."><Badge variant={gate.variant} size="sm">
             {comp.categories_above_50}/4 {gate.text}
-          </Badge>
+          </Badge></span>
         </div>
       </div>
 
       {/* B) SCORE BARS */}
       <div className="px-5 py-3 space-y-1.5 border-b border-border">
-        <ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} />
-        <ScoreBar label="Quality" score={comp.category_scores.quality} />
-        <ScoreBar label="Regime" score={comp.category_scores.regime} />
-        <ScoreBar label="Info Edge" score={comp.category_scores.info_edge} />
+        <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} /></div>
+        <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><ScoreBar label="Quality" score={comp.category_scores.quality} /></div>
+        <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><ScoreBar label="Regime" score={comp.category_scores.regime} /></div>
+        <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></div>
       </div>
 
       {/* C) THE TRADE */}
