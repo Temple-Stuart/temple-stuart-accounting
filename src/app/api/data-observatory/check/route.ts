@@ -285,49 +285,38 @@ async function checkRevenueBreakdown(symbol: string, finnhubKey: string): Promis
     );
     const latency = fmtLatency(latencyMs);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = (data as any)?.data;
-    if (!raw || typeof raw !== 'object') {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No data returned', latency, rawData: data };
+    const annual = (data as any)?.data?.annual;
+    if (!annual) {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No annual data', latency, rawData: data };
     }
-    // v2 structure: { segmentName: number } or nested by period
-    const keys = Object.keys(raw);
-    if (keys.length === 0) {
-      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'Empty response', latency, rawData: data };
+    // revenue_by_product is array of arrays — flatten one level
+    const revenueGroups = annual.revenue_by_product ?? annual.ebit_by_product;
+    if (!revenueGroups || revenueGroups.length === 0) {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No revenue segments', latency, rawData: data };
     }
-    // Check if nested by period (keys look like dates) or flat
-    const firstVal = raw[keys[0]];
-    let segments: Record<string, number> = {};
-
-    if (typeof firstVal === 'object' && !Array.isArray(firstVal)) {
-      // Nested: { period: { segmentName: value } } — take most recent
-      const latestPeriod = keys[keys.length - 1];
-      segments = raw[latestPeriod];
-    } else if (typeof firstVal === 'number') {
-      // Flat: { segmentName: value }
-      segments = raw;
-    } else if (Array.isArray(firstVal)) {
-      // Array per segment: { segmentName: [{ period, v }] }
-      for (const k of keys) {
-        const arr = raw[k];
-        if (Array.isArray(arr) && arr.length > 0) {
-          segments[k] = arr[arr.length - 1].v;
-        }
-      }
+    // Take the first group (most recent reporting standard)
+    const segments = revenueGroups[0];
+    if (!Array.isArray(segments) || segments.length === 0) {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'Empty segment group', latency, rawData: data };
     }
-    const positiveSegments = Object.entries(segments)
-      .filter(([, v]) => typeof v === 'number' && v > 0);
-
-    if (positiveSegments.length === 0) {
+    // Get most recent value for each segment
+    const parsed = segments
+      .map((seg: { label: string; data: { period: string; value: number }[] }) => ({
+        label: seg.label,
+        value: seg.data?.[seg.data.length - 1]?.value ?? 0,
+        period: seg.data?.[seg.data.length - 1]?.period ?? 'unknown',
+      }))
+      .filter((s: { value: number }) => s.value > 0);
+    if (parsed.length === 0) {
       return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No positive segments', latency, rawData: data };
     }
-    const topSegment = positiveSegments
-      .sort((a, b) => b[1] - a[1])[0];
-
+    const top = parsed.sort((a: { value: number }, b: { value: number }) => b.value - a.value)[0];
+    const period = top.period;
     return {
       id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2',
       status: 'LIVE',
-      records: `${positiveSegments.length} seg`,
-      lastValue: `${topSegment[0]}: ${(topSegment[1] / 1e9).toFixed(1)}B`,
+      records: `${parsed.length} seg`,
+      lastValue: `${top.label.replace(/ \(Post-FY\d+\)| \(Pre-FY\d+\)/g, '')}: ${(top.value / 1e9).toFixed(1)}B (${period})`,
       latency,
       rawData: data,
     };
