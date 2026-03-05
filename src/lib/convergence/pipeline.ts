@@ -354,7 +354,12 @@ function getUniverseSymbols(universe?: string): string[] {
 
 // ===== MAIN PIPELINE =====
 
-export async function runPipeline(limit: number = 20, userId?: string, universe?: string): Promise<PipelineResult> {
+export async function runPipeline(
+  limit: number = 20,
+  userId?: string,
+  universe?: string,
+  onProgress?: (event: { step: string; label: string; data: Record<string, unknown> }) => void,
+): Promise<PipelineResult> {
   const pipelineStart = Date.now();
   const errors: string[] = [];
   const dataGaps: string[] = [];
@@ -401,6 +406,7 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
   }
 
   const totalUniverse = allScannerData.length;
+  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open } });
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
@@ -422,6 +428,7 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
   console.log('[Pipeline] Step B: Applying hard filters...');
   const hardFilters = applyHardFilters(preFilteredScannerData);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
+  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
@@ -468,6 +475,7 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
   const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
+  onProgress?.({ step: 'd', label: 'Pre-Score', data: { candidates: topSymbols.length } });
 
   // ===== STEP E: Fetch Finnhub + FRED =====
   console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
@@ -664,6 +672,7 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
     })(),
   ]);
   console.log('[Pipeline] Steps E3-E11: All enrichment data fetched');
+  onProgress?.({ step: 'e', label: 'Data Enrichment', data: { finnhub_calls: finnhubResult.stats.calls_made, finnhub_errors: finnhubResult.stats.errors, data_gaps: dataGaps } });
 
   // Compute text-based peer groups from 10-K descriptions
   if (textProfiles.length >= 2) {
@@ -794,6 +803,7 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
 
   // Build ranked rows
   const rankedRows = buildRankedRows(scoredTickers);
+  onProgress?.({ step: 'f', label: '4-Gate Scoring', data: { scored: scoredTickers.length, rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge })) } });
 
   // ===== STEP G: Rank and Diversify =====
   console.log('[Pipeline] Step G: Ranking and diversifying...');
@@ -936,6 +946,8 @@ export async function runPipeline(limit: number = 20, userId?: string, universe?
   } else {
     dataGaps.push('social_sentiment: XAI_API_KEY not configured — social sentiment disabled');
   }
+
+  onProgress?.({ step: 'g', label: 'Trade Cards', data: { trade_cards: chainStats.total_trade_cards, top_9: top9.map(r => r.symbol), rejections: Object.fromEntries(chainRejections) } });
 
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
