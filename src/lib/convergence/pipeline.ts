@@ -415,7 +415,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
   // ===== STEP C1: Fetch Finnhub peer tickers for each survivor =====
   console.log('[Pipeline] Step C1: Fetching Finnhub /stock/peers for survivors...');
   const finnhubPeersMap: Record<string, string[]> = {};
-  for (const item of survivors) {
+  const peerFetchPromises = survivors.map(async (item) => {
     try {
       const result = await fetchPeerTickers(item.symbol);
       if (result.data && result.data.length > 0) {
@@ -424,8 +424,12 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     } catch {
       // Non-critical — fall through to GICS grouping
     }
-    await new Promise(r => setTimeout(r, 200)); // Finnhub rate limit
-  }
+  });
+  // Hard 10-second cap on entire peers fetch step
+  await Promise.race([
+    Promise.all(peerFetchPromises),
+    new Promise(r => setTimeout(r, 10000)),
+  ]);
   const peersFound = Object.values(finnhubPeersMap).filter(p => p.length > 0).length;
   console.log(`[Pipeline] Step C1: Finnhub peers fetched for ${peersFound}/${survivors.length} survivors`);
 
