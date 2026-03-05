@@ -458,6 +458,56 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
             </div>
           )}
 
+          {/* Macro Regime scores panel */}
+          {detail.scores?.regime?.breakdown?.regime_scores && (() => {
+            const rs = detail.scores.regime.breakdown.regime_scores;
+            const dom = detail.scores.regime.breakdown.dominant_regime;
+            const regimes: { key: string; label: string; desc: string; barColor: string }[] = [
+              { key: 'goldilocks', label: 'Goldilocks', desc: 'high growth, low inflation', barColor: 'bg-brand-green' },
+              { key: 'reflation', label: 'Reflation', desc: 'high growth, high inflation', barColor: 'bg-brand-gold' },
+              { key: 'stagflation', label: 'Stagflation', desc: 'low growth, high inflation', barColor: 'bg-brand-red' },
+              { key: 'deflation', label: 'Deflation', desc: 'low growth, low inflation', barColor: 'bg-brand-purple' },
+            ];
+            const domExplain: Record<string, string> = {
+              goldilocks: 'Growth is strong and inflation is contained \u2014 historically the best environment for selling options premium.',
+              reflation: 'Growth is strong but inflation is elevated \u2014 watch for vol spikes around Fed decisions.',
+              stagflation: 'Growth is weak and inflation is high \u2014 the hardest environment for premium sellers. Size down.',
+              deflation: 'Growth is weak and inflation is falling \u2014 risk-off conditions. Favor defined-risk strategies.',
+            };
+            return (
+              <div className="rounded px-3 py-2.5 mb-2 bg-bg-row">
+                <div
+                  className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
+                  title="Regime scores derived from 14 FRED macro indicators. Rule-based sigmoid scoring inspired by Hamilton (1989). Not HMM-estimated probabilities."
+                >
+                  Macro Regime
+                </div>
+                <div className="space-y-1.5">
+                  {regimes.map(({ key, label, desc, barColor }) => {
+                    const score = rs[key as keyof typeof rs];
+                    const pct = Math.round(score * 100);
+                    const isDom = key === dom;
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <div className="w-20 shrink-0 flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-text-secondary" title={desc}>{label}</span>
+                          {isDom && <Badge variant="default" size="sm">DOMINANT</Badge>}
+                        </div>
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-terminal">
+                          <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="w-8 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{pct}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-text-secondary italic px-1 mt-2">
+                  {domExplain[dom] ?? why.regime_context}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Regime context */}
           <div className="rounded px-3 py-2 text-xs text-text-secondary leading-relaxed mb-2 bg-bg-row">
             {why.regime_context}
