@@ -109,6 +109,7 @@ interface TradeCardWhy {
 }
 
 interface TradeCardKeyStats {
+  current_price: number | null;
   iv_rank: number | null;
   iv_percentile: number | null;
   iv30: number | null;
@@ -369,6 +370,68 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                     <div className="text-sm font-mono font-black text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
+
+                {/* Greeks (dollar terms) + Breakevens row */}
+                <div className="border-t border-border mt-2 pt-2">
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    <div className="text-center">
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar delta: how much this position gains or loses if the stock moves $1. Calculated as net delta × stock price × 100.">Δ Exposure</div>
+                      <div className={`text-sm font-mono font-black ${(() => {
+                        const cp = card.key_stats?.current_price;
+                        if (cp == null) return 'text-text-muted';
+                        const dd = (card.setup.greeks?.delta ?? 0) * cp * 100;
+                        return dd >= 0 ? 'text-brand-green' : 'text-brand-red';
+                      })()}`}>
+                        {(() => {
+                          const cp = card.key_stats?.current_price;
+                          if (cp == null) return '—';
+                          const dd = Math.round((card.setup.greeks?.delta ?? 0) * cp * 100);
+                          return dd >= 0 ? `+$${dd}` : `-$${Math.abs(dd)}`;
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar theta: how much this position earns (credit) or loses (debit) per calendar day from time decay alone. Already in per-contract dollar terms.">Daily θ</div>
+                      {(() => {
+                        const t = card.setup.greeks?.theta_per_day ?? 0;
+                        return (
+                          <div className={`text-sm font-mono font-black ${t >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                            {t >= 0 ? '+' : '-'}${Math.abs(t).toFixed(2)}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="text-center">
+                      <div className="text-[9px] text-text-muted uppercase" title="Dollar vega: how much this position gains or loses if implied volatility moves 1 percentage point. Per contract.">Vega/pt</div>
+                      {(() => {
+                        const v = (card.setup.greeks?.vega ?? 0) * 100;
+                        return (
+                          <div className={`text-sm font-mono font-black ${v >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                            {v >= 0 ? '+' : '-'}${Math.abs(v).toFixed(2)}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-4">
+                    <div>
+                      <span className="text-[9px] text-text-muted uppercase mr-1" title="Breakeven price(s) — the exact underlying stock price(s) where this trade breaks even at expiration. Calculated from the P&L curve.">B/E</span>
+                      <span className="text-sm font-mono text-text-primary">
+                        {(card.setup.breakevens?.length ?? 0) === 0
+                          ? '—'
+                          : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')}
+                      </span>
+                    </div>
+                    {card.setup.hv_pop != null && (
+                      <div>
+                        <span className="text-[9px] text-text-muted uppercase mr-1" title="Probability of profit recalculated using historical (realized) volatility instead of implied volatility. More conservative than Est. PoP — shows what history says vs. what options imply.">HV PoP</span>
+                        <span className="text-sm font-mono text-text-secondary">{Math.round(card.setup.hv_pop * 100)}%</span>
+                        <span className="text-[9px] text-text-faint ml-1">(hist. vol)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {card.setup.has_wide_spread && (
                   <div className="text-[10px] text-brand-amber text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
                     &#x26A0; Wide bid-ask spread — prices estimated from theoretical model
