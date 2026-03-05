@@ -5,6 +5,7 @@ import type { FullScoringResult } from './composite';
 import type {
   CandleData,
   ConvergenceInput,
+  EarningsPattern,
   ForwardVolPoint,
   RealizedVolCone,
   TradeCard,
@@ -327,6 +328,46 @@ function computeVolCone(candles: CandleData[], currentIv: number | null, ttHv60?
   };
 }
 
+// ===== EARNINGS PATTERN BUILDER =====
+
+function buildEarningsPattern(
+  input: ConvergenceInput,
+  scoring: FullScoringResult,
+): EarningsPattern | null {
+  // Pull from quality gate breakdown
+  const eq = scoring.quality?.breakdown?.profitability?.earnings_quality;
+
+  // Pull from info edge breakdown
+  const em = scoring.info_edge?.breakdown?.earnings_momentum;
+
+  // Need at least one source
+  if (!eq && !em) return null;
+
+  const totalQuarters = eq?.earnings_detail?.total_quarters ?? 0;
+
+  if (totalQuarters < 2) return null;
+
+  return {
+    beat_rate: eq?.earnings_detail
+      ? Math.round(
+          (eq.earnings_detail.beats / eq.earnings_detail.total_quarters) * 100,
+        )
+      : null,
+    avg_surprise_pct: eq?.earnings_detail?.avg_surprise ?? null,
+    total_quarters: totalQuarters,
+    consecutive_beats: em?.momentum_detail?.consecutive_beats ?? 0,
+    consecutive_misses: em?.momentum_detail?.consecutive_misses ?? 0,
+    streak: eq?.earnings_detail?.streak ?? '',
+    sue_score: eq?.earnings_quality_ensemble?.sue_score ?? null,
+    direction: em?.momentum_detail?.direction ?? null,
+    data_source: 'Finnhub /stock/earnings',
+    note:
+      'Beat rate and SUE from Finnhub historical earnings. SUE formula: Bernard & Thomas ' +
+      '(1989, JAR). No IV history — IV crush prediction requires historical IV collection ' +
+      '(not yet built).',
+  };
+}
+
 // ===== KEY STATS BUILDER =====
 
 function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): TradeCardKeyStats {
@@ -347,6 +388,7 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
     forward_vol: computeForwardVol(input.ttScanner?.termStructure ?? []),
     earnings_date: tt?.earningsDate ?? null,
     days_to_earnings: tt?.daysTillEarnings ?? null,
+    earnings_pattern: buildEarningsPattern(input, scoring),
     market_cap: tt?.marketCap ?? null,
     sector: tt?.sector ?? null,
     beta: tt?.beta ?? null,

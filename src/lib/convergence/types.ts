@@ -1110,6 +1110,19 @@ export interface RealizedVolCone {
   note: string;
 }
 
+export interface EarningsPattern {
+  beat_rate: number | null;
+  avg_surprise_pct: number | null;
+  total_quarters: number;
+  consecutive_beats: number;
+  consecutive_misses: number;
+  streak: string;
+  sue_score: number | null;
+  direction: string | null;
+  data_source: string;
+  note: string;
+}
+
 export interface TradeCardKeyStats {
   current_price: number | null;
   iv_rank: number | null;
@@ -1121,6 +1134,7 @@ export interface TradeCardKeyStats {
   forward_vol: ForwardVolPoint | null;
   earnings_date: string | null;
   days_to_earnings: number | null;
+  earnings_pattern: EarningsPattern | null;
   market_cap: number | null;
   sector: string | null;
   beta: number | null;
