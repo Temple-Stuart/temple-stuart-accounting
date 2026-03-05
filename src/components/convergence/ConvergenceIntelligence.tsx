@@ -437,7 +437,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                  card.setup.max_profit != null &&
                  card.setup.max_loss != null &&
                  card.setup.max_loss !== 0 && (() => {
-                  const winRate = card.setup.probability_of_profit!;
+                  const winRate = card.setup.hv_pop ?? card.setup.probability_of_profit!;
                   const ratio = card.setup.max_profit! / card.setup.max_loss!;
                   const rawKelly = ratio > 0 ? (winRate * ratio - (1 - winRate)) / ratio : 0;
                   const quarterKelly = Math.max(0, rawKelly * 0.25);
@@ -716,6 +716,17 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 {ks.iv_rank != null && <span className="text-text-muted"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
                 {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}
                 {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}
+                {ks.iv_hv_spread != null && (
+                  <>
+                    {' | '}
+                    <span
+                      className={ks.iv_hv_spread > 0 ? 'text-brand-green' : ks.iv_hv_spread < 0 ? 'text-brand-red' : 'text-text-muted'}
+                      title="IV-HV Spread: implied volatility minus 30-day realized volatility. Positive means options are pricing in more movement than the stock has actually delivered — the core variance risk premium signal."
+                    >
+                      VRP {ks.iv_hv_spread > 0 ? '+' : ''}{ks.iv_hv_spread.toFixed(1)}%
+                    </span>
+                  </>
+                )}
               </span>
             </div>
             {/* Company row */}
