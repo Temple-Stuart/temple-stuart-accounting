@@ -447,7 +447,7 @@ async function checkFinancialsQuarterly(symbol: string, finnhubKey: string): Pro
     const d = data as any;
     const items = d?.financials || [];
     const latest = items[0] || {};
-    const fields = ['revenue', 'netIncome', 'grossProfit', 'operatingIncome'];
+    const fields = ['revenue', 'netIncome', 'grossIncome', 'ebit'];
     const present = fields.filter(f => latest[f] != null);
     let status: SourceStatus = 'BROKEN';
     if (items.length > 0) {
