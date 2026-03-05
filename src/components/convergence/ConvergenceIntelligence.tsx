@@ -287,7 +287,7 @@ interface RegimeResult {
       sub_scores: Record<string, number>;
       raw_values: Record<string, number | null>;
     };
-    regime_probabilities: {
+    regime_scores: {
       goldilocks: number;
       reflation: number;
       stagflation: number;

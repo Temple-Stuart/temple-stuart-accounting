@@ -165,7 +165,7 @@ interface RegimeResult {
   breakdown: {
     growth_signal: { score: number; sub_scores: Record<string, number>; raw_values: Record<string, number | null> };
     inflation_signal: { score: number; sub_scores: Record<string, number>; raw_values: Record<string, number | null> };
-    regime_probabilities: { goldilocks: number; reflation: number; stagflation: number; deflation: number };
+    regime_scores: { goldilocks: number; reflation: number; stagflation: number; deflation: number };
     dominant_regime: string;
     regime_signals: { yield_curve_spread: number | null; yield_curve_inverted: boolean; hy_spread: number | null; hy_stress_level: 'normal' | 'elevated' | 'crisis' | null };
     vix_overlay: { vix: number | null; adjustment_type: string };

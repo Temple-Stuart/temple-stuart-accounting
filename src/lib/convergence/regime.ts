@@ -206,7 +206,7 @@ function computeInflationSignal(input: ConvergenceInput): SignalResult {
 // ===== STEP B — REGIME CLASSIFICATION (SIGMOID + STRESS SIGNALS) =====
 
 interface RegimeClassification {
-  probabilities: { goldilocks: number; reflation: number; stagflation: number; deflation: number };
+  regime_scores: { goldilocks: number; reflation: number; stagflation: number; deflation: number };
   dominant: string;
 }
 
@@ -216,9 +216,14 @@ function classifyRegime(
   yieldCurveSpread: number | null,
   hySpread: number | null,
 ): RegimeClassification {
+  // Regime scores: sigmoid products of normalized macro composites,
+  // renormalized to sum to 1.0. Rule-based implementation inspired
+  // by Hamilton (1989) regime-switching framework. Not HMM-estimated
+  // posterior probabilities.
+  //
   // Inflection at 50 = long-run baseline (was fixed 60/40).
   // Above baseline → "high" branch, below → "low" branch.
-  // At exactly baseline, all 4 regimes get equal probability (0.25).
+  // At exactly baseline, all 4 regimes get equal score (0.25).
   let rawGold = sigmoid(growth - 50) * sigmoid(50 - inflation);
   let rawRefl = sigmoid(growth - 50) * sigmoid(inflation - 50);
   let rawStag = sigmoid(50 - growth) * sigmoid(inflation - 50);
@@ -249,19 +254,19 @@ function classifyRegime(
 
   const total = rawGold + rawRefl + rawStag + rawDefl;
 
-  const probabilities = {
+  const regime_scores = {
     goldilocks: round(rawGold / total, 4),
     reflation: round(rawRefl / total, 4),
     stagflation: round(rawStag / total, 4),
     deflation: round(rawDefl / total, 4),
   };
 
-  // Pick dominant regime (highest probability)
-  const entries = Object.entries(probabilities) as [string, number][];
+  // Pick dominant regime (highest score)
+  const entries = Object.entries(regime_scores) as [string, number][];
   entries.sort((a, b) => b[1] - a[1]);
   const dominant = entries[0][0].toUpperCase();
 
-  return { probabilities, dominant };
+  return { regime_scores, dominant };
 }
 
 // ===== STEP C — STRATEGY-REGIME SCORING MATRIX =====
@@ -330,7 +335,7 @@ interface StrategyScoreResult {
 }
 
 function scoreStrategies(
-  probabilities: { goldilocks: number; reflation: number; stagflation: number; deflation: number },
+  regimeScores: { goldilocks: number; reflation: number; stagflation: number; deflation: number },
   vix: number | null,
 ): { scores: StrategyScoreResult[]; adjustmentType: string } {
   // VIX overlay adjustments
@@ -355,10 +360,10 @@ function scoreStrategies(
   const scores: StrategyScoreResult[] = STRATEGIES.map((strategy) => {
     const m = STRATEGY_REGIME_MATRIX[strategy];
     const rawScore = round(
-      probabilities.goldilocks * m[0] +
-      probabilities.reflation * m[1] +
-      probabilities.stagflation * m[2] +
-      probabilities.deflation * m[3],
+      regimeScores.goldilocks * m[0] +
+      regimeScores.reflation * m[1] +
+      regimeScores.stagflation * m[2] +
+      regimeScores.deflation * m[3],
       1,
     );
 
@@ -381,13 +386,13 @@ function scoreStrategies(
 }
 
 // ===== CROSS-ASSET CORRELATION MODIFIER (Bridgewater All Weather / AQR) =====
-// Adjusts regime probabilities ±10% based on cross-asset correlation cluster.
-// cluster → which regime probabilities to boost/reduce.
+// Adjusts regime scores ±10% based on cross-asset correlation cluster.
+// cluster → which regime scores to boost/reduce.
 // Magnitude scales with cluster confidence.
 
-const MAX_CORR_ADJUSTMENT = 0.10; // ±10% max probability adjustment
+const MAX_CORR_ADJUSTMENT = 0.10; // ±10% max score adjustment
 
-interface CorrProbabilityAdjustment {
+interface CorrScoreAdjustment {
   goldilocks: number;
   reflation: number;
   stagflation: number;
@@ -395,9 +400,9 @@ interface CorrProbabilityAdjustment {
   note: string;
 }
 
-function computeCrossAssetProbabilityAdjustment(
+function computeCrossAssetScoreAdjustment(
   corr: CrossAssetCorrelations | null,
-): CorrProbabilityAdjustment {
+): CorrScoreAdjustment {
   const zero = { goldilocks: 0, reflation: 0, stagflation: 0, deflation: 0 };
 
   if (!corr) {
@@ -407,7 +412,7 @@ function computeCrossAssetProbabilityAdjustment(
   const confidence = corr.cluster_confidence;
   const magnitude = MAX_CORR_ADJUSTMENT * confidence;
 
-  // Cluster → probability adjustments (sum to 0)
+  // Cluster → score adjustments (sum to 0)
   // risk_on: boost goldilocks + reflation, reduce stagflation + deflation
   // risk_off: boost deflation + stagflation, reduce goldilocks + reflation
   // inflation: boost reflation + stagflation, reduce goldilocks + deflation
@@ -479,7 +484,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const inflation = computeInflationSignal(input);
 
   // Step B: Regime classification (with yield curve + credit stress modifiers)
-  const { probabilities, dominant } = classifyRegime(
+  const { regime_scores, dominant } = classifyRegime(
     growth.score,
     inflation.score,
     macro.yieldCurveSpread,
@@ -494,29 +499,29 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       : macro.hySpread > 5.0 ? 'elevated'
       : 'normal';
 
-  // Step B2: Cross-asset correlation modifier (±10% on regime probabilities)
-  const corrAdj = computeCrossAssetProbabilityAdjustment(input.crossAssetCorrelations);
-  const adjustedProbabilities = { ...probabilities };
+  // Step B2: Cross-asset correlation modifier (±10% on regime scores)
+  const corrAdj = computeCrossAssetScoreAdjustment(input.crossAssetCorrelations);
+  const adjustedScores = { ...regime_scores };
 
   if (input.crossAssetCorrelations && input.crossAssetCorrelations.cluster !== 'transition') {
-    adjustedProbabilities.goldilocks = Math.max(0, probabilities.goldilocks + corrAdj.goldilocks);
-    adjustedProbabilities.reflation = Math.max(0, probabilities.reflation + corrAdj.reflation);
-    adjustedProbabilities.stagflation = Math.max(0, probabilities.stagflation + corrAdj.stagflation);
-    adjustedProbabilities.deflation = Math.max(0, probabilities.deflation + corrAdj.deflation);
+    adjustedScores.goldilocks = Math.max(0, regime_scores.goldilocks + corrAdj.goldilocks);
+    adjustedScores.reflation = Math.max(0, regime_scores.reflation + corrAdj.reflation);
+    adjustedScores.stagflation = Math.max(0, regime_scores.stagflation + corrAdj.stagflation);
+    adjustedScores.deflation = Math.max(0, regime_scores.deflation + corrAdj.deflation);
 
     // Re-normalize to sum to 1.0
-    const adjSum = adjustedProbabilities.goldilocks + adjustedProbabilities.reflation +
-      adjustedProbabilities.stagflation + adjustedProbabilities.deflation;
+    const adjSum = adjustedScores.goldilocks + adjustedScores.reflation +
+      adjustedScores.stagflation + adjustedScores.deflation;
     if (adjSum > 0) {
-      adjustedProbabilities.goldilocks = round(adjustedProbabilities.goldilocks / adjSum, 4);
-      adjustedProbabilities.reflation = round(adjustedProbabilities.reflation / adjSum, 4);
-      adjustedProbabilities.stagflation = round(adjustedProbabilities.stagflation / adjSum, 4);
-      adjustedProbabilities.deflation = round(1 - adjustedProbabilities.goldilocks - adjustedProbabilities.reflation - adjustedProbabilities.stagflation, 4);
+      adjustedScores.goldilocks = round(adjustedScores.goldilocks / adjSum, 4);
+      adjustedScores.reflation = round(adjustedScores.reflation / adjSum, 4);
+      adjustedScores.stagflation = round(adjustedScores.stagflation / adjSum, 4);
+      adjustedScores.deflation = round(1 - adjustedScores.goldilocks - adjustedScores.reflation - adjustedScores.stagflation, 4);
     }
   }
 
-  // Steps C + D: Strategy scoring with VIX overlay (uses adjusted probabilities)
-  const { scores: strategyScores, adjustmentType } = scoreStrategies(adjustedProbabilities, macro.vix);
+  // Steps C + D: Strategy scoring with VIX overlay (uses adjusted regime scores)
+  const { scores: strategyScores, adjustmentType } = scoreStrategies(adjustedScores, macro.vix);
 
   // Step E: Best strategy's final_score is the base regime score
   const best = strategyScores[0];
@@ -617,7 +622,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
           breakeven_5y: macro.breakeven5y,
         },
       },
-      regime_probabilities: probabilities,
+      regime_scores,
       dominant_regime: dominant,
       regime_signals: {
         yield_curve_spread: macro.yieldCurveSpread,
@@ -641,7 +646,7 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
       },
       cross_asset_correlations: input.crossAssetCorrelations ? {
         correlations: input.crossAssetCorrelations,
-        probability_adjustment: {
+        score_adjustment: {
           goldilocks: round(corrAdj.goldilocks, 4),
           reflation: round(corrAdj.reflation, 4),
           stagflation: round(corrAdj.stagflation, 4),

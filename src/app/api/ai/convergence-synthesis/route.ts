@@ -170,7 +170,7 @@ function condenseScoringDetail(detail: any): any {
     regime: {
       score: detail.regime?.score,
       dominant_regime: reg?.dominant_regime,
-      regime_probabilities: reg?.regime_probabilities,
+      regime_scores: reg?.regime_scores,
       vix: reg?.vix_overlay?.vix,
       vix_adjustment: reg?.vix_overlay?.adjustment_type,
       best_strategy: reg?.best_strategy,

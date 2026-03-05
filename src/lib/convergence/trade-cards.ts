@@ -213,11 +213,11 @@ function computeRiskFlags(
 function regimeContext(scoring: FullScoringResult): string {
   const r = scoring.regime.breakdown;
   const dom = r.dominant_regime;
-  const prob = r.regime_probabilities[dom as keyof typeof r.regime_probabilities] ?? 0;
+  const prob = r.regime_scores[dom as keyof typeof r.regime_scores] ?? 0;
   const vix = r.vix_overlay.vix;
   const best = r.best_strategy;
 
-  let ctx = `Dominant macro regime: ${dom} (${(prob * 100).toFixed(0)}% probability).`;
+  let ctx = `Dominant macro regime: ${dom} (${(prob * 100).toFixed(0)}% score).`;
   if (vix !== null) {
     ctx += ` VIX at ${vix.toFixed(1)}.`;
   }
