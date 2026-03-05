@@ -458,6 +458,75 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
             </div>
           )}
 
+          {/* Vol Edge Breakdown panel */}
+          {detail.scores?.vol_edge?.breakdown && (() => {
+            const bd = detail.scores.vol_edge.breakdown;
+            const subs = [
+              { key: 'mispricing', label: 'Mispricing', score: bd.mispricing?.score ?? 0 },
+              { key: 'term_structure', label: 'Term Structure', score: bd.term_structure?.score ?? 0 },
+              { key: 'technicals', label: 'Technicals', score: bd.technicals?.score ?? 0 },
+              { key: 'skew', label: 'Skew', score: bd.skew?.score ?? 0 },
+              { key: 'gex', label: 'GEX', score: bd.gex?.score ?? 0 },
+            ];
+            const best = subs.reduce((a, b) => (b.score > a.score ? b : a));
+            const bestExplain: Record<string, string> = {
+              mispricing: 'Options appear mispriced relative to realized volatility \u2014 core edge signal.',
+              term_structure: 'Vol surface shape suggests a positioning opportunity by tenor.',
+              technicals: 'Price action confirms the direction of the trade.',
+              skew: 'Skew asymmetry signals directional positioning in the options market.',
+              gex: 'Dealer gamma exposure is creating structural price pressure.',
+            };
+            const vrpZ = bd.mispricing?.z_scores?.vrp_z;
+            const gexRegimeMap: Record<string, { text: string; variant: 'success' | 'danger' | 'default' }> = {
+              long_gamma: { text: 'long \u03B3', variant: 'success' },
+              short_gamma: { text: 'short \u03B3', variant: 'danger' },
+              neutral: { text: 'neutral \u03B3', variant: 'default' },
+            };
+            return (
+              <div className="rounded px-3 py-2.5 mb-2 bg-bg-row">
+                <div
+                  className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
+                  title="Five independent signals scored 0–100. Mispricing compares implied vs realized vol. Term structure reads the shape of the vol surface. Technicals confirm price action. Skew detects directional positioning. GEX shows dealer gamma exposure and hedging pressure."
+                >
+                  Vol Edge Breakdown
+                </div>
+                <div className="space-y-1.5">
+                  {subs.map(({ key, label, score }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <div className="w-24 shrink-0 text-[10px] font-medium text-text-secondary">{label}</div>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-terminal">
+                        <div className="h-full rounded-full transition-all duration-500 bg-brand-purple" style={{ width: `${Math.min(Math.round(score), 100)}%` }} />
+                      </div>
+                      <div className="w-6 text-[10px] font-mono font-bold text-right shrink-0 text-text-secondary">{Math.round(score)}</div>
+                      <div className="w-20 shrink-0">
+                        {key === 'mispricing' && vrpZ != null && (
+                          <span className={`text-[10px] font-mono ${vrpZ > 0.5 ? 'text-brand-green' : vrpZ < -0.5 ? 'text-brand-red' : 'text-text-muted'}`}>
+                            VRP z: {vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}
+                          </span>
+                        )}
+                        {key === 'term_structure' && bd.term_structure?.shape && (
+                          <span className="text-[10px] font-mono text-text-secondary">{bd.term_structure.shape}</span>
+                        )}
+                        {key === 'skew' && bd.skew?.skew_direction && (
+                          <Badge variant={bd.skew.skew_direction === 'bullish' ? 'success' : bd.skew.skew_direction === 'bearish' ? 'danger' : 'default'} size="sm">
+                            {bd.skew.skew_direction}
+                          </Badge>
+                        )}
+                        {key === 'gex' && bd.gex?.gex_regime && (() => {
+                          const g = gexRegimeMap[bd.gex.gex_regime] ?? { text: bd.gex.gex_regime, variant: 'default' as const };
+                          return <Badge variant={g.variant} size="sm">{g.text}</Badge>;
+                        })()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-text-secondary italic px-1 mt-2">
+                  {bestExplain[best.key] ?? ''}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Macro Regime scores panel */}
           {detail.scores?.regime?.breakdown?.regime_scores && (() => {
             const rs = detail.scores.regime.breakdown.regime_scores;
