@@ -874,13 +874,15 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 // ── Filtered Results Section ────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PipelineFlowPanel({ result }: { result: any }) {
+function PipelineFlowPanel({ result, progress }: { result: any; progress?: Record<string, any> }) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  if (!result) return null;
-  const ps = result.pipeline_summary;
-  const hf = result.hard_filters;
-  const rankings = result.rankings;
-  const rejections = result.rejection_reasons ?? {};
+  // Render from live progress if result not yet available
+  const isLive = !result && progress && Object.keys(progress).length > 0;
+  if (!result && !isLive) return null;
+  const ps = result?.pipeline_summary;
+  const hf = result?.hard_filters;
+  const rankings = result?.rankings;
+  const rejections = result?.rejection_reasons ?? {};
 
   const filterRows = hf?.filters_applied?.map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -911,14 +913,18 @@ function PipelineFlowPanel({ result }: { result: any }) {
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP A</span>
             <span className="text-text-secondary">TT Scanner</span>
-            <span className="text-brand-green">{ps?.total_universe ?? 0} symbols fetched</span>
+            {(ps?.total_universe ?? progress?.a?.data?.total_universe) ? (
+              <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
           </div>
           <span className="text-text-muted">{expanded['a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['a'] && (
           <div className="px-8 py-2 text-text-muted border-t border-border bg-bg-row">
             Universe scanned via TastyTrade market-metrics API. Batch size: 50.
-            Market open: {ps?.market_open ? 'YES — live Greeks' : 'NO — theoretical pricing'}
+            Market open: {(ps?.market_open ?? progress?.a?.data?.market_open) ? 'YES — live Greeks' : 'NO — theoretical pricing'}
           </div>
         )}
       </div>
@@ -929,7 +935,11 @@ function PipelineFlowPanel({ result }: { result: any }) {
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP B</span>
             <span className="text-text-secondary">Hard Filters</span>
-            <span className="text-brand-red">{ps?.total_universe ?? 0} → {hf?.output_count ?? 0} survived</span>
+            {(hf?.output_count != null || progress?.b) ? (
+              <span className="text-brand-red">{hf?.input_count ?? progress?.b?.data?.input ?? 0} → {hf?.output_count ?? progress?.b?.data?.output ?? 0} survived</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
           </div>
           <span className="text-text-muted">{expanded['b'] ? '▲' : '▼'}</span>
         </div>
@@ -959,7 +969,11 @@ function PipelineFlowPanel({ result }: { result: any }) {
         <div className="px-4 py-2 flex items-center gap-3">
           <span className="text-brand-purple font-bold">STEP D</span>
           <span className="text-text-secondary">Pre-Score</span>
-          <span className="text-brand-gold">{hf?.output_count ?? 0} → {ps?.finnhub_fetched ?? 0} selected for enrichment</span>
+          {(ps?.finnhub_fetched != null || progress?.d) ? (
+            <span className="text-brand-gold">{hf?.output_count ?? progress?.b?.data?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
+          ) : (
+            <span className="text-text-muted animate-pulse">waiting...</span>
+          )}
         </div>
       </div>
 
@@ -969,12 +983,16 @@ function PipelineFlowPanel({ result }: { result: any }) {
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP E</span>
             <span className="text-text-secondary">Data Enrichment</span>
-            <span className="text-text-secondary">
-              {ps?.finnhub_calls_made ?? 0} Finnhub calls
-              {ps?.finnhub_errors > 0 && (
-                <span className="text-brand-red"> · {ps.finnhub_errors} errors</span>
-              )}
-            </span>
+            {(ps?.finnhub_calls_made != null || progress?.e) ? (
+              <span className="text-text-secondary">
+                {ps?.finnhub_calls_made ?? progress?.e?.data?.finnhub_calls ?? 0} Finnhub calls
+                {(ps?.finnhub_errors > 0 || (progress?.e?.data?.finnhub_errors ?? 0) > 0) && (
+                  <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.e?.data?.finnhub_errors} errors</span>
+                )}
+              </span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
           </div>
           <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
         </div>
@@ -994,14 +1012,21 @@ function PipelineFlowPanel({ result }: { result: any }) {
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP F</span>
             <span className="text-text-secondary">4-Gate Scoring</span>
-            <span className="text-brand-green">{ps?.scored ?? 0} tickers scored</span>
+            {(ps?.scored != null || progress?.f) ? (
+              <span className="text-brand-green">{ps?.scored ?? progress?.f?.data?.scored ?? 0} tickers scored</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
           </div>
           <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['f'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {[...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])].map((r: any) => (
+            {([...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])].length > 0
+              ? [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])]
+              : (progress?.f?.data?.rankings ?? [])
+            ).map((r: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <div key={r.symbol} className="flex justify-between">
                 <span className="font-bold text-text-primary">{r.symbol}</span>
                 <span className="text-text-muted">
@@ -1019,7 +1044,11 @@ function PipelineFlowPanel({ result }: { result: any }) {
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP G</span>
             <span className="text-text-secondary">Trade Cards</span>
-            <span className="text-brand-green">{ps?.total_trade_cards ?? 0} strategies generated</span>
+            {(ps?.total_trade_cards != null || progress?.g) ? (
+              <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.g?.data?.trade_cards ?? 0} strategies generated</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
           </div>
           <span className="text-text-muted">{expanded['g'] ? '▲' : '▼'}</span>
         </div>
@@ -1043,15 +1072,19 @@ function PipelineFlowPanel({ result }: { result: any }) {
 
       {/* Summary */}
       <div className="px-4 py-2 flex items-center gap-4 text-text-muted">
-        <span>{ps?.total_universe ?? 0} scanned</span>
+        <span>{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} scanned</span>
         <span>→</span>
-        <span>{hf?.output_count ?? 0} filtered</span>
+        <span>{hf?.output_count ?? progress?.b?.data?.output ?? 0} filtered</span>
         <span>→</span>
-        <span>{ps?.scored ?? 0} scored</span>
+        <span>{ps?.scored ?? progress?.f?.data?.scored ?? 0} scored</span>
         <span>→</span>
-        <span className="text-brand-green">{ps?.final_9?.length ?? 0} selected</span>
+        <span className="text-brand-green">{ps?.final_9?.length ?? progress?.g?.data?.top_9?.length ?? 0} selected</span>
         <span className="ml-auto">
-          Finnhub: {ps?.finnhub_calls_made ?? 0} calls · Runtime: {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : '—'}
+          {isLive ? (
+            <span className="text-brand-purple animate-pulse">Pipeline running...</span>
+          ) : (
+            <>Finnhub: {ps?.finnhub_calls_made ?? 0} calls · Runtime: {ps?.pipeline_runtime_ms ? `${(ps.pipeline_runtime_ms / 1000).toFixed(1)}s` : '—'}</>
+          )}
         </span>
       </div>
     </div>
@@ -1149,6 +1182,8 @@ export default function ConvergenceIntelligence() {
   const [batchError, setBatchError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pipelineResult, setPipelineResult] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pipelineProgress, setPipelineProgress] = useState<Record<string, any>>({});
 
   // Enrichment state (individual ticker fetches)
   const [enriched, setEnriched] = useState<TickerDetail[]>([]);
@@ -1280,7 +1315,7 @@ export default function ConvergenceIntelligence() {
     }
   }, []);
 
-  // Scan market — run pipeline, then synthesize with Claude, then enrich each winner
+  // Scan market — run pipeline with SSE progress, then synthesize with Claude, then enrich each winner
   const scanMarket = useCallback(async () => {
     setScanning(true);
     setBatchError(null);
@@ -1288,14 +1323,44 @@ export default function ConvergenceIntelligence() {
     setEnriched([]);
     setEnriching(false);
     setPipelineResult(null);
+    setPipelineProgress({});
     try {
-      // Step 1: Run the convergence pipeline
-      const pipelineResp = await fetch(`/api/trading/convergence?limit=9&refresh=true`);
-      if (!pipelineResp.ok) {
-        const body = await pipelineResp.json().catch(() => ({ error: `Pipeline HTTP ${pipelineResp.status}` }));
-        throw new Error(body.error || `Pipeline HTTP ${pipelineResp.status}`);
-      }
-      const pipelineResults = await pipelineResp.json();
+      // Step 1: Run the convergence pipeline with SSE streaming for live progress
+      const pipelineResults = await new Promise<any>((resolve, reject) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const url = `/api/trading/convergence?stream=true&limit=9&refresh=true&universe=${encodeURIComponent(universe)}`;
+        const eventSource = new EventSource(url);
+
+        eventSource.onmessage = (e) => {
+          try {
+            const event = JSON.parse(e.data);
+            if (event.step === 'done') {
+              eventSource.close();
+              // Pipeline cached the result — fetch it instantly
+              fetch(`/api/trading/convergence?limit=9&universe=${encodeURIComponent(universe)}`)
+                .then(r => {
+                  if (!r.ok) throw new Error(`Pipeline HTTP ${r.status}`);
+                  return r.json();
+                })
+                .then(resolve)
+                .catch(reject);
+              return;
+            }
+            if (event.step === 'error') {
+              eventSource.close();
+              reject(new Error(event.label));
+              return;
+            }
+            // Update pipeline flow panel in real time
+            setPipelineProgress(prev => ({ ...prev, [event.step]: event }));
+          } catch { /* ignore parse errors */ }
+        };
+
+        eventSource.onerror = () => {
+          eventSource.close();
+          reject(new Error('Pipeline connection lost'));
+        };
+      });
+
       setPipelineResult(pipelineResults);
 
       // Step 2: Send pipeline results to Claude for synthesis (no re-run)
@@ -1377,7 +1442,7 @@ export default function ConvergenceIntelligence() {
                 <option value="popular">Popular (50)</option>
                 <option value="megacap">Mega Cap (30)</option>
                 <option value="nasdaq100">Nasdaq 100</option>
-                <option value="dow30">Dow 30</option>
+                <option value="dow30">Dow Jones (30)</option>
                 <option value="sp500">S&amp;P 500</option>
               </optgroup>
               <optgroup label="ETFs">
@@ -1449,9 +1514,9 @@ export default function ConvergenceIntelligence() {
       )}
 
       {/* PIPELINE FLOW PANEL */}
-      {pipelineResult && (
+      {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
         <div className="px-5 py-3">
-          <PipelineFlowPanel result={pipelineResult} />
+          <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} />
         </div>
       )}
 

@@ -17,12 +17,12 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-function getCacheKey(limit: number): string {
-  return `convergence_${limit}`;
+function getCacheKey(limit: number, universe?: string): string {
+  return `convergence_${limit}_${universe ?? 'all'}`;
 }
 
-function getFromCache(limit: number): CacheEntry | null {
-  const key = getCacheKey(limit);
+function getFromCache(limit: number, universe?: string): CacheEntry | null {
+  const key = getCacheKey(limit, universe);
   const entry = cache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
@@ -32,8 +32,8 @@ function getFromCache(limit: number): CacheEntry | null {
   return entry;
 }
 
-function setCache(limit: number, data: PipelineResult): void {
-  const key = getCacheKey(limit);
+function setCache(limit: number, data: PipelineResult, universe?: string): void {
+  const key = getCacheKey(limit, universe);
   cache.set(key, { data, timestamp: Date.now() });
 }
 
@@ -54,10 +54,51 @@ export async function GET(request: Request) {
     if (limit > 150) limit = 150;
 
     const refresh = searchParams.get('refresh') === 'true';
+    const universe = searchParams.get('universe') ?? undefined;
+    const stream = searchParams.get('stream') === 'true';
+
+    // ===== SSE STREAMING PATH =====
+    if (stream) {
+      // Resolve userId for snapshot logging
+      let userId: string | undefined;
+      try {
+        const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
+        userId = user?.id;
+      } catch {
+        // Non-critical
+      }
+
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          const send = (data: object) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          };
+          try {
+            const result = await runPipeline(limit, userId, universe, (event) => send(event));
+            // Cache the final result so the follow-up fetch is instant
+            setCache(limit, result, universe);
+            send({ step: 'done', label: 'Complete', data: {} });
+          } catch (err) {
+            send({ step: 'error', label: err instanceof Error ? err.message : String(err), data: {} });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
 
     // Check cache (unless refresh=true)
     if (!refresh) {
-      const cached = getFromCache(limit);
+      const cached = getFromCache(limit, universe);
       if (cached) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
         console.log(`[Convergence Route] Cache HIT (age=${age}s, limit=${limit})`);
@@ -72,7 +113,7 @@ export async function GET(request: Request) {
     }
 
     // Cache miss or refresh — run full pipeline
-    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh})`);
+    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
 
     // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
     let userId: string | undefined;
@@ -84,12 +125,12 @@ export async function GET(request: Request) {
     }
 
     const start = Date.now();
-    const result = await runPipeline(limit, userId);
+    const result = await runPipeline(limit, userId, universe);
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 
     // Store in cache
-    setCache(limit, result);
+    setCache(limit, result, universe);
 
     return NextResponse.json(result, {
       headers: {
