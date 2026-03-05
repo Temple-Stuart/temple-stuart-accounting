@@ -875,45 +875,55 @@ export default function ConvergenceIntelligence() {
   return (
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
-      {/* SECTION 1: UNIVERSE SELECTOR */}
-      <div className="px-5 py-4 flex items-center gap-3 flex-wrap border-b border-border bg-brand-purple-hover">
-        <div className="text-xs font-bold tracking-widest text-white uppercase mr-1">Market Intelligence</div>
-        <select
-          value={universe}
-          onChange={e => setUniverse(e.target.value)}
-          className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50"
-        >
-          <optgroup label="Indices">
-            <option value="popular">Popular (50)</option>
-            <option value="megacap">Mega Cap (30)</option>
-            <option value="nasdaq100">Nasdaq 100</option>
-            <option value="dow30">Dow 30</option>
-            <option value="sp500">S&amp;P 500</option>
-          </optgroup>
-          <optgroup label="ETFs">
-            <option value="etfs">ETFs (25)</option>
-          </optgroup>
-          <optgroup label="Sectors">
-            <option value="tech">Tech</option>
-            <option value="finance">Finance</option>
-            <option value="energy">Energy</option>
-            <option value="healthcare">Healthcare</option>
-            <option value="retail">Retail Favorites</option>
-          </optgroup>
-        </select>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={scanMarket}
-          disabled={scanning || enriching}
-          loading={scanning || enriching}
-          className="bg-brand-gold text-white border-0 hover:bg-brand-gold-bright"
-        >
-          {scanning ? 'Scanning...' : enriching ? `Loading ${enrichProgress.current}...` : 'Scan Market'}
-        </Button>
-        {/* Pipeline summary */}
+      {/* SECTION 1: UNIVERSE SELECTOR — matches Data Observatory header */}
+      <div className="bg-brand-purple">
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-xs font-semibold text-white font-mono uppercase tracking-wider">
+            Market Intelligence
+          </span>
+          <div className="flex items-center gap-2">
+            <select
+              value={universe}
+              onChange={e => setUniverse(e.target.value)}
+              disabled={scanning || enriching}
+              className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50"
+            >
+              <optgroup label="Indices">
+                <option value="popular">Popular (50)</option>
+                <option value="megacap">Mega Cap (30)</option>
+                <option value="nasdaq100">Nasdaq 100</option>
+                <option value="dow30">Dow 30</option>
+                <option value="sp500">S&amp;P 500</option>
+              </optgroup>
+              <optgroup label="ETFs">
+                <option value="etfs">ETFs (25)</option>
+              </optgroup>
+              <optgroup label="Sectors">
+                <option value="tech">Tech</option>
+                <option value="finance">Finance</option>
+                <option value="energy">Energy</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="retail">Retail Favorites</option>
+              </optgroup>
+            </select>
+            <button
+              onClick={scanMarket}
+              disabled={scanning || enriching}
+              className="bg-brand-gold text-white text-xs font-semibold font-mono px-3 py-1 rounded hover:bg-brand-gold-bright transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {(scanning || enriching) && (
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+              {scanning ? 'SCANNING...' : enriching ? `LOADING ${enrichProgress.current}...` : 'SCAN MARKET'}
+            </button>
+          </div>
+        </div>
+        {/* Pipeline summary — second row inside purple header */}
         {batchData && (
-          <div className="ml-auto text-[10px] text-white/60 font-mono">
+          <div className="px-4 pb-1.5 text-[10px] text-white/60 font-mono">
             {batchData.pipeline_summary.total_universe} scanned
             {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
             {' \u2192 '}{batchData.pipeline_summary.scored} scored
