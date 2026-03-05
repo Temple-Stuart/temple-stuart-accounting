@@ -744,6 +744,60 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-brand-amber" title="Calendar days until next earnings. Under 21 days = elevated event risk. The scanner flags this in risk flags."> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
+            {/* Earnings pattern row */}
+            {ks.earnings_pattern && ks.earnings_pattern.total_quarters >= 2 && (
+              <div>
+                <span
+                  className="text-text-muted font-medium"
+                  title="Historical earnings beat rate and Standardized Unexpected Earnings (SUE) from Finnhub. Beat rate = quarters beat / total quarters. SUE methodology: Bernard & Thomas (1989, JAR). Note: IV crush prediction (pre vs post-earnings IV ratio) requires historical IV data not yet collected."
+                >
+                  Earnings:{' '}
+                </span>
+                <span className="text-text-secondary font-mono">
+                  {ks.earnings_pattern.beat_rate != null && (
+                    <span
+                      className={
+                        ks.earnings_pattern.beat_rate >= 70
+                          ? 'text-brand-green'
+                          : ks.earnings_pattern.beat_rate <= 40
+                          ? 'text-brand-red'
+                          : 'text-text-secondary'
+                      }
+                      title="Beat rate: % of quarters where actual EPS exceeded consensus estimate."
+                    >
+                      {ks.earnings_pattern.beat_rate}% beat
+                    </span>
+                  )}
+                  {ks.earnings_pattern.avg_surprise_pct != null && (
+                    <span className="text-text-muted">
+                      {' '}(avg {ks.earnings_pattern.avg_surprise_pct > 0 ? '+' : ''}{ks.earnings_pattern.avg_surprise_pct.toFixed(1)}%)
+                    </span>
+                  )}
+                  <span className="text-text-faint text-[9px]">
+                    {' '}{ks.earnings_pattern.total_quarters}Q
+                  </span>
+                  {ks.earnings_pattern.streak && (
+                    <span className="text-text-muted">
+                      {' | '}{ks.earnings_pattern.streak}
+                    </span>
+                  )}
+                  {ks.earnings_pattern.sue_score != null && (
+                    <span
+                      className={
+                        ks.earnings_pattern.sue_score > 60
+                          ? 'text-brand-green'
+                          : ks.earnings_pattern.sue_score < 40
+                          ? 'text-brand-red'
+                          : 'text-text-muted'
+                      }
+                      title="SUE score (0-100): Standardized Unexpected Earnings. Measures magnitude and consistency of earnings surprises relative to ticker-specific volatility. Bernard & Thomas (1989) documented post-earnings announcement drift (PEAD): high SUE predicts positive returns for 60 days post-announcement."
+                    >
+                      {' | '}SUE {ks.earnings_pattern.sue_score}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
             {/* Market row */}
             <div>
               <span className="text-text-muted font-medium">Market: </span>
