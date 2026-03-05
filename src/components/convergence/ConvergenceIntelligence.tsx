@@ -432,6 +432,47 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                   </div>
                 </div>
 
+                {/* Quarter-Kelly Position Sizing */}
+                {card.setup.probability_of_profit != null &&
+                 card.setup.max_profit != null &&
+                 card.setup.max_loss != null &&
+                 card.setup.max_loss !== 0 && (() => {
+                  const winRate = card.setup.probability_of_profit!;
+                  const ratio = card.setup.max_profit! / card.setup.max_loss!;
+                  const rawKelly = ratio > 0 ? (winRate * ratio - (1 - winRate)) / ratio : 0;
+                  const quarterKelly = Math.max(0, rawKelly * 0.25);
+                  const kellyPct = Math.round(quarterKelly * 1000) / 10;
+                  return (
+                    <div className="border-t border-border mt-2 pt-2 flex justify-between items-start px-1">
+                      <span
+                        className="text-[9px] uppercase tracking-wider text-text-muted cursor-help"
+                        title="Quarter-Kelly = 25% of full Kelly criterion. Formula: (win_rate × ratio − loss_rate) / ratio × 0.25, where ratio = max_profit / max_loss."
+                      >
+                        Kelly Size
+                      </span>
+                      <div className="text-right">
+                        <span className={`text-sm font-mono font-bold ${
+                          kellyPct >= 2.0 ? 'text-brand-green' :
+                          kellyPct >= 1.0 ? 'text-brand-gold' :
+                          kellyPct > 0   ? 'text-text-secondary' :
+                                           'text-text-muted'
+                        }`}>
+                          {kellyPct.toFixed(1)}% <span className="text-[9px] font-normal text-text-muted">of account</span>
+                        </span>
+                        <div className="text-[9px] text-text-faint mt-0.5">
+                          {kellyPct >= 2.0
+                            ? 'Favorable edge — size with confidence'
+                            : kellyPct >= 1.0
+                            ? 'Moderate edge — standard allocation'
+                            : kellyPct > 0
+                            ? 'Thin edge — keep size small'
+                            : 'No edge detected — consider skipping'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {card.setup.has_wide_spread && (
                   <div className="text-[10px] text-brand-amber text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
                     &#x26A0; Wide bid-ask spread — prices estimated from theoretical model
