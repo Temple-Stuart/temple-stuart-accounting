@@ -64,13 +64,16 @@ const HARDCODED_SOURCES: DataSource[] = [
   { id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation',    status: 'LIVE',     records: '4 mo',     lastValue: 'Buy: 60 / Hold: 6',      latency: '—',    dataSource: 'Finnhub',    gate: 'Info-Edge' },
   { id: 29, source: 'News Classifier',         endpoint: '/company-news',            status: 'LIVE',     records: '—',        lastValue: 'Bullish: 0.87',           latency: '—',    dataSource: 'Internal',   gate: 'Info-Edge' },
   { id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'BROKEN', records: '0 curr', lastValue: 'Returning 1983 data',  latency: '—',    dataSource: 'Finnhub',    gate: 'Quality' },
+  { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', dataSource: 'TastyTrade', gate: 'Vol-Edge' },
+  { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', dataSource: 'TastyTrade', gate: 'Regime' },
+  { id: 33, source: 'Peer Stats (computed)', endpoint: 'Derived: Finnhub peers + 10-K', status: 'LIVE', records: '—', lastValue: 'Computed from peers + sectors', latency: '—', dataSource: 'Internal', gate: 'All' },
 ];
 
 const HARDCODED_STATUS_COUNTS: { label: string; status: SourceStatus; count: number; colorClass: string }[] = [
-  { label: 'LIVE',     status: 'LIVE',     count: 16, colorClass: 'text-brand-green' },
+  { label: 'LIVE',     status: 'LIVE',     count: 17, colorClass: 'text-brand-green' },
   { label: 'PARTIAL',  status: 'PARTIAL',  count: 5,  colorClass: 'text-brand-amber' },
   { label: 'BROKEN',   status: 'BROKEN',   count: 6,  colorClass: 'text-brand-red' },
-  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 3,  colorClass: 'text-brand-gold' },
+  { label: 'MKT-HRS',  status: 'MKT-HRS',  count: 5,  colorClass: 'text-brand-gold' },
   { label: 'SKIPPED',  status: 'SKIPPED',  count: 0,  colorClass: 'text-text-muted' },
 ];
 
@@ -128,6 +131,7 @@ const SOURCE_GATE_MAP: Record<number, GateName> = {
   16: 'Quality', 17: 'Info-Edge', 18: 'Info-Edge', 19: 'Regime', 20: 'Info-Edge',
   21: 'Info-Edge', 22: 'Info-Edge', 23: 'Vol-Edge', 24: 'Vol-Edge', 25: 'Regime',
   26: 'Info-Edge', 27: 'All', 28: 'Info-Edge', 29: 'Info-Edge', 30: 'Quality',
+  31: 'Vol-Edge', 32: 'Regime', 33: 'All',
 };
 
 const SOURCE_PROVIDER_MAP: Record<number, DataProvider> = {
@@ -137,6 +141,7 @@ const SOURCE_PROVIDER_MAP: Record<number, DataProvider> = {
   16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
   21: 'SEC', 22: 'xAI', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
   26: 'SEC', 27: 'SEC', 28: 'Finnhub', 29: 'Internal', 30: 'Finnhub',
+  31: 'TastyTrade', 32: 'TastyTrade', 33: 'Internal',
 };
 
 function enrichLiveResults(results: DataSource[]): DataSource[] {

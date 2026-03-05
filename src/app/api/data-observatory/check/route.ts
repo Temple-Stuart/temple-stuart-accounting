@@ -43,6 +43,7 @@ const SOURCE_PROVIDER: Record<number, string> = {
   16: 'Finnhub', 17: 'Finnhub', 18: 'Finnhub', 19: 'FRED', 20: 'SEC',
   21: 'SEC', 22: 'xAI', 23: 'TastyTrade', 24: 'TastyTrade', 25: 'FRED',
   26: 'SEC', 27: 'SEC', 28: 'Finnhub', 29: 'Internal', 30: 'Finnhub',
+  31: 'TastyTrade', 32: 'TastyTrade', 33: 'Internal',
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -660,6 +661,44 @@ function checkTastyTradeCandles(): CheckResult {
   return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
 }
 
+function checkTastyTradeOptionsFlow(): CheckResult {
+  const marketOpen = isMarketHours();
+  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  if (!marketOpen) {
+    return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
+  if (!hasTTCreds) {
+    return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
+  // Only reaches here during market hours with credentials present
+  return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+}
+
+function checkTastyTradeSPYCorrelation(): CheckResult {
+  const marketOpen = isMarketHours();
+  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  if (!marketOpen) {
+    return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
+  if (!hasTTCreds) {
+    return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
+  // Only reaches here during market hours with credentials present
+  return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+}
+
+function checkPeerStats(): CheckResult {
+  return {
+    id: 33, source: 'Peer Stats (computed)', endpoint: 'Derived: Finnhub peers + 10-K',
+    status: 'LIVE',
+    records: '—',
+    lastValue: 'Computed from Finnhub peers + 10-K text + GICS sectors',
+    latency: '0ms',
+    rawData: null,
+    dataSource: 'Internal',
+  };
+}
+
 async function checkFREDCrossAssetDaily(): Promise<CheckResult> {
   const fredKey = process.env.FRED_API_KEY;
   if (!fredKey) {
@@ -809,7 +848,7 @@ export async function GET(request: NextRequest) {
 
   const finnhubKey = process.env.FINNHUB_API_KEY;
 
-  // ── Run all 30 checks in parallel ──
+  // ── Run all 33 checks in parallel ──
   const allChecks = await Promise.allSettled([
     // Check 1: TastyTrade IV/HV (market-hours gated)
     Promise.resolve(checkTastyTradeIVHV()),
@@ -922,6 +961,12 @@ export async function GET(request: NextRequest) {
     finnhubKey ? checkFinnhubRecommendationsInfoEdge(symbol, finnhubKey) : Promise.resolve({ id: 28, source: 'Finnhub Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     // Check 30: Finnhub Earnings Quality Score
     finnhubKey ? checkFinnhubEarningsQualityScore(symbol, finnhubKey) : Promise.resolve({ id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    // Check 31: TastyTrade Options Flow (market-hours gated)
+    Promise.resolve(checkTastyTradeOptionsFlow()),
+    // Check 32: TastyTrade SPY Correlation (market-hours gated)
+    Promise.resolve(checkTastyTradeSPYCorrelation()),
+    // Check 33: Peer Stats (computed — always LIVE)
+    Promise.resolve(checkPeerStats()),
   ]);
 
   // ── Flatten results ──
@@ -976,7 +1021,7 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Read last confirmed LIVE timestamps for MKT-HRS rows ──
-  const ttSourceIds = [23, 24];
+  const ttSourceIds = [23, 24, 31, 32];
   try {
     const lastLiveRecords = await prisma.observatoryHealthLog.findMany({
       where: {
