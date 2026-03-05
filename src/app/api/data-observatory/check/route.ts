@@ -281,23 +281,58 @@ async function checkEarningsQuality(symbol: string, finnhubKey: string): Promise
 async function checkRevenueBreakdown(symbol: string, finnhubKey: string): Promise<CheckResult> {
   try {
     const { data, latencyMs } = await timedFetch(
-      `${FINNHUB_BASE}/stock/revenue-breakdown?symbol=${symbol}&token=${finnhubKey}`
+      `${FINNHUB_BASE}/stock/revenue-breakdown2?symbol=${symbol}&token=${finnhubKey}`
     );
+    const latency = fmtLatency(latencyMs);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = data as any;
-    const series = d?.data || [];
-    const firstItem = series[0];
-    const segments = firstItem?.revenue || [];
+    const raw = (data as any)?.data;
+    if (!raw || typeof raw !== 'object') {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No data returned', latency, rawData: data };
+    }
+    // v2 structure: { segmentName: number } or nested by period
+    const keys = Object.keys(raw);
+    if (keys.length === 0) {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'Empty response', latency, rawData: data };
+    }
+    // Check if nested by period (keys look like dates) or flat
+    const firstVal = raw[keys[0]];
+    let segments: Record<string, number> = {};
+
+    if (typeof firstVal === 'object' && !Array.isArray(firstVal)) {
+      // Nested: { period: { segmentName: value } } — take most recent
+      const latestPeriod = keys[keys.length - 1];
+      segments = raw[latestPeriod];
+    } else if (typeof firstVal === 'number') {
+      // Flat: { segmentName: value }
+      segments = raw;
+    } else if (Array.isArray(firstVal)) {
+      // Array per segment: { segmentName: [{ period, v }] }
+      for (const k of keys) {
+        const arr = raw[k];
+        if (Array.isArray(arr) && arr.length > 0) {
+          segments[k] = arr[arr.length - 1].v;
+        }
+      }
+    }
+    const positiveSegments = Object.entries(segments)
+      .filter(([, v]) => typeof v === 'number' && v > 0);
+
+    if (positiveSegments.length === 0) {
+      return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0 seg', lastValue: 'No positive segments', latency, rawData: data };
+    }
+    const topSegment = positiveSegments
+      .sort((a, b) => b[1] - a[1])[0];
+
     return {
-      id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown',
-      status: segments.length > 0 ? 'LIVE' : 'BROKEN',
-      records: `${segments.length} seg`,
-      lastValue: segments[0]?.name ?? 'No segments',
-      latency: fmtLatency(latencyMs),
+      id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2',
+      status: 'LIVE',
+      records: `${positiveSegments.length} seg`,
+      lastValue: `${topSegment[0]}: ${(topSegment[1] / 1e9).toFixed(1)}B`,
+      latency,
       rawData: data,
     };
   } catch (e) {
-    return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
+    return { id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'BROKEN', records: '0', lastValue: String(e), latency: '—', rawData: null };
   }
 }
 
@@ -804,7 +839,7 @@ export async function GET(request: NextRequest) {
     finnhubKey ? checkRecommendations(symbol, finnhubKey) : Promise.resolve({ id: 7, source: 'Recommendations', endpoint: '/stock/recommendation', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkEarningsHistory(symbol, finnhubKey) : Promise.resolve({ id: 8, source: 'Earnings History', endpoint: '/stock/earnings', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkEarningsQuality(symbol, finnhubKey) : Promise.resolve({ id: 9, source: 'Earnings Quality', endpoint: '/stock/earnings-quality', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
-    finnhubKey ? checkRevenueBreakdown(symbol, finnhubKey) : Promise.resolve({ id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
+    finnhubKey ? checkRevenueBreakdown(symbol, finnhubKey) : Promise.resolve({ id: 10, source: 'Revenue Breakdown', endpoint: '/stock/revenue-breakdown2', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkInsiderTransactions(symbol, finnhubKey) : Promise.resolve({ id: 11, source: 'Insider Transactions', endpoint: '/stock/insider-trans', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkInsiderSentiment(symbol, finnhubKey) : Promise.resolve({ id: 12, source: 'Insider Sentiment', endpoint: '/stock/insider-sentiment', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     finnhubKey ? checkInstitutionalOwnership(symbol, finnhubKey) : Promise.resolve({ id: 13, source: 'Institutional Own.', endpoint: '/stock/ownership', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
