@@ -1104,6 +1104,7 @@ export interface RealizedVolCone {
   hv20: number | null;
   hv30: number | null;
   hv60: number | null;
+  hv90: number | null;
   current_iv: number | null;
   candles_used: number;
   note: string;
