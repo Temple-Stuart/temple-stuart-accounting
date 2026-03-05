@@ -252,6 +252,10 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
   const news = input.newsSentiment;
 
   return {
+    current_price: input.optionsFlow?.underlyingPrice
+      ?? (input.candles?.length > 0
+          ? input.candles[input.candles.length - 1].close
+          : null),
     iv_rank: tt?.ivRank ?? null,
     iv_percentile: tt?.ivPercentile ?? null,
     iv30: tt?.iv30 ?? null,
