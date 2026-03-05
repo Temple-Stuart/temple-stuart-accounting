@@ -1290,7 +1290,7 @@ export default function ConvergenceIntelligence() {
     setPipelineResult(null);
     try {
       // Step 1: Run the convergence pipeline
-      const pipelineResp = await fetch(`/api/trading/convergence?limit=9&refresh=true`);
+      const pipelineResp = await fetch(`/api/trading/convergence?limit=9&refresh=true&universe=${encodeURIComponent(universe)}`);
       if (!pipelineResp.ok) {
         const body = await pipelineResp.json().catch(() => ({ error: `Pipeline HTTP ${pipelineResp.status}` }));
         throw new Error(body.error || `Pipeline HTTP ${pipelineResp.status}`);
@@ -1377,7 +1377,7 @@ export default function ConvergenceIntelligence() {
                 <option value="popular">Popular (50)</option>
                 <option value="megacap">Mega Cap (30)</option>
                 <option value="nasdaq100">Nasdaq 100</option>
-                <option value="dow30">Dow 30</option>
+                <option value="dow30">Dow Jones (30)</option>
                 <option value="sp500">S&amp;P 500</option>
               </optgroup>
               <optgroup label="ETFs">

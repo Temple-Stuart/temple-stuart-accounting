@@ -333,9 +333,28 @@ function parseMarketMetrics(items: Record<string, unknown>[]): TTScannerData[] {
     .filter((item): item is TTScannerData => item !== null);
 }
 
+// ===== UNIVERSE SELECTOR =====
+
+function getUniverseSymbols(universe?: string): string[] {
+  switch (universe) {
+    case 'popular': return [...POPULAR_SYMBOLS];
+    case 'megacap': return [...MEGA_CAP];
+    case 'nasdaq100': return [...NASDAQ_100];
+    case 'dow30': return [...DOW_30];
+    case 'sp500': return [...SP500];
+    case 'etfs': return [...ETFS];
+    case 'tech': return [...SECTOR_TECH];
+    case 'finance': return [...SECTOR_FINANCE];
+    case 'energy': return [...SECTOR_ENERGY];
+    case 'healthcare': return [...SECTOR_HEALTHCARE];
+    case 'retail': return [...RETAIL_FAVORITES];
+    default: return getAllSymbols();
+  }
+}
+
 // ===== MAIN PIPELINE =====
 
-export async function runPipeline(limit: number = 20, userId?: string): Promise<PipelineResult> {
+export async function runPipeline(limit: number = 20, userId?: string, universe?: string): Promise<PipelineResult> {
   const pipelineStart = Date.now();
   const errors: string[] = [];
   const dataGaps: string[] = [];
@@ -347,7 +366,7 @@ export async function runPipeline(limit: number = 20, userId?: string): Promise<
     const client = getTastytradeClient();
     await client.accountsAndCustomersService.getCustomerResource();
 
-    const allSymbols = getAllSymbols();
+    const allSymbols = getUniverseSymbols(universe);
     console.log(`[Pipeline] Step A: Fetching ${allSymbols.length} symbols in batches of ${BATCH_SIZE}...`);
 
     // Batch symbols into chunks and fetch (same pattern as scanner/route.ts)

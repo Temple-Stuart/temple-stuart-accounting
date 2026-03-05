@@ -54,6 +54,7 @@ export async function GET(request: Request) {
     if (limit > 150) limit = 150;
 
     const refresh = searchParams.get('refresh') === 'true';
+    const universe = searchParams.get('universe') ?? undefined;
 
     // Check cache (unless refresh=true)
     if (!refresh) {
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     }
 
     // Cache miss or refresh — run full pipeline
-    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh})`);
+    console.log(`[Convergence Route] Cache MISS (limit=${limit}, refresh=${refresh}, universe=${universe ?? 'all'})`);
 
     // Resolve userId for snapshot logging (non-blocking — pipeline runs even if lookup fails)
     let userId: string | undefined;
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
     }
 
     const start = Date.now();
-    const result = await runPipeline(limit, userId);
+    const result = await runPipeline(limit, userId, universe);
     const elapsed = Date.now() - start;
     console.log(`[Convergence Route] Pipeline completed in ${elapsed}ms`);
 
