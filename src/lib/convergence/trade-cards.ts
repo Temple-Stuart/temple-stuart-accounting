@@ -5,6 +5,7 @@ import type { FullScoringResult } from './composite';
 import type {
   CandleData,
   ConvergenceInput,
+  ForwardVolPoint,
   RealizedVolCone,
   TradeCard,
   TradeCardSetup,
@@ -247,6 +248,46 @@ function analystConsensusLabel(scoring: FullScoringResult): string | null {
   return 'Hold';
 }
 
+// ===== FORWARD IMPLIED VOLATILITY =====
+
+function computeForwardVol(termStructure: { date: string; iv: number }[]): ForwardVolPoint | null {
+  if (!termStructure || termStructure.length < 2) return null;
+
+  const sorted = [...termStructure].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const today = new Date();
+  const withDte = sorted
+    .map(p => ({ ...p, dte: Math.round((new Date(p.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) }))
+    .filter(p => p.dte > 0 && p.iv > 0);
+
+  const nearTerm = withDte.find(p => p.dte >= 20 && p.dte <= 60);
+  const farTerm = withDte.find(p =>
+    nearTerm ? p.dte >= nearTerm.dte + 20 && p.dte <= 120 : p.dte >= 45 && p.dte <= 120,
+  );
+
+  if (!nearTerm || !farTerm) return null;
+  if (nearTerm.iv <= 0 || farTerm.iv <= 0) return null;
+
+  // Forward vol: σ_fwd = √[(σ²_far × T_far − σ²_near × T_near) / (T_far − T_near)]
+  const tNear = nearTerm.dte / 365;
+  const tFar = farTerm.dte / 365;
+  const varFar = Math.pow(farTerm.iv / 100, 2) * tFar;
+  const varNear = Math.pow(nearTerm.iv / 100, 2) * tNear;
+  const varForward = varFar - varNear;
+
+  // Negative forward variance = calendar arbitrage in data, skip
+  if (varForward <= 0) return null;
+
+  const forwardIv = Math.sqrt(varForward / (tFar - tNear)) * 100;
+  return {
+    from_expiry: nearTerm.date,
+    to_expiry: farTerm.date,
+    from_dte: nearTerm.dte,
+    to_dte: farTerm.dte,
+    forward_iv: Math.round(forwardIv * 10) / 10,
+    note: 'σ_fwd=√[(σ²_far×T_far−σ²_near×T_near)÷(T_far−T_near)]',
+  };
+}
+
 // ===== REALIZED VOLATILITY CONE =====
 
 function computeVolCone(candles: CandleData[], currentIv: number | null): RealizedVolCone {
@@ -301,6 +342,7 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
     hv30: tt?.hv30 ?? null,
     iv_hv_spread: tt?.ivHvSpread ?? null,
     vol_cone: computeVolCone(input.candles, tt?.iv30 ?? null),
+    forward_vol: computeForwardVol(input.ttScanner?.termStructure ?? []),
     earnings_date: tt?.earningsDate ?? null,
     days_to_earnings: tt?.daysTillEarnings ?? null,
     market_cap: tt?.marketCap ?? null,

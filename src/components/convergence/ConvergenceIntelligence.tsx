@@ -695,6 +695,40 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 </div>
               );
             })()}
+            {/* Forward Vol row */}
+            {ks.forward_vol && (
+              <div>
+                <span
+                  className="text-text-muted font-medium"
+                  title="Forward implied volatility: what the options market is pricing for volatility BETWEEN two expiration dates, stripping out near-term event risk already priced in. Computed as σ_fwd=√[(σ²_far×T_far−σ²_near×T_near)÷(T_far−T_near)]. Negative forward variance (calendar arbitrage) is suppressed."
+                >
+                  Fwd Vol:{' '}
+                </span>
+                <span className="text-text-secondary font-mono">
+                  <span
+                    className={
+                      ks.vol_cone?.current_iv != null
+                        ? ks.forward_vol.forward_iv > ks.vol_cone.current_iv * 1.1
+                          ? 'text-brand-red'
+                          : ks.forward_vol.forward_iv < ks.vol_cone.current_iv * 0.9
+                          ? 'text-brand-green'
+                          : 'text-text-secondary'
+                        : 'text-text-secondary'
+                    }
+                  >
+                    {ks.forward_vol.forward_iv}%
+                  </span>
+                  <span className="text-text-muted">
+                    {' '}({ks.forward_vol.from_dte}→{ks.forward_vol.to_dte}d)
+                  </span>
+                  {ks.vol_cone?.current_iv != null && (
+                    <span className="text-text-muted">
+                      {' '}vs spot IV {ks.vol_cone.current_iv}%
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
             {/* Company row */}
             <div>
               <span className="text-text-muted font-medium">Company: </span>
