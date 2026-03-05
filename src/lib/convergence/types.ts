@@ -1090,6 +1090,16 @@ export interface SocialSentiment {
   dataAge: string;        // ISO timestamp
 }
 
+export interface RealizedVolCone {
+  hv10: number | null;
+  hv20: number | null;
+  hv30: number | null;
+  hv60: number | null;
+  current_iv: number | null;
+  candles_used: number;
+  note: string;
+}
+
 export interface TradeCardKeyStats {
   current_price: number | null;
   iv_rank: number | null;
@@ -1097,6 +1107,7 @@ export interface TradeCardKeyStats {
   iv30: number | null;
   hv30: number | null;
   iv_hv_spread: number | null;
+  vol_cone: RealizedVolCone | null;
   earnings_date: string | null;
   days_to_earnings: number | null;
   market_cap: number | null;

@@ -3,7 +3,9 @@
 
 import type { FullScoringResult } from './composite';
 import type {
+  CandleData,
   ConvergenceInput,
+  RealizedVolCone,
   TradeCard,
   TradeCardSetup,
   TradeCardWhy,
@@ -245,6 +247,43 @@ function analystConsensusLabel(scoring: FullScoringResult): string | null {
   return 'Hold';
 }
 
+// ===== REALIZED VOLATILITY CONE =====
+
+function computeVolCone(candles: CandleData[], currentIv: number | null): RealizedVolCone {
+  if (!candles || candles.length < 11) {
+    return {
+      hv10: null, hv20: null, hv30: null, hv60: null,
+      current_iv: currentIv,
+      candles_used: candles?.length ?? 0,
+      note: 'Insufficient candle data',
+    };
+  }
+
+  function computeHV(windowDays: number): number | null {
+    if (candles.length < windowDays + 1) return null;
+    const slice = candles.slice(candles.length - windowDays - 1);
+    const logReturns: number[] = [];
+    for (let i = 1; i < slice.length; i++) {
+      if (slice[i - 1].close <= 0 || slice[i].close <= 0) continue;
+      logReturns.push(Math.log(slice[i].close / slice[i - 1].close));
+    }
+    if (logReturns.length < windowDays * 0.8) return null;
+    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+    const variance = logReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / (logReturns.length - 1);
+    return Math.round(Math.sqrt(variance) * Math.sqrt(252) * 100 * 10) / 10;
+  }
+
+  return {
+    hv10: computeHV(10),
+    hv20: computeHV(20),
+    hv30: computeHV(30),
+    hv60: computeHV(60),
+    current_iv: currentIv != null ? Math.round(currentIv * 10) / 10 : null,
+    candles_used: candles.length,
+    note: 'Close-to-close log returns, annualized ×√252',
+  };
+}
+
 // ===== KEY STATS BUILDER =====
 
 function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): TradeCardKeyStats {
@@ -261,6 +300,7 @@ function buildKeyStats(input: ConvergenceInput, scoring: FullScoringResult): Tra
     iv30: tt?.iv30 ?? null,
     hv30: tt?.hv30 ?? null,
     iv_hv_spread: tt?.ivHvSpread ?? null,
+    vol_cone: computeVolCone(input.candles, tt?.iv30 ?? null),
     earnings_date: tt?.earningsDate ?? null,
     days_to_earnings: tt?.daysTillEarnings ?? null,
     market_cap: tt?.marketCap ?? null,

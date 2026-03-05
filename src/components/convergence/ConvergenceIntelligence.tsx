@@ -653,6 +653,48 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 )}
               </span>
             </div>
+            {/* Vol Cone row */}
+            {(() => {
+              const cone = ks.vol_cone;
+              if (!cone) return null;
+              const hvEntries = [
+                { label: 'HV10', val: cone.hv10 },
+                { label: 'HV20', val: cone.hv20 },
+                { label: 'HV30', val: cone.hv30 },
+                { label: 'HV60', val: cone.hv60 },
+              ].filter(x => x.val != null);
+              if (hvEntries.length === 0) return null;
+              return (
+                <div>
+                  <span
+                    className="text-text-muted font-medium"
+                    title="Realized volatility at multiple lookback windows vs current implied vol. Close-to-close log returns annualized ×√252. Shows whether current IV is high or low relative to how much the stock has actually moved at different time horizons."
+                  >
+                    Vol Cone:{' '}
+                  </span>
+                  <span className="text-text-secondary font-mono">
+                    {hvEntries.map((x, i, arr) => (
+                      <span key={x.label}>
+                        <span className="text-text-muted text-[9px]">{x.label}{' '}</span>
+                        <span className={
+                          cone.current_iv != null && x.val! > cone.current_iv
+                            ? 'text-brand-green'
+                            : cone.current_iv != null && x.val! < cone.current_iv * 0.8
+                            ? 'text-brand-red'
+                            : 'text-text-secondary'
+                        }>
+                          {x.val}%
+                        </span>
+                        {i < arr.length - 1 && <span className="text-text-muted"> | </span>}
+                      </span>
+                    ))}
+                    {cone.current_iv != null && (
+                      <span className="text-text-muted"> vs IV {cone.current_iv}%</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })()}
             {/* Company row */}
             <div>
               <span className="text-text-muted font-medium">Company: </span>
