@@ -80,7 +80,7 @@ async function runFinnhubMetric(symbol: string, finnhubKey: string): Promise<{ m
 
 function checkTastyTradeIVHV(): CheckResult {
   const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
   if (!marketOpen) {
     return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
@@ -637,7 +637,7 @@ async function checkXAIGrok(symbol: string): Promise<CheckResult> {
 
 function checkTastyTradeGreeks(): CheckResult {
   const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
   if (!marketOpen) {
     return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
@@ -650,7 +650,7 @@ function checkTastyTradeGreeks(): CheckResult {
 
 function checkTastyTradeCandles(): CheckResult {
   const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
   if (!marketOpen) {
     return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
@@ -663,7 +663,7 @@ function checkTastyTradeCandles(): CheckResult {
 
 function checkTastyTradeOptionsFlow(): CheckResult {
   const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
   if (!marketOpen) {
     return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
@@ -676,7 +676,7 @@ function checkTastyTradeOptionsFlow(): CheckResult {
 
 function checkTastyTradeSPYCorrelation(): CheckResult {
   const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_USERNAME && process.env.TASTYTRADE_PASSWORD);
+  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
   if (!marketOpen) {
     return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
