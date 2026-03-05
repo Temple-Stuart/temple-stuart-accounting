@@ -179,7 +179,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
-function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: {
+export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: {
   detail: TickerDetail;
   sentiment?: SocialSentimentData;
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID

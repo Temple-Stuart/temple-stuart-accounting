@@ -23,6 +23,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
+import { TickerCard } from './ConvergenceIntelligence';
 
 interface Headline {
   datetime: number;
@@ -723,7 +724,7 @@ export default function ScannerResultsTable({
                   {isExpanded && (
                     <tr>
                       <td colSpan={15} className="bg-white p-0">
-                        <ExpandedDetail detail={row.detail} card={row.card} sentiment={sentimentMap?.[row.symbol]} rejections={rejectionMap?.[row.symbol]} />
+                        <TickerCard detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} />
                       </td>
                     </tr>
                   )}
