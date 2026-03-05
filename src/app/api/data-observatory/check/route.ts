@@ -185,14 +185,15 @@ async function checkUpgradesDowngrades(symbol: string, finnhubKey: string): Prom
     );
     const items = Array.isArray(data) ? data : [];
     const latest = items[0];
-    const hasDate = latest?.gradeDate != null;
+    const hasDate = latest?.gradeTime != null;
     let status: SourceStatus = 'BROKEN';
     if (items.length > 0) status = hasDate ? 'LIVE' : 'PARTIAL';
+    const datePart = hasDate ? ` on ${new Date(latest.gradeTime * 1000).toISOString().split('T')[0]}` : '';
     return {
       id: 6, source: 'Upgrades/Downgrades', endpoint: '/stock/upgrade-downgrade',
       status,
       records: `${items.length} rec`,
-      lastValue: latest ? `${latest.action ?? '?'} by ${latest.company ?? '?'}` : 'NULL',
+      lastValue: latest ? `${latest.action ?? '?'} by ${latest.company ?? '?'}${datePart}` : 'NULL',
       latency: fmtLatency(latencyMs),
       rawData: items.slice(0, 10),
     };
