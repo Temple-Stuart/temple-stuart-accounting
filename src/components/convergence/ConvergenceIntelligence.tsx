@@ -144,25 +144,232 @@ interface Headline {
   sentiment: string;
 }
 
+// ── Score breakdown types (mirroring types.ts for component-level access) ──
+
+interface SubScoreTrace {
+  score: number;
+  weight: number;
+  inputs: Record<string, number | string | boolean | null>;
+  formula: string;
+  notes: string;
+}
+
+interface MispricingTrace extends SubScoreTrace {
+  z_scores: {
+    vrp_z: number | null;
+    ivp_z: number | null;
+    iv_hv_z: number | null;
+    hv_accel_z: number | null;
+    note: string;
+    transform: 'percentile' | 'z-score-fallback' | 'raw';
+  };
+  hv_trend: string;
+  iv_composite: {
+    iv_rank: number | null;
+    iv_percentile: number | null;
+    iv_composite_score: number;
+    iv_composite_method: string;
+    high_conviction_iv: boolean;
+    vol_regime: 'POST_SPIKE' | 'SPIKE_BUILDING' | 'NORMAL';
+    vol_regime_note: string;
+  };
+}
+
+interface TermStructureTrace extends SubScoreTrace {
+  shape: string;
+  richest_tenor: string | null;
+  cheapest_tenor: string | null;
+  optimal_expiration: string | null;
+  expirations_analyzed: number;
+  earnings_kink_detected: boolean;
+}
+
+interface TechnicalsTrace extends SubScoreTrace {
+  sub_scores: {
+    rsi_score: number;
+    trend_score: number;
+    bollinger_score: number;
+    volume_score: number;
+    high52w_score: number;
+  };
+  indicators: {
+    rsi_14: number | null;
+    sma_20: number | null;
+    sma_50: number | null;
+    latest_close: number | null;
+    bb_upper: number | null;
+    bb_lower: number | null;
+    bb_middle: number | null;
+    bb_position: number | null;
+    bb_width: number | null;
+    high52w_ratio: number | null;
+    high52w_range_position: number | null;
+    avg_volume_5d: number | null;
+    avg_volume_20d: number | null;
+    volume_ratio: number | null;
+    rsi_trace: { avg_gain: number; avg_loss: number; rs: number } | null;
+  };
+  candles_used: number;
+}
+
+interface SkewTrace extends SubScoreTrace {
+  vol_skew_25d: number | null;
+  pc_iv_ratio_atm: number | null;
+  skew_direction: 'bullish' | 'bearish' | 'neutral';
+  skew_score: number;
+}
+
+interface GEXTrace extends SubScoreTrace {
+  net_gex: number | null;
+  gex_flip_strike: number | null;
+  distance_to_flip_pct: number | null;
+  gex_regime: 'long_gamma' | 'short_gamma' | 'neutral';
+  gex_score: number;
+}
+
+type DataConfidence = 'high' | 'medium' | 'low' | 'none';
+
+interface VolEdgeResult {
+  score: number;
+  data_confidence: DataConfidence;
+  breakdown: {
+    mispricing: MispricingTrace;
+    term_structure: TermStructureTrace;
+    technicals: TechnicalsTrace;
+    skew: SkewTrace;
+    gex: GEXTrace;
+  };
+}
+
+interface QualityGateResult {
+  score: number;
+  mspr_adjustment: number;
+  data_confidence: DataConfidence;
+  breakdown: {
+    safety: SubScoreTrace & {
+      sub_scores: Record<string, number>;
+      piotroski: { available_signals: number; total_signals: number; note: string };
+      altman_z: { score: number | null; components_available: number; components_total: number; source: string };
+    };
+    profitability: SubScoreTrace & {
+      sub_scores: Record<string, number>;
+      earnings_quality: {
+        surprise_consistency: number;
+        dte_score: number;
+        beat_rate: number;
+        earnings_detail: {
+          total_quarters: number;
+          beats: number;
+          misses: number;
+          in_line: number;
+          avg_surprise_pct: number | null;
+          streak: string;
+        };
+      };
+    };
+    growth: SubScoreTrace & { sub_scores: Record<string, number> };
+    fundamentalRisk: SubScoreTrace & { sub_scores: Record<string, number> };
+  };
+}
+
+interface RegimeResult {
+  score: number;
+  data_confidence: DataConfidence;
+  breakdown: {
+    growth_signal: {
+      score: number;
+      sub_scores: Record<string, number>;
+      raw_values: Record<string, number | null>;
+      stale_flags?: string[];
+    };
+    inflation_signal: {
+      score: number;
+      sub_scores: Record<string, number>;
+      raw_values: Record<string, number | null>;
+    };
+    regime_probabilities: {
+      goldilocks: number;
+      reflation: number;
+      stagflation: number;
+      deflation: number;
+    };
+    dominant_regime: string;
+    regime_signals: {
+      yield_curve_spread: number | null;
+      yield_curve_inverted: boolean;
+      hy_spread: number | null;
+      hy_stress_level: 'normal' | 'elevated' | 'crisis' | null;
+    };
+    vix_overlay: {
+      vix: number | null;
+      adjustment_type: string;
+    };
+    strategy_scores: { strategy: string; raw_score: number; vix_adjustment: number; final_score: number }[];
+    best_strategy: string;
+    spy_correlation_modifier: {
+      corr_spy: number | null;
+      multiplier: number;
+      base_regime_score: number;
+      adjusted_regime_score: number;
+      formula: string;
+      note: string;
+    };
+  };
+}
+
+interface InfoEdgeResult {
+  score: number;
+  data_confidence: DataConfidence;
+  filing_recency: {
+    filing_signal_active: boolean;
+    filing_type: string | null;
+    filing_age_hours: number | null;
+    filing_recency_score: number;
+    filing_modifier: number;
+  };
+  breakdown: {
+    analyst_consensus: SubScoreTrace & { sub_scores: Record<string, number>; raw_counts: Record<string, number> };
+    price_target_signal: SubScoreTrace & { indicators: Record<string, number | string | null> };
+    upgrade_downgrade_signal: SubScoreTrace & { indicators: Record<string, number | string | null> };
+    insider_activity: SubScoreTrace & { insider_detail: Record<string, number | string | null> };
+    earnings_momentum: SubScoreTrace & { momentum_detail: Record<string, unknown> };
+    flow_signal: SubScoreTrace & { sub_scores: Record<string, number>; flow_detail: Record<string, unknown> };
+    news_sentiment: {
+      score: number;
+      weight: number;
+      inputs: Record<string, number | string | boolean | null>;
+      formula: string;
+      notes: string;
+      sub_scores: Record<string, number>;
+      news_detail: {
+        data_available: boolean;
+        total_articles_30d: number;
+        articles_7d: number;
+        buzz_ratio: number | null;
+        sentiment_7d_score: number | null;
+        sentiment_momentum: number | null;
+        tier1_ratio: number | null;
+        headlines: Headline[];
+      };
+    };
+    institutional_ownership: SubScoreTrace & { indicators: Record<string, number | string | boolean | null> };
+  };
+}
+
 interface TickerDetail {
   symbol: string;
   pipeline_runtime_ms: number;
   scores: {
+    vol_edge: VolEdgeResult;
+    quality: QualityGateResult;
+    regime: RegimeResult;
+    info_edge: InfoEdgeResult;
     composite: {
       score: number;
       direction: string;
       convergence_gate: string;
       categories_above_50: number;
       category_scores: { vol_edge: number; quality: number; regime: number; info_edge: number };
-    };
-    info_edge?: {
-      breakdown?: {
-        news_sentiment?: {
-          news_detail?: {
-            headlines?: Headline[];
-          };
-        };
-      };
     };
   };
   trade_cards?: TradeCardData[];
