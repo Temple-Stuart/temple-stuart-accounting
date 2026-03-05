@@ -7,11 +7,13 @@ import { countActiveFilters } from './FilterPanel';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 import { applyFilters, describeActiveFilters } from '@/lib/convergence/filter-engine';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 
 /* ===================================================================
    ConvergenceIntelligence — unified market intelligence dashboard
    Replaces both ConvergenceDashboard and ConvergenceAnalyzer.
-   Dark theme, screenshot-ready, zero click-to-expand.
+   Uses shared design tokens and UI primitives.
    =================================================================== */
 
 // ── Batch scan types (from /api/ai/convergence-synthesis) ───────────
@@ -173,9 +175,15 @@ interface TickerDetail {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function gradeColor(s: number): string {
-  if (s >= 70) return '#10B981';
-  if (s >= 50) return '#F59E0B';
-  return '#EF4444';
+  if (s >= 70) return 'text-brand-green';
+  if (s >= 50) return 'text-brand-amber';
+  return 'text-brand-red';
+}
+
+function gradeColorHex(s: number): string {
+  if (s >= 70) return '#16a34a';
+  if (s >= 50) return '#d97706';
+  return '#c53030';
 }
 
 function letterGrade(s: number): string {
@@ -184,11 +192,11 @@ function letterGrade(s: number): string {
   if (s >= 30) return 'D'; return 'F';
 }
 
-function dirBadge(d: string) {
+function dirBadgeVariant(d: string): 'success' | 'danger' | 'default' {
   const u = d.toUpperCase();
-  if (u === 'BULLISH') return { bg: '#065F46', text: '#34D399', label: 'BULLISH' };
-  if (u === 'BEARISH') return { bg: '#7F1D1D', text: '#FCA5A5', label: 'BEARISH' };
-  return { bg: '#334155', text: '#94A3B8', label: 'NEUTRAL' };
+  if (u === 'BULLISH') return 'success';
+  if (u === 'BEARISH') return 'danger';
+  return 'default';
 }
 
 function fmtDollar(v: number | null): string {
@@ -209,10 +217,10 @@ function fmtMcap(v: number | null): string {
   return `$${v.toLocaleString()}`;
 }
 
-function gateLabel(n: number): { text: string; color: string } {
-  if (n >= 4) return { text: 'FULL POSITION', color: '#10B981' };
-  if (n >= 3) return { text: 'HALF SIZE', color: '#F59E0B' };
-  return { text: 'NO TRADE', color: '#EF4444' };
+function gateLabel(n: number): { text: string; variant: 'success' | 'warning' | 'danger' } {
+  if (n >= 4) return { text: 'FULL POSITION', variant: 'success' };
+  if (n >= 3) return { text: 'HALF SIZE', variant: 'warning' };
+  return { text: 'NO TRADE', variant: 'danger' };
 }
 
 function statExplain(key: string, val: number | string | null): string {
@@ -239,11 +247,11 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 function ScoreBar({ label, score }: { label: string; score: number }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-16 text-[10px] font-medium text-slate-400 text-right shrink-0">{label}</div>
-      <div className="flex-1 h-3.5 rounded-full overflow-hidden" style={{ background: '#334155' }}>
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(score, 100)}%`, background: gradeColor(score) }} />
+      <div className="w-16 text-[10px] font-medium text-text-muted text-right shrink-0">{label}</div>
+      <div className="flex-1 h-3.5 rounded-full overflow-hidden bg-bg-row">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(score, 100)}%`, background: gradeColorHex(score) }} />
       </div>
-      <div className="w-10 text-xs font-mono font-bold text-right shrink-0" style={{ color: gradeColor(score) }}>{score.toFixed(1)}</div>
+      <div className={`w-10 text-xs font-mono font-bold text-right shrink-0 ${gradeColor(score)}`}>{score.toFixed(1)}</div>
     </div>
   );
 }
@@ -265,49 +273,48 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
   const ks = cards[0]?.key_stats;
   const headlines: Headline[] = detail.scores.info_edge?.breakdown?.news_sentiment?.news_detail?.headlines?.slice(0, 3) ?? [];
   const gate = gateLabel(comp.categories_above_50);
-  const dir = dirBadge(comp.direction);
 
   return (
-    <div className="rounded overflow-hidden border" style={{ background: '#1E293B', borderColor: '#334155' }}>
+    <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
-      {/* ═══ A) HEADER ROW ═══ */}
-      <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2" style={{ background: '#0F172A' }}>
+      {/* A) HEADER ROW */}
+      <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
           <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
-          <span className="text-sm font-black font-mono" style={{ color: gradeColor(comp.score) }}>{comp.score.toFixed(1)}</span>
-          <span className="text-terminal-lg font-black" style={{ color: gradeColor(comp.score) }}>{letterGrade(comp.score)}</span>
+          <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }}>{comp.score.toFixed(1)}</span>
+          <span className="text-terminal-lg font-black" style={{ color: gradeColorHex(comp.score) }}>{letterGrade(comp.score)}</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider" style={{ background: dir.bg, color: dir.text }}>{dir.label}</span>
-          {ks?.sector && <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>{ks.sector}</span>}
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ color: gate.color, background: gate.color + '20' }}>
+          <Badge variant={dirBadgeVariant(comp.direction)} size="sm">{comp.direction}</Badge>
+          {ks?.sector && <Badge variant="default" size="sm">{ks.sector}</Badge>}
+          <Badge variant={gate.variant} size="sm">
             {comp.categories_above_50}/4 {gate.text}
-          </span>
+          </Badge>
         </div>
       </div>
 
-      {/* ═══ B) SCORE BARS ═══ */}
-      <div className="px-5 py-3 space-y-1.5 border-b" style={{ borderColor: '#334155' }}>
+      {/* B) SCORE BARS */}
+      <div className="px-5 py-3 space-y-1.5 border-b border-border">
         <ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} />
         <ScoreBar label="Quality" score={comp.category_scores.quality} />
         <ScoreBar label="Regime" score={comp.category_scores.regime} />
         <ScoreBar label="Info Edge" score={comp.category_scores.info_edge} />
       </div>
 
-      {/* ═══ C) THE TRADE ═══ */}
+      {/* C) THE TRADE */}
       {cards.length > 0 ? (
-        <div className="border-b" style={{ borderColor: '#334155' }}>
+        <div className="border-b border-border">
           {cards.map((card, ci) => (
-            <div key={ci} className={ci > 0 ? 'border-t' : ''} style={{ borderColor: '#334155' }}>
+            <div key={ci} className={ci > 0 ? 'border-t border-border' : ''}>
               {/* Strategy header */}
-              <div className="px-5 py-2 flex items-center justify-between" style={{ background: '#334155' }}>
+              <div className="px-5 py-2 flex items-center justify-between bg-bg-row">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black" style={{ background: '#3B82F6', color: '#fff' }}>{card.label}</span>
-                  <span className="text-sm font-bold text-white">{card.setup.strategy_name}</span>
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-brand-purple text-white">{card.label}</span>
+                  <span className="text-sm font-bold text-text-primary">{card.setup.strategy_name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-300">{card.setup.expiration_date}</span>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: '#1E293B', color: '#94A3B8' }}>{card.setup.dte} DTE</span>
+                  <span className="text-[10px] text-text-secondary">{card.setup.expiration_date}</span>
+                  <Badge variant="default" size="sm">{card.setup.dte} DTE</Badge>
                 </div>
               </div>
 
@@ -315,7 +322,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 {/* Legs table */}
                 <table className="w-full text-xs mb-3">
                   <thead>
-                    <tr className="text-slate-500 text-[10px]">
+                    <tr className="text-text-muted text-[10px]">
                       <th className="text-left font-medium pb-1 w-16">Action</th>
                       <th className="text-left font-medium pb-1 w-12">Type</th>
                       <th className="text-right font-medium pb-1">Strike</th>
@@ -325,10 +332,10 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                   <tbody>
                     {card.setup.legs.map((leg, j) => (
                       <tr key={j}>
-                        <td className="py-0.5 font-bold" style={{ color: leg.side === 'sell' ? '#F87171' : '#34D399' }}>{leg.side.toUpperCase()}</td>
-                        <td className="py-0.5 text-slate-300">{leg.type.toUpperCase()}</td>
-                        <td className="py-0.5 text-right font-mono font-bold text-white">${leg.strike}</td>
-                        <td className="py-0.5 text-right font-mono text-slate-300">${leg.price.toFixed(2)}</td>
+                        <td className={`py-0.5 font-bold ${leg.side === 'sell' ? 'text-brand-red' : 'text-brand-green'}`}>{leg.side.toUpperCase()}</td>
+                        <td className="py-0.5 text-text-secondary">{leg.type.toUpperCase()}</td>
+                        <td className="py-0.5 text-right font-mono font-bold text-text-primary">${leg.strike}</td>
+                        <td className="py-0.5 text-right font-mono text-text-secondary">${leg.price.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -337,40 +344,40 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                 {/* Key numbers row */}
                 <div className="grid grid-cols-5 gap-3 mb-2">
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase">Max Profit</div>
-                    <div className="text-sm font-mono font-black text-green-400">{fmtDollar(card.setup.max_profit)}</div>
+                    <div className="text-[9px] text-text-muted uppercase">Max Profit</div>
+                    <div className="text-sm font-mono font-black text-brand-green">{fmtDollar(card.setup.max_profit)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase">Max Loss</div>
-                    <div className="text-sm font-mono font-black text-red-400">{fmtDollar(card.setup.max_loss)}</div>
+                    <div className="text-[9px] text-text-muted uppercase">Max Loss</div>
+                    <div className="text-sm font-mono font-black text-brand-red">{fmtDollar(card.setup.max_loss)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price' : 'PoP estimated from option deltas (approximate)'}>Est. PoP</div>
-                    <div className="text-sm font-mono font-black text-white">{fmtPct(card.setup.probability_of_profit)}</div>
+                    <div className="text-[9px] text-text-muted uppercase" title={card.setup.pop_method === 'breakeven_d2' ? 'PoP via N(d2) at breakeven price' : 'PoP estimated from option deltas (approximate)'}>Est. PoP</div>
+                    <div className="text-sm font-mono font-black text-text-primary">{fmtPct(card.setup.probability_of_profit)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns.">Est. EV</div>
-                    <div className="text-sm font-mono font-black" style={{ color: card.setup.ev > 0 ? '#10B981' : card.setup.ev < 0 ? '#EF4444' : '#94A3B8' }}>
+                    <div className="text-[9px] text-text-muted uppercase" title="Expected Value estimate using three-outcome model. Not a guarantee of returns.">Est. EV</div>
+                    <div className={`text-sm font-mono font-black ${card.setup.ev > 0 ? 'text-brand-green' : card.setup.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`}>
                       {card.setup.ev !== 0 ? `${card.setup.ev >= 0 ? '+' : ''}$${Math.round(card.setup.ev)}` : '—'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-[9px] text-slate-500 uppercase">Risk/Reward</div>
-                    <div className="text-sm font-mono font-black text-white">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
+                    <div className="text-[9px] text-text-muted uppercase">Risk/Reward</div>
+                    <div className="text-sm font-mono font-black text-text-primary">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</div>
                   </div>
                 </div>
                 {card.setup.has_wide_spread && (
-                  <div className="text-[10px] text-amber-400 text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
+                  <div className="text-[10px] text-brand-amber text-center mb-1" title="Bid/ask estimated from theoretical price — actual market spread may differ">
                     &#x26A0; Wide bid-ask spread — prices estimated from theoretical model
                   </div>
                 )}
 
                 {/* Premium line */}
-                <div className="text-center rounded py-1.5" style={{ background: '#0F172A' }}>
+                <div className="text-center rounded py-1.5 bg-bg-row">
                   {card.setup.net_credit != null && card.setup.net_credit > 0 ? (
-                    <span className="text-xs font-bold text-green-400">Collect ${(card.setup.net_credit * 100).toFixed(0)} premium per contract</span>
+                    <span className="text-xs font-bold text-brand-green">Collect ${(card.setup.net_credit * 100).toFixed(0)} premium per contract</span>
                   ) : card.setup.net_debit != null ? (
-                    <span className="text-xs font-bold text-white">Pay ${(card.setup.net_debit * 100).toFixed(0)} to enter per contract</span>
+                    <span className="text-xs font-bold text-text-primary">Pay ${(card.setup.net_debit * 100).toFixed(0)} to enter per contract</span>
                   ) : null}
                 </div>
 
@@ -383,12 +390,10 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                   if (savedId) {
                     return (
                       <div className="flex items-center justify-center gap-3 mt-3">
-                        <span className="px-4 py-1.5 rounded text-xs font-bold" style={{ background: '#065F46', color: '#34D399' }}>
-                          Queued &#10003;
-                        </span>
+                        <Badge variant="success" size="md">Queued &#10003;</Badge>
                         <button
                           onClick={() => onRemove(cardKey, savedId)}
-                          className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                          className="text-[10px] text-text-muted hover:text-brand-red transition-colors"
                         >
                           &#10005; Remove
                         </button>
@@ -397,25 +402,25 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
                   }
                   if (saving) {
                     return (
-                      <div className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-center" style={{ background: '#334155' }}>
-                        <span className="inline-flex items-center gap-2 text-slate-300">
-                          <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-full mt-3">
+                        <Button variant="secondary" size="md" loading disabled className="w-full">
                           Saving...
-                        </span>
+                        </Button>
                       </div>
                     );
                   }
                   return (
                     <div>
-                      <button
+                      <Button
+                        variant="primary"
+                        size="md"
                         onClick={() => onSave(detail, card)}
-                        className="w-full mt-3 px-4 py-2 rounded text-xs font-bold text-white transition-colors hover:opacity-90"
-                        style={{ background: '#4F46E5' }}
+                        className="w-full mt-3"
                       >
                         Enter Trade
-                      </button>
+                      </Button>
                       {error && (
-                        <div className="mt-1 px-2 py-1 rounded text-[10px] text-red-300" style={{ background: '#7F1D1D30' }}>
+                        <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-50 text-brand-red">
                           Failed: {error}
                         </div>
                       )}
@@ -427,23 +432,23 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
           ))}
         </div>
       ) : (
-        <div className="px-5 py-4 text-center border-b" style={{ borderColor: '#334155' }}>
-          <div className="text-slate-500 text-xs">
+        <div className="px-5 py-4 text-center border-b border-border">
+          <div className="text-text-muted text-xs">
             {detail._fetch_errors?.chain_fetch ? `No trade cards — ${detail._fetch_errors.chain_fetch}` : 'No strategies passed quality gates for this ticker'}
           </div>
         </div>
       )}
 
-      {/* ═══ D) WHY THIS TRADE ═══ */}
+      {/* D) WHY THIS TRADE */}
       {why && (
-        <div className="px-5 py-3 border-b" style={{ borderColor: '#334155' }}>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Why This Trade</div>
+        <div className="px-5 py-3 border-b border-border">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Why This Trade</div>
 
           {why.plain_english_signals.length > 0 && (
             <div className="space-y-1.5 mb-3">
               {why.plain_english_signals.map((sig, i) => (
-                <div key={i} className="flex gap-2 text-xs text-slate-200 leading-relaxed">
-                  <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: '#334155', color: '#94A3B8' }}>{i + 1}</span>
+                <div key={i} className="flex gap-2 text-xs text-text-secondary leading-relaxed">
+                  <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted">{i + 1}</span>
                   <span>{sig}</span>
                 </div>
               ))}
@@ -451,7 +456,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
           )}
 
           {/* Regime context */}
-          <div className="rounded px-3 py-2 text-xs text-slate-300 leading-relaxed mb-2" style={{ background: '#0F172A' }}>
+          <div className="rounded px-3 py-2 text-xs text-text-secondary leading-relaxed mb-2 bg-bg-row">
             {why.regime_context}
           </div>
 
@@ -461,8 +466,7 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
               {why.risk_flags.map((flag, i) => {
                 const isRed = flag.startsWith('UNLIMITED') || flag.startsWith('INSIDER');
                 return (
-                  <div key={i} className="flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed"
-                    style={{ background: isRed ? '#7F1D1D20' : '#78350F20', color: isRed ? '#FCA5A5' : '#FDE68A' }}>
+                  <div key={i} className={`flex items-start gap-2 rounded px-3 py-1.5 text-[10px] font-medium leading-relaxed ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`}>
                     <span className="shrink-0 mt-0.5">{isRed ? '\u26D4' : '\u26A0'}</span>
                     <span>{flag}</span>
                   </div>
@@ -473,74 +477,71 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
         </div>
       )}
 
-      {/* ═══ E) KEY STATS ═══ */}
+      {/* E) KEY STATS */}
       {ks && (
-        <div className="px-5 py-3 border-b" style={{ borderColor: '#334155' }}>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Key Stats</div>
+        <div className="px-5 py-3 border-b border-border">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Key Stats</div>
           <div className="space-y-2 text-xs">
             {/* Volatility row */}
             <div>
-              <span className="text-slate-500 font-medium">Volatility: </span>
-              <span className="text-slate-200 font-mono">
+              <span className="text-text-muted font-medium">Volatility: </span>
+              <span className="text-text-secondary font-mono">
                 IV Rank {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'}
-                {ks.iv_rank != null && <span className="text-slate-500"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
+                {ks.iv_rank != null && <span className="text-text-muted"> — {statExplain('iv_rank', ks.iv_rank)}</span>}
                 {' | '}IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'}
                 {' | '}HV {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}
               </span>
             </div>
             {/* Company row */}
             <div>
-              <span className="text-slate-500 font-medium">Company: </span>
-              <span className="text-slate-200 font-mono">
+              <span className="text-text-muted font-medium">Company: </span>
+              <span className="text-text-secondary font-mono">
                 P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'}
-                {ks.pe_ratio != null && <span className="text-slate-500"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
+                {ks.pe_ratio != null && <span className="text-text-muted"> — {statExplain('pe_ratio', ks.pe_ratio)}</span>}
                 {' | '}Cap {fmtMcap(ks.market_cap)}
                 {' | '}Earnings {ks.earnings_date ?? '—'}
-                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-amber-400"> ({ks.days_to_earnings}d away)</span>}
+                {ks.days_to_earnings != null && ks.days_to_earnings > 0 && <span className="text-brand-amber"> ({ks.days_to_earnings}d away)</span>}
               </span>
             </div>
             {/* Market row */}
             <div>
-              <span className="text-slate-500 font-medium">Market: </span>
-              <span className="text-slate-200 font-mono">
+              <span className="text-text-muted font-medium">Market: </span>
+              <span className="text-text-secondary font-mono">
                 Beta {ks.beta != null ? ks.beta.toFixed(2) : '—'}
-                {ks.beta != null && <span className="text-slate-500"> — {statExplain('beta', ks.beta)}</span>}
+                {ks.beta != null && <span className="text-text-muted"> — {statExplain('beta', ks.beta)}</span>}
                 {' | '}SPY Corr {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'}
-                {ks.spy_correlation != null && <span className="text-slate-500"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
+                {ks.spy_correlation != null && <span className="text-text-muted"> — {statExplain('spy_correlation', ks.spy_correlation)}</span>}
                 {' | '}Liquidity {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'}
               </span>
             </div>
             {/* Sentiment row */}
             <div>
-              <span className="text-slate-500 font-medium">Sentiment: </span>
-              <span className="text-slate-200 font-mono">
+              <span className="text-text-muted font-medium">Sentiment: </span>
+              <span className="text-text-secondary font-mono">
                 Analysts: {ks.analyst_consensus ?? '—'}
                 {' | '}Buzz {ks.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'}
-                {ks.buzz_ratio != null && <span className="text-slate-500"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
+                {ks.buzz_ratio != null && <span className="text-text-muted"> — {statExplain('buzz_ratio', ks.buzz_ratio)}</span>}
                 {' | '}Trend {ks.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
-                {ks.sentiment_momentum != null && <span className="text-slate-500"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
+                {ks.sentiment_momentum != null && <span className="text-text-muted"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
             {/* Social Pulse row — from xAI x_search */}
             {sentiment && !sentiment.error && sentiment.postCount > 0 && (
               <div>
-                <span className="text-slate-500 font-medium">Social Pulse: </span>
+                <span className="text-text-muted font-medium">Social Pulse: </span>
                 <span
-                  className="font-mono font-bold"
-                  style={{ color: sentiment.score > 0.2 ? '#10B981' : sentiment.score < -0.2 ? '#EF4444' : '#94A3B8' }}
+                  className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
                 >
                   {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
                 </span>
-                <span className="text-slate-400 font-mono">
+                <span className="text-text-faint font-mono">
                   {' '}({sentiment.postCount} posts
                   {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N)
                 </span>
                 {sentiment.themes.length > 0 && (
                   <span className="ml-2">
                     {sentiment.themes.slice(0, 3).map((t, i) => (
-                      <span key={i} className="inline-block px-1.5 py-0.5 mr-1 rounded text-[9px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
-                        {t}
-                      </span>
+                      <Badge key={i} variant="default" size="sm" className="mr-1">{t}</Badge>
                     ))}
                   </span>
                 )}
@@ -550,23 +551,23 @@ function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, on
         </div>
       )}
 
-      {/* ═══ F) TOP HEADLINES ═══ */}
+      {/* F) TOP HEADLINES */}
       {headlines.length > 0 && (
         <div className="px-5 py-3">
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Recent Headlines</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Recent Headlines</div>
           <div className="space-y-1.5">
-            {headlines.map((h, i) => {
-              const sentColor = h.sentiment === 'bullish' ? '#34D399' : h.sentiment === 'bearish' ? '#F87171' : '#94A3B8';
-              return (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="text-slate-300 leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
-                  <span className="shrink-0 text-[9px] text-slate-500">{h.source}</span>
-                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
-                    {h.sentiment}
-                  </span>
-                </div>
-              );
-            })}
+            {headlines.map((h, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-text-secondary leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
+                <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
+                <Badge
+                  variant={h.sentiment === 'bullish' ? 'success' : h.sentiment === 'bearish' ? 'danger' : 'default'}
+                  size="sm"
+                >
+                  {h.sentiment}
+                </Badge>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -604,10 +605,10 @@ function FilteredResultsSection({
     <>
       {/* Active filter summary bar */}
       {activeCount > 0 && (
-        <div className="px-5 py-1.5 flex items-center gap-3 flex-wrap text-[10px]" style={{ background: '#1E293B', borderBottom: '1px solid #334155' }}>
-          <span className="text-slate-400 font-bold uppercase tracking-wider shrink-0">Active:</span>
-          <span className="text-slate-300">{activeFilters.join(' \u2022 ')}</span>
-          <button onClick={onResetFilters} className="text-indigo-400 hover:text-indigo-300 ml-auto shrink-0">
+        <div className="px-5 py-1.5 flex items-center gap-3 flex-wrap text-[10px] bg-bg-row border-b border-border">
+          <span className="text-text-muted font-bold uppercase tracking-wider shrink-0">Active:</span>
+          <span className="text-text-secondary">{activeFilters.join(' \u2022 ')}</span>
+          <button onClick={onResetFilters} className="text-brand-purple hover:text-brand-purple-hover ml-auto shrink-0">
             Clear all
           </button>
         </div>
@@ -615,14 +616,14 @@ function FilteredResultsSection({
 
       {/* Filter counts */}
       {totalStrategies > 0 && (
-        <div className="px-5 py-1.5 flex items-center gap-3 text-[10px]" style={{ background: '#0F172A' }}>
-          <span className="text-slate-400">
-            Showing <span className="text-white font-bold">{passedStrategies}</span> of <span className="text-white font-bold">{totalStrategies}</span> strategies across <span className="text-white font-bold">{passed.length}</span> tickers
+        <div className="px-5 py-1.5 flex items-center gap-3 text-[10px] bg-white border-b border-border">
+          <span className="text-text-muted">
+            Showing <span className="text-text-primary font-bold">{passedStrategies}</span> of <span className="text-text-primary font-bold">{totalStrategies}</span> strategies across <span className="text-text-primary font-bold">{passed.length}</span> tickers
           </span>
           {filteredCount > 0 && (
             <button
               onClick={() => setShowFiltered(!showFiltered)}
-              className="text-slate-500 hover:text-slate-300 transition-colors"
+              className="text-text-faint hover:text-text-secondary transition-colors"
             >
               {filteredCount} filtered out {showFiltered ? '\u25B2' : '\u25BC'}
             </button>
@@ -632,12 +633,12 @@ function FilteredResultsSection({
 
       {/* Filtered-out reasons */}
       {showFiltered && filtered.length > 0 && (
-        <div className="px-5 py-2 space-y-1 max-h-[150px] overflow-y-auto" style={{ background: '#0F172A' }}>
+        <div className="px-5 py-2 space-y-1 max-h-[150px] overflow-y-auto bg-bg-terminal">
           {filtered.map((f, i) => (
             <div key={i} className="text-[10px]">
-              <span className="text-slate-400 font-mono font-bold">{f.result.symbol}</span>
-              <span className="text-slate-600"> — </span>
-              <span className="text-slate-500">{f.reasons.join(' | ')}</span>
+              <span className="text-text-secondary font-mono font-bold">{f.result.symbol}</span>
+              <span className="text-text-faint"> — </span>
+              <span className="text-text-muted">{f.reasons.join(' | ')}</span>
             </div>
           ))}
         </div>
@@ -872,16 +873,15 @@ export default function ConvergenceIntelligence() {
   }, [lookupTicker]);
 
   return (
-    <div className="rounded overflow-hidden" style={{ background: '#0F172A' }}>
+    <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
-      {/* ═══ SECTION 1: UNIVERSE SELECTOR ═══ */}
-      <div className="px-5 py-4 flex items-center gap-3 flex-wrap border-b" style={{ background: '#1E293B', borderColor: '#334155' }}>
-        <div className="text-xs font-bold tracking-widest text-slate-400 uppercase mr-1">Market Intelligence</div>
+      {/* SECTION 1: UNIVERSE SELECTOR */}
+      <div className="px-5 py-4 flex items-center gap-3 flex-wrap border-b border-border bg-brand-purple-hover">
+        <div className="text-xs font-bold tracking-widest text-white uppercase mr-1">Market Intelligence</div>
         <select
           value={universe}
           onChange={e => setUniverse(e.target.value)}
-          className="text-xs px-2 py-1.5 rounded border border-slate-600 text-white focus:outline-none focus:border-blue-500"
-          style={{ background: '#0F172A' }}
+          className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50"
         >
           <optgroup label="Indices">
             <option value="popular">Popular (50)</option>
@@ -901,20 +901,19 @@ export default function ConvergenceIntelligence() {
             <option value="retail">Retail Favorites</option>
           </optgroup>
         </select>
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={scanMarket}
           disabled={scanning || enriching}
-          className="px-4 py-1.5 rounded text-xs font-bold tracking-wider text-white disabled:opacity-40 transition-colors"
-          style={{ background: scanning || enriching ? '#334155' : '#4F46E5' }}
+          loading={scanning || enriching}
+          className="bg-brand-gold text-white border-0 hover:bg-brand-gold-bright"
         >
           {scanning ? 'Scanning...' : enriching ? `Loading ${enrichProgress.current}...` : 'Scan Market'}
-        </button>
-        {(scanning || enriching) && (
-          <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-        )}
+        </Button>
         {/* Pipeline summary */}
         {batchData && (
-          <div className="ml-auto text-[10px] text-slate-500 font-mono">
+          <div className="ml-auto text-[10px] text-white/60 font-mono">
             {batchData.pipeline_summary.total_universe} scanned
             {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
             {' \u2192 '}{batchData.pipeline_summary.scored} scored
@@ -928,36 +927,36 @@ export default function ConvergenceIntelligence() {
       {/* Loading state */}
       {scanning && (
         <div className="px-5 py-16 text-center">
-          <div className="w-8 h-8 border-3 border-slate-600 border-t-indigo-400 rounded-full animate-spin mx-auto mb-4" style={{ borderWidth: 3 }} />
-          <div className="text-sm font-medium text-slate-300">Running convergence pipeline...</div>
-          <div className="text-[10px] text-slate-500 mt-1">Scanning universe, applying filters, scoring, ranking</div>
+          <div className="w-8 h-8 border-3 border-border border-t-brand-purple rounded-full animate-spin mx-auto mb-4" style={{ borderWidth: 3 }} />
+          <div className="text-sm font-medium text-text-primary">Running convergence pipeline...</div>
+          <div className="text-[10px] text-text-muted mt-1">Scanning universe, applying filters, scoring, ranking</div>
         </div>
       )}
 
       {/* Batch error */}
       {batchError && (
         <div className="px-5 py-8 text-center">
-          <div className="text-red-400 text-sm font-medium mb-2">Scan failed</div>
-          <div className="text-red-400/60 text-xs">{batchError}</div>
+          <div className="text-brand-red text-sm font-medium mb-2">Scan failed</div>
+          <div className="text-brand-red/60 text-xs">{batchError}</div>
         </div>
       )}
 
       {/* Enrichment progress */}
       {enriching && enrichProgress.total > 0 && (
-        <div className="px-5 py-2 flex items-center gap-3" style={{ background: '#0F172A' }}>
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: '#334155' }}>
-            <div className="h-full rounded-full transition-all duration-300" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%`, background: '#4F46E5' }} />
+        <div className="px-5 py-2 flex items-center gap-3 bg-bg-terminal">
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-bg-row">
+            <div className="h-full rounded-full transition-all duration-300 bg-brand-purple" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%` }} />
           </div>
-          <div className="text-[10px] text-slate-500 font-mono shrink-0">
+          <div className="text-[10px] text-text-muted font-mono shrink-0">
             {enrichProgress.done}/{enrichProgress.total} — loading {enrichProgress.current}
           </div>
         </div>
       )}
 
-      {/* ═══ FILTER PANEL ═══ */}
+      {/* FILTER PANEL */}
       <FilterPanel filters={filters} onChange={handleFiltersChange} />
 
-      {/* ═══ SECTION 2: FULL TRADE CARDS ═══ */}
+      {/* SECTION 2: FULL TRADE CARDS */}
       {enriched.length > 1 && (
         <FilteredResultsSection
           enriched={enriched}
@@ -981,14 +980,14 @@ export default function ConvergenceIntelligence() {
       {/* Empty state — no scan yet */}
       {!scanning && !batchData && !batchError && enriched.length === 0 && (
         <div className="px-5 py-16 text-center">
-          <div className="text-slate-500 text-sm">Set your preferences above, then click Scan Market</div>
-          <div className="text-slate-600 text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>
+          <div className="text-text-muted text-sm">Set your preferences above, then click Scan Market</div>
+          <div className="text-text-faint text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>
         </div>
       )}
 
-      {/* ═══ SECTION 3: SINGLE TICKER LOOKUP ═══ */}
-      <div className="px-5 py-4 border-t" style={{ borderColor: '#334155' }}>
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Look Up a Specific Ticker</div>
+      {/* SECTION 3: SINGLE TICKER LOOKUP */}
+      <div className="px-5 py-4 border-t border-border">
+        <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Look Up a Specific Ticker</div>
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -996,20 +995,19 @@ export default function ConvergenceIntelligence() {
             onChange={e => setLookupTicker(e.target.value.toUpperCase())}
             onKeyDown={e => { if (e.key === 'Enter') lookupAnalyze(); }}
             placeholder="AAPL"
-            className="w-28 px-3 py-1.5 rounded text-sm font-mono font-bold tracking-wider text-white border border-slate-600 focus:outline-none focus:border-blue-500"
-            style={{ background: '#0F172A' }}
+            className="w-28 px-3 py-1.5 rounded text-sm font-mono font-bold tracking-wider text-text-primary border border-border bg-white focus:outline-none focus:ring-1 focus:ring-brand-purple"
           />
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={lookupAnalyze}
             disabled={lookupLoading || !lookupTicker.trim()}
-            className="px-4 py-1.5 rounded text-xs font-bold text-white disabled:opacity-40"
-            style={{ background: lookupLoading ? '#334155' : '#3B82F6' }}
+            loading={lookupLoading}
           >
             {lookupLoading ? 'Analyzing...' : 'Analyze'}
-          </button>
-          {lookupLoading && <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />}
+          </Button>
         </div>
-        {lookupError && <div className="text-red-400 text-xs mt-2">{lookupError}</div>}
+        {lookupError && <div className="text-brand-red text-xs mt-2">{lookupError}</div>}
         {lookupData && (
           <div className="mt-3">
             <TickerCard detail={lookupData} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />

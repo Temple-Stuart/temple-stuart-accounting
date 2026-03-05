@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback, Fragment } from 'react';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 
 /* ===================================================================
    ScannerResultsTable — dense, sortable, selectable power table
@@ -145,9 +147,15 @@ interface ScannerResultsTableProps {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function gradeColor(s: number): string {
-  if (s >= 70) return '#10B981';
-  if (s >= 50) return '#F59E0B';
-  return '#EF4444';
+  if (s >= 70) return 'text-brand-green';
+  if (s >= 50) return 'text-brand-amber';
+  return 'text-brand-red';
+}
+
+function gradeColorHex(s: number): string {
+  if (s >= 70) return '#16a34a';
+  if (s >= 50) return '#d97706';
+  return '#c53030';
 }
 
 function letterGrade(s: number): string {
@@ -156,11 +164,11 @@ function letterGrade(s: number): string {
   if (s >= 30) return 'D'; return 'F';
 }
 
-function dirBadge(d: string) {
+function dirBadgeVariant(d: string): 'success' | 'danger' | 'default' {
   const u = d.toUpperCase();
-  if (u === 'BULLISH') return { bg: '#065F46', text: '#34D399', label: 'BULLISH' };
-  if (u === 'BEARISH') return { bg: '#7F1D1D', text: '#FCA5A5', label: 'BEARISH' };
-  return { bg: '#334155', text: '#94A3B8', label: 'NEUTRAL' };
+  if (u === 'BULLISH') return 'success';
+  if (u === 'BEARISH') return 'danger';
+  return 'default';
 }
 
 function fmtDollar(v: number | null): string {
@@ -229,18 +237,15 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
   const allRejections = rejections || detail._rejection_reasons;
 
   return (
-    <div className="px-6 py-4 space-y-4" style={{ borderTop: '1px solid #334155' }}>
+    <div className="px-6 py-4 space-y-4 border-t border-border">
       {/* Rejection reasons (when no strategies passed) */}
       {allRejections && allRejections.length > 0 && !card && (
         <div>
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Why No Strategies Passed</div>
           <div className="space-y-1 max-h-[200px] overflow-y-auto">
             {allRejections.map((rej, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1" style={{ background: '#1E293B' }}>
-                <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-bold" style={{
-                  background: rej.gate === 'construction' ? '#78350F30' : '#7F1D1D30',
-                  color: rej.gate === 'construction' ? '#FDE68A' : '#FCA5A5',
-                }}>
+              <div key={i} className="flex items-start gap-2 text-xs rounded px-2 py-1 bg-bg-row">
+                <span className={`shrink-0 px-1 py-0.5 rounded text-[9px] font-bold ${rej.gate === 'construction' ? 'bg-amber-50 text-brand-amber' : 'bg-red-50 text-brand-red'}`}>
                   {rej.gate === 'construction' ? 'BUILD' : `GATE ${rej.gate}`}
                 </span>
                 <span className="text-text-faint flex-1">
@@ -264,10 +269,10 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
               <span className="text-[10px] text-text-faint w-16 text-right shrink-0">
                 {cat === 'vol_edge' ? 'Vol Edge' : cat === 'info_edge' ? 'Info Edge' : cat.charAt(0).toUpperCase() + cat.slice(1)}
               </span>
-              <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: '#334155' }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(score, 100)}%`, background: gradeColor(score) }} />
+              <div className="flex-1 h-3 rounded-full overflow-hidden bg-bg-row">
+                <div className="h-full rounded-full" style={{ width: `${Math.min(score, 100)}%`, background: gradeColorHex(score) }} />
               </div>
-              <span className="text-[10px] font-mono font-bold w-8 text-right shrink-0" style={{ color: gradeColor(score) }}>
+              <span className={`text-[10px] font-mono font-bold w-8 text-right shrink-0 ${gradeColor(score)}`}>
                 {score.toFixed(0)}
               </span>
             </div>
@@ -282,7 +287,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
           <div className="space-y-1">
             {why.plain_english_signals.map((sig, i) => (
               <div key={i} className="flex gap-2 text-xs text-text-faint leading-relaxed">
-                <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: '#334155', color: '#94A3B8' }}>{i + 1}</span>
+                <span className="shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted">{i + 1}</span>
                 <span>{sig}</span>
               </div>
             ))}
@@ -332,7 +337,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
               <span className="text-text-muted">Earnings: </span>
               <span className="text-text-faint font-mono">{ks.earnings_date ?? '—'}</span>
               {ks.days_to_earnings != null && ks.days_to_earnings > 0 && (
-                <span className="text-amber-400 text-[10px]"> ({ks.days_to_earnings}d away)</span>
+                <span className="text-brand-amber text-[10px]"> ({ks.days_to_earnings}d away)</span>
               )}
             </div>
           </div>
@@ -343,7 +348,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
       {why?.regime_context && (
         <div>
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Macro Regime</div>
-          <div className="rounded px-3 py-2 text-xs text-text-faint leading-relaxed" style={{ background: '#1E293B' }}>
+          <div className="rounded px-3 py-2 text-xs text-text-faint leading-relaxed bg-bg-row">
             {why.regime_context}
           </div>
         </div>
@@ -357,8 +362,7 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
             return (
               <span
                 key={i}
-                className="px-2 py-0.5 rounded text-[10px] font-medium"
-                style={{ background: isRed ? '#7F1D1D30' : '#78350F30', color: isRed ? '#FCA5A5' : '#FDE68A' }}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium ${isRed ? 'bg-red-50 text-brand-red' : 'bg-amber-50 text-brand-amber'}`}
               >
                 {isRed ? '\u26D4 ' : '\u26A0 '}{flag}
               </span>
@@ -372,18 +376,18 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
         <div>
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1.5">Headlines</div>
           <div className="space-y-1">
-            {headlines.map((h, i) => {
-              const sentColor = h.sentiment === 'bullish' ? '#34D399' : h.sentiment === 'bearish' ? '#F87171' : '#94A3B8';
-              return (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="text-text-faint leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
-                  <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
-                  <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
-                    {h.sentiment}
-                  </span>
-                </div>
-              );
-            })}
+            {headlines.map((h, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-text-faint leading-relaxed flex-1">&ldquo;{h.headline}&rdquo;</span>
+                <span className="shrink-0 text-[9px] text-text-muted">{h.source}</span>
+                <Badge
+                  variant={h.sentiment === 'bullish' ? 'success' : h.sentiment === 'bearish' ? 'danger' : 'default'}
+                  size="sm"
+                >
+                  {h.sentiment}
+                </Badge>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -397,12 +401,11 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
               Based on {sentiment.postCount} X posts in last 24h
             </span>
           </div>
-          <div className="rounded px-3 py-2 text-xs space-y-2" style={{ background: '#1E293B' }}>
+          <div className="rounded px-3 py-2 text-xs space-y-2 bg-bg-row">
             <div className="flex items-center gap-3">
               <span className="text-text-faint">Score:</span>
               <span
-                className="font-mono font-bold"
-                style={{ color: sentiment.score > 0.2 ? '#10B981' : sentiment.score < -0.2 ? '#EF4444' : '#94A3B8' }}
+                className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
               >
                 {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
               </span>
@@ -415,27 +418,25 @@ function ExpandedDetail({ detail, card, sentiment, rejections }: { detail: Ticke
                 <span className="text-text-faint shrink-0">Themes:</span>
                 <div className="flex flex-wrap gap-1">
                   {sentiment.themes.slice(0, 5).map((t, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] font-medium" style={{ background: '#334155', color: '#94A3B8' }}>
-                      {t}
-                    </span>
+                    <Badge key={i} variant="default" size="sm">{t}</Badge>
                   ))}
                 </div>
               </div>
             )}
             {sentiment.samplePosts.length > 0 && (
               <div className="space-y-1 mt-1">
-                {sentiment.samplePosts.slice(0, 3).map((post, i) => {
-                  const sentColor = post.sentiment === 'bullish' ? '#34D399' : post.sentiment === 'bearish' ? '#F87171' : '#94A3B8';
-                  return (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="shrink-0 px-1 py-0.5 rounded text-[9px] font-bold" style={{ color: sentColor, background: sentColor + '15' }}>
-                        {post.sentiment.charAt(0).toUpperCase()}
-                      </span>
-                      <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
-                      <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
-                    </div>
-                  );
-                })}
+                {sentiment.samplePosts.slice(0, 3).map((post, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Badge
+                      variant={post.sentiment === 'bullish' ? 'success' : post.sentiment === 'bearish' ? 'danger' : 'default'}
+                      size="sm"
+                    >
+                      {post.sentiment.charAt(0).toUpperCase()}
+                    </Badge>
+                    <span className="text-text-faint leading-relaxed flex-1">&ldquo;{post.text}&rdquo;</span>
+                    <span className="shrink-0 text-[9px] text-text-muted font-mono">{post.author}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -612,38 +613,40 @@ export default function ScannerResultsTable({
     return sortDir === 'asc' ? ' \u25B2' : ' \u25BC';
   };
 
-  const thBase = 'px-2 py-2 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer hover:text-text-faint select-none whitespace-nowrap';
+  const thBase = 'px-2 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider cursor-pointer hover:text-text-secondary select-none whitespace-nowrap';
 
   return (
     <div className="px-4 py-3">
       {/* Batch actions bar */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <button onClick={selectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium">Select All</button>
+        <button onClick={selectAll} className="text-[10px] text-brand-purple hover:text-brand-purple-hover font-medium">Select All</button>
         <span className="text-text-secondary">|</span>
-        <button onClick={deselectAll} className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium">Deselect All</button>
+        <button onClick={deselectAll} className="text-[10px] text-brand-purple hover:text-brand-purple-hover font-medium">Deselect All</button>
         {selectedCount > 0 && (
           <span className="text-[10px] text-text-faint font-mono">{selectedCount} selected</span>
         )}
         <div className="ml-auto">
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={batchSave}
             disabled={selectedCount === 0 || batchSaving}
-            className="px-4 py-1.5 rounded text-xs font-bold text-white disabled:opacity-40 transition-colors"
-            style={{ background: selectedCount > 0 && !batchSaving ? '#059669' : '#334155' }}
+            loading={batchSaving}
+            className={selectedCount > 0 && !batchSaving ? 'bg-brand-green hover:bg-brand-green/90 border-0' : ''}
           >
             {batchSaving
               ? `Saving ${batchProgress.done}/${batchProgress.total}...`
               : `Add Selected to Queue (${selectedCount})`
             }
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded border max-h-[700px] overflow-y-auto" style={{ borderColor: '#334155' }}>
+      <div className="overflow-x-auto rounded border border-border max-h-[700px] overflow-y-auto">
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           <thead className="sticky top-0 z-10">
-            <tr style={{ background: '#1E293B' }}>
+            <tr className="bg-bg-row">
               <th className="px-2 py-2 w-8">{/* checkbox col */}</th>
               <th className={thBase + ' text-left'} onClick={() => toggleSort('symbol')}>Symbol{sortIndicator('symbol')}</th>
               <th className={thBase + ' text-center w-6'} title="Social Sentiment from X/Twitter (via xAI Grok)">X</th>
@@ -668,35 +671,32 @@ export default function ScannerResultsTable({
               const isSaving = row.card ? savingCards.has(row.cardKey) : false;
               const error = row.card ? saveErrors.get(row.cardKey) : undefined;
               const isSelected = selectedRows.has(row.id);
-              const bgColor = idx % 2 === 0 ? '#111827' : '#1F2937';
-              const dir = dirBadge(row.direction);
 
               return (
                 <Fragment key={row.id}>
                   <tr
-                    className="transition-colors cursor-pointer hover:bg-brand-purple-deep/30"
+                    className={`transition-colors cursor-pointer hover:bg-bg-row ${idx % 2 === 0 ? 'bg-white' : 'bg-bg-terminal'} ${isQueued ? 'bg-green-50' : ''} ${isSelected ? 'bg-brand-purple-wash' : ''}`}
                     style={{
-                      background: isQueued ? '#064E3B20' : isSelected ? '#312E8120' : bgColor,
-                      borderLeft: isSelected ? '2px solid #6366F1' : isQueued ? '2px solid #10B981' : '2px solid transparent',
+                      borderLeft: isSelected ? '2px solid #3b2d6b' : isQueued ? '2px solid #16a34a' : '2px solid transparent',
                     }}
                   >
                     {/* Checkbox */}
                     <td className="px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
                       {row.card === null ? null : isQueued ? (
-                        <span className="text-green-400 text-sm">&#10003;</span>
+                        <span className="text-brand-green text-sm">&#10003;</span>
                       ) : isSaving ? (
-                        <span className="inline-block w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="inline-block w-3 h-3 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(row.id)}
-                          className="w-3.5 h-3.5 rounded border-border bg-brand-purple-deep text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded border-border text-brand-purple focus:ring-0 focus:ring-offset-0 cursor-pointer"
                         />
                       )}
                     </td>
                     {/* Symbol */}
-                    <td className="px-2 py-2 font-mono font-bold text-white" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 font-mono font-bold text-text-primary" onClick={() => toggleRow(row.id)}>
                       {row.symbol}
                     </td>
                     {/* Sentiment dot */}
@@ -704,26 +704,23 @@ export default function ScannerResultsTable({
                       {(() => {
                         const s = sentimentMap?.[row.symbol];
                         if (!s || s.error || s.postCount === 0) return null;
-                        const color = s.score > 0.2 ? '#10B981' : s.score < -0.2 ? '#EF4444' : '#6B7280';
+                        const dotClass = s.score > 0.2 ? 'bg-brand-green' : s.score < -0.2 ? 'bg-brand-red' : 'bg-text-muted';
                         const label = s.score > 0.2 ? 'bullish' : s.score < -0.2 ? 'bearish' : 'neutral';
                         return (
                           <span
-                            className="inline-block w-2 h-2 rounded-full"
-                            style={{ background: color }}
+                            className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
                             title={`Social Sentiment: ${s.score > 0 ? '+' : ''}${s.score.toFixed(2)} (${label}) — ${s.postCount} posts. ${s.themes.length > 0 ? 'Themes: ' + s.themes.slice(0, 3).join(', ') : ''}`}
                           />
                         );
                       })()}
                     </td>
                     {/* Score */}
-                    <td className="px-2 py-2 text-right font-mono font-bold" onClick={() => toggleRow(row.id)} style={{ color: gradeColor(row.score) }}>
+                    <td className={`px-2 py-2 text-right font-mono font-bold ${gradeColor(row.score)}`} onClick={() => toggleRow(row.id)}>
                       {row.score.toFixed(1)} <span className="text-[10px]">{letterGrade(row.score)}</span>
                     </td>
                     {/* Direction */}
                     <td className="px-2 py-2" onClick={() => toggleRow(row.id)}>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider" style={{ background: dir.bg, color: dir.text }}>
-                        {dir.label}
-                      </span>
+                      <Badge variant={dirBadgeVariant(row.direction)} size="sm">{row.direction}</Badge>
                     </td>
                     {/* Strategy */}
                     <td className="px-2 py-2 text-text-faint" onClick={() => toggleRow(row.id)}>
@@ -731,7 +728,7 @@ export default function ScannerResultsTable({
                         <>
                           {row.strategyName}
                           {row.hasWideSpread && (
-                            <span className="ml-1 text-amber-400 cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
+                            <span className="ml-1 text-brand-amber cursor-help" title="Bid/ask estimated from theoretical price — actual market spread may differ">&#x26A0;</span>
                           )}
                         </>
                       ) : (
@@ -757,11 +754,11 @@ export default function ScannerResultsTable({
                       {row.entryText}
                     </td>
                     {/* Max Profit */}
-                    <td className="px-2 py-2 text-right font-mono text-green-400" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-right font-mono text-brand-green" onClick={() => toggleRow(row.id)}>
                       {fmtDollar(row.maxProfit)}
                     </td>
                     {/* Max Loss */}
-                    <td className="px-2 py-2 text-right font-mono text-red-400" onClick={() => toggleRow(row.id)}>
+                    <td className="px-2 py-2 text-right font-mono text-brand-red" onClick={() => toggleRow(row.id)}>
                       {fmtDollar(row.maxLoss)}
                     </td>
                     {/* Est. PoP */}
@@ -775,11 +772,11 @@ export default function ScannerResultsTable({
                       {fmtPct(row.winPct)}
                     </td>
                     {/* Est. EV */}
-                    <td className="px-2 py-2 text-right font-mono" onClick={() => toggleRow(row.id)} style={{ color: row.ev == null ? '#6B7280' : row.ev > 0 ? '#10B981' : row.ev < 0 ? '#EF4444' : '#6B7280' }}>
+                    <td className={`px-2 py-2 text-right font-mono ${row.ev == null ? 'text-text-muted' : row.ev > 0 ? 'text-brand-green' : row.ev < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
                       {row.ev != null ? `${row.ev >= 0 ? '+' : ''}$${Math.round(row.ev)}` : '—'}
                     </td>
                     {/* EV/Risk */}
-                    <td className="px-2 py-2 text-right font-mono" onClick={() => toggleRow(row.id)} style={{ color: row.evPerRisk == null ? '#6B7280' : row.evPerRisk > 0 ? '#10B981' : row.evPerRisk < 0 ? '#EF4444' : '#6B7280' }}>
+                    <td className={`px-2 py-2 text-right font-mono ${row.evPerRisk == null ? 'text-text-muted' : row.evPerRisk > 0 ? 'text-brand-green' : row.evPerRisk < 0 ? 'text-brand-red' : 'text-text-muted'}`} onClick={() => toggleRow(row.id)}>
                       {row.evPerRisk != null ? row.evPerRisk.toFixed(3) : '—'}
                     </td>
                     {/* R:R */}
@@ -794,8 +791,8 @@ export default function ScannerResultsTable({
 
                   {/* Error row */}
                   {error && (
-                    <tr style={{ background: '#7F1D1D15' }}>
-                      <td colSpan={15} className="px-4 py-1 text-[10px] text-red-300">
+                    <tr className="bg-red-50">
+                      <td colSpan={15} className="px-4 py-1 text-[10px] text-brand-red">
                         Failed to save: {error}
                       </td>
                     </tr>
@@ -804,7 +801,7 @@ export default function ScannerResultsTable({
                   {/* Expanded detail row */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={15} style={{ background: '#0F172A', padding: 0 }}>
+                      <td colSpan={15} className="bg-white p-0">
                         <ExpandedDetail detail={row.detail} card={row.card} sentiment={sentimentMap?.[row.symbol]} rejections={rejectionMap?.[row.symbol]} />
                       </td>
                     </tr>
