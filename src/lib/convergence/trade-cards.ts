@@ -353,7 +353,7 @@ function buildEarningsPattern(
           (eq.earnings_detail.beats / eq.earnings_detail.total_quarters) * 100,
         )
       : null,
-    avg_surprise_pct: eq?.earnings_detail?.avg_surprise ?? null,
+    avg_surprise_pct: eq?.earnings_detail?.avg_surprise_pct ?? null,
     total_quarters: totalQuarters,
     consecutive_beats: em?.momentum_detail?.consecutive_beats ?? 0,
     consecutive_misses: em?.momentum_detail?.consecutive_misses ?? 0,
