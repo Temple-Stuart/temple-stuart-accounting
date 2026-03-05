@@ -182,6 +182,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   const isHubActive = pathname === '/hub';
   const isBookkeepingActive = BOOKKEEPING_PREFIXES.some(p => pathname?.startsWith(p));
   const isTradingActive = pathname?.startsWith('/trading');
+  const isDataObservatoryActive = pathname?.startsWith('/data-observatory');
   const isBudgetingActive = BUDGETING_PREFIXES.some(p => pathname?.startsWith(p));
 
   const navTabClass = (active: boolean) =>
@@ -228,6 +229,12 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
               <Link href="/trading" className={navTabClass(isTradingActive)}>
                 Trading
                 <div className={navTabBorder(isTradingActive)} />
+              </Link>
+
+              {/* Data Observatory */}
+              <Link href="/data-observatory" className={navTabClass(isDataObservatoryActive)}>
+                Data Observatory
+                <div className={navTabBorder(isDataObservatoryActive)} />
               </Link>
 
               {/* Budgeting (with dropdown) */}
@@ -379,6 +386,9 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
               </Link>
               <Link href="/trading" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isTradingActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
                 Trading
+              </Link>
+              <Link href="/data-observatory" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isDataObservatoryActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
+                Data Observatory
               </Link>
               {BUDGETING_ITEMS.map(item => {
                 const isSubActive = pathname?.startsWith(item.href);
