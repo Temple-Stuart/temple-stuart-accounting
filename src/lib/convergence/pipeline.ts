@@ -473,7 +473,22 @@ export async function runPipeline(
   const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
-  onProgress?.({ step: 'd', label: 'Pre-Score', data: { candidates: topSymbols.length, pre_scores: preScores.slice(0, fetchCount).map(r => ({ symbol: r.symbol, pre_score: r.pre_score, ivp: r.ivp, iv_hv_spread: r.iv_hv_spread, liquidity: r.liquidity })) } });
+  onProgress?.({ step: 'd', label: 'Pre-Score', data: {
+    candidates: topSymbols.length,
+    total: preScores.length,
+    pre_scores: preScores.map((r, i) => ({
+      symbol: r.symbol,
+      pre_score: Math.round(r.pre_score),
+      ivp: r.ivp,
+      iv_hv_spread: r.iv_hv_spread ? Math.round(r.iv_hv_spread * 10) / 10 : null,
+      liquidity: r.liquidity,
+      selected: i < fetchCount,
+      rank: i + 1,
+      reason: i < fetchCount
+        ? `✓ Ranked #${i + 1} — selected for full data enrichment`
+        : `✗ Ranked #${i + 1} — below top ${fetchCount} cutoff. Score ${Math.round(r.pre_score)} vs cutoff ${Math.round(preScores[fetchCount - 1]?.pre_score ?? 0)}`,
+    })),
+  } });
 
   // ===== STEP E: Fetch Finnhub + FRED =====
   console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
