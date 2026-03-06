@@ -423,6 +423,23 @@ export async function runPipeline(
   );
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
   console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+  onProgress?.({ step: 'a2', label: 'Pre-Filter', data: {
+    input: allScannerData.length,
+    output: preFilterIncluded.length,
+    excluded: preFilterExcluded.length,
+    tickers: preFilterResults.map(r => ({
+      symbol: r.symbol,
+      pre_score: Math.round(r.preScore * 100),
+      iv_rank: r.ivRank,
+      liquidity: r.liquidityRating,
+      excluded: r.excluded,
+      reason: r.excluded
+        ? 'Liquidity < 2/5 — insufficient options activity'
+        : r.earningsWarning
+        ? `Warning: ${r.earningsWarning}`
+        : 'Passed — moved to hard filters',
+    })),
+  } });
 
   // ===== STEP B: Hard Filters =====
   console.log('[Pipeline] Step B: Applying hard filters...');
@@ -465,6 +482,17 @@ export async function runPipeline(
     survivors, undefined, finnhubPeersMap, scannerMap,
   );
   let textPeerGroups: Record<string, TextBasedPeerGroup> = {};
+  onProgress?.({ step: 'c', label: 'Peer Grouping', data: {
+    groups: survivors.map(s => {
+      const ps = peerStats[s.symbol];
+      return {
+        symbol: s.symbol,
+        peer_group: ps?.peer_group_name ?? 'Unknown',
+        peer_count: ps?.ticker_count ?? 0,
+        group_type: ps?.peer_group_type ?? 'unknown',
+      };
+    }),
+  } });
 
   // ===== STEP D: Pre-Score and Limit =====
   console.log('[Pipeline] Step D: Pre-scoring and limiting...');
@@ -803,7 +831,19 @@ export async function runPipeline(
 
   // Build ranked rows
   const rankedRows = buildRankedRows(scoredTickers);
-  onProgress?.({ step: 'f', label: '4-Gate Scoring', data: { scored: scoredTickers.length, rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge })) } });
+  const _gwt = scoredTickers[0]?.scoring?.composite?.gate_weight_trace;
+  const _gw = _gwt?.gate_weights;
+  onProgress?.({ step: 'f', label: '4-Gate Scoring', data: {
+    scored: scoredTickers.length,
+    regime: _gwt?.regime_used ?? 'UNKNOWN',
+    weights: {
+      vol_edge: Math.round((_gw?.vol_edge ?? 0.25) * 100),
+      quality: Math.round((_gw?.quality ?? 0.25) * 100),
+      regime: Math.round((_gw?.regime ?? 0.25) * 100),
+      info_edge: Math.round((_gw?.info_edge ?? 0.25) * 100),
+    },
+    rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold' })),
+  } });
 
   // ===== STEP G: Rank and Diversify =====
   console.log('[Pipeline] Step G: Ranking and diversifying...');
