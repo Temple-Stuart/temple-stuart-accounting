@@ -874,7 +874,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 // ── Filtered Results Section ────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PipelineFlowPanel({ result, progress }: { result: any; progress?: Record<string, any> }) { // eslint-disable-line @typescript-eslint/no-explicit-any
+function PipelineFlowPanel({ result, progress, universe }: { result: any; progress?: Record<string, any>; universe?: string }) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // Render from live progress if result not yet available
   const isLive = !result && progress && Object.keys(progress).length > 0;
@@ -925,6 +925,7 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
             <span className="text-text-secondary">TT Scanner</span>
             {(ps?.total_universe ?? progress?.a?.data?.total_universe) ? (
               <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
+              <span className="text-text-muted">({universe})</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
@@ -967,11 +968,26 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
               </div>
             ))}
             <div className="pt-1 text-text-muted">
-              Survivors: {bData?.survivors?.slice(0, 10).join(', ')}
+              Survivors: {bData?.survivors?.length
+                ? bData.survivors.slice(0, 10).join(', ')
+                : 'none yet'}
               {(bData?.survivors?.length ?? 0) > 10 ? ` +${bData.survivors.length - 10} more` : ''}
             </div>
           </div>
         )}
+      </div>
+
+      {/* Step C */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP C</span>
+          <span className="text-text-secondary">Peer Grouping</span>
+          {progress?.b ? (
+            <span className="text-brand-green">Finnhub peer relationships mapped</span>
+          ) : (
+            <span className="text-text-muted animate-pulse">waiting...</span>
+          )}
+        </div>
       </div>
 
       {/* Step D */}
@@ -980,7 +996,7 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
           <span className="text-brand-purple font-bold">STEP D</span>
           <span className="text-text-secondary">Pre-Score</span>
           {(ps?.finnhub_fetched != null || progress?.d) ? (
-            <span className="text-brand-gold">{hf?.output_count ?? progress?.b?.data?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
+            <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
           ) : (
             <span className="text-text-muted animate-pulse">waiting...</span>
           )}
@@ -1523,7 +1539,7 @@ export default function ConvergenceIntelligence() {
       {/* PIPELINE FLOW PANEL */}
       {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
         <div className="px-5 py-3">
-          <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} />
+          <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} universe={universe} />
         </div>
       )}
 
