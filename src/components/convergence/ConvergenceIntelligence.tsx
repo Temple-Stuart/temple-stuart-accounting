@@ -1864,15 +1864,15 @@ export default function ConvergenceIntelligence() {
         </div>
       )}
 
+      {/* FILTER PANEL */}
+      <FilterPanel filters={filters} onChange={handleFiltersChange} />
+
       {/* PIPELINE FLOW PANEL */}
       {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
         <div className="px-5 py-3">
           <PipelineFlowPanel result={pipelineResult} progress={pipelineProgress} universe={universe} />
         </div>
       )}
-
-      {/* FILTER PANEL */}
-      <FilterPanel filters={filters} onChange={handleFiltersChange} />
 
       {/* SECTION 2: FULL TRADE CARDS */}
       {enriched.length > 1 && (
