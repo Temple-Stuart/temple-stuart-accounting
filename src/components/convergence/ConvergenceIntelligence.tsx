@@ -1256,75 +1256,103 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['b'] ? '▲' : '▼'}</span>
         </div>
         {expanded['b'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-3">
-            {/* Table 1: Filters Applied */}
-            <table className="w-full text-[10px]">
-              <thead><tr className="text-text-muted border-b border-border">
-                <th className="text-left py-1 px-1">FILTER</th><th className="text-right py-1 px-1">DROPPED</th><th className="text-right py-1 px-1">PASSED</th><th className="text-left py-1 px-1">THRESHOLD</th><th className="text-left py-1 px-1">WHAT HAPPENED</th>
-              </tr></thead>
-              <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {filterRows.map((f: any) => {
-                  const thresholdMap: Record<string, string> = { market_cap: '> $2B market cap', liquidity: '≥ 2/5 liquidity', liquidityRating: '≥ 2/5 liquidity', iv30: 'IV data required', borrow_rate: '< 50% borrow rate', borrowRate: '< 50% borrow rate', earnings: 'no earnings in 7d', no_earnings_7d: 'no earnings in 7d' };
-                  const threshold = thresholdMap[f.name] ?? f.name;
-                  return (
-                    <tr key={f.name} className="border-b border-border/50">
-                      <td className="py-0.5 px-1 font-bold text-text-primary">{f.name}</td>
-                      <td className="py-0.5 px-1 text-right text-brand-red">{f.dropped}</td>
-                      <td className="py-0.5 px-1 text-right text-brand-green">{f.passed}</td>
-                      <td className="py-0.5 px-1 text-text-muted">{threshold}</td>
-                      <td className="py-0.5 px-1">{f.dropped > 0 ? <span className="text-brand-red">{f.dropped} tickers dropped</span> : <span className="text-brand-green">all passed</span>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {/* Table 2: Survivors */}
-            <div>
-              <div className="text-text-muted font-bold mb-1">SURVIVORS ({bData?.survivors?.length ?? 0})</div>
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">REASON</th>
-                  </tr></thead>
-                  <tbody>
-                    {(bData?.survivors ?? []).map((sym: string, i: number) => (
-                      <tr key={sym} className="border-b border-border/50">
-                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{sym}</td>
-                        <td className="py-0.5 px-1 text-brand-green">✓ Passed all 5 filters</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step D runs 5 hard rules against the 45 candidates from Step C. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
+              </p>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['Rule 1 — Market Cap > $2B',
+                   'Small companies have thin options markets. Low open interest, wide spreads, hard to exit. We only trade companies large enough to have a deep, liquid options market.'],
+                  ['Rule 2 — Liquidity Rating ≥ 2/5',
+                   'TastyTrade\'s score for how tradeable this stock\'s options are. Below 2 means the bid-ask spread is too wide to trade safely — you lose money just getting in and out.'],
+                  ['Rule 3 — IV30 must exist',
+                   'If TastyTrade returns no implied volatility data for a stock, we cannot price its options. No IV data = no trade. Period.'],
+                  ['Rule 4 — Borrow Rate < 50%',
+                   'High borrow rate means this stock is hard to short. Hard-to-borrow stocks are vulnerable to short squeezes — sudden violent price spikes that break option pricing models.'],
+                  ['Rule 5 — No earnings within 7 days',
+                   'IV spikes unpredictably before earnings then collapses after the report. That volatility crush can destroy any position we enter. We wait until after the report.'],
+                ].map(([rule, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-56 shrink-0">
+                      {rule}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
               </div>
+              <p className="text-text-muted">
+                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. You can verify every rejection yourself. Step E takes the survivors and groups them with their industry peers.
+              </p>
             </div>
-            {/* Table 3: Rejected tickers with reasons */}
-            {bData?.ticker_rejections && Object.keys(bData.ticker_rejections).length > 0 && (
-              <div className="mt-3">
-                <div className="text-text-muted font-bold mb-1">REJECTED ({Object.keys(bData.ticker_rejections).length} tickers)</div>
-                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                  <table className="w-full text-[10px]">
-                    <thead><tr className="text-text-muted border-b border-border">
-                      <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">FILTER FAILED</th><th className="text-left py-1 px-1">ACTUAL VALUE</th><th className="text-left py-1 px-1">THRESHOLD</th><th className="text-left py-1 px-1">WHY IT MATTERS</th>
-                    </tr></thead>
-                    <tbody>
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {Object.entries(bData.ticker_rejections).map(([sym, r]: [string, any], i: number) => (
-                        <tr key={sym} className="border-b border-border/50">
-                          <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                          <td className="py-0.5 px-1 font-bold text-brand-red">{sym}</td>
-                          <td className="py-0.5 px-1 text-brand-red">{r.filter}</td>
-                          <td className="py-0.5 px-1">{r.actual_value}</td>
-                          <td className="py-0.5 px-1 text-text-muted">{r.threshold}</td>
-                          <td className="py-0.5 px-1 text-text-muted">{r.reason}</td>
+            {/* Full matrix table */}
+            <p className="text-text-muted text-xs font-bold mb-1">
+              ALL {bData?.input ?? '?'} TICKERS — 5 FILTER MATRIX
+            </p>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                    <th className="text-left py-1 pr-2">#</th>
+                    <th className="text-left py-1 pr-2">SYMBOL</th>
+                    <th className="text-right py-1 pr-2">MKT CAP<br/><span className="font-normal text-[9px]">&gt;$2B</span></th>
+                    <th className="text-right py-1 pr-2">LIQ<br/><span className="font-normal text-[9px]">≥2/5</span></th>
+                    <th className="text-right py-1 pr-2">IV30<br/><span className="font-normal text-[9px]">exists</span></th>
+                    <th className="text-right py-1 pr-2">BORROW<br/><span className="font-normal text-[9px]">&lt;50%</span></th>
+                    <th className="text-right py-1 pr-2">EARNINGS<br/><span className="font-normal text-[9px]">&gt;7d</span></th>
+                    <th className="text-left py-1">RESULT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    /* eslint-disable @typescript-eslint/no-explicit-any */
+                    const survivorSyms: string[] = bData?.survivors ?? [];
+                    const rejections: Record<string, any> = bData?.ticker_rejections ?? {};
+                    const details: Record<string, any> = bData?.ticker_details ?? {};
+
+                    // Build full list: survivors + rejected, sorted alphabetically
+                    const allTickers = [
+                      ...survivorSyms.map(sym => ({ symbol: sym, rejected: false, failedFilter: null as string | null })),
+                      ...Object.entries(rejections).map(([sym, r]: [string, any]) => ({ symbol: sym, rejected: true, failedFilter: r.filter as string | null })),
+                    ].sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+                    const cell = (ok: boolean, value: string, isFailedFilter?: boolean) => (
+                      <td className={`py-1 pr-2 text-right rounded ${isFailedFilter ? 'bg-red-900/40 text-brand-red font-bold' : ok ? 'text-brand-green' : 'text-brand-red'}`}>
+                        {value} {ok ? '✓' : '✗'}
+                      </td>
+                    );
+
+                    return allTickers.map((t, i) => {
+                      const d = details[t.symbol] ?? {};
+                      const capOk = (d.market_cap ?? 0) >= 2e9;
+                      const liqOk = (d.liquidity_rating ?? 0) >= 2;
+                      const ivOk = (d.iv30 ?? 0) > 0;
+                      const borrowOk = d.borrow_rate == null || d.borrow_rate < 50;
+                      const earningsOk = d.days_till_earnings == null || d.days_till_earnings > 7;
+                      const ff = t.failedFilter;
+                      return (
+                        <tr key={t.symbol} className={`border-b border-border/50 ${t.rejected ? 'opacity-75' : ''}`}>
+                          <td className="py-1 pr-2 text-text-muted">{i+1}</td>
+                          <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>{t.symbol}</td>
+                          {cell(capOk, d.market_cap ? '$'+(d.market_cap/1e9).toFixed(1)+'B' : '—', ff === 'Market Cap')}
+                          {cell(liqOk, d.liquidity_rating != null ? d.liquidity_rating+'/5' : '—', ff === 'Options Liquidity')}
+                          {cell(ivOk, d.iv30 != null ? d.iv30.toFixed(2) : '—', ff === 'IV Data')}
+                          {cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate')}
+                          {cell(earningsOk, d.days_till_earnings != null ? d.days_till_earnings+'d' : '—', ff === 'Earnings Timing')}
+                          <td className={`py-1 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
+                            {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
+                          </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                      );
+                    });
+                    /* eslint-enable @typescript-eslint/no-explicit-any */
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

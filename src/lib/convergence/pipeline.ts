@@ -415,7 +415,7 @@ export async function runPipeline(
   console.log('[Pipeline] Step B: Applying hard filters...');
   const hardFilters = applyHardFilters(preFilteredScannerData);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
-  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections } });
+  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings }])) } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
