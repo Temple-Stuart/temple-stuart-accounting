@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
+import { DataObservatory } from '@/app/data-observatory/page';
 
 
 interface TradeSummary {
@@ -1097,6 +1098,15 @@ export default function TradingPage() {
                         {/* Market Intelligence — unified scanner + trade cards */}
                         <ConvergenceIntelligence />
 
+                        {/* Data Observatory — Live API Health */}
+                        <details className="mt-6">
+                          <summary className="cursor-pointer text-text-muted text-xs px-4 py-2 border border-border rounded hover:bg-bg-row">
+                            ▶ DATA OBSERVATORY — Live API Health
+                          </summary>
+                          <div className="mt-2">
+                            <DataObservatory />
+                          </div>
+                        </details>
 
                         {/* Card 1 — Account Overview */}
                         <div className="bg-white border border-border p-6">

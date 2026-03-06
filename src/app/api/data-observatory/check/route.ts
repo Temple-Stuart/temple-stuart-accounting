@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { prisma } from '@/lib/prisma';
+import { getTastytradeClient } from '@/lib/tastytrade';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -78,17 +79,35 @@ async function runFinnhubMetric(symbol: string, finnhubKey: string): Promise<{ m
   return { metricResult: data, latencyMs };
 }
 
-function checkTastyTradeIVHV(): CheckResult {
-  const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
-  if (!marketOpen) {
+async function checkTastyTradeIVHV(): Promise<CheckResult> {
+  if (!isMarketHours()) {
     return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  if (!hasTTCreds) {
+  if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
     return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Only reaches here during market hours with credentials present
-  return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  try {
+    const start = performance.now();
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: 'AAPL' });
+    const latencyMs = Math.round(performance.now() - start);
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length === 0) {
+      return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'No items returned', latency: fmtLatency(latencyMs), rawData: null, dataSource: 'TastyTrade' };
+    }
+    const m = items[0] as Record<string, unknown>;
+    const iv = m['implied-volatility-index'] != null ? parseFloat(String(m['implied-volatility-index'])) : null;
+    const hv30 = m['historical-volatility-30-day'] != null ? parseFloat(String(m['historical-volatility-30-day'])) : null;
+    return {
+      id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'LIVE',
+      records: '2 fields', lastValue: `IV: ${iv?.toFixed(3) ?? '—'} HV30: ${hv30?.toFixed(3) ?? '—'}`,
+      latency: fmtLatency(latencyMs), rawData: { iv, hv30 }, dataSource: 'TastyTrade',
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { id: 1, source: 'TastyTrade IV/HV', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: `TT auth failed: ${msg}`, latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
 }
 
 function checkBasicMetrics(metricResult: FinnhubMetricData, latencyMs: number): CheckResult {
@@ -635,56 +654,134 @@ async function checkXAIGrok(symbol: string): Promise<CheckResult> {
   }
 }
 
-function checkTastyTradeGreeks(): CheckResult {
-  const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
-  if (!marketOpen) {
+async function checkTastyTradeGreeks(): Promise<CheckResult> {
+  if (!isMarketHours()) {
     return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  if (!hasTTCreds) {
+  if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
     return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Only reaches here during market hours with credentials present
-  return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  try {
+    const start = performance.now();
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: 'AAPL' });
+    const latencyMs = Math.round(performance.now() - start);
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length === 0) {
+      return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'No items returned', latency: fmtLatency(latencyMs), rawData: null, dataSource: 'TastyTrade' };
+    }
+    const m = items[0] as Record<string, unknown>;
+    const ivIndex = m['implied-volatility-index'] != null ? parseFloat(String(m['implied-volatility-index'])) : null;
+    const ivRank = m['implied-volatility-index-rank'] != null ? parseFloat(String(m['implied-volatility-index-rank'])) : null;
+    const iv30 = m['implied-volatility-30-day'] != null ? parseFloat(String(m['implied-volatility-30-day'])) : null;
+    const hv30 = m['historical-volatility-30-day'] != null ? parseFloat(String(m['historical-volatility-30-day'])) : null;
+    return {
+      id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'LIVE',
+      records: '4 fields', lastValue: `IVx: ${ivIndex?.toFixed(3) ?? '—'} IVR: ${ivRank?.toFixed(2) ?? '—'} IV30: ${iv30?.toFixed(3) ?? '—'} HV30: ${hv30?.toFixed(3) ?? '—'}`,
+      latency: fmtLatency(latencyMs), rawData: { ivIndex, ivRank, iv30, hv30 }, dataSource: 'TastyTrade',
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { id: 23, source: 'TastyTrade Greeks', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: `TT auth failed: ${msg}`, latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
 }
 
-function checkTastyTradeCandles(): CheckResult {
-  const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
-  if (!marketOpen) {
+async function checkTastyTradeCandles(): Promise<CheckResult> {
+  if (!isMarketHours()) {
     return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  if (!hasTTCreds) {
+  if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
     return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Only reaches here during market hours with credentials present
-  return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  try {
+    // Candle streaming is too heavy for a health check — validate TT auth
+    // via getMarketMetrics and confirm hv30/hv60 fields (derived from candles)
+    const start = performance.now();
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: 'AAPL' });
+    const latencyMs = Math.round(performance.now() - start);
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length === 0) {
+      return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'No items returned', latency: fmtLatency(latencyMs), rawData: null, dataSource: 'TastyTrade' };
+    }
+    const m = items[0] as Record<string, unknown>;
+    const hv30 = m['historical-volatility-30-day'] != null ? parseFloat(String(m['historical-volatility-30-day'])) : null;
+    const hv60 = m['historical-volatility-60-day'] != null ? parseFloat(String(m['historical-volatility-60-day'])) : null;
+    const hv90 = m['historical-volatility-90-day'] != null ? parseFloat(String(m['historical-volatility-90-day'])) : null;
+    const count = [hv30, hv60, hv90].filter(v => v != null).length;
+    return {
+      id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: count > 0 ? 'LIVE' : 'PARTIAL',
+      records: `${count} HV fields`, lastValue: `HV30: ${hv30?.toFixed(3) ?? '—'} HV60: ${hv60?.toFixed(3) ?? '—'} HV90: ${hv90?.toFixed(3) ?? '—'}`,
+      latency: fmtLatency(latencyMs), rawData: { hv30, hv60, hv90 }, dataSource: 'TastyTrade',
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { id: 24, source: 'TastyTrade Candles', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: `TT auth failed: ${msg}`, latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
 }
 
-function checkTastyTradeOptionsFlow(): CheckResult {
-  const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
-  if (!marketOpen) {
+async function checkTastyTradeOptionsFlow(): Promise<CheckResult> {
+  if (!isMarketHours()) {
     return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  if (!hasTTCreds) {
+  if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
     return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Only reaches here during market hours with credentials present
-  return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  try {
+    const start = performance.now();
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: 'AAPL' });
+    const latencyMs = Math.round(performance.now() - start);
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length === 0) {
+      return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: 'No items returned', latency: fmtLatency(latencyMs), rawData: null, dataSource: 'TastyTrade' };
+    }
+    const m = items[0] as Record<string, unknown>;
+    const iv30 = m['implied-volatility-30-day'] != null ? parseFloat(String(m['implied-volatility-30-day'])) : null;
+    const liqRating = m['liquidity-rating'] != null ? Number(m['liquidity-rating']) : null;
+    return {
+      id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'LIVE',
+      records: '2 fields', lastValue: `IV30: ${iv30?.toFixed(3) ?? '—'} Liq: ${liqRating ?? '—'}`,
+      latency: fmtLatency(latencyMs), rawData: { iv30, liquidityRating: liqRating }, dataSource: 'TastyTrade',
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { id: 31, source: 'TastyTrade Options Flow', endpoint: 'TastyTrade chain API', status: 'BROKEN', records: '0', lastValue: `TT auth failed: ${msg}`, latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
 }
 
-function checkTastyTradeSPYCorrelation(): CheckResult {
-  const marketOpen = isMarketHours();
-  const hasTTCreds = !!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN);
-  if (!marketOpen) {
+async function checkTastyTradeSPYCorrelation(): Promise<CheckResult> {
+  if (!isMarketHours()) {
     return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Requires open market', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  if (!hasTTCreds) {
+  if (!(process.env.TASTYTRADE_CLIENT_SECRET && process.env.TASTYTRADE_REFRESH_TOKEN)) {
     return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'Missing credentials — market is OPEN', latency: '—', rawData: null, dataSource: 'TastyTrade' };
   }
-  // Only reaches here during market hours with credentials present
-  return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'MKT-HRS', records: '—', lastValue: 'Session auth not wired yet', latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  try {
+    const start = performance.now();
+    const client = getTastytradeClient();
+    await client.accountsAndCustomersService.getCustomerResource();
+    const raw = await client.marketMetricsService.getMarketMetrics({ symbols: 'SPY' });
+    const latencyMs = Math.round(performance.now() - start);
+    const items = Array.isArray(raw) ? raw : [];
+    if (items.length === 0) {
+      return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: 'No items returned', latency: fmtLatency(latencyMs), rawData: null, dataSource: 'TastyTrade' };
+    }
+    const m = items[0] as Record<string, unknown>;
+    const corrSpy = m['corr-spy-3month'] != null ? parseFloat(String(m['corr-spy-3month'])) : null;
+    const beta = m['beta'] != null ? parseFloat(String(m['beta'])) : null;
+    return {
+      id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'LIVE',
+      records: '2 fields', lastValue: `CorrSPY: ${corrSpy?.toFixed(3) ?? '—'} Beta: ${beta?.toFixed(3) ?? '—'}`,
+      latency: fmtLatency(latencyMs), rawData: { corrSpy, beta }, dataSource: 'TastyTrade',
+    };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { id: 32, source: 'TastyTrade SPY Correlation', endpoint: 'TastyTrade API', status: 'BROKEN', records: '0', lastValue: `TT auth failed: ${msg}`, latency: '—', rawData: null, dataSource: 'TastyTrade' };
+  }
 }
 
 function checkPeerStats(): CheckResult {
@@ -851,7 +948,7 @@ export async function GET(request: NextRequest) {
   // ── Run all 33 checks in parallel ──
   const allChecks = await Promise.allSettled([
     // Check 1: TastyTrade IV/HV (market-hours gated)
-    Promise.resolve(checkTastyTradeIVHV()),
+    checkTastyTradeIVHV(),
     // Check 2: Finnhub Basic Metrics
     (async () => {
       if (!finnhubKey) {
@@ -952,9 +1049,9 @@ export async function GET(request: NextRequest) {
     // Check 22: xAI
     checkXAIGrok(symbol),
     // Check 23: TastyTrade Greeks
-    Promise.resolve(checkTastyTradeGreeks()),
+    checkTastyTradeGreeks(),
     // Check 24: TastyTrade Candles
-    Promise.resolve(checkTastyTradeCandles()),
+    checkTastyTradeCandles(),
     // Check 25: FRED Cross-Asset Daily
     checkFREDCrossAssetDaily(),
     // Check 28: Finnhub Recommendations (Info-Edge)
@@ -962,9 +1059,9 @@ export async function GET(request: NextRequest) {
     // Check 30: Finnhub Earnings Quality Score
     finnhubKey ? checkFinnhubEarningsQualityScore(symbol, finnhubKey) : Promise.resolve({ id: 30, source: 'Finnhub Earnings Quality', endpoint: '/stock/earnings-quality-score', status: 'SKIPPED' as SourceStatus, records: '—', lastValue: 'FINNHUB_API_KEY not set', latency: '—', rawData: null }),
     // Check 31: TastyTrade Options Flow (market-hours gated)
-    Promise.resolve(checkTastyTradeOptionsFlow()),
+    checkTastyTradeOptionsFlow(),
     // Check 32: TastyTrade SPY Correlation (market-hours gated)
-    Promise.resolve(checkTastyTradeSPYCorrelation()),
+    checkTastyTradeSPYCorrelation(),
     // Check 33: Peer Stats (computed — always LIVE)
     Promise.resolve(checkPeerStats()),
   ]);

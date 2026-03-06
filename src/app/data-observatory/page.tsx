@@ -194,7 +194,7 @@ function computeScannerGates(rows: DataSource[]) {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function DataObservatoryPage() {
+export function DataObservatory() {
   const [selectedSymbol, setSelectedSymbol] = useState('MSFT');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [liveResults, setLiveResults] = useState<DataSource[] | null>(null);
@@ -231,7 +231,7 @@ export default function DataObservatoryPage() {
   const scannerGates = liveResults ? computeScannerGates(liveResults) : HARDCODED_SCANNER_GATES;
 
   return (
-    <AppLayout>
+    <>
       {/* ── Header Bar ──────────────────────────────────────────────── */}
       <div className="bg-brand-purple">
         <div className="flex items-center justify-between px-4 py-2">
@@ -398,6 +398,14 @@ export default function DataObservatoryPage() {
 
         </div>
       </div>
+    </>
+  );
+}
+
+export default function DataObservatoryPage() {
+  return (
+    <AppLayout>
+      <DataObservatory />
     </AppLayout>
   );
 }
