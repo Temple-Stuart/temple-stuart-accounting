@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
-import { DataObservatory } from '@/app/data-observatory/page';
+import DataObservatory from '@/components/data-observatory/DataObservatory';
 
 
 interface TradeSummary {
