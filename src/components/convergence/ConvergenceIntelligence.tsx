@@ -1700,35 +1700,127 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['f'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            {progress?.f?.data?.weights && (
-              <div className="p-2 bg-bg-card rounded text-[10px]">
-                <span className="text-text-muted">Weights used (regime: <span className="text-brand-gold">{progress.f.data.regime as string}</span>): </span>
-                Vol Edge {(progress.f.data.weights as any).vol_edge}% · Quality {(progress.f.data.weights as any).quality}% · Regime {(progress.f.data.weights as any).regime}% · Info Edge {(progress.f.data.weights as any).info_edge}%
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step H scores every finalist 0–100 across 4 independent gates. Each gate asks a different question. The final score is a weighted average of all 4.
+              </p>
+              {/* 4 Gates explained */}
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['Vol Edge', 'Are the options mispriced? Measures IV vs Historical Volatility, term structure slope, and volatility risk premium. This is the core premium-selling signal.'],
+                  ['Quality', 'Is this a safe company to sell premium on? Measures profitability, Piotroski F-Score, Altman Z-Score, and earnings quality. High IV on a company about to go bankrupt is not an edge — it is a trap.'],
+                  ['Regime', 'What is the current macro environment? Reads 14 FRED data series — VIX, 10Y Treasury, Fed Funds rate, high yield spreads. Detects one of 5 regimes: Goldilocks, Reflation, Deflation, Stagflation, or Crisis.'],
+                  ['Info Edge', 'What are insiders, analysts, and institutions signaling? Reads insider MSPR, analyst Buy/Hold/Sell consensus, 7-day news sentiment, and institutional ownership count.'],
+                ].map(([gate, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-24 shrink-0">{gate}</span>
+                    <span className="text-text-muted">{explanation}</span>
+                  </div>
+                ))}
               </div>
-            )}
-            <p className="text-text-muted text-xs mb-2">
-              Each gate scores 0-100. Composite = weighted average. Weights shift based on detected macro regime — in stagflation, Quality and Regime matter more than Vol Edge.
-            </p>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-              <table className="w-full text-[10px]">
-                <thead><tr className="text-text-muted border-b border-border">
-                  <th className="text-right py-1 px-1">RANK</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">VOL</th><th className="text-right py-1 px-1">QUAL</th><th className="text-right py-1 px-1">REG</th><th className="text-right py-1 px-1">INFO</th><th className="text-right py-1 px-1">SCORE</th><th className="text-left py-1 px-1">STATUS</th>
-                </tr></thead>
-                <tbody>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(fData?.rankings ?? []).map((r: any, i: number) => (
-                    <tr key={r.symbol} className="border-b border-border/50 hover:bg-bg-card">
-                      <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                      <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
-                      <td className="py-0.5 px-1 text-right">{r.vol_edge?.toFixed(0) ?? '—'}</td>
-                      <td className="py-0.5 px-1 text-right">{r.quality?.toFixed(0) ?? '—'}</td>
-                      <td className="py-0.5 px-1 text-right">{r.regime?.toFixed(0) ?? '—'}</td>
-                      <td className="py-0.5 px-1 text-right">{r.info_edge?.toFixed(0) ?? '—'}</td>
-                      <td className={`py-0.5 px-1 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}`}>{r.composite?.toFixed(1) ?? '—'}</td>
-                      <td className="py-0.5 px-1">{i < 9 ? <span className="text-brand-green">✓ Selected for trade cards</span> : <span className="text-text-muted">Scored — below top 9 cutoff</span>}</td>
+              {/* Regime weight table */}
+              <div>
+                <p className="text-text-primary font-bold mb-2">Gate Weights by Regime:</p>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-text-muted border-b border-border">
+                      <th className="text-left py-1 pr-3">REGIME</th>
+                      <th className="text-right py-1 pr-3">VOL EDGE</th>
+                      <th className="text-right py-1 pr-3">QUALITY</th>
+                      <th className="text-right py-1 pr-3">REGIME</th>
+                      <th className="text-right py-1 pr-3">INFO EDGE</th>
+                      <th className="text-left py-1 pl-3">WHY</th>
                     </tr>
-                  ))}
+                  </thead>
+                  <tbody>
+                    {[
+                      ['GOLDILOCKS', '30%', '20%', '20%', '30%', 'Bull market — vol + info signals dominate'],
+                      ['REFLATION', '30%', '20%', '25%', '25%', 'Recovery — vol edge as opportunity, regime confirms'],
+                      ['DEFLATION', '20%', '35%', '25%', '20%', 'Contraction — quality critical to avoid blowups'],
+                      ['STAGFLATION', '20%', '30%', '30%', '20%', 'Hardest to trade — regime + quality paramount'],
+                      ['CRISIS', '15%', '40%', '30%', '15%', 'Quality paramount — vol surface unreliable'],
+                    ].map(([regime, ve, q, r, ie, why]) => {
+                      const isCurrent = progress?.f?.data?.regime === regime;
+                      return (
+                        <tr key={regime} className={`border-b border-border/30 ${isCurrent ? 'bg-brand-gold/10' : ''}`}>
+                          <td className={`py-1 pr-3 font-bold ${isCurrent ? 'text-brand-gold' : 'text-text-muted'}`}>{isCurrent ? '▶ ' : ''}{regime}</td>
+                          <td className="py-1 pr-3 text-right">{ve}</td>
+                          <td className="py-1 pr-3 text-right">{q}</td>
+                          <td className="py-1 pr-3 text-right">{r}</td>
+                          <td className="py-1 pr-3 text-right">{ie}</td>
+                          <td className="py-1 pl-3 text-text-muted">{why}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* Current weights */}
+              {progress?.f?.data?.weights && (
+                <div className="p-2 bg-bg-card rounded border border-border">
+                  <p className="text-text-primary font-bold mb-1">
+                    Current weights (regime: <span className="text-brand-gold">{progress.f.data.regime as string}</span>):
+                  </p>
+                  <p className="text-brand-gold font-mono">
+                    Composite = (Vol Edge × {(progress.f.data.weights as any).vol_edge}%) + (Quality × {(progress.f.data.weights as any).quality}%) + (Regime × {(progress.f.data.weights as any).regime}%) + (Info Edge × {(progress.f.data.weights as any).info_edge}%)
+                  </p>
+                </div>
+              )}
+              <div className="space-y-1">
+                <p className="text-text-muted">
+                  <span className="text-text-primary font-bold">Convergence requirement:</span>
+                  {' '}3 or more gates must score above 50. A ticker with only 1 strong gate is not a convergent trade — something else is wrong with it.
+                </p>
+                <p className="text-text-muted">
+                  The calculation for every ticker is shown below. Green gate = above 50. Red gate = below 50. Step I applies the final selection rules.
+                </p>
+              </div>
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              {progress?.f?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
+            </p>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                    <th className="text-left py-1 pr-3">RANK</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">QUALITY<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.quality ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">REGIME<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.regime ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">INFO EDGE<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.info_edge ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">GATES<br/><span className="font-normal text-[9px]">above 50</span></th>
+                    <th className="text-left py-1 pr-3">CALCULATION</th>
+                    <th className="text-right py-1 pr-3">SCORE</th>
+                    <th className="text-left py-1">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(fData?.rankings ?? []).map((r: any, i: number) => {
+                    const w = (progress?.f?.data?.weights as any) ?? { vol_edge: 25, quality: 25, regime: 25, info_edge: 25 };
+                    const gateColor = (score: number) => score >= 50 ? 'text-brand-green font-bold' : 'text-brand-red';
+                    const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter((g: number) => g >= 50).length;
+                    const veC = (r.vol_edge * w.vol_edge / 100).toFixed(1);
+                    const qC = (r.quality * w.quality / 100).toFixed(1);
+                    const rC = (r.regime * w.regime / 100).toFixed(1);
+                    const ieC = (r.info_edge * w.info_edge / 100).toFixed(1);
+                    const eligible = r.selection_status === 'eligible';
+                    return (
+                      <tr key={r.symbol} className={`border-b border-border/50 ${!eligible ? 'opacity-60' : ''}`}>
+                        <td className="py-1 pr-3 text-text-muted">#{i+1}</td>
+                        <td className={`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : 'text-text-muted'}`}>{r.symbol}</td>
+                        <td className={`py-1 pr-3 text-right ${gateColor(r.vol_edge)}`}>{r.vol_edge}</td>
+                        <td className={`py-1 pr-3 text-right ${gateColor(r.quality)}`}>{r.quality}</td>
+                        <td className={`py-1 pr-3 text-right ${gateColor(r.regime)}`}>{r.regime}</td>
+                        <td className={`py-1 pr-3 text-right ${gateColor(r.info_edge)}`}>{r.info_edge}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${gatesAbove50 >= 3 ? 'text-brand-green' : gatesAbove50 === 2 ? 'text-brand-gold' : 'text-brand-red'}`}>{gatesAbove50}/4</td>
+                        <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}`}>{r.composite}</td>
+                        <td className={`py-1 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
