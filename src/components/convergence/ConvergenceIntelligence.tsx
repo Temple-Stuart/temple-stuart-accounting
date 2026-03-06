@@ -922,7 +922,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a')}>
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP A</span>
-            <span className="text-text-secondary">TT Scanner</span>
+            <span className="text-text-secondary">TT Scanner — Universe Scan</span>
             {(ps?.total_universe ?? progress?.a?.data?.total_universe) ? (
               <>
                 <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
@@ -944,12 +944,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
                   <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">HV30</th><th className="text-right py-1 px-1">LIQ</th><th className="text-right py-1 px-1">MKT CAP</th><th className="text-left py-1 px-1">SECTOR</th>
+                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">HV30</th><th className="text-right py-1 px-1">LIQ</th><th className="text-right py-1 px-1">MKT CAP</th><th className="text-left py-1 px-1">SECTOR</th>
                   </tr></thead>
                   <tbody>
                     {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {(progress?.a?.data?.symbols ?? []).map((s: any) => (
+                    {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => (
                       <tr key={s.symbol} className="border-b border-border/50 hover:bg-bg-card">
+                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
                         <td className="py-0.5 px-1 font-bold text-text-primary">{s.symbol}</td>
                         <td className="py-0.5 px-1 text-right">{s.ivRank?.toFixed(0) ?? '—'}</td>
                         <td className="py-0.5 px-1 text-right">{s.ivPercentile?.toFixed(0) ?? '—'}</td>
@@ -973,7 +974,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a2')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP A2</span>
+            <span className="text-brand-purple font-bold">STEP B</span>
             <span className="text-text-secondary">Pre-Filter</span>
             {progress?.a2 ? (
               <span className="text-brand-red">
@@ -1013,11 +1014,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step B */}
+      {/* Top-N Selection */}
+      <div className="border-b border-border bg-bg-card/50">
+        <div className="px-4 py-2 flex items-center gap-3 text-xs">
+          <span className="text-brand-purple font-bold">▼ NARROW</span>
+          <span className="text-text-muted">Top {progress?.a2?.data?.output ?? '?'} pre-scored tickers narrowed to top {progress?.b?.data?.input ?? '?'} for hard filters — ranked by (IV Rank × 60%) + (Liquidity × 40%), limit × 4 candidates selected</span>
+        </div>
+      </div>
+
+      {/* Step C — Hard Filters */}
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('b')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP B</span>
+            <span className="text-brand-purple font-bold">STEP C</span>
             <span className="text-text-secondary">Hard Filters</span>
             {(hf?.output_count != null || progress?.b) ? (
               <span className="text-brand-red">{hf?.input_count ?? progress?.b?.data?.input ?? 0} → {hf?.output_count ?? progress?.b?.data?.output ?? 0} survived</span>
@@ -1057,11 +1066,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
                   <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">REASON</th>
+                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">REASON</th>
                   </tr></thead>
                   <tbody>
-                    {(bData?.survivors ?? []).map((sym: string) => (
+                    {(bData?.survivors ?? []).map((sym: string, i: number) => (
                       <tr key={sym} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
                         <td className="py-0.5 px-1 font-bold text-text-primary">{sym}</td>
                         <td className="py-0.5 px-1 text-brand-green">✓ Passed all 5 filters</td>
                       </tr>
@@ -1078,7 +1088,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-brand-purple font-bold">STEP D</span>
             <span className="text-text-secondary">Peer Grouping</span>
             {progress?.b ? (
               <span className="text-brand-green">Finnhub peer relationships mapped</span>
@@ -1089,29 +1099,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['c'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            <div className="text-text-muted">Each stock is compared against similar companies — not the whole market. If AAPL&apos;s IV is high, we check: is it high vs other Tech stocks? This prevents sector bias in scoring.</div>
-            {progress?.c && (
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">PEER GROUP</th><th className="text-right py-1 px-1">PEERS</th><th className="text-left py-1 px-1">GROUP TYPE</th>
-                  </tr></thead>
-                  <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {(progress.c.data.groups as any[] ?? []).map((g: any, i: number) => (
-                      <tr key={g.symbol} className="border-b border-border/50">
-                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{g.symbol}</td>
-                        <td className="py-0.5 px-1 text-text-secondary">{g.peer_group}</td>
-                        <td className="py-0.5 px-1 text-right">{g.peer_count}</td>
-                        <td className="py-0.5 px-1 text-text-muted">{g.group_type}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+          <div className="border-t border-border bg-bg-row p-3 text-xs">
+            <p className="text-text-muted mb-1">
+              <span className="text-text-primary font-bold">What this does:</span>{' '}
+              Each stock is benchmarked against similar companies using Finnhub peer data. Instead of asking &quot;is this stock&apos;s IV high?&quot; we ask &quot;is this stock&apos;s IV high compared to its industry peers?&quot; This prevents large-cap tech stocks from always dominating just because they have higher absolute IV.
+            </p>
+            <p className="text-text-muted">
+              Peer data is used internally during scoring (Step G) — relative z-scores are computed per metric vs peer group.
+            </p>
           </div>
         )}
       </div>
@@ -1120,7 +1115,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('d')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP D</span>
+            <span className="text-brand-purple font-bold">STEP E</span>
             <span className="text-text-secondary">Pre-Score</span>
             {(ps?.finnhub_fetched != null || progress?.d) ? (
               <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
@@ -1133,6 +1128,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['d'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
             <div className="text-text-muted">Pre-score formula: 40% × IV Percentile + 30% × IV-HV Spread + 30% × Liquidity Rating</div>
+            <p className="text-text-muted text-xs mb-2">
+              <span className="text-text-primary font-bold">Why top {progress?.d?.data?.candidates ?? 18}?</span>{' '}
+              The pipeline limits expensive Finnhub API calls to the highest pre-scoring tickers only. Each ticker requires ~8 API calls (earnings, financials, insider data, etc). Running all {progress?.b?.data?.output ?? '?'} survivors would take too long and cost too many API credits.
+            </p>
             {(progress?.d?.data?.pre_scores ?? []).length > 0 ? (
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
@@ -1166,7 +1165,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('e')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP E</span>
+            <span className="text-brand-purple font-bold">STEP F</span>
             <span className="text-text-secondary">Data Enrichment</span>
             {(ps?.finnhub_calls_made != null || progress?.e) ? (
               <span className="text-text-secondary">
@@ -1182,16 +1181,30 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['e'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            <div className="text-text-muted">Earnings history · Financials · Insider transactions · Institutional ownership · Revenue breakdown · SEC filings · FinBERT sentiment · FRED macro (14 series)</div>
-            {(eData?.data_gaps ?? []).length > 0 && (
-              <div className="space-y-1">
-                <div className="text-text-muted font-bold">DATA GAPS</div>
-                {(eData.data_gaps as string[]).map((gap: string, i: number) => (
-                  <div key={i} className="text-brand-red">⚠ {gap}</div>
-                ))}
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-2">
+              <p className="text-text-muted">
+                <span className="text-text-primary font-bold">What this step does:</span>{' '}Fetches institutional-grade data for each of the {progress?.d?.data?.candidates ?? 18} selected tickers from 8 sources in parallel.
+              </p>
+              <div className="grid grid-cols-2 gap-1 text-text-muted">
+                <div>📊 46 quarters of earnings history</div>
+                <div>🏦 Institutional ownership %</div>
+                <div>💼 Insider buy/sell transactions</div>
+                <div>📈 Revenue breakdown by segment</div>
+                <div>📄 SEC filings (10-K, Form 4)</div>
+                <div>🤖 FinBERT news sentiment</div>
+                <div>🌍 FRED macro data (14 series)</div>
+                <div>💡 Earnings quality score</div>
               </div>
-            )}
+              {(eData?.data_gaps ?? []).length > 0 && (
+                <div className="pt-1">
+                  <span className="text-brand-red font-bold">Data gaps:</span>
+                  {(eData?.data_gaps ?? []).map((g: string, i: number) => (
+                    <div key={i} className="text-brand-red">⚠ {g}</div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1200,7 +1213,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('f')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP F</span>
+            <span className="text-brand-purple font-bold">STEP G</span>
             <span className="text-text-secondary">4-Gate Scoring</span>
             {(ps?.scored != null || progress?.f) ? (
               <span className="text-brand-green">{ps?.scored ?? progress?.f?.data?.scored ?? 0} tickers scored</span>
@@ -1218,6 +1231,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 Vol Edge {(progress.f.data.weights as any).vol_edge}% · Quality {(progress.f.data.weights as any).quality}% · Regime {(progress.f.data.weights as any).regime}% · Info Edge {(progress.f.data.weights as any).info_edge}%
               </div>
             )}
+            <p className="text-text-muted text-xs mb-2">
+              Each gate scores 0-100. Composite = weighted average. Weights shift based on detected macro regime — in stagflation, Quality and Regime matter more than Vol Edge.
+            </p>
             <div style={{ maxHeight: 200, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
                 <thead><tr className="text-text-muted border-b border-border">
@@ -1248,7 +1264,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('g')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP G</span>
+            <span className="text-brand-purple font-bold">STEP H</span>
             <span className="text-text-secondary">Trade Cards</span>
             {(ps?.total_trade_cards != null || progress?.g) ? (
               <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.g?.data?.trade_cards ?? 0} strategies generated</span>
@@ -1260,6 +1276,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['g'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <p className="text-text-muted text-xs mb-2">
+              Selection rules in order: (1) composite score rank, (2) must have ≥ 3 of 4 gates above 50 — &quot;convergence&quot;, (3) quality score ≥ 40, (4) max 2 tickers per sector — diversity rule. Top 9 survivors get options chains fetched and trade cards built.
+            </p>
             <div style={{ maxHeight: 200, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
                 <thead><tr className="text-text-muted border-b border-border">
