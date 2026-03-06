@@ -942,11 +942,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 1 — Wikipedia:</span>
-                {' '}The Nasdaq 100 constituent list. This gives us the exact 101 ticker symbols that make up the index.
+                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe] ?? universe} constituent list. This gives us the exact {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 2 — TastyTrade API:</span>
-                {' '}Those 101 symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
+                {' '}Those {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -984,30 +984,48 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <p className="text-text-muted text-xs font-bold mb-1">
               SYMBOLS FETCHED ({(progress?.a?.data?.symbols ?? []).length})
             </p>
-            <div className="overflow-y-auto" style={{maxHeight: '200px'}}>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 pr-3">#</th>
-                    <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-right py-1 pr-3">IV RANK</th>
-                    <th className="text-right py-1 pr-3">IV%</th>
-                    <th className="text-right py-1 pr-3">HV30</th>
-                    <th className="text-right py-1 pr-3">LIQ</th>
-                    <th className="text-right py-1 pr-3">MKT CAP</th>
+                    <th className="text-left py-1 pr-2">#</th>
+                    <th className="text-left py-1 pr-2">SYMBOL</th>
+                    <th className="text-right py-1 pr-2">IV RANK</th>
+                    <th className="text-right py-1 pr-2">IV%</th>
+                    <th className="text-right py-1 pr-2">IV30</th>
+                    <th className="text-right py-1 pr-2">HV30</th>
+                    <th className="text-right py-1 pr-2">HV60</th>
+                    <th className="text-right py-1 pr-2">HV90</th>
+                    <th className="text-right py-1 pr-2">LIQ</th>
+                    <th className="text-left py-1 pr-2">EARNINGS</th>
+                    <th className="text-right py-1 pr-2">DTE</th>
+                    <th className="text-right py-1 pr-2">BORROW</th>
+                    <th className="text-left py-1 pr-2">LENDABILITY</th>
+                    <th className="text-right py-1 pr-2">MKT CAP</th>
+                    <th className="text-right py-1 pr-2">BETA</th>
+                    <th className="text-right py-1 pr-2">SPY CORR</th>
                     <th className="text-left py-1">SECTOR</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => (
                     <tr key={s.symbol} className="border-b border-border/50">
-                      <td className="py-1 pr-3 text-text-muted">{i+1}</td>
-                      <td className="py-1 pr-3 font-bold">{s.symbol}</td>
-                      <td className="py-1 pr-3 text-right">{s.ivRank ?? '—'}</td>
-                      <td className="py-1 pr-3 text-right">{s.ivPercentile ?? '—'}</td>
-                      <td className="py-1 pr-3 text-right">{s.hv30?.toFixed(1) ?? '—'}</td>
-                      <td className="py-1 pr-3 text-right">{s.liquidityRating ?? '—'}/5</td>
-                      <td className="py-1 pr-3 text-right">{s.marketCap ? '$'+(s.marketCap/1e9).toFixed(1)+'B' : '—'}</td>
+                      <td className="py-1 pr-2 text-text-muted">{i+1}</td>
+                      <td className="py-1 pr-2 font-bold">{s.symbol}</td>
+                      <td className="py-1 pr-2 text-right">{s.ivRank ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.ivPercentile ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.iv30?.toFixed(1) ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.hv30?.toFixed(1) ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.hv60?.toFixed(1) ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.hv90?.toFixed(1) ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.liquidityRating ?? '—'}/5</td>
+                      <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
+                      <td className="py-1 pr-2 text-left">{s.lendability ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.marketCap ? '$'+(s.marketCap/1e9).toFixed(1)+'B' : '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.beta?.toFixed(2) ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{s.corrSpy?.toFixed(2) ?? '—'}</td>
                       <td className="py-1 text-text-muted">{s.sector ?? '—'}</td>
                     </tr>
                   ))}
