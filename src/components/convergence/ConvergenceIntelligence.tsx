@@ -935,37 +935,85 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['a'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            <div className="text-text-muted">
-              Universe scanned via TastyTrade market-metrics API. Batch size: 50.
-              Market open: {(ps?.market_open ?? progress?.a?.data?.market_open) ? 'YES — live Greeks' : 'NO — theoretical pricing'}
-            </div>
-            {(progress?.a?.data?.symbols ?? []).length > 0 ? (
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">HV30</th><th className="text-right py-1 px-1">LIQ</th><th className="text-right py-1 px-1">MKT CAP</th><th className="text-left py-1 px-1">SECTOR</th>
-                  </tr></thead>
-                  <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => (
-                      <tr key={s.symbol} className="border-b border-border/50 hover:bg-bg-card">
-                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{s.symbol}</td>
-                        <td className="py-0.5 px-1 text-right">{s.ivRank?.toFixed(0) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{s.ivPercentile?.toFixed(0) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{s.hv30?.toFixed(1) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{s.liquidityRating ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{fmtMcap(s.marketCap)}</td>
-                        <td className="py-0.5 px-1 text-text-muted">{s.sector ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step A pulls from two sources:
+              </p>
+              <p className="text-text-muted">
+                <span className="text-text-primary font-bold">Source 1 — Wikipedia:</span>
+                {' '}The Nasdaq 100 constituent list. This gives us the exact 101 ticker symbols that make up the index.
+              </p>
+              <p className="text-text-muted">
+                <span className="text-text-primary font-bold">Source 2 — TastyTrade API:</span>
+                {' '}Those 101 symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
+              </p>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['IV Rank', 'Is this stock\'s options pricing high or low vs the past year? High rank means options are expensive right now.'],
+                  ['IV Percentile', 'Same idea as IV rank but calculated differently. Confirms the signal.'],
+                  ['Implied Volatility (IV30)', 'What the market is forecasting this stock will move over the next 30 days.'],
+                  ['Historical Volatility 30-day', 'What it actually moved over the last 30 days.'],
+                  ['Historical Volatility 60-day', 'What it actually moved over the last 60 days.'],
+                  ['Historical Volatility 90-day', 'What it actually moved over the last 90 days.'],
+                  ['Liquidity Rating', 'TastyTrade\'s 1-5 score for how easy this stock\'s options are to trade. Low score means wide spreads — you lose money just getting in and out.'],
+                  ['Earnings Date', 'When is the next earnings report?'],
+                  ['Days Till Earnings', 'How many days away is that report?'],
+                  ['Borrow Rate', 'How expensive is it to short this stock? High borrow rate means short squeeze risk.'],
+                  ['Lendability', 'Is this stock easy, medium, or hard to borrow?'],
+                  ['Sector', 'What industry is this company in?'],
+                  ['Market Cap', 'How big is the company?'],
+                  ['Beta', 'How much does this stock move relative to the overall market?'],
+                  ['SPY Correlation', 'How closely does this stock follow the S&P 500?'],
+                ].map(([field, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-48 shrink-0">
+                      {i+1}. {field}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="text-text-muted">Symbol table loads on next scan.</div>
-            )}
+              <p className="text-text-muted pt-1">
+                Step B uses all 15 to make the first cut.
+              </p>
+            </div>
+            {/* Symbol table */}
+            <p className="text-text-muted text-xs font-bold mb-1">
+              SYMBOLS FETCHED ({(progress?.a?.data?.symbols ?? []).length})
+            </p>
+            <div className="overflow-y-auto" style={{maxHeight: '200px'}}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 pr-3">#</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">IV RANK</th>
+                    <th className="text-right py-1 pr-3">IV%</th>
+                    <th className="text-right py-1 pr-3">HV30</th>
+                    <th className="text-right py-1 pr-3">LIQ</th>
+                    <th className="text-right py-1 pr-3">MKT CAP</th>
+                    <th className="text-left py-1">SECTOR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => (
+                    <tr key={s.symbol} className="border-b border-border/50">
+                      <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                      <td className="py-1 pr-3 font-bold">{s.symbol}</td>
+                      <td className="py-1 pr-3 text-right">{s.ivRank ?? '—'}</td>
+                      <td className="py-1 pr-3 text-right">{s.ivPercentile ?? '—'}</td>
+                      <td className="py-1 pr-3 text-right">{s.hv30?.toFixed(1) ?? '—'}</td>
+                      <td className="py-1 pr-3 text-right">{s.liquidityRating ?? '—'}/5</td>
+                      <td className="py-1 pr-3 text-right">{s.marketCap ? '$'+(s.marketCap/1e9).toFixed(1)+'B' : '—'}</td>
+                      <td className="py-1 text-text-muted">{s.sector ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
