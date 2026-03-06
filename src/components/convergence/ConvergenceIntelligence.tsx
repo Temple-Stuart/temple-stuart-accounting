@@ -924,8 +924,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <span className="text-brand-purple font-bold">STEP A</span>
             <span className="text-text-secondary">TT Scanner</span>
             {(ps?.total_universe ?? progress?.a?.data?.total_universe) ? (
-              <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
-              <span className="text-text-muted">({universe})</span>
+              <>
+                <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
+                <span className="text-text-muted">({universe})</span>
+              </>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
