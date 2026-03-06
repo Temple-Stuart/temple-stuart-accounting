@@ -1372,14 +1372,100 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['c'] && (
-          <div className="border-t border-border bg-bg-row p-3 text-xs">
-            <p className="text-text-muted mb-1">
-              <span className="text-text-primary font-bold">What this does:</span>{' '}
-              Each stock is benchmarked against similar companies using Finnhub peer data. Instead of asking &quot;is this stock&apos;s IV high?&quot; we ask &quot;is this stock&apos;s IV high compared to its industry peers?&quot; This prevents large-cap tech stocks from always dominating just because they have higher absolute IV.
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step E answers one question: is this stock&apos;s volatility high compared to companies just like it?
+              </p>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['Why peer grouping?',
+                   'Comparing AAPL\'s IV to the whole market is meaningless. Tech companies are always more volatile than utilities. What matters is whether AAPL\'s IV is elevated compared to MSFT, GOOGL, and META — its actual peers. That\'s the signal institutions trade on.'],
+                  ['How it works',
+                   'We send each stock\'s symbol to Finnhub\'s peer API. Finnhub returns a list of companies in the same industry. We group each stock with those peers and compute z-scores — how many standard deviations above or below the peer group average each metric sits.'],
+                  ['What is a z-score?',
+                   'A z-score of +2.0 means this stock\'s IV is 2 standard deviations above its peer group average. That is a statistically significant outlier. A z-score near 0 means it\'s average for its peer group. Negative means below average.'],
+                  ['What feeds into scoring?',
+                   'The z-scores for IV Percentile, IV30, and IV-HV Spread feed directly into the Info Edge gate in Step H. Peer-relative metrics are more actionable than market-wide comparisons.'],
+                ].map(([field, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-40 shrink-0">
+                      {field}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-text-muted">
+                Step F re-scores all survivors using a richer formula before pulling institutional data.
+              </p>
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              PEER GROUPING — ALL {' '}{(progress?.c?.data?.groups ?? []).length} SURVIVORS
             </p>
-            <p className="text-text-muted">
-              Peer data is used internally during scoring (Step H) — relative z-scores are computed per metric vs peer group.
-            </p>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                    <th className="text-left py-1 pr-3">#</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-left py-1 pr-3">PEER GROUP</th>
+                    <th className="text-right py-1 pr-3">PEERS</th>
+                    <th className="text-right py-1 pr-3">MY IV%</th>
+                    <th className="text-right py-1 pr-3">PEER AVG IV%</th>
+                    <th className="text-right py-1 pr-3">Z-SCORE IV%<br/><span className="font-normal text-[9px]">vs peers</span></th>
+                    <th className="text-right py-1 pr-3">MY IV30</th>
+                    <th className="text-right py-1 pr-3">PEER AVG IV30</th>
+                    <th className="text-right py-1 pr-3">Z-SCORE IV30<br/><span className="font-normal text-[9px]">vs peers</span></th>
+                    <th className="text-right py-1 pr-3">Z-SCORE &beta;<br/><span className="font-normal text-[9px]">vs peers</span></th>
+                    <th className="text-left py-1">TYPE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(progress?.c?.data?.groups ?? []).map((g: any, i: number) => {
+                    const zColor = (z: string | null) => {
+                      if (z == null) return 'text-text-muted';
+                      const n = parseFloat(z);
+                      if (n >= 1.5) return 'text-brand-green font-bold';
+                      if (n >= 0.5) return 'text-brand-gold';
+                      if (n <= -1.5) return 'text-brand-red';
+                      return 'text-text-muted';
+                    };
+                    return (
+                      <tr key={g.symbol} className="border-b border-border/50">
+                        <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                        <td className="py-1 pr-3 font-bold">{g.symbol}</td>
+                        <td className="py-1 pr-3 text-text-muted max-w-[200px] overflow-hidden text-ellipsis">
+                          {g.insufficient_peers ? '⚠ '+g.peer_group : g.peer_group}
+                        </td>
+                        <td className="py-1 pr-3 text-right">{g.peer_count}</td>
+                        <td className="py-1 pr-3 text-right">
+                          {g.my_iv_percentile != null ? Number(g.my_iv_percentile).toFixed(1) : '—'}
+                        </td>
+                        <td className="py-1 pr-3 text-right text-text-muted">{g.peer_mean_iv ?? '—'}</td>
+                        <td className={`py-1 pr-3 text-right ${zColor(g.z_iv_percentile)}`}>
+                          {g.z_iv_percentile != null ? (parseFloat(g.z_iv_percentile) >= 0 ? '+' : '')+g.z_iv_percentile : '—'}
+                        </td>
+                        <td className="py-1 pr-3 text-right">
+                          {g.my_iv30 != null ? Number(g.my_iv30).toFixed(1) : '—'}
+                        </td>
+                        <td className="py-1 pr-3 text-right text-text-muted">{g.peer_mean_iv30 ?? '—'}</td>
+                        <td className={`py-1 pr-3 text-right ${zColor(g.z_iv30)}`}>
+                          {g.z_iv30 != null ? (parseFloat(g.z_iv30) >= 0 ? '+' : '')+g.z_iv30 : '—'}
+                        </td>
+                        <td className={`py-1 pr-3 text-right ${zColor(g.z_beta)}`}>
+                          {g.z_beta != null ? (parseFloat(g.z_beta) >= 0 ? '+' : '')+g.z_beta : '—'}
+                        </td>
+                        <td className="py-1 text-text-muted text-[10px]">{g.group_type}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

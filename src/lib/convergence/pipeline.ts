@@ -456,12 +456,28 @@ export async function runPipeline(
     groups: survivors.map(s => {
       const groupKey = peerGroupAssignment[s.symbol];
       const ps = groupKey ? peerStats[groupKey] : undefined;
+      const zScore = (value: number | null | undefined, metric: keyof NonNullable<typeof ps>['metrics']) => {
+        if (!ps || value == null) return null;
+        const m = ps.metrics[metric];
+        if (!m || m.std === 0) return null;
+        return ((value - m.mean) / m.std).toFixed(2);
+      };
       return {
         symbol: s.symbol,
         peer_group: ps?.peer_group_name ?? 'No peer group found',
         peer_count: ps?.ticker_count ?? 0,
         group_type: ps?.peer_group_type ?? 'unknown',
         group_key: groupKey ?? null,
+        insufficient_peers: ps?.insufficient_peers ?? false,
+        peer_mean_iv: ps?.metrics?.iv_percentile?.mean != null ? ps.metrics.iv_percentile.mean.toFixed(1) : null,
+        peer_mean_iv30: ps?.metrics?.iv30?.mean != null ? ps.metrics.iv30.mean.toFixed(1) : null,
+        z_iv_percentile: zScore(s.ivPercentile, 'iv_percentile'),
+        z_iv30: zScore(s.iv30, 'iv30'),
+        z_iv_hv_spread: zScore(s.iv30 != null && s.hv30 != null ? s.iv30 - s.hv30 : undefined, 'iv_hv_spread'),
+        z_beta: zScore(s.beta, 'beta'),
+        my_iv_percentile: s.ivPercentile ?? null,
+        my_iv30: s.iv30 ?? null,
+        my_beta: s.beta ?? null,
       };
     }),
   } });
