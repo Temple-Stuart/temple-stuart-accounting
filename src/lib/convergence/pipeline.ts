@@ -406,7 +406,7 @@ export async function runPipeline(
   }
 
   const totalUniverse = allScannerData.length;
-  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open } });
+  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open, symbols: allScannerData.map(d => ({ symbol: d.symbol, ivRank: d.ivRank, ivPercentile: d.ivPercentile, iv30: d.iv30, hv30: d.hv30, liquidityRating: d.liquidityRating, marketCap: d.marketCap, sector: d.sector })) } });
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
@@ -475,7 +475,7 @@ export async function runPipeline(
   const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
-  onProgress?.({ step: 'd', label: 'Pre-Score', data: { candidates: topSymbols.length } });
+  onProgress?.({ step: 'd', label: 'Pre-Score', data: { candidates: topSymbols.length, pre_scores: preScores.slice(0, fetchCount).map(r => ({ symbol: r.symbol, pre_score: r.pre_score, ivp: r.ivp, iv_hv_spread: r.iv_hv_spread, liquidity: r.liquidity })) } });
 
   // ===== STEP E: Fetch Finnhub + FRED =====
   console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
