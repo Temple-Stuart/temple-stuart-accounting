@@ -454,12 +454,14 @@ export async function runPipeline(
   let textPeerGroups: Record<string, TextBasedPeerGroup> = {};
   onProgress?.({ step: 'c', label: 'Peer Grouping', data: {
     groups: survivors.map(s => {
-      const ps = peerStats[s.symbol];
+      const groupKey = peerGroupAssignment[s.symbol];
+      const ps = groupKey ? peerStats[groupKey] : undefined;
       return {
         symbol: s.symbol,
-        peer_group: ps?.peer_group_name ?? 'Unknown',
+        peer_group: ps?.peer_group_name ?? 'No peer group found',
         peer_count: ps?.ticker_count ?? 0,
         group_type: ps?.peer_group_type ?? 'unknown',
+        group_key: groupKey ?? null,
       };
     }),
   } });
