@@ -942,7 +942,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 1 — Wikipedia:</span>
-                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe] ?? universe} constituent list. This gives us the exact {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
+                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe ?? ''] ?? universe ?? ''} constituent list. This gives us the exact {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 2 — TastyTrade API:</span>
