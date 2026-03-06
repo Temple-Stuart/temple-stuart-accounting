@@ -1046,17 +1046,25 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </tr>
                 </thead>
                 <tbody>
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(progress.a2.data.tickers ?? []).filter((t: any) => !t.excluded).slice(0, progress?.b?.data?.input ?? 36).map((t: any, i: number) => (
-                    <tr key={t.symbol} className="border-b border-border/50">
-                      <td className="py-1 pr-3 text-text-muted">{i + 1}</td>
-                      <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                      <td className="py-1 pr-3 text-right text-brand-gold">{t.pre_score}</td>
-                      <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
-                      <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
-                      <td className="py-1 text-brand-green">✓ Selected for hard filters</td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const nonExcluded = (progress.a2.data.tickers ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
+                    const topN = progress?.b?.data?.input ?? 36;
+                    return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+                      const selected = i < topN;
+                      return (
+                        <tr key={t.symbol} className="border-b border-border/50">
+                          <td className="py-1 pr-3 text-text-muted">{i + 1}</td>
+                          <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                          <td className="py-1 pr-3 text-right text-brand-gold">{t.pre_score}</td>
+                          <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
+                          <td className={`py-1 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
+                            {selected ? '✓ Selected for hard filters' : `✗ Dropped — ranked #${i + 1}, below top ${topN} cutoff`}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
