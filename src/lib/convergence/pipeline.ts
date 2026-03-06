@@ -843,9 +843,10 @@ export async function runPipeline(
   if (!marketStatus.open) {
     chainMarketOpen = false;
     chainMarketNote = marketStatus.reason;
-    dataGaps.push('trade_cards: market closed. Rerun during market hours (Mon-Fri 9:30-16:00 ET).');
-    console.log(`[Pipeline] Step G2: Market closed (${marketStatus.reason}), skipping chain fetch`);
-  } else try {
+    dataGaps.push('trade_cards: market closed — using exchange theo prices. Rerun during market hours (Mon-Fri 9:30-16:00 ET) for live quotes.');
+    console.log(`[Pipeline] Step G2: Market closed (${marketStatus.reason}), will use theo prices`);
+  }
+  try {
     // Build input for chain fetcher from top 9 tickers
     const chainInputs = top9.map(row => {
       const ticker = scoredTickers.find(t => t.symbol === row.symbol);
