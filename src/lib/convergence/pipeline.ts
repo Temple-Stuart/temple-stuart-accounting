@@ -43,11 +43,19 @@ interface HardFilterStep {
   sample_failed: string[];
 }
 
+interface HardFilterRejection {
+  filter: string;
+  actual_value: string;
+  threshold: string;
+  reason: string;
+}
+
 interface HardFiltersResult {
   input_count: number;
   output_count: number;
   filters_applied: HardFilterStep[];
   survivors: string[];
+  ticker_rejections: Record<string, HardFilterRejection>;
 }
 
 interface PreScoreRow {
@@ -387,13 +395,19 @@ export async function runPipeline(
       symbol: r.symbol,
       pre_score: Math.round(r.preScore * 100),
       iv_rank: r.ivRank,
+      iv_percentile: r.ivPercentile,
       liquidity: r.liquidityRating,
+      market_cap: r.marketCap,
+      beta: r.beta,
+      earnings_date: r.earningsDate,
+      earnings_warning: r.earningsWarning,
       excluded: r.excluded,
+      exclusion_reason: r.exclusionReason,
       reason: r.excluded
-        ? 'Liquidity < 2/5 — insufficient options activity'
+        ? (r.exclusionReason ?? 'Liquidity < 2/5 — not enough options trading activity to get reliable prices')
         : r.earningsWarning
-        ? `Warning: ${r.earningsWarning}`
-        : 'Passed — moved to hard filters',
+        ? `⚠ Warning: ${r.earningsWarning} — earnings risk`
+        : 'Passed — enough liquidity and no earnings risk',
     })),
   } });
 
@@ -401,7 +415,7 @@ export async function runPipeline(
   console.log('[Pipeline] Step B: Applying hard filters...');
   const hardFilters = applyHardFilters(preFilteredScannerData);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
-  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors } });
+  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
@@ -1044,24 +1058,35 @@ export async function runPipeline(
 
 function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   const filtersApplied: HardFilterStep[] = [];
+  const tickerRejections = new Map<string, HardFilterRejection>();
   let current = [...tickers];
 
   // Filter 1: market_cap > $2B
   {
     const passed: TTScannerData[] = [];
-    const failed: string[] = [];
+    const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.marketCap != null && t.marketCap > 2_000_000_000) {
         passed.push(t);
       } else {
-        failed.push(t.symbol);
+        failedTickers.push(t);
       }
+    }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'Market Cap',
+        actual_value: t.marketCap ? `$${(t.marketCap / 1e9).toFixed(1)}B` : 'unknown',
+        threshold: '$2B minimum',
+        reason: t.marketCap
+          ? `Market cap $${(t.marketCap / 1e9).toFixed(1)}B is below the $2B minimum. Small companies have less liquid options markets.`
+          : 'Market cap data unavailable',
+      });
     }
     filtersApplied.push({
       filter: 'market_cap > $2B',
       passed: passed.length,
-      failed: failed.length,
-      sample_failed: failed.slice(0, 5),
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
     });
     current = passed;
   }
@@ -1069,19 +1094,27 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   // Filter 2: liquidity_rating >= 2
   {
     const passed: TTScannerData[] = [];
-    const failed: string[] = [];
+    const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.liquidityRating != null && t.liquidityRating >= 2) {
         passed.push(t);
       } else {
-        failed.push(t.symbol);
+        failedTickers.push(t);
       }
+    }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'Options Liquidity',
+        actual_value: `${t.liquidityRating ?? 0}/5`,
+        threshold: '2/5 minimum',
+        reason: `Liquidity score ${t.liquidityRating ?? 0}/5 is too low. Low liquidity means wide bid-ask spreads — you lose money just entering and exiting the trade.`,
+      });
     }
     filtersApplied.push({
       filter: 'liquidity_rating >= 2',
       passed: passed.length,
-      failed: failed.length,
-      sample_failed: failed.slice(0, 5),
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
     });
     current = passed;
   }
@@ -1089,19 +1122,27 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   // Filter 3: iv30 is not null/zero
   {
     const passed: TTScannerData[] = [];
-    const failed: string[] = [];
+    const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.iv30 != null && t.iv30 > 0) {
         passed.push(t);
       } else {
-        failed.push(t.symbol);
+        failedTickers.push(t);
       }
+    }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'IV Data',
+        actual_value: 'no data',
+        threshold: 'IV data required',
+        reason: 'No implied volatility data available. IV is required to price options and calculate expected value.',
+      });
     }
     filtersApplied.push({
       filter: 'iv30 is not null/zero',
       passed: passed.length,
-      failed: failed.length,
-      sample_failed: failed.slice(0, 5),
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
     });
     current = passed;
   }
@@ -1109,20 +1150,28 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   // Filter 4: borrow_rate < 50%
   {
     const passed: TTScannerData[] = [];
-    const failed: string[] = [];
+    const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       // If borrow_rate is null, assume it's fine (not HTB)
       if (t.borrowRate == null || t.borrowRate < 50) {
         passed.push(t);
       } else {
-        failed.push(t.symbol);
+        failedTickers.push(t);
       }
+    }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'Borrow Rate',
+        actual_value: `${t.borrowRate ?? 0}%`,
+        threshold: '< 50%',
+        reason: `Borrow rate ${t.borrowRate ?? 0}% is too high. Hard-to-borrow stocks have unpredictable short squeeze risk that breaks option pricing models.`,
+      });
     }
     filtersApplied.push({
       filter: 'borrow_rate < 50%',
       passed: passed.length,
-      failed: failed.length,
-      sample_failed: failed.slice(0, 5),
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
     });
     current = passed;
   }
@@ -1130,19 +1179,27 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   // Filter 5: no earnings within 7 calendar days
   {
     const passed: TTScannerData[] = [];
-    const failed: string[] = [];
+    const failedTickers: TTScannerData[] = [];
     for (const t of current) {
       if (t.daysTillEarnings != null && t.daysTillEarnings >= 0 && t.daysTillEarnings <= 7) {
-        failed.push(t.symbol);
+        failedTickers.push(t);
       } else {
         passed.push(t);
       }
     }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'Earnings Timing',
+        actual_value: `${t.daysTillEarnings} days`,
+        threshold: '> 7 days away',
+        reason: `Earnings in ${t.daysTillEarnings} days. Options pricing becomes unreliable right before earnings — IV spikes then collapses unpredictably after the report.`,
+      });
+    }
     filtersApplied.push({
       filter: 'no earnings within 7 days',
       passed: passed.length,
-      failed: failed.length,
-      sample_failed: failed.slice(0, 5),
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
     });
     current = passed;
   }
@@ -1152,6 +1209,7 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
     output_count: current.length,
     filters_applied: filtersApplied,
     survivors: current.map(t => t.symbol),
+    ticker_rejections: Object.fromEntries(tickerRejections),
   };
 }
 

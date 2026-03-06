@@ -1004,7 +1004,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       <td className="py-0.5 px-1 text-right">{t.pre_score}</td>
                       <td className="py-0.5 px-1 text-right">{t.iv_rank ?? '—'}</td>
                       <td className="py-0.5 px-1 text-right">{t.liquidity ?? '—'}/5</td>
-                      <td className={`py-0.5 px-1 ${t.excluded ? 'text-brand-red' : 'text-brand-green'}`}>{t.reason}</td>
+                      <td className={`py-0.5 px-1 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
+                        {t.excluded && t.market_cap && (
+                          <span className="text-text-muted text-[10px] block">Cap: ${(t.market_cap / 1e9).toFixed(1)}B · Liq: {t.liquidity ?? '—'}/5 · β: {t.beta?.toFixed(2) ?? '—'}</span>
+                        )}
+                        {t.reason}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1130,6 +1135,32 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
             </div>
+            {/* Table 3: Rejected tickers with reasons */}
+            {bData?.ticker_rejections && Object.keys(bData.ticker_rejections).length > 0 && (
+              <div className="mt-3">
+                <div className="text-text-muted font-bold mb-1">REJECTED ({Object.keys(bData.ticker_rejections).length} tickers)</div>
+                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                  <table className="w-full text-[10px]">
+                    <thead><tr className="text-text-muted border-b border-border">
+                      <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">FILTER FAILED</th><th className="text-left py-1 px-1">ACTUAL VALUE</th><th className="text-left py-1 px-1">THRESHOLD</th><th className="text-left py-1 px-1">WHY IT MATTERS</th>
+                    </tr></thead>
+                    <tbody>
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {Object.entries(bData.ticker_rejections).map(([sym, r]: [string, any], i: number) => (
+                        <tr key={sym} className="border-b border-border/50">
+                          <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                          <td className="py-0.5 px-1 font-bold text-brand-red">{sym}</td>
+                          <td className="py-0.5 px-1 text-brand-red">{r.filter}</td>
+                          <td className="py-0.5 px-1">{r.actual_value}</td>
+                          <td className="py-0.5 px-1 text-text-muted">{r.threshold}</td>
+                          <td className="py-0.5 px-1 text-text-muted">{r.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
