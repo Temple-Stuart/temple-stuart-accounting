@@ -1098,16 +1098,6 @@ export default function TradingPage() {
                         {/* Market Intelligence — unified scanner + trade cards */}
                         <ConvergenceIntelligence />
 
-                        {/* Data Observatory — Live API Health */}
-                        <details className="mt-6">
-                          <summary className="cursor-pointer text-text-muted text-xs px-4 py-2 border border-border rounded hover:bg-bg-row">
-                            ▶ DATA OBSERVATORY — Live API Health
-                          </summary>
-                          <div className="mt-2">
-                            <DataObservatory />
-                          </div>
-                        </details>
-
                         {/* Card 1 — Account Overview */}
                         <div className="bg-white border border-border p-6">
                           <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Account Overview</div>
@@ -1371,6 +1361,16 @@ export default function TradingPage() {
                         </div>
                       </>
                     )}
+
+                    {/* Always visible to owner */}
+                    <details className="mt-6">
+                      <summary className="cursor-pointer text-text-muted text-xs px-4 py-2 border border-border rounded hover:bg-bg-row">
+                        ▶ DATA OBSERVATORY — Live API Health
+                      </summary>
+                      <div className="mt-2">
+                        <DataObservatory />
+                      </div>
+                    </details>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center min-h-[500px] p-8">
