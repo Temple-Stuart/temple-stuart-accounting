@@ -370,7 +370,7 @@ export async function runPipeline(
   }
 
   const totalUniverse = allScannerData.length;
-  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open, symbols: allScannerData.map(d => ({ symbol: d.symbol, ivRank: d.ivRank, ivPercentile: d.ivPercentile, iv30: d.iv30, hv30: d.hv30, liquidityRating: d.liquidityRating, marketCap: d.marketCap, sector: d.sector })) } });
+  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open, symbols: allScannerData.map(d => ({ symbol: d.symbol, ivRank: d.ivRank, ivPercentile: d.ivPercentile, iv30: d.iv30, hv30: d.hv30, hv60: d.hv60, hv90: d.hv90, liquidityRating: d.liquidityRating, earningsDate: d.earningsDate, daysTillEarnings: d.daysTillEarnings, borrowRate: d.borrowRate, lendability: d.lendability, marketCap: d.marketCap, beta: d.beta, corrSpy: d.corrSpy, sector: d.sector })) } });
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
