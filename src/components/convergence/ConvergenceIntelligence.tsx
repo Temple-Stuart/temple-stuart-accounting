@@ -1014,19 +1014,61 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Top-N Selection */}
-      <div className="border-b border-border bg-bg-card/50">
-        <div className="px-4 py-2 flex items-center gap-3 text-xs">
-          <span className="text-brand-purple font-bold">▼ NARROW</span>
-          <span className="text-text-muted">Top {progress?.a2?.data?.output ?? '?'} pre-scored tickers narrowed to top {progress?.b?.data?.input ?? '?'} for hard filters — ranked by (IV Rank × 60%) + (Liquidity × 40%), limit × 4 candidates selected</span>
+      {/* Step C — Top-N Selection */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c_narrow')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-text-secondary">Top-N Selection</span>
+            {progress?.a2 ? (
+              <span className="text-brand-gold">{progress.a2.data.output} → {progress?.b?.data?.input ?? 36} candidates for hard filters</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['c_narrow'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['c_narrow'] && progress?.a2 && (
+          <div className="border-t border-border bg-bg-row p-3">
+            <p className="text-text-muted text-xs mb-2">
+              <span className="text-text-primary font-bold">What this does:</span>{' '}After pre-scoring all {progress.a2.data.output} survived tickers, the pipeline selects only the top-scoring candidates to run through the expensive hard filter checks. Formula: limit × 4 candidates (9 final trades × 4 = 36). This prevents wasting time filtering tickers that would never rank high enough to be selected anyway.
+            </p>
+            <div className="overflow-y-auto" style={{maxHeight: '200px'}}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 pr-3">#</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">PRE-SCORE</th>
+                    <th className="text-right py-1 pr-3">IV RANK</th>
+                    <th className="text-right py-1 pr-3">LIQUIDITY</th>
+                    <th className="text-left py-1">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(progress.a2.data.tickers ?? []).filter((t: any) => !t.excluded).slice(0, progress?.b?.data?.input ?? 36).map((t: any, i: number) => (
+                    <tr key={t.symbol} className="border-b border-border/50">
+                      <td className="py-1 pr-3 text-text-muted">{i + 1}</td>
+                      <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                      <td className="py-1 pr-3 text-right text-brand-gold">{t.pre_score}</td>
+                      <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
+                      <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
+                      <td className="py-1 text-brand-green">✓ Selected for hard filters</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Step C — Hard Filters */}
+      {/* Step D — Hard Filters */}
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('b')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-brand-purple font-bold">STEP D</span>
             <span className="text-text-secondary">Hard Filters</span>
             {(hf?.output_count != null || progress?.b) ? (
               <span className="text-brand-red">{hf?.input_count ?? progress?.b?.data?.input ?? 0} → {hf?.output_count ?? progress?.b?.data?.output ?? 0} survived</span>
@@ -1088,7 +1130,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP D</span>
+            <span className="text-brand-purple font-bold">STEP E</span>
             <span className="text-text-secondary">Peer Grouping</span>
             {progress?.b ? (
               <span className="text-brand-green">Finnhub peer relationships mapped</span>
@@ -1105,7 +1147,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               Each stock is benchmarked against similar companies using Finnhub peer data. Instead of asking &quot;is this stock&apos;s IV high?&quot; we ask &quot;is this stock&apos;s IV high compared to its industry peers?&quot; This prevents large-cap tech stocks from always dominating just because they have higher absolute IV.
             </p>
             <p className="text-text-muted">
-              Peer data is used internally during scoring (Step G) — relative z-scores are computed per metric vs peer group.
+              Peer data is used internally during scoring (Step H) — relative z-scores are computed per metric vs peer group.
             </p>
           </div>
         )}
@@ -1115,7 +1157,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('d')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP E</span>
+            <span className="text-brand-purple font-bold">STEP F</span>
             <span className="text-text-secondary">Pre-Score</span>
             {(ps?.finnhub_fetched != null || progress?.d) ? (
               <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
@@ -1165,7 +1207,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('e')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP F</span>
+            <span className="text-brand-purple font-bold">STEP G</span>
             <span className="text-text-secondary">Data Enrichment</span>
             {(ps?.finnhub_calls_made != null || progress?.e) ? (
               <span className="text-text-secondary">
@@ -1213,7 +1255,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('f')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP G</span>
+            <span className="text-brand-purple font-bold">STEP H</span>
             <span className="text-text-secondary">4-Gate Scoring</span>
             {(ps?.scored != null || progress?.f) ? (
               <span className="text-brand-green">{ps?.scored ?? progress?.f?.data?.scored ?? 0} tickers scored</span>
@@ -1264,7 +1306,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('g')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP H</span>
+            <span className="text-brand-purple font-bold">STEP I</span>
             <span className="text-text-secondary">Trade Cards</span>
             {(ps?.total_trade_cards != null || progress?.g) ? (
               <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.g?.data?.trade_cards ?? 0} strategies generated</span>
