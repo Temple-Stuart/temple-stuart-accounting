@@ -1146,7 +1146,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <span className="text-brand-purple font-bold">STEP C</span>
             <span className="text-text-secondary">Top-N Selection</span>
             {progress?.a2 ? (
-              <span className="text-brand-gold">{progress.a2.data.output} → {progress?.b?.data?.input ?? 36} candidates for hard filters</span>
+              <span className="text-brand-gold">{progress.a2.data.output} → {progress?.b?.data?.input ?? 45} candidates for hard filters</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
@@ -1155,36 +1155,80 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['c_narrow'] && progress?.a2 && (
           <div className="border-t border-border bg-bg-row p-3">
-            <p className="text-text-muted text-xs mb-2">
-              <span className="text-text-primary font-bold">What this does:</span>{' '}After pre-scoring all {progress.a2.data.output} survived tickers, the pipeline selects only the top-scoring candidates to run through the expensive hard filter checks. Formula: limit × 4 candidates (9 final trades × 4 = 36). This prevents wasting time filtering tickers that would never rank high enough to be selected anyway.
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step C makes a strategic cut before running the hard filters in Step D.
+              </p>
+              <div className="p-2 bg-bg-card rounded border border-border">
+                <p className="text-text-primary font-bold mb-1">The Rule:</p>
+                <p className="text-brand-gold font-mono">
+                  Keep top (9 final trades × 5) = 45 candidates by Pre-Score
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['Why cut here?',
+                   'The hard filters in Step D check each ticker\'s market cap, borrow rate, and earnings date. Running those checks on all survivors takes time. Step C sends only the highest-scoring candidates forward — no point checking tickers that can\'t make the final cut anyway.'],
+                  ['Why × 5?',
+                   'We overshoot the final target of 9 on purpose. Some tickers will fail hard filters in Step D, get eliminated by the quality floor in Step H, or hit the sector cap. Keeping 45 instead of 9 ensures we always have enough survivors to fill the final 9 spots.'],
+                  ['What gets cut?',
+                   'Every ticker ranked below position 45. Not because they failed a rule — because higher-scoring tickers exist. If you ranked 46th or lower, you are out. The cutoff score is shown in the table below.'],
+                ].map(([field, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-32 shrink-0">
+                      {field}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-text-muted">
+                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step D runs 5 hard rules against the top 45.
+              </p>
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              ALL TICKERS RANKED ({(progress?.a2?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
             </p>
-            <div className="overflow-y-auto" style={{maxHeight: '200px'}}>
+            <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
-                    <th className="text-right py-1 pr-3">IV RANK</th>
-                    <th className="text-right py-1 pr-3">LIQUIDITY</th>
+                    <th className="text-right py-1 pr-3">RANK</th>
+                    <th className="text-right py-1 pr-3">CUTOFF</th>
                     <th className="text-left py-1">STATUS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
-                    const nonExcluded = (progress.a2.data.tickers ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
-                    const topN = progress?.b?.data?.input ?? 36;
+                    const nonExcluded = (progress?.a2?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
+                    const topN = progress?.b?.data?.input ?? 45;
+                    const cutoffScore = nonExcluded[topN - 1]?.pre_score ?? '—';
                     return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                       const selected = i < topN;
                       return (
                         <tr key={t.symbol} className="border-b border-border/50">
-                          <td className="py-1 pr-3 text-text-muted">{i + 1}</td>
+                          <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                           <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                          <td className="py-1 pr-3 text-right text-brand-gold">{t.pre_score}</td>
-                          <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
-                          <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${selected ? 'text-brand-gold' : 'text-text-muted'}`}>
+                            {t.pre_score}
+                          </td>
+                          <td className="py-1 pr-3 text-right text-text-muted">
+                            #{i+1}
+                          </td>
+                          <td className="py-1 pr-3 text-right text-text-muted">
+                            {cutoffScore}
+                          </td>
                           <td className={`py-1 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
-                            {selected ? '✓ Selected for hard filters' : `✗ Dropped — ranked #${i + 1}, below top ${topN} cutoff`}
+                            {selected
+                              ? `✓ Ranked #${i+1} — moves to hard filters`
+                              : `✗ Ranked #${i+1} — below top ${topN} cutoff (score ${t.pre_score} vs cutoff ${cutoffScore})`
+                            }
                           </td>
                         </tr>
                       );
