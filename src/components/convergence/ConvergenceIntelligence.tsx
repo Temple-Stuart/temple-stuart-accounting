@@ -969,6 +969,50 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
+      {/* Step A2 */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a2')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP A2</span>
+            <span className="text-text-secondary">Pre-Filter</span>
+            {progress?.a2 ? (
+              <span className="text-brand-red">
+                {progress.a2.data.input} → {progress.a2.data.output} survived
+                {(progress.a2.data.excluded as number) > 0 && ` (${progress.a2.data.excluded} excluded)`}
+              </span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['a2'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['a2'] && progress?.a2 && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            <div className="text-text-muted">Formula: Pre-Score = (IV Rank × 60%) + (Liquidity × 40%). Tickers scoring below liquidity threshold are excluded before expensive data fetching begins.</div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <table className="w-full text-[10px]">
+                <thead><tr className="text-text-muted border-b border-border">
+                  <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">PRE-SCORE</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">LIQUIDITY</th><th className="text-left py-1 px-1">WHAT HAPPENED</th>
+                </tr></thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(progress.a2.data.tickers as any[] ?? []).map((t: any, i: number) => (
+                    <tr key={t.symbol} className="border-b border-border/50">
+                      <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                      <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                      <td className="py-0.5 px-1 text-right">{t.pre_score}</td>
+                      <td className="py-0.5 px-1 text-right">{t.iv_rank ?? '—'}</td>
+                      <td className="py-0.5 px-1 text-right">{t.liquidity ?? '—'}/5</td>
+                      <td className={`py-0.5 px-1 ${t.excluded ? 'text-brand-red' : 'text-brand-green'}`}>{t.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Step B */}
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('b')}>
@@ -1045,8 +1089,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['c'] ? '▲' : '▼'}</span>
         </div>
         {expanded['c'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row text-text-muted">
-            Finnhub /stock/peers called for each survivor. Symbols grouped by industry peers for relative scoring in Step F.
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            <div className="text-text-muted">Each stock is compared against similar companies — not the whole market. If AAPL&apos;s IV is high, we check: is it high vs other Tech stocks? This prevents sector bias in scoring.</div>
+            {progress?.c && (
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">PEER GROUP</th><th className="text-right py-1 px-1">PEERS</th><th className="text-left py-1 px-1">GROUP TYPE</th>
+                  </tr></thead>
+                  <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {(progress.c.data.groups as any[] ?? []).map((g: any, i: number) => (
+                      <tr key={g.symbol} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{g.symbol}</td>
+                        <td className="py-0.5 px-1 text-text-secondary">{g.peer_group}</td>
+                        <td className="py-0.5 px-1 text-right">{g.peer_count}</td>
+                        <td className="py-0.5 px-1 text-text-muted">{g.group_type}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1146,7 +1211,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['f'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row">
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            {progress?.f?.data?.weights && (
+              <div className="p-2 bg-bg-card rounded text-[10px]">
+                <span className="text-text-muted">Weights used (regime: <span className="text-brand-gold">{progress.f.data.regime as string}</span>): </span>
+                Vol Edge {(progress.f.data.weights as any).vol_edge}% · Quality {(progress.f.data.weights as any).quality}% · Regime {(progress.f.data.weights as any).regime}% · Info Edge {(progress.f.data.weights as any).info_edge}%
+              </div>
+            )}
             <div style={{ maxHeight: 200, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
                 <thead><tr className="text-text-muted border-b border-border">
