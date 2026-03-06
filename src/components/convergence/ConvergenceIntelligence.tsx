@@ -1595,71 +1595,89 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['e'] && (
           <div className="border-t border-border bg-bg-row p-3">
-            <p className="text-text-muted text-xs mb-2">
-              <span className="text-text-primary font-bold">What this step does:</span>
-              {' '}Fetches institutional-grade data for each of the {eData?.tickers?.length ?? 18} selected tickers from 8 sources in parallel. Every data point below is sourced from a real API — nothing estimated.
-            </p>
-            {(eData?.data_gaps ?? []).length > 0 && (
-              <div className="mb-2">
-                {(eData.data_gaps).map((g: string, i: number) => (
-                  <div key={i} className="text-brand-red text-xs">⚠ {g}</div>
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step G pulls institutional-grade data on each of the top{' '}
+                {progress?.e?.data?.tickers?.length ?? 18} finalists. IV rank tells you options are expensive. It does not tell you WHY. This step answers that question.
+              </p>
+              <p className="text-text-muted">
+                Is this company about to miss earnings? Are insiders selling? Are analysts downgrading it? That context changes everything. A high IV with strong fundamentals is a very different trade than a high IV with insiders dumping shares.
+              </p>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['1. Earnings History', 'Finnhub — 46 quarters of actual vs estimated EPS. Beat rate tells you how often this company delivers on expectations. 85% beat rate is a very different risk than 40%.'],
+                  ['2. Analyst Ratings', 'Finnhub — Current Buy/Hold/Sell consensus from Wall Street analysts. 32 Buy ratings vs 0 Sell is a meaningful signal about institutional conviction.'],
+                  ['3. Insider Sentiment', 'Finnhub — MSPR score tracking whether company executives are net buying or net selling their own stock. Insiders know the company better than anyone. Net selling is a warning.'],
+                  ['4. News Sentiment', 'Finnhub — 7-day sentiment score across all recent news. Captures market narrative momentum that does not show up in price yet.'],
+                  ['5. Institutional Ownership', 'Finnhub — Number of institutional holders. High ownership means the stock is well-researched and widely held — reduces idiosyncratic risk.'],
+                  ['6. Earnings Quality Score', 'Finnhub — Measures whether reported earnings reflect real cash generation or accounting adjustments. High score means the profits are real.'],
+                  ['7. P/E Ratio', 'Finnhub — Price-to-earnings ratio. Used in peer comparison in Step H. Context for whether the stock is priced at a premium or discount vs peers.'],
+                  ['8. Revenue Breakdown', 'Finnhub — Segment-level revenue. Shows where the company actually makes its money.'],
+                  ['9. SEC Filings', 'SEC EDGAR — Confirms the company is current on regulatory filings. A company behind on SEC filings is a compliance risk.'],
+                  ['10. 10-K Business Description', 'SEC EDGAR — Plain-text description of what the company does. Used to assign peer groups when Finnhub peer data is insufficient.'],
+                ].map(([source, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-56 shrink-0">{source}</span>
+                    <span className="text-text-muted">{explanation}</span>
+                  </div>
                 ))}
               </div>
-            )}
-            <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
-              <table className="w-full text-xs">
+              <p className="text-text-muted">
+                All data sourced live from Finnhub and SEC EDGAR. Nothing estimated. Step H uses all of this to compute the 4-Gate Score.
+              </p>
+              {progress?.e?.data?.data_gaps?.length > 0 && (
+                <div className="p-2 bg-bg-card rounded border border-brand-red/30">
+                  <p className="text-brand-red font-bold text-xs mb-1">DATA GAPS DETECTED</p>
+                  {(progress?.e?.data?.data_gaps ?? []).map((gap: string, i: number) => (
+                    <p key={i} className="text-brand-red text-xs">⚠ {gap}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              {progress?.e?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.e?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
+              {progress?.e?.data?.finnhub_errors > 0 && (
+                <span className="text-brand-red ml-2">⚠ {progress?.e?.data?.finnhub_errors} ERRORS</span>
+              )}
+            </p>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
                 <thead>
-                  <tr className="text-text-muted border-b border-border text-[10px]">
-                    <th className="text-left py-1 pr-2">#</th>
-                    <th className="text-left py-1 pr-2">SYMBOL</th>
-                    <th className="text-right py-1 pr-2">EARNINGS QTR</th>
-                    <th className="text-right py-1 pr-2">BEAT RATE</th>
-                    <th className="text-left py-1 pr-2">ANALYST</th>
-                    <th className="text-right py-1 pr-2">INSIDER MSPR</th>
-                    <th className="text-right py-1 pr-2">NEWS SENT</th>
-                    <th className="text-right py-1 pr-2">INST HOLDERS</th>
-                    <th className="text-right py-1 pr-2">P/E</th>
-                    <th className="text-left py-1">EQ</th>
+                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                    <th className="text-left py-1 pr-3">#</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">qtrs</span></th>
+                    <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span></th>
+                    <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span></th>
+                    <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span></th>
+                    <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span></th>
+                    <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span></th>
+                    <th className="text-right py-1 pr-3">EQ<br/><span className="font-normal text-[9px]">quality</span></th>
+                    <th className="text-right py-1 pr-3">P/E</th>
+                    <th className="text-left py-1">SEC</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(eData?.tickers ?? []).map((t: any, i: number) => (
-                    <tr key={t.symbol} className="border-b border-border/50">
-                      <td className="py-1 pr-2 text-text-muted">{i+1}</td>
-                      <td className="py-1 pr-2 font-bold">{t.symbol}</td>
-                      <td className="py-1 pr-2 text-right">{t.earnings_quarters ?? '—'}</td>
-                      <td className={`py-1 pr-2 text-right ${
-                        t.beat_rate >= 60 ? 'text-brand-green'
-                        : t.beat_rate >= 40 ? 'text-brand-gold'
-                        : t.beat_rate != null ? 'text-brand-red'
-                        : 'text-text-muted'
-                      }`}>
-                        {t.beat_rate != null ? `${t.beat_rate}%` : '—'}
-                      </td>
-                      <td className="py-1 pr-2 text-text-muted text-[10px]">{t.analyst_rating ?? '—'}</td>
-                      <td className={`py-1 pr-2 text-right ${
-                        t.insider_sentiment > 0 ? 'text-brand-green'
-                        : t.insider_sentiment < 0 ? 'text-brand-red'
-                        : 'text-text-muted'
-                      }`}>
-                        {t.insider_sentiment != null ? t.insider_sentiment.toFixed(3) : '—'}
-                      </td>
-                      <td className={`py-1 pr-2 text-right ${
-                        t.news_sentiment > 0.1 ? 'text-brand-green'
-                        : t.news_sentiment < -0.1 ? 'text-brand-red'
-                        : 'text-text-muted'
-                      }`}>
-                        {t.news_sentiment != null ? t.news_sentiment.toFixed(2) : '—'}
-                      </td>
-                      <td className="py-1 pr-2 text-right">{t.institutional_holders ?? '—'}</td>
-                      <td className="py-1 pr-2 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
-                      <td className={`py-1 ${
-                        t.earnings_quality === 'available' ? 'text-brand-green' : 'text-brand-red'
-                      }`}>
-                        {t.earnings_quality === 'available' ? '✓' : '✗'}
-                      </td>
-                    </tr>
-                  ))}
+                  {(progress?.e?.data?.tickers ?? []).map((t: any, i: number) => {
+                    const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
+                    const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
+                    const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
+                    return (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                        <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                        <td className="py-1 pr-3 text-right">{t.earnings_quarters ?? '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
+                        <td className="py-1 pr-3 text-text-muted">{t.analyst_rating ?? '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.earnings_quality === 'available' ? 'text-brand-green' : 'text-brand-red'}`}>{t.earnings_quality === 'available' ? '✓' : '✗'}</td>
+                        <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
+                        <td className="py-1 text-text-muted">SEC</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
