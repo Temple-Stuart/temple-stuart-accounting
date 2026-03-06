@@ -884,14 +884,24 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
   const rankings = result?.rankings;
   const rejections = result?.rejection_reasons ?? {};
 
-  const filterRows = hf?.filters_applied?.map(
+  // Unified data accessors: prefer live progress, fall back to final result
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bData: any = progress?.b?.data ?? (result ? { input: ps?.total_universe, output: hf?.output_count, filters: hf?.filters_applied, survivors: hf?.survivors } : null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const eData: any = progress?.e?.data ?? (result ? { finnhub_calls: ps?.finnhub_calls_made, finnhub_errors: ps?.finnhub_errors, data_gaps: result.data_gaps } : null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fData: any = progress?.f?.data ?? (result ? { scored: ps?.scored, rankings: [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])] } : null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const gData: any = progress?.g?.data ?? (result ? { trade_cards: ps?.total_trade_cards, top_9: rankings?.top_9?.map((r: any) => r.symbol), rejections: result.rejection_reasons } : null); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const filterRows = (bData?.filters ?? []).map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (f: any) => ({
       name: f.filter,
       dropped: f.failed,
       passed: f.passed,
     })
-  ) ?? [];
+  );
 
   const toggle = (key: string) =>
     setExpanded(e => ({ ...e, [key]: !e[key] }));
@@ -957,8 +967,8 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
               </div>
             ))}
             <div className="pt-1 text-text-muted">
-              Survivors: {hf?.survivors?.slice(0, 10).join(', ')}
-              {(hf?.survivors?.length ?? 0) > 10 ? ` +${hf.survivors.length - 10} more` : ''}
+              Survivors: {bData?.survivors?.slice(0, 10).join(', ')}
+              {(bData?.survivors?.length ?? 0) > 10 ? ` +${bData.survivors.length - 10} more` : ''}
             </div>
           </div>
         )}
@@ -999,8 +1009,8 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
         {expanded['e'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
             <div>Earnings history · Financials · Insider transactions · Institutional ownership · Revenue breakdown · SEC filings · FinBERT sentiment · FRED macro (14 series)</div>
-            {(result.data_gaps ?? []).length > 0 && (
-              <div className="text-brand-red pt-1">Data gaps: {result.data_gaps.join(', ')}</div>
+            {(eData?.data_gaps ?? []).length > 0 && (
+              <div className="text-brand-red pt-1">Data gaps: {eData.data_gaps.join(', ')}</div>
             )}
           </div>
         )}
@@ -1023,10 +1033,7 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
         {expanded['f'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {([...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])].length > 0
-              ? [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])]
-              : (progress?.f?.data?.rankings ?? [])
-            ).map((r: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
+            {(fData?.rankings ?? []).map((r: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <div key={r.symbol} className="flex justify-between">
                 <span className="font-bold text-text-primary">{r.symbol}</span>
                 <span className="text-text-muted">
@@ -1055,11 +1062,11 @@ function PipelineFlowPanel({ result, progress }: { result: any; progress?: Recor
         {expanded['g'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {(rankings?.top_9 ?? []).map((r: any) => {
-              const rej = rejections[r.symbol];
+            {(gData?.top_9 ?? []).map((symbol: string) => {
+              const rej = gData?.rejections?.[symbol];
               return (
-                <div key={r.symbol} className="flex justify-between">
-                  <span className="font-bold text-text-primary">{r.symbol}</span>
+                <div key={symbol} className="flex justify-between">
+                  <span className="font-bold text-text-primary">{symbol}</span>
                   <span className={rej?.length > 0 ? 'text-brand-red' : 'text-brand-green'}>
                     {rej?.length > 0 ? rej[0].reason : '✓ strategy generated'}
                   </span>
