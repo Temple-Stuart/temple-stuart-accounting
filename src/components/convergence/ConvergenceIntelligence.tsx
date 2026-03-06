@@ -1485,37 +1485,91 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['d'] ? '▲' : '▼'}</span>
         </div>
         {expanded['d'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            <div className="text-text-muted">Pre-score formula: 40% × IV Percentile + 30% × IV-HV Spread + 30% × Liquidity Rating</div>
-            <p className="text-text-muted text-xs mb-2">
-              <span className="text-text-primary font-bold">Why top {progress?.d?.data?.candidates ?? 18}?</span>{' '}
-              The pipeline limits expensive Finnhub API calls to the highest pre-scoring tickers only. Each ticker requires ~8 API calls (earnings, financials, insider data, etc). Running all {progress?.b?.data?.output ?? '?'} survivors would take too long and cost too many API credits.
-            </p>
-            {(progress?.d?.data?.pre_scores ?? []).length > 0 ? (
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-right py-1 px-1">RANK</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">PRE-SCORE</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">IV-HV SPREAD</th><th className="text-right py-1 px-1">LIQUIDITY</th><th className="text-left py-1 px-1">STATUS</th>
-                  </tr></thead>
-                  <tbody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {(progress?.d?.data?.pre_scores ?? []).map((r: any, i: number) => (
-                      <tr key={r.symbol} className="border-b border-border/50 hover:bg-bg-card">
-                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
-                        <td className="py-0.5 px-1 text-right text-brand-gold">{r.pre_score?.toFixed(1) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{r.ivp?.toFixed(0) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{r.iv_hv_spread?.toFixed(1) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right">{r.liquidity?.toFixed(0) ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-brand-green">✓ Selected</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step F re-scores all survivors on a richer formula than Step B. Step B used 2 data points to cut 500 stocks fast. Now we have {progress?.d?.data?.total ?? '?'} survivors and can be more precise.
+              </p>
+              <div className="p-2 bg-bg-card rounded border border-border">
+                <p className="text-text-primary font-bold mb-1">The Formula:</p>
+                <p className="text-brand-gold font-mono">
+                  Pre-Score = (IV Percentile × 40%) + (IV-HV Spread × 30%) + (Liquidity × 30%)
+                </p>
               </div>
-            ) : (
-              <div className="text-text-muted">{progress?.d?.data?.candidates ?? 0} candidates selected for enrichment.</div>
-            )}
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['IV Percentile (40% weight)',
+                   'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. This is the primary signal — high percentile means there is premium to sell.'],
+                  ['IV-HV Spread (30% weight)',
+                   'The difference between Implied Volatility (what the market expects) and Historical Volatility (what actually happened). When IV is much higher than HV, options are overpriced relative to realized movement. That gap is the edge we are selling.'],
+                  ['Liquidity Rating (30% weight)',
+                   'TastyTrade\'s 1-5 score for how tradeable the options are. Weighted lower here because Step D already eliminated the worst offenders. Still required — a great IV setup is worthless if you can\'t execute the trade.'],
+                ].map(([field, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-56 shrink-0">
+                      {field}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-text-muted">
+                The top{' '}
+                <span className="text-text-primary font-bold">{progress?.d?.data?.candidates ?? 18}</span>
+                {' '}by score move to Step G for full institutional data enrichment. Each ticker in Step G requires multiple Finnhub API calls — earnings history, insider activity, analyst ratings, SEC filings. We only run those calls on the highest-scoring candidates. The rest are ranked out — not rule-failed.
+              </p>
+              <p className="text-text-muted">
+                The calculation for every ticker is shown below. You can verify every number yourself. Step G hits 8 data sources simultaneously for each finalist.
+              </p>
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              ALL {progress?.d?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.d?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
+            </p>
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                    <th className="text-left py-1 pr-3">RANK</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">IV%<br/><span className="font-normal text-[9px]">×40%</span></th>
+                    <th className="text-right py-1 pr-3">IV-HV<br/><span className="font-normal text-[9px]">×30%</span></th>
+                    <th className="text-right py-1 pr-3">LIQ<br/><span className="font-normal text-[9px]">×30%</span></th>
+                    <th className="text-left py-1 pr-3">CALCULATION</th>
+                    <th className="text-right py-1 pr-3">SCORE</th>
+                    <th className="text-left py-1">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(progress?.d?.data?.pre_scores ?? []).map((t: any) => {
+                    const ivpC = ((t.ivp ?? 0) * 0.4).toFixed(1);
+                    const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
+                    const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
+                    return (
+                      <tr key={t.symbol} className={`border-b border-border/50 ${!t.selected ? 'opacity-60' : ''}`}>
+                        <td className="py-1 pr-3 text-text-muted">#{t.rank}</td>
+                        <td className={`py-1 pr-3 font-bold ${t.selected ? 'text-brand-green' : 'text-text-muted'}`}>{t.symbol}</td>
+                        <td className="py-1 pr-3 text-right">{t.ivp ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.iv_hv_spread ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
+                        <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
+                          ({t.ivp ?? 0}×40%) + ({t.iv_hv_spread ?? 0}×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC} + {ivhvC} + {liqC}
+                        </td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : 'text-text-muted'}`}>{t.pre_score}</td>
+                        <td className={`py-1 ${t.selected ? 'text-brand-green' : 'text-brand-red'}`}>
+                          {t.selected
+                            ? '✓ Selected for enrichment'
+                            : `✗ ${t.reason?.replace('✗ ', '') ?? 'Ranked out'}`
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
