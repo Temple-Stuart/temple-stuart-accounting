@@ -1390,7 +1390,7 @@ function FilteredResultsSection({
 
 export default function ConvergenceIntelligence() {
   // Batch scan state
-  const [universe, setUniverse] = useState('popular');
+  const [universe, setUniverse] = useState('sp500');
   const [scanning, setScanning] = useState(false);
   const [batchData, setBatchData] = useState<BatchResponse | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -1652,23 +1652,15 @@ export default function ConvergenceIntelligence() {
               disabled={scanning || enriching}
               className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50"
             >
-              <optgroup label="Indices">
-                <option value="popular">Popular (50)</option>
-                <option value="megacap">Mega Cap (30)</option>
-                <option value="nasdaq100">Nasdaq 100</option>
-                <option value="dow30">Dow Jones (30)</option>
-                <option value="sp500">S&amp;P 500</option>
-              </optgroup>
-              <optgroup label="ETFs">
-                <option value="etfs">ETFs (25)</option>
-              </optgroup>
-              <optgroup label="Sectors">
-                <option value="tech">Tech</option>
-                <option value="finance">Finance</option>
-                <option value="energy">Energy</option>
-                <option value="healthcare">Healthcare</option>
-                <option value="retail">Retail Favorites</option>
-              </optgroup>
+              <option value="sp500">S&amp;P 500</option>
+              <option value="nasdaq100">Nasdaq 100</option>
+              <option value="russell2000">Russell 2000</option>
+              <option value="sp400">S&amp;P 400 MidCap</option>
+              <option value="dow30">Dow Jones (30)</option>
+              <option value="sp600">S&amp;P 600 SmallCap</option>
+              <option value="wilshire5000">Wilshire 5000</option>
+              <option value="msciusa">MSCI USA</option>
+              <option value="russell1000">Russell 1000</option>
             </select>
             <button
               onClick={scanMarket}
