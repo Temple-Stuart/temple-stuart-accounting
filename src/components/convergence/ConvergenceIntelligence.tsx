@@ -1054,30 +1054,84 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['a2'] ? '▲' : '▼'}</span>
         </div>
         {expanded['a2'] && progress?.a2 && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
-            <div className="text-text-muted">Formula: Pre-Score = (IV Rank × 60%) + (Liquidity × 40%). Tickers scoring below liquidity threshold are excluded before expensive data fetching begins.</div>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-              <table className="w-full text-[10px]">
-                <thead><tr className="text-text-muted border-b border-border">
-                  <th className="text-right py-1 px-1">#</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">PRE-SCORE</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">LIQUIDITY</th><th className="text-left py-1 px-1">WHAT HAPPENED</th>
-                </tr></thead>
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Step B scores every ticker from Step A using two of the 15 data points we just pulled.
+              </p>
+              <div className="p-2 bg-bg-card rounded border border-border">
+                <p className="text-text-primary font-bold mb-1">The Formula:</p>
+                <p className="text-brand-gold font-mono">
+                  Pre-Score = (IV Rank × 60%) + (Liquidity Rating × 40%)
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['IV Rank (60% weight)',
+                   'Is this stock\'s options pricing elevated right now? Weighted highest because high IV is the core condition for selling premium. No IV edge = no trade.'],
+                  ['Liquidity Rating (40% weight)',
+                   'Can we actually trade this stock\'s options without losing money on the spread? A great IV setup is useless if the bid-ask spread eats your profit.'],
+                ].map(([field, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-56 shrink-0">
+                      {i+1}. {field}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-text-muted">
+                <span className="text-brand-red font-bold">Eliminated immediately:</span>
+                {' '}Any stock with a Liquidity Rating below 2/5. Low liquidity means the options market is too thin — wide spreads, hard to exit, unpredictable fills.
+              </p>
+              <p className="text-text-muted">
+                Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step C uses these scores to narrow the field.
+              </p>
+            </div>
+            <p className="text-text-muted text-xs font-bold mb-1">
+              ALL TICKERS SCORED ({(progress?.a2?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
+            </p>
+            <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 pr-3">#</th>
+                    <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">IV RANK</th>
+                    <th className="text-right py-1 pr-3">LIQUIDITY</th>
+                    <th className="text-left py-1 pr-3">CALCULATION</th>
+                    <th className="text-right py-1 pr-3">PRE-SCORE</th>
+                    <th className="text-left py-1">STATUS</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(progress.a2.data.tickers as any[] ?? []).map((t: any, i: number) => (
-                    <tr key={t.symbol} className="border-b border-border/50">
-                      <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
-                      <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
-                      <td className="py-0.5 px-1 text-right">{t.pre_score}</td>
-                      <td className="py-0.5 px-1 text-right">{t.iv_rank ?? '—'}</td>
-                      <td className="py-0.5 px-1 text-right">{t.liquidity ?? '—'}/5</td>
-                      <td className={`py-0.5 px-1 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
-                        {t.excluded && t.market_cap && (
-                          <span className="text-text-muted text-[10px] block">Cap: ${(t.market_cap / 1e9).toFixed(1)}B · Liq: {t.liquidity ?? '—'}/5 · β: {t.beta?.toFixed(2) ?? '—'}</span>
-                        )}
-                        {t.reason}
-                      </td>
-                    </tr>
-                  ))}
+                  {(progress?.a2?.data?.tickers as any[] ?? []).map((t: any, i: number) => {
+                    const ivComponent = ((t.iv_rank ?? 0) * 0.6).toFixed(1);
+                    const liqComponent = (((t.liquidity ?? 0) / 5) * 100 * 0.4).toFixed(1);
+                    return (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                        <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                        <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
+                        <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
+                          ({t.iv_rank ?? 0} × 60%) + ({t.liquidity ?? 0}/5 × 100 × 40%) = {ivComponent} + {liqComponent}
+                        </td>
+                        <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
+                        <td className={`py-1 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
+                          {t.excluded
+                            ? `✗ ${t.exclusion_reason ?? 'Liquidity < 2/5'}`
+                            : t.reason?.startsWith('⚠')
+                            ? t.reason
+                            : '✓ Passed'
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
