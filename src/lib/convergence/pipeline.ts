@@ -124,53 +124,6 @@ export interface PipelineResult {
 
 // ===== SYMBOL UNIVERSE (same lists as scanner/route.ts) =====
 
-const POPULAR_SYMBOLS = [
-  'SPY','QQQ','IWM','AAPL','MSFT','GOOGL','AMZN','TSLA','NVDA','META',
-  'AMD','NFLX','JPM','BAC','GS','XOM','CVX','PFE','JNJ','UNH',
-  'DIS','BA','COST','HD','LOW','CRM','ORCL','ADBE','INTC','MU',
-  'COIN','MARA','SQ','SHOP','SNAP','PLTR','SOFI','RIVN','LCID','NIO',
-  'ARM','SMCI','AVGO','MRVL','PANW','CRWD','NET','DKNG','ABNB','UBER',
-];
-
-const MEGA_CAP = [
-  'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','BRK.B','AVGO','LLY',
-  'JPM','V','WMT','MA','UNH','XOM','COST','HD','PG','JNJ',
-  'ORCL','BAC','NFLX','ABBV','CRM','AMD','CVX','MRK','KO','PEP',
-];
-
-const ETFS = [
-  'SPY','QQQ','IWM','DIA','XLF','XLE','XLK','XLV','XLI','XLP',
-  'XLU','XLB','XLRE','XLC','GDX','GDXJ','SLV','GLD','TLT','HYG',
-  'EEM','EFA','ARKK','VXX','KWEB',
-];
-
-const SECTOR_TECH = [
-  'AAPL','MSFT','NVDA','GOOGL','META','AMD','AVGO','CRM','ORCL','ADBE',
-  'INTC','MU','QCOM','TXN','AMAT','LRCX','KLAC','SNPS','CDNS','NOW',
-  'PANW','CRWD','NET','DDOG','ZS',
-];
-
-const SECTOR_FINANCE = [
-  'JPM','BAC','GS','MS','WFC','C','BLK','SCHW','AXP','USB',
-  'PNC','TFC','COF','ICE','CME','SPGI','MCO','MSCI','FIS','PYPL',
-  'SQ','COIN','SOFI','HOOD','AFRM',
-];
-
-const SECTOR_ENERGY = [
-  'XOM','CVX','COP','EOG','SLB','MPC','PSX','VLO','OXY','PXD',
-  'DVN','HES','FANG','HAL','BKR','KMI','WMB','OKE','TRGP','ET',
-];
-
-const SECTOR_HEALTHCARE = [
-  'UNH','JNJ','LLY','PFE','ABBV','MRK','TMO','ABT','DHR','BMY',
-  'AMGN','GILD','VRTX','REGN','ISRG','MDT','SYK','BDX','ZTS','CI',
-];
-
-const RETAIL_FAVORITES = [
-  'GME','AMC','PLTR','SOFI','RIVN','LCID','NIO','MARA','COIN','HOOD',
-  'BBBY','WISH','CLOV','BB','DKNG','RBLX','SNAP','PINS','ABNB','UBER',
-];
-
 const DOW_30 = [
   'AAPL','AMGN','AMZN','AXP','BA','CAT','CRM','CSCO','CVX','DIS',
   'GS','HD','HON','IBM','JNJ','JPM','KO','MCD','MMM','MRK',
@@ -242,11 +195,16 @@ const SP500 = [
   'XYZ','YUM','ZBH','ZBRA','ZTS',
 ];
 
+const RUSSELL_2000: string[] = []; // TODO: source from iShares IWM holdings
+const SP400: string[] = []; // TODO: source from iShares IJH holdings
+const SP600: string[] = []; // TODO: source from iShares IJR holdings
+const WILSHIRE_5000: string[] = []; // TODO: source from iShares ITOT holdings
+const MSCI_USA: string[] = []; // TODO: source from iShares ITOT holdings
+const RUSSELL_1000: string[] = []; // TODO: source from iShares IWB holdings
+
 function getAllSymbols(): string[] {
   return [...new Set([
-    ...POPULAR_SYMBOLS, ...MEGA_CAP, ...ETFS, ...SECTOR_TECH,
-    ...SECTOR_FINANCE, ...SECTOR_ENERGY, ...SECTOR_HEALTHCARE,
-    ...RETAIL_FAVORITES, ...DOW_30, ...NASDAQ_100, ...SP500,
+    ...SP500, ...NASDAQ_100, ...DOW_30,
   ])];
 }
 
@@ -337,18 +295,16 @@ function parseMarketMetrics(items: Record<string, unknown>[]): TTScannerData[] {
 
 function getUniverseSymbols(universe?: string): string[] {
   switch (universe) {
-    case 'popular': return [...POPULAR_SYMBOLS];
-    case 'megacap': return [...MEGA_CAP];
-    case 'nasdaq100': return [...NASDAQ_100];
-    case 'dow30': return [...DOW_30];
     case 'sp500': return [...SP500];
-    case 'etfs': return [...ETFS];
-    case 'tech': return [...SECTOR_TECH];
-    case 'finance': return [...SECTOR_FINANCE];
-    case 'energy': return [...SECTOR_ENERGY];
-    case 'healthcare': return [...SECTOR_HEALTHCARE];
-    case 'retail': return [...RETAIL_FAVORITES];
-    default: return getAllSymbols();
+    case 'nasdaq100': return [...NASDAQ_100];
+    case 'russell2000': return [...RUSSELL_2000];
+    case 'sp400': return [...SP400];
+    case 'dow30': return [...DOW_30];
+    case 'sp600': return [...SP600];
+    case 'wilshire5000': return [...WILSHIRE_5000];
+    case 'msciusa': return [...MSCI_USA];
+    case 'russell1000': return [...RUSSELL_1000];
+    default: return [...SP500];
   }
 }
 
