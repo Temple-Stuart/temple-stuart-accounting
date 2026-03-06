@@ -685,7 +685,47 @@ export async function runPipeline(
     })(),
   ]);
   console.log('[Pipeline] Steps E3-E11: All enrichment data fetched');
-  onProgress?.({ step: 'e', label: 'Data Enrichment', data: { finnhub_calls: finnhubResult.stats.calls_made, finnhub_errors: finnhubResult.stats.errors, data_gaps: dataGaps } });
+  onProgress?.({
+    step: 'e',
+    label: 'Data Enrichment',
+    data: {
+      finnhub_calls: finnhubResult.stats.calls_made,
+      finnhub_errors: finnhubResult.stats.errors,
+      data_gaps: dataGaps,
+      tickers: topSymbols.map(symbol => {
+        const fh = finnhubResult.data.get(symbol);
+        const earnings = fh?.earnings ?? [];
+        const beatCount = earnings.filter(
+          e => (e.actual ?? 0) > (e.estimate ?? 0)
+        ).length;
+        const recs = fh?.recommendations ?? [];
+        const latestRec = recs[0];
+        const insider = fh?.insiderSentiment ?? [];
+        const latestInsider = insider[0];
+        const news = newsSentimentMap.get(symbol);
+        const institutional = institutionalOwnershipMap.get(symbol);
+        const earningsQuality = earningsQualityMap.get(symbol);
+        return {
+          symbol,
+          earnings_quarters: earnings.length,
+          beat_rate: earnings.length > 0
+            ? Math.round(beatCount / earnings.length * 100)
+            : null,
+          analyst_rating: latestRec
+            ? `Buy:${latestRec.buy} Hold:${latestRec.hold} Sell:${latestRec.sell}`
+            : null,
+          insider_sentiment: latestInsider
+            ? latestInsider.mspr
+            : null,
+          news_sentiment: news?.sentiment_7d?.score ?? null,
+          institutional_holders: institutional?.topHolderCount ?? null,
+          earnings_quality: earningsQuality ? 'available' : 'missing',
+          pe_ratio: (fh?.fundamentals?.metric?.['peBasicExclExtraTTM'] as number) ?? null,
+          market_cap: (fh?.fundamentals?.metric?.['marketCapitalization'] as number) ?? null,
+        };
+      }),
+    }
+  });
 
   // Compute text-based peer groups from 10-K descriptions
   if (textProfiles.length >= 2) {
