@@ -379,9 +379,9 @@ export async function runPipeline(
   const preFilterExcluded = preFilterResults.filter(r => r.excluded);
   console.log(`[Pipeline] Step A2: ${preFilterIncluded.length} included, ${preFilterExcluded.length} excluded by pre-filter`);
 
-  // Use pre-filter to narrow the candidate set: take top (limit * 4) non-excluded
+  // Use pre-filter to narrow the candidate set: take top (limit * 5) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
-  const preFilterTopN = Math.min(limit * 4, preFilterIncluded.length);
+  const preFilterTopN = Math.min(limit * 5, preFilterIncluded.length);
   const preFilterCandidates = new Set(
     preFilterIncluded.slice(0, preFilterTopN).map(r => r.symbol)
   );
