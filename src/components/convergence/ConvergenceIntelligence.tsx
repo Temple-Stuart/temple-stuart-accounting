@@ -935,9 +935,36 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['a'] ? '▲' : '▼'}</span>
         </div>
         {expanded['a'] && (
-          <div className="px-8 py-2 text-text-muted border-t border-border bg-bg-row">
-            Universe scanned via TastyTrade market-metrics API. Batch size: 50.
-            Market open: {(ps?.market_open ?? progress?.a?.data?.market_open) ? 'YES — live Greeks' : 'NO — theoretical pricing'}
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            <div className="text-text-muted">
+              Universe scanned via TastyTrade market-metrics API. Batch size: 50.
+              Market open: {(ps?.market_open ?? progress?.a?.data?.market_open) ? 'YES — live Greeks' : 'NO — theoretical pricing'}
+            </div>
+            {(progress?.a?.data?.symbols ?? []).length > 0 ? (
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">IV RANK</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">HV30</th><th className="text-right py-1 px-1">LIQ</th><th className="text-right py-1 px-1">MKT CAP</th><th className="text-left py-1 px-1">SECTOR</th>
+                  </tr></thead>
+                  <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {(progress?.a?.data?.symbols ?? []).map((s: any) => (
+                      <tr key={s.symbol} className="border-b border-border/50 hover:bg-bg-card">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{s.symbol}</td>
+                        <td className="py-0.5 px-1 text-right">{s.ivRank?.toFixed(0) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{s.ivPercentile?.toFixed(0) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{s.hv30?.toFixed(1) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{s.liquidityRating ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{fmtMcap(s.marketCap)}</td>
+                        <td className="py-0.5 px-1 text-text-muted">{s.sector ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-text-muted">Symbol table loads on next scan.</div>
+            )}
           </div>
         )}
       </div>
@@ -957,23 +984,47 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['b'] ? '▲' : '▼'}</span>
         </div>
         {expanded['b'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {filterRows.map((f: any) => (
-              <div key={f.name} className="flex justify-between">
-                <span className="text-text-muted">{f.name}</span>
-                <span>
-                  <span className="text-brand-red">-{f.dropped} dropped</span>
-                  <span className="text-text-muted"> · </span>
-                  <span className="text-brand-green">{f.passed} passed</span>
-                </span>
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-3">
+            {/* Table 1: Filters Applied */}
+            <table className="w-full text-[10px]">
+              <thead><tr className="text-text-muted border-b border-border">
+                <th className="text-left py-1 px-1">FILTER</th><th className="text-right py-1 px-1">DROPPED</th><th className="text-right py-1 px-1">PASSED</th><th className="text-left py-1 px-1">THRESHOLD</th><th className="text-left py-1 px-1">WHAT HAPPENED</th>
+              </tr></thead>
+              <tbody>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {filterRows.map((f: any) => {
+                  const thresholdMap: Record<string, string> = { market_cap: '> $2B market cap', liquidity: '≥ 2/5 liquidity', liquidityRating: '≥ 2/5 liquidity', iv30: 'IV data required', borrow_rate: '< 50% borrow rate', borrowRate: '< 50% borrow rate', earnings: 'no earnings in 7d', no_earnings_7d: 'no earnings in 7d' };
+                  const threshold = thresholdMap[f.name] ?? f.name;
+                  return (
+                    <tr key={f.name} className="border-b border-border/50">
+                      <td className="py-0.5 px-1 font-bold text-text-primary">{f.name}</td>
+                      <td className="py-0.5 px-1 text-right text-brand-red">{f.dropped}</td>
+                      <td className="py-0.5 px-1 text-right text-brand-green">{f.passed}</td>
+                      <td className="py-0.5 px-1 text-text-muted">{threshold}</td>
+                      <td className="py-0.5 px-1">{f.dropped > 0 ? <span className="text-brand-red">{f.dropped} tickers dropped</span> : <span className="text-brand-green">all passed</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {/* Table 2: Survivors */}
+            <div>
+              <div className="text-text-muted font-bold mb-1">SURVIVORS ({bData?.survivors?.length ?? 0})</div>
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">REASON</th>
+                  </tr></thead>
+                  <tbody>
+                    {(bData?.survivors ?? []).map((sym: string) => (
+                      <tr key={sym} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{sym}</td>
+                        <td className="py-0.5 px-1 text-brand-green">✓ Passed all 5 filters</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-            <div className="pt-1 text-text-muted">
-              Survivors: {bData?.survivors?.length
-                ? bData.survivors.slice(0, 10).join(', ')
-                : 'none yet'}
-              {(bData?.survivors?.length ?? 0) > 10 ? ` +${bData.survivors.length - 10} more` : ''}
             </div>
           </div>
         )}
@@ -981,28 +1032,69 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
       {/* Step C */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP C</span>
-          <span className="text-text-secondary">Peer Grouping</span>
-          {progress?.b ? (
-            <span className="text-brand-green">Finnhub peer relationships mapped</span>
-          ) : (
-            <span className="text-text-muted animate-pulse">waiting...</span>
-          )}
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-text-secondary">Peer Grouping</span>
+            {progress?.b ? (
+              <span className="text-brand-green">Finnhub peer relationships mapped</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['c'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['c'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row text-text-muted">
+            Finnhub /stock/peers called for each survivor. Symbols grouped by industry peers for relative scoring in Step F.
+          </div>
+        )}
       </div>
 
       {/* Step D */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP D</span>
-          <span className="text-text-secondary">Pre-Score</span>
-          {(ps?.finnhub_fetched != null || progress?.d) ? (
-            <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
-          ) : (
-            <span className="text-text-muted animate-pulse">waiting...</span>
-          )}
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('d')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP D</span>
+            <span className="text-text-secondary">Pre-Score</span>
+            {(ps?.finnhub_fetched != null || progress?.d) ? (
+              <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['d'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['d'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            <div className="text-text-muted">Pre-score formula: 40% × IV Percentile + 30% × IV-HV Spread + 30% × Liquidity Rating</div>
+            {(progress?.d?.data?.pre_scores ?? []).length > 0 ? (
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-right py-1 px-1">RANK</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">PRE-SCORE</th><th className="text-right py-1 px-1">IV%</th><th className="text-right py-1 px-1">IV-HV SPREAD</th><th className="text-right py-1 px-1">LIQUIDITY</th><th className="text-left py-1 px-1">STATUS</th>
+                  </tr></thead>
+                  <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {(progress?.d?.data?.pre_scores ?? []).map((r: any, i: number) => (
+                      <tr key={r.symbol} className="border-b border-border/50 hover:bg-bg-card">
+                        <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
+                        <td className="py-0.5 px-1 text-right text-brand-gold">{r.pre_score?.toFixed(1) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{r.ivp?.toFixed(0) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{r.iv_hv_spread?.toFixed(1) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right">{r.liquidity?.toFixed(0) ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-brand-green">✓ Selected</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-text-muted">{progress?.d?.data?.candidates ?? 0} candidates selected for enrichment.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Step E */}
@@ -1025,10 +1117,15 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['e'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
-            <div>Earnings history · Financials · Insider transactions · Institutional ownership · Revenue breakdown · SEC filings · FinBERT sentiment · FRED macro (14 series)</div>
+          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-2">
+            <div className="text-text-muted">Earnings history · Financials · Insider transactions · Institutional ownership · Revenue breakdown · SEC filings · FinBERT sentiment · FRED macro (14 series)</div>
             {(eData?.data_gaps ?? []).length > 0 && (
-              <div className="text-brand-red pt-1">Data gaps: {eData.data_gaps.join(', ')}</div>
+              <div className="space-y-1">
+                <div className="text-text-muted font-bold">DATA GAPS</div>
+                {(eData.data_gaps as string[]).map((gap: string, i: number) => (
+                  <div key={i} className="text-brand-red">⚠ {gap}</div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -1049,16 +1146,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
         </div>
         {expanded['f'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {(fData?.rankings ?? []).map((r: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
-              <div key={r.symbol} className="flex justify-between">
-                <span className="font-bold text-text-primary">{r.symbol}</span>
-                <span className="text-text-muted">
-                  Vol {r.vol_edge?.toFixed(0) ?? '—'} · Qual {r.quality?.toFixed(0) ?? '—'} · Reg {r.regime?.toFixed(0) ?? '—'} · Info {r.info_edge?.toFixed(0) ?? '—'} · <span className={r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}>{r.composite?.toFixed(1) ?? '—'}</span>
-                </span>
-              </div>
-            ))}
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <table className="w-full text-[10px]">
+                <thead><tr className="text-text-muted border-b border-border">
+                  <th className="text-right py-1 px-1">RANK</th><th className="text-left py-1 px-1">SYMBOL</th><th className="text-right py-1 px-1">VOL</th><th className="text-right py-1 px-1">QUAL</th><th className="text-right py-1 px-1">REG</th><th className="text-right py-1 px-1">INFO</th><th className="text-right py-1 px-1">SCORE</th><th className="text-left py-1 px-1">STATUS</th>
+                </tr></thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(fData?.rankings ?? []).map((r: any, i: number) => (
+                    <tr key={r.symbol} className="border-b border-border/50 hover:bg-bg-card">
+                      <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                      <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
+                      <td className="py-0.5 px-1 text-right">{r.vol_edge?.toFixed(0) ?? '—'}</td>
+                      <td className="py-0.5 px-1 text-right">{r.quality?.toFixed(0) ?? '—'}</td>
+                      <td className="py-0.5 px-1 text-right">{r.regime?.toFixed(0) ?? '—'}</td>
+                      <td className="py-0.5 px-1 text-right">{r.info_edge?.toFixed(0) ?? '—'}</td>
+                      <td className={`py-0.5 px-1 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}`}>{r.composite?.toFixed(1) ?? '—'}</td>
+                      <td className="py-0.5 px-1">{i < 9 ? <span className="text-brand-green">✓ Selected for trade cards</span> : <span className="text-text-muted">Scored — below top 9 cutoff</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -1078,19 +1188,27 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['g'] ? '▲' : '▼'}</span>
         </div>
         {expanded['g'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row space-y-1">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {(gData?.top_9 ?? []).map((symbol: string) => {
-              const rej = gData?.rejections?.[symbol];
-              return (
-                <div key={symbol} className="flex justify-between">
-                  <span className="font-bold text-text-primary">{symbol}</span>
-                  <span className={rej?.length > 0 ? 'text-brand-red' : 'text-brand-green'}>
-                    {rej?.length > 0 ? rej[0].reason : '✓ strategy generated'}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <table className="w-full text-[10px]">
+                <thead><tr className="text-text-muted border-b border-border">
+                  <th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">STRATEGY</th><th className="text-left py-1 px-1">STATUS</th>
+                </tr></thead>
+                <tbody>
+                  {(gData?.top_9 ?? []).map((symbol: string) => {
+                    const rej = gData?.rejections?.[symbol];
+                    const hasRejection = rej?.length > 0;
+                    return (
+                      <tr key={symbol} className="border-b border-border/50 hover:bg-bg-card">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{symbol}</td>
+                        <td className="py-0.5 px-1 text-text-muted">{hasRejection ? rej[0].strategy ?? '—' : 'auto-selected'}</td>
+                        <td className="py-0.5 px-1">{hasRejection ? <span className="text-brand-red">✗ {rej[0].reason}</span> : <span className="text-brand-green">✓ Strategy generated</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
