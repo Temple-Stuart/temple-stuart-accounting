@@ -1262,29 +1262,74 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
         </div>
         {expanded['e'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row">
-            <div className="text-xs space-y-2">
-              <p className="text-text-muted">
-                <span className="text-text-primary font-bold">What this step does:</span>{' '}Fetches institutional-grade data for each of the {progress?.d?.data?.candidates ?? 18} selected tickers from 8 sources in parallel.
-              </p>
-              <div className="grid grid-cols-2 gap-1 text-text-muted">
-                <div>📊 46 quarters of earnings history</div>
-                <div>🏦 Institutional ownership %</div>
-                <div>💼 Insider buy/sell transactions</div>
-                <div>📈 Revenue breakdown by segment</div>
-                <div>📄 SEC filings (10-K, Form 4)</div>
-                <div>🤖 FinBERT news sentiment</div>
-                <div>🌍 FRED macro data (14 series)</div>
-                <div>💡 Earnings quality score</div>
+          <div className="border-t border-border bg-bg-row p-3">
+            <p className="text-text-muted text-xs mb-2">
+              <span className="text-text-primary font-bold">What this step does:</span>
+              {' '}Fetches institutional-grade data for each of the {eData?.tickers?.length ?? 18} selected tickers from 8 sources in parallel. Every data point below is sourced from a real API — nothing estimated.
+            </p>
+            {(eData?.data_gaps ?? []).length > 0 && (
+              <div className="mb-2">
+                {(eData.data_gaps).map((g: string, i: number) => (
+                  <div key={i} className="text-brand-red text-xs">⚠ {g}</div>
+                ))}
               </div>
-              {(eData?.data_gaps ?? []).length > 0 && (
-                <div className="pt-1">
-                  <span className="text-brand-red font-bold">Data gaps:</span>
-                  {(eData?.data_gaps ?? []).map((g: string, i: number) => (
-                    <div key={i} className="text-brand-red">⚠ {g}</div>
+            )}
+            <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-text-muted border-b border-border text-[10px]">
+                    <th className="text-left py-1 pr-2">#</th>
+                    <th className="text-left py-1 pr-2">SYMBOL</th>
+                    <th className="text-right py-1 pr-2">EARNINGS QTR</th>
+                    <th className="text-right py-1 pr-2">BEAT RATE</th>
+                    <th className="text-left py-1 pr-2">ANALYST</th>
+                    <th className="text-right py-1 pr-2">INSIDER MSPR</th>
+                    <th className="text-right py-1 pr-2">NEWS SENT</th>
+                    <th className="text-right py-1 pr-2">INST HOLDERS</th>
+                    <th className="text-right py-1 pr-2">P/E</th>
+                    <th className="text-left py-1">EQ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(eData?.tickers ?? []).map((t: any, i: number) => (
+                    <tr key={t.symbol} className="border-b border-border/50">
+                      <td className="py-1 pr-2 text-text-muted">{i+1}</td>
+                      <td className="py-1 pr-2 font-bold">{t.symbol}</td>
+                      <td className="py-1 pr-2 text-right">{t.earnings_quarters ?? '—'}</td>
+                      <td className={`py-1 pr-2 text-right ${
+                        t.beat_rate >= 60 ? 'text-brand-green'
+                        : t.beat_rate >= 40 ? 'text-brand-gold'
+                        : t.beat_rate != null ? 'text-brand-red'
+                        : 'text-text-muted'
+                      }`}>
+                        {t.beat_rate != null ? `${t.beat_rate}%` : '—'}
+                      </td>
+                      <td className="py-1 pr-2 text-text-muted text-[10px]">{t.analyst_rating ?? '—'}</td>
+                      <td className={`py-1 pr-2 text-right ${
+                        t.insider_sentiment > 0 ? 'text-brand-green'
+                        : t.insider_sentiment < 0 ? 'text-brand-red'
+                        : 'text-text-muted'
+                      }`}>
+                        {t.insider_sentiment != null ? t.insider_sentiment.toFixed(3) : '—'}
+                      </td>
+                      <td className={`py-1 pr-2 text-right ${
+                        t.news_sentiment > 0.1 ? 'text-brand-green'
+                        : t.news_sentiment < -0.1 ? 'text-brand-red'
+                        : 'text-text-muted'
+                      }`}>
+                        {t.news_sentiment != null ? t.news_sentiment.toFixed(2) : '—'}
+                      </td>
+                      <td className="py-1 pr-2 text-right">{t.institutional_holders ?? '—'}</td>
+                      <td className="py-1 pr-2 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
+                      <td className={`py-1 ${
+                        t.earnings_quality === 'available' ? 'text-brand-green' : 'text-brand-red'
+                      }`}>
+                        {t.earnings_quality === 'available' ? '✓' : '✗'}
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
