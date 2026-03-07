@@ -893,6 +893,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
   const fData: any = progress?.f?.data ?? (result ? { scored: ps?.scored, rankings: [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])] } : null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const gData: any = progress?.g?.data ?? (result ? { trade_cards: ps?.total_trade_cards, top_9: rankings?.top_9?.map((r: any) => r.symbol), rejections: result.rejection_reasons } : null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jData: any = progress?.j?.data ?? null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kData: any = progress?.k?.data ?? null;
 
   const filterRows = (bData?.filters ?? []).map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1926,6 +1930,166 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <p className="text-text-muted text-xs mt-3 italic">
               Step J fetches the live options chain for each of the final 9. Step K builds and scores strategy candidates. Step L is the trade card.
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Step J — Chain Fetch */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('j')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP J</span>
+            <span className="text-text-secondary">Chain Fetch</span>
+            {jData ? (
+              <span className="text-brand-green">{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['j'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['j'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <p className="text-text-secondary text-xs leading-relaxed mb-3">
+              TastyTrade REST API returns every available strike for the chosen expiration. A WebSocket then streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike simultaneously.
+            </p>
+            {jData?.tickers && (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-left py-1 px-1">EXPIRATION</th>
+                    <th className="text-right py-1 px-1">DTE</th>
+                    <th className="text-right py-1 px-1">STRIKES</th>
+                    <th className="text-left py-1 px-1">PRICE SOURCE</th>
+                  </tr></thead>
+                  <tbody>
+                    {jData.tickers.map((t: { symbol: string; expiration?: string; dte?: number; strikeCount?: number; priceSource?: string }) => {
+                      const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
+                      const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
+                      return (
+                        <tr key={t.symbol} className="border-b border-border/50">
+                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikeCount ?? '—'}</td>
+                          <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {jData && (
+              <p className="text-text-muted text-xs mt-3">
+                {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Step K — Strategy Scoring */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('k')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP K</span>
+            <span className="text-text-secondary">Strategy Scoring</span>
+            {kData ? (
+              <span className="text-brand-green">{kData.totalPassed} strategies passed all 3 gates</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['k'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['k'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {/* IV Rank tier system */}
+            <div className="space-y-2 mb-3">
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank above 50%</span> → premium selling strategies (Iron Condor, Put Credit Spread, Short Strangle).
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank 20–50%</span> → neutral strategies (Iron Condor, Put Credit Spread, Bull Call Spread).
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank below 20%</span> → debit strategies (Long Straddle, Long Strangle, Debit Spread).
+              </p>
+            </div>
+            {/* Gate explanations */}
+            <div className="space-y-2 mb-3">
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate A:</span> Strategy must have positive expected value. EV = P(full profit) × max profit + P(partial) × midpoint + P(full loss) × max loss.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate B:</span> Probability of profit must meet strategy-specific floor. Iron Condor ≥ 50%. Put Credit Spread ≥ 55%. Short Strangle ≥ 60%. Uses N(d2) breakeven method where available.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate C:</span> Credit strategies must collect at least $0.10/share. Debit strategies skip this gate.
+              </p>
+            </div>
+            {/* Scoring formula */}
+            <p className="text-text-secondary text-xs leading-relaxed mb-3">
+              <span className="font-bold text-text-primary">Survivors ranked by:</span> (EV/Risk × 50%) + (Theta Efficiency × 30%) + (Edge Ratio × 20%). Highest score = Strategy A.
+            </p>
+            {/* Per-ticker table */}
+            {kData?.tickers && (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-right py-1 px-1">BUILT</th>
+                    <th className="text-right py-1 px-1">GATE A ✗</th>
+                    <th className="text-right py-1 px-1">GATE B ✗</th>
+                    <th className="text-right py-1 px-1">GATE C ✗</th>
+                    <th className="text-right py-1 px-1">PASSED</th>
+                    <th className="text-left py-1 px-1">WINNER</th>
+                    <th className="text-right py-1 px-1">SCORE</th>
+                  </tr></thead>
+                  <tbody>
+                    {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null }) => (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strategiesBuilt ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateAFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateBFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateCFailed ?? 0}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
+                        <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Step L — Trade Cards */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('l')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP L</span>
+            <span className="text-text-secondary">Trade Cards</span>
+            <span className="text-brand-green">Trade cards built for the final 9</span>
+          </div>
+          <span className="text-text-muted">{expanded['l'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['l'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <p className="text-text-secondary text-xs leading-relaxed mb-3">
+              Each trade card below shows the full breakdown for one ticker — the 4-gate scores, the winning strategy, and all supporting data that led to this recommendation.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {(gData?.top_9 ?? []).map((sym: string) => (
+                <span key={sym} className="px-2 py-0.5 rounded bg-brand-green/10 text-brand-green text-[10px] font-bold font-mono">{sym}</span>
+              ))}
+            </div>
+            <p className="text-text-muted text-xs italic">Scroll down to see each card ↓</p>
           </div>
         )}
       </div>
