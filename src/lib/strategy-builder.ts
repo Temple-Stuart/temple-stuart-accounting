@@ -207,6 +207,7 @@ export interface StrategyCard {
   ev: number;                // expected value in dollars
   evPerRisk: number;         // EV per dollar risked
   hvPop: number | null;      // HV-adjusted PoP for credit strategies
+  compositeScore: number;    // edge-aware composite score used for ranking
 }
 
 export interface GenerateParams {
@@ -557,6 +558,7 @@ function buildCard(
     ev: 0,
     evPerRisk: 0,
     hvPop: null,
+    compositeScore: 0,
   };
 }
 
@@ -925,6 +927,9 @@ export function generateStrategies(params: GenerateParams): GenerateResult {
     const thetaEff = effectiveML > 0 ? Math.abs(card.thetaPerDay) / effectiveML * 100 : 0;
     return (card.evPerRisk * 50) + (thetaEff * 30) + (edgeRatio * 20);
   }
+
+  // Persist composite scores on each card
+  filtered.forEach(card => { card.compositeScore = Math.round(computeCompositeScore(card) * 1000) / 1000; });
 
   // Re-label sequentially based on strategies that actually generated
   filtered.forEach((card, i) => { card.label = String.fromCharCode(65 + i); });

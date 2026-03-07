@@ -4,7 +4,7 @@ import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
-import type { ChainFetchStats, ChainFetchResult } from './chain-fetcher';
+import type { ChainFetchStats, ChainFetchResult, PerTickerChainStats } from './chain-fetcher';
 import type { RejectionReason } from '@/lib/strategy-builder';
 import { fetchSentimentBatch } from './sentiment';
 import type { SentimentResult } from './sentiment';
@@ -925,6 +925,7 @@ export async function runPipeline(
   };
   let chainMarketOpen = true;
   let chainMarketNote: string | undefined;
+  let perTickerStats = new Map<string, PerTickerChainStats>();
 
   const marketStatus = isMarketOpen();
   if (!marketStatus.open) {
@@ -967,6 +968,7 @@ export async function runPipeline(
       const chainResult = await fetchChainAndBuildCards(chainInputs);
       chainStats = chainResult.stats;
       chainRejections = chainResult.rejections;
+      perTickerStats = chainResult.perTickerStats;
       chainMarketOpen = chainResult.marketOpen;
       chainMarketNote = chainResult.marketNote;
 
@@ -1030,6 +1032,35 @@ export async function runPipeline(
   } else {
     dataGaps.push('social_sentiment: XAI_API_KEY not configured — social sentiment disabled');
   }
+
+  const top9Syms = top9.map(r => r.symbol);
+
+  onProgress?.({ step: 'j', label: 'Chain Fetch', data: {
+    tickers: top9Syms.map(sym => ({
+      symbol: sym,
+      expiration: perTickerStats.get(sym)?.expiration,
+      dte: perTickerStats.get(sym)?.dte,
+      strikeCount: perTickerStats.get(sym)?.strikeCount,
+      priceSource: perTickerStats.get(sym)?.priceSource,
+    })),
+    totalStrikes: top9Syms.reduce((sum, sym) => sum + (perTickerStats.get(sym)?.strikeCount ?? 0), 0),
+    streamerSymbols: chainStats.streamer_symbols_subscribed,
+    greeksEvents: chainStats.greeks_events_received,
+  } });
+
+  onProgress?.({ step: 'k', label: 'Strategy Scoring', data: {
+    tickers: top9Syms.map(sym => ({
+      symbol: sym,
+      strategiesBuilt: perTickerStats.get(sym)?.strategiesBuilt,
+      gateAFailed: perTickerStats.get(sym)?.gateAFailed,
+      gateBFailed: perTickerStats.get(sym)?.gateBFailed,
+      gateCFailed: perTickerStats.get(sym)?.gateCFailed,
+      strategiesPassed: perTickerStats.get(sym)?.strategiesPassed,
+      winner: perTickerStats.get(sym)?.winner,
+      winnerScore: perTickerStats.get(sym)?.winnerScore,
+    })),
+    totalPassed: chainStats.total_trade_cards,
+  } });
 
   onProgress?.({ step: 'g', label: 'Trade Cards', data: { trade_cards: chainStats.total_trade_cards, top_9: top9.map(r => r.symbol), rejections: Object.fromEntries(chainRejections) } });
 
