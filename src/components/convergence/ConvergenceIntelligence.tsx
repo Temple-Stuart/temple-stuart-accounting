@@ -177,6 +177,199 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   );
 }
 
+// ── Ticker Chapter (mini-pipeline deep dive + TickerCard) ───────────
+
+function PriceSourceBadge({ source }: { source: string }) {
+  const colors: Record<string, string> = {
+    live: 'text-brand-green',
+    theo: 'text-brand-amber',
+    mixed: 'text-blue-500',
+    none: 'text-brand-red',
+  };
+  return <span className={`font-bold ${colors[source] ?? 'text-text-muted'}`}>{source}</span>;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function TickerChapter({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: {
+  detail: TickerDetail;
+  sentiment?: SocialSentimentData;
+  savedCards: Map<string, string>;
+  savingCards: Set<string>;
+  saveErrors: Map<string, string>;
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onRemove: (cardKey: string, savedId: string) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pipelineProgress: Record<string, any>;
+}) {
+  const sym = detail.symbol;
+
+  // Section 1: ranking data from step f
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rankings: any[] = pipelineProgress?.f?.data?.rankings ?? [];
+  const rankIdx = rankings.findIndex((r: { symbol: string }) => r.symbol === sym);
+  const rankRow = rankIdx >= 0 ? rankings[rankIdx] : null;
+
+  // Section 2: chain fetch data from step j
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const jTickers: any[] = pipelineProgress?.j?.data?.tickers ?? [];
+  const jRow = jTickers.find((t: { symbol: string }) => t.symbol === sym) ?? null;
+
+  // Section 3: strategy scoring from step k
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kTickers: any[] = pipelineProgress?.k?.data?.tickers ?? [];
+  const kRow = kTickers.find((t: { symbol: string }) => t.symbol === sym) ?? null;
+
+  const sectionHeader = 'text-[10px] uppercase tracking-wider font-bold text-brand-purple mb-1.5 mt-3';
+  const labelStyle = 'text-[11px] text-text-muted';
+  const valueStyle = 'text-[11px] font-mono text-text-primary';
+  const gateScore = (v: number) => v >= 50 ? 'text-brand-green font-bold' : 'text-brand-red font-bold';
+  const loadingMsg = (msg: string) => <div className="text-[11px] text-text-faint italic">{msg}</div>;
+
+  return (
+    <div>
+      {/* Mini-pipeline panel */}
+      <div className="bg-bg-terminal rounded-t border border-border px-5 py-4 font-mono">
+        <div className="text-sm font-black text-text-primary">{sym} — DEEP DIVE</div>
+        <div className="text-[10px] text-text-faint mt-0.5">
+          How this ticker traveled through the pipeline and why this trade was selected
+        </div>
+
+        {/* SECTION 1 — WHY THIS TICKER */}
+        <div className={sectionHeader}>WHY THIS TICKER</div>
+        {rankRow ? (
+          <div className="space-y-0.5">
+            <div className={labelStyle}>
+              Composite Score: <span className={valueStyle}>{rankRow.composite?.toFixed?.(1) ?? rankRow.composite}</span>
+              {' — '}ranked <span className={valueStyle}>#{rankIdx + 1}</span> of all scored tickers
+            </div>
+            <div className={labelStyle}>
+              Gates:{' '}
+              <span className={`font-mono ${gateScore(rankRow.vol_edge)}`}>{rankRow.vol_edge?.toFixed?.(1) ?? rankRow.vol_edge}</span> Vol Edge{' · '}
+              <span className={`font-mono ${gateScore(rankRow.quality)}`}>{rankRow.quality?.toFixed?.(1) ?? rankRow.quality}</span> Quality{' · '}
+              <span className={`font-mono ${gateScore(rankRow.regime)}`}>{rankRow.regime?.toFixed?.(1) ?? rankRow.regime}</span> Regime{' · '}
+              <span className={`font-mono ${gateScore(rankRow.info_edge)}`}>{rankRow.info_edge?.toFixed?.(1) ?? rankRow.info_edge}</span> Info Edge
+            </div>
+            <div className={labelStyle}>
+              Sector: <span className={valueStyle}>{rankRow.sector ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              Direction: <span className={valueStyle}>{rankRow.direction ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              Selection: <span className={valueStyle}>{rankRow.selection_status ?? '—'}</span>
+            </div>
+          </div>
+        ) : loadingMsg('Pipeline data loading...')}
+
+        {/* SECTION 2 — CHAIN FETCH (STEP J) */}
+        <div className={sectionHeader}>CHAIN FETCH (STEP J)</div>
+        {jRow ? (
+          <div className="space-y-1">
+            <div className={labelStyle}>
+              Expirations evaluated: <span className={valueStyle}>{jRow.expirationsEvaluated ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              Winning expiration: <span className={valueStyle}>{jRow.winningExpiration ?? jRow.expiration ?? '—'}</span>
+              {' · '}<span className={valueStyle}>{jRow.winningDte ?? jRow.dte ?? '—'} DTE</span>
+            </div>
+            <div className={labelStyle}>
+              Strikes fetched: <span className={valueStyle}>{jRow.strikeCount ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              Price source: <PriceSourceBadge source={jRow.priceSource ?? 'none'} />
+            </div>
+            {jRow.allExpirations && jRow.allExpirations.length > 0 && (
+              <div className="mt-1.5 overflow-x-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="text-text-muted uppercase tracking-wider">
+                      <th className="text-left font-medium py-0.5 pr-3">Expiration</th>
+                      <th className="text-right font-medium py-0.5 pr-3">DTE</th>
+                      <th className="text-right font-medium py-0.5 pr-3">Strikes</th>
+                      <th className="text-right font-medium py-0.5 pr-3">Strategies Built</th>
+                      <th className="text-right font-medium py-0.5">Best Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {jRow.allExpirations.map((exp: any, i: number) => {
+                      const isWinner = exp.expiration === (jRow.winningExpiration ?? jRow.expiration);
+                      return (
+                        <tr key={i} className={isWinner ? 'bg-amber-50/50' : ''} style={isWinner ? { borderLeft: '2px solid #d97706' } : {}}>
+                          <td className={`py-0.5 pr-3 font-mono ${isWinner ? 'text-brand-amber font-bold' : 'text-text-faint'}`}>{exp.expiration}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.dte}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.strikeCount}</td>
+                          <td className="py-0.5 pr-3 text-right font-mono text-text-faint">{exp.strategiesBuilt}</td>
+                          <td className={`py-0.5 text-right font-mono ${exp.bestScore != null ? (isWinner ? 'text-brand-amber font-bold' : 'text-text-faint') : 'text-text-muted'}`}>
+                            {exp.bestScore != null ? exp.bestScore.toFixed(3) : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : loadingMsg('Chain data loading...')}
+
+        {/* SECTION 3 — STRATEGY SCORING (STEP K) */}
+        <div className={sectionHeader}>STRATEGY SCORING (STEP K)</div>
+        {kRow ? (
+          <div className="space-y-0.5">
+            <div className={labelStyle}>
+              Strategies built: <span className={valueStyle}>{kRow.strategiesBuilt ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              {'Gate A failed (EV \u2264 0): '}<span className={valueStyle}>{kRow.gateAFailed ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              {'Gate B failed (PoP floor): '}<span className={valueStyle}>{kRow.gateBFailed ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              {'Gate C failed (min credit): '}<span className={valueStyle}>{kRow.gateCFailed ?? '—'}</span>
+            </div>
+            <div className={labelStyle}>
+              Strategies passed:{' '}
+              <span className={`font-mono font-bold ${(kRow.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                {kRow.strategiesPassed ?? 0}
+              </span>
+            </div>
+            <div className={labelStyle}>
+              Winner:{' '}
+              <span className={`font-mono font-bold ${kRow.winner ? 'text-brand-green' : 'text-brand-red'}`}>
+                {kRow.winner ?? 'none'}
+              </span>
+            </div>
+            <div className={labelStyle}>
+              Winning score: <span className={valueStyle}>{kRow.winnerScore != null ? kRow.winnerScore.toFixed(3) : '—'}</span>
+              <span className="text-[9px] text-text-faint ml-1">(EV/Risk × 50% + Theta Efficiency × 30% + Edge Ratio × 20%)</span>
+            </div>
+          </div>
+        ) : loadingMsg('Strategy data loading...')}
+
+        {/* SECTION 4 — THE TRADE */}
+        <div className={sectionHeader}>THE TRADE</div>
+        <div className="text-[11px] text-text-faint">
+          The full trade breakdown is shown below — every number sourced from the chain fetch and strategy scoring above.
+        </div>
+        <div className="mt-2 border-t border-border/50" />
+      </div>
+
+      {/* The actual TickerCard, unchanged */}
+      <TickerCard
+        detail={detail}
+        sentiment={sentiment}
+        savedCards={savedCards}
+        savingCards={savingCards}
+        saveErrors={saveErrors}
+        onSave={onSave}
+        onRemove={onRemove}
+      />
+    </div>
+  );
+}
+
 // ── Ticker Card (the full card for one ticker) ─────────────────────
 
 export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: {
@@ -2128,6 +2321,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 function FilteredResultsSection({
   enriched, filters, sentimentMap, rejectionMap, onResetFilters,
   savedCards, savingCards, saveErrors, onSaveCard, onRemoveCard,
+  pipelineProgress,
 }: {
   enriched: TickerDetail[];
   filters: ScannerFilters;
@@ -2139,6 +2333,8 @@ function FilteredResultsSection({
   saveErrors: Map<string, string>;
   onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pipelineProgress: Record<string, any>;
 }) {
   const { passed, filtered, totalStrategies, passedStrategies } = useMemo(
     () => applyFilters(enriched, filters, sentimentMap),
@@ -2201,6 +2397,7 @@ function FilteredResultsSection({
         saveErrors={saveErrors}
         onSaveCard={onSaveCard}
         onRemoveCard={onRemoveCard}
+        pipelineProgress={pipelineProgress}
       />
     </>
   );
@@ -2562,11 +2759,12 @@ export default function ConvergenceIntelligence() {
           saveErrors={saveErrors}
           onSaveCard={saveCard}
           onRemoveCard={removeCard}
+          pipelineProgress={pipelineProgress}
         />
       )}
       {enriched.length === 1 && (
         <div className="px-5 py-4 space-y-4">
-          <TickerCard detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
+          <TickerChapter detail={enriched[0]} sentiment={batchData?.social_sentiment?.[enriched[0].symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} pipelineProgress={pipelineProgress} />
         </div>
       )}
 

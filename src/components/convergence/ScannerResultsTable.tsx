@@ -23,7 +23,7 @@ import type {
   TradeCardData,
 } from '@/lib/convergence/types';
 import type { TickerDetail } from '@/lib/convergence/filter-engine';
-import { TickerCard } from './ConvergenceIntelligence';
+import { TickerChapter } from './ConvergenceIntelligence';
 
 interface Headline {
   datetime: number;
@@ -64,6 +64,8 @@ interface ScannerResultsTableProps {
   saveErrors: Map<string, string>;
   onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pipelineProgress?: Record<string, any>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -379,6 +381,7 @@ export default function ScannerResultsTable({
   saveErrors,
   onSaveCard,
   onRemoveCard,
+  pipelineProgress,
 }: ScannerResultsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('score');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -724,7 +727,7 @@ export default function ScannerResultsTable({
                   {isExpanded && (
                     <tr>
                       <td colSpan={15} className="bg-white p-0">
-                        <TickerCard detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} />
+                        <TickerChapter detail={row.detail} sentiment={sentimentMap?.[row.symbol]} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={onSaveCard} onRemove={onRemoveCard} pipelineProgress={pipelineProgress ?? {}} />
                       </td>
                     </tr>
                   )}
