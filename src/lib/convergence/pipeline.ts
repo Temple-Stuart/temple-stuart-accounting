@@ -958,8 +958,8 @@ export async function runPipeline(
         direction: s.strategy_suggestion.direction,
         currentPrice: latestClose,
         ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number ?? 50) / 100,
-        iv30: tt.iv30 ?? 0.30,
-        hv30: tt.hv30 ?? 0.25,
+        iv30: (tt.iv30 ?? 30) / 100,
+        hv30: (tt.hv30 ?? 25) / 100,
         riskFreeRate: fedFundsRate,
       };
     }).filter((input): input is NonNullable<typeof input> => input !== null);
