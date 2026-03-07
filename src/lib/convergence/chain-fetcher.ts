@@ -37,6 +37,16 @@ export interface PerTickerChainStats {
   strategiesPassed: number;
   winner: string | null;
   winnerScore: number | null;
+  expirationsEvaluated: number;
+  allExpirations: Array<{
+    expiration: string;
+    dte: number;
+    strikeCount: number;
+    strategiesBuilt: number;
+    bestScore: number | null;
+  }>;
+  winningExpiration: string;
+  winningDte: number;
 }
 
 export interface ChainFetchResult {
@@ -120,16 +130,17 @@ export async function fetchChainAndBuildCards(
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // Per-ticker chain info
-    const tickerChains = new Map<string, {
+    // Per-ticker chain info — stores ALL expirations per ticker (15-60 DTE)
+    type ParsedStrike = {
+      strike: number;
+      callStreamerSymbol: string;
+      putStreamerSymbol: string;
+    };
+    const tickerChains = new Map<string, Array<{
       expiration: string;
       dte: number;
-      strikes: Array<{
-        strike: number;
-        callStreamerSymbol: string;
-        putStreamerSymbol: string;
-      }>;
-    }>();
+      strikes: ParsedStrike[];
+    }>>();
 
     // Step 1: Fetch nested option chains for all tickers in parallel
     console.log(`[ChainFetcher] Fetching option chains for ${tickers.length} tickers...`);
@@ -186,47 +197,44 @@ export async function fetchChainAndBuildCards(
         continue;
       }
 
-      // Find expiration closest to suggested_dte
-      candidateExps.sort((a, b) => Math.abs(a.dte - suggested_dte) - Math.abs(b.dte - suggested_dte));
-      const bestExp = candidateExps[0];
+      // Parse strikes for ALL candidate expirations and collect streamer symbols
+      const allExpEntries: Array<{ expiration: string; dte: number; strikes: ParsedStrike[] }> = [];
 
-      // Parse strikes and collect streamer symbols
-      const strikes: Array<{
-        strike: number;
-        callStreamerSymbol: string;
-        putStreamerSymbol: string;
-      }> = [];
+      for (const exp of candidateExps) {
+        const strikes: ParsedStrike[] = [];
 
-      for (const s of Array.isArray(bestExp.strikes) ? bestExp.strikes : []) {
-        const sObj = s as Record<string, unknown>;
-        const strikePrice = Number(sObj['strike-price'] || 0);
-        if (strikePrice <= 0) continue;
+        for (const s of Array.isArray(exp.strikes) ? exp.strikes : []) {
+          const sObj = s as Record<string, unknown>;
+          const strikePrice = Number(sObj['strike-price'] || 0);
+          if (strikePrice <= 0) continue;
 
-        const callOcc = (sObj['call'] as string) || '';
-        const putOcc = (sObj['put'] as string) || '';
-        const callStreamer = (sObj['call-streamer-symbol'] as string) || occToDxFeed(callOcc) || '';
-        const putStreamer = (sObj['put-streamer-symbol'] as string) || occToDxFeed(putOcc) || '';
+          const callOcc = (sObj['call'] as string) || '';
+          const putOcc = (sObj['put'] as string) || '';
+          const callStreamer = (sObj['call-streamer-symbol'] as string) || occToDxFeed(callOcc) || '';
+          const putStreamer = (sObj['put-streamer-symbol'] as string) || occToDxFeed(putOcc) || '';
 
-        if (!callStreamer && !putStreamer) continue;
+          if (!callStreamer && !putStreamer) continue;
 
-        strikes.push({
-          strike: strikePrice,
-          callStreamerSymbol: callStreamer,
-          putStreamerSymbol: putStreamer,
-        });
+          strikes.push({
+            strike: strikePrice,
+            callStreamerSymbol: callStreamer,
+            putStreamerSymbol: putStreamer,
+          });
 
-        if (callStreamer) allStreamerSymbols.push(callStreamer);
-        if (putStreamer) allStreamerSymbols.push(putStreamer);
+          if (callStreamer) allStreamerSymbols.push(callStreamer);
+          if (putStreamer) allStreamerSymbols.push(putStreamer);
+        }
+
+        if (strikes.length > 0) {
+          allExpEntries.push({ expiration: exp.date, dte: exp.dte, strikes });
+        }
       }
 
-      if (strikes.length > 0) {
-        tickerChains.set(symbol, {
-          expiration: bestExp.date,
-          dte: bestExp.dte,
-          strikes,
-        });
+      if (allExpEntries.length > 0) {
+        tickerChains.set(symbol, allExpEntries);
         stats.chain_symbols_fetched++;
-        console.log(`[ChainFetcher] ${symbol}: ${bestExp.date} (${bestExp.dte} DTE), ${strikes.length} strikes`);
+        const totalStrikes = allExpEntries.reduce((s, e) => s + e.strikes.length, 0);
+        console.log(`[ChainFetcher] ${symbol}: ${allExpEntries.length} expirations (${allExpEntries.map(e => `${e.expiration}/${e.dte}d`).join(', ')}), ${totalStrikes} total strikes`);
       }
     }
 
@@ -314,58 +322,98 @@ export async function fetchChainAndBuildCards(
       client.quoteStreamer.disconnect();
     }
 
-    // Step 3: Build trade cards for each ticker
+    // Step 3: Build trade cards for each ticker — evaluate ALL expirations, pick best composite score
     for (const ticker of tickers) {
-      const chain = tickerChains.get(ticker.symbol);
-      if (!chain) {
+      const expirations = tickerChains.get(ticker.symbol);
+      if (!expirations || expirations.length === 0) {
         cards.set(ticker.symbol, []);
         continue;
       }
 
       try {
-        const strikeData = buildStrikeData(chain.strikes, greeksData);
+        let bestStrategies: StrategyCard[] = [];
+        let bestRejections: RejectionReason[] = [];
+        let bestCompositeScore = -Infinity;
+        let winningExp = expirations[0];
+        let winningDominantSource: StrikeData['priceSource'] = 'none';
+        let winningStrikeCount = 0;
 
-        // Determine dominant price source across strikes
-        const sourceCounts: Record<string, number> = {};
-        for (const s of strikeData) {
-          sourceCounts[s.priceSource] = (sourceCounts[s.priceSource] || 0) + 1;
+        const allExpStats: Array<{
+          expiration: string;
+          dte: number;
+          strikeCount: number;
+          strategiesBuilt: number;
+          bestScore: number | null;
+        }> = [];
+
+        for (const exp of expirations) {
+          const strikeData = buildStrikeData(exp.strikes, greeksData);
+
+          const result = generateStrategies({
+            strikes: strikeData,
+            currentPrice: ticker.currentPrice,
+            ivRank: ticker.ivRank,
+            expiration: exp.expiration,
+            dte: exp.dte,
+            symbol: ticker.symbol,
+            iv30: ticker.iv30,
+            hv30: ticker.hv30,
+            riskFreeRate: ticker.riskFreeRate,
+          });
+
+          const topScore = result.strategies[0]?.compositeScore ?? null;
+
+          allExpStats.push({
+            expiration: exp.expiration,
+            dte: exp.dte,
+            strikeCount: strikeData.length,
+            strategiesBuilt: result.strategies.length + result.rejections.length,
+            bestScore: topScore,
+          });
+
+          if (topScore !== null && topScore > bestCompositeScore) {
+            bestCompositeScore = topScore;
+            bestStrategies = result.strategies;
+            bestRejections = result.rejections;
+            winningExp = exp;
+            winningStrikeCount = strikeData.length;
+
+            // Determine dominant price source for winning expiration
+            const sourceCounts: Record<string, number> = {};
+            for (const s of strikeData) {
+              sourceCounts[s.priceSource] = (sourceCounts[s.priceSource] || 0) + 1;
+            }
+            winningDominantSource = (Object.entries(sourceCounts)
+              .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'none') as StrikeData['priceSource'];
+          }
         }
-        const dominantSource = (Object.entries(sourceCounts)
-          .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'none') as StrikeData['priceSource'];
 
-        const result = generateStrategies({
-          strikes: strikeData,
-          currentPrice: ticker.currentPrice,
-          ivRank: ticker.ivRank,
-          expiration: chain.expiration,
-          dte: chain.dte,
-          symbol: ticker.symbol,
-          iv30: ticker.iv30,
-          hv30: ticker.hv30,
-          riskFreeRate: ticker.riskFreeRate,
-        });
-        cards.set(ticker.symbol, result.strategies);
-        if (result.rejections.length > 0) {
-          rejections.set(ticker.symbol, result.rejections);
+        cards.set(ticker.symbol, bestStrategies);
+        if (bestRejections.length > 0) {
+          rejections.set(ticker.symbol, bestRejections);
         }
-        stats.total_trade_cards += result.strategies.length;
+        stats.total_trade_cards += bestStrategies.length;
 
-        // Collect per-ticker stats
+        // Collect per-ticker stats with multi-expiration info
         perTickerStats.set(ticker.symbol, {
-          expiration: chain.expiration,
-          dte: chain.dte,
-          strikeCount: strikeData.length,
-          priceSource: dominantSource,
-          strategiesBuilt: result.strategies.length + result.rejections.length,
-          gateAFailed: result.rejections.filter(r => r.gate === 'A').length,
-          gateBFailed: result.rejections.filter(r => r.gate === 'B').length,
-          gateCFailed: result.rejections.filter(r => r.gate === 'C').length,
-          strategiesPassed: result.strategies.length,
-          winner: result.strategies[0]?.name ?? null,
-          winnerScore: result.strategies[0]?.compositeScore ?? null,
+          expiration: winningExp.expiration,
+          dte: winningExp.dte,
+          strikeCount: winningStrikeCount,
+          priceSource: winningDominantSource,
+          strategiesBuilt: bestStrategies.length + bestRejections.length,
+          gateAFailed: bestRejections.filter(r => r.gate === 'A').length,
+          gateBFailed: bestRejections.filter(r => r.gate === 'B').length,
+          gateCFailed: bestRejections.filter(r => r.gate === 'C').length,
+          strategiesPassed: bestStrategies.length,
+          winner: bestStrategies[0]?.name ?? null,
+          winnerScore: bestStrategies[0]?.compositeScore ?? null,
+          expirationsEvaluated: expirations.length,
+          allExpirations: allExpStats,
+          winningExpiration: winningExp.expiration,
+          winningDte: winningExp.dte,
         });
 
-        console.log(`[ChainFetcher] ${ticker.symbol}: ${result.strategies.length} trade cards generated, ${result.rejections.length} rejections`);
+        console.log(`[ChainFetcher] ${ticker.symbol}: evaluated ${expirations.length} expirations, winner=${winningExp.expiration} (${winningExp.dte} DTE, score=${bestCompositeScore.toFixed(2)}), ${bestStrategies.length} cards, ${bestRejections.length} rejections`);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[ChainFetcher] ${ticker.symbol}: Strategy generation failed:`, msg);
