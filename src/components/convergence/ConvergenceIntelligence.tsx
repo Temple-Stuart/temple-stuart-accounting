@@ -392,7 +392,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
       {/* A) HEADER ROW */}
-      <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
+      <div className="px-5 py-2 flex items-center justify-between flex-wrap gap-2 bg-brand-purple-hover">
         <div className="flex items-center gap-3">
           <span className="text-sm font-black font-mono text-white">{detail.symbol}</span>
           <span className="text-sm font-black font-mono" style={{ color: gradeColorHex(comp.score) }} title="Convergence score 0–100. Combines Vol Edge, Quality, Regime, and Info Edge gates using z-score weighted averaging. Higher = stronger multi-signal agreement.">{comp.score.toFixed(1)}</span>
@@ -408,12 +408,55 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
       </div>
 
       {/* B) SCORE BARS */}
-      <div className="px-5 py-3 space-y-1.5 border-b border-border">
+      <div className="px-5 py-2 space-y-1.5 border-b border-border">
         <div title="Volatility Edge (0–100): measures whether options are mispriced relative to realized vol. Combines VRP z-score, IV percentile, term structure shape, skew asymmetry, and dealer gamma exposure. Above 50 = options appear expensive = edge for premium sellers."><ScoreBar label="Vol Edge" score={comp.category_scores.vol_edge} /></div>
         <div title="Quality Gate (0–100): measures the fundamental health of the underlying company. Combines Piotroski F-Score safety, profitability margins, earnings quality (accrual ratio + beat rate), and growth trajectory. Above 50 = high-quality underlying."><ScoreBar label="Quality" score={comp.category_scores.quality} /></div>
         <div title="Macro Regime Gate (0–100): measures whether the current macro environment favors the trade direction. Scored from 14 FRED macro indicators including GDP, CPI, Fed Funds, yield curve, and credit spreads. Above 50 = favorable macro backdrop."><ScoreBar label="Regime" score={comp.category_scores.regime} /></div>
         <div title="Information Edge Gate (0–100): measures signals of informed activity. Combines insider net purchase ratio (MSPR), institutional ownership changes, analyst upgrades/downgrades, SUE earnings surprise, and FinBERT news sentiment. Above 50 = positive information asymmetry."><ScoreBar label="Info Edge" score={comp.category_scores.info_edge} /></div>
       </div>
+
+      {/* B2) SOCIAL PULSE — promoted from Key Stats */}
+      {sentiment && !sentiment.error && sentiment.postCount > 0 && (
+        <div className="px-5 py-2 border-b border-border bg-bg-row">
+          <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1">Social Pulse (xAI/Grok)</div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span
+              className={`text-lg font-bold font-mono ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
+              title="Aggregate sentiment score from real X (Twitter) posts analyzed by xAI Grok. Range -1.0 (fully bearish) to +1.0 (fully bullish). Based on actual post content, not price action."
+            >
+              {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
+            </span>
+            <span className="text-xs text-text-faint font-mono" title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
+              <span title="Number of recent X/Twitter posts about this ticker analyzed by xAI Grok. Higher count = more data points = higher confidence in the sentiment reading.">{sentiment.postCount} posts</span>
+              {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N
+            </span>
+            {sentiment.themes.length > 0 && (
+              <span className="flex gap-1 flex-wrap">
+                {sentiment.themes.slice(0, 3).map((t, i) => (
+                  <Badge key={i} variant="default" size="sm">{t}</Badge>
+                ))}
+              </span>
+            )}
+          </div>
+          {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
+            <div className="mt-1 space-y-0.5">
+              {sentiment.samplePosts.slice(0, 2).map((post, i) => (
+                <div key={i} className="text-[10px] text-text-secondary leading-relaxed truncate">&ldquo;{post.text}&rdquo;</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {sentiment?.error && (
+        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
+          Social Pulse unavailable — {sentiment.error}
+        </div>
+      )}
+      {!sentiment && (
+        <div className="px-5 py-2 border-b border-border text-xs text-text-muted">
+          Social Pulse — xAI data not loaded
+        </div>
+      )}
 
       {/* C) THE TRADE */}
       {cards.length > 0 ? (
@@ -432,7 +475,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 </div>
               </div>
 
-              <div className="px-5 py-3">
+              <div className="px-5 py-2">
                 {/* Legs table */}
                 <table className="w-full text-xs mb-3">
                   <thead>
@@ -609,7 +652,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   const error = saveErrors.get(cardKey);
                   if (savedId) {
                     return (
-                      <div className="flex items-center justify-center gap-3 mt-3">
+                      <div className="flex items-center justify-center gap-3 mt-1">
                         <Badge variant="success" size="md">Queued &#10003;</Badge>
                         <button
                           onClick={() => onRemove(cardKey, savedId)}
@@ -622,7 +665,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                   }
                   if (saving) {
                     return (
-                      <div className="w-full mt-3">
+                      <div className="w-full mt-1">
                         <Button variant="secondary" size="md" loading disabled className="w-full">
                           Saving...
                         </Button>
@@ -635,7 +678,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                         variant="primary"
                         size="md"
                         onClick={() => onSave(detail, card)}
-                        className="w-full mt-3"
+                        className="w-full mt-1"
                       >
                         Enter Trade
                       </Button>
@@ -661,11 +704,11 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 
       {/* D) WHY THIS TRADE */}
       {why && (
-        <div className="px-5 py-3 border-b border-border">
+        <div className="px-5 py-2 border-b border-border">
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Why This Trade</div>
 
           {why.plain_english_signals.length > 0 && (
-            <div className="space-y-1.5 mb-3">
+            <div className="space-y-1 mb-3">
               {why.plain_english_signals.map((sig, i) => (
                 <div key={i} className="flex gap-2 text-xs text-text-secondary leading-relaxed">
                   <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-bg-row text-text-muted">{i + 1}</span>
@@ -707,7 +750,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
               neutral: { text: 'neutral \u03B3', variant: 'default' },
             };
             return (
-              <div className="rounded px-3 py-2.5 mb-2 bg-bg-row">
+              <div className="rounded px-3 py-1.5 mb-1 bg-bg-row">
                 <div
                   className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
                   title="Five independent signals scored 0–100. Mispricing compares implied vs realized vol. Term structure reads the shape of the vol surface. Technicals confirm price action. Skew detects directional positioning. GEX shows dealer gamma exposure and hedging pressure."
@@ -768,7 +811,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
               deflation: 'Growth is weak and inflation is falling \u2014 risk-off conditions. Favor defined-risk strategies.',
             };
             return (
-              <div className="rounded px-3 py-2.5 mb-2 bg-bg-row">
+              <div className="rounded px-3 py-1.5 mb-1 bg-bg-row">
                 <div
                   className="text-[10px] text-text-muted font-mono uppercase tracking-wider font-bold mb-2"
                   title="Regime scores derived from 14 FRED macro indicators. Rule-based sigmoid scoring inspired by Hamilton (1989). Not HMM-estimated probabilities."
@@ -801,11 +844,6 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
             );
           })()}
 
-          {/* Regime context */}
-          <div className="rounded px-3 py-2 text-xs text-text-secondary leading-relaxed mb-2 bg-bg-row">
-            {why.regime_context}
-          </div>
-
           {/* Risk flags */}
           {why.risk_flags.length > 0 && (
             <div className="space-y-1">
@@ -825,9 +863,9 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 
       {/* E) KEY STATS */}
       {ks && (
-        <div className="px-5 py-3 border-b border-border">
+        <div className="px-5 py-2 border-b border-border">
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Key Stats</div>
-          <div className="space-y-2 text-xs">
+          <div className="space-y-1 text-xs">
             {/* Volatility row */}
             <div>
               <span className="text-text-muted font-medium">Volatility: </span>
@@ -1013,46 +1051,13 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 {ks.sentiment_momentum != null && <span className="text-text-muted"> — {statExplain('sentiment_momentum', ks.sentiment_momentum)}</span>}
               </span>
             </div>
-            {/* Social Pulse row — from xAI x_search */}
-            {sentiment && !sentiment.error && sentiment.postCount > 0 && (
-              <div>
-                <span className="text-text-muted font-medium">Social Pulse: </span>
-                <span
-                  className={`font-mono font-bold ${sentiment.score > 0.2 ? 'text-brand-green' : sentiment.score < -0.2 ? 'text-brand-red' : 'text-text-muted'}`}
-                  title="Aggregate sentiment score from real X (Twitter) posts analyzed by xAI Grok. Range -1.0 (fully bearish) to +1.0 (fully bullish). Based on actual post content, not price action."
-                >
-                  {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
-                </span>
-                <span className="text-text-faint font-mono" title="Breakdown of post sentiment classification by xAI Grok. Each post classified as bullish, bearish, or neutral based on content analysis.">
-                  {' '}(<span title="Number of recent X/Twitter posts about this ticker analyzed by xAI Grok. Higher count = more data points = higher confidence in the sentiment reading.">{sentiment.postCount} posts</span>
-                  {' | '}{sentiment.bullishCount}B/{sentiment.bearishCount}b/{sentiment.neutralCount}N)
-                </span>
-                {sentiment.themes.length > 0 && (
-                  <span className="ml-2">
-                    {sentiment.themes.slice(0, 3).map((t, i) => (
-                      <Badge key={i} variant="default" size="sm" className="mr-1">{t}</Badge>
-                    ))}
-                  </span>
-                )}
-              </div>
-            )}
-            {sentiment?.error && (
-              <div className="text-xs text-text-muted mt-2">
-                Social Pulse unavailable — {sentiment.error}
-              </div>
-            )}
-            {!sentiment && (
-              <div className="text-xs text-text-muted mt-2">
-                Social Pulse — xAI data not loaded
-              </div>
-            )}
           </div>
         </div>
       )}
 
       {/* F) TOP HEADLINES */}
       {headlines.length > 0 && (
-        <div className="px-5 py-3">
+        <div className="px-5 py-2">
           <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Recent Headlines</div>
           <div className="space-y-1.5">
             {headlines.map((h, i) => (
