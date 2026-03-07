@@ -356,8 +356,8 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
         <div className="mt-2 border-t border-border/50" />
       </div>
 
-      {/* The actual TickerCard, unchanged */}
-      <TickerCard
+      {/* Terminal-style trade card */}
+      <TerminalTradeCard
         detail={detail}
         sentiment={sentiment}
         savedCards={savedCards}
@@ -366,6 +366,439 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
         onSave={onSave}
         onRemove={onRemove}
       />
+    </div>
+  );
+}
+
+// ── Terminal Trade Card ─────────────────────────────────────────────
+
+function termBar(score: number, width = 10): string {
+  const filled = Math.round((Math.min(Math.max(score, 0), 100) / 100) * width);
+  return '█'.repeat(filled) + '░'.repeat(width - filled);
+}
+
+function termGateColor(score: number): string {
+  return score >= 50 ? 'text-green-400' : 'text-red-400';
+}
+
+function termTruncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove }: {
+  detail: TickerDetail;
+  sentiment?: SocialSentimentData;
+  savedCards: Map<string, string>;
+  savingCards: Set<string>;
+  saveErrors: Map<string, string>;
+  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onRemove: (cardKey: string, savedId: string) => Promise<void>;
+}) {
+  const comp = detail.scores.composite;
+  const cards = detail.trade_cards ?? [];
+  const headlines: Headline[] = detail.scores.info_edge?.breakdown?.news_sentiment?.news_detail?.headlines?.slice(0, 3) ?? [];
+  const ks = cards[0]?.key_stats;
+  const why = cards[0]?.why;
+
+  const divider = <div className="border-t border-gray-700 my-1" />;
+
+  // ── Shared sections (rendered for both trade and no-trade cases) ──
+
+  const renderForAgainst = (cardWhy: TradeCardWhy | undefined) => {
+    const forItems: string[] = [];
+    const againstItems: string[] = [];
+
+    if (cardWhy) {
+      forItems.push(...cardWhy.plain_english_signals);
+    }
+    if (sentiment && !sentiment.error && sentiment.score > 0.2) {
+      forItems.push(`Social +${sentiment.score.toFixed(2)} bullish (${sentiment.postCount} posts)`);
+    }
+    if (ks?.earnings_pattern && ks.earnings_pattern.beat_rate != null && ks.earnings_pattern.beat_rate > 60) {
+      forItems.push(`Beat rate ${ks.earnings_pattern.beat_rate}%${ks.earnings_pattern.sue_score != null ? ` · SUE ${ks.earnings_pattern.sue_score}` : ''}`);
+    }
+
+    if (cardWhy) {
+      againstItems.push(...cardWhy.risk_flags);
+    }
+    if (sentiment && !sentiment.error && sentiment.score < -0.2) {
+      againstItems.push(`Social ${sentiment.score.toFixed(2)} bearish`);
+    }
+    if (comp.category_scores.regime < 40) {
+      againstItems.push(`Weak regime ${comp.category_scores.regime.toFixed(1)}`);
+    }
+    const gateNames: [string, number][] = [
+      ['Vol Edge', comp.category_scores.vol_edge],
+      ['Quality', comp.category_scores.quality],
+      ['Regime', comp.category_scores.regime],
+      ['Info Edge', comp.category_scores.info_edge],
+    ];
+    for (const [name, score] of gateNames) {
+      if (score < 40 && !(name === 'Regime' && comp.category_scores.regime < 40)) {
+        againstItems.push(`${name} gate weak ${score.toFixed(1)}`);
+      }
+    }
+
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">For vs Against</div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-[10px] text-green-400 font-bold mb-0.5">FOR THE TRADE</div>
+            {forItems.length > 0 ? forItems.map((s, i) => (
+              <div key={i} className="text-xs text-green-400 leading-relaxed">&#10003; {s}</div>
+            )) : (
+              <div className="text-xs text-gray-500">No bullish signals found</div>
+            )}
+          </div>
+          <div>
+            <div className="text-[10px] text-red-400 font-bold mb-0.5">AGAINST THE TRADE</div>
+            {againstItems.length > 0 ? againstItems.map((s, i) => (
+              <div key={i} className="text-xs text-red-400 leading-relaxed">&#10007; {s}</div>
+            )) : (
+              <div className="text-xs text-green-400">No risk flags</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGateBars = () => {
+    const gates: [string, number][] = [
+      ['VOL EDGE', comp.category_scores.vol_edge],
+      ['QUALITY', comp.category_scores.quality],
+      ['REGIME', comp.category_scores.regime],
+      ['INFO', comp.category_scores.info_edge],
+    ];
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Gate Scores</div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+          {gates.map(([label, score]) => (
+            <div key={label} className="flex items-center gap-1">
+              <span className="w-16 text-xs text-gray-400 shrink-0">{label}</span>
+              <span className={`text-xs font-bold w-8 text-right ${termGateColor(score)}`}>{score.toFixed(1)}</span>
+              <span className={`text-xs font-mono ${termGateColor(score)}`}>{termBar(score)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderVolDetail = () => {
+    const bd = detail.scores?.vol_edge?.breakdown;
+    if (!bd) return null;
+    const subs: [string, number, string | null][] = [
+      ['MISPRICING', bd.mispricing?.score ?? 0, null],
+      ['TERM STRUCT', bd.term_structure?.score ?? 0, bd.term_structure?.shape ?? null],
+      ['TECHNICALS', bd.technicals?.score ?? 0, null],
+      ['SKEW', bd.skew?.score ?? 0, bd.skew?.skew_direction ?? null],
+      ['GEX', bd.gex?.score ?? 0, bd.gex?.gex_regime ?? null],
+    ];
+    const vrpZ = bd.mispricing?.z_scores?.vrp_z;
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Vol Detail</div>
+        <div className="grid grid-cols-3 gap-x-3 gap-y-0.5">
+          {subs.map(([label, score, extra]) => (
+            <div key={label} className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">{label}</span>
+              <span className={`text-xs font-bold ${score >= 50 ? 'text-green-400' : 'text-red-400'}`}>{Math.round(score)}</span>
+              {extra && <span className="text-xs text-gray-500">{extra}</span>}
+            </div>
+          ))}
+        </div>
+        {vrpZ != null && (
+          <div className="text-xs text-gray-400 mt-0.5">
+            VRP z: <span className={vrpZ > 0.5 ? 'text-green-400' : vrpZ < -0.5 ? 'text-red-400' : 'text-gray-400'}>{vrpZ >= 0 ? '+' : ''}{vrpZ.toFixed(1)}</span>
+          </div>
+        )}
+        {ks && (
+          <div className="text-xs text-gray-400 mt-0.5">
+            IV RANK {ks.iv_rank != null ? ks.iv_rank.toFixed(2) : '—'} · IV {ks.iv30 != null ? `${ks.iv30.toFixed(1)}%` : '—'} · HV30 {ks.hv30 != null ? `${ks.hv30.toFixed(1)}%` : '—'}{ks.iv_hv_spread != null ? ` · VRP ${ks.iv_hv_spread > 0 ? '+' : ''}${ks.iv_hv_spread.toFixed(1)}%` : ''}
+          </div>
+        )}
+        {ks?.vol_cone && (
+          <div className="text-xs text-gray-500 mt-0.5">
+            VOL CONE: {[
+              ks.vol_cone.hv10 != null && `HV10 ${ks.vol_cone.hv10}%`,
+              ks.vol_cone.hv20 != null && `HV20 ${ks.vol_cone.hv20}%`,
+              ks.vol_cone.hv30 != null && `HV30 ${ks.vol_cone.hv30}%`,
+              ks.vol_cone.hv60 != null && `HV60 ${ks.vol_cone.hv60}%`,
+              ks.vol_cone.hv90 != null && `HV90 ${ks.vol_cone.hv90}%`,
+            ].filter(Boolean).join(' · ')}{ks.vol_cone.current_iv != null ? ` vs IV ${ks.vol_cone.current_iv}%` : ''}
+          </div>
+        )}
+        {ks?.forward_vol && (
+          <div className="text-xs text-gray-500 mt-0.5">
+            FWD VOL {ks.forward_vol.forward_iv}% ({ks.forward_vol.from_dte}→{ks.forward_vol.to_dte}d){ks.vol_cone?.current_iv != null ? ` vs spot IV ${ks.vol_cone.current_iv}%` : ''}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCompanyMacro = () => {
+    const rs = detail.scores?.regime?.breakdown?.regime_scores;
+    const dom = detail.scores?.regime?.breakdown?.dominant_regime;
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Company &amp; Macro</div>
+        {ks && (
+          <>
+            <div className="text-xs text-gray-400">
+              P/E {ks.pe_ratio != null ? ks.pe_ratio.toFixed(1) : '—'} · CAP {fmtMcap(ks.market_cap)} · BETA {ks.beta != null ? ks.beta.toFixed(2) : '—'} · SPY CORR {ks.spy_correlation != null ? ks.spy_correlation.toFixed(2) : '—'} · LIQ {ks.liquidity_rating != null ? `${ks.liquidity_rating}/5` : '—'} · BORROW {ks.borrow_rate != null ? `${ks.borrow_rate.toFixed(1)}%` : '—'} {ks.lendability ?? ''}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              EARNINGS {ks.earnings_date ?? '—'}{ks.days_to_earnings != null && ks.days_to_earnings > 0 ? ` (${ks.days_to_earnings}d away)` : ''}{ks.earnings_pattern ? ` · BEAT ${ks.earnings_pattern.beat_rate ?? '—'}% (${ks.earnings_pattern.total_quarters}Q)${ks.earnings_pattern.sue_score != null ? ` · SUE ${ks.earnings_pattern.sue_score}` : ''}${ks.earnings_pattern.streak ? ` · ${ks.earnings_pattern.streak}` : ''}` : ''}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              DIV YIELD {ks.dividend_yield != null ? `${ks.dividend_yield.toFixed(2)}%` : '—'} · IV %ILE {ks.iv_percentile != null ? ks.iv_percentile.toFixed(1) : '—'}
+            </div>
+          </>
+        )}
+        {rs && (
+          <div className="text-xs text-gray-400 mt-0.5">
+            REGIME: <span className="text-yellow-400 font-bold">{dom?.toUpperCase()}</span> Goldilocks {Math.round(rs.goldilocks * 100)}% Reflation {Math.round(rs.reflation * 100)}% Stagflation {Math.round(rs.stagflation * 100)}% Deflation {Math.round(rs.deflation * 100)}%
+          </div>
+        )}
+        {why?.regime_context && (
+          <div className="text-xs text-gray-500 mt-0.5">{why.regime_context}</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderInfoSignals = () => {
+    const ie = detail.scores?.info_edge;
+    const bd = ie?.breakdown;
+    const mspr = bd?.insider_activity?.insider_detail?.latest_mspr;
+    const newsScore = bd?.news_sentiment?.score;
+    const instOwners = bd?.institutional_ownership?.indicators?.total_holders;
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Info Signals</div>
+        <div className="text-xs text-gray-400">
+          ANALYSTS: {ks?.analyst_consensus ?? '—'} · INSIDER MSPR: {mspr != null ? mspr.toFixed(2) : '—'} · NEWS SENTIMENT: {newsScore != null ? newsScore.toFixed(1) : '—'} · INST OWNERS: {instOwners ?? '—'} · BUZZ: {ks?.buzz_ratio != null ? `${ks.buzz_ratio.toFixed(1)}x` : '—'} · TREND: {ks?.sentiment_momentum != null ? ks.sentiment_momentum.toFixed(0) : '—'}
+        </div>
+        {sentiment && !sentiment.error && sentiment.postCount > 0 && (
+          <>
+            <div className="text-xs mt-0.5">
+              <span className="text-gray-400">SOCIAL: </span>
+              <span className={sentiment.score > 0.2 ? 'text-green-400 font-bold' : sentiment.score < -0.2 ? 'text-red-400 font-bold' : 'text-gray-400 font-bold'}>
+                {sentiment.score > 0 ? '+' : ''}{sentiment.score.toFixed(2)}
+              </span>
+              <span className="text-gray-500"> · {sentiment.postCount} posts · {sentiment.bullishCount}B/{sentiment.bearishCount}Be/{sentiment.neutralCount}N · AGE: {sentiment.dataAge}</span>
+            </div>
+            {sentiment.themes.length > 0 && (
+              <div className="text-xs text-gray-500 mt-0.5">THEMES: {sentiment.themes.join(' · ')}</div>
+            )}
+            {sentiment.samplePosts && sentiment.samplePosts.length > 0 && (
+              <div className="mt-0.5">
+                {sentiment.samplePosts.slice(0, 2).map((post, i) => (
+                  <div key={i} className="text-xs text-gray-500 truncate">&ldquo;{termTruncate(post.text, 80)}&rdquo; — {post.sentiment}</div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {sentiment?.error && (
+          <div className="text-xs text-gray-500 mt-0.5">SOCIAL: unavailable — {sentiment.error}</div>
+        )}
+        {!sentiment && (
+          <div className="text-xs text-gray-500 mt-0.5">SOCIAL: xAI data not loaded</div>
+        )}
+        {sentiment && !sentiment.error && sentiment.postCount === 0 && (
+          <div className="text-xs text-gray-500 mt-0.5">SOCIAL: 0 posts found</div>
+        )}
+        {/* Magnitude + data age always shown if available */}
+        {sentiment && !sentiment.error && sentiment.postCount > 0 && (
+          <div className="text-xs text-gray-500 mt-0.5">MAGNITUDE: {sentiment.magnitude.toFixed(2)}</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderHeadlines = () => {
+    if (headlines.length === 0) return null;
+    return (
+      <div>
+        <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Headlines</div>
+        {headlines.map((h, i) => {
+          const color = h.sentiment === 'bullish' ? 'text-green-400' : h.sentiment === 'bearish' ? 'text-red-400' : 'text-gray-400';
+          return (
+            <div key={i} className="text-xs text-gray-400">
+              <span className={`font-bold ${color}`}>[{h.sentiment.toUpperCase()}]</span> &ldquo;{termTruncate(h.headline, 70)}&rdquo; <span className="text-gray-500">{h.source}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── No-strategy case ──
+
+  if (cards.length === 0) {
+    return (
+      <div className="bg-[#1a1a2e] rounded border border-gray-700 font-mono text-xs p-4">
+        {/* Header */}
+        <div className="text-gray-100">
+          <span className="font-bold">{detail.symbol}</span>
+          <span className="text-gray-400"> · Score </span>
+          <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span>
+          <span className="text-gray-400"> · {comp.categories_above_50}/4 gates · {comp.direction}</span>
+        </div>
+        <div className="text-red-400 mt-1">No strategies passed quality gates</div>
+        {detail._fetch_errors?.chain_fetch && (
+          <div className="text-gray-500 mt-0.5">{detail._fetch_errors.chain_fetch}</div>
+        )}
+        {divider}
+        {renderForAgainst(undefined)}
+        {divider}
+        {renderGateBars()}
+        {divider}
+        {renderVolDetail()}
+        {divider}
+        {renderCompanyMacro()}
+        {divider}
+        {renderInfoSignals()}
+        {renderHeadlines() && <>{divider}{renderHeadlines()}</>}
+      </div>
+    );
+  }
+
+  // ── Trade card case ──
+
+  return (
+    <div className="space-y-2">
+      {cards.map((card, ci) => {
+        const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+        const savedId = savedCards.get(cardKey);
+        const saving = savingCards.has(cardKey);
+        const error = saveErrors.get(cardKey);
+
+        // Kelly calc
+        const winRate = card.setup.hv_pop ?? card.setup.probability_of_profit ?? 0;
+        const ratio = (card.setup.max_profit != null && card.setup.max_loss != null && card.setup.max_loss !== 0)
+          ? card.setup.max_profit / card.setup.max_loss : 0;
+        const rawKelly = ratio > 0 ? (winRate * ratio - (1 - winRate)) / ratio : 0;
+        const kellyPct = Math.round(Math.max(0, rawKelly * 0.25) * 1000) / 10;
+
+        const thetaPerDay = card.setup.greeks?.theta_per_day ?? 0;
+        const vegaPt = (card.setup.greeks?.vega ?? 0) * 100;
+
+        return (
+          <div key={ci} className="bg-[#1a1a2e] rounded border border-gray-700 font-mono text-xs p-4">
+
+            {/* SECTION 1 — HEADER */}
+            <div className="text-gray-100">
+              <span className="font-bold">{detail.symbol}</span>
+              <span className="text-gray-400"> · </span>
+              <span className="text-gray-100 font-bold">{card.setup.strategy_name}</span>
+              <span className="text-gray-400"> · {card.setup.expiration_date} · {card.setup.dte}DTE</span>
+            </div>
+            <div className="text-gray-400">
+              Score <span className={termGateColor(comp.score)}>{comp.score.toFixed(1)} {letterGrade(comp.score)}</span> · {comp.categories_above_50}/4 gates · {comp.direction}{ks?.sector ? ` · ${ks.sector}` : ''}
+            </div>
+
+            {divider}
+
+            {/* SECTION 2 — TRADE SETUP */}
+            <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Trade Setup</div>
+            {card.setup.legs.map((leg, j) => (
+              <div key={j} className="text-xs">
+                <span className={leg.side === 'sell' ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>
+                  {leg.side.toUpperCase().padEnd(4)}
+                </span>
+                <span className="text-gray-400"> {leg.type.toUpperCase().padEnd(4)} </span>
+                <span className="text-gray-100">${leg.strike}</span>
+                <span className="text-gray-500">  ${leg.price.toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="text-xs text-gray-100 mt-1">
+              {card.setup.net_credit != null && card.setup.net_credit > 0
+                ? <span className="text-green-400 font-bold">COLLECT ${(card.setup.net_credit * 100).toFixed(0)}</span>
+                : card.setup.net_debit != null
+                ? <span className="text-gray-100 font-bold">PAY ${(card.setup.net_debit * 100).toFixed(0)}</span>
+                : null}
+              <span className="text-gray-400"> · MAX LOSS </span>
+              <span className="text-red-400">{fmtDollar(card.setup.max_loss)}</span>
+              <span className="text-gray-400"> · POP </span>
+              <span className="text-gray-100">{fmtPct(card.setup.probability_of_profit)}</span>
+              <span className="text-gray-500"> ({card.setup.pop_method === 'breakeven_d2' ? 'N(d2)' : 'Δ approx'})</span>
+              <span className="text-gray-400"> · EV </span>
+              <span className={card.setup.ev >= 0 ? 'text-green-400' : 'text-red-400'}>{card.setup.ev >= 0 ? '+' : ''}${Math.round(card.setup.ev)}</span>
+              <span className="text-gray-400"> · EV/RISK </span>
+              <span className="text-gray-100">{card.setup.ev_per_risk.toFixed(3)}</span>
+              <span className="text-gray-400"> · R:R </span>
+              <span className="text-gray-100">{card.setup.risk_reward_ratio != null ? card.setup.risk_reward_ratio.toFixed(2) : '—'}</span>
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              B/E {(card.setup.breakevens?.length ?? 0) === 0 ? '—' : card.setup.breakevens.map(b => `$${b.toFixed(2)}`).join(' / ')} · HV POP {card.setup.hv_pop != null ? `${Math.round(card.setup.hv_pop * 100)}%` : '—'} · THETA <span className={thetaPerDay >= 0 ? 'text-green-400' : 'text-red-400'}>{thetaPerDay >= 0 ? '+' : ''}${thetaPerDay.toFixed(2)}/day</span> · VEGA/pt <span className={vegaPt >= 0 ? 'text-green-400' : 'text-red-400'}>{vegaPt >= 0 ? '+' : ''}${Math.abs(vegaPt).toFixed(2)}</span> · KELLY <span className={kellyPct >= 2 ? 'text-green-400' : kellyPct >= 1 ? 'text-yellow-400' : 'text-gray-400'}>{kellyPct.toFixed(1)}%</span>
+            </div>
+            {card.setup.has_wide_spread && (
+              <div className="text-xs text-yellow-400 mt-0.5">&#x26A0; Wide bid-ask spread — prices estimated from theoretical model</div>
+            )}
+            {card.setup.is_unlimited_risk && (
+              <div className="text-xs text-red-400 mt-0.5">&#x26A0; UNLIMITED RISK — naked short position</div>
+            )}
+
+            {divider}
+
+            {/* SECTION 3 — FOR vs AGAINST */}
+            {renderForAgainst(card.why)}
+
+            {divider}
+
+            {/* SECTION 4 — GATE BARS */}
+            {renderGateBars()}
+
+            {divider}
+
+            {/* SECTION 5 — VOL DETAIL */}
+            {renderVolDetail()}
+
+            {divider}
+
+            {/* SECTION 6 — COMPANY & MACRO */}
+            {renderCompanyMacro()}
+
+            {divider}
+
+            {/* SECTION 7 — INFO SIGNALS */}
+            {renderInfoSignals()}
+
+            {/* SECTION 8 — HEADLINES */}
+            {renderHeadlines() && <>{divider}{renderHeadlines()}</>}
+
+            {divider}
+
+            {/* SECTION 9 — ACTION */}
+            {savedId ? (
+              <div className="flex items-center justify-center gap-3 mt-1">
+                <Badge variant="success" size="md">Queued &#10003;</Badge>
+                <button
+                  onClick={() => onRemove(cardKey, savedId)}
+                  className="text-[10px] text-gray-500 hover:text-red-400 transition-colors"
+                >
+                  &#10005; Remove
+                </button>
+              </div>
+            ) : saving ? (
+              <div className="w-full mt-1">
+                <Button variant="secondary" size="md" loading disabled className="w-full">Saving...</Button>
+              </div>
+            ) : (
+              <div>
+                <Button variant="primary" size="md" onClick={() => onSave(detail, card)} className="w-full mt-1">Enter Trade</Button>
+                {error && <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-900/50 text-red-400">Failed: {error}</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2159,7 +2592,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['j'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
             <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              TastyTrade REST API returns every available strike for the chosen expiration. A WebSocket then streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike simultaneously.
+              TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
             </p>
             {jData?.tickers && (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
