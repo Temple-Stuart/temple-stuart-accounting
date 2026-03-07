@@ -885,7 +885,7 @@ export async function runPipeline(
       regime: Math.round((_gw?.regime ?? 0.25) * 100),
       info_edge: Math.round((_gw?.info_edge ?? 0.25) * 100),
     },
-    rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold' })),
+    rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold' })),
   } });
 
   // ===== STEP G: Rank and Diversify =====
