@@ -1,7 +1,7 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
-import type { StrategyCard, RejectionReason } from '@/lib/strategy-builder';
+import type { StrategyCard, RejectionReason, StrikeData } from '@/lib/strategy-builder';
 
 // ===== TYPES =====
 
@@ -25,10 +25,25 @@ export interface ChainFetchStats {
   elapsed_ms: number;
 }
 
+export interface PerTickerChainStats {
+  expiration: string;
+  dte: number;
+  strikeCount: number;
+  priceSource: 'live' | 'theo' | 'mixed' | 'none';
+  strategiesBuilt: number;
+  gateAFailed: number;
+  gateBFailed: number;
+  gateCFailed: number;
+  strategiesPassed: number;
+  winner: string | null;
+  winnerScore: number | null;
+}
+
 export interface ChainFetchResult {
   cards: Map<string, StrategyCard[]>;
   rejections: Map<string, RejectionReason[]>;
   stats: ChainFetchStats;
+  perTickerStats: Map<string, PerTickerChainStats>;
   marketOpen: boolean;
   marketNote?: string;
 }
@@ -75,6 +90,7 @@ export async function fetchChainAndBuildCards(
 ): Promise<ChainFetchResult> {
   const cards = new Map<string, StrategyCard[]>();
   const rejections = new Map<string, RejectionReason[]>();
+  const perTickerStats = new Map<string, PerTickerChainStats>();
   const stats: ChainFetchStats = {
     chain_symbols_fetched: 0,
     total_trade_cards: 0,
@@ -93,7 +109,7 @@ export async function fetchChainAndBuildCards(
 
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, marketOpen, marketNote };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
   }
 
   try {
@@ -217,7 +233,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, rejections, stats, marketOpen, marketNote };
+      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -308,6 +324,15 @@ export async function fetchChainAndBuildCards(
 
       try {
         const strikeData = buildStrikeData(chain.strikes, greeksData);
+
+        // Determine dominant price source across strikes
+        const sourceCounts: Record<string, number> = {};
+        for (const s of strikeData) {
+          sourceCounts[s.priceSource] = (sourceCounts[s.priceSource] || 0) + 1;
+        }
+        const dominantSource = (Object.entries(sourceCounts)
+          .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'none') as StrikeData['priceSource'];
+
         const result = generateStrategies({
           strikes: strikeData,
           currentPrice: ticker.currentPrice,
@@ -324,6 +349,22 @@ export async function fetchChainAndBuildCards(
           rejections.set(ticker.symbol, result.rejections);
         }
         stats.total_trade_cards += result.strategies.length;
+
+        // Collect per-ticker stats
+        perTickerStats.set(ticker.symbol, {
+          expiration: chain.expiration,
+          dte: chain.dte,
+          strikeCount: strikeData.length,
+          priceSource: dominantSource,
+          strategiesBuilt: result.strategies.length + result.rejections.length,
+          gateAFailed: result.rejections.filter(r => r.gate === 'A').length,
+          gateBFailed: result.rejections.filter(r => r.gate === 'B').length,
+          gateCFailed: result.rejections.filter(r => r.gate === 'C').length,
+          strategiesPassed: result.strategies.length,
+          winner: result.strategies[0]?.name ?? null,
+          winnerScore: result.strategies[0]?.compositeScore ?? null,
+        });
+
         console.log(`[ChainFetcher] ${ticker.symbol}: ${result.strategies.length} trade cards generated, ${result.rejections.length} rejections`);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -336,10 +377,10 @@ export async function fetchChainAndBuildCards(
     console.error('[ChainFetcher] Fatal error:', msg);
     // Return empty map — pipeline continues without trade cards
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, marketOpen, marketNote };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, rejections, stats, marketOpen, marketNote };
+  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
 }

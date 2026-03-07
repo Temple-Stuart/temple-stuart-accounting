@@ -1853,7 +1853,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <span className="font-bold text-text-primary">Rule 2 — Quality Floor:</span> Quality gate must score 40 or above. High IV on a deteriorating business is not an edge — it is a warning sign.
               </p>
               <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Rule 3 — Sector Cap:</span> Maximum 2 tickers per sector. If 5 tech stocks pass all gates, only the top 2 by composite score are selected. This enforces diversification.
+                <span className="font-bold text-text-primary">Rule 3 — Sector Cap:</span> Soft cap of 2 tickers per sector. If enough diverse candidates exist, only the top 2 per sector are taken. If fewer than 9 diverse candidates survive, the cap is relaxed and the best remaining tickers are admitted regardless of sector.
               </p>
             </div>
 
