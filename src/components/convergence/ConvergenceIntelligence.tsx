@@ -843,6 +843,16 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                 )}
               </div>
             )}
+            {sentiment?.error && (
+              <div className="text-xs text-text-muted mt-2">
+                Social Pulse unavailable — {sentiment.error}
+              </div>
+            )}
+            {!sentiment && (
+              <div className="text-xs text-text-muted mt-2">
+                Social Pulse — xAI data not loaded
+              </div>
+            )}
           </div>
         </div>
       )}
