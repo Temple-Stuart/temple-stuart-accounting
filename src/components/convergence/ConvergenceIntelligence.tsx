@@ -1844,29 +1844,88 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['g'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
-            <p className="text-text-muted text-xs mb-2">
-              Selection rules in order: (1) composite score rank, (2) must have ≥ 3 of 4 gates above 50 — &quot;convergence&quot;, (3) quality score ≥ 40, (4) max 2 tickers per sector — diversity rule. Top 9 survivors get options chains fetched and trade cards built.
-            </p>
-            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            {/* Selection rules explanation */}
+            <div className="space-y-2 mb-3">
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Rule 1 — Convergence Gate:</span> 3 or more of the 4 gates must score above 50. A single strong gate is not enough. The signal must converge across multiple independent dimensions.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Rule 2 — Quality Floor:</span> Quality gate must score 40 or above. High IV on a deteriorating business is not an edge — it is a warning sign.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Rule 3 — Sector Cap:</span> Maximum 2 tickers per sector. If 5 tech stocks pass all gates, only the top 2 by composite score are selected. This enforces diversification.
+              </p>
+            </div>
+
+            {/* Full eligibility matrix */}
+            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
                 <thead><tr className="text-text-muted border-b border-border">
-                  <th className="text-left py-1 px-1">SYMBOL</th><th className="text-left py-1 px-1">STRATEGY</th><th className="text-left py-1 px-1">STATUS</th>
+                  <th className="text-left py-1 px-1">RANK</th>
+                  <th className="text-left py-1 px-1">SYMBOL</th>
+                  <th className="text-right py-1 px-1">COMPOSITE</th>
+                  <th className="text-center py-1 px-1">GATES</th>
+                  <th className="text-right py-1 px-1">VOL</th>
+                  <th className="text-right py-1 px-1">QUAL</th>
+                  <th className="text-right py-1 px-1">REG</th>
+                  <th className="text-right py-1 px-1">INFO</th>
+                  <th className="text-left py-1 px-1">SECTOR</th>
+                  <th className="text-left py-1 px-1">STATUS</th>
                 </tr></thead>
                 <tbody>
-                  {(gData?.top_9 ?? []).map((symbol: string) => {
-                    const rej = gData?.rejections?.[symbol];
+                  {(fData?.rankings ?? []).map((r: { symbol: string; composite: number; vol_edge: number; quality: number; regime: number; info_edge: number; sector?: string | null; convergence?: string; selection_status?: string }, idx: number) => {
+                    const top9Set = new Set(gData?.top_9 ?? []);
+                    const inTop9 = top9Set.has(r.symbol);
+                    const rej = gData?.rejections?.[r.symbol];
                     const hasRejection = rej?.length > 0;
+                    const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter(s => s >= 50).length;
+
+                    // Determine sector counts among already-selected tickers above this rank
+                    const sectorCounts: Record<string, number> = {};
+                    (fData?.rankings ?? []).slice(0, idx).forEach((prev: { symbol: string; sector?: string | null }) => {
+                      if (top9Set.has(prev.symbol) && prev.sector) {
+                        sectorCounts[prev.sector] = (sectorCounts[prev.sector] ?? 0) + 1;
+                      }
+                    });
+
+                    let status: { text: string; color: string };
+                    if (inTop9 && !hasRejection) {
+                      status = { text: '✓ Final 9 — trade card built', color: 'text-brand-green' };
+                    } else if (inTop9 && hasRejection) {
+                      status = { text: '⚠ Selected — strategy pending', color: 'text-brand-gold' };
+                    } else if (r.selection_status === 'below_threshold' || gatesAbove50 < 3) {
+                      status = { text: '✗ Needs 3/4 gates above 50', color: 'text-brand-red' };
+                    } else if (r.quality < 40) {
+                      status = { text: '✗ Quality floor — score below 40', color: 'text-brand-red' };
+                    } else if (r.sector && (sectorCounts[r.sector] ?? 0) >= 2) {
+                      status = { text: `✗ Sector cap — 2 ${r.sector} already selected`, color: 'text-brand-red' };
+                    } else {
+                      status = { text: '✗ Ranked out — composite below top 9 cutoff', color: 'text-brand-red' };
+                    }
+
                     return (
-                      <tr key={symbol} className="border-b border-border/50 hover:bg-bg-card">
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{symbol}</td>
-                        <td className="py-0.5 px-1 text-text-muted">{hasRejection ? rej[0].strategy ?? '—' : 'auto-selected'}</td>
-                        <td className="py-0.5 px-1">{hasRejection ? <span className="text-brand-red">✗ {rej[0].reason}</span> : <span className="text-brand-green">✓ Strategy generated</span>}</td>
+                      <tr key={r.symbol} className={`border-b border-border/50 hover:bg-bg-card ${inTop9 ? 'bg-white/50' : ''}`}>
+                        <td className="py-0.5 px-1 text-text-muted font-mono">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{r.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono font-bold text-text-primary">{r.composite.toFixed(1)}</td>
+                        <td className="py-0.5 px-1 text-center font-mono">{r.convergence ?? `${gatesAbove50}/4`}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.vol_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.vol_edge.toFixed(0)}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.quality >= 50 ? 'text-brand-green' : r.quality < 40 ? 'text-brand-red' : 'text-text-muted'}`}>{r.quality.toFixed(0)}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.regime >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.regime.toFixed(0)}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.info_edge.toFixed(0)}</td>
+                        <td className="py-0.5 px-1 text-text-secondary">{r.sector ?? '—'}</td>
+                        <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+
+            {/* Next steps explanation */}
+            <p className="text-text-muted text-xs mt-3 italic">
+              Step J fetches the live options chain for each of the final 9. Step K builds and scores strategy candidates. Step L is the trade card.
+            </p>
           </div>
         )}
       </div>
