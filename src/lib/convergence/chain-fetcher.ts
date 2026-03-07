@@ -388,6 +388,27 @@ export async function fetchChainAndBuildCards(
           }
         }
 
+        // Fallback: if no strategies passed any gate, populate winner fields from first real expiration
+        if (winningStrikeCount === 0 && allExpStats.length > 0) {
+          const firstReal = allExpStats.find(e => e.strikeCount > 0);
+          if (firstReal) {
+            winningExp = expirations.find(e => e.expiration === firstReal.expiration) ?? expirations[0];
+            winningStrikeCount = firstReal.strikeCount;
+
+            // Recompute dominant price source from that expiration's strikeData
+            const expChain = tickerChains.get(ticker.symbol)?.find(e => e.expiration === firstReal.expiration);
+            if (expChain) {
+              const sd = buildStrikeData(expChain.strikes, greeksData);
+              const counts: Record<string, number> = {};
+              for (const s of sd) {
+                counts[s.priceSource] = (counts[s.priceSource] || 0) + 1;
+              }
+              winningDominantSource = (Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'none') as StrikeData['priceSource'];
+            }
+          }
+        }
+
         cards.set(ticker.symbol, bestStrategies);
         if (bestRejections.length > 0) {
           rejections.set(ticker.symbol, bestRejections);
