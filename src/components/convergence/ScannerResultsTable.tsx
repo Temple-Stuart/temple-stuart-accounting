@@ -568,7 +568,7 @@ export default function ScannerResultsTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded border border-border max-h-[700px] overflow-y-auto">
+      <div className="overflow-x-auto rounded border border-border overflow-y-auto">
         <table className="w-full text-xs" style={{ minWidth: 900 }}>
           <thead className="sticky top-0 z-10">
             <tr className="bg-bg-row">
