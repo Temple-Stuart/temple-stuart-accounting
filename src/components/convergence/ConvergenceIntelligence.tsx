@@ -2159,7 +2159,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['j'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
             <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              TastyTrade REST API returns every available strike for the chosen expiration. A WebSocket then streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike simultaneously.
+              TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
             </p>
             {jData?.tickers && (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
