@@ -74,7 +74,7 @@ interface TradesData {
   byTicker: TickerBreakdown[];
 }
 
-type TabType = 'overview' | 'positions' | 'trade-lab' | 'market-intelligence';
+type TabType = 'overview' | 'positions' | 'market-intelligence';
 
 const EMOTIONS = ['confident', 'neutral', 'nervous', 'fomo', 'revenge', 'greedy', 'fearful'];
 const SETUPS = ['breakout', 'pullback', 'mean-reversion', 'momentum', 'earnings', 'theta-decay', 'volatility', 'other'];
@@ -667,7 +667,6 @@ export default function TradingPage() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'positions', label: 'Open Positions' },
-              { key: 'trade-lab', label: 'Trade Lab' },
               { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
@@ -967,60 +966,58 @@ export default function TradingPage() {
 
             {/* Open Positions Tab */}
             {activeTab === 'positions' && (
-              <div>
-                <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
-                  Open Positions ({filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length})
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-brand-purple-hover text-white">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Trade #</th>
-                        <th className="px-3 py-2 text-left font-medium">Opened</th>
-                        <th className="px-3 py-2 text-left font-medium">Ticker</th>
-                        <th className="px-3 py-2 text-left font-medium">Strategy</th>
-                        <th className="px-3 py-2 text-center font-medium">Type</th>
-                        <th className="px-3 py-2 text-center font-medium">Status</th>
-                        <th className="px-3 py-2 text-right font-medium">Days Open</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').map(trade => {
-                        const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
-                        return (
-                          <tr key={trade.tradeNum} className="hover:bg-bg-row">
-                            <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
-                            <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
-                            <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
-                            <td className="px-3 py-2">
-                              <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
-                                {trade.type}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-brand-green'}`}>
-                                {trade.status}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono">{daysOpen}d</td>
-                          </tr>
-                        );
-                      })}
-                      {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length === 0 && (
-                        <tr><td colSpan={7} className="px-3 py-8 text-center text-text-faint">No open positions</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+              <div className="space-y-6">
+                <TradeLabPanel />
+                <div>
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+                    Open Positions ({filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length})
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-brand-purple-hover text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Trade #</th>
+                          <th className="px-3 py-2 text-left font-medium">Opened</th>
+                          <th className="px-3 py-2 text-left font-medium">Ticker</th>
+                          <th className="px-3 py-2 text-left font-medium">Strategy</th>
+                          <th className="px-3 py-2 text-center font-medium">Type</th>
+                          <th className="px-3 py-2 text-center font-medium">Status</th>
+                          <th className="px-3 py-2 text-right font-medium">Days Open</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').map(trade => {
+                          const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
+                          return (
+                            <tr key={trade.tradeNum} className="hover:bg-bg-row">
+                              <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
+                              <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
+                              <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
+                              <td className="px-3 py-2">
+                                <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
+                                  {trade.type}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-brand-green'}`}>
+                                  {trade.status}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono">{daysOpen}d</td>
+                            </tr>
+                          );
+                        })}
+                        {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length === 0 && (
+                          <tr><td colSpan={7} className="px-3 py-8 text-center text-text-faint">No open positions</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Trade Lab Tab */}
-            {activeTab === 'trade-lab' && (
-              <TradeLabPanel />
             )}
 
             {/* Market Intelligence Tab */}
