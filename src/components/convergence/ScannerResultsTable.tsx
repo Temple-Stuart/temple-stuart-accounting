@@ -62,7 +62,7 @@ interface ScannerResultsTableProps {
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress?: Record<string, any>;
@@ -526,12 +526,12 @@ export default function ScannerResultsTable({
     setBatchProgress({ done: 0, total: toSave.length });
     for (let i = 0; i < toSave.length; i++) {
       setBatchProgress({ done: i, total: toSave.length });
-      await onSaveCard(toSave[i].detail, toSave[i].card!);
+      await onSaveCard(toSave[i].detail, toSave[i].card!, sentimentMap?.[toSave[i].symbol]);
     }
     setBatchProgress({ done: toSave.length, total: toSave.length });
     setBatchSaving(false);
     setSelectedRows(new Set());
-  }, [sortedRows, selectedRows, savedCards, onSaveCard]);
+  }, [sortedRows, selectedRows, savedCards, onSaveCard, sentimentMap]);
 
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return '';
