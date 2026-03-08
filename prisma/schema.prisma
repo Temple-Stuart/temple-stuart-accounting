@@ -1343,6 +1343,44 @@ model trade_cards {
   generated_at      DateTime  @default(now())
   status            String    @default("queued") @db.VarChar(20)
 
+  // Convergence scoring
+  composite_score   Decimal?  @db.Decimal(5, 2)
+  letter_grade      String?   @db.VarChar(2)
+  convergence_gate  String?   @db.VarChar(10)
+
+  // Sub-scores
+  vol_edge_score    Decimal?  @db.Decimal(5, 2)
+  quality_score     Decimal?  @db.Decimal(5, 2)
+  regime_score      Decimal?  @db.Decimal(5, 2)
+  info_edge_score   Decimal?  @db.Decimal(5, 2)
+
+  // Volatility detail
+  vol_sub_scores    Json?
+  vol_cone          Json?
+  forward_vol       Json?
+
+  // Risk & signals
+  risk_flags        Json?
+  plain_signals     Json?
+
+  // Social sentiment
+  social_score      Decimal?  @db.Decimal(5, 4)
+  social_post_count Int?
+  social_themes     Json?
+  social_posts      Json?
+
+  // Greeks
+  greeks_delta      Decimal?  @db.Decimal(8, 4)
+  greeks_gamma      Decimal?  @db.Decimal(8, 6)
+  greeks_theta      Decimal?  @db.Decimal(8, 4)
+  greeks_vega       Decimal?  @db.Decimal(8, 4)
+
+  // Derived metrics
+  ev_per_risk       Decimal?  @db.Decimal(8, 4)
+
+  // Full card snapshot — safety net so we never lose data
+  full_card_json    Json?
+
   user              users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   link              trade_card_links?
 
