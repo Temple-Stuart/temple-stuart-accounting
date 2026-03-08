@@ -196,7 +196,7 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress: Record<string, any>;
@@ -391,7 +391,7 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
   const comp = detail.scores.composite;
@@ -792,7 +792,7 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
               </div>
             ) : (
               <div>
-                <Button variant="primary" size="md" onClick={() => onSave(detail, card)} className="w-full mt-1">Enter Trade</Button>
+                <Button variant="primary" size="md" onClick={() => onSave(detail, card, sentiment)} className="w-full mt-1">Enter Trade</Button>
                 {error && <div className="mt-1 px-2 py-1 rounded text-[10px] bg-red-900/50 text-red-400">Failed: {error}</div>}
               </div>
             )}
@@ -811,7 +811,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
   savedCards: Map<string, string>; // key: "SYMBOL|strategy_name" → saved card ID
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSave: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onSave: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemove: (cardKey: string, savedId: string) => Promise<void>;
 }) {
   const comp = detail.scores.composite;
@@ -1110,7 +1110,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
                       <Button
                         variant="primary"
                         size="md"
-                        onClick={() => onSave(detail, card)}
+                        onClick={() => onSave(detail, card, sentiment)}
                         className="w-full mt-1"
                       >
                         Enter Trade
@@ -2769,7 +2769,7 @@ function FilteredResultsSection({
   savedCards: Map<string, string>;
   savingCards: Set<string>;
   saveErrors: Map<string, string>;
-  onSaveCard: (detail: TickerDetail, card: TradeCardData) => Promise<void>;
+  onSaveCard: (detail: TickerDetail, card: TradeCardData, sentiment?: SocialSentimentData) => Promise<void>;
   onRemoveCard: (cardKey: string, savedId: string) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipelineProgress: Record<string, any>;
@@ -2901,7 +2901,7 @@ export default function ConvergenceIntelligence() {
   }, []);
 
   // Save a card to queue
-  const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData) => {
+  const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData, socialData?: SocialSentimentData) => {
     const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
     setSavingCards(prev => { const next = new Set(prev); next.add(cardKey); return next; });
     setSaveErrors(prev => { const next = new Map(prev); next.delete(cardKey); return next; });
@@ -2929,6 +2929,35 @@ export default function ConvergenceIntelligence() {
       headlines: headlines.length > 0 ? headlines.map(h => ({ title: h.headline, source: h.source, sentiment: h.sentiment })) : null,
       dte: card.setup.dte,
       expiration_date: card.setup.expiration_date,
+      // Convergence scoring
+      composite_score: comp.score ?? null,
+      letter_grade: letterGrade(comp.score),
+      convergence_gate: comp.convergence_gate ?? null,
+      vol_edge_score: detail.scores.composite.category_scores?.vol_edge ?? null,
+      quality_score: detail.scores.composite.category_scores?.quality ?? null,
+      regime_score: detail.scores.composite.category_scores?.regime ?? null,
+      info_edge_score: detail.scores.composite.category_scores?.info_edge ?? null,
+      // Volatility detail
+      vol_sub_scores: detail.scores.vol_edge?.breakdown ?? null,
+      vol_cone: ks?.vol_cone ?? null,
+      forward_vol: ks?.forward_vol ?? null,
+      // Risk & signals
+      risk_flags: why?.risk_flags ?? null,
+      plain_signals: why?.plain_english_signals ?? null,
+      // Social sentiment
+      social_score: socialData?.score ?? null,
+      social_post_count: socialData?.postCount ?? null,
+      social_themes: socialData?.themes ?? null,
+      social_posts: socialData?.samplePosts ?? null,
+      // Greeks
+      greeks_delta: card.setup.greeks?.delta ?? null,
+      greeks_gamma: card.setup.greeks?.gamma ?? null,
+      greeks_theta: card.setup.greeks?.theta ?? null,
+      greeks_vega: card.setup.greeks?.vega ?? null,
+      // Derived metrics
+      ev_per_risk: card.setup.ev_per_risk ?? null,
+      // Full card snapshot
+      full_card_json: card ?? null,
     };
 
     console.log('[TradeCard] Saving:', cardKey, body);
