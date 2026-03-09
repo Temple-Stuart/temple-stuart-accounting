@@ -1345,8 +1345,8 @@ model trade_cards {
 
   // Convergence scoring
   composite_score   Decimal?  @db.Decimal(5, 2)
-  letter_grade      String?   @db.VarChar(2)
-  convergence_gate  String?   @db.VarChar(10)
+  letter_grade      String?   @db.VarChar(10)
+  convergence_gate  String?   @db.Text
 
   // Sub-scores
   vol_edge_score    Decimal?  @db.Decimal(5, 2)
