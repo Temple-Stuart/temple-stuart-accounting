@@ -112,10 +112,15 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, card });
-  } catch (error) {
-    console.error('Trade card save error:', error);
+  } catch (error: any) {
+    console.error('trade_cards.create error:', JSON.stringify({
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      clientVersion: error.clientVersion,
+    }, null, 2));
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to save trade card' },
+      { error: error.message ?? 'Failed to save trade card' },
       { status: 500 }
     );
   }
