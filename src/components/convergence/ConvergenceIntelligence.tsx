@@ -189,6 +189,13 @@ function PriceSourceBadge({ source }: { source: string }) {
   return <span className={`font-bold ${colors[source] ?? 'text-text-muted'}`}>{source}</span>;
 }
 
+// Build a unique key for a trade card: symbol|strategy|expiration|sorted_strikes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildCardKey(symbol: string, strategyName: string, expiration?: string | null, legs?: any[] | null): string {
+  const strikes = (legs ?? []).map((l: { strike?: number }) => l.strike).filter((s): s is number => s != null).sort((a, b) => a - b).join(',');
+  return `${symbol}|${strategyName}|${expiration ?? ''}|${strikes}`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function TickerChapter({ detail, sentiment, savedCards, savingCards, saveErrors, onSave, onRemove, pipelineProgress }: {
   detail: TickerDetail;
@@ -674,7 +681,7 @@ export function TerminalTradeCard({ detail, sentiment, savedCards, savingCards, 
   return (
     <div className="space-y-2">
       {cards.map((card, ci) => {
-        const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+        const cardKey = buildCardKey(detail.symbol, card.setup.strategy_name, card.setup.expiration_date, card.setup.legs);
         const savedId = savedCards.get(cardKey);
         const saving = savingCards.has(cardKey);
         const error = saveErrors.get(cardKey);
@@ -1079,7 +1086,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 
                 {/* Enter Trade / Queued button */}
                 {(() => {
-                  const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+                  const cardKey = buildCardKey(detail.symbol, card.setup.strategy_name, card.setup.expiration_date, card.setup.legs);
                   const savedId = savedCards.get(cardKey);
                   const saving = savingCards.has(cardKey);
                   const error = saveErrors.get(cardKey);
@@ -2879,7 +2886,7 @@ export default function ConvergenceIntelligence() {
     try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
   }, []);
 
-  // Trade card queue — Map<"SYMBOL|strategy_name", savedCardId>
+  // Trade card queue — Map<"SYMBOL|strategy|expiration|strikes", savedCardId>
   const [savedCards, setSavedCards] = useState<Map<string, string>>(new Map());
   const [savingCards, setSavingCards] = useState<Set<string>>(new Set());
   const [saveErrors, setSaveErrors] = useState<Map<string, string>>(new Map());
@@ -2893,7 +2900,7 @@ export default function ConvergenceIntelligence() {
         const { cards } = await res.json();
         const map = new Map<string, string>();
         for (const c of cards) {
-          map.set(`${c.symbol}|${c.strategy_name}`, c.id);
+          map.set(buildCardKey(c.symbol, c.strategy_name, c.expiration_date, c.legs), c.id);
         }
         setSavedCards(map);
       } catch { /* ignore auth errors on non-owner pages */ }
@@ -2902,7 +2909,7 @@ export default function ConvergenceIntelligence() {
 
   // Save a card to queue
   const saveCard = useCallback(async (detail: TickerDetail, card: TradeCardData, socialData?: SocialSentimentData) => {
-    const cardKey = `${detail.symbol}|${card.setup.strategy_name}`;
+    const cardKey = buildCardKey(detail.symbol, card.setup.strategy_name, card.setup.expiration_date, card.setup.legs);
     setSavingCards(prev => { const next = new Set(prev); next.add(cardKey); return next; });
     setSaveErrors(prev => { const next = new Map(prev); next.delete(cardKey); return next; });
 
