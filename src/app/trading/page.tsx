@@ -408,6 +408,39 @@ export default function TradingPage() {
     };
   }, [filteredTrades]);
 
+  // Open positions filtered by scanner start date (for Trade Reconciliation tab)
+  const openPositions = useMemo(() => {
+    return filteredTrades.filter(t => {
+      if (t.status !== 'OPEN' && t.status !== 'PARTIAL') return false;
+      if (scannerStartDate && new Date(t.openDate) < new Date(scannerStartDate)) return false;
+      return true;
+    });
+  }, [filteredTrades, scannerStartDate]);
+
+  // Metrics scoped to reconciliation (open positions only, filtered by scanner start date)
+  const reconciliationMetrics = useMemo(() => {
+    const trades = openPositions;
+    const closed: Trade[] = [];
+    return {
+      totalTrades: trades.length,
+      openTrades: trades.length,
+      closedTrades: 0,
+      totalRealizedPL: 0,
+      winRate: 0,
+      avgWin: 0,
+      avgLoss: 0,
+      profitFactor: 0,
+      largestWin: 0,
+      largestLoss: 0,
+      avgHoldDays: trades.length > 0 ? trades.reduce((sum, t) => {
+        const days = Math.ceil((Date.now() - new Date(t.openDate).getTime()) / (1000 * 60 * 60 * 24));
+        return sum + days;
+      }, 0) / trades.length : 0,
+      winStreak: calculateStreak(closed, true),
+      lossStreak: calculateStreak(closed, false),
+    };
+  }, [openPositions]);
+
   // Equity curve data
   const equityCurve = useMemo(() => {
     const closed = filteredTrades
@@ -609,34 +642,39 @@ export default function TradingPage() {
             </div>
           </div>
 
+          {/* Stats Dashboard — hidden on Market Intelligence tab */}
+          {activeTab !== 'market-intelligence' && (() => {
+            const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics;
+            return (
+            <>
           {/* Hero Stats Row */}
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-            <div className={`p-4 border ${filteredMetrics.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+            <div className={`p-4 border ${m.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
-              <div className={`text-sm font-bold font-mono ${filteredMetrics.totalRealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                {fmtPL(filteredMetrics.totalRealizedPL)}
+              <div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                {fmtPL(m.totalRealizedPL)}
               </div>
             </div>
             <div className="bg-white border border-border p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Win Rate</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.winRate}%</div>
-              <div className="text-[10px] text-text-faint">{filteredMetrics.closedTrades} closed</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{m.winRate}%</div>
+              <div className="text-[10px] text-text-faint">{m.closedTrades} closed</div>
             </div>
             <div className="bg-white border border-border p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.profitFactor.toFixed(2)}</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{m.profitFactor.toFixed(2)}</div>
             </div>
             <div className="bg-white border border-border p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Win</div>
-              <div className="text-sm font-bold font-mono text-brand-green">{fmt(filteredMetrics.avgWin)}</div>
+              <div className="text-sm font-bold font-mono text-brand-green">{fmt(m.avgWin)}</div>
             </div>
             <div className="bg-white border border-border p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Loss</div>
-              <div className="text-sm font-bold font-mono text-brand-red">{fmt(filteredMetrics.avgLoss)}</div>
+              <div className="text-sm font-bold font-mono text-brand-red">{fmt(m.avgLoss)}</div>
             </div>
             <div className="bg-white border border-border p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Hold</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{filteredMetrics.avgHoldDays.toFixed(1)}d</div>
+              <div className="text-sm font-bold font-mono text-text-primary">{m.avgHoldDays.toFixed(1)}d</div>
             </div>
           </div>
 
@@ -644,19 +682,19 @@ export default function TradingPage() {
           <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
             <div className="bg-white border border-border p-2 text-center">
               <div className="text-[9px] text-text-muted uppercase">Largest Win</div>
-              <div className="text-sm font-mono font-semibold text-brand-green">{fmt(filteredMetrics.largestWin)}</div>
+              <div className="text-sm font-mono font-semibold text-brand-green">{fmt(m.largestWin)}</div>
             </div>
             <div className="bg-white border border-border p-2 text-center">
               <div className="text-[9px] text-text-muted uppercase">Largest Loss</div>
-              <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(filteredMetrics.largestLoss))}</div>
+              <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(m.largestLoss))}</div>
             </div>
             <div className="bg-white border border-border p-2 text-center">
               <div className="text-[9px] text-text-muted uppercase">Win Streak</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredMetrics.winStreak}</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{m.winStreak}</div>
             </div>
             <div className="bg-white border border-border p-2 text-center">
               <div className="text-[9px] text-text-muted uppercase">Loss Streak</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredMetrics.lossStreak}</div>
+              <div className="text-sm font-mono font-semibold text-text-primary">{m.lossStreak}</div>
             </div>
             <div className="bg-white border border-border p-2 text-center">
               <div className="text-[9px] text-text-muted uppercase">Options</div>
@@ -675,6 +713,9 @@ export default function TradingPage() {
               <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
             </div>
           </div>
+            </>
+            );
+          })()}
 
           {/* Tabs */}
           <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-border">
@@ -979,13 +1020,7 @@ export default function TradingPage() {
             )}
 
             {/* Trade Reconciliation Tab */}
-            {activeTab === 'positions' && (() => {
-              const openPositions = filteredTrades.filter(t => {
-                if (t.status !== 'OPEN' && t.status !== 'PARTIAL') return false;
-                if (scannerStartDate && new Date(t.openDate) < new Date(scannerStartDate)) return false;
-                return true;
-              });
-              return (
+            {activeTab === 'positions' && (
               <div className="space-y-6">
                 <TradeLabPanel />
                 <div>
@@ -1038,8 +1073,7 @@ export default function TradingPage() {
                   </div>
                 </div>
               </div>
-              );
-            })()}
+            )}
 
             {/* Market Intelligence Tab */}
             {activeTab === 'market-intelligence' && (
