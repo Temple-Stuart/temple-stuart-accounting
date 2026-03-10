@@ -448,6 +448,7 @@ model users {
   stripeCustomerId         String?
   stripeSubscriptionId     String?
   bookkeeping_initialized  Boolean                @default(false)
+  scanner_start_date       DateTime?
   accounts                 accounts[]
   plaid_items          plaid_items[]
   budgets              budgets[]

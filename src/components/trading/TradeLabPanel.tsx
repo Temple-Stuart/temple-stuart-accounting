@@ -63,6 +63,43 @@ export default function TradeLabPanel() {
   // Grading in progress
   const [gradingCardId, setGradingCardId] = useState<string | null>(null);
 
+  // Scanner start date (per-user)
+  const [scannerStartDate, setScannerStartDate] = useState<string | null>(null);
+  const [editingStartDate, setEditingStartDate] = useState(false);
+  const [startDateInput, setStartDateInput] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/user/scanner-start-date');
+        if (res.ok) {
+          const { scanner_start_date } = await res.json();
+          if (scanner_start_date) setScannerStartDate(scanner_start_date);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const saveScannerStartDate = async (dateStr: string) => {
+    try {
+      const res = await fetch('/api/user/scanner-start-date', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanner_start_date: dateStr }),
+      });
+      if (res.ok) {
+        const { scanner_start_date } = await res.json();
+        setScannerStartDate(scanner_start_date);
+        setEditingStartDate(false);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const loadCards = useCallback(async () => {
     setLoading(true);
     try {
@@ -249,7 +286,56 @@ export default function TradeLabPanel() {
 
       {/* Legacy notice */}
       <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800">
-        Positions opened before Feb 23, 2026 are legacy trades without scanner data. Only new trades can be linked to trade cards.
+        {editingStartDate ? (
+          <span className="inline-flex items-center gap-2">
+            Scanner start date:{' '}
+            <input
+              type="date"
+              value={startDateInput}
+              onChange={e => setStartDateInput(e.target.value)}
+              className="border border-amber-300 rounded px-1 py-0.5 text-xs bg-white"
+            />
+            <button
+              onClick={() => saveScannerStartDate(startDateInput)}
+              className="text-xs font-bold text-green-700 hover:text-green-900"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditingStartDate(false)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+          </span>
+        ) : scannerStartDate ? (
+          <>
+            Positions opened before{' '}
+            <button
+              onClick={() => {
+                setStartDateInput(scannerStartDate.slice(0, 10));
+                setEditingStartDate(true);
+              }}
+              className="underline font-bold cursor-pointer hover:text-amber-900"
+            >
+              {formatDate(scannerStartDate)}
+            </button>
+            {' '}are legacy trades without scanner data. Only new trades can be linked to trade cards.
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                setStartDateInput('');
+                setEditingStartDate(true);
+              }}
+              className="underline font-bold cursor-pointer hover:text-amber-900"
+            >
+              Set your scanner start date
+            </button>
+            {' '}to identify which positions are legacy trades without scanner data.
+          </>
+        )}
       </div>
 
       {loading ? (
