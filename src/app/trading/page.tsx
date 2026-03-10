@@ -93,7 +93,21 @@ export default function TradingPage() {
   // Date range filter
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
-  
+
+  // Per-user scanner start date (for filtering legacy positions)
+  const [scannerStartDate, setScannerStartDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/user/scanner-start-date');
+        if (res.ok) {
+          const { scanner_start_date } = await res.json();
+          if (scanner_start_date) setScannerStartDate(scanner_start_date);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);  
   // Journal modal
   const [journalModal, setJournalModal] = useState<{ trade: Trade; entry?: JournalEntry } | null>(null);
   const [journalForm, setJournalForm] = useState({
@@ -666,7 +680,7 @@ export default function TradingPage() {
           <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-border">
             {[
               { key: 'overview', label: 'Overview' },
-              { key: 'positions', label: 'Open Positions' },
+              { key: 'positions', label: 'Trade Reconciliation' },
               { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
@@ -964,13 +978,19 @@ export default function TradingPage() {
               </div>
             )}
 
-            {/* Open Positions Tab */}
-            {activeTab === 'positions' && (
+            {/* Trade Reconciliation Tab */}
+            {activeTab === 'positions' && (() => {
+              const openPositions = filteredTrades.filter(t => {
+                if (t.status !== 'OPEN' && t.status !== 'PARTIAL') return false;
+                if (scannerStartDate && new Date(t.openDate) < new Date(scannerStartDate)) return false;
+                return true;
+              });
+              return (
               <div className="space-y-6">
                 <TradeLabPanel />
                 <div>
                   <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
-                    Open Positions ({filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length})
+                    Open Positions ({openPositions.length})
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -986,7 +1006,7 @@ export default function TradingPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').map(trade => {
+                        {openPositions.map(trade => {
                           const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
                           return (
                             <tr key={trade.tradeNum} className="hover:bg-bg-row">
@@ -1010,7 +1030,7 @@ export default function TradingPage() {
                             </tr>
                           );
                         })}
-                        {filteredTrades.filter(t => t.status === 'OPEN' || t.status === 'PARTIAL').length === 0 && (
+                        {openPositions.length === 0 && (
                           <tr><td colSpan={7} className="px-3 py-8 text-center text-text-faint">No open positions</td></tr>
                         )}
                       </tbody>
@@ -1018,7 +1038,8 @@ export default function TradingPage() {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Market Intelligence Tab */}
             {activeTab === 'market-intelligence' && (
