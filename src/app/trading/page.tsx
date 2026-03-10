@@ -622,7 +622,7 @@ export default function TradingPage() {
               <div>
                 <h1 className="text-terminal-lg font-semibold tracking-tight">Trading Dashboard</h1>
                 <p className="text-text-faint text-xs font-mono">
-                  {filteredMetrics.totalTrades} trades · {filteredMetrics.closedTrades} closed · {filteredMetrics.openTrades} open
+                  {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).totalTrades} trades · {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).closedTrades} closed · {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).openTrades} open
                 </p>
               </div>
               
