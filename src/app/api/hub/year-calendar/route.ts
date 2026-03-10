@@ -63,37 +63,37 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // BUDGET DATA - From budget_line_items (homebase source)
+    // BUDGET DATA - From budgets table (monthly columns jan–dec)
     // ═══════════════════════════════════════════════════════════════════
-    const items = await prisma.budget_line_items.findMany({
+    const homebaseCodes = Object.keys(COA_NAMES);
+    const budgetRows = await prisma.budgets.findMany({
       where: {
         userId: user.id,
         year: year,
-        source: 'homebase'
+        accountCode: { in: homebaseCodes }
       }
     });
 
-    // Aggregate budget by COA and month
+    const MONTH_COLS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'] as const;
     const budgetData: Record<string, Record<number, number>> = {};
     let budgetGrandTotal = 0;
 
-    for (const item of items) {
-      const coa = item.coaCode || 'UNCATEGORIZED';
-      const month = item.month - 1; // 0-indexed
-      const amount = Number(item.amount || 0);
-
-      if (!budgetData[coa]) {
-        budgetData[coa] = {};
+    for (const row of budgetRows) {
+      const coa = row.accountCode;
+      if (!budgetData[coa]) budgetData[coa] = {};
+      for (let m = 0; m < 12; m++) {
+        const val = Number(row[MONTH_COLS[m]] || 0);
+        if (val !== 0) {
+          budgetData[coa][m] = (budgetData[coa][m] || 0) + val;
+          budgetGrandTotal += val;
+        }
       }
-      budgetData[coa][month] = (budgetData[coa][month] || 0) + amount;
-      budgetGrandTotal += amount;
     }
 
     // ═══════════════════════════════════════════════════════════════════
     // ACTUALS DATA - From ledger_entries (single source of truth)
     // Matches statements, metrics, and tax engine queries.
     // ═══════════════════════════════════════════════════════════════════
-    const homebaseCodes = Object.keys(COA_NAMES);
 
     const ledgerRows: Array<{ code: string; month: number; debits: string }> = await prisma.$queryRaw`
       SELECT
