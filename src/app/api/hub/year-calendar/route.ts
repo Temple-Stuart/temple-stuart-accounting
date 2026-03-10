@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       where: {
         userId: user.id,
         year: year,
-        accountCode: { in: homebaseCodes }
+        accountCode: { in: homebaseCodes.map(c => `P-${c}`) }
       }
     });
 
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     for (const row of budgetRows) {
-      const coa = row.accountCode;
+      const coa = row.accountCode.replace(/^P-/, '');
       if (!budgetData[coa]) budgetData[coa] = {};
       for (let m = 0; m < 12; m++) {
         const val = Number(row[MONTH_COLS[m]] || 0);
