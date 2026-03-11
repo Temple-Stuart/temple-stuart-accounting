@@ -1966,19 +1966,10 @@ export async function fetchFinnhubEarningsQuality(
 
 // ===== NEWS SENTIMENT FETCHER (company-news + keyword/LLM classification) =====
 
-const newsSentimentCache = new Map<string, { data: NewsSentimentData; fetchedAt: number }>();
-const NEWS_SENTIMENT_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-
 export async function fetchNewsSentiment(
   symbol: string,
   apiKey?: string,
 ): Promise<{ data: NewsSentimentData | null; error: string | null }> {
-  // Check cache
-  const cached = newsSentimentCache.get(symbol);
-  if (cached && Date.now() - cached.fetchedAt < NEWS_SENTIMENT_CACHE_TTL) {
-    return { data: cached.data, error: null };
-  }
-
   const key = apiKey || process.env.FINNHUB_API_KEY;
   if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
 
@@ -2125,9 +2116,6 @@ export async function fetchNewsSentiment(
       headlines: allHeadlines,
       classification_method: classificationMethod,
     };
-
-    // Cache (LLM classification cached with the result — classify once per 30 min)
-    newsSentimentCache.set(symbol, { data: result, fetchedAt: Date.now() });
 
     return { data: result, error: null };
   } catch (e: unknown) {
