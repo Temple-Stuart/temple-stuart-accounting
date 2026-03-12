@@ -32,6 +32,7 @@ import type {
   SECForm4Data,
   CompanyTextProfile,
   TextBasedPeerGroup,
+  CandleData,
 } from './types';
 
 // ===== TYPES =====
@@ -543,13 +544,10 @@ export async function runPipeline(
     }
   }
 
-  // Options flow: Finnhub /stock/option-chain does not exist in their API.
-  // Scoring handles null optionsFlow gracefully (imputes neutral values).
-  // Real chain data comes from TastyTrade in Step G2.
+  // Options flow: populated from TastyTrade chain data in Step G2.
+  // Before G2, all tickers score with null optionsFlow (neutral imputation).
+  // After G2, tickers are re-scored with real OptionsFlowData.
   const optionsFlowMap = new Map<string, OptionsFlowData | null>();
-  for (const symbol of topSymbols) {
-    optionsFlowMap.set(symbol, null);
-  }
 
   // Steps E3-E11: Fetch enrichment data in parallel (each step loops over topSymbols with its own rate-limit delays)
   console.log('[Pipeline] Steps E3-E11: Fetching enrichment data in parallel...');
@@ -818,10 +816,16 @@ export async function runPipeline(
   console.log('[Pipeline] Step F2: Fetching candle data for scored tickers...');
   let candleStats: CandleBatchStats = { total_candles: 0, symbols_with_data: 0, symbols_failed: [], elapsed_ms: 0 };
   const scoredSymbols = scoredTickers.map(t => t.symbol);
+  // Hoist candle data so G2.5 re-scoring can access it
+  const candleDataMap = new Map<string, CandleData[]>();
 
   try {
     const candleResult = await fetchTTCandlesBatch(scoredSymbols, 90);
     candleStats = candleResult.stats;
+    // Preserve candle data for later re-scoring steps
+    for (const [sym, candles] of candleResult.data) {
+      candleDataMap.set(sym, candles);
+    }
 
     // Re-score tickers that got candle data
     let reScored = 0;
@@ -1005,6 +1009,61 @@ export async function runPipeline(
           // Chain was fetched but no cards generated
           ticker.scoring.strategy_suggestion.trade_cards = [];
         }
+      }
+
+      // ===== STEP G2.5: Re-score tickers with real OptionsFlowData =====
+      // Populate optionsFlowMap from chain fetch results
+      for (const [symbol, flowData] of chainResult.optionsFlowMap) {
+        optionsFlowMap.set(symbol, flowData);
+      }
+
+      if (chainResult.optionsFlowMap.size > 0) {
+        let flowReScored = 0;
+        for (const ticker of scoredTickers) {
+          const flowData = optionsFlowMap.get(ticker.symbol);
+          if (!flowData) continue;
+
+          // Rebuild ConvergenceInput with real optionsFlow (same pattern as Step F2)
+          const convergenceInput: ConvergenceInput = {
+            symbol: ticker.symbol,
+            ttScanner: ticker.scannerData,
+            candles: candleDataMap.get(ticker.symbol) ?? [],
+            finnhubFundamentals: ticker.finnhubData.fundamentals,
+            finnhubRecommendations: ticker.finnhubData.recommendations,
+            finnhubInsiderSentiment: ticker.finnhubData.insiderSentiment,
+            finnhubEarnings: ticker.finnhubData.earnings,
+            finnhubEstimates: ticker.finnhubData.estimateData ?? null,
+            fredMacro: fredResult.data,
+            annualFinancials: annualFinancialsMap.get(ticker.symbol) ?? null,
+            quarterlyFinancials: quarterlyFinancialsMap.get(ticker.symbol) ?? null,
+            optionsFlow: flowData,
+            newsSentiment: newsSentimentMap.get(ticker.symbol) ?? null,
+            finnhubNewsSentiment: finbertMap.get(ticker.symbol) ?? null,
+            finnhubEarningsQuality: earningsQualityMap.get(ticker.symbol) ?? null,
+            finnhubInstitutionalOwnership: institutionalOwnershipMap.get(ticker.symbol) ?? null,
+            finnhubRevenueBreakdown: revenueBreakdownMap.get(ticker.symbol) ?? null,
+            secFilingData: secFilingMap.get(ticker.symbol) ?? null,
+            secForm4Data: secForm4Map.get(ticker.symbol) ?? null,
+            crossAssetCorrelations,
+            peerStats,
+            peerGroupAssignment,
+            textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+          };
+
+          try {
+            // Preserve trade cards from G2 (they're attached to strategy_suggestion)
+            const existingTradeCards = ticker.scoring.strategy_suggestion.trade_cards;
+            ticker.scoring = scoreAll(convergenceInput);
+            if (existingTradeCards) {
+              ticker.scoring.strategy_suggestion.trade_cards = existingTradeCards;
+            }
+            flowReScored++;
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            errors.push(`Step G2.5 (flow re-score ${ticker.symbol}): ${msg}`);
+          }
+        }
+        console.log(`[Pipeline] Step G2.5: Re-scored ${flowReScored} tickers with real OptionsFlowData`);
       }
 
       console.log(`[Pipeline] Step G2: ${chainStats.chain_symbols_fetched} chains fetched, ${chainStats.total_trade_cards} trade cards in ${chainStats.elapsed_ms}ms`);

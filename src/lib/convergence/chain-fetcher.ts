@@ -2,6 +2,7 @@ import { getTastytradeClient } from '@/lib/tastytrade';
 import { MarketDataSubscriptionType } from '@tastytrade/api';
 import { buildStrikeData, generateStrategies } from '@/lib/strategy-builder';
 import type { StrategyCard, RejectionReason, StrikeData } from '@/lib/strategy-builder';
+import type { OptionsFlowData, OptionsChainExpiration, OptionsChainStrike } from './types';
 
 // ===== TYPES =====
 
@@ -56,6 +57,7 @@ export interface ChainFetchResult {
   perTickerStats: Map<string, PerTickerChainStats>;
   marketOpen: boolean;
   marketNote?: string;
+  optionsFlowMap: Map<string, OptionsFlowData>;
 }
 
 // ===== HELPERS =====
@@ -101,6 +103,7 @@ export async function fetchChainAndBuildCards(
   const cards = new Map<string, StrategyCard[]>();
   const rejections = new Map<string, RejectionReason[]>();
   const perTickerStats = new Map<string, PerTickerChainStats>();
+  const optionsFlowMap = new Map<string, OptionsFlowData>();
   const stats: ChainFetchStats = {
     chain_symbols_fetched: 0,
     total_trade_cards: 0,
@@ -119,7 +122,7 @@ export async function fetchChainAndBuildCards(
 
   if (tickers.length === 0) {
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
   }
 
   try {
@@ -241,7 +244,7 @@ export async function fetchChainAndBuildCards(
     if (allStreamerSymbols.length === 0) {
       console.warn('[ChainFetcher] No streamer symbols to subscribe to');
       stats.elapsed_ms = Date.now() - start;
-      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
+      return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
     }
 
     stats.streamer_symbols_subscribed = allStreamerSymbols.length;
@@ -441,15 +444,94 @@ export async function fetchChainAndBuildCards(
         cards.set(ticker.symbol, []);
       }
     }
+
+    // Step 4: Compute OptionsFlowData per ticker from streamer data
+    for (const ticker of tickers) {
+      const expirations = tickerChains.get(ticker.symbol);
+      if (!expirations || expirations.length === 0) continue;
+
+      const chainDetail: OptionsChainExpiration[] = [];
+      let totalCallVolume = 0;
+      let totalPutVolume = 0;
+      let totalCallOI = 0;
+      let totalPutOI = 0;
+      let strikesAnalyzed = 0;
+      let highActivityStrikes = 0;
+
+      for (const exp of expirations) {
+        const strikes: OptionsChainStrike[] = [];
+
+        for (const s of exp.strikes) {
+          const callData = greeksData[s.callStreamerSymbol] || {};
+          const putData = greeksData[s.putStreamerSymbol] || {};
+
+          const callIV = callData.iv != null && Number(callData.iv) > 0 ? Number(callData.iv) : null;
+          const putIV = putData.iv != null && Number(putData.iv) > 0 ? Number(putData.iv) : null;
+          const callVolume = Number(callData.volume || 0);
+          const putVolume = Number(putData.volume || 0);
+          const callOI = Number(callData.openInterest || 0);
+          const putOI = Number(putData.openInterest || 0);
+
+          strikes.push({
+            strike: s.strike,
+            callIV,
+            putIV,
+            callOI,
+            putOI,
+            callVolume,
+            putVolume,
+          });
+
+          totalCallVolume += callVolume;
+          totalPutVolume += putVolume;
+          totalCallOI += callOI;
+          totalPutOI += putOI;
+          strikesAnalyzed++;
+
+          // High activity: volume exceeds open interest (unusual activity signal)
+          if ((callVolume + putVolume) > (callOI + putOI) && (callOI + putOI) > 0) {
+            highActivityStrikes++;
+          }
+        }
+
+        chainDetail.push({
+          expirationDate: exp.expiration,
+          dte: exp.dte,
+          strikes,
+        });
+      }
+
+      const totalVolume = totalCallVolume + totalPutVolume;
+      const totalOI = totalCallOI + totalPutOI;
+
+      const flowData: OptionsFlowData = {
+        put_call_ratio: totalCallVolume > 0 ? totalPutVolume / totalCallVolume : null,
+        volume_bias: totalVolume > 0 ? (totalCallVolume - totalPutVolume) / totalVolume : null,
+        unusual_activity_ratio: totalOI > 0 ? totalVolume / totalOI : null,
+        total_call_volume: totalCallVolume,
+        total_put_volume: totalPutVolume,
+        total_call_oi: totalCallOI,
+        total_put_oi: totalPutOI,
+        strikes_analyzed: strikesAnalyzed,
+        high_activity_strikes: highActivityStrikes,
+        expirations_analyzed: expirations.length,
+        underlyingPrice: ticker.currentPrice,
+        chainDetail,
+      };
+
+      optionsFlowMap.set(ticker.symbol, flowData);
+    }
+
+    console.log(`[ChainFetcher] Computed OptionsFlowData for ${optionsFlowMap.size} tickers`);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ChainFetcher] Fatal error:', msg);
     // Return empty map — pipeline continues without trade cards
     stats.elapsed_ms = Date.now() - start;
-    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
+    return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
   }
 
   stats.elapsed_ms = Date.now() - start;
   console.log(`[ChainFetcher] Complete in ${stats.elapsed_ms}ms: ${stats.chain_symbols_fetched} chains, ${stats.total_trade_cards} cards`);
-  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote };
+  return { cards, rejections, stats, perTickerStats, marketOpen, marketNote, optionsFlowMap };
 }
