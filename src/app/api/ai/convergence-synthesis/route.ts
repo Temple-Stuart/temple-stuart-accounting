@@ -384,6 +384,7 @@ export async function POST(request: Request) {
         pipeline_ms: pipeline.pipeline_summary?.pipeline_runtime_ms ?? 0,
         ai_ms: aiMs,
         synthesis_ms: synthesisMs,
+        total_ms: (pipeline.pipeline_summary?.pipeline_runtime_ms ?? 0) + aiMs + synthesisMs,
       },
     };
 
