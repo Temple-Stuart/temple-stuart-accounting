@@ -1632,113 +1632,118 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 Step B uses all 15 to make the first cut.
               </p>
             </div>
-            {/* Symbol table */}
+            {/* Symbol table — two-tier design */}
             {(() => {
               const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
               const source = progress?.a?.data?.source as string | undefined;
               const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) : null;
+              const fmtPct = (v: any) => v != null ? (v * 100).toFixed(1) : '—';
+              const fmt1 = (v: any) => v != null ? Number(v).toFixed(1) : '—';
+              const fmt2 = (v: any) => v != null ? Number(v).toFixed(2) : '—';
+              const fmtCap = (v: any) => {
+                if (v == null) return '—';
+                if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+                return '$' + (v / 1e9).toFixed(1) + 'B';
+              };
               return (
+                <>
                 <div className="flex items-center gap-3 text-xs text-text-muted mb-1">
                   <span className="font-bold">SYMBOLS FETCHED ({(progress?.a?.data?.symbols ?? []).length})</span>
                   {source && <span>Source: <span className="text-text-primary">{source}</span></span>}
                   {fetchedAt && <span>Fetched: <span className="text-text-primary">{fetchedAt}</span></span>}
                   {ageSec != null && <span>Age: <span className="text-text-primary">{ageSec}s</span></span>}
                 </div>
+                <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-text-muted border-b border-border">
+                        <th className="text-left py-1 pr-1 w-4"></th>
+                        <th className="text-left py-1 pr-2">#</th>
+                        <th className="text-left py-1 pr-2">SYMBOL</th>
+                        <th className="text-right py-1 pr-2">IV RANK</th>
+                        <th className="text-right py-1 pr-2">IV%</th>
+                        <th className="text-right py-1 pr-2">IV30</th>
+                        <th className="text-right py-1 pr-2">HV30</th>
+                        <th className="text-right py-1 pr-2">LIQ</th>
+                        <th className="text-left py-1 pr-2">EARNINGS</th>
+                        <th className="text-right py-1 pr-2">DTE</th>
+                        <th className="text-left py-1">SECTOR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => {
+                        const detailKey = `stepA_${s.symbol}`;
+                        const isOpen = expanded[detailKey];
+                        const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
+                        return (
+                          <React.Fragment key={s.symbol}>
+                            <tr className="border-b border-border/50 cursor-pointer hover:bg-bg-row/50" onClick={() => toggle(detailKey)}>
+                              <td className="py-1 pr-1 text-text-muted text-center">{isOpen ? '▼' : '▶'}</td>
+                              <td className="py-1 pr-2 text-text-muted">{i+1}</td>
+                              <td className="py-1 pr-2 font-bold">{s.symbol}</td>
+                              <td className="py-1 pr-2 text-right">{fmtPct(s.ivRank)}</td>
+                              <td className="py-1 pr-2 text-right">{fmtPct(s.ivPercentile)}</td>
+                              <td className="py-1 pr-2 text-right">{fmt1(s.iv30)}</td>
+                              <td className="py-1 pr-2 text-right">{fmt1(s.hv30)}</td>
+                              <td className="py-1 pr-2 text-right">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
+                              <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
+                              <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                              <td className="py-1 text-text-muted">{s.sector ?? '—'}</td>
+                            </tr>
+                            {isOpen && (
+                              <tr className="bg-bg-row/30 border-b border-border/50">
+                                <td colSpan={11} className="py-2 px-4">
+                                  <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
+                                    <div className="flex justify-between"><span className="text-text-muted">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">IV-HV SPREAD</span><span>{fmt2(s.ivHvSpread)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">HV60</span><span>{fmt1(s.hv60)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">HV90</span><span>{fmt1(s.hv90)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">MKT CAP</span><span>{fmtCap(s.marketCap)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">BETA</span><span>{fmt2(s.beta)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">SPY CORR</span><span>{fmt2(s.corrSpy)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">P/E</span><span>{fmt1(s.peRatio)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">EPS</span><span>{fmt2(s.eps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">BORROW</span><span>{s.borrowRate != null ? s.borrowRate + '%' : '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
+                                  </div>
+                                  {hasTerm && (
+                                    <div>
+                                      <p className="text-text-muted text-xs font-bold mb-1">TERM STRUCTURE</p>
+                                      <table className="text-xs">
+                                        <thead>
+                                          <tr className="text-text-muted">
+                                            <th className="text-left pr-4 py-0.5">EXPIRY</th>
+                                            <th className="text-right py-0.5">IV</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {s.termStructure.map((t: any, ti: number) => (
+                                            <tr key={ti} className="border-t border-border/30">
+                                              <td className="pr-4 py-0.5">{t.date ?? '—'}</td>
+                                              <td className="text-right py-0.5">{t.iv != null ? (t.iv * 100).toFixed(1) + '%' : '—'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                </>
               );
             })()}
-            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 pr-2">#</th>
-                    <th className="text-left py-1 pr-2">SYMBOL</th>
-                    <th className="text-right py-1 pr-2">IV RANK</th>
-                    <th className="text-right py-1 pr-2">IV%</th>
-                    <th className="text-right py-1 pr-2">IMPLIED VOL</th>
-                    <th className="text-right py-1 pr-2">IV30</th>
-                    <th className="text-right py-1 pr-2">HV30</th>
-                    <th className="text-right py-1 pr-2">HV60</th>
-                    <th className="text-right py-1 pr-2">HV90</th>
-                    <th className="text-right py-1 pr-2">IV-HV SPREAD</th>
-                    <th className="text-right py-1 pr-2">LIQ</th>
-                    <th className="text-left py-1 pr-2">EARNINGS</th>
-                    <th className="text-right py-1 pr-2">DTE</th>
-                    <th className="text-left py-1 pr-2">EARNINGS TOD</th>
-                    <th className="text-right py-1 pr-2">LAST EPS</th>
-                    <th className="text-right py-1 pr-2">EPS EST</th>
-                    <th className="text-right py-1 pr-2">BORROW</th>
-                    <th className="text-left py-1 pr-2">LENDABILITY</th>
-                    <th className="text-right py-1 pr-2">MKT CAP</th>
-                    <th className="text-right py-1 pr-2">BETA</th>
-                    <th className="text-right py-1 pr-2">SPY CORR</th>
-                    <th className="text-left py-1 pr-2">SECTOR</th>
-                    <th className="text-left py-1 pr-2">INDUSTRY</th>
-                    <th className="text-right py-1 pr-2">P/E</th>
-                    <th className="text-right py-1 pr-2">EPS</th>
-                    <th className="text-right py-1 pr-2">DIV YIELD</th>
-                    <th className="text-left py-1">TERM</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => {
-                    const termKey = `term_${s.symbol}`;
-                    const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
-                    return (
-                      <React.Fragment key={s.symbol}>
-                        <tr className="border-b border-border/50">
-                          <td className="py-1 pr-2 text-text-muted">{i+1}</td>
-                          <td className="py-1 pr-2 font-bold">{s.symbol}</td>
-                          <td className="py-1 pr-2 text-right">{s.ivRank ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.ivPercentile ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.impliedVolatility != null ? s.impliedVolatility.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.iv30 != null ? s.iv30.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.hv30 != null ? s.hv30.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.hv60 != null ? s.hv60.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.hv90 != null ? s.hv90.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.ivHvSpread != null ? s.ivHvSpread.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.liquidityRating ?? '—'}/5</td>
-                          <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
-                          <td className="py-1 pr-2 text-left">{s.earningsTimeOfDay ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.earningsActualEps != null ? s.earningsActualEps.toFixed(2) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.earningsEstimate != null ? s.earningsEstimate.toFixed(2) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
-                          <td className="py-1 pr-2 text-left">{s.lendability ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.marketCap ? '$'+(s.marketCap/1e9).toFixed(1)+'B' : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.beta != null ? s.beta.toFixed(2) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.corrSpy != null ? s.corrSpy.toFixed(2) : '—'}</td>
-                          <td className="py-1 text-text-muted">{s.sector ?? '—'}</td>
-                          <td className="py-1 pr-2 text-text-muted">{s.industry ?? '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.peRatio != null ? s.peRatio.toFixed(1) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.eps != null ? s.eps.toFixed(2) : '—'}</td>
-                          <td className="py-1 pr-2 text-right">{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</td>
-                          <td className="py-1 text-left">
-                            {hasTerm ? (
-                              <button className="text-brand-purple hover:underline" onClick={() => toggle(termKey)}>
-                                {expanded[termKey] ? '▲' : '▼'} {s.termStructure.length}
-                              </button>
-                            ) : '—'}
-                          </td>
-                        </tr>
-                        {hasTerm && expanded[termKey] && (
-                          <tr className="bg-bg-row/50">
-                            <td colSpan={27} className="py-1 px-4">
-                              <div className="flex flex-wrap gap-2 text-text-muted">
-                                {s.termStructure.map((t: any, ti: number) => (
-                                  <span key={ti} className="border border-border/50 rounded px-1.5 py-0.5">
-                                    {t.date}: <span className="text-text-primary">{t.iv != null ? (t.iv * 100).toFixed(1) + '%' : '—'}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
         )}
       </div>
