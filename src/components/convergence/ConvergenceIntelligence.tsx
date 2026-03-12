@@ -1645,6 +1645,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
                 return '$' + (v / 1e9).toFixed(1) + 'B';
               };
+              const fmtSpread = (v: any) => {
+                if (v == null) return '—';
+                const n = Number(v);
+                return (n >= 0 ? '+' : '') + n.toFixed(1);
+              };
               return (
                 <>
                 <div className="flex items-center gap-3 text-xs text-text-muted mb-1">
@@ -1663,11 +1668,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <th className="text-right py-1 pr-2">IV RANK</th>
                         <th className="text-right py-1 pr-2">IV%</th>
                         <th className="text-right py-1 pr-2">IV30</th>
-                        <th className="text-right py-1 pr-2">HV30</th>
+                        <th className="text-right py-1 pr-2">IV-HV SPREAD</th>
                         <th className="text-right py-1 pr-2">LIQ</th>
+                        <th className="text-right py-1 pr-2">MKT CAP</th>
+                        <th className="text-right py-1 pr-2">BETA</th>
+                        <th className="text-right py-1 pr-2">SPY CORR</th>
+                        <th className="text-right py-1 pr-2">BORROW</th>
                         <th className="text-left py-1 pr-2">EARNINGS</th>
-                        <th className="text-right py-1 pr-2">DTE</th>
-                        <th className="text-left py-1">SECTOR</th>
+                        <th className="text-right py-1">DTE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1684,29 +1692,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               <td className="py-1 pr-2 text-right">{fmtPct(s.ivRank)}</td>
                               <td className="py-1 pr-2 text-right">{fmtPct(s.ivPercentile)}</td>
                               <td className="py-1 pr-2 text-right">{fmt1(s.iv30)}</td>
-                              <td className="py-1 pr-2 text-right">{fmt1(s.hv30)}</td>
+                              <td className="py-1 pr-2 text-right">{fmtSpread(s.ivHvSpread)}</td>
                               <td className="py-1 pr-2 text-right">{s.liquidityRating != null ? s.liquidityRating + '/5' : '—'}</td>
+                              <td className="py-1 pr-2 text-right">{fmtCap(s.marketCap)}</td>
+                              <td className="py-1 pr-2 text-right">{fmt2(s.beta)}</td>
+                              <td className="py-1 pr-2 text-right">{fmt2(s.corrSpy)}</td>
+                              <td className="py-1 pr-2 text-right">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
-                              <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
-                              <td className="py-1 text-text-muted">{s.sector ?? '—'}</td>
+                              <td className="py-1 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
                             </tr>
                             {isOpen && (
                               <tr className="bg-bg-row/30 border-b border-border/50">
-                                <td colSpan={11} className="py-2 px-4">
+                                <td colSpan={14} className="py-2 px-4">
                                   <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
-                                    <div className="flex justify-between"><span className="text-text-muted">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
-                                    <div className="flex justify-between"><span className="text-text-muted">IV-HV SPREAD</span><span>{fmt2(s.ivHvSpread)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">HV30</span><span>{fmt1(s.hv30)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">HV60</span><span>{fmt1(s.hv60)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">HV90</span><span>{fmt1(s.hv90)}</span></div>
-                                    <div className="flex justify-between"><span className="text-text-muted">MKT CAP</span><span>{fmtCap(s.marketCap)}</span></div>
-                                    <div className="flex justify-between"><span className="text-text-muted">BETA</span><span>{fmt2(s.beta)}</span></div>
-                                    <div className="flex justify-between"><span className="text-text-muted">SPY CORR</span><span>{fmt2(s.corrSpy)}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">SECTOR</span><span>{s.sector ?? '—'}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">INDUSTRY</span><span>{s.industry ?? '—'}</span></div>
+                                    <div className="flex justify-between"><span className="text-text-muted">IMPLIED VOL</span><span>{fmtPct(s.impliedVolatility)}{s.impliedVolatility != null ? '%' : ''}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">P/E</span><span>{fmt1(s.peRatio)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">EPS</span><span>{fmt2(s.eps)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">DIV YIELD</span><span>{s.dividendYield != null ? (s.dividendYield * 100).toFixed(2) + '%' : '—'}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">LENDABILITY</span><span>{s.lendability ?? '—'}</span></div>
-                                    <div className="flex justify-between"><span className="text-text-muted">BORROW</span><span>{s.borrowRate != null ? s.borrowRate + '%' : '—'}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">LAST EPS</span><span>{fmt2(s.earningsActualEps)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">EPS EST</span><span>{fmt2(s.earningsEstimate)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">EARNINGS TOD</span><span>{s.earningsTimeOfDay ?? '—'}</span></div>
