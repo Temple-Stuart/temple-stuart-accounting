@@ -332,6 +332,7 @@ export async function runPipeline(
   // ===== STEP A: Fetch TT Scanner (all tickers, batched) =====
   console.log('[Pipeline] Step A: Fetching TT scanner data...');
   let allScannerData: TTScannerData[] = [];
+  let stepAFetchedAt = new Date().toISOString();
   try {
     const client = getTastytradeClient();
     await client.accountsAndCustomersService.getCustomerResource();
@@ -362,6 +363,7 @@ export async function runPipeline(
     );
 
     const items = batchResults.flat();
+    stepAFetchedAt = new Date().toISOString();
     allScannerData = parseMarketMetrics(items);
     console.log(`[Pipeline] Step A: Got ${allScannerData.length} tickers from TT scanner`);
   } catch (e: unknown) {
@@ -371,7 +373,40 @@ export async function runPipeline(
   }
 
   const totalUniverse = allScannerData.length;
-  onProgress?.({ step: 'a', label: 'TT Scanner', data: { total_universe: allScannerData.length, market_open: isMarketOpen().open, symbols: allScannerData.map(d => ({ symbol: d.symbol, ivRank: d.ivRank, ivPercentile: d.ivPercentile, iv30: d.iv30, hv30: d.hv30, hv60: d.hv60, hv90: d.hv90, liquidityRating: d.liquidityRating, earningsDate: d.earningsDate, daysTillEarnings: d.daysTillEarnings, borrowRate: d.borrowRate, lendability: d.lendability, marketCap: d.marketCap, beta: d.beta, corrSpy: d.corrSpy, sector: d.sector })) } });
+  onProgress?.({ step: 'a', label: 'TT Scanner', data: {
+    total_universe: allScannerData.length,
+    market_open: isMarketOpen().open,
+    fetched_at: stepAFetchedAt,
+    source: 'TastyTrade',
+    symbols: allScannerData.map(d => ({
+      symbol: d.symbol,
+      ivRank: d.ivRank,
+      ivPercentile: d.ivPercentile,
+      impliedVolatility: d.impliedVolatility,
+      iv30: d.iv30,
+      hv30: d.hv30,
+      hv60: d.hv60,
+      hv90: d.hv90,
+      ivHvSpread: d.ivHvSpread,
+      liquidityRating: d.liquidityRating,
+      earningsDate: d.earningsDate,
+      daysTillEarnings: d.daysTillEarnings,
+      borrowRate: d.borrowRate,
+      lendability: d.lendability,
+      marketCap: d.marketCap,
+      beta: d.beta,
+      corrSpy: d.corrSpy,
+      sector: d.sector,
+      industry: d.industry,
+      peRatio: d.peRatio,
+      eps: d.eps,
+      dividendYield: d.dividendYield,
+      earningsActualEps: d.earningsActualEps,
+      earningsEstimate: d.earningsEstimate,
+      earningsTimeOfDay: d.earningsTimeOfDay,
+      termStructure: d.termStructure,
+    })),
+  } });
 
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
