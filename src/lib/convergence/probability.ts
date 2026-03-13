@@ -37,7 +37,7 @@ export function normalCDF(x: number): number {
  * Where:
  *   S = current underlying price
  *   K = target price (breakeven)
- *   r = risk-free rate (default 0.045). Prefer passing FRED FEDFUNDS rate when available.
+ *   r = risk-free rate (from FRED FEDFUNDS series, converted to decimal). Required — no default.
  *   sigma = implied volatility (annualized, as decimal e.g. 0.25 for 25%)
  *   T = time to expiration in years
  *
@@ -48,7 +48,7 @@ export function calcD2(
   targetPrice: number,
   iv: number,
   dteYears: number,
-  riskFreeRate: number = 0.045,
+  riskFreeRate: number,
 ): number | null {
   if (spotPrice <= 0 || targetPrice <= 0 || iv <= 0 || dteYears <= 0) return null;
 
@@ -66,7 +66,7 @@ export function probAbove(
   targetPrice: number,
   iv: number,
   dteYears: number,
-  riskFreeRate?: number,
+  riskFreeRate: number,
 ): number | null {
   const d2 = calcD2(spotPrice, targetPrice, iv, dteYears, riskFreeRate);
   if (d2 === null) return null;
@@ -82,7 +82,7 @@ export function probBelow(
   targetPrice: number,
   iv: number,
   dteYears: number,
-  riskFreeRate?: number,
+  riskFreeRate: number,
 ): number | null {
   const above = probAbove(spotPrice, targetPrice, iv, dteYears, riskFreeRate);
   if (above === null) return null;
@@ -103,7 +103,7 @@ export function probBetween(
   upperPrice: number,
   iv: number,
   dteYears: number,
-  riskFreeRate?: number,
+  riskFreeRate: number,
 ): number | null {
   const aboveLower = probAbove(spotPrice, lowerPrice, iv, dteYears, riskFreeRate);
   const aboveUpper = probAbove(spotPrice, upperPrice, iv, dteYears, riskFreeRate);

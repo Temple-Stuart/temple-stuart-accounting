@@ -82,7 +82,7 @@ function calculateBreakevenPoP(
   iv: number,
   dte: number,
   isCredit: boolean,
-  riskFreeRate?: number,
+  riskFreeRate: number,
 ): { pop: number; method: 'breakeven_d2' } | null {
   if (breakevens.length === 0 || spotPrice <= 0 || iv <= 0 || dte <= 0) return null;
 
@@ -219,8 +219,8 @@ export interface GenerateParams {
   symbol?: string;        // for debug logging
   iv30?: number;          // implied volatility decimal (e.g. 0.42 for 42%)
   hv30?: number;          // 30-day HV decimal (e.g. 0.25 for 25%)
-  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
-  riskFreeRate?: number;
+  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
+  riskFreeRate: number;
 }
 
 // ─── Rejection Tracking ─────────────────────────────────────────────

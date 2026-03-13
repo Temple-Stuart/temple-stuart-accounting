@@ -14,8 +14,8 @@ export interface ChainTickerInput {
   ivRank: number;        // 0-1 scale
   iv30: number;          // decimal e.g. 0.42
   hv30: number;          // decimal e.g. 0.25
-  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
-  riskFreeRate?: number;
+  // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Required — no default.
+  riskFreeRate: number;
 }
 
 export interface ChainFetchStats {
