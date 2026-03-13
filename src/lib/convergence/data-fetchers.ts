@@ -27,6 +27,17 @@ import type {
   SECForm4Transaction,
   SECForm4Data,
   CompanyTextProfile,
+  FinnhubEbitdaEstimateEntry,
+  FinnhubEbitdaEstimate,
+  FinnhubEbitEstimateEntry,
+  FinnhubEbitEstimate,
+  FinnhubDividendEntry,
+  FinnhubDividendHistory,
+  FinnhubPriceMetrics,
+  FinnhubFundOwnershipEntry,
+  FinnhubFundOwnership,
+  SECEdgar8KEntry,
+  SECEdgar8KScan,
 } from './types';
 import { classifyNewsHeadlines } from './news-classifier';
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -2260,4 +2271,223 @@ export async function fetchTTCandlesBatch(
 
   stats.elapsed_ms = Date.now() - start;
   return { data, stats };
+}
+
+// ===== FINNHUB EBITDA ESTIMATES FETCHER =====
+
+export async function fetchFinnhubEbitdaEstimates(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubEbitdaEstimate | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/ebitda-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `ebitda-estimate ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const raw = Array.isArray(json?.data) ? json.data : [];
+    const estimates: FinnhubEbitdaEstimateEntry[] = raw.map((e: Record<string, unknown>) => ({
+      period: String(e.period ?? ''),
+      ebitdaAvg: typeof e.ebitdaAvg === 'number' ? e.ebitdaAvg : null,
+      ebitdaHigh: typeof e.ebitdaHigh === 'number' ? e.ebitdaHigh : null,
+      ebitdaLow: typeof e.ebitdaLow === 'number' ? e.ebitdaLow : null,
+      numberAnalysts: typeof e.numberAnalysts === 'number' ? e.numberAnalysts : null,
+    }));
+
+    return { data: { symbol, estimates }, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `ebitda-estimate ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB EBIT ESTIMATES FETCHER =====
+
+export async function fetchFinnhubEbitEstimates(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubEbitEstimate | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/ebit-estimate?symbol=${symbol}&freq=quarterly&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `ebit-estimate ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const raw = Array.isArray(json?.data) ? json.data : [];
+    const estimates: FinnhubEbitEstimateEntry[] = raw.map((e: Record<string, unknown>) => ({
+      period: String(e.period ?? ''),
+      ebitAvg: typeof e.ebitAvg === 'number' ? e.ebitAvg : null,
+      ebitHigh: typeof e.ebitHigh === 'number' ? e.ebitHigh : null,
+      ebitLow: typeof e.ebitLow === 'number' ? e.ebitLow : null,
+      numberAnalysts: typeof e.numberAnalysts === 'number' ? e.numberAnalysts : null,
+    }));
+
+    return { data: { symbol, estimates }, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `ebit-estimate ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB DIVIDEND HISTORY FETCHER =====
+
+export async function fetchFinnhubDividendHistory(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubDividendHistory | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/dividend?symbol=${symbol}&from=${oneYearAgo}&to=${today}&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `dividend ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const raw = Array.isArray(json) ? json : [];
+    const dividends: FinnhubDividendEntry[] = raw.map((d: Record<string, unknown>) => ({
+      date: String(d.date ?? ''),
+      amount: typeof d.amount === 'number' ? d.amount : null,
+      adjustedAmount: typeof d.adjustedAmount === 'number' ? d.adjustedAmount : null,
+      currency: typeof d.currency === 'string' ? d.currency : null,
+      exDate: typeof d.exDate === 'string' ? d.exDate : null,
+      payDate: typeof d.payDate === 'string' ? d.payDate : null,
+    }));
+
+    return { data: { symbol, dividends }, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `dividend ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB PRICE METRICS FETCHER =====
+
+export async function fetchFinnhubPriceMetrics(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubPriceMetrics | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/price-metric?symbol=${symbol}&date=${today}&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `price-metric ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const m = json ?? {};
+
+    return {
+      data: {
+        symbol,
+        week52High: typeof m['52WeekHigh'] === 'number' ? m['52WeekHigh'] : null,
+        week52Low: typeof m['52WeekLow'] === 'number' ? m['52WeekLow'] : null,
+        week52HighDate: typeof m['52WeekHighDate'] === 'string' ? m['52WeekHighDate'] : null,
+        week52LowDate: typeof m['52WeekLowDate'] === 'string' ? m['52WeekLowDate'] : null,
+        priceRelativeToSMA10: typeof m.priceRelativeToS_M_A10 === 'number' ? m.priceRelativeToS_M_A10 : null,
+        priceRelativeToSMA20: typeof m.priceRelativeToS_M_A20 === 'number' ? m.priceRelativeToS_M_A20 : null,
+        priceRelativeToSMA50: typeof m.priceRelativeToS_M_A50 === 'number' ? m.priceRelativeToS_M_A50 : null,
+        priceRelativeToSMA100: typeof m.priceRelativeToS_M_A100 === 'number' ? m.priceRelativeToS_M_A100 : null,
+        priceRelativeToSMA200: typeof m.priceRelativeToS_M_A200 === 'number' ? m.priceRelativeToS_M_A200 : null,
+      },
+      error: null,
+    };
+  } catch (e: unknown) {
+    return { data: null, error: `price-metric ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB FUND OWNERSHIP FETCHER =====
+
+export async function fetchFinnhubFundOwnership(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubFundOwnership | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/stock/fund-ownership?symbol=${symbol}&limit=10&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `fund-ownership ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const raw = Array.isArray(json?.ownership) ? json.ownership : [];
+    const funds: FinnhubFundOwnershipEntry[] = raw.map((f: Record<string, unknown>) => ({
+      name: String(f.name ?? ''),
+      share: typeof f.share === 'number' ? f.share : null,
+      change: typeof f.change === 'number' ? f.change : null,
+      filingDate: typeof f.filingDate === 'string' ? f.filingDate : null,
+    }));
+
+    return {
+      data: {
+        symbol,
+        funds,
+        totalFunds: typeof json?.totalFund === 'number' ? json.totalFund : null,
+      },
+      error: null,
+    };
+  } catch (e: unknown) {
+    return { data: null, error: `fund-ownership ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== SEC EDGAR 8-K SCAN FETCHER =====
+
+export async function fetchSECEdgar8KScan(
+  symbol: string,
+): Promise<{ data: SECEdgar8KScan | null; error: string | null }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  try {
+    const resp = await fetch(
+      `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(symbol)}%22&dateRange=custom&startdt=${thirtyDaysAgo}&enddt=${today}&forms=8-K`,
+      {
+        headers: {
+          'User-Agent': 'TempleStudart/1.0 (temple-stuart-accounting; contact@example.com)',
+          'Accept': 'application/json',
+        },
+      },
+    );
+    if (!resp.ok) return { data: null, error: `sec-8k-scan ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const hits = Array.isArray(json?.hits?.hits) ? json.hits.hits : [];
+    const filings: SECEdgar8KEntry[] = hits.map((h: Record<string, unknown>) => {
+      const src = (h._source ?? {}) as Record<string, unknown>;
+      return {
+        filedAt: String(src.file_date ?? src.filed_at ?? ''),
+        formType: String(src.form_type ?? '8-K'),
+        description: typeof src.display_description === 'string' ? src.display_description : null,
+        entityName: typeof src.entity_name === 'string' ? src.entity_name : null,
+      };
+    });
+
+    return {
+      data: {
+        symbol,
+        filings,
+        totalHits: typeof json?.hits?.total?.value === 'number' ? json.hits.total.value : null,
+      },
+      error: null,
+    };
+  } catch (e: unknown) {
+    return { data: null, error: `sec-8k-scan ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
