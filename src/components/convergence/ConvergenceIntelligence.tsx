@@ -2200,11 +2200,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">Z-SCORE IV30<br/><span className="font-normal text-[9px]">vs peers</span></th>
                     <th className="text-right py-1 pr-3">Z-SCORE &beta;<br/><span className="font-normal text-[9px]">vs peers</span></th>
                     <th className="text-left py-1">TYPE</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINT</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(progress?.c?.data?.groups ?? []).map((g: any, i: number) => {
+                  {(() => {
+                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11,19) + ' UTC' : '—';
+                    const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
+                    return (progress?.c?.data?.groups ?? []).map((g: any, i: number) => {
                     const zColor = (z: string | null) => {
                       if (z == null) return 'text-text-muted';
                       const n = parseFloat(z);
@@ -2239,9 +2247,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {g.z_beta != null ? (parseFloat(g.z_beta) >= 0 ? '+' : '')+g.z_beta : '—'}
                         </td>
                         <td className="py-1 text-text-muted text-[10px]">{g.group_type}</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-muted text-[10px]">{ageSec}</td>
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -2318,11 +2331,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">SCORE</th>
                     <th className="text-left py-1">STATUS</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINT</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(progress?.d?.data?.pre_scores ?? []).map((t: any) => {
+                  {(() => {
+                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11,19) + ' UTC' : '—';
+                    const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
+                    return (progress?.d?.data?.pre_scores ?? []).map((t: any) => {
                     const ivpC = ((t.ivp ?? 0) * 0.4).toFixed(1);
                     const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
                     const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
@@ -2343,9 +2364,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             : `✗ ${t.reason?.replace('✗ ', '') ?? 'Ranked out'}`
                           }
                         </td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-muted text-[10px]">{ageSec}</td>
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>
