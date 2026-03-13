@@ -326,28 +326,22 @@ function getUniverseSymbols(universe?: string): string[] {
 // ===== REG SHO THRESHOLD LIST =====
 
 async function fetchRegShoThreshold(): Promise<Set<string>> {
-  const symbols = new Set<string>();
-  try {
-    const res = await fetch('https://www.nasdaqtrader.com/dynamic/symdir/regsho/nasdaqth.txt');
-    if (!res.ok) {
-      console.error(`[Pipeline] Reg SHO fetch failed: ${res.status}`);
-      return symbols;
-    }
-    const text = await res.text();
-    const lines = text.split('\n');
-    for (const line of lines) {
-      if (!line.trim() || line.startsWith('Date') || line.startsWith('File')) continue;
-      const parts = line.split('|');
-      const sym = parts[0]?.trim();
-      if (sym && sym.length > 0 && sym.length <= 6 && /^[A-Z]+$/.test(sym)) {
-        symbols.add(sym);
-      }
-    }
-    console.log(`[Pipeline] Reg SHO threshold list: ${symbols.size} symbols loaded`);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[Pipeline] Reg SHO fetch error: ${msg}`);
+  const res = await fetch('https://www.nasdaqtrader.com/dynamic/symdir/regsho/nasdaqth.txt');
+  if (!res.ok) {
+    throw new Error(`Reg SHO fetch failed: HTTP ${res.status} — pipeline cannot proceed without filter 6 data`);
   }
+  const text = await res.text();
+  const symbols = new Set<string>();
+  const lines = text.split('\n');
+  for (const line of lines) {
+    if (!line.trim() || line.startsWith('Date') || line.startsWith('File')) continue;
+    const parts = line.split('|');
+    const sym = parts[0]?.trim();
+    if (sym && sym.length > 0 && sym.length <= 6 && /^[A-Z]+$/.test(sym)) {
+      symbols.add(sym);
+    }
+  }
+  console.log(`[Pipeline] Reg SHO threshold list: ${symbols.size} symbols loaded`);
   return symbols;
 }
 
