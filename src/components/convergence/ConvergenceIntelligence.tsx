@@ -2199,6 +2199,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">PEER AVG IV30</th>
                     <th className="text-right py-1 pr-3">Z-SCORE IV30<br/><span className="font-normal text-[9px]">vs peers</span></th>
                     <th className="text-right py-1 pr-3">Z-SCORE &beta;<br/><span className="font-normal text-[9px]">vs peers</span></th>
+                    <th className="text-left py-1 pr-3">FORMULA<br/><span className="font-normal text-[9px]">(my−mean)/stdev</span></th>
                     <th className="text-left py-1">TYPE</th>
                     <th className="text-left py-1 pr-3">SOURCE</th>
                     <th className="text-left py-1 pr-3">ENDPOINT</th>
@@ -2246,6 +2247,20 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className={`py-1 pr-3 text-right ${zColor(g.z_beta)}`}>
                           {g.z_beta != null ? (parseFloat(g.z_beta) >= 0 ? '+' : '')+g.z_beta : '—'}
                         </td>
+                        {(() => {
+                          const ivZFormula = (() => {
+                            const my = g.my_iv_percentile;
+                            const mean = g.peer_mean_iv != null ? parseFloat(g.peer_mean_iv) : null;
+                            const std = g.peer_stdev_iv;
+                            if (my == null || mean == null || std == null || std === 0) return '—';
+                            return `(${Number(my).toFixed(1)}−${mean.toFixed(1)})/${std.toFixed(2)}=${g.z_iv_percentile}`;
+                          })();
+                          return (
+                            <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
+                              {ivZFormula}
+                            </td>
+                          );
+                        })()}
                         <td className="py-1 text-text-muted text-[10px]">{g.group_type}</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
@@ -2355,7 +2370,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-right">{t.iv_hv_spread ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
                         <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
-                          ({t.ivp ?? 0}×40%) + ({t.iv_hv_spread ?? 0}×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC} + {ivhvC} + {liqC}
+                          ({t.ivp ?? 0}×40%) + (min(|{t.iv_hv_spread ?? 0}|/20×100,100)×30%) + ({t.liquidity ?? 0}/5×100×30%) = {ivpC}+{ivhvC}+{liqC}
                         </td>
                         <td className={`py-1 pr-3 text-right font-bold ${t.selected ? 'text-brand-gold' : 'text-text-muted'}`}>{t.pre_score}</td>
                         <td className={`py-1 ${t.selected ? 'text-brand-green' : 'text-brand-red'}`}>
