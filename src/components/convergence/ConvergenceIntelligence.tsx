@@ -2506,14 +2506,128 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step H — Macro & Regime Data (placeholder) */}
+      {/* Step H — Macro & Regime Data */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP H</span>
-          <span className="text-text-secondary">Macro &amp; Regime Data</span>
-          <span className="text-text-muted">FRED macro data currently fetched inside Step I. Step H will be separated in a future build to fetch macro data independently before per-symbol enrichment.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_h')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP H</span>
+            <span className="text-text-secondary">Macro &amp; Regime Data</span>
+            {progress?.step_h ? (
+              <span className="text-brand-green">
+                {(progress.step_h.data?.series as any[])?.length ?? 0} FRED series fetched
+              </span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_h'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_h'] && progress?.step_h?.data && (() => {
+          const hd = progress.step_h.data;
+          const series = (hd.series ?? []) as { name: string; key: string; value: number | null; source: string; series_id: string; null_reason: string | null }[];
+          const computed = hd.computed as {
+            fed_net_liquidity: { value: number | null; formula: string; inputs: { walcl: number | null; wtregen: number | null; rrpontsyd: number | null }; null_reason: string | null };
+            vix_term_structure_slope: { value: number | null; formula: string; inputs: { vix: number | null; vxv: number | null }; null_reason: string | null };
+          } | undefined;
+          return (
+            <div className="border-t border-border bg-bg-row p-3 text-xs space-y-4">
+              {/* SECTION 1 — Computed Values */}
+              <div className="space-y-3">
+                <p className="text-text-secondary font-semibold">Computed Values</p>
+                {/* Fed Net Liquidity */}
+                <div className="bg-bg-primary p-2 rounded border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-primary font-medium">Fed Net Liquidity</span>
+                    <span className="text-text-secondary">
+                      {computed?.fed_net_liquidity?.value != null
+                        ? `$${(computed.fed_net_liquidity.value / 1e6).toFixed(0)}M`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="text-text-muted mt-1">
+                    Formula: {computed?.fed_net_liquidity?.formula ?? '—'}
+                  </div>
+                  <div className="text-text-muted">
+                    Inputs: WALCL={computed?.fed_net_liquidity?.inputs?.walcl != null ? `$${(computed.fed_net_liquidity.inputs.walcl / 1e6).toFixed(0)}M` : '—'}{' '}
+                    · WTREGEN={computed?.fed_net_liquidity?.inputs?.wtregen != null ? `$${(computed.fed_net_liquidity.inputs.wtregen / 1e6).toFixed(0)}M` : '—'}{' '}
+                    · RRPONTSYD={computed?.fed_net_liquidity?.inputs?.rrpontsyd != null ? `$${(computed.fed_net_liquidity.inputs.rrpontsyd / 1e6).toFixed(0)}M` : '—'}
+                  </div>
+                  {computed?.fed_net_liquidity?.null_reason && (
+                    <div className="text-brand-red mt-1">{computed.fed_net_liquidity.null_reason}</div>
+                  )}
+                </div>
+                {/* VIX Term Structure Slope */}
+                <div className="bg-bg-primary p-2 rounded border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-primary font-medium">VIX Term Structure Slope</span>
+                    <span className="text-text-secondary">
+                      {computed?.vix_term_structure_slope?.value != null
+                        ? computed.vix_term_structure_slope.value.toFixed(3)
+                        : '—'}
+                    </span>
+                    {computed?.vix_term_structure_slope?.value != null && (
+                      <span className={computed.vix_term_structure_slope.value < 1 ? 'text-brand-green' : 'text-brand-red'}>
+                        {computed.vix_term_structure_slope.value < 1
+                          ? '< 1 = contango (favorable)'
+                          : '> 1 = backwardation (caution)'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-text-muted mt-1">
+                    Formula: {computed?.vix_term_structure_slope?.formula ?? '—'}
+                  </div>
+                  <div className="text-text-muted">
+                    Inputs: VIX={computed?.vix_term_structure_slope?.inputs?.vix ?? '—'}{' '}
+                    · VXV={computed?.vix_term_structure_slope?.inputs?.vxv ?? '—'}
+                  </div>
+                  {computed?.vix_term_structure_slope?.null_reason && (
+                    <div className="text-brand-red mt-1">{computed.vix_term_structure_slope.null_reason}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* SECTION 2 — Full FRED Series Table */}
+              <div className="space-y-2">
+                <p className="text-text-secondary font-semibold">FRED Series</p>
+                <p className="text-text-muted">Fetched at: {hd.fetched_at as string ?? '—'}</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-border text-text-muted">
+                        <th className="py-1 pr-3">SERIES</th>
+                        <th className="py-1 pr-3">SERIES ID</th>
+                        <th className="py-1 pr-3 text-right">VALUE</th>
+                        <th className="py-1 pr-3">SOURCE</th>
+                        <th className="py-1">NULL REASON</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {series.map((s) => (
+                        <tr key={s.key} className="border-b border-border/30">
+                          <td className="py-1 pr-3 text-text-primary">{s.name}</td>
+                          <td className="py-1 pr-3 text-text-muted font-mono">{s.series_id}</td>
+                          <td className="py-1 pr-3 text-right text-text-primary font-mono">
+                            {s.value != null ? (typeof s.value === 'number' && Math.abs(s.value) >= 1000 ? s.value.toLocaleString() : s.value) : '—'}
+                          </td>
+                          <td className="py-1 pr-3 text-text-muted">{s.source}</td>
+                          <td className="py-1 text-brand-red">{s.null_reason ?? ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* SECTION 3 — Fetch Metadata */}
+              <div className="space-y-1">
+                <p className="text-text-secondary font-semibold">Fetch Metadata</p>
+                <p className="text-text-muted">Fetch time: {hd.fetch_ms as number}ms</p>
+                <p className="text-text-muted">Cached: {hd.cached ? 'yes' : 'no'}</p>
+                <p className="text-text-muted">Source: FRED API (free, commercial use permitted)</p>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Step I — Data Enrichment */}
