@@ -249,13 +249,7 @@ function prepareSynthesisPayload(pipeline: PipelineResult, maxTickers = 9): obje
     ),
     scoring_details: condensedScoring,
     pre_filter_summary: {
-      total: pipeline.pre_filter.length,
-      included: pipeline.pre_filter.filter(r => !r.excluded).length,
-      excluded: pipeline.pre_filter.filter(r => r.excluded).length,
-      earnings_warnings: pipeline.pre_filter.filter(r => r.earningsWarning != null).slice(0, 10).map(r => ({
-        symbol: r.symbol,
-        warning: r.earningsWarning,
-      })),
+      total_ranked: pipeline.pre_filter.length,
     },
     data_gaps: pipeline.data_gaps,
     errors: pipeline.errors,
