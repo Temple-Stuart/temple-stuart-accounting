@@ -1064,6 +1064,9 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
         (technicals.weight / denom) * technicals.score,
         1,
       );
+      mispricing.weight = round(mispricing.weight / denom, 4);
+      termStructure.weight = round(termStructure.weight / denom, 4);
+      technicals.weight = round(technicals.weight / denom, 4);
       skew.weight = 0;
       gex.weight = 0;
     }
@@ -1095,6 +1098,10 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
         (gex.weight / denom) * gex.score,
         1,
       );
+      mispricing.weight = round(mispricing.weight / denom, 4);
+      termStructure.weight = round(termStructure.weight / denom, 4);
+      skew.weight = round(skew.weight / denom, 4);
+      gex.weight = round(gex.weight / denom, 4);
     } else {
       // No candles, no chain: mispricing + term only
       const denom = mispricing.weight + termStructure.weight;
@@ -1103,6 +1110,8 @@ export function scoreVolEdge(input: ConvergenceInput): VolEdgeResult {
         (termStructure.weight / denom) * termStructure.score,
         1,
       );
+      mispricing.weight = round(mispricing.weight / denom, 4);
+      termStructure.weight = round(termStructure.weight / denom, 4);
       skew.weight = 0;
       gex.weight = 0;
     }
