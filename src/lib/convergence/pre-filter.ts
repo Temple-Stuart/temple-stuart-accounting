@@ -25,10 +25,10 @@ export interface PreFilterResult {
  * Score and rank all tickers from market-metrics data BEFORE
  * any expensive chain/Finnhub fetches. One batch API call → smarter selection.
  *
- * preScore = (ivRank / 100) * 0.6 + (liquidityRating / 5) * 0.4
- *   - If ivRank is null → use 0.5 (neutral)
- *   - If liquidityRating is null → use 0.5 (neutral)
- *   - If liquidityRating < 2 → excluded with reason
+ * preScore = ivPercentile * 0.40 + clamp(ivHvSpread/30, 0, 1) * 0.30 + (liquidityRating/5) * 0.30
+ *   - If ivPercentile is null or ≤ 0 → excluded
+ *   - If ivHvSpread is null or ≤ 0 → excluded
+ *   - If liquidityRating is null or < 2 → excluded
  *   - If earningsDate within 3 calendar days → flagged (not excluded)
  */
 export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[] {
@@ -62,9 +62,9 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
       exclusionReason = `No vol premium — IV-HV spread is ${t.ivHvSpread.toFixed(1)} (realized vol exceeds implied)`;
     }
 
-    if (t.ivRank == null || t.ivRank <= 0) {
+    if (ivPercentile == null) {
       excluded = true;
-      exclusionReason = exclusionReason ?? 'IV rank unavailable — cannot score vol elevation';
+      exclusionReason = exclusionReason ?? 'IV percentile unavailable — cannot score vol elevation';
     }
 
     if (liquidityRating == null) {
@@ -76,11 +76,11 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
     // Excluded tickers skip the formula and get preScore = 0.
     let preScore = 0;
     if (!excluded) {
+      const ivPctNorm = ivPercentile!; // already 0-1 from TastyTrade
       const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
-      const ivRankNorm = ivRank!; // already 0-1 from TastyTrade
       const liqNorm = liquidityRating! / 5;
       preScore = Math.round(
-        (ivHvNorm * 0.35 + ivRankNorm * 0.40 + liqNorm * 0.25) * 1000
+        (ivPctNorm * 0.40 + ivHvNorm * 0.30 + liqNorm * 0.30) * 1000
       ) / 1000;
     }
 
