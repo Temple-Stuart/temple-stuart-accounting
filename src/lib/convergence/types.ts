@@ -1203,3 +1203,84 @@ export interface ConvergenceResponse {
   strategy_suggestion: StrategySuggestion;
   data_gaps: string[];
 }
+
+// ===== STEP I ENRICHMENT TYPES =====
+
+export interface FinnhubEbitdaEstimateEntry {
+  period: string;
+  ebitdaAvg: number | null;
+  ebitdaHigh: number | null;
+  ebitdaLow: number | null;
+  numberAnalysts: number | null;
+}
+
+export interface FinnhubEbitdaEstimate {
+  symbol: string;
+  estimates: FinnhubEbitdaEstimateEntry[];
+}
+
+export interface FinnhubEbitEstimateEntry {
+  period: string;
+  ebitAvg: number | null;
+  ebitHigh: number | null;
+  ebitLow: number | null;
+  numberAnalysts: number | null;
+}
+
+export interface FinnhubEbitEstimate {
+  symbol: string;
+  estimates: FinnhubEbitEstimateEntry[];
+}
+
+export interface FinnhubDividendEntry {
+  date: string;
+  amount: number | null;
+  adjustedAmount: number | null;
+  currency: string | null;
+  exDate: string | null;
+  payDate: string | null;
+}
+
+export interface FinnhubDividendHistory {
+  symbol: string;
+  dividends: FinnhubDividendEntry[];
+}
+
+export interface FinnhubPriceMetrics {
+  symbol: string;
+  week52High: number | null;
+  week52Low: number | null;
+  week52HighDate: string | null;
+  week52LowDate: string | null;
+  priceRelativeToSMA10: number | null;
+  priceRelativeToSMA20: number | null;
+  priceRelativeToSMA50: number | null;
+  priceRelativeToSMA100: number | null;
+  priceRelativeToSMA200: number | null;
+}
+
+export interface FinnhubFundOwnershipEntry {
+  name: string;
+  share: number | null;
+  change: number | null;
+  filingDate: string | null;
+}
+
+export interface FinnhubFundOwnership {
+  symbol: string;
+  funds: FinnhubFundOwnershipEntry[];
+  totalFunds: number | null;
+}
+
+export interface SECEdgar8KEntry {
+  filedAt: string;
+  formType: string;
+  description: string | null;
+  entityName: string | null;
+}
+
+export interface SECEdgar8KScan {
+  symbol: string;
+  filings: SECEdgar8KEntry[];
+  totalHits: number | null;
+}
