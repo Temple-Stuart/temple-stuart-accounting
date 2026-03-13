@@ -1654,9 +1654,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <>
                 <div className="flex items-center gap-3 text-xs text-text-muted mb-1">
                   <span className="font-bold">SYMBOLS FETCHED ({(progress?.a?.data?.symbols ?? []).length})</span>
-                  {source && <span>Source: <span className="text-text-primary">{source}</span></span>}
-                  {fetchedAt && <span>Fetched: <span className="text-text-primary">{fetchedAt}</span></span>}
-                  {ageSec != null && <span>Age: <span className="text-text-primary">{ageSec}s</span></span>}
                 </div>
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
                   <table className="w-full text-xs">
@@ -1675,7 +1672,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <th className="text-right py-1 pr-2">SPY CORR</th>
                         <th className="text-right py-1 pr-2">BORROW</th>
                         <th className="text-left py-1 pr-2">EARNINGS</th>
-                        <th className="text-right py-1">DTE</th>
+                        <th className="text-right py-1 pr-2">DTE</th>
+                        <th className="text-left py-1 pr-2">SOURCE</th>
+                        <th className="text-left py-1 pr-2">ENDPOINT</th>
+                        <th className="text-left py-1 pr-2">FETCHED</th>
+                        <th className="text-right py-1">AGE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1699,11 +1700,15 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               <td className="py-1 pr-2 text-right">{fmt2(s.corrSpy)}</td>
                               <td className="py-1 pr-2 text-right">{s.borrowRate != null ? s.borrowRate + '%' : '—'}</td>
                               <td className="py-1 pr-2 text-left">{s.earningsDate ?? '—'}</td>
-                              <td className="py-1 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                              <td className="py-1 pr-2 text-right">{s.daysTillEarnings != null ? s.daysTillEarnings + 'd' : '—'}</td>
+                              <td className="py-1 pr-2 text-text-muted text-[10px]">TastyTrade</td>
+                              <td className="py-1 pr-2 text-text-muted text-[10px]">market-metrics</td>
+                              <td className="py-1 pr-2 text-text-muted text-[10px]">{fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—'}</td>
+                              <td className="py-1 text-right text-text-muted text-[10px]">{ageSec != null ? ageSec + 's' : '—'}</td>
                             </tr>
                             {isOpen && (
                               <tr className="bg-bg-row/30 border-b border-border/50">
-                                <td colSpan={14} className="py-2 px-4">
+                                <td colSpan={18} className="py-2 px-4">
                                   <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-xs mb-2">
                                     <div className="flex justify-between"><span className="text-text-muted">HV30</span><span>{fmt1(s.hv30)}</span></div>
                                     <div className="flex justify-between"><span className="text-text-muted">HV60</span><span>{fmt1(s.hv60)}</span></div>
@@ -1821,16 +1826,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-left py-1 pr-3">SOURCE</th>
-                    <th className="text-left py-1 pr-3">ENDPOINT</th>
-                    <th className="text-left py-1 pr-3">FETCHED</th>
-                    <th className="text-right py-1 pr-3">AGE</th>
                     <th className="text-right py-1 pr-3">IV-HV SPREAD</th>
                     <th className="text-right py-1 pr-3">IV RANK</th>
                     <th className="text-right py-1 pr-3">LIQUIDITY</th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
-                    <th className="text-left py-1">STATUS</th>
+                    <th className="text-left py-1 pr-3">STATUS</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINT</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1850,10 +1855,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
-                        <td className="py-1 pr-3 text-right text-text-muted text-[10px]">{ageSec}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
@@ -1861,7 +1862,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {calcStr}
                         </td>
                         <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
-                        <td className={`py-1 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
+                        <td className={`py-1 pr-3 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
                           {t.excluded
                             ? `✗ Excluded — ${t.exclusion_reason}`
                             : t.reason?.startsWith('⚠')
@@ -1869,6 +1870,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             : '✓ Passed'
                           }
                         </td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 text-right text-text-muted text-[10px]">{ageSec}</td>
                       </tr>
                     );
                   })}
