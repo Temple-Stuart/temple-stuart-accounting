@@ -1885,14 +1885,115 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step C — Hard Exclusions (placeholder) */}
+      {/* Step C — Hard Exclusions */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP C</span>
-          <span className="text-text-secondary">Hard Exclusions</span>
-          <span className="text-text-muted">Excludes tickers with no vol premium (IV-HV spread ≤ 0) or liquidity below 2/5. Flags earnings within 3 days as a warning.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_c')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-text-secondary">Hard Exclusions</span>
+            {progress?.step_c ? (
+              <span className="text-brand-green">
+                {progress.step_c.data.excluded ?? '—'} excluded — {progress.step_c.data.survivors ?? '—'} passed
+              </span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_c'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_c'] && (
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-secondary">
+                Two binary exclusions applied before Top-N selection. Any ticker failing either rule is removed immediately — no partial credit.
+              </p>
+              <div className="grid grid-cols-1 gap-1 pt-1">
+                {[
+                  ['Rule 1 — No vol premium',
+                   'IV-HV spread must be > 0. If realized volatility exceeds implied volatility there is no premium to sell. Tickers with spread ≤ 0 or null are excluded.'],
+                  ['Rule 2 — Minimum liquidity',
+                   'Liquidity rating must be ≥ 2/5. Below this threshold options are untradeable — bid-ask spreads eat all profit.'],
+                ].map(([rule, explanation], i) => (
+                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
+                    <span className="text-text-primary font-bold w-56 shrink-0">
+                      {rule}
+                    </span>
+                    <span className="text-text-muted">
+                      {explanation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* LEFT TABLE — Excluded tickers */}
+              <div>
+                <p className="text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1">
+                  EXCLUDED ({progress?.step_c?.data?.excluded ?? '—'} tickers)
+                </p>
+                {(progress?.step_c?.data?.exclusions ?? []).length > 0 ? (
+                  <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                    <table className="w-full text-[10px]">
+                      <thead><tr className="text-text-muted border-b border-border">
+                        <th className="text-left py-1 px-1">#</th>
+                        <th className="text-left py-1 px-1">SYMBOL</th>
+                        <th className="text-left py-1 px-1">REASON</th>
+                      </tr></thead>
+                      <tbody>
+                        {(progress?.step_c?.data?.exclusions ?? []).map((e: { symbol: string; reason: string }, i: number) => (
+                          <tr key={e.symbol} className="border-b border-border/50">
+                            <td className="py-0.5 px-1 text-text-muted font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-text-primary">{e.symbol}</td>
+                            <td className="py-0.5 px-1 text-text-muted">{e.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-text-muted text-[10px] italic">No tickers excluded</p>
+                )}
+              </div>
+
+              {/* RIGHT TABLE — Earnings warnings */}
+              <div>
+                <p className="text-text-primary font-bold text-[10px] uppercase tracking-wider mb-1">
+                  EARNINGS WARNINGS ({(progress?.step_c?.data?.earnings_warnings ?? []).length} tickers flagged)
+                </p>
+                {(progress?.step_c?.data?.earnings_warnings ?? []).length > 0 ? (
+                  <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                    <table className="w-full text-[10px]">
+                      <thead><tr className="text-text-muted border-b border-border">
+                        <th className="text-left py-1 px-1">#</th>
+                        <th className="text-left py-1 px-1">SYMBOL</th>
+                        <th className="text-right py-1 px-1">DAYS TO EARNINGS</th>
+                      </tr></thead>
+                      <tbody>
+                        {(progress?.step_c?.data?.earnings_warnings ?? []).map((w: { symbol: string; days_to_earnings: number | null }, i: number) => (
+                          <tr key={w.symbol} className="border-b border-border/50">
+                            <td className="py-0.5 px-1 text-text-muted font-mono">{i + 1}</td>
+                            <td className="py-0.5 px-1 font-bold text-text-primary">{w.symbol}</td>
+                            <td className="py-0.5 px-1 text-right font-mono text-brand-gold">{w.days_to_earnings ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-text-muted text-[10px] italic">No earnings warnings</p>
+                )}
+                <p className="text-text-muted text-[10px] mt-2">
+                  ⚠ These tickers passed but carry earnings risk. Step E will enforce the 7-day earnings exclusion.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-text-muted text-[10px] mt-3 italic">
+              Source: Step B pre-filter computation — no new API calls
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Step D — Top-N Selection */}
