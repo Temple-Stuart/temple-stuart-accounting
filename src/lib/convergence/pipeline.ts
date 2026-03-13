@@ -51,12 +51,18 @@ interface HardFilterRejection {
   reason: string;
 }
 
+interface HardFilterWarning {
+  filter: string;
+  reason: string;
+}
+
 interface HardFiltersResult {
   input_count: number;
   output_count: number;
   filters_applied: HardFilterStep[];
   survivors: string[];
   ticker_rejections: Record<string, HardFilterRejection>;
+  ticker_warnings: Record<string, HardFilterWarning>;
 }
 
 interface PreScoreRow {
@@ -452,7 +458,7 @@ export async function runPipeline(
   console.log('[Pipeline] Step B: Applying hard filters...');
   const hardFilters = applyHardFilters(preFilteredScannerData);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
-  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings }])) } });
+  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_warnings: hardFilters.ticker_warnings, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings, lendability: t.lendability, borrow_warning: hardFilters.ticker_warnings[t.symbol] != null }])) } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
@@ -1262,6 +1268,7 @@ export async function runPipeline(
 function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
   const filtersApplied: HardFilterStep[] = [];
   const tickerRejections = new Map<string, HardFilterRejection>();
+  const warningTickers = new Map<string, HardFilterWarning>();
   let current = [...tickers];
 
   // Filter 1: market_cap > $2B
@@ -1355,8 +1362,14 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
     const passed: TTScannerData[] = [];
     const failedTickers: TTScannerData[] = [];
     for (const t of current) {
-      // If borrow_rate is null, assume it's fine (not HTB)
-      if (t.borrowRate == null || t.borrowRate < 50) {
+      if (t.borrowRate == null) {
+        // Borrow rate data unavailable — pass but flag warning
+        passed.push(t);
+        warningTickers.set(t.symbol, {
+          filter: 'Borrow Rate',
+          reason: 'Borrow rate data unavailable — flagged for review',
+        });
+      } else if (t.borrowRate < 50) {
         passed.push(t);
       } else {
         failedTickers.push(t);
@@ -1365,9 +1378,9 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
     for (const t of failedTickers) {
       tickerRejections.set(t.symbol, {
         filter: 'Borrow Rate',
-        actual_value: `${t.borrowRate ?? 0}%`,
+        actual_value: `${t.borrowRate}%`,
         threshold: '< 50%',
-        reason: `Borrow rate ${t.borrowRate ?? 0}% is too high. Hard-to-borrow stocks have unpredictable short squeeze risk that breaks option pricing models.`,
+        reason: `Borrow rate ${t.borrowRate}% is too high. Hard-to-borrow stocks have unpredictable short squeeze risk that breaks option pricing models.`,
       });
     }
     filtersApplied.push({
@@ -1407,12 +1420,42 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
     current = passed;
   }
 
+  // Filter 6: lendability must be 'Easy To Borrow'
+  {
+    const passed: TTScannerData[] = [];
+    const failedTickers: TTScannerData[] = [];
+    for (const t of current) {
+      const lend = t.lendability?.toLowerCase().trim();
+      if (lend === 'easy to borrow' || lend == null) {
+        passed.push(t);
+      } else {
+        failedTickers.push(t);
+      }
+    }
+    for (const t of failedTickers) {
+      tickerRejections.set(t.symbol, {
+        filter: 'Lendability',
+        actual_value: t.lendability ?? 'unknown',
+        threshold: 'Easy To Borrow only',
+        reason: `Lendability status "${t.lendability}" — Locate Required or Hard To Borrow stocks carry short squeeze risk that breaks option pricing models.`,
+      });
+    }
+    filtersApplied.push({
+      filter: 'lendability = Easy To Borrow',
+      passed: passed.length,
+      failed: failedTickers.length,
+      sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
+    });
+    current = passed;
+  }
+
   return {
     input_count: tickers.length,
     output_count: current.length,
     filters_applied: filtersApplied,
     survivors: current.map(t => t.symbol),
     ticker_rejections: Object.fromEntries(tickerRejections),
+    ticker_warnings: Object.fromEntries(warningTickers),
   };
 }
 
