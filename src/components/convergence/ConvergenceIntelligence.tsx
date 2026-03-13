@@ -210,20 +210,20 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
 }) {
   const sym = detail.symbol;
 
-  // Section 1: ranking data from step f
+  // Section 1: ranking data from step_k
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rankings: any[] = pipelineProgress?.f?.data?.rankings ?? [];
+  const rankings: any[] = pipelineProgress?.step_k?.data?.rankings ?? [];
   const rankIdx = rankings.findIndex((r: { symbol: string }) => r.symbol === sym);
   const rankRow = rankIdx >= 0 ? rankings[rankIdx] : null;
 
-  // Section 2: chain fetch data from step j
+  // Section 2: chain fetch data from step_n
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const jTickers: any[] = pipelineProgress?.j?.data?.tickers ?? [];
+  const jTickers: any[] = pipelineProgress?.step_n?.data?.tickers ?? [];
   const jRow = jTickers.find((t: { symbol: string }) => t.symbol === sym) ?? null;
 
-  // Section 3: strategy scoring from step k
+  // Section 3: strategy scoring from step_p
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const kTickers: any[] = pipelineProgress?.k?.data?.tickers ?? [];
+  const kTickers: any[] = pipelineProgress?.step_p?.data?.tickers ?? [];
   const kRow = kTickers.find((t: { symbol: string }) => t.symbol === sym) ?? null;
 
   const sectionHeader = 'text-[10px] uppercase tracking-wider font-bold text-brand-purple mb-1.5 mt-3';
@@ -268,8 +268,8 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
           </div>
         ) : loadingMsg('Pipeline data loading...')}
 
-        {/* SECTION 2 — CHAIN FETCH (STEP J) */}
-        <div className={sectionHeader}>CHAIN FETCH (STEP J)</div>
+        {/* SECTION 2 — CHAIN FETCH (STEP N) */}
+        <div className={sectionHeader}>CHAIN FETCH (STEP N)</div>
         {jRow ? (
           <div className="space-y-1">
             <div className={labelStyle}>
@@ -320,8 +320,8 @@ export function TickerChapter({ detail, sentiment, savedCards, savingCards, save
           </div>
         ) : loadingMsg('Chain data loading...')}
 
-        {/* SECTION 3 — STRATEGY SCORING (STEP K) */}
-        <div className={sectionHeader}>STRATEGY SCORING (STEP K)</div>
+        {/* SECTION 3 — STRATEGY SCORING (STEP P) */}
+        <div className={sectionHeader}>STRATEGY SCORING (STEP P)</div>
         {kRow ? (
           <div className="space-y-0.5">
             <div className={labelStyle}>
@@ -1535,17 +1535,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
   // Unified data accessors: prefer live progress, fall back to final result
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const bData: any = progress?.b?.data ?? (result ? { input: ps?.total_universe, output: hf?.output_count, filters: hf?.filters_applied, survivors: hf?.survivors } : null);
+  const bData: any = progress?.step_e?.data ?? (result ? { input: ps?.total_universe, output: hf?.output_count, filters: hf?.filters_applied, survivors: hf?.survivors } : null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const eData: any = progress?.e?.data ?? (result ? { finnhub_calls: ps?.finnhub_calls_made, finnhub_errors: ps?.finnhub_errors, data_gaps: result.data_gaps } : null);
+  const eData: any = progress?.step_i?.data ?? (result ? { finnhub_calls: ps?.finnhub_calls_made, finnhub_errors: ps?.finnhub_errors, data_gaps: result.data_gaps } : null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fData: any = progress?.f?.data ?? (result ? { scored: ps?.scored, rankings: [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])] } : null);
+  const fData: any = progress?.step_k?.data ?? (result ? { scored: ps?.scored, rankings: [...(rankings?.top_9 ?? []), ...(rankings?.also_scored ?? [])] } : null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const gData: any = progress?.g?.data ?? (result ? { trade_cards: ps?.total_trade_cards, top_9: rankings?.top_9?.map((r: any) => r.symbol), rejections: result.rejection_reasons } : null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const gData: any = progress?.step_s?.data ?? (result ? { trade_cards: ps?.total_trade_cards, top_9: rankings?.top_9?.map((r: any) => r.symbol), rejections: result.rejection_reasons } : null); // eslint-disable-line @typescript-eslint/no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const jData: any = progress?.j?.data ?? null;
+  const jData: any = progress?.step_n?.data ?? null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const kData: any = progress?.k?.data ?? null;
+  const kData: any = progress?.step_p?.data ?? null;
 
   const filterRows = (bData?.filters ?? []).map(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1572,22 +1572,22 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
       {/* Step A */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_a')}>
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP A</span>
             <span className="text-text-secondary">TT Scanner — Universe Scan</span>
-            {(ps?.total_universe ?? progress?.a?.data?.total_universe) ? (
+            {(ps?.total_universe ?? progress?.step_a?.data?.total_universe) ? (
               <>
-                <span className="text-brand-green">{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} symbols fetched</span>
+                <span className="text-brand-green">{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} symbols fetched</span>
                 <span className="text-text-muted">({universe})</span>
               </>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['a'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_a'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['a'] && (
+        {expanded['step_a'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
@@ -1595,11 +1595,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 1 — Wikipedia:</span>
-                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe ?? ''] ?? universe ?? ''} constituent list. This gives us the exact {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
+                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe ?? ''] ?? universe ?? ''} constituent list. This gives us the exact {progress?.step_a?.data?.total_universe ?? progress?.step_a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
               </p>
               <p className="text-text-muted">
                 <span className="text-text-primary font-bold">Source 2 — TastyTrade API:</span>
-                {' '}Those {progress?.a?.data?.total_universe ?? progress?.a?.data?.symbols?.length ?? '?'} symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
+                {' '}Those {progress?.step_a?.data?.total_universe ?? progress?.step_a?.data?.symbols?.length ?? '?'} symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -1635,8 +1635,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             </div>
             {/* Symbol table — two-tier design */}
             {(() => {
-              const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
-              const source = progress?.a?.data?.source as string | undefined;
+              const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
+              const source = progress?.step_a?.data?.source as string | undefined;
               const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) : null;
               const fmtPct = (v: any) => v != null ? (v * 100).toFixed(1) : '—';
               const fmt1 = (v: any) => v != null ? Number(v).toFixed(1) : '—';
@@ -1654,7 +1654,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               return (
                 <>
                 <div className="flex items-center gap-3 text-xs text-text-muted mb-1">
-                  <span className="font-bold">SYMBOLS FETCHED ({(progress?.a?.data?.symbols ?? []).length})</span>
+                  <span className="font-bold">SYMBOLS FETCHED ({(progress?.step_a?.data?.symbols ?? []).length})</span>
                 </div>
                 <div className="overflow-y-auto" style={{maxHeight: '320px'}}>
                   <table className="w-full text-xs">
@@ -1681,7 +1681,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </tr>
                     </thead>
                     <tbody>
-                      {(progress?.a?.data?.symbols ?? []).map((s: any, i: number) => {
+                      {(progress?.step_a?.data?.symbols ?? []).map((s: any, i: number) => {
                         const detailKey = `stepA_${s.symbol}`;
                         const isOpen = expanded[detailKey];
                         const hasTerm = Array.isArray(s.termStructure) && s.termStructure.length > 0;
@@ -1764,22 +1764,22 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
       {/* Step A2 */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('a2')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_b')}>
           <div className="flex items-center gap-3">
             <span className="text-brand-purple font-bold">STEP B</span>
             <span className="text-text-secondary">Pre-Filter</span>
-            {progress?.a2 ? (
+            {progress?.step_b ? (
               <span className="text-brand-red">
-                {progress.a2.data.input} → {progress.a2.data.output} survived
-                {(progress.a2.data.excluded as number) > 0 && ` (${progress.a2.data.excluded} excluded)`}
+                {progress.step_b.data.input} → {progress.step_b.data.output} survived
+                {(progress.step_b.data.excluded as number) > 0 && ` (${progress.step_b.data.excluded} excluded)`}
               </span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['a2'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_b'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['a2'] && progress?.a2 && (
+        {expanded['step_b'] && progress?.step_b && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
@@ -1815,11 +1815,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 {' '}Any stock missing IV-HV spread data, with IV-HV spread ≤ 0 (no vol premium), missing or zero IV percentile, missing liquidity rating, or with liquidity below 2/5.
               </p>
               <p className="text-text-muted">
-                Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step C uses these scores to narrow the field.
+                Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step D uses these scores to narrow the field.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
-              ALL TICKERS SCORED ({(progress?.a2?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
+              ALL TICKERS SCORED ({(progress?.step_b?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
@@ -1841,8 +1841,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </thead>
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(progress?.a2?.data?.tickers as any[] ?? []).map((t: any, i: number) => {
-                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                  {(progress?.step_b?.data?.tickers as any[] ?? []).map((t: any, i: number) => {
+                    const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const ivHvSpread = t.iv_hv_spread;
@@ -1885,25 +1885,25 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step C — Top-N Selection */}
+      {/* Step D — Top-N Selection */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c_narrow')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_d')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP C</span>
+            <span className="text-brand-purple font-bold">STEP D</span>
             <span className="text-text-secondary">Top-N Selection</span>
-            {progress?.a2 ? (
-              <span className="text-brand-gold">{progress.a2.data.output} → {progress?.b?.data?.input ?? 45} candidates for hard filters</span>
+            {progress?.step_b ? (
+              <span className="text-brand-gold">{progress.step_b.data.output} → {progress?.step_e?.data?.input ?? 45} candidates for hard filters</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['c_narrow'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_d'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['c_narrow'] && progress?.a2 && (
+        {expanded['step_d'] && progress?.step_b && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step C makes a strategic cut before running the hard filters in Step D.
+                Step D makes a strategic cut before running the hard filters in Step E.
               </p>
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Rule:</p>
@@ -1914,7 +1914,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
                   ['Why cut here?',
-                   'The hard filters in Step D check each ticker\'s market cap, borrow rate, and earnings date. Running those checks on all survivors takes time. Step C sends only the highest-scoring candidates forward — no point checking tickers that can\'t make the final cut anyway.'],
+                   'The hard filters in Step E check each ticker\'s market cap, borrow rate, and earnings date. Running those checks on all survivors takes time. Step D sends only the highest-scoring candidates forward — no point checking tickers that can\'t make the final cut anyway.'],
                   ['Why × 5?',
                    'We overshoot the final target of 9 on purpose. Some tickers will fail hard filters in Step D, get eliminated by the quality floor in Step H, or hit the sector cap. Keeping 45 instead of 9 ensures we always have enough survivors to fill the final 9 spots.'],
                   ['What gets cut?',
@@ -1931,12 +1931,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step D runs 6 hard rules against the top 45.
+                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step E runs 6 hard rules against the top 45.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              ALL TICKERS RANKED ({(progress?.a2?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
+              ALL TICKERS RANKED ({(progress?.step_b?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded).length} non-excluded)
             </p>
             <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
               <table className="w-full text-xs">
@@ -1956,11 +1956,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </thead>
                 <tbody>
                   {(() => {
-                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
-                    const nonExcluded = (progress?.a2?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
-                    const topN = progress?.b?.data?.input ?? 45;
+                    const nonExcluded = (progress?.step_b?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
+                    const topN = progress?.step_e?.data?.input ?? 45;
                     const cutoffScore = nonExcluded[topN - 1]?.pre_score ?? '—';
                     return nonExcluded.map((t: any, i: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                       const selected = i < topN;
@@ -1998,25 +1998,25 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step D — Hard Filters */}
+      {/* Step E — Hard Filters */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('b')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_e')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP D</span>
+            <span className="text-brand-purple font-bold">STEP E</span>
             <span className="text-text-secondary">Hard Filters</span>
-            {(hf?.output_count != null || progress?.b) ? (
-              <span className="text-brand-red">{hf?.input_count ?? progress?.b?.data?.input ?? 0} → {hf?.output_count ?? progress?.b?.data?.output ?? 0} survived</span>
+            {(hf?.output_count != null || progress?.step_e) ? (
+              <span className="text-brand-red">{hf?.input_count ?? progress?.step_e?.data?.input ?? 0} → {hf?.output_count ?? progress?.step_e?.data?.output ?? 0} survived</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['b'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_e'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['b'] && (
+        {expanded['step_e'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step D runs 6 hard rules against the 45 candidates from Step C. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
+                Step E runs 6 hard rules against the 45 candidates from Step D. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -2044,7 +2044,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. ⚠ in the BORROW column means borrow rate data was unavailable — the ticker passed but is flagged for review. You can verify every rejection yourself. Step E takes the survivors and groups them with their industry peers.
+                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. ⚠ in the BORROW column means borrow rate data was unavailable — the ticker passed but is flagged for review. You can verify every rejection yourself. Step F takes the survivors and groups them with their industry peers.
               </p>
             </div>
             {/* Full matrix table */}
@@ -2073,7 +2073,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <tbody>
                   {(() => {
                     /* eslint-disable @typescript-eslint/no-explicit-any */
-                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const survivorSyms: string[] = bData?.survivors ?? [];
@@ -2137,25 +2137,25 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step C */}
+      {/* Step F — Peer Grouping */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('c')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_f')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP E</span>
+            <span className="text-brand-purple font-bold">STEP F</span>
             <span className="text-text-secondary">Peer Grouping</span>
-            {progress?.b ? (
+            {progress?.step_e ? (
               <span className="text-brand-green">Finnhub peer relationships mapped</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['c'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_f'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['c'] && (
+        {expanded['step_f'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step E answers one question: is this stock&apos;s volatility high compared to companies just like it?
+                Step F answers one question: is this stock&apos;s volatility high compared to companies just like it?
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -2179,11 +2179,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                Step F re-scores all survivors using a richer formula before pulling institutional data.
+                Step G re-scores all survivors using a richer formula before pulling institutional data.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
-              PEER GROUPING — ALL {' '}{(progress?.c?.data?.groups ?? []).length} SURVIVORS
+              PEER GROUPING — ALL {' '}{(progress?.step_f?.data?.groups ?? []).length} SURVIVORS
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
@@ -2211,10 +2211,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {(() => {
-                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11,19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
-                    return (progress?.c?.data?.groups ?? []).map((g: any, i: number) => {
+                    return (progress?.step_f?.data?.groups ?? []).map((g: any, i: number) => {
                     const zColor = (z: string | null) => {
                       if (z == null) return 'text-text-muted';
                       const n = parseFloat(z);
@@ -2278,25 +2278,25 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step D */}
+      {/* Step G — Pre-Score */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('d')}>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_g')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP F</span>
+            <span className="text-brand-purple font-bold">STEP G</span>
             <span className="text-text-secondary">Pre-Score</span>
-            {(ps?.finnhub_fetched != null || progress?.d) ? (
-              <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.d?.data?.candidates ?? 0} selected for enrichment</span>
+            {(ps?.finnhub_fetched != null || progress?.step_g) ? (
+              <span className="text-brand-gold">{bData?.output ?? 0} → {ps?.finnhub_fetched ?? progress?.step_g?.data?.candidates ?? 0} selected for enrichment</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['d'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_g'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['d'] && (
+        {expanded['step_g'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step F re-scores all survivors on a richer formula than Step B. Step B used 2 data points to cut 500 stocks fast. Now we have {progress?.d?.data?.total ?? '?'} survivors and can be more precise.
+                Step G re-scores all survivors on a richer formula than Step B. Step B used 2 data points to cut 500 stocks fast. Now we have {progress?.step_g?.data?.total ?? '?'} survivors and can be more precise.
               </p>
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Formula:</p>
@@ -2311,7 +2311,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   ['IV-HV Spread (30% weight)',
                    'The difference between Implied Volatility (what the market expects) and Historical Volatility (what actually happened). When IV is much higher than HV, options are overpriced relative to realized movement. That gap is the edge we are selling.'],
                   ['Liquidity Rating (30% weight)',
-                   'TastyTrade\'s 1-5 score for how tradeable the options are. Weighted lower here because Step D already eliminated the worst offenders. Still required — a great IV setup is worthless if you can\'t execute the trade.'],
+                   'TastyTrade\'s 1-5 score for how tradeable the options are. Weighted lower here because Step E already eliminated the worst offenders. Still required — a great IV setup is worthless if you can\'t execute the trade.'],
                 ].map(([field, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
                     <span className="text-text-primary font-bold w-56 shrink-0">
@@ -2325,15 +2325,15 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </div>
               <p className="text-text-muted">
                 The top{' '}
-                <span className="text-text-primary font-bold">{progress?.d?.data?.candidates ?? 18}</span>
-                {' '}by score move to Step G for full institutional data enrichment. Each ticker in Step G requires multiple Finnhub API calls — earnings history, insider activity, analyst ratings, SEC filings. We only run those calls on the highest-scoring candidates. The rest are ranked out — not rule-failed.
+                <span className="text-text-primary font-bold">{progress?.step_g?.data?.candidates ?? 18}</span>
+                {' '}by score move to Step I for full institutional data enrichment. Each ticker in Step I requires multiple Finnhub API calls — earnings history, insider activity, analyst ratings, SEC filings. We only run those calls on the highest-scoring candidates. The rest are ranked out — not rule-failed.
               </p>
               <p className="text-text-muted">
-                The calculation for every ticker is shown below. You can verify every number yourself. Step G hits 8 data sources simultaneously for each finalist.
+                The calculation for every ticker is shown below. You can verify every number yourself. Step I hits 8 data sources simultaneously for each finalist.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
-              ALL {progress?.d?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.d?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
+              ALL {progress?.step_g?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.step_g?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '280px'}}>
               <table className="w-full text-xs whitespace-nowrap">
@@ -2356,10 +2356,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {(() => {
-                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedAt = progress?.step_a?.data?.fetched_at as string | undefined;
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11,19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
-                    return (progress?.d?.data?.pre_scores ?? []).map((t: any) => {
+                    return (progress?.step_g?.data?.pre_scores ?? []).map((t: any) => {
                     const ivpC = ((t.ivp ?? 0) * 0.4).toFixed(1);
                     const ivhvC = (Math.min(Math.abs(t.iv_hv_spread ?? 0) / 20 * 100, 100) * 0.3).toFixed(1);
                     const liqC = (((t.liquidity ?? 0) / 5) * 100 * 0.3).toFixed(1);
@@ -2395,31 +2395,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step E */}
+      {/* Step H — Macro & Regime Data (placeholder) */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('e')}>
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP H</span>
+          <span className="text-text-secondary">Macro &amp; Regime Data</span>
+          <span className="text-text-muted">Fetches FRED macro series, computes Fed Net Liquidity, VIX term structure slope, and classifies macro regime.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step I — Data Enrichment */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_i')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP G</span>
+            <span className="text-brand-purple font-bold">STEP I</span>
             <span className="text-text-secondary">Data Enrichment</span>
-            {(ps?.finnhub_calls_made != null || progress?.e) ? (
+            {(ps?.finnhub_calls_made != null || progress?.step_i) ? (
               <span className="text-text-secondary">
-                {ps?.finnhub_calls_made ?? progress?.e?.data?.finnhub_calls ?? 0} Finnhub calls
-                {(ps?.finnhub_errors > 0 || (progress?.e?.data?.finnhub_errors ?? 0) > 0) && (
-                  <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.e?.data?.finnhub_errors} errors</span>
+                {ps?.finnhub_calls_made ?? progress?.step_i?.data?.finnhub_calls ?? 0} Finnhub calls
+                {(ps?.finnhub_errors > 0 || (progress?.step_i?.data?.finnhub_errors ?? 0) > 0) && (
+                  <span className="text-brand-red"> · {ps?.finnhub_errors ?? progress?.step_i?.data?.finnhub_errors} errors</span>
                 )}
               </span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['e'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_i'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['e'] && (
+        {expanded['step_i'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step G pulls institutional-grade data on each of the top{' '}
-                {progress?.e?.data?.tickers?.length ?? 18} finalists. IV rank tells you options are expensive. It does not tell you WHY. This step answers that question.
+                Step I pulls institutional-grade data on each of the top{' '}
+                {progress?.step_i?.data?.tickers?.length ?? 18} finalists. IV rank tells you options are expensive. It does not tell you WHY. This step answers that question.
               </p>
               <p className="text-text-muted">
                 Is this company about to miss earnings? Are insiders selling? Are analysts downgrading it? That context changes everything. A high IV with strong fundamentals is a very different trade than a high IV with insiders dumping shares.
@@ -2444,21 +2454,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                All data sourced live from Finnhub and SEC EDGAR. Nothing estimated. Step H uses all of this to compute the 4-Gate Score.
+                All data sourced live from Finnhub and SEC EDGAR. Nothing estimated. Step K uses all of this to compute the 4-Gate Score.
               </p>
-              {progress?.e?.data?.data_gaps?.length > 0 && (
+              {progress?.step_i?.data?.data_gaps?.length > 0 && (
                 <div className="p-2 bg-bg-card rounded border border-brand-red/30">
                   <p className="text-brand-red font-bold text-xs mb-1">DATA GAPS DETECTED</p>
-                  {(progress?.e?.data?.data_gaps ?? []).map((gap: string, i: number) => (
+                  {(progress?.step_i?.data?.data_gaps ?? []).map((gap: string, i: number) => (
                     <p key={i} className="text-brand-red text-xs">⚠ {gap}</p>
                   ))}
                 </div>
               )}
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
-              {progress?.e?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.e?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
-              {progress?.e?.data?.finnhub_errors > 0 && (
-                <span className="text-brand-red ml-2">⚠ {progress?.e?.data?.finnhub_errors} ERRORS</span>
+              {progress?.step_i?.data?.finnhub_calls ?? '—'} FINNHUB CALLS — {progress?.step_i?.data?.tickers?.length ?? '—'} TICKERS ENRICHED
+              {progress?.step_i?.data?.finnhub_errors > 0 && (
+                <span className="text-brand-red ml-2">⚠ {progress?.step_i?.data?.finnhub_errors} ERRORS</span>
               )}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
@@ -2483,14 +2493,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </thead>
                 <tbody>
                   {(() => {
-                    const gFetchedAt = progress?.e?.data?.fetched_at as string | undefined;
+                    const gFetchedAt = progress?.step_i?.data?.fetched_at as string | undefined;
                     const gFetchedTime = gFetchedAt
                       ? new Date(gFetchedAt).toISOString().slice(11,19) + ' UTC'
                       : '—';
                     const gAgeSec = gFetchedAt
                       ? Math.round((Date.now() - new Date(gFetchedAt).getTime()) / 1000) + 's'
                       : '—';
-                    return (progress?.e?.data?.tickers ?? []).map((t: any, i: number) => {
+                    return (progress?.step_i?.data?.tickers ?? []).map((t: any, i: number) => {
                     const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
                     const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
                     const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
@@ -2537,25 +2547,35 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step F */}
+      {/* Step J — Candle Data & Cross-Asset Correlations (placeholder) */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('f')}>
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP J</span>
+          <span className="text-text-secondary">Candle Data &amp; Cross-Asset Correlations</span>
+          <span className="text-text-muted">Fetches 90-day daily candles for all enriched tickers and computes cross-asset correlation cluster.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step K — 4-Gate Scoring */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_k')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP H</span>
+            <span className="text-brand-purple font-bold">STEP K</span>
             <span className="text-text-secondary">4-Gate Scoring</span>
-            {(ps?.scored != null || progress?.f) ? (
-              <span className="text-brand-green">{ps?.scored ?? progress?.f?.data?.scored ?? 0} tickers scored</span>
+            {(ps?.scored != null || progress?.step_k) ? (
+              <span className="text-brand-green">{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} tickers scored</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['f'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_k'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['f'] && (
+        {expanded['step_k'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step H scores every finalist 0–100 across 4 independent gates. Each gate asks a different question. The final score is a weighted average of all 4.
+                Step K scores every finalist 0–100 across 4 independent gates. Each gate asks a different question. The final score is a weighted average of all 4.
               </p>
               {/* 4 Gates explained */}
               <div className="grid grid-cols-1 gap-1 pt-1">
@@ -2593,7 +2613,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ['STAGFLATION', '20%', '30%', '30%', '20%', 'Hardest to trade — regime + quality paramount'],
                       ['CRISIS', '15%', '40%', '30%', '15%', 'Quality paramount — vol surface unreliable'],
                     ].map(([regime, ve, q, r, ie, why]) => {
-                      const isCurrent = progress?.f?.data?.regime === regime;
+                      const isCurrent = progress?.step_k?.data?.regime === regime;
                       return (
                         <tr key={regime} className={`border-b border-border/30 ${isCurrent ? 'bg-brand-gold/10' : ''}`}>
                           <td className={`py-1 pr-3 font-bold ${isCurrent ? 'text-brand-gold' : 'text-text-muted'}`}>{isCurrent ? '▶ ' : ''}{regime}</td>
@@ -2609,13 +2629,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </table>
               </div>
               {/* Current weights */}
-              {progress?.f?.data?.weights && (
+              {progress?.step_k?.data?.weights && (
                 <div className="p-2 bg-bg-card rounded border border-border">
                   <p className="text-text-primary font-bold mb-1">
-                    Current weights (regime: <span className="text-brand-gold">{progress.f.data.regime as string}</span>):
+                    Current weights (regime: <span className="text-brand-gold">{progress.step_k.data.regime as string}</span>):
                   </p>
                   <p className="text-brand-gold font-mono">
-                    Composite = (Vol Edge × {(progress.f.data.weights as any).vol_edge}%) + (Quality × {(progress.f.data.weights as any).quality}%) + (Regime × {(progress.f.data.weights as any).regime}%) + (Info Edge × {(progress.f.data.weights as any).info_edge}%)
+                    Composite = (Vol Edge × {(progress.step_k.data.weights as any).vol_edge}%) + (Quality × {(progress.step_k.data.weights as any).quality}%) + (Regime × {(progress.step_k.data.weights as any).regime}%) + (Info Edge × {(progress.step_k.data.weights as any).info_edge}%)
                   </p>
                 </div>
               )}
@@ -2625,12 +2645,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   {' '}3 or more gates must score above 50. A ticker with only 1 strong gate is not a convergent trade — something else is wrong with it.
                 </p>
                 <p className="text-text-muted">
-                  The calculation for every ticker is shown below. Green gate = above 50. Red gate = below 50. Step I applies the final selection rules.
+                  The calculation for every ticker is shown below. Green gate = above 50. Red gate = below 50. Step S applies the final selection rules.
                 </p>
               </div>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
-              {progress?.f?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
+              {progress?.step_k?.data?.scored ?? '—'} TICKERS SCORED — 4-GATE MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
@@ -2638,10 +2658,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
                     <th className="text-left py-1 pr-3">RANK</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
-                    <th className="text-right py-1 pr-3">QUALITY<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.quality ?? 25}% weight</span></th>
-                    <th className="text-right py-1 pr-3">REGIME<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.regime ?? 25}% weight</span></th>
-                    <th className="text-right py-1 pr-3">INFO EDGE<br/><span className="font-normal text-[9px]">{(progress?.f?.data?.weights as any)?.info_edge ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">VOL EDGE<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.vol_edge ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">QUALITY<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.quality ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">REGIME<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.regime ?? 25}% weight</span></th>
+                    <th className="text-right py-1 pr-3">INFO EDGE<br/><span className="font-normal text-[9px]">{(progress?.step_k?.data?.weights as any)?.info_edge ?? 25}% weight</span></th>
                     <th className="text-right py-1 pr-3">GATES<br/><span className="font-normal text-[9px]">above 50</span></th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">SCORE</th>
@@ -2654,7 +2674,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 </thead>
                 <tbody>
                   {(() => {
-                    const hFetchedAt = progress?.f?.data?.fetched_at as string | undefined;
+                    const hFetchedAt = progress?.step_k?.data?.fetched_at as string | undefined;
                     const hFetchedTime = hFetchedAt
                       ? new Date(hFetchedAt).toISOString().slice(11, 19) + ' UTC'
                       : '—';
@@ -2662,7 +2682,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       ? Math.round((Date.now() - new Date(hFetchedAt).getTime()) / 1000) + 's'
                       : '—';
                     return (fData?.rankings ?? []).map((r: any, i: number) => {
-                    const w = (progress?.f?.data?.weights as any) ?? { vol_edge: 25, quality: 25, regime: 25, info_edge: 25 };
+                    const w = (progress?.step_k?.data?.weights as any) ?? { vol_edge: 25, quality: 25, regime: 25, info_edge: 25 };
                     const gateColor = (score: number) => score >= 50 ? 'text-brand-green font-bold' : 'text-brand-red';
                     const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter((g: number) => g >= 50).length;
                     const veC = (r.vol_edge * w.vol_edge / 100).toFixed(1);
@@ -2799,7 +2819,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                 <p className="text-text-muted mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
                               </div>
                             </div>
-                            <p className="text-text-muted text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.f?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.f?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.f?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.f?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
+                            <p className="text-text-muted text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
                           </td>
                         </tr>
                       )}
@@ -2814,21 +2834,206 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step G */}
+      {/* Step L — Re-Score With Technicals (placeholder) */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('g')}>
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP L</span>
+          <span className="text-text-secondary">Re-Score With Technicals</span>
+          <span className="text-text-muted">Re-scores Vol Edge gate with real RSI, SMA, Bollinger Bands, and volume ratio from candle data. Produces final pre-chain composite score.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step M — Final Selection (placeholder) */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP M</span>
+          <span className="text-text-secondary">Final Selection</span>
+          <span className="text-text-muted">Applies convergence gate (3/4 above 50), quality floor (score ≥ 40), sector cap (max 2 per sector), and outputs final ranked set of up to 9.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step N — Chain Fetch */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_n')}>
           <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP I</span>
-            <span className="text-text-secondary">Trade Cards</span>
-            {(ps?.total_trade_cards != null || progress?.g) ? (
-              <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.g?.data?.trade_cards ?? 0} strategies generated</span>
+            <span className="text-brand-purple font-bold">STEP N</span>
+            <span className="text-text-secondary">Chain Fetch</span>
+            {jData ? (
+              <span className="text-brand-green">{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
             ) : (
               <span className="text-text-muted animate-pulse">waiting...</span>
             )}
           </div>
-          <span className="text-text-muted">{expanded['g'] ? '▲' : '▼'}</span>
+          <span className="text-text-muted">{expanded['step_n'] ? '▲' : '▼'}</span>
         </div>
-        {expanded['g'] && (
+        {expanded['step_n'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <p className="text-text-secondary text-xs leading-relaxed mb-3">
+              TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
+            </p>
+            {jData?.tickers && (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-left py-1 px-1">EXPIRATION</th>
+                    <th className="text-right py-1 px-1">DTE</th>
+                    <th className="text-right py-1 px-1">STRIKES</th>
+                    <th className="text-left py-1 px-1">PRICE SOURCE</th>
+                  </tr></thead>
+                  <tbody>
+                    {jData.tickers.map((t: { symbol: string; expiration?: string; dte?: number; strikeCount?: number; priceSource?: string }) => {
+                      const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
+                      const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
+                      return (
+                        <tr key={t.symbol} className="border-b border-border/50">
+                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikeCount ?? '—'}</td>
+                          <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {jData && (
+              <p className="text-text-muted text-xs mt-3">
+                {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Step O — Live Greeks Subscription (placeholder) */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP O</span>
+          <span className="text-text-secondary">Live Greeks Subscription</span>
+          <span className="text-text-muted">Opens TastyTrade WebSocket, subscribes all strikes for live Greeks, quote, and summary events. Waits for stable data before proceeding.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step P — Strategy Scoring */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_p')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP P</span>
+            <span className="text-text-secondary">Strategy Scoring</span>
+            {kData ? (
+              <span className="text-brand-green">{kData.totalPassed} strategies passed all 3 gates</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_p'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['step_p'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {/* IV Rank tier system */}
+            <div className="space-y-2 mb-3">
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank above 50%</span> → premium selling strategies (Iron Condor, Put Credit Spread, Short Strangle).
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank 20–50%</span> → neutral strategies (Iron Condor, Put Credit Spread, Bull Call Spread).
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">IV Rank below 20%</span> → debit strategies (Long Straddle, Long Strangle, Debit Spread).
+              </p>
+            </div>
+            {/* Gate explanations */}
+            <div className="space-y-2 mb-3">
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate A:</span> Strategy must have positive expected value. EV = P(full profit) × max profit + P(partial) × midpoint + P(full loss) × max loss.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate B:</span> Probability of profit must meet strategy-specific floor. Iron Condor ≥ 50%. Put Credit Spread ≥ 55%. Short Strangle ≥ 60%. Uses N(d2) breakeven method where available.
+              </p>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <span className="font-bold text-text-primary">Gate C:</span> Credit strategies must collect at least $0.10/share. Debit strategies skip this gate.
+              </p>
+            </div>
+            {/* Scoring formula */}
+            <p className="text-text-secondary text-xs leading-relaxed mb-3">
+              <span className="font-bold text-text-primary">Survivors ranked by:</span> (EV/Risk × 50%) + (Theta Efficiency × 30%) + (Edge Ratio × 20%). Highest score = Strategy A.
+            </p>
+            {/* Per-ticker table */}
+            {kData?.tickers && (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-right py-1 px-1">BUILT</th>
+                    <th className="text-right py-1 px-1">GATE A ✗</th>
+                    <th className="text-right py-1 px-1">GATE B ✗</th>
+                    <th className="text-right py-1 px-1">GATE C ✗</th>
+                    <th className="text-right py-1 px-1">PASSED</th>
+                    <th className="text-left py-1 px-1">WINNER</th>
+                    <th className="text-right py-1 px-1">SCORE</th>
+                  </tr></thead>
+                  <tbody>
+                    {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null }) => (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strategiesBuilt ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateAFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateBFailed ?? 0}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateCFailed ?? 0}</td>
+                        <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
+                        <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Step Q — Live Options Flow & GEX (placeholder) */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP Q</span>
+          <span className="text-text-secondary">Live Options Flow &amp; GEX</span>
+          <span className="text-text-muted">Computes put/call ratio, volume bias, unusual activity, and live GEX dealer positioning from real open interest and Greeks.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step R — Re-Score With Live Data (placeholder) */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP R</span>
+          <span className="text-text-secondary">Re-Score With Live Data</span>
+          <span className="text-text-muted">Replaces estimated flow and GEX inputs with live data from Step Q. Produces final composite score.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
+      {/* Step S — Trade Cards */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_s')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP S</span>
+            <span className="text-text-secondary">Trade Cards</span>
+            {(ps?.total_trade_cards != null || progress?.step_s) ? (
+              <span className="text-brand-green">{ps?.total_trade_cards ?? progress?.step_s?.data?.trade_cards ?? 0} strategies generated</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_s'] ? '▲' : '▼'}</span>
+        </div>
+        {expanded['step_s'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
             {/* Selection rules explanation */}
             <div className="space-y-2 mb-3">
@@ -2910,181 +3115,31 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
 
             {/* Next steps explanation */}
             <p className="text-text-muted text-xs mt-3 italic">
-              Step J fetches the live options chain for each of the final 9. Step K builds and scores strategy candidates. Step L is the trade card.
+              Step N fetches the live options chain for each of the final 9. Step P builds and scores strategy candidates.
             </p>
           </div>
         )}
       </div>
 
-      {/* Step J — Chain Fetch */}
+      {/* Step T — Save & Return (placeholder) */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('j')}>
-          <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP J</span>
-            <span className="text-text-secondary">Chain Fetch</span>
-            {jData ? (
-              <span className="text-brand-green">{jData.totalStrikes} strikes fetched across {jData.tickers?.length ?? 0} tickers — {jData.greeksEvents} Greeks events received</span>
-            ) : (
-              <span className="text-text-muted animate-pulse">waiting...</span>
-            )}
-          </div>
-          <span className="text-text-muted">{expanded['j'] ? '▲' : '▼'}</span>
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP T</span>
+          <span className="text-text-secondary">Save &amp; Return</span>
+          <span className="text-text-muted">Logs scan snapshot to Azure PostgreSQL and returns complete result to frontend.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
         </div>
-        {expanded['j'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row">
-            <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
-            </p>
-            {jData?.tickers && (
-              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 px-1">SYMBOL</th>
-                    <th className="text-left py-1 px-1">EXPIRATION</th>
-                    <th className="text-right py-1 px-1">DTE</th>
-                    <th className="text-right py-1 px-1">STRIKES</th>
-                    <th className="text-left py-1 px-1">PRICE SOURCE</th>
-                  </tr></thead>
-                  <tbody>
-                    {jData.tickers.map((t: { symbol: string; expiration?: string; dte?: number; strikeCount?: number; priceSource?: string }) => {
-                      const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
-                      const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
-                      return (
-                        <tr key={t.symbol} className="border-b border-border/50">
-                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
-                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikeCount ?? '—'}</td>
-                          <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {jData && (
-              <p className="text-text-muted text-xs mt-3">
-                {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Step K — Strategy Scoring */}
-      <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('k')}>
-          <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP K</span>
-            <span className="text-text-secondary">Strategy Scoring</span>
-            {kData ? (
-              <span className="text-brand-green">{kData.totalPassed} strategies passed all 3 gates</span>
-            ) : (
-              <span className="text-text-muted animate-pulse">waiting...</span>
-            )}
-          </div>
-          <span className="text-text-muted">{expanded['k'] ? '▲' : '▼'}</span>
-        </div>
-        {expanded['k'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row">
-            {/* IV Rank tier system */}
-            <div className="space-y-2 mb-3">
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank above 50%</span> → premium selling strategies (Iron Condor, Put Credit Spread, Short Strangle).
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank 20–50%</span> → neutral strategies (Iron Condor, Put Credit Spread, Bull Call Spread).
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank below 20%</span> → debit strategies (Long Straddle, Long Strangle, Debit Spread).
-              </p>
-            </div>
-            {/* Gate explanations */}
-            <div className="space-y-2 mb-3">
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate A:</span> Strategy must have positive expected value. EV = P(full profit) × max profit + P(partial) × midpoint + P(full loss) × max loss.
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate B:</span> Probability of profit must meet strategy-specific floor. Iron Condor ≥ 50%. Put Credit Spread ≥ 55%. Short Strangle ≥ 60%. Uses N(d2) breakeven method where available.
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate C:</span> Credit strategies must collect at least $0.10/share. Debit strategies skip this gate.
-              </p>
-            </div>
-            {/* Scoring formula */}
-            <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              <span className="font-bold text-text-primary">Survivors ranked by:</span> (EV/Risk × 50%) + (Theta Efficiency × 30%) + (Edge Ratio × 20%). Highest score = Strategy A.
-            </p>
-            {/* Per-ticker table */}
-            {kData?.tickers && (
-              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-                <table className="w-full text-[10px]">
-                  <thead><tr className="text-text-muted border-b border-border">
-                    <th className="text-left py-1 px-1">SYMBOL</th>
-                    <th className="text-right py-1 px-1">BUILT</th>
-                    <th className="text-right py-1 px-1">GATE A ✗</th>
-                    <th className="text-right py-1 px-1">GATE B ✗</th>
-                    <th className="text-right py-1 px-1">GATE C ✗</th>
-                    <th className="text-right py-1 px-1">PASSED</th>
-                    <th className="text-left py-1 px-1">WINNER</th>
-                    <th className="text-right py-1 px-1">SCORE</th>
-                  </tr></thead>
-                  <tbody>
-                    {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null }) => (
-                      <tr key={t.symbol} className="border-b border-border/50">
-                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strategiesBuilt ?? '—'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateAFailed ?? 0}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateBFailed ?? 0}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.gateCFailed ?? 0}</td>
-                        <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
-                        <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
-                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Step L — Trade Cards */}
-      <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('l')}>
-          <div className="flex items-center gap-3">
-            <span className="text-brand-purple font-bold">STEP L</span>
-            <span className="text-text-secondary">Trade Cards</span>
-            <span className="text-brand-green">Trade cards built for the final 9</span>
-          </div>
-          <span className="text-text-muted">{expanded['l'] ? '▲' : '▼'}</span>
-        </div>
-        {expanded['l'] && (
-          <div className="px-8 py-2 border-t border-border bg-bg-row">
-            <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              Each trade card below shows the full breakdown for one ticker — the 4-gate scores, the winning strategy, and all supporting data that led to this recommendation.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {(gData?.top_9 ?? []).map((sym: string) => (
-                <span key={sym} className="px-2 py-0.5 rounded bg-brand-green/10 text-brand-green text-[10px] font-bold font-mono">{sym}</span>
-              ))}
-            </div>
-            <p className="text-text-muted text-xs italic">Scroll down to see each card ↓</p>
-          </div>
-        )}
       </div>
 
       {/* Summary */}
       <div className="px-4 py-2 flex items-center gap-4 text-text-muted">
-        <span>{ps?.total_universe ?? progress?.a?.data?.total_universe ?? 0} scanned</span>
+        <span>{ps?.total_universe ?? progress?.step_a?.data?.total_universe ?? 0} scanned</span>
         <span>→</span>
-        <span>{hf?.output_count ?? progress?.b?.data?.output ?? 0} filtered</span>
+        <span>{hf?.output_count ?? progress?.step_e?.data?.output ?? 0} filtered</span>
         <span>→</span>
-        <span>{ps?.scored ?? progress?.f?.data?.scored ?? 0} scored</span>
+        <span>{ps?.scored ?? progress?.step_k?.data?.scored ?? 0} scored</span>
         <span>→</span>
-        <span className="text-brand-green">{ps?.final_9?.length ?? progress?.g?.data?.top_9?.length ?? 0} selected</span>
+        <span className="text-brand-green">{ps?.final_9?.length ?? progress?.step_s?.data?.top_9?.length ?? 0} selected</span>
         <span className="ml-auto">
           {isLive ? (
             <span className="text-brand-purple animate-pulse">Pipeline running...</span>
