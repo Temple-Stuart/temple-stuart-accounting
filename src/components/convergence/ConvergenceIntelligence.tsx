@@ -2466,19 +2466,30 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">qtrs</span></th>
+                    <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span></th>
                     <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span></th>
                     <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span></th>
                     <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span></th>
                     <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span></th>
                     <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span></th>
-                    <th className="text-right py-1 pr-3">EQ<br/><span className="font-normal text-[9px]">quality</span></th>
+                    <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span></th>
                     <th className="text-right py-1 pr-3">P/E</th>
-                    <th className="text-left py-1">SEC</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINTS</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(progress?.e?.data?.tickers ?? []).map((t: any, i: number) => {
+                  {(() => {
+                    const gFetchedAt = progress?.e?.data?.fetched_at as string | undefined;
+                    const gFetchedTime = gFetchedAt
+                      ? new Date(gFetchedAt).toISOString().slice(11,19) + ' UTC'
+                      : '—';
+                    const gAgeSec = gFetchedAt
+                      ? Math.round((Date.now() - new Date(gFetchedAt).getTime()) / 1000) + 's'
+                      : '—';
+                    return (progress?.e?.data?.tickers ?? []).map((t: any, i: number) => {
                     const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
                     const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
                     const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
@@ -2486,18 +2497,38 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                        <td className="py-1 pr-3 text-right">{t.earnings_quarters ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">
+                          {t.beat_count != null && t.earnings_quarters != null
+                            ? `${t.beat_count}/${t.earnings_quarters}`
+                            : '—'}
+                        </td>
                         <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
                         <td className="py-1 pr-3 text-text-muted">{t.analyst_rating ?? '—'}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${t.earnings_quality === 'available' ? 'text-brand-green' : 'text-brand-red'}`}>{t.earnings_quality === 'available' ? '✓' : '✗'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${
+                          t.earnings_quality_letter === 'A' || t.earnings_quality_letter === 'B'
+                            ? 'text-brand-green'
+                            : t.earnings_quality_letter === 'C'
+                            ? 'text-brand-gold'
+                            : t.earnings_quality_letter != null
+                            ? 'text-brand-red'
+                            : 'text-text-muted'
+                        }`}>
+                          {t.earnings_quality_letter != null && t.earnings_quality_score != null
+                            ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
+                            : '—'}
+                        </td>
                         <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
-                        <td className="py-1 text-text-muted">SEC</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate">earnings·recommendations·insider-sentiment·metric·company-news·ownership·earnings-quality-score</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{gFetchedTime}</td>
+                        <td className="py-1 text-right text-text-muted text-[10px]">{gAgeSec}</td>
                       </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>

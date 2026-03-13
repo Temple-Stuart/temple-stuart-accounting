@@ -759,6 +759,7 @@ export async function runPipeline(
     step: 'e',
     label: 'Data Enrichment',
     data: {
+      fetched_at: new Date().toISOString(),
       finnhub_calls: finnhubResult.stats.calls_made,
       finnhub_errors: finnhubResult.stats.errors,
       data_gaps: dataGaps,
@@ -778,6 +779,7 @@ export async function runPipeline(
         return {
           symbol,
           earnings_quarters: earnings.length,
+          beat_count: beatCount,
           beat_rate: earnings.length > 0
             ? Math.round(beatCount / earnings.length * 100)
             : null,
@@ -789,7 +791,8 @@ export async function runPipeline(
             : null,
           news_sentiment: news?.sentiment_7d?.score ?? null,
           institutional_holders: institutional?.topHolderCount ?? null,
-          earnings_quality: earningsQuality ? 'available' : 'missing',
+          earnings_quality_score: earningsQuality?.score ?? null,
+          earnings_quality_letter: earningsQuality?.letterScore ?? null,
           pe_ratio: (fh?.fundamentals?.metric?.['peBasicExclExtraTTM'] as number) ?? null,
           market_cap: (fh?.fundamentals?.metric?.['marketCapitalization'] as number) ?? null,
         };
