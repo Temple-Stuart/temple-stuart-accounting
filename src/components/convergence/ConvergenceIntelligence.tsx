@@ -1820,8 +1820,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <p className="text-text-muted text-xs font-bold mb-1">
               ALL TICKERS SCORED ({(progress?.a2?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
-            <div className="overflow-y-auto" style={{maxHeight: '240px'}}>
-              <table className="w-full text-xs">
+            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
+              <table className="w-full text-xs whitespace-nowrap">
                 <thead>
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
@@ -1946,11 +1946,18 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
                     <th className="text-right py-1 pr-3">RANK</th>
                     <th className="text-right py-1 pr-3">CUTOFF</th>
-                    <th className="text-left py-1">STATUS</th>
+                    <th className="text-left py-1 pr-3">STATUS</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINT</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
+                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
+                    const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const nonExcluded = (progress?.a2?.data?.tickers as any[] ?? []).filter((t: any) => !t.excluded); // eslint-disable-line @typescript-eslint/no-explicit-any
                     const topN = progress?.b?.data?.input ?? 45;
                     const cutoffScore = nonExcluded[topN - 1]?.pre_score ?? '—';
@@ -1969,12 +1976,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           <td className="py-1 pr-3 text-right text-text-muted">
                             {cutoffScore}
                           </td>
-                          <td className={`py-1 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
+                          <td className={`py-1 pr-3 ${selected ? 'text-brand-green' : 'text-brand-red'}`}>
                             {selected
                               ? `✓ Ranked #${i+1} — moves to hard filters`
                               : `✗ Ranked #${i+1} — below top ${topN} cutoff (score ${t.pre_score} vs cutoff ${cutoffScore})`
                             }
                           </td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-text-muted text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
@@ -2048,12 +2059,19 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-2">IV30<br/><span className="font-normal text-[9px]">exists</span></th>
                     <th className="text-right py-1 pr-2">BORROW<br/><span className="font-normal text-[9px]">&lt;50%</span></th>
                     <th className="text-right py-1 pr-2">EARNINGS<br/><span className="font-normal text-[9px]">&gt;7d</span></th>
-                    <th className="text-left py-1">RESULT</th>
+                    <th className="text-left py-1 pr-2">RESULT</th>
+                    <th className="text-left py-1 pr-2">SOURCE</th>
+                    <th className="text-left py-1 pr-2">ENDPOINT</th>
+                    <th className="text-left py-1 pr-2">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
                     /* eslint-disable @typescript-eslint/no-explicit-any */
+                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
+                    const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const survivorSyms: string[] = bData?.survivors ?? [];
                     const rejections: Record<string, any> = bData?.ticker_rejections ?? {};
                     const details: Record<string, any> = bData?.ticker_details ?? {};
@@ -2087,9 +2105,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {cell(ivOk, d.iv30 != null ? d.iv30.toFixed(2) : '—', ff === 'IV Data')}
                           {cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate')}
                           {cell(earningsOk, d.days_till_earnings != null ? d.days_till_earnings+'d' : '—', ff === 'Earnings Timing')}
-                          <td className={`py-1 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
+                          <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>
+                          <td className="py-1 pr-2 text-text-muted text-[10px]">TastyTrade</td>
+                          <td className="py-1 pr-2 text-text-muted text-[10px]">market-metrics</td>
+                          <td className="py-1 pr-2 text-text-muted text-[10px]">{fetchedTime}</td>
+                          <td className="py-1 text-right text-text-muted text-[10px]">{ageSec}</td>
                         </tr>
                       );
                     });
