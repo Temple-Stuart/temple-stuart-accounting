@@ -626,28 +626,126 @@ export async function runPipeline(
     })),
   } });
 
-  // ===== STEP E: Fetch Finnhub + FRED =====
-  console.log('[Pipeline] Step E: Fetching Finnhub + FRED data...');
-  const finnhubStart = Date.now();
-
-  const [finnhubResult, fredResult, fredDailyResult] = await Promise.all([
-    fetchFinnhubBatch(topSymbols, 200),
+  // ===== STEP H: Macro & Regime Data =====
+  const fredStart = Date.now();
+  const [fredResult, fredDailyResult] = await Promise.all([
     fetchFredMacro(),
     fetchFredDailySeries(),
   ]);
-
-  const finnhubMs = Date.now() - finnhubStart;
-  console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms, FRED cached=${fredResult.cached}, FRED daily cached=${fredDailyResult.cached}`);
+  const fredMs = Date.now() - fredStart;
 
   if (fredResult.error) {
-    errors.push(`Step E (FRED): ${fredResult.error}`);
+    errors.push(`Step H (FRED macro): ${fredResult.error}`);
   }
   if (fredDailyResult.error) {
-    errors.push(`Step E (FRED daily): ${fredDailyResult.error}`);
+    errors.push(`Step H (FRED daily): ${fredDailyResult.error}`);
   }
 
-  // Compute cross-asset correlations from daily FRED history (shared across all tickers)
   const crossAssetCorrelations: CrossAssetCorrelations | null = computeCrossAssetCorrelations(fredDailyResult.data);
+
+  const fedNetLiquidity = (
+    fredResult.data.fedBalanceSheet != null &&
+    fredResult.data.treasuryGeneralAccount != null &&
+    fredResult.data.overnightReverseRepo != null
+  )
+    ? fredResult.data.fedBalanceSheet
+      - fredResult.data.treasuryGeneralAccount
+      - fredResult.data.overnightReverseRepo
+    : null;
+
+  const vixTermStructureSlope = (
+    fredResult.data.vix != null &&
+    fredResult.data.vxvShortTerm != null &&
+    fredResult.data.vxvShortTerm > 0
+  )
+    ? fredResult.data.vix / fredResult.data.vxvShortTerm
+    : null;
+
+  onProgress?.({ step: 'step_h', label: 'Macro & Regime Data', data: {
+    fetched_at: new Date().toISOString(),
+    fetch_ms: fredMs,
+    cached: fredResult.cached,
+    series: [
+      { name: 'VIX', key: 'vix', value: fredResult.data.vix,
+        source: 'FRED', series_id: 'VIXCLS', null_reason: fredResult.data.vix == null ? 'FRED returned null' : null },
+      { name: 'VIX Short-Term (9d)', key: 'vxvShortTerm', value: fredResult.data.vxvShortTerm,
+        source: 'FRED', series_id: 'VXVCLS', null_reason: fredResult.data.vxvShortTerm == null ? 'FRED returned null' : null },
+      { name: 'VVIX', key: 'vvix', value: fredResult.data.vvix,
+        source: 'FRED', series_id: 'VVIXCLS', null_reason: fredResult.data.vvix == null ? 'FRED returned null' : null },
+      { name: 'Fed Funds Rate', key: 'fedFunds', value: fredResult.data.fedFunds,
+        source: 'FRED', series_id: 'FEDFUNDS', null_reason: fredResult.data.fedFunds == null ? 'FRED returned null' : null },
+      { name: '10Y Treasury', key: 'treasury10y', value: fredResult.data.treasury10y,
+        source: 'FRED', series_id: 'DGS10', null_reason: fredResult.data.treasury10y == null ? 'FRED returned null' : null },
+      { name: 'Yield Curve (10Y-2Y)', key: 'yieldCurveSpread', value: fredResult.data.yieldCurveSpread,
+        source: 'FRED', series_id: 'T10Y2Y', null_reason: fredResult.data.yieldCurveSpread == null ? 'FRED returned null' : null },
+      { name: '10Y-3M Spread', key: 't10y3m', value: fredResult.data.t10y3m,
+        source: 'FRED', series_id: 'T10Y3M', null_reason: fredResult.data.t10y3m == null ? 'FRED returned null' : null },
+      { name: 'CPI YoY', key: 'cpi', value: fredResult.data.cpi,
+        source: 'FRED', series_id: 'CPIAUCSL', null_reason: fredResult.data.cpi == null ? 'FRED returned null' : null },
+      { name: 'CPI MoM', key: 'cpiMom', value: fredResult.data.cpiMom,
+        source: 'FRED', series_id: 'CPIAUCSL_MOM', null_reason: fredResult.data.cpiMom == null ? 'FRED returned null' : null },
+      { name: '5Y Breakeven Inflation', key: 'breakeven5y', value: fredResult.data.breakeven5y,
+        source: 'FRED', series_id: 'T5YIE', null_reason: fredResult.data.breakeven5y == null ? 'FRED returned null' : null },
+      { name: 'Unemployment', key: 'unemployment', value: fredResult.data.unemployment,
+        source: 'FRED', series_id: 'UNRATE', null_reason: fredResult.data.unemployment == null ? 'FRED returned null' : null },
+      { name: 'Nonfarm Payrolls', key: 'nonfarmPayrolls', value: fredResult.data.nonfarmPayrolls,
+        source: 'FRED', series_id: 'PAYEMS', null_reason: fredResult.data.nonfarmPayrolls == null ? 'FRED returned null' : null },
+      { name: 'Initial Claims', key: 'initialClaims', value: fredResult.data.initialClaims,
+        source: 'FRED', series_id: 'ICSA', null_reason: fredResult.data.initialClaims == null ? 'FRED returned null' : null },
+      { name: 'GDP', key: 'gdp', value: fredResult.data.gdp,
+        source: 'FRED', series_id: 'GDPC1', null_reason: fredResult.data.gdp == null ? 'FRED returned null' : null },
+      { name: 'Consumer Confidence', key: 'consumerConfidence', value: fredResult.data.consumerConfidence,
+        source: 'FRED', series_id: 'UMCSENT', null_reason: fredResult.data.consumerConfidence == null ? 'FRED returned null' : null },
+      { name: 'NFCI', key: 'nfci', value: fredResult.data.nfci,
+        source: 'FRED', series_id: 'NFCI', null_reason: fredResult.data.nfci == null ? 'FRED returned null' : null },
+      { name: 'HY Credit Spread', key: 'hySpread', value: fredResult.data.hySpread,
+        source: 'FRED', series_id: 'BAMLH0A0HYM2', null_reason: fredResult.data.hySpread == null ? 'FRED returned null' : null },
+      { name: 'BBB Credit Spread', key: 'bbbSpread', value: fredResult.data.bbbSpread,
+        source: 'FRED', series_id: 'BAMLC0A4CBBB', null_reason: fredResult.data.bbbSpread == null ? 'FRED returned null' : null },
+      { name: 'Fed Balance Sheet', key: 'fedBalanceSheet', value: fredResult.data.fedBalanceSheet,
+        source: 'FRED', series_id: 'WALCL', null_reason: fredResult.data.fedBalanceSheet == null ? 'FRED returned null' : null },
+      { name: 'Treasury General Account', key: 'treasuryGeneralAccount', value: fredResult.data.treasuryGeneralAccount,
+        source: 'FRED', series_id: 'WTREGEN', null_reason: fredResult.data.treasuryGeneralAccount == null ? 'FRED returned null' : null },
+      { name: 'Overnight Reverse Repo', key: 'overnightReverseRepo', value: fredResult.data.overnightReverseRepo,
+        source: 'FRED', series_id: 'RRPONTSYD', null_reason: fredResult.data.overnightReverseRepo == null ? 'FRED returned null' : null },
+      { name: 'Dollar Index', key: 'dollarIndex', value: fredResult.data.dollarIndex,
+        source: 'FRED', series_id: 'DTWEXBGS', null_reason: fredResult.data.dollarIndex == null ? 'FRED returned null' : null },
+    ],
+    computed: {
+      fed_net_liquidity: {
+        value: fedNetLiquidity,
+        formula: 'WALCL − WTREGEN − RRPONTSYD',
+        inputs: {
+          walcl: fredResult.data.fedBalanceSheet,
+          wtregen: fredResult.data.treasuryGeneralAccount,
+          rrpontsyd: fredResult.data.overnightReverseRepo,
+        },
+        null_reason: fedNetLiquidity == null
+          ? 'One or more inputs (WALCL, WTREGEN, RRPONTSYD) returned null from FRED'
+          : null,
+      },
+      vix_term_structure_slope: {
+        value: vixTermStructureSlope,
+        formula: 'VIXCLS / VXVCLS — < 1 = contango = favorable for vol selling',
+        inputs: {
+          vix: fredResult.data.vix,
+          vxv: fredResult.data.vxvShortTerm,
+        },
+        null_reason: vixTermStructureSlope == null
+          ? 'VIX or VXV returned null from FRED'
+          : null,
+      },
+    },
+  } });
+
+  // ===== STEP E: Fetch Finnhub =====
+  console.log('[Pipeline] Step E: Fetching Finnhub data...');
+  const finnhubStart = Date.now();
+
+  const finnhubResult = await fetchFinnhubBatch(topSymbols, 200);
+
+  const finnhubMs = Date.now() - finnhubStart;
+  console.log(`[Pipeline] Step E: Finnhub fetched in ${finnhubMs}ms`);
 
   // Fetch annual financials per symbol (for Piotroski YoY signals)
   const annualFinancialsMap = new Map<string, AnnualFinancials | null>();
@@ -1187,7 +1285,7 @@ export async function runPipeline(
       const latestClose = s.vol_edge.breakdown.technicals.indicators.latest_close;
       if (latestClose == null || latestClose <= 0) return null;
 
-      // Risk-free rate from FRED FEDFUNDS series, converted to decimal. Fallback: 0.045
+      // Risk-free rate from FRED FEDFUNDS series, converted to decimal
       const fedFundsRate = fredResult.data.fedFunds != null
         ? fredResult.data.fedFunds / 100
         : undefined;
