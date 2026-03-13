@@ -521,6 +521,18 @@ export async function runPipeline(
         my_iv_percentile: s.ivPercentile ?? null,
         my_iv30: s.iv30 ?? null,
         my_beta: s.beta ?? null,
+        peer_stdev_iv: ps?.metrics?.iv_percentile?.std != null
+          ? round(ps.metrics.iv_percentile.std, 2)
+          : null,
+        peer_stdev_iv30: ps?.metrics?.iv30?.std != null
+          ? round(ps.metrics.iv30.std, 2)
+          : null,
+        peer_mean_beta: ps?.metrics?.beta?.mean != null
+          ? round(ps.metrics.beta.mean, 2)
+          : null,
+        peer_stdev_beta: ps?.metrics?.beta?.std != null
+          ? round(ps.metrics.beta.std, 2)
+          : null,
       };
     }),
   } });
