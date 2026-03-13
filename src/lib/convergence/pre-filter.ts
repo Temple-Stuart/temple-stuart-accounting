@@ -73,14 +73,15 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
         'Liquidity rating unavailable — cannot score liquidity';
     }
 
-    // Tickers with null ivHvSpread or null/zero ivRank are
-    // excluded above. These values are guaranteed non-null here.
-    const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
-    const ivRankNorm = ivRank! / 100;
-    const liqNorm = liquidityRating! / 5;
-    const preScore = Math.round(
-      (ivHvNorm * 0.35 + ivRankNorm * 0.40 + liqNorm * 0.25) * 1000
-    ) / 1000;
+    let preScore = 0;
+    if (!excluded) {
+      const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
+      const ivRankNorm = ivRank! / 100;
+      const liqNorm = liquidityRating! / 5;
+      preScore = Math.round(
+        (ivHvNorm * 0.35 + ivRankNorm * 0.40 + liqNorm * 0.25) * 1000
+      ) / 1000;
+    }
 
     results.push({
       symbol: t.symbol,
