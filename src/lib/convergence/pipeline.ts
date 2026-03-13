@@ -432,6 +432,7 @@ export async function runPipeline(
       pre_score: Math.round(r.preScore * 100),
       iv_rank: r.ivRank,
       iv_percentile: r.ivPercentile,
+      iv_hv_spread: r.ivHvSpread,
       liquidity: r.liquidityRating,
       market_cap: r.marketCap,
       beta: r.beta,
