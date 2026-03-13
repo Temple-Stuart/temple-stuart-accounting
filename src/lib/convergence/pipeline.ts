@@ -937,8 +937,12 @@ export async function runPipeline(
   const rankedRows = buildRankedRows(scoredTickers);
   const _gwt = scoredTickers[0]?.scoring?.composite?.gate_weight_trace;
   const _gw = _gwt?.gate_weights;
+  const scoringMap = new Map(
+    scoredTickers.map(t => [t.symbol, t.scoring])
+  );
   onProgress?.({ step: 'f', label: '4-Gate Scoring', data: {
     scored: scoredTickers.length,
+    fetched_at: new Date().toISOString(),
     regime: _gwt?.regime_used ?? 'UNKNOWN',
     weights: {
       vol_edge: Math.round((_gw?.vol_edge ?? 0.25) * 100),
@@ -946,7 +950,119 @@ export async function runPipeline(
       regime: Math.round((_gw?.regime ?? 0.25) * 100),
       info_edge: Math.round((_gw?.info_edge ?? 0.25) * 100),
     },
-    rankings: rankedRows.map(r => ({ symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold' })),
+    rankings: rankedRows.map(r => {
+      const scoring = scoringMap.get(r.symbol);
+      return {
+        symbol: r.symbol, composite: r.composite, vol_edge: r.vol_edge, quality: r.quality, regime: r.regime, info_edge: r.info_edge, sector: r.sector, convergence: r.convergence, selection_status: r.composite >= 50 ? 'eligible' : 'below_threshold',
+        data_confidence: scoring?.composite.data_confidence.confidence ?? null,
+        position_size_pct: scoring?.composite.position_size_pct ?? null,
+        vol_edge_detail: scoring ? {
+          mispricing: {
+            score: scoring.vol_edge.breakdown.mispricing.score,
+            weight: scoring.vol_edge.breakdown.mispricing.weight,
+            formula: scoring.vol_edge.breakdown.mispricing.formula,
+          },
+          term_structure: {
+            score: scoring.vol_edge.breakdown.term_structure.score,
+            weight: scoring.vol_edge.breakdown.term_structure.weight,
+            formula: scoring.vol_edge.breakdown.term_structure.formula,
+          },
+          technicals: {
+            score: scoring.vol_edge.breakdown.technicals.score,
+            weight: scoring.vol_edge.breakdown.technicals.weight,
+            formula: scoring.vol_edge.breakdown.technicals.formula,
+          },
+          skew: {
+            score: scoring.vol_edge.breakdown.skew.score,
+            weight: scoring.vol_edge.breakdown.skew.weight,
+            formula: scoring.vol_edge.breakdown.skew.formula,
+          },
+          gex: {
+            score: scoring.vol_edge.breakdown.gex.score,
+            weight: scoring.vol_edge.breakdown.gex.weight,
+            formula: scoring.vol_edge.breakdown.gex.formula,
+          },
+          data_confidence: scoring.vol_edge.data_confidence.confidence,
+        } : null,
+        quality_detail: scoring ? {
+          safety: {
+            score: scoring.quality.breakdown.safety.score,
+            weight: scoring.quality.breakdown.safety.weight,
+            formula: scoring.quality.breakdown.safety.formula,
+          },
+          profitability: {
+            score: scoring.quality.breakdown.profitability.score,
+            weight: scoring.quality.breakdown.profitability.weight,
+            formula: scoring.quality.breakdown.profitability.formula,
+          },
+          growth: {
+            score: scoring.quality.breakdown.growth.score,
+            weight: scoring.quality.breakdown.growth.weight,
+            formula: scoring.quality.breakdown.growth.formula,
+          },
+          fundamental_risk: {
+            score: scoring.quality.breakdown.fundamentalRisk.score,
+            weight: scoring.quality.breakdown.fundamentalRisk.weight,
+            formula: scoring.quality.breakdown.fundamentalRisk.formula,
+          },
+          mspr_adjustment: scoring.quality.mspr_adjustment,
+          data_confidence: scoring.quality.data_confidence.confidence,
+        } : null,
+        regime_detail: scoring ? {
+          dominant_regime: scoring.regime.breakdown.dominant_regime,
+          growth_score: scoring.regime.breakdown.growth_signal.score,
+          inflation_score: scoring.regime.breakdown.inflation_signal.score,
+          spy_multiplier: scoring.regime.breakdown.spy_correlation_modifier.multiplier,
+          base_score: scoring.regime.breakdown.spy_correlation_modifier.base_regime_score,
+          formula: scoring.regime.breakdown.spy_correlation_modifier.formula,
+          note: scoring.regime.breakdown.spy_correlation_modifier.note,
+          raw_values: {
+            gdp: scoring.regime.breakdown.growth_signal.raw_values.gdp,
+            unemployment: scoring.regime.breakdown.growth_signal.raw_values.unemployment,
+            cpi_yoy: scoring.regime.breakdown.inflation_signal.raw_values.cpi_yoy,
+            fed_funds: scoring.regime.breakdown.inflation_signal.raw_values.fed_funds,
+            treasury_10y: scoring.regime.breakdown.inflation_signal.raw_values.treasury_10y,
+            vix: scoring.regime.breakdown.vix_overlay.vix,
+          },
+          data_confidence: scoring.regime.data_confidence.confidence,
+        } : null,
+        info_edge_detail: scoring ? {
+          analyst_consensus: {
+            score: scoring.info_edge.breakdown.analyst_consensus.score,
+            weight: scoring.info_edge.breakdown.analyst_consensus.weight,
+          },
+          price_target: {
+            score: scoring.info_edge.breakdown.price_target_signal.score,
+            weight: scoring.info_edge.breakdown.price_target_signal.weight,
+          },
+          upgrade_downgrade: {
+            score: scoring.info_edge.breakdown.upgrade_downgrade_signal.score,
+            weight: scoring.info_edge.breakdown.upgrade_downgrade_signal.weight,
+          },
+          insider_activity: {
+            score: scoring.info_edge.breakdown.insider_activity.score,
+            weight: scoring.info_edge.breakdown.insider_activity.weight,
+          },
+          earnings_momentum: {
+            score: scoring.info_edge.breakdown.earnings_momentum.score,
+            weight: scoring.info_edge.breakdown.earnings_momentum.weight,
+          },
+          flow_signal: {
+            score: scoring.info_edge.breakdown.flow_signal.score,
+            weight: scoring.info_edge.breakdown.flow_signal.weight,
+          },
+          news_sentiment: {
+            score: scoring.info_edge.breakdown.news_sentiment.score,
+            weight: scoring.info_edge.breakdown.news_sentiment.weight,
+          },
+          institutional_ownership: {
+            score: scoring.info_edge.breakdown.institutional_ownership.score,
+            weight: scoring.info_edge.breakdown.institutional_ownership.weight,
+          },
+          data_confidence: scoring.info_edge.data_confidence.confidence,
+        } : null,
+      };
+    }),
   } });
 
   // ===== STEP G: Rank and Diversify =====

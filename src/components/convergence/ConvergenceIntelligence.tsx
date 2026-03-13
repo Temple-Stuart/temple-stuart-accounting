@@ -1524,6 +1524,7 @@ export function TickerCard({ detail, sentiment, savedCards, savingCards, saveErr
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PipelineFlowPanel({ result, progress, universe }: { result: any; progress?: Record<string, any>; universe?: string }) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [hDrillDown, setHDrillDown] = useState<Record<string, boolean>>({});
   // Render from live progress if result not yet available
   const isLive = !result && progress && Object.keys(progress).length > 0;
   if (!result && !isLive) return null;
@@ -2644,11 +2645,23 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">GATES<br/><span className="font-normal text-[9px]">above 50</span></th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">SCORE</th>
-                    <th className="text-left py-1">STATUS</th>
+                    <th className="text-left py-1 pr-3">STATUS</th>
+                    <th className="text-right py-1 pr-3">CONF<br/><span className="font-normal text-[9px]">data %</span></th>
+                    <th className="text-right py-1 pr-3">SIZE<br/><span className="font-normal text-[9px]">position %</span></th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1">AGE</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(fData?.rankings ?? []).map((r: any, i: number) => {
+                  {(() => {
+                    const hFetchedAt = progress?.f?.data?.fetched_at as string | undefined;
+                    const hFetchedTime = hFetchedAt
+                      ? new Date(hFetchedAt).toISOString().slice(11, 19) + ' UTC'
+                      : '—';
+                    const hAgeSec = hFetchedAt
+                      ? Math.round((Date.now() - new Date(hFetchedAt).getTime()) / 1000) + 's'
+                      : '—';
+                    return (fData?.rankings ?? []).map((r: any, i: number) => {
                     const w = (progress?.f?.data?.weights as any) ?? { vol_edge: 25, quality: 25, regime: 25, info_edge: 25 };
                     const gateColor = (score: number) => score >= 50 ? 'text-brand-green font-bold' : 'text-brand-red';
                     const gatesAbove50 = [r.vol_edge, r.quality, r.regime, r.info_edge].filter((g: number) => g >= 50).length;
@@ -2658,7 +2671,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     const ieC = (r.info_edge * w.info_edge / 100).toFixed(1);
                     const eligible = r.selection_status === 'eligible';
                     return (
-                      <tr key={r.symbol} className={`border-b border-border/50 ${!eligible ? 'opacity-60' : ''}`}>
+                      <React.Fragment key={r.symbol}>
+                      <tr className={`border-b border-border/50 cursor-pointer ${!eligible ? 'opacity-60' : ''}`} onClick={() => setHDrillDown(prev => ({ ...prev, [r.symbol]: !prev[r.symbol] }))}>
                         <td className="py-1 pr-3 text-text-muted">#{i+1}</td>
                         <td className={`py-1 pr-3 font-bold ${eligible ? 'text-brand-green' : 'text-text-muted'}`}>{r.symbol}</td>
                         <td className={`py-1 pr-3 text-right ${gateColor(r.vol_edge)}`}>{r.vol_edge}</td>
@@ -2668,10 +2682,131 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className={`py-1 pr-3 text-right font-bold ${gatesAbove50 >= 3 ? 'text-brand-green' : gatesAbove50 === 2 ? 'text-brand-gold' : 'text-brand-red'}`}>{gatesAbove50}/4</td>
                         <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">({r.vol_edge}×{w.vol_edge}%) + ({r.quality}×{w.quality}%) + ({r.regime}×{w.regime}%) + ({r.info_edge}×{w.info_edge}%) = {veC}+{qC}+{rC}+{ieC}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${r.composite >= 60 ? 'text-brand-green' : r.composite >= 50 ? 'text-brand-gold' : 'text-text-muted'}`}>{r.composite}</td>
-                        <td className={`py-1 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
+                        <td className={`py-1 pr-3 ${eligible ? 'text-brand-green' : 'text-brand-red'}`}>{eligible ? `✓ ${gatesAbove50}/4 gates — eligible` : `✗ ${gatesAbove50}/4 gates — needs 3`}</td>
+                        <td className="py-1 pr-3 text-right text-text-muted">{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-right text-text-muted">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{hFetchedTime}</td>
+                        <td className="py-1 text-right text-text-muted text-[10px]">{hAgeSec}</td>
                       </tr>
+                      {hDrillDown[r.symbol] && (
+                        <tr key={r.symbol + '_drill'}>
+                          <td colSpan={14} className="py-2 px-3 bg-bg-card border-b border-border">
+                            <div className="grid grid-cols-4 gap-3 text-xs">
+                              {/* VOL EDGE */}
+                              <div>
+                                <p className="text-brand-purple font-bold mb-1">VOL EDGE {r.vol_edge}<span className="text-text-muted font-normal ml-1">— TastyTrade + Candles</span></p>
+                                {r.vol_edge_detail && (
+                                  <table className="w-full text-[10px]">
+                                    <thead><tr className="text-text-muted border-b border-border"><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <tbody>
+                                      {[
+                                        ['Mispricing', r.vol_edge_detail.mispricing],
+                                        ['Term Structure', r.vol_edge_detail.term_structure],
+                                        ['Technicals', r.vol_edge_detail.technicals],
+                                        ['Skew', r.vol_edge_detail.skew],
+                                        ['GEX', r.vol_edge_detail.gex],
+                                      ].map(([name, d]: any) => (
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
+                                          <td className="py-0.5 text-right">{d.score}</td>
+                                          <td className="py-0.5 text-right text-text-muted">{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                                <p className="text-text-muted mt-1">Conf: {r.vol_edge_detail ? (r.vol_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                              </div>
+                              {/* QUALITY */}
+                              <div>
+                                <p className="text-brand-purple font-bold mb-1">QUALITY {r.quality}<span className="text-text-muted font-normal ml-1">— Finnhub</span></p>
+                                {r.quality_detail && (
+                                  <table className="w-full text-[10px]">
+                                    <thead><tr className="text-text-muted border-b border-border"><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <tbody>
+                                      {[
+                                        ['Safety', r.quality_detail.safety],
+                                        ['Profitability', r.quality_detail.profitability],
+                                        ['Growth', r.quality_detail.growth],
+                                        ['Fund. Risk', r.quality_detail.fundamental_risk],
+                                      ].map(([name, d]: any) => (
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
+                                          <td className="py-0.5 text-right">{d.score}</td>
+                                          <td className="py-0.5 text-right text-text-muted">{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
+                                        </tr>
+                                      ))}
+                                      {r.quality_detail.mspr_adjustment !== 0 && (
+                                        <tr className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-muted" colSpan={3}>MSPR adj</td>
+                                          <td className={`py-0.5 text-right ${r.quality_detail.mspr_adjustment > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{r.quality_detail.mspr_adjustment > 0 ? '+' : ''}{r.quality_detail.mspr_adjustment}</td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                )}
+                                <p className="text-text-muted mt-1">Conf: {r.quality_detail ? (r.quality_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                              </div>
+                              {/* REGIME */}
+                              <div>
+                                <p className="text-brand-purple font-bold mb-1">REGIME {r.regime}<span className="text-text-muted font-normal ml-1">— FRED</span></p>
+                                {r.regime_detail && (
+                                  <table className="w-full text-[10px]">
+                                    <tbody>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Regime</td><td className="py-0.5 text-right font-bold">{r.regime_detail.dominant_regime}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Growth Signal</td><td className="py-0.5 text-right">{r.regime_detail.growth_score}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Inflation Signal</td><td className="py-0.5 text-right">{r.regime_detail.inflation_score}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">SPY Multiplier</td><td className="py-0.5 text-right">{r.regime_detail.spy_multiplier}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Base → Final</td><td className="py-0.5 text-right">{r.regime_detail.base_score} → {r.regime}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">VIX</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.vix ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
+                                    </tbody>
+                                  </table>
+                                )}
+                                <p className="text-text-muted mt-1">Conf: {r.regime_detail ? (r.regime_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                              </div>
+                              {/* INFO EDGE */}
+                              <div>
+                                <p className="text-brand-purple font-bold mb-1">INFO EDGE {r.info_edge}<span className="text-text-muted font-normal ml-1">— Finnhub</span></p>
+                                {r.info_edge_detail && (
+                                  <table className="w-full text-[10px]">
+                                    <thead><tr className="text-text-muted border-b border-border"><th className="text-left py-0.5">COMPONENT</th><th className="text-right py-0.5">SCORE</th><th className="text-right py-0.5">WEIGHT</th><th className="text-right py-0.5">CONTRIB</th></tr></thead>
+                                    <tbody>
+                                      {[
+                                        ['Analyst', r.info_edge_detail.analyst_consensus],
+                                        ['Price Target', r.info_edge_detail.price_target],
+                                        ['Upgrades', r.info_edge_detail.upgrade_downgrade],
+                                        ['Insider', r.info_edge_detail.insider_activity],
+                                        ['Earnings Mom.', r.info_edge_detail.earnings_momentum],
+                                        ['Flow', r.info_edge_detail.flow_signal],
+                                        ['News', r.info_edge_detail.news_sentiment],
+                                        ['Inst. Own.', r.info_edge_detail.institutional_ownership],
+                                      ].map(([name, d]: any) => (
+                                        <tr key={name} className="border-b border-border/30">
+                                          <td className="py-0.5 text-text-secondary">{name}</td>
+                                          <td className="py-0.5 text-right">{d.score}</td>
+                                          <td className="py-0.5 text-right text-text-muted">{(d.weight * 100).toFixed(0)}%</td>
+                                          <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                                <p className="text-text-muted mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                              </div>
+                            </div>
+                            <p className="text-text-muted text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.f?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.f?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.f?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.f?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
             </div>
