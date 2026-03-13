@@ -77,7 +77,7 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
     let preScore = 0;
     if (!excluded) {
       const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
-      const ivRankNorm = ivRank! / 100;
+      const ivRankNorm = ivRank!; // already 0-1 from TastyTrade
       const liqNorm = liquidityRating! / 5;
       preScore = Math.round(
         (ivHvNorm * 0.35 + ivRankNorm * 0.40 + liqNorm * 0.25) * 1000
