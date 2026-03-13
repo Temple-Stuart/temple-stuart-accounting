@@ -442,60 +442,77 @@ export async function runPipeline(
   // ===== STEP A2: Pre-Filter (market-metrics-based ranking) =====
   console.log('[Pipeline] Step A2: Running market-metrics pre-filter...');
   const preFilterResults = computePreFilter(allScannerData);
-  const preFilterIncluded = preFilterResults.filter(r => !r.excluded);
-  const preFilterExcluded = preFilterResults.filter(r => r.excluded);
-  console.log(`[Pipeline] Step A2: ${preFilterIncluded.length} included, ${preFilterExcluded.length} excluded by pre-filter`);
+  console.log(`[Pipeline] Step A2: ${preFilterResults.length} tickers ranked by preScore`);
 
   onProgress?.({ step: 'step_b', label: 'Pre-Filter', data: {
     input: allScannerData.length,
-    output: preFilterIncluded.length,
-    excluded: preFilterExcluded.length,
+    output: preFilterResults.length,
     tickers: preFilterResults.map(r => ({
       symbol: r.symbol,
       pre_score: Math.round(r.preScore * 100),
       iv_rank: r.ivRank,
-      iv_percentile: r.ivPercentile,
-      liquidity: r.liquidityRating,
-      market_cap: r.marketCap,
-      beta: r.beta,
-      earnings_date: r.earningsDate,
-      earnings_warning: r.earningsWarning,
-      excluded: r.excluded,
-      exclusion_reason: r.exclusionReason,
       iv_hv_spread: r.ivHvSpread,
-      reason: r.excluded
-        ? (r.exclusionReason ?? 'Liquidity < 2/5 — not enough options trading activity to get reliable prices')
-        : r.earningsWarning
-        ? `⚠ Warning: ${r.earningsWarning} — earnings risk`
-        : 'Passed — enough liquidity and no earnings risk',
+      liquidity: r.liquidityRating,
     })),
   } });
 
   // ===== STEP C (new): Hard Exclusions =====
-  const earningsWarnings = preFilterResults
-    .filter(r => !r.excluded && r.earningsWarning != null)
+  // Step C applies exclusion rules that Step B (ranking) does not.
+  const stepCExcluded: { symbol: string; reason: string }[] = [];
+  const stepCIncluded: typeof preFilterResults = [];
+
+  for (const r of preFilterResults) {
+    const t = allScannerData.find(s => s.symbol === r.symbol)!;
+    let excludeReason: string | null = null;
+
+    if (t.ivHvSpread == null) {
+      excludeReason = 'IV-HV spread unavailable — cannot assess vol premium';
+    } else if (t.ivHvSpread <= 0) {
+      excludeReason = `No vol premium — IV-HV spread is ${t.ivHvSpread.toFixed(1)} (realized vol exceeds implied)`;
+    }
+
+    if (excludeReason == null && r.liquidityRating == null) {
+      excludeReason = 'Liquidity rating unavailable — cannot score liquidity';
+    } else if (excludeReason == null && r.liquidityRating != null && r.liquidityRating < 2) {
+      excludeReason = `Low liquidity rating (${r.liquidityRating}/5)`;
+    }
+
+    if (excludeReason != null) {
+      stepCExcluded.push({ symbol: r.symbol, reason: excludeReason });
+    } else {
+      stepCIncluded.push(r);
+    }
+  }
+
+  const earningsWarnings = stepCIncluded
+    .filter(r => {
+      const t = allScannerData.find(s => s.symbol === r.symbol);
+      return t != null && t.daysTillEarnings != null && t.daysTillEarnings >= 0 && t.daysTillEarnings <= 3;
+    })
     .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
 
+  console.log(`[Pipeline] Step C: ${stepCIncluded.length} survived, ${stepCExcluded.length} excluded`);
+
   onProgress?.({ step: 'step_c', label: 'Hard Exclusions', data: {
-    survivors: preFilterIncluded.length,
-    excluded: preFilterExcluded.length,
-    exclusions: preFilterExcluded.map(r => ({ symbol: r.symbol, reason: r.exclusionReason ?? 'Unknown' })),
+    survivors: stepCIncluded.length,
+    excluded: stepCExcluded.length,
+    exclusions: stepCExcluded,
     earnings_warnings: earningsWarnings,
   } });
 
-  // Use pre-filter to narrow the candidate set: take top (limit * 5) non-excluded
+  // Use pre-filter to narrow the candidate set: take top (limit * 2) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
-  const preFilterTopN = Math.min(limit * 5, preFilterIncluded.length);
+  const preFilterTopN = Math.min(limit * 2, stepCIncluded.length);
   const preFilterCandidates = new Set(
-    preFilterIncluded.slice(0, preFilterTopN).map(r => r.symbol)
+    stepCIncluded.slice(0, preFilterTopN).map(r => r.symbol)
   );
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
-  console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+  console.log(`[Pipeline] Step D: Narrowed ${stepCIncluded.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
 
   // ===== STEP D (new): Top-N Selection =====
-  const cutoffScore = preFilterIncluded[preFilterTopN - 1]?.preScore ?? 0;
+  const cutoffScore = stepCIncluded[preFilterTopN - 1]?.preScore ?? 0;
   onProgress?.({ step: 'step_d', label: 'Top-N Selection', data: {
-    input: preFilterIncluded.length,
+    input: stepCIncluded.length,
     selected: preFilterTopN,
     cutoff_score: Math.round(cutoffScore * 100),
   } });
