@@ -1286,9 +1286,13 @@ export async function runPipeline(
       if (latestClose == null || latestClose <= 0) return null;
 
       // Risk-free rate from FRED FEDFUNDS series, converted to decimal
-      const fedFundsRate = fredResult.data.fedFunds != null
-        ? fredResult.data.fedFunds / 100
-        : undefined;
+      if (fredResult.data.fedFunds == null) {
+        throw new Error(
+          'Step H: FRED FEDFUNDS rate is null — cannot compute PoP. ' +
+          'Risk-free rate is required for Black-Scholes calculation.'
+        );
+      }
+      const fedFundsRate = fredResult.data.fedFunds / 100;
 
       return {
         symbol: row.symbol,
