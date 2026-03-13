@@ -1783,21 +1783,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step B scores every ticker from Step A using three of the 15 data points we just pulled.
+                Step B scores every ticker from Step A using three data points: IV Percentile, IV-HV Spread, and Liquidity Rating.
               </p>
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Formula:</p>
                 <p className="text-brand-gold font-mono">
-                  Pre-Score = (IV-HV Spread × 35%) + (IV Rank × 40%) + (Liquidity Rating × 25%)
+                  Pre-Score = (IV Percentile × 40%) + (IV-HV Spread × 30%) + (Liquidity Rating × 30%)
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
-                  ['IV-HV Spread (35% weight)',
-                   'Is implied vol actually higher than realized vol? This is the primary vol edge signal — if IV ≤ HV there is no premium to sell. Normalized: spread/30, clamped 0–1.'],
-                  ['IV Rank (40% weight)',
-                   'Is this stock\'s options pricing elevated relative to its own history? Weighted highest because high IV rank is the core condition for selling premium.'],
-                  ['Liquidity Rating (25% weight)',
+                  ['IV Percentile (40% weight)',
+                   'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. Weighted highest because high percentile is the core condition for selling premium.'],
+                  ['IV-HV Spread (30% weight)',
+                   'Is implied vol actually higher than realized vol? This is the vol edge signal — if IV ≤ HV there is no premium to sell. Normalized: spread/30, clamped 0–1.'],
+                  ['Liquidity Rating (30% weight)',
                    'Can we actually trade this stock\'s options without losing money on the spread? A great IV setup is useless if the bid-ask spread eats your profit.'],
                 ].map(([field, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
@@ -1812,7 +1812,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </div>
               <p className="text-text-muted">
                 <span className="text-brand-red font-bold">Eliminated immediately:</span>
-                {' '}Any stock missing IV-HV spread data, with IV-HV spread ≤ 0 (no vol premium), missing or zero IV rank, missing liquidity rating, or with liquidity below 2/5.
+                {' '}Any stock missing IV-HV spread data, with IV-HV spread ≤ 0 (no vol premium), missing or zero IV percentile, missing liquidity rating, or with liquidity below 2/5.
               </p>
               <p className="text-text-muted">
                 Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step C uses these scores to narrow the field.
@@ -1827,8 +1827,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-right py-1 pr-3">IV PERCENTILE</th>
                     <th className="text-right py-1 pr-3">IV-HV SPREAD</th>
-                    <th className="text-right py-1 pr-3">IV RANK</th>
                     <th className="text-right py-1 pr-3">LIQUIDITY</th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
@@ -1846,18 +1846,18 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const ivHvSpread = t.iv_hv_spread;
+                    const ivPctNorm = t.iv_percentile != null ? t.iv_percentile : null;
                     const ivHvNorm = ivHvSpread != null ? Math.min(Math.max(ivHvSpread / 30, 0), 1) : null;
-                    const ivRankNorm = t.iv_rank != null ? t.iv_rank : null;
                     const liqNorm = t.liquidity != null ? t.liquidity / 5 : null;
                     const calcStr = t.excluded
                       ? '—'
-                      : `(${ivHvNorm!.toFixed(3)} × 35%) + (${ivRankNorm!.toFixed(3)} × 40%) + (${liqNorm!.toFixed(3)} × 25%)`;
+                      : `(${(ivPctNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 30%) + (${(liqNorm ?? 0).toFixed(3)} × 30%)`;
                     return (
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                        <td className="py-1 pr-3 text-right">{t.iv_percentile != null ? (t.iv_percentile * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
                         <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
                           {calcStr}
@@ -2030,8 +2030,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                    'High borrow rate means this stock is hard to short. Hard-to-borrow stocks are vulnerable to short squeezes — sudden violent price spikes that break option pricing models.'],
                   ['Rule 5 — No earnings within 7 days',
                    'IV spikes unpredictably before earnings then collapses after the report. That volatility crush can destroy any position we enter. We wait until after the report.'],
-                  ['Rule 6 — Lendability: Easy To Borrow',
-                   'TastyTrade classifies every stock as Easy To Borrow, Locate Required, or Hard To Borrow. Locate Required and Hard To Borrow names carry short squeeze risk — sudden violent price spikes that break option pricing models. We only trade Easy To Borrow stocks.'],
+                  ['Rule 6 — Reg SHO: Not on threshold list',
+                   'FINRA publishes a daily Reg SHO threshold list of stocks with persistent failures to deliver. Threshold-list stocks carry severe short squeeze risk — sudden violent price spikes that break option pricing models. We reject any stock on this list.'],
                 ].map(([rule, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
                     <span className="text-text-primary font-bold w-56 shrink-0">
@@ -2062,7 +2062,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-2">IV30<br/><span className="font-normal text-[9px]">exists</span></th>
                     <th className="text-right py-1 pr-2">BORROW<br/><span className="font-normal text-[9px]">&lt;50%</span></th>
                     <th className="text-right py-1 pr-2">EARNINGS<br/><span className="font-normal text-[9px]">&gt;7d</span></th>
-                    <th className="text-right py-1 pr-2">LENDABILITY<br/><span className="font-normal text-[9px]">ETB only</span></th>
+                    <th className="text-right py-1 pr-2">REG SHO<br/><span className="font-normal text-[9px]">not on list</span></th>
                     <th className="text-left py-1 pr-2">RESULT</th>
                     <th className="text-left py-1 pr-2">SOURCE</th>
                     <th className="text-left py-1 pr-2">ENDPOINT</th>
@@ -2101,8 +2101,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       const ivOk = (d.iv30 ?? 0) > 0;
                       const borrowOk = d.borrow_rate == null || d.borrow_rate < 50;
                       const earningsOk = d.days_till_earnings == null || d.days_till_earnings > 7;
-                      const lend = d.lendability?.toLowerCase().trim();
-                      const lendOk = lend == null || lend === 'easy to borrow';
+                      const regSho = d.reg_sho === true;
+                      const regShoOk = !regSho;
                       const ff = t.failedFilter;
                       const borrowWarning = warnings[t.symbol];
                       const borrowCell = borrowWarning
@@ -2117,7 +2117,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {cell(ivOk, d.iv30 != null ? d.iv30.toFixed(2) : '—', ff === 'IV Data')}
                           {borrowCell}
                           {cell(earningsOk, d.days_till_earnings != null ? d.days_till_earnings+'d' : '—', ff === 'Earnings Timing')}
-                          {cell(lendOk, d.lendability ?? '—', ff === 'Lendability')}
+                          {cell(regShoOk, regSho ? '✗ threshold' : '✓ clear', ff === 'Reg SHO')}
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>

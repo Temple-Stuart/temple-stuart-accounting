@@ -323,6 +323,34 @@ function getUniverseSymbols(universe?: string): string[] {
   }
 }
 
+// ===== REG SHO THRESHOLD LIST =====
+
+async function fetchRegShoThreshold(): Promise<Set<string>> {
+  const symbols = new Set<string>();
+  try {
+    const res = await fetch('https://www.nasdaqtrader.com/dynamic/symdir/regsho/nasdaqth.txt');
+    if (!res.ok) {
+      console.error(`[Pipeline] Reg SHO fetch failed: ${res.status}`);
+      return symbols;
+    }
+    const text = await res.text();
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (!line.trim() || line.startsWith('Date') || line.startsWith('File')) continue;
+      const parts = line.split('|');
+      const sym = parts[0]?.trim();
+      if (sym && sym.length > 0 && sym.length <= 6 && /^[A-Z]+$/.test(sym)) {
+        symbols.add(sym);
+      }
+    }
+    console.log(`[Pipeline] Reg SHO threshold list: ${symbols.size} symbols loaded`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[Pipeline] Reg SHO fetch error: ${msg}`);
+  }
+  return symbols;
+}
+
 // ===== MAIN PIPELINE =====
 
 export async function runPipeline(
@@ -334,6 +362,9 @@ export async function runPipeline(
   const pipelineStart = Date.now();
   const errors: string[] = [];
   const dataGaps: string[] = [];
+
+  // ===== PRE-STEP: Fetch Reg SHO threshold list =====
+  const regShoSymbols = await fetchRegShoThreshold();
 
   // ===== STEP A: Fetch TT Scanner (all tickers, batched) =====
   console.log('[Pipeline] Step A: Fetching TT scanner data...');
@@ -421,6 +452,18 @@ export async function runPipeline(
   const preFilterExcluded = preFilterResults.filter(r => r.excluded);
   console.log(`[Pipeline] Step A2: ${preFilterIncluded.length} included, ${preFilterExcluded.length} excluded by pre-filter`);
 
+  // ===== STEP C (new): Hard Exclusions =====
+  const earningsWarnings = preFilterResults
+    .filter(r => !r.excluded && r.earningsWarning != null)
+    .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
+
+  onProgress?.({ step: 'b_filter', label: 'Hard Exclusions', data: {
+    survivors: preFilterIncluded.length,
+    excluded: preFilterExcluded.length,
+    exclusions: preFilterExcluded.map(r => ({ symbol: r.symbol, reason: r.exclusionReason ?? 'Unknown' })),
+    earnings_warnings: earningsWarnings,
+  } });
+
   // Use pre-filter to narrow the candidate set: take top (limit * 5) non-excluded
   // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
   const preFilterTopN = Math.min(limit * 5, preFilterIncluded.length);
@@ -429,6 +472,15 @@ export async function runPipeline(
   );
   const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
   console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+
+  // ===== STEP D (new): Top-N Selection =====
+  const cutoffScore = preFilterIncluded[preFilterTopN - 1]?.preScore ?? 0;
+  onProgress?.({ step: 'b_topn', label: 'Top-N Selection', data: {
+    input: preFilterIncluded.length,
+    selected: preFilterTopN,
+    cutoff_score: Math.round(cutoffScore * 100),
+  } });
+
   onProgress?.({ step: 'a2', label: 'Pre-Filter', data: {
     input: allScannerData.length,
     output: preFilterIncluded.length,
@@ -456,9 +508,9 @@ export async function runPipeline(
 
   // ===== STEP B: Hard Filters =====
   console.log('[Pipeline] Step B: Applying hard filters...');
-  const hardFilters = applyHardFilters(preFilteredScannerData);
+  const hardFilters = applyHardFilters(preFilteredScannerData, regShoSymbols);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
-  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_warnings: hardFilters.ticker_warnings, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings, lendability: t.lendability, borrow_warning: hardFilters.ticker_warnings[t.symbol] != null }])) } });
+  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_warnings: hardFilters.ticker_warnings, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings, reg_sho: regShoSymbols.has(t.symbol), borrow_warning: hardFilters.ticker_warnings[t.symbol] != null }])) } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
@@ -1396,7 +1448,7 @@ export async function runPipeline(
 
 // ===== STEP B: Hard Filters =====
 
-function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
+function applyHardFilters(tickers: TTScannerData[], regShoSymbols: Set<string>): HardFiltersResult {
   const filtersApplied: HardFilterStep[] = [];
   const tickerRejections = new Map<string, HardFilterRejection>();
   const warningTickers = new Map<string, HardFilterWarning>();
@@ -1551,28 +1603,27 @@ function applyHardFilters(tickers: TTScannerData[]): HardFiltersResult {
     current = passed;
   }
 
-  // Filter 6: lendability must be 'Easy To Borrow'
+  // Filter 6: symbol must NOT be on Reg SHO threshold list
   {
     const passed: TTScannerData[] = [];
     const failedTickers: TTScannerData[] = [];
     for (const t of current) {
-      const lend = t.lendability?.toLowerCase().trim();
-      if (lend === 'easy to borrow' || lend == null) {
-        passed.push(t);
-      } else {
+      if (regShoSymbols.has(t.symbol)) {
         failedTickers.push(t);
+      } else {
+        passed.push(t);
       }
     }
     for (const t of failedTickers) {
       tickerRejections.set(t.symbol, {
-        filter: 'Lendability',
-        actual_value: t.lendability ?? 'unknown',
-        threshold: 'Easy To Borrow only',
-        reason: `Lendability status "${t.lendability}" — Locate Required or Hard To Borrow stocks carry short squeeze risk that breaks option pricing models.`,
+        filter: 'Reg SHO',
+        actual_value: 'threshold list',
+        threshold: 'not on Reg SHO threshold list',
+        reason: `${t.symbol} is on the FINRA Reg SHO threshold list — persistent failures to deliver indicate severe short squeeze risk.`,
       });
     }
     filtersApplied.push({
-      filter: 'lendability = Easy To Borrow',
+      filter: 'not on Reg SHO threshold list',
       passed: passed.length,
       failed: failedTickers.length,
       sample_failed: failedTickers.slice(0, 5).map(t => t.symbol),
@@ -1604,7 +1655,7 @@ function computePreScores(survivors: TTScannerData[]): PreScoreRow[] {
     const ivHvSpread = t.ivHvSpread;
     const liquidityRating = t.liquidityRating;
 
-    // pre_score = 0.40 * (IVP * 100) + 0.30 * min(IV_HV_spread / 20 * 100, 100) + 0.30 * (liquidity_rating / 5 * 100)
+    // pre_score = (ivPercentile × 40%) + (ivHvSpread × 30%) + (liquidityRating/5 × 30%)
     const ivpComponent = ivp != null ? ivp : 0; // already 0-100 after normalization
     const ivHvComponent = ivHvSpread != null ? Math.min((Math.abs(ivHvSpread) / 20) * 100, 100) : 0;
     const liqComponent = liquidityRating != null ? (liquidityRating / 5) * 100 : 0;
