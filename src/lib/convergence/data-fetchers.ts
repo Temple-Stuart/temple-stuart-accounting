@@ -516,6 +516,9 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
       cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
       yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
       initialClaimsDate: null, nfciDate: null,
+      vxvShortTerm: null, vvix: null,
+      fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null,
+      bbbSpread: null, t10y3m: null, dollarIndex: null,
     };
     return { data: empty, cached: false, error: 'FRED_API_KEY not configured' };
   }
@@ -535,6 +538,17 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     { key: 'hySpread', id: 'BAMLH0A0HYM2' },            // ICE BofA HY credit spread (daily)
     { key: 'nfci', id: 'NFCI', trackDate: true },        // Chicago Fed Financial Conditions (weekly)
     { key: 'initialClaims', id: 'ICSA', trackDate: true }, // Initial jobless claims (weekly)
+    // Vol regime
+    { key: 'vxvShortTerm', id: 'VXVCLS' },
+    { key: 'vvix', id: 'VVIXCLS' },
+    // Fed net liquidity
+    { key: 'fedBalanceSheet', id: 'WALCL' },
+    { key: 'treasuryGeneralAccount', id: 'WTREGEN' },
+    { key: 'overnightReverseRepo', id: 'RRPONTSYD' },
+    // Credit & rates
+    { key: 'bbbSpread', id: 'BAMLC0A4CBBB' },
+    { key: 't10y3m', id: 'T10Y3M' },
+    { key: 'dollarIndex', id: 'DTWEXBGS' },
   ];
 
   const result: FredMacroData = {
@@ -542,6 +556,9 @@ export async function fetchFredMacro(apiKey?: string): Promise<{ data: FredMacro
     cpi: null, gdp: null, consumerConfidence: null, nonfarmPayrolls: null, cpiMom: null,
     yieldCurveSpread: null, breakeven5y: null, hySpread: null, nfci: null, initialClaims: null,
     initialClaimsDate: null, nfciDate: null,
+    vxvShortTerm: null, vvix: null,
+    fedBalanceSheet: null, treasuryGeneralAccount: null, overnightReverseRepo: null,
+    bbbSpread: null, t10y3m: null, dollarIndex: null,
   };
 
   const errors: string[] = [];

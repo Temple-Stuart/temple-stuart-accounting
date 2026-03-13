@@ -134,6 +134,17 @@ export interface FredMacroData {
   // Staleness tracking for weekly series
   initialClaimsDate: string | null;    // Observation date of ICSA
   nfciDate: string | null;             // Observation date of NFCI
+  // Vol regime series
+  vxvShortTerm: number | null;         // VXVCLS: VIX short-term (9-day)
+  vvix: number | null;                 // VVIXCLS: Volatility of VIX
+  // Fed net liquidity series
+  fedBalanceSheet: number | null;      // WALCL: Fed total assets (weekly, billions)
+  treasuryGeneralAccount: number | null; // WTREGEN: TGA balance (weekly, billions)
+  overnightReverseRepo: number | null; // RRPONTSYD: ON RRP usage (daily, billions)
+  // Credit & rates
+  bbbSpread: number | null;            // BAMLC0A4CBBB: BBB credit spread (daily)
+  t10y3m: number | null;               // T10Y3M: 10Y-3M spread (daily)
+  dollarIndex: number | null;          // DTWEXBGS: Broad dollar index (daily)
 }
 
 // ===== ANNUAL FINANCIALS (for Piotroski YoY signals) =====
