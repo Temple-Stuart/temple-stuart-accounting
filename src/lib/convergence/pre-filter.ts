@@ -13,6 +13,7 @@ export interface PreFilterResult {
   earningsDate: string | null;     // next earnings date
   corrSpy3Month: number | null;    // SPY correlation
   preScore: number;                // composite score for ranking
+  ivHvSpread: number | null;       // IV minus HV spread — primary vol edge signal
   excluded: boolean;               // true if filtered out
   exclusionReason: string | null;  // why excluded
   earningsWarning: string | null;  // non-null if earnings within 3 calendar days
@@ -53,10 +54,34 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
       exclusionReason = `Low liquidity rating (${liquidityRating}/5)`;
     }
 
-    // Compute preScore
-    const ivRankComponent = ivRank != null ? ivRank / 100 : 0.5;
-    const liqComponent = liquidityRating != null ? liquidityRating / 5 : 0.5;
-    const preScore = Math.round((ivRankComponent * 0.6 + liqComponent * 0.4) * 1000) / 1000;
+    if (t.ivHvSpread == null) {
+      excluded = true;
+      exclusionReason = 'IV-HV spread unavailable — cannot assess vol premium';
+    } else if (t.ivHvSpread <= 0) {
+      excluded = true;
+      exclusionReason = `No vol premium — IV-HV spread is ${t.ivHvSpread.toFixed(1)} (realized vol exceeds implied)`;
+    }
+
+    if (t.ivRank == null || t.ivRank <= 0) {
+      excluded = true;
+      exclusionReason = exclusionReason ?? 'IV rank unavailable — cannot score vol elevation';
+    }
+
+    if (liquidityRating == null) {
+      excluded = true;
+      exclusionReason = exclusionReason ??
+        'Liquidity rating unavailable — cannot score liquidity';
+    }
+
+    let preScore = 0;
+    if (!excluded) {
+      const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
+      const ivRankNorm = ivRank! / 100;
+      const liqNorm = liquidityRating! / 5;
+      preScore = Math.round(
+        (ivHvNorm * 0.35 + ivRankNorm * 0.40 + liqNorm * 0.25) * 1000
+      ) / 1000;
+    }
 
     results.push({
       symbol: t.symbol,
@@ -68,6 +93,7 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
       marketCap: t.marketCap,
       earningsDate: t.earningsDate,
       corrSpy3Month: t.corrSpy,
+      ivHvSpread: t.ivHvSpread ?? null,
       preScore,
       excluded,
       exclusionReason,
