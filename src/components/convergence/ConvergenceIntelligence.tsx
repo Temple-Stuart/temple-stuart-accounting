@@ -1783,21 +1783,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step B scores every ticker from Step A using three data points: IV Percentile, IV-HV Spread, and Liquidity Rating.
+                Step B scores every ticker from Step A using three data points: IV Rank, IV-HV Spread, and Liquidity Rating.
               </p>
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Formula:</p>
                 <p className="text-brand-gold font-mono">
-                  Pre-Score = (IV Percentile × 40%) + (IV-HV Spread × 30%) + (Liquidity Rating × 30%)
+                  Pre-Score = (IV Rank × 40%) + (IV-HV Spread × 35%) + (Liquidity Rating × 25%)
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
-                  ['IV Percentile (40% weight)',
+                  ['IV Rank (40% weight)',
                    'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. Weighted highest because high percentile is the core condition for selling premium.'],
-                  ['IV-HV Spread (30% weight)',
+                  ['IV-HV Spread (35% weight)',
                    'Is implied vol actually higher than realized vol? This is the vol edge signal — if IV ≤ HV there is no premium to sell. Normalized: spread/30, clamped 0–1.'],
-                  ['Liquidity Rating (30% weight)',
+                  ['Liquidity Rating (25% weight)',
                    'Can we actually trade this stock\'s options without losing money on the spread? A great IV setup is useless if the bid-ask spread eats your profit.'],
                 ].map(([field, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
@@ -1827,7 +1827,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-right py-1 pr-3">IV PERCENTILE</th>
+                    <th className="text-right py-1 pr-3">IV RANK</th>
                     <th className="text-right py-1 pr-3">IV-HV SPREAD</th>
                     <th className="text-right py-1 pr-3">LIQUIDITY</th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
@@ -1846,17 +1846,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
                     const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const ivHvSpread = t.iv_hv_spread;
-                    const ivPctNorm = t.iv_percentile != null ? t.iv_percentile : null;
+                    const ivRankNorm = t.iv_rank != null ? t.iv_rank : null;
                     const ivHvNorm = ivHvSpread != null ? Math.min(Math.max(ivHvSpread / 30, 0), 1) : null;
                     const liqNorm = t.liquidity != null ? t.liquidity / 5 : null;
                     const calcStr = t.excluded
                       ? '—'
-                      : `(${(ivPctNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 30%) + (${(liqNorm ?? 0).toFixed(3)} × 30%)`;
+                      : `(${(ivRankNorm ?? 0).toFixed(3)} × 40%) + (${(ivHvNorm ?? 0).toFixed(3)} × 35%) + (${(liqNorm ?? 0).toFixed(3)} × 25%)`;
                     return (
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                        <td className="py-1 pr-3 text-right">{t.iv_percentile != null ? (t.iv_percentile * 100).toFixed(1) : '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
                         <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
@@ -2019,17 +2019,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Rule:</p>
                 <p className="text-brand-gold font-mono">
-                  Keep top (9 final trades × 5) = 45 candidates by Pre-Score
+                  Keep top (9 final trades × 2) = 18 candidates by Pre-Score
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
                   ['Why cut here?',
                    'The hard filters in Step E check each ticker\'s market cap, borrow rate, and earnings date. Running those checks on all survivors takes time. Step D sends only the highest-scoring candidates forward — no point checking tickers that can\'t make the final cut anyway.'],
-                  ['Why × 5?',
-                   'We overshoot the final target of 9 on purpose. Some tickers will fail hard filters in Step D, get eliminated by the quality floor in Step H, or hit the sector cap. Keeping 45 instead of 9 ensures we always have enough survivors to fill the final 9 spots.'],
+                  ['Why × 2?',
+                   'We overshoot the final target of 9 on purpose. Some tickers will fail hard filters in Step D, get eliminated by the quality floor in Step H, or hit the sector cap. Keeping 18 instead of 9 ensures we always have enough survivors to fill the final 9 spots.'],
                   ['What gets cut?',
-                   'Every ticker ranked below position 45. Not because they failed a rule — because higher-scoring tickers exist. If you ranked 46th or lower, you are out. The cutoff score is shown in the table below.'],
+                   'Every ticker ranked below position 18. Not because they failed a rule — because higher-scoring tickers exist. If you ranked 19th or lower, you are out. The cutoff score is shown in the table below.'],
                 ].map(([field, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
                     <span className="text-text-primary font-bold w-32 shrink-0">
@@ -2127,7 +2127,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step E runs 6 hard rules against the 45 candidates from Step D. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
+                Step E runs 6 hard rules against the 18 candidates from Step D. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -2412,16 +2412,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <div className="p-2 bg-bg-card rounded border border-border">
                 <p className="text-text-primary font-bold mb-1">The Formula:</p>
                 <p className="text-brand-gold font-mono">
-                  Pre-Score = (IV Percentile × 40%) + (IV-HV Spread × 30%) + (Liquidity × 30%)
+                  Pre-Score = (IV Rank × 40%) + (IV-HV Spread × 35%) + (Liquidity × 25%)
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
-                  ['IV Percentile (40% weight)',
+                  ['IV Rank (40% weight)',
                    'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. This is the primary signal — high percentile means there is premium to sell.'],
-                  ['IV-HV Spread (30% weight)',
+                  ['IV-HV Spread (35% weight)',
                    'The difference between Implied Volatility (what the market expects) and Historical Volatility (what actually happened). When IV is much higher than HV, options are overpriced relative to realized movement. That gap is the edge we are selling.'],
-                  ['Liquidity Rating (30% weight)',
+                  ['Liquidity Rating (25% weight)',
                    'TastyTrade\'s 1-5 score for how tradeable the options are. Weighted lower here because Step E already eliminated the worst offenders. Still required — a great IV setup is worthless if you can\'t execute the trade.'],
                 ].map(([field, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
