@@ -69,10 +69,11 @@ export function computePreFilter(scannerData: TTScannerData[]): PreFilterResult[
 
     if (liquidityRating == null) {
       excluded = true;
-      exclusionReason = exclusionReason ??
-        'Liquidity rating unavailable — cannot score liquidity';
+      exclusionReason = exclusionReason ?? 'Liquidity rating unavailable — cannot score liquidity';
     }
 
+    // All three components required — no fallbacks.
+    // Excluded tickers skip the formula and get preScore = 0.
     let preScore = 0;
     if (!excluded) {
       const ivHvNorm = Math.min(Math.max(t.ivHvSpread! / 30, 0), 1);
