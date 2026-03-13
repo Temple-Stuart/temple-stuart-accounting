@@ -404,7 +404,7 @@ export async function runPipeline(
   }
 
   const totalUniverse = allScannerData.length;
-  onProgress?.({ step: 'a', label: 'TT Scanner', data: {
+  onProgress?.({ step: 'step_a', label: 'TT Scanner', data: {
     total_universe: allScannerData.length,
     market_open: isMarketOpen().open,
     fetched_at: stepAFetchedAt,
@@ -446,36 +446,7 @@ export async function runPipeline(
   const preFilterExcluded = preFilterResults.filter(r => r.excluded);
   console.log(`[Pipeline] Step A2: ${preFilterIncluded.length} included, ${preFilterExcluded.length} excluded by pre-filter`);
 
-  // ===== STEP C (new): Hard Exclusions =====
-  const earningsWarnings = preFilterResults
-    .filter(r => !r.excluded && r.earningsWarning != null)
-    .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
-
-  onProgress?.({ step: 'b_filter', label: 'Hard Exclusions', data: {
-    survivors: preFilterIncluded.length,
-    excluded: preFilterExcluded.length,
-    exclusions: preFilterExcluded.map(r => ({ symbol: r.symbol, reason: r.exclusionReason ?? 'Unknown' })),
-    earnings_warnings: earningsWarnings,
-  } });
-
-  // Use pre-filter to narrow the candidate set: take top (limit * 5) non-excluded
-  // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
-  const preFilterTopN = Math.min(limit * 5, preFilterIncluded.length);
-  const preFilterCandidates = new Set(
-    preFilterIncluded.slice(0, preFilterTopN).map(r => r.symbol)
-  );
-  const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
-  console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
-
-  // ===== STEP D (new): Top-N Selection =====
-  const cutoffScore = preFilterIncluded[preFilterTopN - 1]?.preScore ?? 0;
-  onProgress?.({ step: 'b_topn', label: 'Top-N Selection', data: {
-    input: preFilterIncluded.length,
-    selected: preFilterTopN,
-    cutoff_score: Math.round(cutoffScore * 100),
-  } });
-
-  onProgress?.({ step: 'a2', label: 'Pre-Filter', data: {
+  onProgress?.({ step: 'step_b', label: 'Pre-Filter', data: {
     input: allScannerData.length,
     output: preFilterIncluded.length,
     excluded: preFilterExcluded.length,
@@ -500,11 +471,40 @@ export async function runPipeline(
     })),
   } });
 
+  // ===== STEP C (new): Hard Exclusions =====
+  const earningsWarnings = preFilterResults
+    .filter(r => !r.excluded && r.earningsWarning != null)
+    .map(r => ({ symbol: r.symbol, days_to_earnings: allScannerData.find(t => t.symbol === r.symbol)?.daysTillEarnings ?? null }));
+
+  onProgress?.({ step: 'step_c', label: 'Hard Exclusions', data: {
+    survivors: preFilterIncluded.length,
+    excluded: preFilterExcluded.length,
+    exclusions: preFilterExcluded.map(r => ({ symbol: r.symbol, reason: r.exclusionReason ?? 'Unknown' })),
+    earnings_warnings: earningsWarnings,
+  } });
+
+  // Use pre-filter to narrow the candidate set: take top (limit * 5) non-excluded
+  // tickers by preScore. This reduces the universe BEFORE hard filters + Finnhub.
+  const preFilterTopN = Math.min(limit * 5, preFilterIncluded.length);
+  const preFilterCandidates = new Set(
+    preFilterIncluded.slice(0, preFilterTopN).map(r => r.symbol)
+  );
+  const preFilteredScannerData = allScannerData.filter(t => preFilterCandidates.has(t.symbol));
+  console.log(`[Pipeline] Step A2: Narrowed ${allScannerData.length} → ${preFilteredScannerData.length} by preScore (top ${preFilterTopN})`);
+
+  // ===== STEP D (new): Top-N Selection =====
+  const cutoffScore = preFilterIncluded[preFilterTopN - 1]?.preScore ?? 0;
+  onProgress?.({ step: 'step_d', label: 'Top-N Selection', data: {
+    input: preFilterIncluded.length,
+    selected: preFilterTopN,
+    cutoff_score: Math.round(cutoffScore * 100),
+  } });
+
   // ===== STEP B: Hard Filters =====
   console.log('[Pipeline] Step B: Applying hard filters...');
   const hardFilters = applyHardFilters(preFilteredScannerData, regShoSymbols);
   console.log(`[Pipeline] Step B: ${hardFilters.input_count} → ${hardFilters.output_count} tickers`);
-  onProgress?.({ step: 'b', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_warnings: hardFilters.ticker_warnings, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings, reg_sho: regShoSymbols.has(t.symbol), borrow_warning: hardFilters.ticker_warnings[t.symbol] != null }])) } });
+  onProgress?.({ step: 'step_e', label: 'Hard Filters', data: { input: hardFilters.input_count, output: hardFilters.output_count, filters: hardFilters.filters_applied, survivors: hardFilters.survivors, ticker_rejections: hardFilters.ticker_rejections, ticker_warnings: hardFilters.ticker_warnings, ticker_details: Object.fromEntries(preFilteredScannerData.map(t => [t.symbol, { market_cap: t.marketCap, liquidity_rating: t.liquidityRating, iv30: t.iv30, borrow_rate: t.borrowRate, days_till_earnings: t.daysTillEarnings, reg_sho: regShoSymbols.has(t.symbol), borrow_warning: hardFilters.ticker_warnings[t.symbol] != null }])) } });
 
   // Build a map for quick lookup
   const scannerMap = new Map<string, TTScannerData>();
@@ -541,7 +541,7 @@ export async function runPipeline(
     survivors, undefined, finnhubPeersMap, scannerMap,
   );
   let textPeerGroups: Record<string, TextBasedPeerGroup> = {};
-  onProgress?.({ step: 'c', label: 'Peer Grouping', data: {
+  onProgress?.({ step: 'step_f', label: 'Peer Grouping', data: {
     groups: survivors.map(s => {
       const groupKey = peerGroupAssignment[s.symbol];
       const ps = groupKey ? peerStats[groupKey] : undefined;
@@ -592,7 +592,7 @@ export async function runPipeline(
   const topN = preScores.slice(0, fetchCount);
   const topSymbols = topN.map(r => r.symbol);
   console.log(`[Pipeline] Step D: Top ${topSymbols.length} selected for Finnhub fetch (limit=${limit}, fetch=2x)`);
-  onProgress?.({ step: 'd', label: 'Pre-Score', data: {
+  onProgress?.({ step: 'step_g', label: 'Pre-Score', data: {
     candidates: topSymbols.length,
     total: preScores.length,
     pre_scores: preScores.map((r, i) => ({
@@ -802,7 +802,7 @@ export async function runPipeline(
   ]);
   console.log('[Pipeline] Steps E3-E11: All enrichment data fetched');
   onProgress?.({
-    step: 'e',
+    step: 'step_i',
     label: 'Data Enrichment',
     data: {
       fetched_at: new Date().toISOString(),
@@ -986,7 +986,7 @@ export async function runPipeline(
   const scoringMap = new Map(
     scoredTickers.map(t => [t.symbol, t.scoring])
   );
-  onProgress?.({ step: 'f', label: '4-Gate Scoring', data: {
+  onProgress?.({ step: 'step_k', label: '4-Gate Scoring', data: {
     scored: scoredTickers.length,
     fetched_at: new Date().toISOString(),
     regime: _gwt?.regime_used ?? 'UNKNOWN',
@@ -1313,7 +1313,7 @@ export async function runPipeline(
 
   const top9Syms = top9.map(r => r.symbol);
 
-  onProgress?.({ step: 'j', label: 'Chain Fetch', data: {
+  onProgress?.({ step: 'step_n', label: 'Chain Fetch', data: {
     tickers: top9Syms.map(sym => ({
       symbol: sym,
       expiration: perTickerStats.get(sym)?.expiration,
@@ -1330,7 +1330,7 @@ export async function runPipeline(
     greeksEvents: chainStats.greeks_events_received,
   } });
 
-  onProgress?.({ step: 'k', label: 'Strategy Scoring', data: {
+  onProgress?.({ step: 'step_p', label: 'Strategy Scoring', data: {
     tickers: top9Syms.map(sym => ({
       symbol: sym,
       strategiesBuilt: perTickerStats.get(sym)?.strategiesBuilt,
@@ -1344,7 +1344,7 @@ export async function runPipeline(
     totalPassed: chainStats.total_trade_cards,
   } });
 
-  onProgress?.({ step: 'g', label: 'Trade Cards', data: { trade_cards: chainStats.total_trade_cards, top_9: top9.map(r => r.symbol), rejections: Object.fromEntries(chainRejections) } });
+  onProgress?.({ step: 'step_s', label: 'Trade Cards', data: { trade_cards: chainStats.total_trade_cards, top_9: top9.map(r => r.symbol), rejections: Object.fromEntries(chainRejections) } });
 
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
