@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription, fetchFinnhubEbitdaEstimates, fetchFinnhubEbitEstimates, fetchFinnhubDividendHistory, fetchFinnhubPriceMetrics, fetchFinnhubFundOwnership, fetchSECEdgar8KScan } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -33,6 +33,12 @@ import type {
   CompanyTextProfile,
   TextBasedPeerGroup,
   CandleData,
+  FinnhubEbitdaEstimate,
+  FinnhubEbitEstimate,
+  FinnhubDividendHistory,
+  FinnhubPriceMetrics,
+  FinnhubFundOwnership,
+  SECEdgar8KScan,
 } from './types';
 
 // ===== TYPES =====
@@ -775,6 +781,12 @@ export async function runPipeline(
   const secFilingMap = new Map<string, SECFilingData | null>();
   const secForm4Map = new Map<string, SECForm4Data | null>();
   const textProfiles: CompanyTextProfile[] = [];
+  const ebitdaEstimateMap = new Map<string, FinnhubEbitdaEstimate | null>();
+  const ebitEstimateMap = new Map<string, FinnhubEbitEstimate | null>();
+  const dividendHistoryMap = new Map<string, FinnhubDividendHistory | null>();
+  const priceMetricsMap = new Map<string, FinnhubPriceMetrics | null>();
+  const fundOwnershipMap = new Map<string, FinnhubFundOwnership | null>();
+  const edgar8kMap = new Map<string, SECEdgar8KScan | null>();
 
   await Promise.all([
     // E3: News Sentiment
@@ -914,8 +926,74 @@ export async function runPipeline(
       }
       console.log(`[Pipeline] Step E11: 10-K text profiles fetched for ${textProfiles.length}/${topSymbols.length} symbols`);
     })(),
+    // I1: EBITDA Estimates
+    (async () => {
+      console.log('[Pipeline] Step I1: Fetching EBITDA estimates...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubEbitdaEstimates(symbol);
+        ebitdaEstimateMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I1 (ebitda-estimate ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I1: EBITDA estimates fetched for ${topSymbols.length} symbols`);
+    })(),
+    // I2: EBIT Estimates
+    (async () => {
+      console.log('[Pipeline] Step I2: Fetching EBIT estimates...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubEbitEstimates(symbol);
+        ebitEstimateMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I2 (ebit-estimate ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I2: EBIT estimates fetched for ${topSymbols.length} symbols`);
+    })(),
+    // I3: Dividend History
+    (async () => {
+      console.log('[Pipeline] Step I3: Fetching dividend history...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubDividendHistory(symbol);
+        dividendHistoryMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I3 (dividend ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I3: Dividend history fetched for ${topSymbols.length} symbols`);
+    })(),
+    // I4: Price Metrics
+    (async () => {
+      console.log('[Pipeline] Step I4: Fetching price metrics...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubPriceMetrics(symbol);
+        priceMetricsMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I4 (price-metric ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I4: Price metrics fetched for ${topSymbols.length} symbols`);
+    })(),
+    // I5: Fund Ownership
+    (async () => {
+      console.log('[Pipeline] Step I5: Fetching fund ownership...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubFundOwnership(symbol);
+        fundOwnershipMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I5 (fund-ownership ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I5: Fund ownership fetched for ${topSymbols.length} symbols`);
+    })(),
+    // I6: SEC EDGAR 8-K Scan
+    (async () => {
+      console.log('[Pipeline] Step I6: Fetching SEC EDGAR 8-K filings...');
+      for (const symbol of topSymbols) {
+        const result = await fetchSECEdgar8KScan(symbol);
+        edgar8kMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I6 (sec-8k-scan ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 150));
+      }
+      console.log(`[Pipeline] Step I6: SEC EDGAR 8-K scan fetched for ${topSymbols.length} symbols`);
+    })(),
   ]);
-  console.log('[Pipeline] Steps E3-E11: All enrichment data fetched');
+  console.log('[Pipeline] Steps E3-I6: All enrichment data fetched');
   onProgress?.({
     step: 'step_i',
     label: 'Data Enrichment',
@@ -956,8 +1034,26 @@ export async function runPipeline(
           earnings_quality_letter: earningsQuality?.letterScore ?? null,
           pe_ratio: (fh?.fundamentals?.metric?.['peBasicExclExtraTTM'] as number) ?? null,
           market_cap: (fh?.fundamentals?.metric?.['marketCapitalization'] as number) ?? null,
+          ebitda_estimates: ebitdaEstimateMap.get(symbol)?.estimates?.slice(0, 4) ?? null,
+          ebitda_estimate_count: ebitdaEstimateMap.get(symbol)?.estimates?.length ?? null,
+          ebit_estimates: ebitEstimateMap.get(symbol)?.estimates?.slice(0, 4) ?? null,
+          ebit_estimate_count: ebitEstimateMap.get(symbol)?.estimates?.length ?? null,
+          dividend_count: dividendHistoryMap.get(symbol)?.dividends?.length ?? null,
+          next_ex_date: dividendHistoryMap.get(symbol)?.dividends?.[0]?.exDate ?? null,
+          week52_high: priceMetricsMap.get(symbol)?.week52High ?? null,
+          week52_low: priceMetricsMap.get(symbol)?.week52Low ?? null,
+          price_vs_sma50: priceMetricsMap.get(symbol)?.priceRelativeToSMA50 ?? null,
+          price_vs_sma200: priceMetricsMap.get(symbol)?.priceRelativeToSMA200 ?? null,
+          fund_count: fundOwnershipMap.get(symbol)?.totalFunds ?? null,
+          top_fund: fundOwnershipMap.get(symbol)?.funds?.[0]?.name ?? null,
+          edgar_8k_count: edgar8kMap.get(symbol)?.totalHits ?? null,
+          edgar_8k_latest: edgar8kMap.get(symbol)?.filings?.[0]?.filedAt ?? null,
         };
       }),
+      finbert_available: finbertMap.size > 0,
+      revenue_breakdown_available: revenueBreakdownMap.size > 0,
+      quarterly_financials_available: quarterlyFinancialsMap.size > 0,
+      form4_available: secForm4Map.size > 0,
     }
   });
 
