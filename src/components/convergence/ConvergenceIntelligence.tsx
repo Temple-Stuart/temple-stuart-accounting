@@ -1856,7 +1856,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.iv_rank != null ? (t.iv_rank * 100).toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
                         <td className="py-1 pr-3 text-text-muted font-mono text-[10px]">
                           {calcStr}
@@ -1930,7 +1930,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step D runs 5 hard rules against the top 45.
+                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step D runs 6 hard rules against the top 45.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
@@ -2015,7 +2015,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
               <p className="text-text-secondary">
-                Step D runs 5 hard rules against the 45 candidates from Step C. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
+                Step D runs 6 hard rules against the 45 candidates from Step C. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
@@ -2029,6 +2029,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                    'High borrow rate means this stock is hard to short. Hard-to-borrow stocks are vulnerable to short squeezes — sudden violent price spikes that break option pricing models.'],
                   ['Rule 5 — No earnings within 7 days',
                    'IV spikes unpredictably before earnings then collapses after the report. That volatility crush can destroy any position we enter. We wait until after the report.'],
+                  ['Rule 6 — Lendability: Easy To Borrow',
+                   'TastyTrade classifies every stock as Easy To Borrow, Locate Required, or Hard To Borrow. Locate Required and Hard To Borrow names carry short squeeze risk — sudden violent price spikes that break option pricing models. We only trade Easy To Borrow stocks.'],
                 ].map(([rule, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
                     <span className="text-text-primary font-bold w-56 shrink-0">
@@ -2041,12 +2043,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 ))}
               </div>
               <p className="text-text-muted">
-                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. You can verify every rejection yourself. Step E takes the survivors and groups them with their industry peers.
+                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. ⚠ in the BORROW column means borrow rate data was unavailable — the ticker passed but is flagged for review. You can verify every rejection yourself. Step E takes the survivors and groups them with their industry peers.
               </p>
             </div>
             {/* Full matrix table */}
             <p className="text-text-muted text-xs font-bold mb-1">
-              ALL {bData?.input ?? '?'} TICKERS — 5 FILTER MATRIX
+              ALL {bData?.input ?? '?'} TICKERS — 6 FILTER MATRIX
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
               <table className="w-full text-xs whitespace-nowrap">
@@ -2059,6 +2061,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-2">IV30<br/><span className="font-normal text-[9px]">exists</span></th>
                     <th className="text-right py-1 pr-2">BORROW<br/><span className="font-normal text-[9px]">&lt;50%</span></th>
                     <th className="text-right py-1 pr-2">EARNINGS<br/><span className="font-normal text-[9px]">&gt;7d</span></th>
+                    <th className="text-right py-1 pr-2">LENDABILITY<br/><span className="font-normal text-[9px]">ETB only</span></th>
                     <th className="text-left py-1 pr-2">RESULT</th>
                     <th className="text-left py-1 pr-2">SOURCE</th>
                     <th className="text-left py-1 pr-2">ENDPOINT</th>
@@ -2088,6 +2091,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       </td>
                     );
 
+                    const warnings: Record<string, any> = bData?.ticker_warnings ?? {};
+
                     return allTickers.map((t, i) => {
                       const d = details[t.symbol] ?? {};
                       const capOk = (d.market_cap ?? 0) >= 2e9;
@@ -2095,7 +2100,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       const ivOk = (d.iv30 ?? 0) > 0;
                       const borrowOk = d.borrow_rate == null || d.borrow_rate < 50;
                       const earningsOk = d.days_till_earnings == null || d.days_till_earnings > 7;
+                      const lend = d.lendability?.toLowerCase().trim();
+                      const lendOk = lend == null || lend === 'easy to borrow';
                       const ff = t.failedFilter;
+                      const borrowWarning = warnings[t.symbol];
+                      const borrowCell = borrowWarning
+                        ? <td className="py-1 pr-2 text-right text-brand-gold">— ⚠</td>
+                        : cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate');
                       return (
                         <tr key={t.symbol} className={`border-b border-border/50 ${t.rejected ? 'opacity-75' : ''}`}>
                           <td className="py-1 pr-2 text-text-muted">{i+1}</td>
@@ -2103,8 +2114,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {cell(capOk, d.market_cap ? '$'+(d.market_cap/1e9).toFixed(1)+'B' : '—', ff === 'Market Cap')}
                           {cell(liqOk, d.liquidity_rating != null ? d.liquidity_rating+'/5' : '—', ff === 'Options Liquidity')}
                           {cell(ivOk, d.iv30 != null ? d.iv30.toFixed(2) : '—', ff === 'IV Data')}
-                          {cell(borrowOk, d.borrow_rate != null ? d.borrow_rate+'%' : '—', ff === 'Borrow Rate')}
+                          {borrowCell}
                           {cell(earningsOk, d.days_till_earnings != null ? d.days_till_earnings+'d' : '—', ff === 'Earnings Timing')}
+                          {cell(lendOk, d.lendability ?? '—', ff === 'Lendability')}
                           <td className={`py-1 pr-2 font-bold ${t.rejected ? 'text-brand-red' : 'text-brand-green'}`}>
                             {t.rejected ? '✗ REJECTED' : '✓ PASSED'}
                           </td>
