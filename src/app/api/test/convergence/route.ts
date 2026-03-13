@@ -283,6 +283,12 @@ export async function GET(request: Request) {
       // Chain fetcher / strategy builder expects decimals (e.g. 0.2716)
       const rawIv30 = ttScannerResult.data.iv30 ?? 30;
       const rawHv30 = ttScannerResult.data.hv30 ?? 25;
+      if (fredResult.data.fedFunds == null) {
+        throw new Error(
+          'FRED FEDFUNDS rate is null — cannot compute PoP. ' +
+          'Risk-free rate is required for Black-Scholes calculation.'
+        );
+      }
       const chainInput: ChainTickerInput[] = [{
         symbol,
         suggested_dte: scoringResult.strategy_suggestion.suggested_dte,
@@ -291,6 +297,7 @@ export async function GET(request: Request) {
         ivRank: ttScannerResult.data.ivRank,
         iv30: rawIv30 / 100,
         hv30: rawHv30 / 100,
+        riskFreeRate: fredResult.data.fedFunds / 100,
       }];
 
       const chainResult = await fetchChainAndBuildCards(chainInput);
