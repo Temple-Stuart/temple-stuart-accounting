@@ -1885,6 +1885,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
+      {/* Step C — Hard Exclusions (placeholder) */}
+      <div className="border-b border-border">
+        <div className="px-4 py-2 flex items-center gap-3">
+          <span className="text-brand-purple font-bold">STEP C</span>
+          <span className="text-text-secondary">Hard Exclusions</span>
+          <span className="text-text-muted">Excludes tickers with no vol premium (IV-HV spread ≤ 0) or liquidity below 2/5. Flags earnings within 3 days as a warning.</span>
+          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        </div>
+      </div>
+
       {/* Step D — Top-N Selection */}
       <div className="border-b border-border">
         <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_d')}>
@@ -2400,7 +2410,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         <div className="px-4 py-2 flex items-center gap-3">
           <span className="text-brand-purple font-bold">STEP H</span>
           <span className="text-text-secondary">Macro &amp; Regime Data</span>
-          <span className="text-text-muted">Fetches FRED macro series, computes Fed Net Liquidity, VIX term structure slope, and classifies macro regime.</span>
+          <span className="text-text-muted">FRED macro data currently fetched inside Step I. Step H will be separated in a future build to fetch macro data independently before per-symbol enrichment.</span>
           <span className="text-text-muted ml-auto">⏳ Coming soon</span>
         </div>
       </div>
