@@ -1821,7 +1821,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               ALL TICKERS SCORED ({(progress?.a2?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
             <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '240px'}}>
-              <table className="w-full text-xs whitespace-nowrap">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
@@ -1831,7 +1831,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">LIQUIDITY</th>
                     <th className="text-left py-1 pr-3">CALCULATION</th>
                     <th className="text-right py-1 pr-3">PRE-SCORE</th>
-                    <th className="text-left py-1 pr-3">STATUS</th>
+                    <th className="text-left py-1 pr-3 w-48">STATUS</th>
                     <th className="text-left py-1 pr-3">SOURCE</th>
                     <th className="text-left py-1 pr-3">ENDPOINT</th>
                     <th className="text-left py-1 pr-3">FETCHED</th>
@@ -1862,7 +1862,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           {calcStr}
                         </td>
                         <td className="py-1 pr-3 text-right text-brand-gold font-bold">{t.pre_score ?? '—'}</td>
-                        <td className={`py-1 pr-3 ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
+                        <td className={`py-1 pr-3 w-48 max-w-[12rem] truncate ${t.excluded ? 'text-brand-red' : t.reason?.startsWith('⚠') ? 'text-brand-gold' : 'text-brand-green'}`}>
                           {t.excluded
                             ? `✗ Excluded — ${t.exclusion_reason}`
                             : t.reason?.startsWith('⚠')
