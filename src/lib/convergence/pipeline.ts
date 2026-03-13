@@ -439,6 +439,7 @@ export async function runPipeline(
       earnings_warning: r.earningsWarning,
       excluded: r.excluded,
       exclusion_reason: r.exclusionReason,
+      iv_hv_spread: r.ivHvSpread,
       reason: r.excluded
         ? (r.exclusionReason ?? 'Liquidity < 2/5 — not enough options trading activity to get reliable prices')
         : r.earningsWarning
