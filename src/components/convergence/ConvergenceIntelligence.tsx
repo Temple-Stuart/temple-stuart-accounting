@@ -1812,9 +1812,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step C uses these scores to narrow the field.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-text-muted mb-2 p-1.5 bg-bg-card rounded border border-border">
-              Source: <span className="text-text-primary">TastyTrade</span> | Endpoint: <span className="text-text-primary">market-metrics</span> | Fetched: <span className="text-text-primary">{progress?.a?.data?.fetched_at ?? '—'}</span> | Age: <span className="text-text-primary">{progress?.a?.data?.fetched_at ? `${Math.round((Date.now() - new Date(progress.a.data.fetched_at as string).getTime()) / 1000)}s` : '—'}</span>
-            </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               ALL TICKERS SCORED ({(progress?.a2?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             </p>
@@ -1824,6 +1821,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <tr className="text-text-muted border-b border-border">
                     <th className="text-left py-1 pr-3">#</th>
                     <th className="text-left py-1 pr-3">SYMBOL</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1 pr-3">ENDPOINT</th>
+                    <th className="text-left py-1 pr-3">FETCHED</th>
+                    <th className="text-right py-1 pr-3">AGE</th>
                     <th className="text-right py-1 pr-3">IV-HV SPREAD</th>
                     <th className="text-right py-1 pr-3">IV RANK</th>
                     <th className="text-right py-1 pr-3">LIQUIDITY</th>
@@ -1835,9 +1836,12 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <tbody>
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {(progress?.a2?.data?.tickers as any[] ?? []).map((t: any, i: number) => {
+                    const fetchedAt = progress?.a?.data?.fetched_at as string | undefined;
+                    const fetchedTime = fetchedAt ? new Date(fetchedAt).toISOString().slice(11, 19) + ' UTC' : '—';
+                    const ageSec = fetchedAt ? Math.round((Date.now() - new Date(fetchedAt).getTime()) / 1000) + 's' : '—';
                     const ivHvSpread = t.iv_hv_spread;
                     const ivHvNorm = ivHvSpread != null ? Math.min(Math.max(ivHvSpread / 30, 0), 1) : null;
-                    const ivRankNorm = t.iv_rank != null ? t.iv_rank / 100 : null;
+                    const ivRankNorm = t.iv_rank != null ? t.iv_rank : null;
                     const liqNorm = t.liquidity != null ? t.liquidity / 5 : null;
                     const calcStr = t.excluded
                       ? '—'
@@ -1846,6 +1850,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                         <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">TastyTrade</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">market-metrics</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">{fetchedTime}</td>
+                        <td className="py-1 pr-3 text-right text-text-muted text-[10px]">{ageSec}</td>
                         <td className="py-1 pr-3 text-right">{ivHvSpread != null ? (ivHvSpread >= 0 ? '+' : '') + ivHvSpread.toFixed(1) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.iv_rank ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.liquidity ?? '—'}/5</td>
