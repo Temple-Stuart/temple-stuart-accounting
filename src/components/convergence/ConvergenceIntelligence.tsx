@@ -3141,6 +3141,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">BBB Spread</td><td className="py-0.5 text-right">{r.regime_detail.bbb_spread_raw != null ? `${r.regime_detail.bbb_spread_raw}%` : '—'} → score {r.regime_detail.bbb_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">T10Y3M</td><td className="py-0.5 text-right">{r.regime_detail.t10y3m_raw != null ? `${r.regime_detail.t10y3m_raw}%` : '—'} → score {r.regime_detail.t10y3m ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Dollar Index</td><td className="py-0.5 text-right">{r.regime_detail.dollar_index_raw ?? '—'} → score {r.regime_detail.dollar_index ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Net Liquidity</td><td className="py-0.5 text-right">{r.regime_detail.fed_net_liquidity_raw != null ? `$${r.regime_detail.fed_net_liquidity_raw}B` : '—'} → score {r.regime_detail.fed_net_liquidity ?? '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}
