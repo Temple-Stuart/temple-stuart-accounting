@@ -2715,26 +2715,29 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               return (
                 <>
                   {/* Table 1 — Finnhub Data */}
-                  <p className="text-text-muted text-[10px] mb-1 mt-2">Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
                         <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
-                          <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
-                          <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
-                          <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/recommendation</span></th>
-                          <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/insider-sentiment</span></th>
-                          <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /news-sentiment</span></th>
-                          <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ownership</span></th>
-                          <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings-quality-score</span></th>
-                          <th className="text-right py-1 pr-3">P/E<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                          <th className="text-right py-1 pr-3">EBITDA EST<br/><span className="font-normal text-[9px]">count</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ebitda-estimate</span></th>
-                          <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/dividend</span></th>
-                          <th className="text-right py-1 pr-3">52W HIGH<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                          <th className="text-right py-1 pr-3">52W LOW<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                          <th className="text-left py-1 pr-3">TOP FUND<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/fund-ownership</span></th>
+                          <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span></th>
+                          <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span></th>
+                          <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span></th>
+                          <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span></th>
+                          <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span></th>
+                          <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span></th>
+                          <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span></th>
+                          <th className="text-right py-1 pr-3">P/E</th>
+                          <th className="text-right py-1 pr-3">EBITDA EST<br/><span className="font-normal text-[9px]">count</span></th>
+                          <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span></th>
+                          <th className="text-right py-1 pr-3">52W HIGH</th>
+                          <th className="text-right py-1 pr-3">52W LOW</th>
+                          <th className="text-left py-1 pr-3">TOP FUND</th>
+                          <th className="text-left py-1 pr-3">SOURCE</th>
+                          <th className="text-left py-1 pr-3">ENDPOINT</th>
+                          <th className="text-left py-1 pr-3">FETCHED</th>
+                          <th className="text-right py-1">AGE</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2775,6 +2778,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                               <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
                               <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
+                              <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub</td>
+                              <td className="py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate">earnings·recommendation·insider-sentiment·news-sentiment·ownership·earnings-quality·metric·ebitda-estimate·dividend·fund-ownership</td>
+                              <td className="py-1 pr-3 text-text-muted text-[10px]">{gFetchedTime}</td>
+                              <td className="py-1 text-right text-text-muted text-[10px]">{gAgeSec}</td>
                             </tr>
                           );
                         })}
@@ -2783,14 +2790,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </div>
 
                   {/* Table 2 — SEC EDGAR Data */}
-                  <p className="text-text-muted text-[10px] mb-1 mt-3">Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
-                  <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
+                  <div className="overflow-x-auto overflow-y-auto mt-3" style={{maxHeight: '200px'}}>
                     <table className="text-xs whitespace-nowrap">
                       <thead>
                         <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
                           <th className="text-left py-1 pr-3">#</th>
                           <th className="text-left py-1 pr-3">SYMBOL</th>
-                          <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span><br/><span className="font-normal text-[8px] text-text-muted">SEC EDGAR EFTS</span></th>
+                          <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
+                          <th className="text-left py-1 pr-3">SOURCE</th>
+                          <th className="text-left py-1 pr-3">ENDPOINT</th>
+                          <th className="text-left py-1 pr-3">FETCHED</th>
+                          <th className="text-right py-1">AGE</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2799,6 +2809,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             <td className="py-1 pr-3 text-text-muted">{i+1}</td>
                             <td className="py-1 pr-3 font-bold">{t.symbol}</td>
                             <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                            <td className="py-1 pr-3 text-text-muted text-[10px]">SEC EDGAR</td>
+                            <td className="py-1 pr-3 text-text-muted text-[10px]">EFTS /search-index</td>
+                            <td className="py-1 pr-3 text-text-muted text-[10px]">{gFetchedTime}</td>
+                            <td className="py-1 text-right text-text-muted text-[10px]">{gAgeSec}</td>
                           </tr>
                         ))}
                       </tbody>
