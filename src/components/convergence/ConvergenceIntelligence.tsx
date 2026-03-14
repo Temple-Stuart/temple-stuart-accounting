@@ -3290,14 +3290,129 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step M — Final Selection (placeholder) */}
+      {/* Step M — Final Selection */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP M</span>
-          <span className="text-text-secondary">Final Selection</span>
-          <span className="text-text-muted">Applies convergence gate (3/4 above 50), quality floor (score ≥ 40), sector cap (max 2 per sector), and outputs final ranked set of up to 9.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_m')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP M</span>
+            <span className="text-text-secondary">Final Selection</span>
+            {progress?.step_m?.data ? (
+              <span className="text-brand-green">{(progress.step_m.data as any).selected} of {(progress.step_m.data as any).total_scored} tickers selected</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_m'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_m'] && progress?.step_m?.data && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {(() => {
+              const md = progress.step_m.data as any;
+
+              {/* PART 1 — Sector distribution */}
+              const sectorDist = md.sector_distribution ?? {};
+
+              {/* PART 2 — Selected tickers */}
+              const selected: any[] = md.top9 ?? [];
+
+              {/* PART 3 — Excluded tickers */}
+              const excluded: any[] = md.excluded ?? [];
+
+              {/* PART 4 — Adjustments */}
+              const adjustments: string[] = md.adjustments ?? [];
+
+              return (
+                <>
+                  {/* PART 1 — Sector Distribution */}
+                  <div className="mb-3 p-2 bg-bg-card rounded border border-border">
+                    <p className="text-text-muted text-xs font-bold mb-1">SECTOR DISTRIBUTION</p>
+                    {Object.entries(sectorDist).map(([sector, count]) => (
+                      <p key={sector} className="text-xs text-text-secondary">{sector}: {count as number}</p>
+                    ))}
+                  </div>
+
+                  {/* PART 2 — Selected Tickers */}
+                  <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
+                    <table className="w-full text-xs whitespace-nowrap">
+                      <thead>
+                        <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                          <th className="text-right py-1 pr-3">RANK</th>
+                          <th className="text-left py-1 pr-3">SYMBOL</th>
+                          <th className="text-right py-1 pr-3">COMPOSITE</th>
+                          <th className="text-right py-1 pr-3">VOL EDGE</th>
+                          <th className="text-right py-1 pr-3">QUALITY</th>
+                          <th className="text-right py-1 pr-3">REGIME</th>
+                          <th className="text-right py-1 pr-3">INFO EDGE</th>
+                          <th className="text-left py-1 pr-3">CONVERGENCE</th>
+                          <th className="text-left py-1 pr-3">SECTOR</th>
+                          <th className="text-left py-1">STATUS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selected.map((r: any) => (
+                          <tr key={r.symbol} className="border-b border-border/50">
+                            <td className="py-1 pr-3 text-right text-text-muted">{r.rank}</td>
+                            <td className="py-1 pr-3 font-bold">{r.symbol}</td>
+                            <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
+                            <td className="py-1 pr-3 text-right">{r.vol_edge ?? '—'}</td>
+                            <td className="py-1 pr-3 text-right">{r.quality ?? '—'}</td>
+                            <td className="py-1 pr-3 text-right">{r.regime ?? '—'}</td>
+                            <td className="py-1 pr-3 text-right">{r.info_edge ?? '—'}</td>
+                            <td className="py-1 pr-3">{r.convergence ?? '—'}</td>
+                            <td className="py-1 pr-3">{r.sector ?? '—'}</td>
+                            <td className="py-1 text-brand-green font-bold">✓ SELECTED</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* PART 3 — Excluded Tickers */}
+                  {excluded.length > 0 && (
+                    <div className="overflow-x-auto overflow-y-auto mb-3" style={{maxHeight: '300px'}}>
+                      <table className="w-full text-xs whitespace-nowrap">
+                        <thead>
+                          <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                            <th className="text-left py-1 pr-3">SYMBOL</th>
+                            <th className="text-right py-1 pr-3">COMPOSITE</th>
+                            <th className="text-left py-1 pr-3">CONVERGENCE</th>
+                            <th className="text-right py-1 pr-3">QUALITY</th>
+                            <th className="text-left py-1 pr-3">SECTOR</th>
+                            <th className="text-left py-1 pr-3">REASON</th>
+                            <th className="text-left py-1">STATUS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excluded.map((r: any) => (
+                            <tr key={r.symbol} className="border-b border-border/50">
+                              <td className="py-1 pr-3 font-bold">{r.symbol}</td>
+                              <td className="py-1 pr-3 text-right">{r.composite ?? '—'}</td>
+                              <td className="py-1 pr-3">{r.convergence ?? '—'}</td>
+                              <td className="py-1 pr-3 text-right">{r.quality ?? '—'}</td>
+                              <td className="py-1 pr-3">{r.sector ?? '—'}</td>
+                              <td className="py-1 pr-3 text-text-muted text-[10px]">{r.reason}</td>
+                              <td className="py-1 text-brand-red font-bold">✗ EXCLUDED</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* PART 4 — Adjustments Log */}
+                  {adjustments.length > 0 && (
+                    <div className="p-2 bg-bg-card rounded border border-border">
+                      <p className="text-text-muted text-xs font-bold mb-1">ADJUSTMENTS LOG</p>
+                      {adjustments.map((adj: string, i: number) => (
+                        <p key={i} className="text-[10px] text-text-muted">{adj}</p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Step N — Chain Fetch */}
