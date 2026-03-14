@@ -1042,7 +1042,7 @@ export async function runPipeline(
           next_ex_date: dividendHistoryMap.get(symbol)?.dividends?.[0]?.exDate ?? null,
           week52_high: (fh?.fundamentals?.metric?.['52WeekHigh'] as number) ?? null,
           week52_low: (fh?.fundamentals?.metric?.['52WeekLow'] as number) ?? null,
-          fund_count: fundOwnershipMap.get(symbol)?.totalFund ?? null,
+          fund_count: fundOwnershipMap.get(symbol)?.totalFunds ?? null,
           top_fund: fundOwnershipMap.get(symbol)?.funds?.[0]?.name ?? null,
           edgar_8k_count: edgar8kMap.get(symbol)?.totalHits ?? null,
           edgar_8k_latest: edgar8kMap.get(symbol)?.filings?.[0]?.filedAt ?? null,
