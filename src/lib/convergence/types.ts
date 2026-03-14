@@ -439,6 +439,8 @@ export interface ConvergenceInput {
   finnhubRevenueBreakdown: FinnhubRevenueBreakdown | null;
   secFilingData: SECFilingData | null;
   secForm4Data: SECForm4Data | null;
+  finnhubFundOwnership: FinnhubFundOwnership | null;
+  edgar8kScan: SECEdgar8KScan | null;
   crossAssetCorrelations: CrossAssetCorrelations | null;
   peerStats?: Record<string, { ticker_count?: number; peer_group_type?: string; peer_group_name?: string; metrics: Record<string, { mean: number; std: number; sortedValues?: number[] }> }>;
   peerGroupAssignment?: Record<string, string>;
@@ -969,6 +971,8 @@ export interface InfoEdgeResult {
     flow_signal: FlowSignalTrace;
     news_sentiment: NewsSentimentTrace | null;
     institutional_ownership: InstitutionalOwnershipTrace;
+    fund_ownership_flow?: SubScoreTrace;
+    material_event_flag?: SubScoreTrace;
   };
 }
 

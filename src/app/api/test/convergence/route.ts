@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 import { scoreAll } from '@/lib/convergence/composite';
-import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubTicker, type FinnhubData } from '@/lib/convergence/data-fetchers';
+import { fetchFredMacro, fetchFredDailySeries, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubTicker, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, type FinnhubData } from '@/lib/convergence/data-fetchers';
 import { computeCrossAssetCorrelations } from '@/lib/convergence/cross-asset';
 import { fetchChainAndBuildCards } from '@/lib/convergence/chain-fetcher';
 import type { ChainTickerInput } from '@/lib/convergence/chain-fetcher';
@@ -185,6 +185,8 @@ export async function GET(request: Request) {
     annualFinancialsResult,
     newsSentimentResult,
     fredDailyResult,
+    fundOwnershipResult,
+    edgar8kResult,
   ] = await Promise.all([
     fetchTTScanner(symbol).catch(e => {
       fetchErrors.tt_scanner = e instanceof Error ? e.message : String(e);
@@ -226,6 +228,10 @@ export async function GET(request: Request) {
           cached: false,
           error: 'FRED_API_KEY not configured',
         }),
+    finnhubKey
+      ? fetchFinnhubFundOwnership(symbol, finnhubKey).catch(e => ({ data: null, error: String(e) }))
+      : Promise.resolve({ data: null, error: 'FINNHUB_API_KEY not configured' }),
+    fetchSECEdgar8KScan(symbol).catch(e => ({ data: null, error: String(e) })),
   ]);
 
   // Collect fetch errors (Finnhub per-endpoint errors logged internally by fetchFinnhubTicker)
@@ -235,6 +241,8 @@ export async function GET(request: Request) {
   if (annualFinancialsResult.error) fetchErrors.annual_financials = annualFinancialsResult.error;
   if (newsSentimentResult.error) fetchErrors.news_sentiment = newsSentimentResult.error;
   if (fredDailyResult.error) fetchErrors.fred_daily = fredDailyResult.error;
+  if (fundOwnershipResult.error) fetchErrors.fund_ownership = fundOwnershipResult.error;
+  if (edgar8kResult.error) fetchErrors.edgar_8k = edgar8kResult.error;
 
   // Compute cross-asset correlations from daily FRED history
   const crossAssetCorrelations = computeCrossAssetCorrelations(fredDailyResult.data);
@@ -260,6 +268,8 @@ export async function GET(request: Request) {
     finnhubRevenueBreakdown: null, // Single-ticker route: fetched in pipeline batch mode
     secFilingData: null, // Single-ticker route: fetched in pipeline batch mode
     secForm4Data: null, // Single-ticker route: fetched in pipeline batch mode
+    finnhubFundOwnership: fundOwnershipResult.data,
+    edgar8kScan: edgar8kResult.data,
     crossAssetCorrelations,
   };
 

@@ -12,6 +12,7 @@ import type {
   FilingRecencyTrace,
   EarningsSurpriseSignal,
   DataConfidence,
+  SubScoreTrace,
 } from './types';
 
 function clamp(v: number, min: number, max: number): number {
@@ -1272,6 +1273,38 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   const institutionalOwnership = scoreInstitutionalOwnership(input);
   const filingRecency = scoreFilingRecency(input);
 
+  // Fund ownership flow sub-score (weight 0.05)
+  const fundOwnershipFlow: SubScoreTrace = (() => {
+    const weight = 0.05;
+    const funds = input.finnhubFundOwnership?.funds ?? [];
+    if (funds.length === 0) {
+      return { score: 50, weight, inputs: { net_change: null }, formula: 'imputed(50)', notes: 'No fund ownership data' };
+    }
+    const netChange = funds.reduce((sum, f) => sum + (f.change ?? 0), 0);
+    let s: number;
+    if (netChange > 1_000_000) s = 75;
+    else if (netChange > 0) s = 62;
+    else if (netChange === 0) s = 50;
+    else if (netChange > -1_000_000) s = 38;
+    else s = 25;
+    return { score: s, weight, inputs: { net_change: netChange }, formula: 'net_change_thresholds', notes: netChange > 0 ? 'funds buying' : netChange < 0 ? 'funds selling' : 'neutral' };
+  })();
+
+  // Material event flag sub-score (weight 0.05)
+  const materialEventFlag: SubScoreTrace = (() => {
+    const weight = 0.05;
+    if (!input.edgar8kScan) {
+      return { score: 50, weight, inputs: { filing_count: null }, formula: 'imputed(50)', notes: 'No 8-K data' };
+    }
+    const count = input.edgar8kScan.totalHits ?? 0;
+    let s: number;
+    if (count === 0) s = 65;
+    else if (count <= 2) s = 50;
+    else if (count <= 5) s = 35;
+    else s = 20;
+    return { score: s, weight, inputs: { filing_count: count }, formula: '8k_count_thresholds', notes: count === 0 ? 'no material events' : count <= 2 ? 'normal' : count <= 5 ? 'elevated activity' : 'high material event risk' };
+  })();
+
   // When newsSentiment is null (no data), exclude its weight and re-weight remaining components
   const baseScore =
     analystConsensus.weight * analystConsensus.score +
@@ -1281,11 +1314,13 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
     earningsMomentum.weight * earningsMomentum.score +
     flowSignal.weight * flowSignal.score +
     (newsSentiment != null ? newsSentiment.weight * newsSentiment.score : 0) +
-    institutionalOwnership.weight * institutionalOwnership.score;
+    institutionalOwnership.weight * institutionalOwnership.score +
+    fundOwnershipFlow.weight * fundOwnershipFlow.score +
+    materialEventFlag.weight * materialEventFlag.score;
 
   const totalWeight = newsSentiment != null
-    ? 1.0
-    : 1.0 - 0.15; // news_sentiment weight is 0.15
+    ? 1.10
+    : 1.10 - 0.15; // news_sentiment weight is 0.15
 
   let score = round(baseScore / totalWeight, 1);
 
@@ -1314,8 +1349,10 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
   }
   if (!input.newsSentiment) imputedFields.push('news_sentiment');
   if (!input.finnhubInstitutionalOwnership) imputedFields.push('institutional_ownership');
+  if (!input.finnhubFundOwnership || input.finnhubFundOwnership.funds.length === 0) imputedFields.push('fund_ownership_flow');
+  if (!input.edgar8kScan) imputedFields.push('material_event_flag');
 
-  const totalSubScores = 8; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional
+  const totalSubScores = 10; // analyst, price_target, upgrade_downgrade, insider, earnings, flow, news, institutional, fund_ownership, material_event
   const dataConfidence: DataConfidence = {
     total_sub_scores: totalSubScores,
     imputed_sub_scores: imputedFields.length,
@@ -1336,6 +1373,8 @@ export function scoreInfoEdge(input: ConvergenceInput): InfoEdgeResult {
       flow_signal: flowSignal,
       news_sentiment: newsSentiment,
       institutional_ownership: institutionalOwnership,
+      fund_ownership_flow: fundOwnershipFlow,
+      material_event_flag: materialEventFlag,
     },
   };
 }
