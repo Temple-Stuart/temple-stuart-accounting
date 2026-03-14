@@ -10,7 +10,7 @@ export interface ClassifiedHeadline {
 export async function classifyNewsHeadlines(
   headlines: string[],
   ticker: string,
-): Promise<ClassifiedHeadline[] | null> {
+): Promise<(ClassifiedHeadline | null)[] | null> {
   if (headlines.length === 0) return [];
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -40,23 +40,20 @@ export async function classifyNewsHeadlines(
     });
 
     const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
-    const parsed = JSON.parse(text) as { idx: number; s: string; c: number }[];
+    const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    const parsed = JSON.parse(clean) as { idx: number; s: string; c: number }[];
     if (!Array.isArray(parsed)) return null;
 
-    // Pre-fill with neutral/0.5 defaults, then overlay LLM results by index
-    const results: ClassifiedHeadline[] = headlines.map(() => ({
-      sentiment: 'neutral' as const,
-      confidence: 0.5,
-    }));
+    const results: (ClassifiedHeadline | null)[] = new Array(headlines.length).fill(null);
 
     for (const item of parsed) {
       if (item.idx >= 0 && item.idx < headlines.length) {
-        const sentiment = (['bullish', 'bearish', 'neutral'].includes(item.s)
-          ? item.s
-          : 'neutral') as 'bullish' | 'bearish' | 'neutral';
+        const validSentiments = ['bullish', 'bearish', 'neutral'] as const;
+        if (!validSentiments.includes(item.s as typeof validSentiments[number])) continue;
+        if (item.c == null || typeof item.c !== 'number') continue;
         results[item.idx] = {
-          sentiment,
-          confidence: Math.max(0, Math.min(1, item.c ?? 0.5)),
+          sentiment: item.s as 'bullish' | 'bearish' | 'neutral',
+          confidence: Math.max(0, Math.min(1, item.c)),
         };
       }
     }
