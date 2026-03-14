@@ -2354,6 +2354,7 @@ export async function fetchFinnhubDividendHistory(
     if (!resp.ok) return { data: null, error: `dividend ${symbol}: HTTP ${resp.status}` };
 
     const json = await resp.json();
+    console.log(`[DividendHistory RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
     const raw = Array.isArray(json) ? json : [];
     const dividends: FinnhubDividendEntry[] = raw.map((d: Record<string, unknown>) => ({
       date: String(d.date ?? ''),
@@ -2388,6 +2389,7 @@ export async function fetchFinnhubPriceMetrics(
     if (!resp.ok) return { data: null, error: `price-metric ${symbol}: HTTP ${resp.status}` };
 
     const json = await resp.json();
+    console.log(`[PriceMetric RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
     const m = json?.metric ?? {};
 
     return {
@@ -2426,6 +2428,7 @@ export async function fetchFinnhubFundOwnership(
     if (!resp.ok) return { data: null, error: `fund-ownership ${symbol}: HTTP ${resp.status}` };
 
     const json = await resp.json();
+    console.log(`[FundOwnership RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
     const raw = Array.isArray(json?.ownership) ? json.ownership : [];
     const funds: FinnhubFundOwnershipEntry[] = raw.map((f: Record<string, unknown>) => ({
       name: String(f.name ?? ''),
