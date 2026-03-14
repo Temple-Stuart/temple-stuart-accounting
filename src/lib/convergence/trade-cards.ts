@@ -127,7 +127,7 @@ function formatPlainEnglish(scoring: FullScoringResult, input: ConvergenceInput)
 
   // News sentiment
   const newsTrace = ie.breakdown.news_sentiment;
-  if (newsTrace.news_detail.data_available && newsTrace.news_detail.buzz_ratio !== null) {
+  if (newsTrace != null && newsTrace.news_detail.data_available && newsTrace.news_detail.buzz_ratio !== null) {
     const buzz = newsTrace.news_detail.buzz_ratio;
     if (buzz > 2.0) {
       signals.push(`High news buzz — ${buzz.toFixed(1)}x normal coverage volume. Something is driving attention.`);

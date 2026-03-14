@@ -39,7 +39,7 @@ import type {
   SECEdgar8KEntry,
   SECEdgar8KScan,
 } from './types';
-import { classifyNewsHeadlines } from './news-classifier';
+// news-classifier.ts no longer used — Claude API classification removed
 import { getTastytradeClient } from '@/lib/tastytrade';
 import { CandleType } from '@tastytrade/api';
 
@@ -2080,29 +2080,6 @@ export async function fetchNewsSentiment(
     // Sort all headlines by datetime descending (most recent first)
     allHeadlines.sort((a, b) => b.datetime - a.datetime);
 
-    // Attempt LLM classification for improved accuracy (Kirtac & Germano 2024)
-    // ~$0.01-0.05 per scan of 50-200 headlines via Haiku
-    let classificationMethod: 'llm-haiku' | 'keyword-fallback' = 'keyword-fallback';
-    if (allHeadlines.length > 0) {
-      try {
-        const llmResults = await classifyNewsHeadlines(
-          allHeadlines.map(h => h.headline),
-          symbol,
-        );
-        if (llmResults) {
-          classificationMethod = 'llm-haiku';
-          for (let i = 0; i < allHeadlines.length && i < llmResults.length; i++) {
-            const r = llmResults[i];
-            if (r == null) continue;
-            allHeadlines[i].sentiment = r.sentiment;
-            allHeadlines[i].confidence = r.confidence;
-          }
-        }
-      } catch {
-        // Keep keyword fallback — already classified
-      }
-    }
-
     const articles7d = headlines7d.length;
     const articles8_30d = headlines8_30d.length;
     const totalArticles = articles7d + articles8_30d;
@@ -2146,7 +2123,7 @@ export async function fetchNewsSentiment(
       source_distribution: sourceDistribution,
       tier1_ratio: tier1Ratio,
       headlines: allHeadlines,
-      classification_method: classificationMethod,
+      classification_method: 'finnhub-native',
     };
 
     return { data: result, error: null };
