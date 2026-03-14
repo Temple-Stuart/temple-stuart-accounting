@@ -2715,7 +2715,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               return (
                 <>
                   {/* Table 1 — Finnhub Data */}
-                  <p className="text-text-muted text-[10px] font-bold mb-1 mt-2">FINNHUB DATA — Source: Finnhub Premium | Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
+                  <p className="text-text-muted text-[10px] mb-1 mt-2">Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
@@ -2783,7 +2783,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   </div>
 
                   {/* Table 2 — SEC EDGAR Data */}
-                  <p className="text-text-muted text-[10px] font-bold mb-1 mt-3">SEC EDGAR DATA — Source: SEC EDGAR EFTS | Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
+                  <p className="text-text-muted text-[10px] mb-1 mt-3">Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
                     <table className="w-full text-xs whitespace-nowrap">
                       <thead>
