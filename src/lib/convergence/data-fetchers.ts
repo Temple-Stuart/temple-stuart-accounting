@@ -2388,7 +2388,7 @@ export async function fetchFinnhubPriceMetrics(
     if (!resp.ok) return { data: null, error: `price-metric ${symbol}: HTTP ${resp.status}` };
 
     const json = await resp.json();
-    const m = json ?? {};
+    const m = json?.metric ?? {};
 
     return {
       data: {
@@ -2397,11 +2397,11 @@ export async function fetchFinnhubPriceMetrics(
         week52Low: typeof m['52WeekLow'] === 'number' ? m['52WeekLow'] : null,
         week52HighDate: typeof m['52WeekHighDate'] === 'string' ? m['52WeekHighDate'] : null,
         week52LowDate: typeof m['52WeekLowDate'] === 'string' ? m['52WeekLowDate'] : null,
-        priceRelativeToSMA10: typeof m.priceRelativeToS_M_A10 === 'number' ? m.priceRelativeToS_M_A10 : null,
-        priceRelativeToSMA20: typeof m.priceRelativeToS_M_A20 === 'number' ? m.priceRelativeToS_M_A20 : null,
-        priceRelativeToSMA50: typeof m.priceRelativeToS_M_A50 === 'number' ? m.priceRelativeToS_M_A50 : null,
-        priceRelativeToSMA100: typeof m.priceRelativeToS_M_A100 === 'number' ? m.priceRelativeToS_M_A100 : null,
-        priceRelativeToSMA200: typeof m.priceRelativeToS_M_A200 === 'number' ? m.priceRelativeToS_M_A200 : null,
+        priceRelativeToSMA10: typeof m.priceRelativeToSMA10 === 'number' ? m.priceRelativeToSMA10 : null,
+        priceRelativeToSMA20: typeof m.priceRelativeToSMA20 === 'number' ? m.priceRelativeToSMA20 : null,
+        priceRelativeToSMA50: typeof m.priceRelativeToSMA50 === 'number' ? m.priceRelativeToSMA50 : null,
+        priceRelativeToSMA100: typeof m.priceRelativeToSMA100 === 'number' ? m.priceRelativeToSMA100 : null,
+        priceRelativeToSMA200: typeof m.priceRelativeToSMA200 === 'number' ? m.priceRelativeToSMA200 : null,
       },
       error: null,
     };
@@ -2438,7 +2438,7 @@ export async function fetchFinnhubFundOwnership(
       data: {
         symbol,
         funds,
-        totalFunds: typeof json?.totalFund === 'number' ? json.totalFund : null,
+        totalFunds: typeof json?.totalFunds === 'number' ? json.totalFunds : null,
       },
       error: null,
     };
