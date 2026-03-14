@@ -1200,6 +1200,32 @@ export async function runPipeline(
       }
     }
 
+    onProgress?.({ step: 'step_l', label: 'Re-Score With Technicals', data: {
+      fetched_at: new Date().toISOString(),
+      re_scored: reScored,
+      total: scoredTickers.length,
+      tickers: scoredTickers.map(ticker => {
+        const tech = ticker.scoring?.vol_edge.breakdown.technicals;
+        return {
+          symbol: ticker.symbol,
+          candles_used: tech?.candles_used ?? null,
+          vol_edge_score: ticker.scoring?.vol_edge.score ?? null,
+          composite_score: ticker.scoring?.composite.score ?? null,
+          technicals_score: tech?.score ?? null,
+          technicals_formula: tech?.formula ?? null,
+          rsi_14: tech?.indicators.rsi_14 ?? null,
+          sma_20: tech?.indicators.sma_20 ?? null,
+          sma_50: tech?.indicators.sma_50 ?? null,
+          bb_position: tech?.indicators.bb_position ?? null,
+          volume_ratio: tech?.indicators.volume_ratio ?? null,
+          high52w_ratio: tech?.indicators.high52w_ratio ?? null,
+          sub_scores: tech?.sub_scores ?? null,
+          source: 'TastyTrade',
+          endpoint: 'candle',
+        };
+      }),
+    } });
+
     console.log(`[Pipeline] Step F2: Fetched candles for ${candleStats.symbols_with_data}/${scoredSymbols.length} symbols (${candleStats.total_candles} candles) in ${candleStats.elapsed_ms}ms, re-scored ${reScored}`);
 
     onProgress?.({ step: 'step_j', label: 'Candle Data & Cross-Asset Correlations', data: {

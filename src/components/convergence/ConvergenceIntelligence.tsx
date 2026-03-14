@@ -3212,14 +3212,82 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step L — Re-Score With Technicals (placeholder) */}
+      {/* Step L — Re-Score With Technicals */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP L</span>
-          <span className="text-text-secondary">Re-Score With Technicals</span>
-          <span className="text-text-muted">Re-scores Vol Edge gate with real RSI, SMA, Bollinger Bands, and volume ratio from candle data. Produces final pre-chain composite score.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_l')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP L</span>
+            <span className="text-text-secondary">Re-Score With Technicals</span>
+            {progress?.step_l?.data ? (
+              <span className="text-brand-green">{(progress.step_l.data as any).re_scored} of {(progress.step_l.data as any).total} tickers re-scored with candle technicals</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_l'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_l'] && progress?.step_l?.data && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {(() => {
+              const lFetchedAt = (progress.step_l.data as any).fetched_at as string | undefined;
+              const lFetchedTime = lFetchedAt
+                ? new Date(lFetchedAt).toISOString().slice(11, 19) + ' UTC'
+                : '—';
+              const lAgeSec = lFetchedAt
+                ? Math.round((Date.now() - new Date(lFetchedAt).getTime()) / 1000) + 's'
+                : '—';
+              const tickers = (progress.step_l.data as any).tickers ?? [];
+              return (
+                <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+                  <table className="w-full text-xs whitespace-nowrap">
+                    <thead>
+                      <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                        <th className="text-left py-1 pr-3">#</th>
+                        <th className="text-left py-1 pr-3">SYMBOL</th>
+                        <th className="text-right py-1 pr-3">CANDLES</th>
+                        <th className="text-right py-1 pr-3">VOL EDGE</th>
+                        <th className="text-right py-1 pr-3">COMPOSITE</th>
+                        <th className="text-right py-1 pr-3">TECHNICALS</th>
+                        <th className="text-right py-1 pr-3">RSI</th>
+                        <th className="text-right py-1 pr-3">SMA20</th>
+                        <th className="text-right py-1 pr-3">SMA50</th>
+                        <th className="text-right py-1 pr-3">BB POS</th>
+                        <th className="text-right py-1 pr-3">VOL RATIO</th>
+                        <th className="text-right py-1 pr-3">52W RATIO</th>
+                        <th className="text-left py-1 pr-3">SOURCE</th>
+                        <th className="text-left py-1 pr-3">ENDPOINT</th>
+                        <th className="text-left py-1 pr-3">FETCHED</th>
+                        <th className="text-right py-1">AGE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tickers.map((t: any, i: number) => (
+                        <tr key={t.symbol} className="border-b border-border/50">
+                          <td className="py-1 pr-3 text-text-muted">{i + 1}</td>
+                          <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${t.candles_used != null && t.candles_used > 0 ? 'text-brand-green' : 'text-text-muted'}`}>{t.candles_used ?? '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.vol_edge_score ?? '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.composite_score ?? '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.technicals_score ?? '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.rsi_14 != null ? Number(t.rsi_14).toFixed(1) : '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.sma_20 != null ? Number(t.sma_20).toFixed(2) : '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.sma_50 != null ? Number(t.sma_50).toFixed(2) : '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.bb_position != null ? Number(t.bb_position).toFixed(2) : '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.volume_ratio != null ? Number(t.volume_ratio).toFixed(2) : '—'}</td>
+                          <td className="py-1 pr-3 text-right">{t.high52w_ratio != null ? Number(t.high52w_ratio).toFixed(2) : '—'}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{t.source}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{t.endpoint}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{lFetchedTime}</td>
+                          <td className="py-1 text-right text-text-muted text-[10px]">{lAgeSec}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Step M — Final Selection (placeholder) */}
