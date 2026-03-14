@@ -3641,25 +3641,135 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step Q — Live Options Flow & GEX (placeholder) */}
+      {/* Step Q — Live Options Flow & GEX */}
+      {(() => { const qData: any = progress?.step_q?.data ?? null; return (
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP Q</span>
-          <span className="text-text-secondary">Live Options Flow &amp; GEX</span>
-          <span className="text-text-muted">Computes put/call ratio, volume bias, unusual activity, and live GEX dealer positioning from real open interest and Greeks.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_q')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP Q</span>
+            <span className="text-text-secondary">Live Options Flow &amp; GEX</span>
+            {qData ? (
+              <span className="text-brand-green">{qData.tickers_with_flow} tickers with live flow data</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_q'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_q'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {qData?.tickers && (() => {
+              const qFetchedAt = qData.fetched_at ? new Date(qData.fetched_at as string) : null;
+              const qFetchedTime = qFetchedAt ? qFetchedAt.toLocaleTimeString() : '—';
+              const qAgeSec = qFetchedAt ? Math.round((Date.now() - qFetchedAt.getTime()) / 1000) : null;
+              return (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-right py-1 px-1">#</th>
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-right py-1 px-1">PCR</th>
+                    <th className="text-right py-1 px-1">VOL BIAS</th>
+                    <th className="text-right py-1 px-1">UNUSUAL</th>
+                    <th className="text-right py-1 px-1">CALL VOL</th>
+                    <th className="text-right py-1 px-1">PUT VOL</th>
+                    <th className="text-right py-1 px-1">CALL OI</th>
+                    <th className="text-right py-1 px-1">PUT OI</th>
+                    <th className="text-right py-1 px-1">STRIKES</th>
+                    <th className="text-left py-1 px-1">SOURCE</th>
+                    <th className="text-left py-1 px-1">ENDPOINT</th>
+                    <th className="text-left py-1 px-1">FETCHED</th>
+                    <th className="text-right py-1 px-1">AGE</th>
+                  </tr></thead>
+                  <tbody>
+                    {qData.tickers.map((t: { symbol: string; put_call_ratio?: number | null; volume_bias?: number | null; unusual_activity_ratio?: number | null; total_call_volume?: number | null; total_put_volume?: number | null; total_call_oi?: number | null; total_put_oi?: number | null; strikes_analyzed?: number | null; source?: string; endpoint?: string }, idx: number) => (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 text-right font-mono text-text-muted">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.put_call_ratio != null ? t.put_call_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.volume_bias != null ? t.volume_bias.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.unusual_activity_ratio != null ? t.unusual_activity_ratio.toFixed(2) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_call_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_put_volume ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_call_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.total_put_oi ?? '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikes_analyzed ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{qFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{qAgeSec != null ? `${qAgeSec}s` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
+      ); })()}
 
-      {/* Step R — Re-Score With Live Data (placeholder) */}
+      {/* Step R — Re-Score With Live Data */}
+      {(() => { const rData: any = progress?.step_r?.data ?? null; return (
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP R</span>
-          <span className="text-text-secondary">Re-Score With Live Data</span>
-          <span className="text-text-muted">Replaces estimated flow and GEX inputs with live data from Step Q. Produces final composite score.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_r')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP R</span>
+            <span className="text-text-secondary">Re-Score With Live Data</span>
+            {rData ? (
+              <span className="text-brand-green">{rData.flow_re_scored} of {rData.total} tickers re-scored with live flow data</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_r'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_r'] && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            {rData?.tickers && (() => {
+              const rFetchedAt = rData.fetched_at ? new Date(rData.fetched_at as string) : null;
+              const rFetchedTime = rFetchedAt ? rFetchedAt.toLocaleTimeString() : '—';
+              const rAgeSec = rFetchedAt ? Math.round((Date.now() - rFetchedAt.getTime()) / 1000) : null;
+              return (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <table className="w-full text-[10px]">
+                  <thead><tr className="text-text-muted border-b border-border">
+                    <th className="text-right py-1 px-1">#</th>
+                    <th className="text-left py-1 px-1">SYMBOL</th>
+                    <th className="text-right py-1 px-1">COMPOSITE</th>
+                    <th className="text-right py-1 px-1">VOL EDGE</th>
+                    <th className="text-right py-1 px-1">INFO EDGE</th>
+                    <th className="text-left py-1 px-1">HAS FLOW</th>
+                    <th className="text-left py-1 px-1">SOURCE</th>
+                    <th className="text-left py-1 px-1">ENDPOINT</th>
+                    <th className="text-left py-1 px-1">FETCHED</th>
+                    <th className="text-right py-1 px-1">AGE</th>
+                  </tr></thead>
+                  <tbody>
+                    {rData.tickers.map((t: { symbol: string; composite?: number | null; vol_edge?: number | null; info_edge?: number | null; has_flow_data?: boolean; source?: string; endpoint?: string }, idx: number) => (
+                      <tr key={t.symbol} className="border-b border-border/50">
+                        <td className="py-0.5 px-1 text-right font-mono text-text-muted">{idx + 1}</td>
+                        <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.composite != null ? t.composite.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.vol_edge != null ? t.vol_edge.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.info_edge != null ? t.info_edge.toFixed(1) : '—'}</td>
+                        <td className={`py-0.5 px-1 font-mono font-bold ${t.has_flow_data ? 'text-brand-green' : 'text-brand-red'}`}>{t.has_flow_data ? 'YES' : 'NO'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{rFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{rAgeSec != null ? `${rAgeSec}s` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
+      ); })()}
 
       {/* Step S — Trade Cards */}
       <div className="border-b border-border">
