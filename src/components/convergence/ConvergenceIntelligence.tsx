@@ -3166,12 +3166,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                         ['Flow', r.info_edge_detail.flow_signal],
                                         ['News', r.info_edge_detail.news_sentiment],
                                         ['Inst. Own.', r.info_edge_detail.institutional_ownership],
+                                        ['Fund Flow', r.info_edge_detail.fund_flow],
+                                        ['Material Event', r.info_edge_detail.material_event],
                                       ].map(([name, d]: any) => (
                                         <tr key={name} className="border-b border-border/30">
                                           <td className="py-0.5 text-text-secondary">{name}</td>
-                                          <td className="py-0.5 text-right">{d.score}</td>
-                                          <td className="py-0.5 text-right text-text-muted">{(d.weight * 100).toFixed(0)}%</td>
-                                          <td className="py-0.5 text-right text-brand-gold">{(d.score * d.weight).toFixed(1)}</td>
+                                          <td className="py-0.5 text-right">{d ? d.score : '—'}</td>
+                                          <td className="py-0.5 text-right text-text-muted">{d ? (d.weight * 100).toFixed(0) + '%' : '—'}</td>
+                                          <td className="py-0.5 text-right text-brand-gold">{d ? (d.score * d.weight).toFixed(1) : '—'}</td>
                                         </tr>
                                       ))}
                                     </tbody>
