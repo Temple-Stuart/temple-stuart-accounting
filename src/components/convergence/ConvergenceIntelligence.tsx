@@ -2721,7 +2721,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span></th>
                     <th className="text-right py-1 pr-3">52W HIGH</th>
                     <th className="text-right py-1 pr-3">52W LOW</th>
-                    <th className="text-right py-1 pr-3">FUNDS<br/><span className="font-normal text-[9px]">count</span></th>
+                    <th className="text-left py-1 pr-3">TOP FUND</th>
                     <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
                     <th className="text-left py-1 pr-3">SOURCE</th>
                     <th className="text-left py-1 pr-3">ENDPOINTS</th>
@@ -2774,7 +2774,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-text-muted">{t.next_ex_date ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.fund_count != null ? t.fund_count : '—'}</td>
+                        <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub · SEC</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate">earnings·recommendations·insider-sentiment·metric·company-news·ownership·earnings-quality·ebitda-estimate·ebit-estimate·dividend·price-metric·fund-ownership·sec-edgar·sec-8k</td>
