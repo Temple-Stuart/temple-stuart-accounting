@@ -1,5 +1,5 @@
 import { getTastytradeClient } from '@/lib/tastytrade';
-import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription, fetchFinnhubEbitdaEstimates, fetchFinnhubEbitEstimates, fetchFinnhubDividendHistory, fetchFinnhubPriceMetrics, fetchFinnhubFundOwnership, fetchSECEdgar8KScan } from './data-fetchers';
+import { fetchFinnhubBatch, fetchFredMacro, fetchFredDailySeries, fetchTTCandlesBatch, fetchAnnualFinancials, fetchNewsSentiment, fetchFinnhubNewsSentiment, fetchFinnhubEarningsQuality, fetchFinnhubInstitutionalOwnership, fetchFinnhubRevenueBreakdown, fetchQuarterlyFinancials, fetchSECFilingData, fetchInsiderTransactions, fetchPeerTickers, fetch10KBusinessDescription, fetchFinnhubEbitdaEstimates, fetchFinnhubEbitEstimates, fetchFinnhubDividendHistory, fetchFinnhubPriceMetrics, fetchFinnhubFundOwnership, fetchSECEdgar8KScan, fetchFinnhubEarningsCalendar } from './data-fetchers';
 import { computeCrossAssetCorrelations } from './cross-asset';
 import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
@@ -39,6 +39,7 @@ import type {
   FinnhubPriceMetrics,
   FinnhubFundOwnership,
   SECEdgar8KScan,
+  FinnhubEarningsCalendar,
 } from './types';
 
 // ===== TYPES =====
@@ -787,6 +788,7 @@ export async function runPipeline(
   const priceMetricsMap = new Map<string, FinnhubPriceMetrics | null>();
   const fundOwnershipMap = new Map<string, FinnhubFundOwnership | null>();
   const edgar8kMap = new Map<string, SECEdgar8KScan | null>();
+  const earningsCalendarMap = new Map<string, FinnhubEarningsCalendar | null>();
 
   await Promise.all([
     // E3: News Sentiment
@@ -992,8 +994,19 @@ export async function runPipeline(
       }
       console.log(`[Pipeline] Step I6: SEC EDGAR 8-K scan fetched for ${topSymbols.length} symbols`);
     })(),
+    // I7: Finnhub Earnings Calendar
+    (async () => {
+      console.log('[Pipeline] Step I7: Fetching earnings calendar...');
+      for (const symbol of topSymbols) {
+        const result = await fetchFinnhubEarningsCalendar(symbol);
+        earningsCalendarMap.set(symbol, result.data);
+        if (result.error) errors.push(`Step I7 (earnings-calendar ${symbol}): ${result.error}`);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      console.log(`[Pipeline] Step I7: Earnings calendar fetched for ${topSymbols.length} symbols`);
+    })(),
   ]);
-  console.log('[Pipeline] Steps E3-I6: All enrichment data fetched');
+  console.log('[Pipeline] Steps E3-I7: All enrichment data fetched');
   onProgress?.({
     step: 'step_i',
     label: 'Data Enrichment',
@@ -1046,6 +1059,8 @@ export async function runPipeline(
           top_fund: fundOwnershipMap.get(symbol)?.funds?.[0]?.name ?? null,
           edgar_8k_count: edgar8kMap.get(symbol)?.totalHits ?? null,
           edgar_8k_latest: edgar8kMap.get(symbol)?.filings?.[0]?.filedAt ?? null,
+          earnings_calendar_count: earningsCalendarMap.get(symbol)?.earningsCalendar?.length ?? null,
+          next_earnings_date: earningsCalendarMap.get(symbol)?.earningsCalendar?.[0]?.date ?? null,
         };
       }),
       finbert_available: finbertMap.size > 0,

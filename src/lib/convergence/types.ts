@@ -1283,3 +1283,20 @@ export interface SECEdgar8KScan {
   filings: SECEdgar8KEntry[];
   totalHits: number | null;
 }
+
+export interface FinnhubEarningsCalendarEntry {
+  date: string;
+  epsActual: number | null;
+  epsEstimate: number | null;
+  hour: string | null;
+  quarter: number | null;
+  revenueActual: number | null;
+  revenueEstimate: number | null;
+  symbol: string;
+  year: number | null;
+}
+
+export interface FinnhubEarningsCalendar {
+  symbol: string;
+  earningsCalendar: FinnhubEarningsCalendarEntry[];
+}
