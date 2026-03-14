@@ -3801,6 +3801,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             </div>
 
             {/* Full eligibility matrix */}
+            {(() => {
+              const sFetchedAt = progress?.step_s?.data?.fetched_at ? new Date(progress.step_s.data.fetched_at as string) : null;
+              const sFetchedTime = sFetchedAt ? sFetchedAt.toLocaleTimeString() : '—';
+              const sAgeSec = sFetchedAt ? Math.round((Date.now() - sFetchedAt.getTime()) / 1000) : null;
+              return (
             <div style={{ maxHeight: 300, overflowY: 'auto' }}>
               <table className="w-full text-[10px]">
                 <thead><tr className="text-text-muted border-b border-border">
@@ -3814,6 +3819,10 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   <th className="text-right py-1 px-1">INFO</th>
                   <th className="text-left py-1 px-1">SECTOR</th>
                   <th className="text-left py-1 px-1">STATUS</th>
+                  <th className="text-left py-1 px-1">SOURCE</th>
+                  <th className="text-left py-1 px-1">ENDPOINT</th>
+                  <th className="text-left py-1 px-1">FETCHED</th>
+                  <th className="text-right py-1 px-1">AGE</th>
                 </tr></thead>
                 <tbody>
                   {(fData?.rankings ?? []).map((r: { symbol: string; composite: number; vol_edge: number; quality: number; regime: number; info_edge: number; sector?: string | null; convergence?: string; selection_status?: string }, idx: number) => {
@@ -3858,12 +3867,18 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className={`py-0.5 px-1 text-right font-mono ${r.info_edge >= 50 ? 'text-brand-green' : 'text-text-muted'}`}>{r.info_edge.toFixed(0)}</td>
                         <td className="py-0.5 px-1 text-text-secondary">{r.sector ?? '—'}</td>
                         <td className={`py-0.5 px-1 ${status.color}`}>{status.text}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">All prior steps</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">Composite — see Steps A–J</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{sFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{sAgeSec != null ? `${sAgeSec}s` : '—'}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+              );
+            })()}
 
             {/* Next steps explanation */}
             <p className="text-text-muted text-xs mt-3 italic">

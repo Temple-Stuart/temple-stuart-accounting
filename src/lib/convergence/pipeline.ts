@@ -1746,7 +1746,20 @@ export async function runPipeline(
     totalPassed: chainStats.total_trade_cards,
   } });
 
-  onProgress?.({ step: 'step_s', label: 'Trade Cards', data: { trade_cards: chainStats.total_trade_cards, top_9: top9.map(r => r.symbol), rejections: Object.fromEntries(chainRejections) } });
+  onProgress?.({ step: 'step_s', label: 'Trade Cards', data: {
+    fetched_at: new Date().toISOString(),
+    trade_cards: chainStats.total_trade_cards,
+    top_9: top9.map(r => r.symbol),
+    rejections: Object.fromEntries(chainRejections),
+    tickers: top9.map(r => ({
+      symbol: r.symbol,
+      rank: r.rank,
+      composite: r.composite,
+      has_trade_card: chainStats.total_trade_cards > 0,
+      source: 'All prior steps',
+      endpoint: 'Composite — see Steps A–J',
+    })),
+  } });
 
   // ===== STEP H: Assemble Full Result =====
   console.log('[Pipeline] Step H: Assembling result...');
