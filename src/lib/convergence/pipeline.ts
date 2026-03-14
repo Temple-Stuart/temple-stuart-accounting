@@ -1321,6 +1321,14 @@ export async function runPipeline(
           yield_curve_spread: scoring.regime.breakdown.regime_signals.yield_curve_spread ?? null,
           hy_spread: scoring.regime.breakdown.regime_signals.hy_spread ?? null,
           cross_asset_available: scoring.regime.breakdown.cross_asset_correlations != null,
+          bbb_spread: scoring.regime.breakdown.bbb_spread_signal.score ?? null,
+          bbb_spread_raw: scoring.regime.breakdown.bbb_spread_signal.raw_value ?? null,
+          t10y3m: scoring.regime.breakdown.t10y3m_signal.score ?? null,
+          t10y3m_raw: scoring.regime.breakdown.t10y3m_signal.raw_value ?? null,
+          dollar_index: scoring.regime.breakdown.dollar_index_signal.score ?? null,
+          dollar_index_raw: scoring.regime.breakdown.dollar_index_signal.raw_value ?? null,
+          fed_net_liquidity: scoring.regime.breakdown.fed_net_liquidity_signal.score ?? null,
+          fed_net_liquidity_raw: scoring.regime.breakdown.fed_net_liquidity_signal.raw_value ?? null,
         } : null,
         info_edge_detail: scoring ? {
           analyst_consensus: {
