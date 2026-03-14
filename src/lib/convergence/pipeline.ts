@@ -1412,6 +1412,48 @@ export async function runPipeline(
   console.log('[Pipeline] Step G: Ranking and diversifying...');
   const { top9, alsoScored, diversification, sectorDistribution } = rankAndDiversify(rankedRows);
 
+  onProgress?.({ step: 'step_m', label: 'Final Selection', data: {
+    fetched_at: new Date().toISOString(),
+    total_scored: rankedRows.length,
+    eligible: top9.length + alsoScored.filter(
+      (r: any) => parseInt(r.convergence.split('/')[0], 10) >= 3 && r.quality >= 40
+    ).length,
+    selected: top9.length,
+    sector_distribution: sectorDistribution,
+    adjustments: diversification.adjustments,
+    top9: top9.map(r => ({
+      symbol: r.symbol,
+      rank: r.rank,
+      composite: r.composite,
+      vol_edge: r.vol_edge,
+      quality: r.quality,
+      regime: r.regime,
+      info_edge: r.info_edge,
+      convergence: r.convergence,
+      sector: r.sector,
+      status: 'selected',
+    })),
+    excluded: rankedRows
+      .filter(r => !top9.find(t => t.symbol === r.symbol))
+      .map(r => {
+        const catAbove50 = parseInt(r.convergence.split('/')[0], 10);
+        const reason = catAbove50 < 3
+          ? `convergence ${r.convergence} — below 3/4 minimum`
+          : r.quality < 40
+          ? `quality ${r.quality} — below floor of 40`
+          : `sector cap or rank`;
+        return {
+          symbol: r.symbol,
+          composite: r.composite,
+          convergence: r.convergence,
+          quality: r.quality,
+          sector: r.sector,
+          reason,
+          status: 'excluded',
+        };
+      }),
+  } });
+
   // ===== STEP G1.5: Fetch social sentiment (parallel with G2) =====
   const top9Symbols = top9.map(r => r.symbol);
   const sentimentPromise = (async (): Promise<Map<string, SentimentResult>> => {
