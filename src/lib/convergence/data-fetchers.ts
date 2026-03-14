@@ -2092,8 +2092,10 @@ export async function fetchNewsSentiment(
         if (llmResults) {
           classificationMethod = 'llm-haiku';
           for (let i = 0; i < allHeadlines.length && i < llmResults.length; i++) {
-            allHeadlines[i].sentiment = llmResults[i].sentiment;
-            allHeadlines[i].confidence = llmResults[i].confidence;
+            const r = llmResults[i];
+            if (r == null) continue;
+            allHeadlines[i].sentiment = r.sentiment;
+            allHeadlines[i].confidence = r.confidence;
           }
         }
       } catch {
