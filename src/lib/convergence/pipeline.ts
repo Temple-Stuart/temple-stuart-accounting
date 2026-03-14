@@ -1318,6 +1318,9 @@ export async function runPipeline(
             vix: scoring.regime.breakdown.vix_overlay.vix,
           },
           data_confidence: scoring.regime.data_confidence.confidence,
+          yield_curve_spread: scoring.regime.breakdown.regime_signals.yield_curve_spread ?? null,
+          hy_spread: scoring.regime.breakdown.regime_signals.hy_spread ?? null,
+          cross_asset_available: scoring.regime.breakdown.cross_asset_correlations != null,
         } : null,
         info_edge_detail: scoring ? {
           analyst_consensus: {
@@ -1353,6 +1356,7 @@ export async function runPipeline(
             weight: scoring.info_edge.breakdown.institutional_ownership.weight,
           },
           data_confidence: scoring.info_edge.data_confidence.confidence,
+          filing_recency: scoring.info_edge.filing_recency ?? null,
         } : null,
       };
     }),

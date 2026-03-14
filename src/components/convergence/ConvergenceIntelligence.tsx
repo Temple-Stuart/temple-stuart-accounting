@@ -3019,7 +3019,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">CONF<br/><span className="font-normal text-[9px]">data %</span></th>
                     <th className="text-right py-1 pr-3">SIZE<br/><span className="font-normal text-[9px]">position %</span></th>
                     <th className="text-left py-1 pr-3">FETCHED</th>
-                    <th className="text-right py-1">AGE</th>
+                    <th className="text-right py-1 pr-3">AGE</th>
+                    <th className="text-left py-1 pr-3">SOURCE</th>
+                    <th className="text-left py-1">ENDPOINT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3056,11 +3058,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-right text-text-muted">{r.data_confidence != null ? (r.data_confidence * 100).toFixed(0) + '%' : '—'}</td>
                         <td className="py-1 pr-3 text-right text-text-muted">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">{hFetchedTime}</td>
-                        <td className="py-1 text-right text-text-muted text-[10px]">{hAgeSec}</td>
+                        <td className="py-1 pr-3 text-right text-text-muted text-[10px]">{hAgeSec}</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">All prior steps</td>
+                        <td className="py-1 text-text-muted text-[10px]">TT + Finnhub + FRED + SEC</td>
                       </tr>
                       {hDrillDown[r.symbol] && (
                         <tr key={r.symbol + '_drill'}>
-                          <td colSpan={14} className="py-2 px-3 bg-bg-card border-b border-border">
+                          <td colSpan={16} className="py-2 px-3 bg-bg-card border-b border-border">
                             <div className="grid grid-cols-4 gap-3 text-xs">
                               {/* VOL EDGE */}
                               <div>
@@ -3134,6 +3138,9 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">GDP</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.gdp ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">CPI YoY</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.cpi_yoy ?? '—'}</td></tr>
                                       <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Fed Funds</td><td className="py-0.5 text-right">{r.regime_detail.raw_values.fed_funds ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Yield Curve Spread</td><td className="py-0.5 text-right">{r.regime_detail.yield_curve_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">HY Spread</td><td className="py-0.5 text-right">{r.regime_detail.hy_spread ?? '—'}</td></tr>
+                                      <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Cross-Asset Corr</td><td className="py-0.5 text-right">{r.regime_detail.cross_asset_available ? 'Available' : '—'}</td></tr>
                                     </tbody>
                                   </table>
                                 )}
@@ -3167,6 +3174,21 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                                   </table>
                                 )}
                                 <p className="text-text-muted mt-1">Conf: {r.info_edge_detail ? (r.info_edge_detail.data_confidence * 100).toFixed(0) + '%' : '—'}</p>
+                                {r.info_edge_detail?.filing_recency && (
+                                  <div className="mt-1 pt-1 border-t border-border/30">
+                                    <p className="text-text-secondary font-bold">Filing Recency</p>
+                                    <table className="w-full text-[10px]">
+                                      <tbody>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Signal Active</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_signal_active ? 'Yes' : 'No'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Filing Type</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_type ?? '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Filing Age</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_age_hours != null ? r.info_edge_detail.filing_recency.filing_age_hours + 'h' : '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">EPS Surprise</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.eps_surprise_pct != null ? r.info_edge_detail.filing_recency.eps_surprise_pct + '%' : '—'}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Recency Score</td><td className="py-0.5 text-right">{r.info_edge_detail.filing_recency.filing_recency_score}</td></tr>
+                                        <tr className="border-b border-border/30"><td className="py-0.5 text-text-secondary">Modifier</td><td className={`py-0.5 text-right ${r.info_edge_detail.filing_recency.filing_modifier > 0 ? 'text-brand-green' : r.info_edge_detail.filing_recency.filing_modifier < 0 ? 'text-brand-red' : ''}`}>{r.info_edge_detail.filing_recency.filing_modifier > 0 ? '+' : ''}{r.info_edge_detail.filing_recency.filing_modifier}</td></tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <p className="text-text-muted text-[10px] mt-2">Formula: ({r.vol_edge}×{progress?.step_k?.data?.weights?.vol_edge ?? '?'}%) + ({r.quality}×{progress?.step_k?.data?.weights?.quality ?? '?'}%) + ({r.regime}×{progress?.step_k?.data?.weights?.regime ?? '?'}%) + ({r.info_edge}×{progress?.step_k?.data?.weights?.info_edge ?? '?'}%) = {r.composite}</p>
