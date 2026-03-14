@@ -2785,7 +2785,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                   {/* Table 2 — SEC EDGAR Data */}
                   <p className="text-text-muted text-[10px] mb-1 mt-3">Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
                   <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
-                    <table className="w-full text-xs whitespace-nowrap">
+                    <table className="text-xs whitespace-nowrap">
                       <thead>
                         <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
                           <th className="text-left py-1 pr-3">#</th>
