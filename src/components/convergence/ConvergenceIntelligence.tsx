@@ -3059,8 +3059,8 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-right text-text-muted">{r.position_size_pct != null ? r.position_size_pct + '%' : '—'}</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">{hFetchedTime}</td>
                         <td className="py-1 pr-3 text-right text-text-muted text-[10px]">{hAgeSec}</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">All prior steps</td>
-                        <td className="py-1 text-text-muted text-[10px]">TT + Finnhub + FRED + SEC</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">Steps A–J</td>
+                        <td className="py-1 text-text-muted text-[10px]">Composite — see Steps A–J</td>
                       </tr>
                       {hDrillDown[r.symbol] && (
                         <tr key={r.symbol + '_drill'}>
