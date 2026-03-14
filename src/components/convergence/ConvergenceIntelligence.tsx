@@ -2721,8 +2721,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span></th>
                     <th className="text-right py-1 pr-3">52W HIGH</th>
                     <th className="text-right py-1 pr-3">52W LOW</th>
-                    <th className="text-right py-1 pr-3">SMA50<br/><span className="font-normal text-[9px]">vs price</span></th>
-                    <th className="text-right py-1 pr-3">SMA200<br/><span className="font-normal text-[9px]">vs price</span></th>
                     <th className="text-right py-1 pr-3">FUNDS<br/><span className="font-normal text-[9px]">count</span></th>
                     <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
                     <th className="text-left py-1 pr-3">SOURCE</th>
@@ -2776,8 +2774,6 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className="py-1 pr-3 text-text-muted">{t.next_ex_date ?? '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${t.price_vs_sma50 == null ? 'text-text-muted' : t.price_vs_sma50 > 1 ? 'text-brand-green' : t.price_vs_sma50 < 1 ? 'text-brand-red' : 'text-text-muted'}`}>{t.price_vs_sma50 != null ? ((t.price_vs_sma50 - 1) * 100).toFixed(1) + '%' : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${t.price_vs_sma200 == null ? 'text-text-muted' : t.price_vs_sma200 > 1 ? 'text-brand-green' : t.price_vs_sma200 < 1 ? 'text-brand-red' : 'text-text-muted'}`}>{t.price_vs_sma200 != null ? ((t.price_vs_sma200 - 1) * 100).toFixed(1) + '%' : '—'}</td>
                         <td className="py-1 pr-3 text-right">{t.fund_count != null ? t.fund_count : '—'}</td>
                         <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub · SEC</td>
