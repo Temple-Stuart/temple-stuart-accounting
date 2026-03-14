@@ -1673,6 +1673,9 @@ export async function runPipeline(
       winningExpiration: perTickerStats.get(sym)?.winningExpiration,
       winningDte: perTickerStats.get(sym)?.winningDte,
     })),
+    fetched_at: new Date().toISOString(),
+    source: 'TastyTrade',
+    endpoint: 'options-chain',
     totalStrikes: top9Syms.reduce((sum, sym) => sum + (perTickerStats.get(sym)?.strikeCount ?? 0), 0),
     streamerSymbols: chainStats.streamer_symbols_subscribed,
     greeksEvents: chainStats.greeks_events_received,
@@ -1689,6 +1692,9 @@ export async function runPipeline(
       winner: perTickerStats.get(sym)?.winner,
       winnerScore: perTickerStats.get(sym)?.winnerScore,
     })),
+    fetched_at: new Date().toISOString(),
+    source: 'TastyTrade',
+    endpoint: 'Greeks WebSocket',
     totalPassed: chainStats.total_trade_cards,
   } });
 

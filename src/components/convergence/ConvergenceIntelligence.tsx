@@ -3434,7 +3434,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
             <p className="text-text-secondary text-xs leading-relaxed mb-3">
               TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
             </p>
-            {jData?.tickers && (
+            {jData?.tickers && (() => {
+              const nFetchedAt = jData.fetched_at ? new Date(jData.fetched_at as string) : null;
+              const nFetchedTime = nFetchedAt ? nFetchedAt.toLocaleTimeString() : '—';
+              const nAgeSec = nFetchedAt ? Math.round((Date.now() - nFetchedAt.getTime()) / 1000) : null;
+              return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
                   <thead><tr className="text-text-muted border-b border-border">
@@ -3443,9 +3447,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 px-1">DTE</th>
                     <th className="text-right py-1 px-1">STRIKES</th>
                     <th className="text-left py-1 px-1">PRICE SOURCE</th>
+                    <th className="text-left py-1 px-1">SOURCE</th>
+                    <th className="text-left py-1 px-1">ENDPOINT</th>
+                    <th className="text-left py-1 px-1">FETCHED</th>
+                    <th className="text-right py-1 px-1">AGE</th>
                   </tr></thead>
                   <tbody>
-                    {jData.tickers.map((t: { symbol: string; expiration?: string; dte?: number; strikeCount?: number; priceSource?: string }) => {
+                    {jData.tickers.map((t: { symbol: string; expiration?: string; dte?: number; strikeCount?: number; priceSource?: string; source?: string; endpoint?: string }) => {
                       const srcColor = t.priceSource === 'live' ? 'text-brand-green' : t.priceSource === 'theo' ? 'text-brand-gold' : t.priceSource === 'mixed' ? 'text-brand-blue' : 'text-brand-red';
                       const srcLabel = t.priceSource === 'theo' ? 'theo (market closed)' : (t.priceSource ?? '—');
                       return (
@@ -3455,13 +3463,18 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                           <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
                           <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strikeCount ?? '—'}</td>
                           <td className={`py-0.5 px-1 font-mono ${srcColor}`}>{srcLabel}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? 'options-chain'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{nFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{nAgeSec != null ? `${nAgeSec}s` : '—'}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-            )}
+              );
+            })()}
             {jData && (
               <p className="text-text-muted text-xs mt-3">
                 {jData.streamerSymbols} streamer symbols subscribed · {jData.greeksEvents} Greeks events received
@@ -3526,7 +3539,11 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               <span className="font-bold text-text-primary">Survivors ranked by:</span> (EV/Risk × 50%) + (Theta Efficiency × 30%) + (Edge Ratio × 20%). Highest score = Strategy A.
             </p>
             {/* Per-ticker table */}
-            {kData?.tickers && (
+            {kData?.tickers && (() => {
+              const pFetchedAt = kData.fetched_at ? new Date(kData.fetched_at as string) : null;
+              const pFetchedTime = pFetchedAt ? pFetchedAt.toLocaleTimeString() : '—';
+              const pAgeSec = pFetchedAt ? Math.round((Date.now() - pFetchedAt.getTime()) / 1000) : null;
+              return (
               <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                 <table className="w-full text-[10px]">
                   <thead><tr className="text-text-muted border-b border-border">
@@ -3538,9 +3555,13 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 px-1">PASSED</th>
                     <th className="text-left py-1 px-1">WINNER</th>
                     <th className="text-right py-1 px-1">SCORE</th>
+                    <th className="text-left py-1 px-1">SOURCE</th>
+                    <th className="text-left py-1 px-1">ENDPOINT</th>
+                    <th className="text-left py-1 px-1">FETCHED</th>
+                    <th className="text-right py-1 px-1">AGE</th>
                   </tr></thead>
                   <tbody>
-                    {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null }) => (
+                    {kData.tickers.map((t: { symbol: string; strategiesBuilt?: number; gateAFailed?: number; gateBFailed?: number; gateCFailed?: number; strategiesPassed?: number; winner?: string | null; winnerScore?: number | null; source?: string; endpoint?: string }) => (
                       <tr key={t.symbol} className="border-b border-border/50">
                         <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
                         <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strategiesBuilt ?? '—'}</td>
@@ -3550,12 +3571,17 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                         <td className={`py-0.5 px-1 text-right font-mono font-bold ${(t.strategiesPassed ?? 0) > 0 ? 'text-brand-green' : 'text-brand-red'}`}>{t.strategiesPassed ?? 0}</td>
                         <td className={`py-0.5 px-1 font-mono ${t.winner ? 'text-brand-green' : 'text-brand-red'}`}>{t.winner ?? 'none'}</td>
                         <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.winnerScore != null ? t.winnerScore.toFixed(1) : '—'}</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">TastyTrade</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">Greeks WebSocket</td>
+                        <td className="py-0.5 px-1 font-mono text-text-secondary">{pFetchedTime}</td>
+                        <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{pAgeSec != null ? `${pAgeSec}s` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>
