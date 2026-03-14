@@ -3888,15 +3888,47 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step T — Save & Return (placeholder) */}
+      {/* Step T — Save & Return */}
+      {(() => { const tData: any = progress?.step_t?.data ?? null; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const tFetchedAt = tData?.fetched_at ? new Date(tData.fetched_at as string) : null;
+        const tFetchedTime = tFetchedAt ? tFetchedAt.toLocaleTimeString() : '—';
+        const tAgeSec = tFetchedAt ? Math.round((Date.now() - tFetchedAt.getTime()) / 1000) : null;
+        return (
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP T</span>
-          <span className="text-text-secondary">Save &amp; Return</span>
-          <span className="text-text-muted">Logs scan snapshot to Azure PostgreSQL and returns complete result to frontend.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_t')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP T</span>
+            <span className="text-text-secondary">Save &amp; Return</span>
+            {tData ? (
+              tData.saved ? (
+                <span className="text-brand-green">Scan saved — {tData.symbols_logged} tickers logged</span>
+              ) : (
+                <span className="text-brand-gold">Not saved — no user session</span>
+              )
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_t'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_t'] && tData && (
+          <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <table className="text-[10px]">
+              <tbody>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-text-secondary">{tData.pipeline_runtime_ms}ms</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Symbols Logged</td><td className="py-0.5 font-mono text-text-secondary">{tData.symbols_logged}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Final 9</td><td className="py-0.5 font-mono text-text-secondary">{(tData.final_9 ?? []).join(', ')}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Saved</td><td className="py-0.5 font-mono text-text-secondary">{tData.saved ? 'Yes' : 'No'}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Source</td><td className="py-0.5 font-mono text-text-secondary">{tData.source}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Endpoint</td><td className="py-0.5 font-mono text-text-secondary">{tData.endpoint}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Fetched</td><td className="py-0.5 font-mono text-text-secondary">{tFetchedTime}</td></tr>
+                <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Age</td><td className="py-0.5 font-mono text-text-secondary">{tAgeSec != null ? `${tAgeSec}s` : '—'}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+      ); })()}
 
       {/* Summary */}
       <div className="px-4 py-2 flex items-center gap-4 text-text-muted">

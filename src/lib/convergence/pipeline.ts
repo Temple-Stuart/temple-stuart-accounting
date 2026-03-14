@@ -1852,6 +1852,17 @@ export async function runPipeline(
     );
   }
 
+  onProgress?.({ step: 'step_t', label: 'Save & Return', data: {
+    fetched_at: new Date().toISOString(),
+    saved: userId != null,
+    user_id_present: userId != null,
+    symbols_logged: userId != null ? scoredTickers.length : 0,
+    pipeline_runtime_ms: pipelineMs,
+    final_9: top9.map(r => r.symbol),
+    source: 'Azure PostgreSQL',
+    endpoint: 'logScanSnapshotBatch',
+  } });
+
   return result;
 }
 
