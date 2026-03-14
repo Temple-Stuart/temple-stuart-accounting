@@ -806,7 +806,7 @@ function computePeriodSentiment(headlines: NewsHeadlineEntry[]): NewsSentimentPe
   // With LLM confidence: high-confidence classifications count more than low-confidence
   const score = total > 0
     ? Math.round(Math.max(0, Math.min(100, 50 + ((bullishWeight - bearishWeight) / total) * 50)) * 100) / 100
-    : 50;
+    : null;
 
   return { bullish_matches: bullish, bearish_matches: bearish, neutral, score };
 }
@@ -2117,7 +2117,9 @@ export async function fetchNewsSentiment(
     const sentiment8_30d = computePeriodSentiment(headlines8_30d);
 
     // Sentiment momentum: 7d score - 8-30d score
-    const sentimentMomentum = Math.round((sentiment7d.score - sentiment8_30d.score) * 100) / 100;
+    const sentimentMomentum = (sentiment7d.score != null && sentiment8_30d.score != null)
+      ? Math.round((sentiment7d.score - sentiment8_30d.score) * 100) / 100
+      : null;
 
     // Tier-1 source ratio
     let tier1Count = 0;
@@ -2365,6 +2367,7 @@ export async function fetchFinnhubDividendHistory(
       payDate: typeof d.payDate === 'string' ? d.payDate : null,
     }));
 
+    console.log('[Dividend]', symbol, JSON.stringify(raw[0]).slice(0, 200));
     return { data: { symbol, dividends }, error: null };
   } catch (e: unknown) {
     return { data: null, error: `dividend ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
@@ -2392,6 +2395,7 @@ export async function fetchFinnhubPriceMetrics(
     console.log(`[PriceMetric RAW] ${symbol}:`, JSON.stringify(json).slice(0, 500));
     const m = json?.metric ?? {};
 
+    console.log('[PriceMetric]', symbol, JSON.stringify(m).slice(0, 200));
     return {
       data: {
         symbol,
@@ -2441,7 +2445,7 @@ export async function fetchFinnhubFundOwnership(
       data: {
         symbol,
         funds,
-        totalFunds: typeof json?.totalFunds === 'number' ? json.totalFunds : null,
+        totalFund: typeof json?.totalFund === 'number' ? json.totalFund : null,
       },
       error: null,
     };

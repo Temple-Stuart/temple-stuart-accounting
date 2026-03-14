@@ -916,12 +916,14 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   buzzScore = round(buzzScore);
 
   // --- Sentiment score (40%) ---
-  let sentimentScore = round(news.sentiment_7d.score);
+  let sentimentScore: number | null = news.sentiment_7d.score != null ? round(news.sentiment_7d.score) : null;
   // Apply momentum bonus/penalty
-  if (news.sentiment_momentum > 10) {
-    sentimentScore = round(clamp(sentimentScore + 5, 0, 100));
-  } else if (news.sentiment_momentum < -10) {
-    sentimentScore = round(clamp(sentimentScore - 5, 0, 100));
+  if (sentimentScore != null && news.sentiment_momentum != null) {
+    if (news.sentiment_momentum > 10) {
+      sentimentScore = round(clamp(sentimentScore + 5, 0, 100));
+    } else if (news.sentiment_momentum < -10) {
+      sentimentScore = round(clamp(sentimentScore - 5, 0, 100));
+    }
   }
 
   // --- Source quality score (30%) ---
@@ -934,21 +936,28 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   sourceQualityScore = round(sourceQualityScore);
 
   // Weighted: buzz 30%, sentiment 40%, source quality 30%
-  let score = round(0.30 * buzzScore + 0.40 * sentimentScore + 0.30 * sourceQualityScore, 1);
+  // When sentiment score is null (no headlines), use only buzz + source quality, re-weighted
+  let score: number;
+  if (sentimentScore != null) {
+    score = round(0.30 * buzzScore + 0.40 * sentimentScore + 0.30 * sourceQualityScore, 1);
+  } else {
+    score = round(0.50 * buzzScore + 0.50 * sourceQualityScore, 1);
+  }
 
   // --- 3-Leg Ensemble: Keyword + Haiku LLM + Finnhub FinBERT ---
   const classMethod = news.classification_method ?? 'keyword-fallback';
   const finbert = input.finnhubNewsSentiment;
 
   // Determine direction from each leg:
-  // Leg 1 (keyword): always available — uses the raw keyword-based sentiment from 7d headlines
-  const keywordDirection = scoreToDirection(news.sentiment_7d.score);
+  // Leg 1 (keyword): available when sentiment score is not null
+  const keywordDirection: 'bullish' | 'bearish' | 'neutral' | null =
+    news.sentiment_7d.score != null ? scoreToDirection(news.sentiment_7d.score) : null;
 
   // Leg 2 (Haiku LLM): available when classification_method === 'llm-haiku'
   // The LLM classification overwrites headline sentiments in-place, so sentiment_7d.score
   // already reflects LLM when available. Use classification method to determine if LLM ran.
   const haikuDirection: 'bullish' | 'bearish' | 'neutral' | null =
-    classMethod === 'llm-haiku' ? scoreToDirection(sentimentScore) : null;
+    classMethod === 'llm-haiku' && sentimentScore != null ? scoreToDirection(sentimentScore) : null;
 
   // Leg 3 (FinBERT): companyNewsScore from /news-sentiment (0-1, 0.5 = neutral)
   let finbertDirection: 'bullish' | 'bearish' | 'neutral' | null = null;
@@ -960,7 +969,8 @@ function scoreNewsSentiment(input: ConvergenceInput): NewsSentimentTrace {
   }
 
   // Compute ensemble agreement and confidence modifier
-  const activeLegDirections: ('bullish' | 'bearish' | 'neutral')[] = [keywordDirection];
+  const activeLegDirections: ('bullish' | 'bearish' | 'neutral')[] = [];
+  if (keywordDirection) activeLegDirections.push(keywordDirection);
   if (haikuDirection) activeLegDirections.push(haikuDirection);
   if (finbertDirection) activeLegDirections.push(finbertDirection);
 
