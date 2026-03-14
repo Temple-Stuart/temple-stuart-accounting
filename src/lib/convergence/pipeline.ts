@@ -1044,7 +1044,7 @@ export async function runPipeline(
           week52_low: priceMetricsMap.get(symbol)?.week52Low ?? null,
           price_vs_sma50: priceMetricsMap.get(symbol)?.priceRelativeToSMA50 ?? null,
           price_vs_sma200: priceMetricsMap.get(symbol)?.priceRelativeToSMA200 ?? null,
-          fund_count: fundOwnershipMap.get(symbol)?.totalFunds ?? null,
+          fund_count: fundOwnershipMap.get(symbol)?.totalFund ?? null,
           top_fund: fundOwnershipMap.get(symbol)?.funds?.[0]?.name ?? null,
           edgar_8k_count: edgar8kMap.get(symbol)?.totalHits ?? null,
           edgar_8k_latest: edgar8kMap.get(symbol)?.filings?.[0]?.filedAt ?? null,
@@ -1390,12 +1390,15 @@ export async function runPipeline(
       }
       const fedFundsRate = fredResult.data.fedFunds / 100;
 
+      // Exclude ticker if IV_percentile is null — no fallback
+      if (s.vol_edge.breakdown.mispricing.inputs.IV_percentile == null) return null;
+
       return {
         symbol: row.symbol,
         suggested_dte: s.strategy_suggestion.suggested_dte,
         direction: s.strategy_suggestion.direction,
         currentPrice: latestClose,
-        ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number ?? 50) / 100,
+        ivRank: (s.vol_edge.breakdown.mispricing.inputs.IV_percentile as number) / 100,
         iv30: (tt.iv30 ?? 30) / 100,
         hv30: (tt.hv30 ?? 25) / 100,
         riskFreeRate: fedFundsRate,

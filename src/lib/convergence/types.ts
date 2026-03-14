@@ -261,7 +261,7 @@ export interface NewsSentimentPeriod {
   bullish_matches: number;
   bearish_matches: number;
   neutral: number;
-  score: number;
+  score: number | null;
 }
 
 export interface NewsSentimentData {
@@ -271,7 +271,7 @@ export interface NewsSentimentData {
   buzz_ratio: number | null;
   sentiment_7d: NewsSentimentPeriod;
   sentiment_8_30d: NewsSentimentPeriod;
-  sentiment_momentum: number;
+  sentiment_momentum: number | null;
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
@@ -898,7 +898,7 @@ export interface NewsSentimentTrace {
   notes: string;
   sub_scores: {
     buzz_score: number;
-    sentiment_score: number;
+    sentiment_score: number | null;
     source_quality_score: number;
   };
   news_detail: {
@@ -920,7 +920,7 @@ export interface NewsSentimentTrace {
     ensemble_agreement: 'unanimous' | 'majority' | 'split' | 'two-leg';
     ensemble_confidence_modifier: number; // +0.20, 0, -0.30
     leg_directions: {
-      keyword: 'bullish' | 'bearish' | 'neutral';
+      keyword: 'bullish' | 'bearish' | 'neutral' | null;
       haiku: 'bullish' | 'bearish' | 'neutral' | null;
       finbert: 'bullish' | 'bearish' | 'neutral' | null;
     };
@@ -1269,7 +1269,7 @@ export interface FinnhubFundOwnershipEntry {
 export interface FinnhubFundOwnership {
   symbol: string;
   funds: FinnhubFundOwnershipEntry[];
-  totalFunds: number | null;
+  totalFund: number | null;
 }
 
 export interface SECEdgar8KEntry {
