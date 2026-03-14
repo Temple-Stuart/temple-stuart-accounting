@@ -1541,6 +1541,22 @@ export async function runPipeline(
       chainMarketOpen = chainResult.marketOpen;
       chainMarketNote = chainResult.marketNote;
 
+      onProgress?.({ step: 'step_o', label: 'Live Greeks Subscription', data: {
+        fetched_at: new Date().toISOString(),
+        streamer_symbols_subscribed: chainStats.streamer_symbols_subscribed,
+        greeks_events_received: chainStats.greeks_events_received,
+        market_open: chainMarketOpen,
+        market_note: chainMarketNote ?? null,
+        tickers: top9.map(r => r.symbol).map(sym => ({
+          symbol: sym,
+          strike_count: perTickerStats.get(sym)?.strikeCount ?? null,
+          expiration: perTickerStats.get(sym)?.expiration ?? null,
+          dte: perTickerStats.get(sym)?.dte ?? null,
+          source: 'TastyTrade',
+          endpoint: 'Greeks WebSocket',
+        })),
+      } });
+
       if (!chainResult.marketOpen) {
         dataGaps.push(`trade_cards: priced from exchange theo values (${chainResult.marketNote}) — rerun during market hours for live quotes`);
       }

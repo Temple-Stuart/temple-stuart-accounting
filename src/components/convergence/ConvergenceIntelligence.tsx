@@ -3484,14 +3484,69 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step O — Live Greeks Subscription (placeholder) */}
+      {/* Step O — Live Greeks Subscription */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP O</span>
-          <span className="text-text-secondary">Live Greeks Subscription</span>
-          <span className="text-text-muted">Opens TastyTrade WebSocket, subscribes all strikes for live Greeks, quote, and summary events. Waits for stable data before proceeding.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_o')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP O</span>
+            <span className="text-text-secondary">Live Greeks Subscription</span>
+            {progress?.step_o?.data ? (
+              <span className="text-brand-green">{(progress.step_o.data as any).greeks_events_received} Greeks events received across {(progress.step_o.data as any).streamer_symbols_subscribed} symbols</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_o'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_o'] && progress?.step_o?.data && (() => {
+          const od = progress.step_o.data as any;
+          const oFetchedAt = od.fetched_at ? new Date(od.fetched_at) : null;
+          const oFetchedTime = oFetchedAt ? oFetchedAt.toLocaleTimeString() : '—';
+          const oAgeSec = oFetchedAt ? Math.round((Date.now() - oFetchedAt.getTime()) / 1000) : null;
+          const tickers: any[] = od.tickers ?? [];
+          return (
+            <div className="px-8 py-2 border-t border-border bg-bg-row">
+              <p className="text-xs mb-3">
+                {od.market_open
+                  ? <span className="text-brand-green font-bold">Market Open — live quotes</span>
+                  : <span className="text-brand-gold font-bold">Market Closed — {od.market_note ?? 'theo pricing'}</span>
+                }
+              </p>
+              {tickers.length > 0 && (
+                <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                  <table className="w-full text-[10px]">
+                    <thead><tr className="text-text-muted border-b border-border">
+                      <th className="text-right py-1 px-1">#</th>
+                      <th className="text-left py-1 px-1">SYMBOL</th>
+                      <th className="text-right py-1 px-1">STRIKES</th>
+                      <th className="text-left py-1 px-1">EXPIRATION</th>
+                      <th className="text-right py-1 px-1">DTE</th>
+                      <th className="text-left py-1 px-1">SOURCE</th>
+                      <th className="text-left py-1 px-1">ENDPOINT</th>
+                      <th className="text-left py-1 px-1">FETCHED</th>
+                      <th className="text-right py-1 px-1">AGE</th>
+                    </tr></thead>
+                    <tbody>
+                      {tickers.map((t: any, i: number) => (
+                        <tr key={t.symbol} className="border-b border-border/50">
+                          <td className="py-0.5 px-1 text-right text-text-muted">{i + 1}</td>
+                          <td className="py-0.5 px-1 font-bold text-text-primary">{t.symbol}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.strike_count ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-text-secondary font-mono">{t.expiration ?? '—'}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{t.dte ?? '—'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.source ?? 'TastyTrade'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{t.endpoint ?? 'Greeks WebSocket'}</td>
+                          <td className="py-0.5 px-1 font-mono text-text-secondary">{oFetchedTime}</td>
+                          <td className="py-0.5 px-1 text-right font-mono text-text-secondary">{oAgeSec != null ? `${oAgeSec}s` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Step P — Strategy Scoring */}
