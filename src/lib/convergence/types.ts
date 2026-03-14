@@ -1268,7 +1268,7 @@ export interface FinnhubFundOwnershipEntry {
 export interface FinnhubFundOwnership {
   symbol: string;
   funds: FinnhubFundOwnershipEntry[];
-  totalFund: number | null;
+  totalFunds: number | null;
 }
 
 export interface SECEdgar8KEntry {

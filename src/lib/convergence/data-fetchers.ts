@@ -2424,7 +2424,7 @@ export async function fetchFinnhubFundOwnership(
       data: {
         symbol,
         funds,
-        totalFund: typeof json?.totalFund === 'number' ? json.totalFund : null,
+        totalFunds: Array.isArray(json?.ownership) ? json.ownership.length : null,
       },
       error: null,
     };
