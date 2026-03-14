@@ -38,6 +38,8 @@ import type {
   FinnhubFundOwnership,
   SECEdgar8KEntry,
   SECEdgar8KScan,
+  FinnhubEarningsCalendarEntry,
+  FinnhubEarningsCalendar,
 } from './types';
 // news-classifier.ts no longer used — Claude API classification removed
 import { getTastytradeClient } from '@/lib/tastytrade';
@@ -2475,5 +2477,43 @@ export async function fetchSECEdgar8KScan(
     };
   } catch (e: unknown) {
     return { data: null, error: `sec-8k-scan ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+// ===== FINNHUB EARNINGS CALENDAR FETCHER =====
+
+export async function fetchFinnhubEarningsCalendar(
+  symbol: string,
+  apiKey?: string,
+): Promise<{ data: FinnhubEarningsCalendar | null; error: string | null }> {
+  const key = apiKey || process.env.FINNHUB_API_KEY;
+  if (!key) return { data: null, error: 'FINNHUB_API_KEY not configured' };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const ninetyDaysAhead = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  try {
+    const resp = await fetchWithRetry(
+      `https://finnhub.io/api/v1/calendar/earnings?symbol=${symbol}&from=${today}&to=${ninetyDaysAhead}&token=${key}`,
+    );
+    if (!resp.ok) return { data: null, error: `earnings-calendar ${symbol}: HTTP ${resp.status}` };
+
+    const json = await resp.json();
+    const raw = Array.isArray(json?.earningsCalendar) ? json.earningsCalendar : [];
+    const earningsCalendar: FinnhubEarningsCalendarEntry[] = raw.map((e: Record<string, unknown>) => ({
+      date: typeof e.date === 'string' ? e.date : '',
+      epsActual: typeof e.epsActual === 'number' ? e.epsActual : null,
+      epsEstimate: typeof e.epsEstimate === 'number' ? e.epsEstimate : null,
+      hour: typeof e.hour === 'string' ? e.hour : null,
+      quarter: typeof e.quarter === 'number' ? e.quarter : null,
+      revenueActual: typeof e.revenueActual === 'number' ? e.revenueActual : null,
+      revenueEstimate: typeof e.revenueEstimate === 'number' ? e.revenueEstimate : null,
+      symbol: typeof e.symbol === 'string' ? e.symbol : symbol,
+      year: typeof e.year === 'number' ? e.year : null,
+    }));
+
+    return { data: { symbol, earningsCalendar }, error: null };
+  } catch (e: unknown) {
+    return { data: null, error: `earnings-calendar ${symbol}: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
