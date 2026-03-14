@@ -2703,86 +2703,110 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 <span className="text-brand-red ml-2">⚠ {progress?.step_i?.data?.finnhub_errors} ERRORS</span>
               )}
             </p>
-            <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
-              <table className="w-full text-xs whitespace-nowrap">
-                <thead>
-                  <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
-                    <th className="text-left py-1 pr-3">#</th>
-                    <th className="text-left py-1 pr-3">SYMBOL</th>
-                    <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
-                    <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
-                    <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/recommendation</span></th>
-                    <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/insider-sentiment</span></th>
-                    <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /news-sentiment</span></th>
-                    <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ownership</span></th>
-                    <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings-quality-score</span></th>
-                    <th className="text-right py-1 pr-3">P/E<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                    <th className="text-right py-1 pr-3">EBITDA EST<br/><span className="font-normal text-[9px]">count</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ebitda-estimate</span></th>
-                    <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/dividend</span></th>
-                    <th className="text-right py-1 pr-3">52W HIGH<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                    <th className="text-right py-1 pr-3">52W LOW<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
-                    <th className="text-left py-1 pr-3">TOP FUND<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/fund-ownership</span></th>
-                    <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span><br/><span className="font-normal text-[8px] text-text-muted">SEC EDGAR EFTS</span></th>
-                    <th className="text-left py-1 pr-3">FETCHED</th>
-                    <th className="text-right py-1">AGE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const gFetchedAt = progress?.step_i?.data?.fetched_at as string | undefined;
-                    const gFetchedTime = gFetchedAt
-                      ? new Date(gFetchedAt).toISOString().slice(11,19) + ' UTC'
-                      : '—';
-                    const gAgeSec = gFetchedAt
-                      ? Math.round((Date.now() - new Date(gFetchedAt).getTime()) / 1000) + 's'
-                      : '—';
-                    return (progress?.step_i?.data?.tickers ?? []).map((t: any, i: number) => {
-                    const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
-                    const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
-                    const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
-                    return (
-                      <tr key={t.symbol} className="border-b border-border/50">
-                        <td className="py-1 pr-3 text-text-muted">{i+1}</td>
-                        <td className="py-1 pr-3 font-bold">{t.symbol}</td>
-                        <td className="py-1 pr-3 text-right">
-                          {t.beat_count != null && t.earnings_quarters != null
-                            ? `${t.beat_count}/${t.earnings_quarters}`
-                            : '—'}
-                        </td>
-                        <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
-                        <td className="py-1 pr-3 text-text-muted">{t.analyst_rating ?? '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${
-                          t.earnings_quality_letter === 'A' || t.earnings_quality_letter === 'B'
-                            ? 'text-brand-green'
-                            : t.earnings_quality_letter === 'C'
-                            ? 'text-brand-gold'
-                            : t.earnings_quality_letter != null
-                            ? 'text-brand-red'
-                            : 'text-text-muted'
-                        }`}>
-                          {t.earnings_quality_letter != null && t.earnings_quality_score != null
-                            ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
-                            : '—'}
-                        </td>
-                        <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
-                        <td className="py-1 pr-3 text-text-muted">{t.next_ex_date ?? '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
-                        <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
-                        <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
-                        <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">{gFetchedTime}</td>
-                        <td className="py-1 text-right text-text-muted text-[10px]">{gAgeSec}</td>
-                      </tr>
-                    );
-                  });
-                  })()}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const gFetchedAt = progress?.step_i?.data?.fetched_at as string | undefined;
+              const gFetchedTime = gFetchedAt
+                ? new Date(gFetchedAt).toISOString().slice(11,19) + ' UTC'
+                : '—';
+              const gAgeSec = gFetchedAt
+                ? Math.round((Date.now() - new Date(gFetchedAt).getTime()) / 1000) + 's'
+                : '—';
+              const tickers = progress?.step_i?.data?.tickers ?? [];
+              return (
+                <>
+                  {/* Table 1 — Finnhub Data */}
+                  <p className="text-text-muted text-[10px] font-bold mb-1 mt-2">FINNHUB DATA — Source: Finnhub Premium | Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
+                  <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+                    <table className="w-full text-xs whitespace-nowrap">
+                      <thead>
+                        <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                          <th className="text-left py-1 pr-3">#</th>
+                          <th className="text-left py-1 pr-3">SYMBOL</th>
+                          <th className="text-right py-1 pr-3">EARNINGS<br/><span className="font-normal text-[9px]">beat/total</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
+                          <th className="text-right py-1 pr-3">BEAT RATE<br/><span className="font-normal text-[9px]">&gt;60% good</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings</span></th>
+                          <th className="text-left py-1 pr-3">ANALYST<br/><span className="font-normal text-[9px]">B/H/S</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/recommendation</span></th>
+                          <th className="text-right py-1 pr-3">INSIDER<br/><span className="font-normal text-[9px]">MSPR</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/insider-sentiment</span></th>
+                          <th className="text-right py-1 pr-3">NEWS<br/><span className="font-normal text-[9px]">7d score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /news-sentiment</span></th>
+                          <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ownership</span></th>
+                          <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/earnings-quality-score</span></th>
+                          <th className="text-right py-1 pr-3">P/E<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
+                          <th className="text-right py-1 pr-3">EBITDA EST<br/><span className="font-normal text-[9px]">count</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/ebitda-estimate</span></th>
+                          <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span><br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/dividend</span></th>
+                          <th className="text-right py-1 pr-3">52W HIGH<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
+                          <th className="text-right py-1 pr-3">52W LOW<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/metric</span></th>
+                          <th className="text-left py-1 pr-3">TOP FUND<br/><span className="font-normal text-[8px] text-text-muted">Finnhub /stock/fund-ownership</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tickers.map((t: any, i: number) => {
+                          const beatColor = t.beat_rate == null ? 'text-text-muted' : t.beat_rate >= 60 ? 'text-brand-green' : t.beat_rate >= 40 ? 'text-brand-gold' : 'text-brand-red';
+                          const insiderColor = t.insider_sentiment == null ? 'text-text-muted' : t.insider_sentiment > 10 ? 'text-brand-green' : t.insider_sentiment < -10 ? 'text-brand-red' : 'text-brand-gold';
+                          const newsColor = t.news_sentiment == null ? 'text-text-muted' : t.news_sentiment > 55 ? 'text-brand-green' : t.news_sentiment < 45 ? 'text-brand-red' : 'text-brand-gold';
+                          return (
+                            <tr key={t.symbol} className="border-b border-border/50">
+                              <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                              <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                              <td className="py-1 pr-3 text-right">
+                                {t.beat_count != null && t.earnings_quarters != null
+                                  ? `${t.beat_count}/${t.earnings_quarters}`
+                                  : '—'}
+                              </td>
+                              <td className={`py-1 pr-3 text-right font-bold ${beatColor}`}>{t.beat_rate != null ? t.beat_rate+'%' : '—'}</td>
+                              <td className="py-1 pr-3 text-text-muted">{t.analyst_rating ?? '—'}</td>
+                              <td className={`py-1 pr-3 text-right font-bold ${insiderColor}`}>{t.insider_sentiment != null ? t.insider_sentiment.toFixed(1) : '—'}</td>
+                              <td className={`py-1 pr-3 text-right font-bold ${newsColor}`}>{t.news_sentiment != null ? t.news_sentiment.toFixed(1) : '—'}</td>
+                              <td className="py-1 pr-3 text-right">{t.institutional_holders != null ? t.institutional_holders.toLocaleString() : '—'}</td>
+                              <td className={`py-1 pr-3 text-right font-bold ${
+                                t.earnings_quality_letter === 'A' || t.earnings_quality_letter === 'B'
+                                  ? 'text-brand-green'
+                                  : t.earnings_quality_letter === 'C'
+                                  ? 'text-brand-gold'
+                                  : t.earnings_quality_letter != null
+                                  ? 'text-brand-red'
+                                  : 'text-text-muted'
+                              }`}>
+                                {t.earnings_quality_letter != null && t.earnings_quality_score != null
+                                  ? `${t.earnings_quality_letter} (${t.earnings_quality_score.toFixed(2)})`
+                                  : '—'}
+                              </td>
+                              <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
+                              <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
+                              <td className="py-1 pr-3 text-text-muted">{t.next_ex_date ?? '—'}</td>
+                              <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
+                              <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
+                              <td className="py-1 pr-3 text-left text-[10px]">{t.top_fund != null ? t.top_fund.slice(0, 12) : '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Table 2 — SEC EDGAR Data */}
+                  <p className="text-text-muted text-[10px] font-bold mb-1 mt-3">SEC EDGAR DATA — Source: SEC EDGAR EFTS | Fetched: {gFetchedTime} | Age: {gAgeSec}</p>
+                  <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '200px'}}>
+                    <table className="w-full text-xs whitespace-nowrap">
+                      <thead>
+                        <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                          <th className="text-left py-1 pr-3">#</th>
+                          <th className="text-left py-1 pr-3">SYMBOL</th>
+                          <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span><br/><span className="font-normal text-[8px] text-text-muted">SEC EDGAR EFTS</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tickers.map((t: any, i: number) => (
+                          <tr key={t.symbol} className="border-b border-border/50">
+                            <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                            <td className="py-1 pr-3 font-bold">{t.symbol}</td>
+                            <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
