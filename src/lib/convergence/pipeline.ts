@@ -1598,6 +1598,24 @@ export async function runPipeline(
         optionsFlowMap.set(symbol, flowData);
       }
 
+      onProgress?.({ step: 'step_q', label: 'Live Options Flow & GEX', data: {
+        fetched_at: new Date().toISOString(),
+        tickers_with_flow: chainResult.optionsFlowMap.size,
+        tickers: Array.from(chainResult.optionsFlowMap.entries()).map(([symbol, flow]) => ({
+          symbol,
+          put_call_ratio: flow?.put_call_ratio ?? null,
+          volume_bias: flow?.volume_bias ?? null,
+          unusual_activity_ratio: flow?.unusual_activity_ratio ?? null,
+          total_call_volume: flow?.total_call_volume ?? null,
+          total_put_volume: flow?.total_put_volume ?? null,
+          total_call_oi: flow?.total_call_oi ?? null,
+          total_put_oi: flow?.total_put_oi ?? null,
+          strikes_analyzed: flow?.strikes_analyzed ?? null,
+          source: 'TastyTrade',
+          endpoint: 'Greeks WebSocket',
+        })),
+      } });
+
       if (chainResult.optionsFlowMap.size > 0) {
         let flowReScored = 0;
         for (const ticker of scoredTickers) {
@@ -1647,6 +1665,20 @@ export async function runPipeline(
           }
         }
         console.log(`[Pipeline] Step G2.5: Re-scored ${flowReScored} tickers with real OptionsFlowData`);
+        onProgress?.({ step: 'step_r', label: 'Re-Score With Live Data', data: {
+          fetched_at: new Date().toISOString(),
+          flow_re_scored: flowReScored,
+          total: scoredTickers.length,
+          tickers: scoredTickers.map(ticker => ({
+            symbol: ticker.symbol,
+            composite: ticker.scoring?.composite.score ?? null,
+            vol_edge: ticker.scoring?.vol_edge.score ?? null,
+            info_edge: ticker.scoring?.info_edge.score ?? null,
+            has_flow_data: optionsFlowMap.has(ticker.symbol),
+            source: 'Steps L + Q',
+            endpoint: 'composite re-score',
+          })),
+        } });
       }
 
       console.log(`[Pipeline] Step G2: ${chainStats.chain_symbols_fetched} chains fetched, ${chainStats.total_trade_cards} trade cards in ${chainStats.elapsed_ms}ms`);
