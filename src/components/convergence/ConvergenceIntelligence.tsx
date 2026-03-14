@@ -2440,7 +2440,7 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                 {' '}by score move to Step I for full institutional data enrichment. Each ticker in Step I requires multiple Finnhub API calls — earnings history, insider activity, analyst ratings, SEC filings. We only run those calls on the highest-scoring candidates. The rest are ranked out — not rule-failed.
               </p>
               <p className="text-text-muted">
-                The calculation for every ticker is shown below. You can verify every number yourself. Step I hits 8 data sources simultaneously for each finalist.
+                The calculation for every ticker is shown below. You can verify every number yourself. Step I hits 17 data sources simultaneously for each finalist.
               </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
@@ -2661,16 +2661,23 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
               </p>
               <div className="grid grid-cols-1 gap-1 pt-1">
                 {[
-                  ['1. Earnings History', 'Finnhub — 46 quarters of actual vs estimated EPS. Beat rate tells you how often this company delivers on expectations. 85% beat rate is a very different risk than 40%.'],
-                  ['2. Analyst Ratings', 'Finnhub — Current Buy/Hold/Sell consensus from Wall Street analysts. 32 Buy ratings vs 0 Sell is a meaningful signal about institutional conviction.'],
-                  ['3. Insider Sentiment', 'Finnhub — MSPR score tracking whether company executives are net buying or net selling their own stock. Insiders know the company better than anyone. Net selling is a warning.'],
-                  ['4. News Sentiment', 'Finnhub — 7-day sentiment score across all recent news. Captures market narrative momentum that does not show up in price yet.'],
-                  ['5. Institutional Ownership', 'Finnhub — Number of institutional holders. High ownership means the stock is well-researched and widely held — reduces idiosyncratic risk.'],
-                  ['6. Earnings Quality Score', 'Finnhub — Measures whether reported earnings reflect real cash generation or accounting adjustments. High score means the profits are real.'],
-                  ['7. P/E Ratio', 'Finnhub — Price-to-earnings ratio. Used in peer comparison in Step H. Context for whether the stock is priced at a premium or discount vs peers.'],
-                  ['8. Revenue Breakdown', 'Finnhub — Segment-level revenue. Shows where the company actually makes its money.'],
-                  ['9. SEC Filings', 'SEC EDGAR — Confirms the company is current on regulatory filings. A company behind on SEC filings is a compliance risk.'],
-                  ['10. 10-K Business Description', 'SEC EDGAR — Plain-text description of what the company does. Used to assign peer groups when Finnhub peer data is insufficient.'],
+                  ['1. Earnings History', 'Finnhub /stock/earnings — 46 quarters of actual vs estimated EPS. Beat rate tells you how often this company delivers on expectations. 85% beat rate is a very different risk than 40%.'],
+                  ['2. Analyst Ratings', 'Finnhub /stock/recommendation — Current Buy/Hold/Sell consensus from Wall Street analysts. 32 Buy ratings vs 0 Sell is a meaningful signal about institutional conviction.'],
+                  ['3. Insider Sentiment', 'Finnhub /stock/insider-sentiment — MSPR score tracking whether company executives are net buying or net selling their own stock. Insiders know the company better than anyone. Net selling is a warning.'],
+                  ['4. News Sentiment', 'Finnhub company-news + classifier — 7-day sentiment score across all recent news. Captures market narrative momentum that does not show up in price yet.'],
+                  ['5. FinBERT ML Sentiment', 'Finnhub /stock/news-sentiment — Transformer-based sentiment model trained on financial text. Provides ML buzz and sentiment momentum scores.'],
+                  ['6. Institutional Ownership', 'Finnhub /stock/ownership — Number of institutional holders. High ownership means the stock is well-researched and widely held — reduces idiosyncratic risk.'],
+                  ['7. Earnings Quality Score', 'Finnhub /stock/earnings-quality-score — Measures whether reported earnings reflect real cash generation or accounting adjustments. High score means the profits are real.'],
+                  ['8. P/E Ratio', 'Finnhub /stock/metric — Price-to-earnings ratio. Used in peer comparison in Step H. Context for whether the stock is priced at a premium or discount vs peers.'],
+                  ['9. Revenue Breakdown', 'Finnhub /stock/revenue-breakdown — Segment-level revenue. Shows where the company actually makes its money.'],
+                  ['10. Quarterly Financials', 'Finnhub /stock/financials (bs/ic/cf) — Balance sheet, income statement, and cash flow for the most recent quarter. Foundation for quality scoring.'],
+                  ['11. EBITDA Estimates', 'Finnhub /stock/ebitda-estimate — Consensus EBITDA estimates by quarter. Shows analyst expectations for operating profitability before non-cash charges.'],
+                  ['12. EBIT Estimates', 'Finnhub /stock/ebit-estimate — Consensus EBIT estimates by quarter. Shows analyst expectations for operating income after depreciation.'],
+                  ['13. Dividend History', 'Finnhub /stock/dividend — 1 year of dividend history including ex-dates and amounts. Upcoming ex-dates affect options pricing and assignment risk.'],
+                  ['14. Price Metrics', 'Finnhub /stock/price-metric — 52-week high/low and price relative to key SMAs (10/20/50/100/200). Shows technical positioning and trend context.'],
+                  ['15. Fund Ownership', 'Finnhub /stock/fund-ownership — Top 10 fund holders by shares. Shows which mutual funds and ETFs hold significant positions.'],
+                  ['16. SEC Filings', 'SEC EDGAR — Confirms the company is current on regulatory filings (10-Q/10-K recency). A company behind on SEC filings is a compliance risk.'],
+                  ['17. SEC 8-K Scan', 'SEC EDGAR EFTS — Material event filings from the last 30 days. 8-Ks flag M&A, leadership changes, restatements — events that spike IV for a reason.'],
                 ].map(([source, explanation], i) => (
                   <div key={i} className="flex gap-2 py-1 border-b border-border/30">
                     <span className="text-text-primary font-bold w-56 shrink-0">{source}</span>
@@ -2710,6 +2717,14 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                     <th className="text-right py-1 pr-3">INST OWN<br/><span className="font-normal text-[9px]">holders</span></th>
                     <th className="text-right py-1 pr-3">EQ SCORE<br/><span className="font-normal text-[9px]">letter/score</span></th>
                     <th className="text-right py-1 pr-3">P/E</th>
+                    <th className="text-right py-1 pr-3">EBITDA EST<br/><span className="font-normal text-[9px]">count</span></th>
+                    <th className="text-left py-1 pr-3">DIV EX DATE<br/><span className="font-normal text-[9px]">next</span></th>
+                    <th className="text-right py-1 pr-3">52W HIGH</th>
+                    <th className="text-right py-1 pr-3">52W LOW</th>
+                    <th className="text-right py-1 pr-3">SMA50<br/><span className="font-normal text-[9px]">vs price</span></th>
+                    <th className="text-right py-1 pr-3">SMA200<br/><span className="font-normal text-[9px]">vs price</span></th>
+                    <th className="text-right py-1 pr-3">FUNDS<br/><span className="font-normal text-[9px]">count</span></th>
+                    <th className="text-right py-1 pr-3">8-K<br/><span className="font-normal text-[9px]">30d</span></th>
                     <th className="text-left py-1 pr-3">SOURCE</th>
                     <th className="text-left py-1 pr-3">ENDPOINTS</th>
                     <th className="text-left py-1 pr-3">FETCHED</th>
@@ -2757,8 +2772,16 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
                             : '—'}
                         </td>
                         <td className="py-1 pr-3 text-right">{t.pe_ratio != null ? t.pe_ratio.toFixed(1) : '—'}</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub</td>
-                        <td className="py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate">earnings·recommendations·insider-sentiment·metric·company-news·ownership·earnings-quality-score</td>
+                        <td className="py-1 pr-3 text-right">{t.ebitda_estimate_count != null ? t.ebitda_estimate_count : '—'}</td>
+                        <td className="py-1 pr-3 text-text-muted">{t.next_ex_date ?? '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.week52_high != null ? t.week52_high.toFixed(2) : '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.week52_low != null ? t.week52_low.toFixed(2) : '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.price_vs_sma50 == null ? 'text-text-muted' : t.price_vs_sma50 > 1 ? 'text-brand-green' : t.price_vs_sma50 < 1 ? 'text-brand-red' : 'text-text-muted'}`}>{t.price_vs_sma50 != null ? ((t.price_vs_sma50 - 1) * 100).toFixed(1) + '%' : '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.price_vs_sma200 == null ? 'text-text-muted' : t.price_vs_sma200 > 1 ? 'text-brand-green' : t.price_vs_sma200 < 1 ? 'text-brand-red' : 'text-text-muted'}`}>{t.price_vs_sma200 != null ? ((t.price_vs_sma200 - 1) * 100).toFixed(1) + '%' : '—'}</td>
+                        <td className="py-1 pr-3 text-right">{t.fund_count != null ? t.fund_count : '—'}</td>
+                        <td className={`py-1 pr-3 text-right font-bold ${t.edgar_8k_count != null && t.edgar_8k_count > 0 ? 'text-brand-red' : 'text-text-muted'}`}>{t.edgar_8k_count != null ? t.edgar_8k_count : '—'}</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px]">Finnhub · SEC</td>
+                        <td className="py-1 pr-3 text-text-muted text-[10px] max-w-[180px] truncate">earnings·recommendations·insider-sentiment·metric·company-news·ownership·earnings-quality·ebitda-estimate·ebit-estimate·dividend·price-metric·fund-ownership·sec-edgar·sec-8k</td>
                         <td className="py-1 pr-3 text-text-muted text-[10px]">{gFetchedTime}</td>
                         <td className="py-1 text-right text-text-muted text-[10px]">{gAgeSec}</td>
                       </tr>
