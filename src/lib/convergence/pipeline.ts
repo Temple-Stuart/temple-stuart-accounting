@@ -1308,10 +1308,10 @@ export async function runPipeline(
             score: scoring.info_edge.breakdown.flow_signal.score,
             weight: scoring.info_edge.breakdown.flow_signal.weight,
           },
-          news_sentiment: {
+          news_sentiment: scoring.info_edge.breakdown.news_sentiment != null ? {
             score: scoring.info_edge.breakdown.news_sentiment.score,
             weight: scoring.info_edge.breakdown.news_sentiment.weight,
-          },
+          } : null,
           institutional_ownership: {
             score: scoring.info_edge.breakdown.institutional_ownership.score,
             weight: scoring.info_edge.breakdown.institutional_ownership.weight,

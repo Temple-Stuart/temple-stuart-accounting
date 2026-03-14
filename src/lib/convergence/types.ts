@@ -275,7 +275,7 @@ export interface NewsSentimentData {
   source_distribution: Record<string, number>;
   tier1_ratio: number;
   headlines: NewsHeadlineEntry[];
-  classification_method: string; // 'llm-haiku' | 'keyword-fallback'
+  classification_method: string; // 'finnhub-native'
 }
 
 // ===== FINNHUB EARNINGS QUALITY (from /stock/earnings-quality-score endpoint) =====
@@ -921,7 +921,6 @@ export interface NewsSentimentTrace {
     ensemble_confidence_modifier: number; // +0.20, 0, -0.30
     leg_directions: {
       keyword: 'bullish' | 'bearish' | 'neutral' | null;
-      haiku: 'bullish' | 'bearish' | 'neutral' | null;
       finbert: 'bullish' | 'bearish' | 'neutral' | null;
     };
   };
@@ -964,7 +963,7 @@ export interface InfoEdgeResult {
     insider_activity: InsiderActivityTrace;
     earnings_momentum: EarningsMomentumTrace;
     flow_signal: FlowSignalTrace;
-    news_sentiment: NewsSentimentTrace;
+    news_sentiment: NewsSentimentTrace | null;
     institutional_ownership: InstitutionalOwnershipTrace;
   };
 }
