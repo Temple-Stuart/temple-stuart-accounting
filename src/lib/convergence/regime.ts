@@ -1,4 +1,4 @@
-import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations } from './types';
+import type { ConvergenceInput, RegimeResult, DataConfidence, CrossAssetCorrelations, FredMacroData } from './types';
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -474,10 +474,85 @@ function computeCrossAssetScoreAdjustment(
   };
 }
 
+// ===== ANCILLARY SIGNALS (audit-only, not yet wired into composite) =====
+
+interface AncillarySignal {
+  score: number | null;
+  raw_value: number | null;
+  formula?: string;
+}
+
+function computeAncillarySignals(macro: FredMacroData): {
+  bbb_spread_signal: AncillarySignal;
+  t10y3m_signal: AncillarySignal;
+  dollar_index_signal: AncillarySignal;
+  fed_net_liquidity_signal: AncillarySignal & { formula: string };
+} {
+  // 1. BBB credit spread — tighter = risk-on, wider = risk-off
+  let bbbScore: number | null = null;
+  if (macro.bbbSpread !== null) {
+    if (macro.bbbSpread < 1.0) bbbScore = 85;
+    else if (macro.bbbSpread < 1.5) bbbScore = 70;
+    else if (macro.bbbSpread < 2.0) bbbScore = 55;
+    else if (macro.bbbSpread < 3.0) bbbScore = 40;
+    else bbbScore = 20;
+  }
+
+  // 2. T10Y3M — 10Y-3M spread: steep = growth optimism, inverted = recession
+  let t10y3mScore: number | null = null;
+  if (macro.t10y3m !== null) {
+    if (macro.t10y3m > 1.5) t10y3mScore = 80;
+    else if (macro.t10y3m > 0.5) t10y3mScore = 65;
+    else if (macro.t10y3m > 0.0) t10y3mScore = 55;
+    else if (macro.t10y3m > -0.5) t10y3mScore = 40;
+    else t10y3mScore = 20;
+  }
+
+  // 3. Dollar index — strong dollar hurts risk assets
+  let dollarScore: number | null = null;
+  if (macro.dollarIndex !== null) {
+    if (macro.dollarIndex < 95) dollarScore = 75;
+    else if (macro.dollarIndex < 100) dollarScore = 60;
+    else if (macro.dollarIndex < 105) dollarScore = 50;
+    else if (macro.dollarIndex < 110) dollarScore = 40;
+    else dollarScore = 25;
+  }
+
+  // 4. Fed net liquidity = WALCL - WTREGEN - RRPONTSYD
+  let fedNetLiquidityScore: number | null = null;
+  let fedNetLiquidity: number | null = null;
+  if (
+    macro.fedBalanceSheet !== null &&
+    macro.treasuryGeneralAccount !== null &&
+    macro.overnightReverseRepo !== null
+  ) {
+    fedNetLiquidity = macro.fedBalanceSheet - macro.treasuryGeneralAccount - macro.overnightReverseRepo;
+    if (fedNetLiquidity > 5500) fedNetLiquidityScore = 75;
+    else if (fedNetLiquidity > 5000) fedNetLiquidityScore = 60;
+    else if (fedNetLiquidity > 4500) fedNetLiquidityScore = 50;
+    else if (fedNetLiquidity > 4000) fedNetLiquidityScore = 40;
+    else fedNetLiquidityScore = 25;
+  }
+
+  return {
+    bbb_spread_signal: { score: bbbScore, raw_value: macro.bbbSpread },
+    t10y3m_signal: { score: t10y3mScore, raw_value: macro.t10y3m },
+    dollar_index_signal: { score: dollarScore, raw_value: macro.dollarIndex },
+    fed_net_liquidity_signal: {
+      score: fedNetLiquidityScore,
+      raw_value: fedNetLiquidity,
+      formula: 'WALCL - WTREGEN - RRPONTSYD',
+    },
+  };
+}
+
 // ===== MAIN REGIME SCORER =====
 
 export function scoreRegime(input: ConvergenceInput): RegimeResult {
   const macro = input.fredMacro;
+
+  // Ancillary signals (audit-only breakdown, not wired into composite score)
+  const ancillary = computeAncillarySignals(macro);
 
   // Step A: Growth & Inflation signals
   const growth = computeGrowthSignal(input);
@@ -654,6 +729,10 @@ export function scoreRegime(input: ConvergenceInput): RegimeResult {
         },
         note: corrAdj.note,
       } : undefined,
+      bbb_spread_signal: ancillary.bbb_spread_signal,
+      t10y3m_signal: ancillary.t10y3m_signal,
+      dollar_index_signal: ancillary.dollar_index_signal,
+      fed_net_liquidity_signal: ancillary.fed_net_liquidity_signal,
     },
   };
 }

@@ -770,6 +770,10 @@ export interface RegimeResult {
       };
       note: string;
     };
+    bbb_spread_signal: { score: number | null; raw_value: number | null };
+    t10y3m_signal: { score: number | null; raw_value: number | null };
+    dollar_index_signal: { score: number | null; raw_value: number | null };
+    fed_net_liquidity_signal: { score: number | null; raw_value: number | null; formula: string };
   };
 }
 
