@@ -260,6 +260,8 @@ export async function GET(request: Request) {
     finnhubRevenueBreakdown: null, // Single-ticker route: fetched in pipeline batch mode
     secFilingData: null, // Single-ticker route: fetched in pipeline batch mode
     secForm4Data: null, // Single-ticker route: fetched in pipeline batch mode
+    finnhubFundOwnership: null, // Single-ticker route: not fetched
+    edgar8kScan: null, // Single-ticker route: not fetched
     crossAssetCorrelations,
   };
 
