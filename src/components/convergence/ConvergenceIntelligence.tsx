@@ -2825,14 +2825,86 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         )}
       </div>
 
-      {/* Step J — Candle Data & Cross-Asset Correlations (placeholder) */}
+      {/* Step J — Candle Data & Cross-Asset Correlations */}
       <div className="border-b border-border">
-        <div className="px-4 py-2 flex items-center gap-3">
-          <span className="text-brand-purple font-bold">STEP J</span>
-          <span className="text-text-secondary">Candle Data &amp; Cross-Asset Correlations</span>
-          <span className="text-text-muted">Fetches 90-day daily candles for all enriched tickers and computes cross-asset correlation cluster.</span>
-          <span className="text-text-muted ml-auto">⏳ Coming soon</span>
+        <div className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-bg-row" onClick={() => toggle('step_j')}>
+          <div className="flex items-center gap-3">
+            <span className="text-brand-purple font-bold">STEP J</span>
+            <span className="text-text-secondary">Candle Data &amp; Cross-Asset Correlations</span>
+            {progress?.step_j?.data ? (
+              <span className="text-brand-green">{progress.step_j.data.symbols_with_data} of {progress.step_j.data.symbols_requested} symbols have candle data</span>
+            ) : (
+              <span className="text-text-muted animate-pulse">waiting...</span>
+            )}
+          </div>
+          <span className="text-text-muted">{expanded['step_j'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_j'] && progress?.step_j?.data && (
+          <div className="border-t border-border bg-bg-row p-3">
+            <p className="text-text-muted text-xs font-bold mb-1">
+              {progress.step_j.data.total_candles} CANDLES — {progress.step_j.data.symbols_with_data}/{progress.step_j.data.symbols_requested} SYMBOLS — {progress.step_j.data.elapsed_ms}ms
+              {progress.step_j.data.symbols_failed > 0 && (
+                <span className="text-brand-red ml-2">⚠ {progress.step_j.data.symbols_failed} FAILED</span>
+              )}
+            </p>
+
+            {/* Section 1 — Per-ticker candle table */}
+            {(() => {
+              const jFetchedAt = progress?.step_j?.data?.fetched_at as string | undefined;
+              const jFetchedTime = jFetchedAt
+                ? new Date(jFetchedAt).toISOString().slice(11,19) + ' UTC'
+                : '—';
+              const jAgeSec = jFetchedAt
+                ? Math.round((Date.now() - new Date(jFetchedAt).getTime()) / 1000) + 's'
+                : '—';
+              const candlesPerSymbol = progress?.step_j?.data?.candles_per_symbol ?? [];
+              return (
+                <div className="overflow-x-auto overflow-y-auto" style={{maxHeight: '300px'}}>
+                  <table className="w-full text-xs whitespace-nowrap">
+                    <thead>
+                      <tr className="text-text-muted border-b border-border sticky top-0 bg-bg-card">
+                        <th className="text-left py-1 pr-3">#</th>
+                        <th className="text-left py-1 pr-3">SYMBOL</th>
+                        <th className="text-right py-1 pr-3">CANDLES</th>
+                        <th className="text-left py-1 pr-3">SOURCE</th>
+                        <th className="text-left py-1 pr-3">ENDPOINT</th>
+                        <th className="text-left py-1 pr-3">FETCHED</th>
+                        <th className="text-right py-1">AGE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candlesPerSymbol.map((c: any, i: number) => (
+                        <tr key={c.symbol} className="border-b border-border/50">
+                          <td className="py-1 pr-3 text-text-muted">{i+1}</td>
+                          <td className="py-1 pr-3 font-bold">{c.symbol}</td>
+                          <td className={`py-1 pr-3 text-right font-bold ${c.candle_count != null && c.candle_count > 0 ? 'text-brand-green' : 'text-text-muted'}`}>{c.candle_count != null ? c.candle_count : '—'}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{c.source}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{c.endpoint}</td>
+                          <td className="py-1 pr-3 text-text-muted text-[10px]">{jFetchedTime}</td>
+                          <td className="py-1 text-right text-text-muted text-[10px]">{jAgeSec}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            {/* Section 2 — Cross-asset correlations */}
+            <div className="mt-3 p-2 bg-bg-card rounded border border-border">
+              <p className="text-text-muted text-xs font-bold mb-1">CROSS-ASSET CORRELATIONS</p>
+              {progress.step_j.data.cross_asset_correlations?.available ? (
+                <p className="text-xs text-brand-green">
+                  Available — Source: {progress.step_j.data.cross_asset_correlations.source} | Endpoint: {progress.step_j.data.cross_asset_correlations.endpoint}
+                </p>
+              ) : (
+                <p className="text-xs text-brand-red">
+                  Not available — {progress.step_j.data.cross_asset_correlations?.null_reason ?? '—'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Step K — 4-Gate Scoring */}

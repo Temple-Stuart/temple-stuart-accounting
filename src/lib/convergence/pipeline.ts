@@ -1197,6 +1197,29 @@ export async function runPipeline(
     }
 
     console.log(`[Pipeline] Step F2: Fetched candles for ${candleStats.symbols_with_data}/${scoredSymbols.length} symbols (${candleStats.total_candles} candles) in ${candleStats.elapsed_ms}ms, re-scored ${reScored}`);
+
+    onProgress?.({ step: 'step_j', label: 'Candle Data & Cross-Asset Correlations', data: {
+      fetched_at: new Date().toISOString(),
+      symbols_requested: scoredSymbols.length,
+      symbols_with_data: candleStats.symbols_with_data,
+      symbols_failed: candleStats.symbols_failed,
+      total_candles: candleStats.total_candles,
+      elapsed_ms: candleStats.elapsed_ms,
+      candles_per_symbol: scoredSymbols.map(sym => ({
+        symbol: sym,
+        candle_count: candleDataMap.get(sym)?.length ?? null,
+        source: 'TastyTrade',
+        endpoint: 'candle',
+      })),
+      cross_asset_correlations: crossAssetCorrelations != null ? {
+        available: true,
+        source: 'FRED',
+        endpoint: 'daily series',
+      } : {
+        available: false,
+        null_reason: 'FRED daily series returned no data',
+      },
+    } });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     errors.push(`Step F2 (candle fetch): ${msg}`);
