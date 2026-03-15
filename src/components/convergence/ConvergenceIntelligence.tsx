@@ -2428,42 +2428,40 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_g'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step G re-scores all survivors on a richer formula than Step B. Step B used 2 data points to cut 500 stocks fast. Now we have {progress?.step_g?.data?.total ?? '?'} survivors and can be more precise.
+              <p className="text-text-muted italic text-xs">
+                Step G re-scores the survivors with a more precise formula now that the field is small enough to be exact. Same three signals as Step B but with different weights. The top scorers get the expensive institutional data pull in Steps H, I, and J.
               </p>
-              <div className="p-2 bg-bg-card rounded border border-border">
-                <p className="text-text-primary font-bold mb-1">The Formula:</p>
-                <p className="text-brand-gold font-mono">
-                  Pre-Score = (IV Rank × 40%) + (IV-HV Spread × 35%) + (Liquidity × 25%)
-                </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['IV Percentile', 'Step A', 'Step G scoring', 'Pre-score formula (40% weight)', 'More precise than IV Rank for a small pool — captures where current IV sits vs the full distribution', 'IV Percentile × 0.40'],
+                      ['IV-HV Spread', 'Step A', 'Step G scoring', 'Pre-score formula (30% weight)', 'Confirms premium exists. Lower weight than Step B because Step C already removed negative-spread tickers', 'Normalized spread × 0.30'],
+                      ['Liquidity Rating', 'Step A', 'Step G scoring', 'Pre-score formula (30% weight)', 'Higher weight than Step B — with hard filters done tradability is more critical to rank precisely', 'Rating/5 × 0.30'],
+                      ['Step G Score', 'Computed', 'Step G output', 'Steps H I J enrichment order', 'Determines which tickers get expensive data fetches first', 'All survivors advance but ranking matters for tie-breaking'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['IV Rank (40% weight)',
-                   'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. This is the primary signal — high percentile means there is premium to sell.'],
-                  ['IV-HV Spread (35% weight)',
-                   'The difference between Implied Volatility (what the market expects) and Historical Volatility (what actually happened). When IV is much higher than HV, options are overpriced relative to realized movement. That gap is the edge we are selling.'],
-                  ['Liquidity Rating (25% weight)',
-                   'TastyTrade\'s 1-5 score for how tradeable the options are. Weighted lower here because Step E already eliminated the worst offenders. Still required — a great IV setup is worthless if you can\'t execute the trade.'],
-                ].map(([field, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-56 shrink-0">
-                      {field}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-text-muted">
-                The top{' '}
-                <span className="text-text-primary font-bold">{progress?.step_g?.data?.candidates ?? 18}</span>
-                {' '}by score move to Step I for full institutional data enrichment. Each ticker in Step I requires multiple Finnhub API calls — earnings history, insider activity, analyst ratings, SEC filings. We only run those calls on the highest-scoring candidates. The rest are ranked out — not rule-failed.
-              </p>
-              <p className="text-text-muted">
-                The calculation for every ticker is shown below. You can verify every number yourself. Step I hits 17 data sources simultaneously for each finalist.
-              </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               ALL {progress?.step_g?.data?.total ?? '—'} SURVIVORS RANKED — TOP {progress?.step_g?.data?.candidates ?? 18} SELECTED FOR ENRICHMENT
@@ -2544,6 +2542,51 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           </div>
           <span className="text-text-muted">{expanded['step_h'] ? '▲' : '▼'}</span>
         </div>
+        {expanded['step_h'] && (
+          <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step H pulls all macro data from FRED in a single batch. This is market-wide data — not per ticker. It tells us what the economic environment looks like right now. The Regime gate in Step K reads all of this to classify the current regime and adjust the scoring weights.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['VIX / VIX3M', 'FRED VIXCLS / VXVCLS', 'Step H fetch', 'Step K Regime gate, Vol Edge gate', 'VIX measures market fear. Term structure slope tells us whether vol is in contango or backwardation', 'Slope <1 = contango = favorable for vol selling. Slope >1 = caution'],
+                      ['VVIX', 'FRED VVIXCLS', 'Step H fetch', 'Step K Vol Edge gate', 'Volatility of volatility. Elevated VVIX means the vol surface is unstable — bad for premium selling', 'High VVIX reduces Vol Edge scores'],
+                      ['Fed Funds Rate', 'FRED FEDFUNDS', 'Step H fetch', 'Step K Regime gate, Black-Scholes PoP', 'Risk-free rate used in options pricing. Also signals monetary policy stance', 'Used as risk-free rate in N(d2) PoP calculation on the trade card'],
+                      ['Yield Curve (10Y-2Y, 10Y-3M)', 'FRED T10Y2Y / T10Y3M', 'Step H fetch', 'Step K Regime gate', 'Inverted yield curve signals recession risk. Affects regime classification', 'Inversion detected = regime shifts toward Deflation or Stagflation'],
+                      ['CPI / Inflation', 'FRED CPIAUCSL', 'Step H fetch', 'Step K Regime gate', 'Inflation level determines whether we are in Goldilocks, Reflation, or Stagflation', 'High CPI + low growth = Stagflation weights applied'],
+                      ['HY / BBB Credit Spread', 'FRED BAMLH0A0HYM2 / BAMLC0A4CBBB', 'Step H fetch', 'Step K Regime gate', 'Credit stress is a leading indicator of market risk. Widening spreads signal deteriorating conditions', 'Spread above threshold shifts regime toward Crisis or Stagflation'],
+                      ['Fed Net Liquidity', 'Computed: WALCL − WTREGEN − RRPONTSYD', 'Step H computation', 'Step K Regime gate', 'Net liquidity in the system drives risk asset performance. Tightening liquidity is bearish for vol selling', 'Declining net liquidity reduces Regime gate scores'],
+                      ['Dollar Index', 'FRED DTWEXBGS', 'Step H fetch', 'Step K Regime gate', 'Strong dollar tightens global financial conditions. Risk-off signal', 'Dollar above threshold shifts Regime gate scores down'],
+                      ['GDP / Unemployment / NFP', 'FRED GDPC1 / UNRATE / PAYEMS', 'Step H fetch', 'Step K Regime gate', 'Core growth signals. Determine whether we are in expansion or contraction', 'Low growth + high unemployment = Deflation or Stagflation classification'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
         {expanded['step_h'] && progress?.step_h?.data && (() => {
           const hd = progress.step_h.data;
           const series = (hd.series ?? []) as { name: string; key: string; value: number | null; source: string; series_id: string; null_reason: string | null }[];
