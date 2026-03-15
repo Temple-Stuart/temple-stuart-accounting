@@ -3296,6 +3296,43 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_l'] && progress?.step_l?.data && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step K scored without technical indicators because candle computation runs separately. Step L plugs them in. RSI, Bollinger Bands, moving averages, and volume ratio are computed from the Step J candle data and added to the Vol Edge gate.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['RSI (14-day)', 'Step J candles', 'Step L computation', 'Vol Edge technicals sub-score (25% of technicals)', 'Oversold conditions historically coincide with elevated VRP — best premium selling setups', 'Low RSI = higher technicals score'],
+                      ['SMA20 / SMA50 trend', 'Step J candles', 'Step L computation', 'Vol Edge technicals sub-score (25% of technicals)', 'Price vs moving average tells us trend direction and momentum', 'Price below both SMAs = lower technicals score'],
+                      ['Bollinger Band position', 'Step J candles', 'Step L computation', 'Vol Edge technicals sub-score (20% of technicals)', 'Measures where price sits within its recent range', 'Near midline = neutral. Near band = directional pressure'],
+                      ['Volume ratio (5d/20d)', 'Step J candles', 'Step L computation', 'Vol Edge technicals sub-score (15% of technicals)', 'Elevated volume confirms price moves. Low volume signals weak conviction', 'High volume ratio = higher technicals score'],
+                      ['52-week high ratio', 'Step A / Step I fundamentals', 'Step L computation', 'Vol Edge technicals sub-score (15% of technicals)', 'Price proximity to 52-week high is a documented momentum signal', 'Near 52-week high = elevated score'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {(() => {
               const lFetchedAt = (progress.step_l.data as any).fetched_at as string | undefined;
               const lFetchedTime = lFetchedAt
@@ -3374,6 +3411,43 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_m'] && progress?.step_m?.data && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step M applies three final rules and produces the diversified set of finalists. Raw scores alone do not produce a tradeable set. Sector concentration increases correlated risk. Quality floors protect against bad setups.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Convergence gate (3/4 above 50)', 'Step K gate scores', 'Step M filter', 'Final selection Rule 1', 'One strong gate is not a convergent trade. All four gates must broadly agree', 'Fewer than 3 gates above 50 = eliminated'],
+                      ['Quality floor (≥40)', 'Step K Quality gate', 'Step M filter', 'Final selection Rule 2', 'High IV on a deteriorating company is a warning not an edge', 'Quality below 40 = eliminated'],
+                      ['Earnings miss streak', 'Step I earnings history', 'Step M filter', 'Final selection Rule 2 extended', 'Quality 40–50 with 3+ consecutive misses = structurally weak company', 'Eliminated even if quality score is borderline passing'],
+                      ['Sector cap (max 2)', 'Step A sector data', 'Step M filter', 'Final selection Rule 3', 'Maximum 2 tickers per sector. Concentration increases correlated risk', 'Third ticker in a sector deferred. Cap relaxed only if no uncapped alternatives exist'],
+                      ['Adjustments log', 'Computed', 'Step M output', 'Displayed in UI', 'Full audit trail of every promotion demotion and cap relaxation', 'Every decision documented with symbol rank composite and reason'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {(() => {
               const md = progress.step_m.data as any;
 
