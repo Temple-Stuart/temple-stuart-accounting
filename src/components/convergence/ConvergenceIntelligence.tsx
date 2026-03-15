@@ -1590,48 +1590,44 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_a'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step A pulls from two sources:
+              <p className="text-text-muted italic text-xs">
+                Step A pulls live market data on every ticker in the universe. This is the raw material — nothing here is estimated. Every number comes directly from TastyTrade. The two columns that matter most are IV Rank and IV-HV Spread — those two drive the ranking in Step B.
               </p>
-              <p className="text-text-muted">
-                <span className="text-text-primary font-bold">Source 1 — Wikipedia:</span>
-                {' '}The {({sp500:'S&P 500',nasdaq100:'Nasdaq 100',russell2000:'Russell 2000',sp400:'S&P 400 MidCap',dow30:'Dow Jones (30)',sp600:'S&P 600 SmallCap',wilshire5000:'Wilshire 5000',msciusa:'MSCI USA',russell1000:'Russell 1000'} as Record<string,string>)[universe ?? ''] ?? universe ?? ''} constituent list. This gives us the exact {progress?.step_a?.data?.total_universe ?? progress?.step_a?.data?.symbols?.length ?? '?'} ticker symbols that make up the index.
-              </p>
-              <p className="text-text-muted">
-                <span className="text-text-primary font-bold">Source 2 — TastyTrade API:</span>
-                {' '}Those {progress?.step_a?.data?.total_universe ?? progress?.step_a?.data?.symbols?.length ?? '?'} symbols are sent to TastyTrade, which returns 15 live data points on each one. Nothing estimated.
-              </p>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['IV Rank', 'Is this stock\'s options pricing high or low vs the past year? High rank means options are expensive right now.'],
-                  ['IV Percentile', 'Same idea as IV rank but calculated differently. Confirms the signal.'],
-                  ['Implied Volatility (IV30)', 'What the market is forecasting this stock will move over the next 30 days.'],
-                  ['Historical Volatility 30-day', 'What it actually moved over the last 30 days.'],
-                  ['Historical Volatility 60-day', 'What it actually moved over the last 60 days.'],
-                  ['Historical Volatility 90-day', 'What it actually moved over the last 90 days.'],
-                  ['Liquidity Rating', 'TastyTrade\'s 1-5 score for how easy this stock\'s options are to trade. Low score means wide spreads — you lose money just getting in and out.'],
-                  ['Earnings Date', 'When is the next earnings report?'],
-                  ['Days Till Earnings', 'How many days away is that report?'],
-                  ['Borrow Rate', 'How expensive is it to short this stock? High borrow rate means short squeeze risk.'],
-                  ['Lendability', 'Is this stock easy, medium, or hard to borrow?'],
-                  ['Sector', 'What industry is this company in?'],
-                  ['Market Cap', 'How big is the company?'],
-                  ['Beta', 'How much does this stock move relative to the overall market?'],
-                  ['SPY Correlation', 'How closely does this stock follow the S&P 500?'],
-                ].map(([field, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-48 shrink-0">
-                      {i+1}. {field}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['IV Rank', 'TastyTrade market-metrics', 'Step A fetch', 'Step B pre-score formula (40% weight)', 'Measures how expensive options are right now vs the past year. High rank = options priced at a premium', 'Higher IV Rank → higher pre-score → more likely to make the cut'],
+                      ['IV-HV Spread', 'TastyTrade market-metrics', 'Step A fetch', 'Step B (35% weight), Step C exclusion', 'If realized vol exceeds implied vol there is no premium to sell. This is the core vol edge signal', 'Negative spread = instant exclusion in Step C. Positive spread = edge exists'],
+                      ['Liquidity Rating', 'TastyTrade market-metrics', 'Step A fetch', 'Step B (25% weight), Step C exclusion, Step E filter', 'Wide bid-ask spreads destroy profit before you make a trade. Must be 2/5 or higher to proceed', 'Below 2/5 = excluded in Step C'],
+                      ['IV30', 'TastyTrade market-metrics', 'Step A fetch', 'Step E filter (must exist), Step F peer z-score', 'If IV data does not exist we cannot price options. Also used to compare each stock against its peers', 'Missing IV30 = hard eliminated in Step E'],
+                      ['Earnings Date / DTE', 'TastyTrade market-metrics', 'Step A fetch', 'Step C warning flag, Step E filter', 'IV spikes before earnings then collapses after. Entering a trade into earnings destroys the edge', 'Within 7 days = eliminated in Step E'],
+                      ['Borrow Rate', 'TastyTrade market-metrics', 'Step A fetch', 'Step E filter', 'High borrow rate = short squeeze risk. Violent price spikes break option pricing models', 'Above 50% = eliminated in Step E'],
+                      ['Market Cap', 'TastyTrade market-metrics', 'Step A fetch', 'Step E filter', 'Small companies have thin options markets — wide spreads, low open interest, hard to exit', 'Below $2B = eliminated in Step E'],
+                      ['Beta / SPY Correlation', 'TastyTrade market-metrics', 'Step A fetch', 'Step K Regime gate (SPY correlation modifier)', 'Tells us how closely this stock follows the market. High correlation amplifies regime signals', 'SPY correlation multiplied against base regime score in Step K'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-text-muted pt-1">
-                Step B uses all 15 to make the first cut.
-              </p>
             </div>
             {/* Symbol table — two-tier design */}
             {(() => {
@@ -1782,41 +1778,40 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_b'] && progress?.step_b && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step B scores every ticker from Step A using three data points: IV Rank, IV-HV Spread, and Liquidity Rating.
+              <p className="text-text-muted italic text-xs">
+                Step B scores every ticker using only the data we already have from Step A. No new API calls. Three signals go in, one score comes out. This step ranks — it does not eliminate.
               </p>
-              <div className="p-2 bg-bg-card rounded border border-border">
-                <p className="text-text-primary font-bold mb-1">The Formula:</p>
-                <p className="text-brand-gold font-mono">
-                  Pre-Score = (IV Rank × 40%) + (IV-HV Spread × 35%) + (Liquidity Rating × 25%)
-                </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['IV Rank', 'Step A', 'Step B scoring', 'Pre-score formula (40% weight)', 'Highest weight because elevated IV rank is the primary condition for selling premium', 'IV Rank × 0.40 → contributes up to 40 points'],
+                      ['IV-HV Spread', 'Step A', 'Step B scoring', 'Pre-score formula (35% weight)', 'Confirms the premium is real — if realized vol exceeds implied vol there is nothing to sell', 'Normalized spread/30, clamped 0–1, × 0.35 → contributes up to 35 points'],
+                      ['Liquidity Rating', 'Step A', 'Step B scoring', 'Pre-score formula (25% weight)', 'A great vol setup is worthless if you cannot execute the trade at a fair price', 'Rating/5 × 0.25 → contributes up to 25 points'],
+                      ['Pre-Score', 'Computed', 'Step B output', 'Step D Top-N cutoff', 'Single number summarizing vol selling opportunity per ticker', 'Top scorers advance to Step E. Everyone else is ranked out'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['IV Rank (40% weight)',
-                   'How elevated is this stock\'s options pricing vs its own history? 100 means options are at their most expensive point of the past year. Weighted highest because high percentile is the core condition for selling premium.'],
-                  ['IV-HV Spread (35% weight)',
-                   'Is implied vol actually higher than realized vol? This is the vol edge signal — if IV ≤ HV there is no premium to sell. Normalized: spread/30, clamped 0–1.'],
-                  ['Liquidity Rating (25% weight)',
-                   'Can we actually trade this stock\'s options without losing money on the spread? A great IV setup is useless if the bid-ask spread eats your profit.'],
-                ].map(([field, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-56 shrink-0">
-                      {i+1}. {field}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-text-muted">
-                <span className="text-brand-red font-bold">Eliminated immediately:</span>
-                {' '}Any stock missing IV-HV spread data, with IV-HV spread ≤ 0 (no vol premium), missing or zero IV percentile, missing liquidity rating, or with liquidity below 2/5.
-              </p>
-              <p className="text-text-muted">
-                Every remaining ticker gets a Pre-Score. The math is shown in the table below — you can verify every number yourself. Step D uses these scores to narrow the field.
-              </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               ALL TICKERS SCORED ({(progress?.step_b?.data?.tickers as any[] ?? []).length}){/* eslint-disable-line @typescript-eslint/no-explicit-any */}
@@ -1904,25 +1899,38 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_c'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Two binary exclusions applied before Top-N selection. Any ticker failing either rule is removed immediately — no partial credit.
+              <p className="text-text-muted italic text-xs">
+                Step C applies two instant disqualifiers. No partial credit. If a ticker fails either rule it is gone. This step eliminates — it does not score.
               </p>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['Rule 1 — No vol premium',
-                   'IV-HV spread must be > 0. If realized volatility exceeds implied volatility there is no premium to sell. Tickers with spread ≤ 0 or null are excluded.'],
-                  ['Rule 2 — Minimum liquidity',
-                   'Liquidity rating must be ≥ 2/5. Below this threshold options are untradeable — bid-ask spreads eat all profit.'],
-                ].map(([rule, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-56 shrink-0">
-                      {rule}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['IV-HV Spread', 'Step A', 'Step C exclusion', 'Hard exclusion rule', 'If realized vol exceeds implied vol there is no premium to sell — the edge does not exist', 'Spread ≤ 0 = eliminated immediately'],
+                      ['Liquidity Rating', 'Step A', 'Step C exclusion', 'Hard exclusion rule', 'Below 2/5 the bid-ask spread eats all profit before the trade makes a dollar', 'Rating < 2/5 = eliminated immediately'],
+                      ['Earnings proximity', 'Step A', 'Step C flag', 'Warning passed to Step E', 'Earnings within 3 days flagged for visibility — Step E enforces the hard 7-day rule', 'Not eliminated here — passed forward with warning'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
