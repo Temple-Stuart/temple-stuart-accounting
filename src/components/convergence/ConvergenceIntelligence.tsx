@@ -3775,34 +3775,43 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_p'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
-            {/* IV Rank tier system */}
-            <div className="space-y-2 mb-3">
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank above 50%</span> → premium selling strategies (Iron Condor, Put Credit Spread, Short Strangle).
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                With live Greeks in hand we build actual trade structures and run them through three quality gates. Every expiration is evaluated. The highest-scoring strategy that passes all three gates becomes the recommendation.
               </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank 20–50%</span> → neutral strategies (Iron Condor, Put Credit Spread, Bull Call Spread).
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">IV Rank below 20%</span> → debit strategies (Long Straddle, Long Strangle, Debit Spread).
-              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Expected Value (EV)', 'Step O Greeks + computed probabilities', 'Step P Gate A', 'Gate A — must be positive', 'A trade with negative expected value loses money on average regardless of short-term outcomes', 'Negative EV = eliminated'],
+                      ['Probability of Profit', 'Step O Greeks, N(d2) method', 'Step P Gate B', 'Gate B — floor by strategy type', 'Iron Condor ≥50%, Put Credit Spread ≥55%, Short Strangle ≥60%', 'Below floor = eliminated'],
+                      ['Net credit collected', 'Step O bid/ask', 'Step P Gate C', 'Gate C — must be ≥$0.10/share', 'Collecting less than $0.10 means the edge is too thin to survive friction costs', 'Below $0.10 = eliminated'],
+                      ['Strategy score', 'Computed: EV/Risk×50% + Theta Efficiency×30% + Edge Ratio×20%', 'Step P ranking', 'Winner selection per expiration', 'Ranks surviving strategies. Highest score = Strategy A on the trade card', 'Determines which strategy is recommended'],
+                      ['xAI social sentiment', 'xAI Grok API', 'Step P fetch (parallel)', 'Trade card For/Against section', 'Real-time social signal from Reddit Twitter and financial forums', 'Bullish sentiment adds to For column. Bearish adds to Against'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            {/* Gate explanations */}
-            <div className="space-y-2 mb-3">
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate A:</span> Strategy must have positive expected value. EV = P(full profit) × max profit + P(partial) × midpoint + P(full loss) × max loss.
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate B:</span> Probability of profit must meet strategy-specific floor. Iron Condor ≥ 50%. Put Credit Spread ≥ 55%. Short Strangle ≥ 60%. Uses N(d2) breakeven method where available.
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Gate C:</span> Credit strategies must collect at least $0.10/share. Debit strategies skip this gate.
-              </p>
-            </div>
-            {/* Scoring formula */}
-            <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              <span className="font-bold text-text-primary">Survivors ranked by:</span> (EV/Risk × 50%) + (Theta Efficiency × 30%) + (Edge Ratio × 20%). Highest score = Strategy A.
-            </p>
             {/* Per-ticker table */}
             {kData?.tickers && (() => {
               const pFetchedAt = kData.fetched_at ? new Date(kData.fetched_at as string) : null;
@@ -3868,6 +3877,43 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_q'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step Q computes live options flow and dealer positioning from the real chain data. These signals replace the estimates used in Steps K and L when Step R re-scores.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Put/Call Ratio (PCR)', 'Step O OI data', 'Step Q computation', 'Step R re-score, Info Edge gate', 'PCR above 1.0 = more put activity than calls = bearish positioning or hedging demand', 'High PCR feeds into flow signal sub-score'],
+                      ['Volume Bias', 'Step O volume data', 'Step Q computation', 'Step R re-score, Info Edge gate', 'Call vs put volume dominance today. Identifies directional flow', 'Positive bias = call-heavy = bullish. Negative = put-heavy'],
+                      ['Unusual Activity Ratio', 'Step O volume vs OI', 'Step Q computation', 'Step R re-score, Info Edge gate', 'Flags volume spikes relative to open interest — institutional activity signal', 'High ratio = unusual positioning that may signal informed trading'],
+                      ['Live GEX', 'Step O OI × Gamma per strike', 'Step Q computation', 'Step R re-score, Vol Edge gate', 'Net gamma exposure tells us whether dealer hedging is suppressing or amplifying volatility', 'Positive GEX = vol suppression = favorable for selling. Negative = vol amplification = avoid'],
+                      ['Zero-gamma flip point', 'Step Q GEX computation', 'Step Q output', 'Trade card risk flags', 'Price level where dealer hedging flips from stabilizing to destabilizing', 'Distance to flip shown on trade card'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {qData?.tickers && (() => {
               const qFetchedAt = qData.fetched_at ? new Date(qData.fetched_at as string) : null;
               const qFetchedTime = qFetchedAt ? qFetchedAt.toLocaleTimeString() : '—';
