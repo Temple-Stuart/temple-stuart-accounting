@@ -2913,6 +2913,40 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_j'] && progress?.step_j?.data && (
           <div className="border-t border-border bg-bg-row p-3">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step J fetches price history for every finalist. This candle data powers the technical indicators in Step L and the realized volatility cone on the trade card. Cross-asset correlations are also computed here and feed into the Regime gate.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['90-day daily candles (OHLCV)', 'TastyTrade candle API', 'Step J fetch', 'Step L technicals computation, trade card vol cone', 'Technical indicators require historical price data. Vol cone requires daily close history', 'Powers RSI, SMA, Bollinger, volume ratio, HV10/20/30/60/90'],
+                      ['Cross-asset correlations', 'FRED daily series', 'Step J computation', 'Step K Regime gate cluster modifier', 'Correlation cluster tells us whether markets are risk-on or risk-off right now', 'Adjusts Regime gate score up or down based on cluster signal'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               {progress.step_j.data.total_candles} CANDLES — {progress.step_j.data.symbols_with_data}/{progress.step_j.data.symbols_requested} SYMBOLS — {progress.step_j.data.elapsed_ms}ms
               {progress.step_j.data.symbols_failed > 0 && (
@@ -2996,79 +3030,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_k'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step K scores every finalist 0–100 across 4 independent gates. Each gate asks a different question. The final score is a weighted average of all 4.
+              <p className="text-text-muted italic text-xs">
+                Step K scores every finalist 0 to 100 across four independent gates. Each gate looks at the stock from a completely different angle. The final score is a weighted average of all four. The weights shift based on the current macro regime.
               </p>
-              {/* 4 Gates explained */}
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['Vol Edge', 'Are the options mispriced? Measures IV vs Historical Volatility, term structure slope, and volatility risk premium. This is the core premium-selling signal.'],
-                  ['Quality', 'Is this a safe company to sell premium on? Measures profitability, Piotroski F-Score, Altman Z-Score, and earnings quality. High IV on a company about to go bankrupt is not an edge — it is a trap.'],
-                  ['Regime', 'What is the current macro environment? Reads 14 FRED data series — VIX, 10Y Treasury, Fed Funds rate, high yield spreads. Detects one of 5 regimes: Goldilocks, Reflation, Deflation, Stagflation, or Crisis.'],
-                  ['Info Edge', 'What are insiders, analysts, and institutions signaling? Reads insider MSPR, analyst Buy/Hold/Sell consensus, 7-day news sentiment, and institutional ownership count.'],
-                ].map(([gate, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-24 shrink-0">{gate}</span>
-                    <span className="text-text-muted">{explanation}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Regime weight table */}
-              <div>
-                <p className="text-text-primary font-bold mb-2">Gate Weights by Regime:</p>
-                <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
                   <thead>
-                    <tr className="text-text-muted border-b border-border">
-                      <th className="text-left py-1 pr-3">REGIME</th>
-                      <th className="text-right py-1 pr-3">VOL EDGE</th>
-                      <th className="text-right py-1 pr-3">QUALITY</th>
-                      <th className="text-right py-1 pr-3">REGIME</th>
-                      <th className="text-right py-1 pr-3">INFO EDGE</th>
-                      <th className="text-left py-1 pl-3">WHY</th>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      ['GOLDILOCKS', '30%', '20%', '20%', '30%', 'Bull market — vol + info signals dominate'],
-                      ['REFLATION', '30%', '20%', '25%', '25%', 'Recovery — vol edge as opportunity, regime confirms'],
-                      ['DEFLATION', '20%', '35%', '25%', '20%', 'Contraction — quality critical to avoid blowups'],
-                      ['STAGFLATION', '20%', '30%', '30%', '20%', 'Hardest to trade — regime + quality paramount'],
-                      ['CRISIS', '15%', '40%', '30%', '15%', 'Quality paramount — vol surface unreliable'],
-                    ].map(([regime, ve, q, r, ie, why]) => {
-                      const isCurrent = progress?.step_k?.data?.regime === regime;
-                      return (
-                        <tr key={regime} className={`border-b border-border/30 ${isCurrent ? 'bg-brand-gold/10' : ''}`}>
-                          <td className={`py-1 pr-3 font-bold ${isCurrent ? 'text-brand-gold' : 'text-text-muted'}`}>{isCurrent ? '▶ ' : ''}{regime}</td>
-                          <td className="py-1 pr-3 text-right">{ve}</td>
-                          <td className="py-1 pr-3 text-right">{q}</td>
-                          <td className="py-1 pr-3 text-right">{r}</td>
-                          <td className="py-1 pr-3 text-right">{ie}</td>
-                          <td className="py-1 pl-3 text-text-muted">{why}</td>
-                        </tr>
-                      );
-                    })}
+                      ['Vol Edge gate', 'Steps A and J candles', 'Step K scoring', 'Composite score — weight varies by regime', 'Are the options mispriced? Measures HV-IV spread, IVP, VRP, term structure, technicals, skew, GEX', 'Primary signal for vol selling opportunity'],
+                      ['Quality gate', 'Step I Finnhub fundamentals', 'Step K scoring', 'Composite score — weight varies by regime', 'Is this a safe company? Piotroski F-score, Altman Z-score, profitability, earnings quality', 'High IV on a deteriorating company is a warning not an edge'],
+                      ['Regime gate', 'Step H FRED macro data', 'Step K scoring', 'Composite score — weight varies by regime', 'Does the macro environment support this trade right now? Detects Goldilocks, Reflation, Deflation, Stagflation, Crisis', 'Wrong regime = reduced composite score regardless of other gates'],
+                      ['Info Edge gate', 'Step I Finnhub and SEC data', 'Step K scoring', 'Composite score — weight varies by regime', 'What are insiders, analysts, institutions, and news signaling?', 'Confirms or contradicts the vol signal with real-world intelligence'],
+                      ['Regime classification', 'Step H FRED', 'Step K weight adjustment', 'Gate weight table', 'Current regime determines how much each gate contributes to the composite', 'Stagflation = Quality and Regime weighted higher. Goldilocks = Vol Edge and Info Edge weighted higher'],
+                      ['Convergence requirement', 'Computed', 'Step K output', 'Step M final selection', '3 of 4 gates must score above 50. One strong gate is not enough', 'Enforces multi-dimensional agreement before any trade is recommended'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-              </div>
-              {/* Current weights */}
-              {progress?.step_k?.data?.weights && (
-                <div className="p-2 bg-bg-card rounded border border-border">
-                  <p className="text-text-primary font-bold mb-1">
-                    Current weights (regime: <span className="text-brand-gold">{progress.step_k.data.regime as string}</span>):
-                  </p>
-                  <p className="text-brand-gold font-mono">
-                    Composite = (Vol Edge × {(progress.step_k.data.weights as any).vol_edge}%) + (Quality × {(progress.step_k.data.weights as any).quality}%) + (Regime × {(progress.step_k.data.weights as any).regime}%) + (Info Edge × {(progress.step_k.data.weights as any).info_edge}%)
-                  </p>
-                </div>
-              )}
-              <div className="space-y-1">
-                <p className="text-text-muted">
-                  <span className="text-text-primary font-bold">Convergence requirement:</span>
-                  {' '}3 or more gates must score above 50. A ticker with only 1 strong gate is not a convergent trade — something else is wrong with it.
-                </p>
-                <p className="text-text-muted">
-                  The calculation for every ticker is shown below. Green gate = above 50. Red gate = below 50. Step S applies the final selection rules.
-                </p>
               </div>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
