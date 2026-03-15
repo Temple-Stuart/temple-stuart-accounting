@@ -2717,42 +2717,49 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_i'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step I pulls institutional-grade data on each of the top{' '}
-                {progress?.step_i?.data?.tickers?.length ?? 18} finalists. IV rank tells you options are expensive. It does not tell you WHY. This step answers that question.
+              <p className="text-text-muted italic text-xs">
+                Step I is the most expensive step. Multiple data sources per ticker. The question it answers is: why is IV elevated? A high IV rank tells you options are expensive. It does not tell you whether that is an opportunity or a warning. This step finds out.
               </p>
-              <p className="text-text-muted">
-                Is this company about to miss earnings? Are insiders selling? Are analysts downgrading it? That context changes everything. A high IV with strong fundamentals is a very different trade than a high IV with insiders dumping shares.
-              </p>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['1. Earnings History', 'Finnhub /stock/earnings — 46 quarters of actual vs estimated EPS. Beat rate tells you how often this company delivers on expectations. 85% beat rate is a very different risk than 40%.'],
-                  ['2. Analyst Ratings', 'Finnhub /stock/recommendation — Current Buy/Hold/Sell consensus from Wall Street analysts. 32 Buy ratings vs 0 Sell is a meaningful signal about institutional conviction.'],
-                  ['3. Insider Sentiment', 'Finnhub /stock/insider-sentiment — MSPR score tracking whether company executives are net buying or net selling their own stock. Insiders know the company better than anyone. Net selling is a warning.'],
-                  ['4. News Sentiment', 'Finnhub company-news + classifier — 7-day sentiment score across all recent news. Captures market narrative momentum that does not show up in price yet.'],
-                  ['5. FinBERT ML Sentiment', 'Finnhub /stock/news-sentiment — Transformer-based sentiment model trained on financial text. Provides ML buzz and sentiment momentum scores.'],
-                  ['6. Institutional Ownership', 'Finnhub /stock/ownership — Number of institutional holders. High ownership means the stock is well-researched and widely held — reduces idiosyncratic risk.'],
-                  ['7. Earnings Quality Score', 'Finnhub /stock/earnings-quality-score — Measures whether reported earnings reflect real cash generation or accounting adjustments. High score means the profits are real.'],
-                  ['8. P/E Ratio', 'Finnhub /stock/metric — Price-to-earnings ratio. Used in peer comparison in Step H. Context for whether the stock is priced at a premium or discount vs peers.'],
-                  ['9. Revenue Breakdown', 'Finnhub /stock/revenue-breakdown — Segment-level revenue. Shows where the company actually makes its money.'],
-                  ['10. Quarterly Financials', 'Finnhub /stock/financials (bs/ic/cf) — Balance sheet, income statement, and cash flow for the most recent quarter. Foundation for quality scoring.'],
-                  ['11. EBITDA Estimates', 'Finnhub /stock/ebitda-estimate — Consensus EBITDA estimates by quarter. Shows analyst expectations for operating profitability before non-cash charges.'],
-                  ['12. EBIT Estimates', 'Finnhub /stock/ebit-estimate — Consensus EBIT estimates by quarter. Shows analyst expectations for operating income after depreciation.'],
-                  ['13. Dividend History', 'Finnhub /stock/dividend — 1 year of dividend history including ex-dates and amounts. Upcoming ex-dates affect options pricing and assignment risk.'],
-                  ['14. Price Metrics', 'Finnhub /stock/price-metric — 52-week high/low and price relative to key SMAs (10/20/50/100/200). Shows technical positioning and trend context.'],
-                  ['15. Fund Ownership', 'Finnhub /stock/fund-ownership — Top 10 fund holders by shares. Shows which mutual funds and ETFs hold significant positions.'],
-                  ['16. SEC Filings', 'SEC EDGAR — Confirms the company is current on regulatory filings (10-Q/10-K recency). A company behind on SEC filings is a compliance risk.'],
-                  ['17. SEC 8-K Scan', 'SEC EDGAR EFTS — Material event filings from the last 30 days. 8-Ks flag M&A, leadership changes, restatements — events that spike IV for a reason.'],
-                ].map(([source, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-56 shrink-0">{source}</span>
-                    <span className="text-text-muted">{explanation}</span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Earnings history / beat rate', 'Finnhub /stock/earnings', 'Step I fetch', 'Step K Info Edge gate, trade card SUE score', 'Beat rate tells you how reliably this company delivers. Consistent beats reduce surprise risk', 'High beat rate = higher earnings momentum score in Info Edge'],
+                      ['Analyst ratings (B/H/S)', 'Finnhub /stock/recommendation', 'Step I fetch', 'Step K Info Edge gate', 'Wall Street consensus reflects institutional conviction. Heavy Buy-side = well-supported stock', 'Buy consensus = higher analyst consensus score'],
+                      ['Insider sentiment (MSPR)', 'Finnhub /stock/insider-sentiment', 'Step I fetch', 'Step K Info Edge gate, Quality gate MSPR adjustment', 'Insiders know the company better than anyone. Net selling is a warning', 'Negative MSPR adjusts Quality gate score down'],
+                      ['News sentiment', 'Finnhub /news-sentiment + FinBERT', 'Step I fetch', 'Step K Info Edge gate', 'Captures market narrative momentum before it shows up in price', '7-day sentiment score weighted into Info Edge'],
+                      ['Institutional ownership', 'Finnhub /stock/ownership', 'Step I fetch', 'Step K Info Edge gate', 'High institutional ownership = well-researched, widely held, lower idiosyncratic risk', 'Holder count feeds institutional ownership sub-score'],
+                      ['Earnings quality score', 'Finnhub /stock/earnings-quality-score', 'Step I fetch', 'Step K Quality gate', 'Measures whether reported profits reflect real cash generation or accounting adjustments', 'Low quality score reduces Quality gate'],
+                      ['P/E ratio', 'Finnhub /stock/metric', 'Step I fetch', 'Step K Quality gate', 'Context for whether stock is priced at premium or discount vs peers', 'Used in peer comparison scoring'],
+                      ['Quarterly financials', 'Finnhub /stock/financials', 'Step I fetch', 'Step K Quality gate (Piotroski, Altman Z)', 'Balance sheet and income statement power the financial safety scores', 'Weak financials reduce Quality gate'],
+                      ['EBITDA / EBIT estimates', 'Finnhub /stock/ebitda-estimate + ebit-estimate', 'Step I fetch', 'Step K Quality gate', 'Estimate dispersion signals how uncertain analysts are about future earnings', 'High dispersion = elevated uncertainty = lower Quality score'],
+                      ['Dividend history', 'Finnhub /stock/dividend', 'Step I fetch', 'Step K Quality gate, trade card', 'Upcoming ex-dividend dates affect options pricing and assignment risk', 'Ex-date proximity flagged in trade card risk section'],
+                      ['Fund ownership', 'Finnhub /stock/fund-ownership', 'Step I fetch', 'Step K Info Edge gate (fund flow signal)', 'ETF and mutual fund flows create demand floor signals', 'Net fund buying = higher Info Edge score'],
+                      ['SEC filings recency', 'SEC EDGAR', 'Step I fetch', 'Step K Info Edge gate (filing recency)', 'Company behind on filings is a compliance risk', 'Stale filings reduce Info Edge score'],
+                      ['SEC 8-K scan', 'SEC EDGAR EFTS', 'Step I fetch', 'Step K Info Edge gate (material event flag)', 'Recent 8-Ks flag M&A, leadership changes, restatements — events that explain elevated IV', 'High 8-K count = material event risk flag on trade card'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-text-muted">
-                All data sourced live from Finnhub and SEC EDGAR. Nothing estimated. Step K uses all of this to compute the 4-Gate Score.
-              </p>
               {progress?.step_i?.data?.data_gaps?.length > 0 && (
                 <div className="p-2 bg-bg-card rounded border border-brand-red/30">
                   <p className="text-brand-red font-bold text-xs mb-1">DATA GAPS DETECTED</p>
