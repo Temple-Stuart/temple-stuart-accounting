@@ -3573,9 +3573,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_n'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
-            <p className="text-text-secondary text-xs leading-relaxed mb-3">
-              TastyTrade REST API returns all expirations within 15–60 DTE for each ticker. We evaluate every expiration — not just the closest one. For each expiration, a WebSocket streams live Greeks (delta, gamma, theta, vega) and quotes (bid, ask) for every strike. The expiration with the highest-scoring strategy wins.
-            </p>
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step N fetches the live options chain for every finalist. Every strike, every expiration in the 15 to 60 day window. We evaluate every expiration — not just the nearest one. The expiration with the highest-scoring strategy wins.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Options chain (all strikes all expirations)', 'TastyTrade options chain API', 'Step N fetch', 'Step P strategy building', 'Real chain data required to build actual trade structures with accurate strikes and premiums', 'Every strike converted to DXFeed streamer format for Greeks subscription'],
+                      ['DTE filter (15–60 days)', 'Computed from expiration dates', 'Step N filter', 'Expiration selection', 'Options too close to expiry have high gamma risk. Too far out have low theta. 15–60 DTE is the sweet spot for premium selling', 'Expirations outside window discarded before strategy building'],
+                      ['Streamer symbols', 'Converted from chain data', 'Step N output', 'Step O WebSocket subscription', 'Greeks subscription requires DXFeed format symbol strings', 'All symbols collected and passed to Step O WebSocket'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {jData?.tickers && (() => {
               const nFetchedAt = jData.fetched_at ? new Date(jData.fetched_at as string) : null;
               const nFetchedTime = nFetchedAt ? nFetchedAt.toLocaleTimeString() : '—';
@@ -3648,6 +3680,42 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
           const tickers: any[] = od.tickers ?? [];
           return (
             <div className="px-8 py-2 border-t border-border bg-bg-row">
+              <div className="text-xs space-y-3 mb-4">
+                <p className="text-text-muted italic text-xs">
+                  Step O opens one WebSocket connection and subscribes every strike simultaneously. The system waits for the data to stabilize — no new events for 3 consecutive seconds — then closes the connection. Live Greeks power everything in Steps P and Q.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-border">
+                    <thead>
+                      <tr>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                        <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Delta / Gamma / Theta / Vega', 'TastyTrade Greeks WebSocket', 'Step O subscription', 'Step P strategy scoring, Step Q GEX', 'Live Greeks required to accurately price strategies and compute dealer positioning', 'Greeks used in EV calculation PoP theta efficiency and GEX'],
+                        ['Bid / Ask per strike', 'TastyTrade Quote events', 'Step O subscription', 'Step P credit calculation, spread check', 'Real bid-ask used to compute actual credit collected and spread width', 'Wide spread triggers trade card risk flag'],
+                        ['Open Interest per strike', 'TastyTrade Summary events', 'Step O subscription', 'Step Q GEX computation, PCR', 'OI × Gamma per strike = dealer net gamma exposure', 'Powers GEX and zero-gamma flip calculation in Step Q'],
+                        ['Market open / closed status', 'TastyTrade API', 'Step O check', 'Trade card pricing label', 'Closed market means theoretical pricing instead of live quotes', 'Market Closed label shown on trade card. Price source flagged as theo'],
+                      ].map(([dp, src, when, where, why, how], i) => (
+                        <tr key={i}>
+                          <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                          <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                          <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                          <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                          <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                          <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               <p className="text-xs mb-3">
                 {od.market_open
                   ? <span className="text-brand-green font-bold">Market Open — live quotes</span>
