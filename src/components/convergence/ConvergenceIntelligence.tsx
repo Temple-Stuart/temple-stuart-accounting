@@ -3983,6 +3983,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_r'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Steps K and L scored using estimated flow signals. Step R replaces those estimates with real data from Step Q and re-scores. This is the final composite score.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Live PCR / Volume Bias / Unusual Activity', 'Step Q', 'Step R re-score', 'Info Edge flow signal sub-score', 'Replaces estimated options flow with real data', 'Real flow data produces more accurate Info Edge score'],
+                      ['Live GEX regime', 'Step Q', 'Step R re-score', 'Vol Edge GEX sub-score', 'Replaces estimated dealer positioning with real OI-based computation', 'Negative GEX regime reduces Vol Edge score and triggers risk flag'],
+                      ['Updated composite score', 'Recomputed from all four gates', 'Step R output', 'Trade card, Step S eligibility', 'Final score the trade card is built on', 'Tickers without flow data keep their Step L score unchanged'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             {rData?.tickers && (() => {
               const rFetchedAt = rData.fetched_at ? new Date(rData.fetched_at as string) : null;
               const rFetchedTime = rFetchedAt ? rFetchedAt.toLocaleTimeString() : '—';
@@ -4043,17 +4078,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_s'] && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
-            {/* Selection rules explanation */}
-            <div className="space-y-2 mb-3">
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Rule 1 — Convergence Gate:</span> 3 or more of the 4 gates must score above 50. A single strong gate is not enough. The signal must converge across multiple independent dimensions.
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step S is the last gate before the trade card. Convergence enforced. Quality floor enforced. Sector cap enforced. Every ticker that survives gets a trade card built on live data.
               </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Rule 2 — Quality Floor:</span> Quality gate must score 40 or above. High IV on a deteriorating business is not an edge — it is a warning sign.
-              </p>
-              <p className="text-text-secondary text-xs leading-relaxed">
-                <span className="font-bold text-text-primary">Rule 3 — Sector Cap:</span> Soft cap of 2 tickers per sector. If enough diverse candidates exist, only the top 2 per sector are taken. If fewer than 9 diverse candidates survive, the cap is relaxed and the best remaining tickers are admitted regardless of sector.
-              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Convergence gate (3/4 above 50)', 'Step R composite', 'Step S filter', 'Final eligibility check', 'Confirms multi-gate agreement held after live data re-score', 'Fewer than 3 gates above 50 = no trade card'],
+                      ['Quality floor (≥40)', 'Step R Quality gate', 'Step S filter', 'Final eligibility check', 'Protects against recommending trades on structurally weak companies', 'Below 40 = no trade card'],
+                      ['Sector cap (max 2)', 'Step A sector data', 'Step S filter', 'Final eligibility check', 'Enforces diversification in the final output', 'Third ticker in a sector receives no trade card'],
+                      ['Trade card assembly', 'All prior steps', 'Step S output', 'User-facing recommendation', 'Packages all signals scores strategy and risk flags into one structured card', 'Strategy legs strikes credit max loss PoP EV Greeks For/Against risk flags'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Full eligibility matrix */}
@@ -4169,6 +4228,43 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         </div>
         {expanded['step_t'] && tData && (
           <div className="px-8 py-2 border-t border-border bg-bg-row">
+            <div className="text-xs space-y-3 mb-4">
+              <p className="text-text-muted italic text-xs">
+                Step T writes the full scan to the database and returns the result. This closes the performance loop. Every scan is logged so outcomes can be matched against recommendations and used to validate the signals over time.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Composite score per ticker', 'Step R', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Permanent record of the score at time of recommendation', 'Used to backtest signal quality when trade outcomes are known'],
+                      ['Gate scores (Vol Edge Quality Regime Info Edge)', 'Step R', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Granular audit trail beyond just the composite', 'Identifies which gate was most predictive over time'],
+                      ['Regime classification', 'Step H', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Records macro environment at time of scan', 'Allows performance analysis segmented by regime'],
+                      ['Trade cards', 'Step S', 'Step T save', 'Azure PostgreSQL scan snapshot', 'Full strategy recommendation logged with timestamp', 'Outcome matching — did the recommended strategy profit or lose?'],
+                      ['Pipeline runtime', 'Computed', 'Step T output', 'UI summary bar', 'Operational metric', 'Tracks scan performance over time'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <table className="text-[10px]">
               <tbody>
                 <tr><td className="py-0.5 pr-4 text-text-muted font-bold">Pipeline Runtime</td><td className="py-0.5 font-mono text-text-secondary">{tData.pipeline_runtime_ms}ms</td></tr>
