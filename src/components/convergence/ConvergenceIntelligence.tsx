@@ -2021,37 +2021,38 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_d'] && progress?.step_b && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step D makes a strategic cut before running the hard filters in Step E.
+              <p className="text-text-muted italic text-xs">
+                Step D makes one decision: who gets checked in Step E. The hard filters in Step E cost time. We only run them on tickers most likely to survive. We take the top scorers by pre-score and send them forward. Everyone else is ranked out.
               </p>
-              <div className="p-2 bg-bg-card rounded border border-border">
-                <p className="text-text-primary font-bold mb-1">The Rule:</p>
-                <p className="text-brand-gold font-mono">
-                  Keep top (9 final trades × 2) = 18 candidates by Pre-Score
-                </p>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Pre-Score', 'Step B', 'Step D selection', 'Top-N cutoff', 'Running expensive checks on every ticker wastes time. Only the highest-scoring candidates are worth checking', 'Top scorers advance. Cutoff score shown per ticker in the table below'],
+                      ['Rank', 'Computed', 'Step D output', 'Step E input', 'Ordered list of highest-conviction candidates before hard filters run', 'Rank determines who gets checked in Step E'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['Why cut here?',
-                   'The hard filters in Step E check each ticker\'s market cap, borrow rate, and earnings date. Running those checks on all survivors takes time. Step D sends only the highest-scoring candidates forward — no point checking tickers that can\'t make the final cut anyway.'],
-                  ['Why × 2?',
-                   'We overshoot the final target of 9 on purpose. Some tickers will fail hard filters in Step D, get eliminated by the quality floor in Step H, or hit the sector cap. Keeping 18 instead of 9 ensures we always have enough survivors to fill the final 9 spots.'],
-                  ['What gets cut?',
-                   'Every ticker ranked below position 18. Not because they failed a rule — because higher-scoring tickers exist. If you ranked 19th or lower, you are out. The cutoff score is shown in the table below.'],
-                ].map(([field, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-32 shrink-0">
-                      {field}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-text-muted">
-                Every ticker is shown below with their rank and the cutoff score. You can verify exactly why each one was kept or dropped. Step E runs 6 hard rules against the top 45.
-              </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -2134,37 +2135,42 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_e'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step E runs 6 hard rules against the 18 candidates from Step D. These are binary — pass or fail. No partial credit. No scores. One broken rule and the ticker is gone.
+              <p className="text-text-muted italic text-xs">
+                Step E runs six binary rules against the candidates from Step D. Pass all six or you are out. No scores, no partial credit. Each rule has a hard threshold. The table shows the actual value for every rule on every ticker.
               </p>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['Rule 1 — Market Cap > $2B',
-                   'Small companies have thin options markets. Low open interest, wide spreads, hard to exit. We only trade companies large enough to have a deep, liquid options market.'],
-                  ['Rule 2 — Liquidity Rating ≥ 2/5',
-                   'TastyTrade\'s score for how tradeable this stock\'s options are. Below 2 means the bid-ask spread is too wide to trade safely — you lose money just getting in and out.'],
-                  ['Rule 3 — IV30 must exist',
-                   'If TastyTrade returns no implied volatility data for a stock, we cannot price its options. No IV data = no trade. Period.'],
-                  ['Rule 4 — Borrow Rate < 50%',
-                   'High borrow rate means this stock is hard to short. Hard-to-borrow stocks are vulnerable to short squeezes — sudden violent price spikes that break option pricing models.'],
-                  ['Rule 5 — No earnings within 7 days',
-                   'IV spikes unpredictably before earnings then collapses after the report. That volatility crush can destroy any position we enter. We wait until after the report.'],
-                  ['Rule 6 — Reg SHO: Not on threshold list',
-                   'FINRA publishes a daily Reg SHO threshold list of stocks with persistent failures to deliver. Threshold-list stocks carry severe short squeeze risk — sudden violent price spikes that break option pricing models. We reject any stock on this list.'],
-                ].map(([rule, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-56 shrink-0">
-                      {rule}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Market Cap', 'Step A', 'Step E filter', 'Rule 1 — must be >$2B', 'Small companies have thin options markets. Low open interest, wide spreads, hard to exit', 'Below $2B = eliminated'],
+                      ['Liquidity Rating', 'Step A', 'Step E filter', 'Rule 2 — must be ≥2/5', 'Below 2/5 the bid-ask spread makes profitable trading impossible', 'Below 2/5 = eliminated'],
+                      ['IV30', 'Step A', 'Step E filter', 'Rule 3 — must exist and >0', 'No IV data means we cannot price options. No IV = no trade', 'Missing or zero = eliminated'],
+                      ['Borrow Rate', 'Step A', 'Step E filter', 'Rule 4 — must be <50%', 'Hard-to-borrow stocks are short squeeze candidates. Violent squeezes break option pricing', 'Above 50% = eliminated'],
+                      ['Days to Earnings', 'Step A', 'Step E filter', 'Rule 5 — must be >7 days', 'IV spikes into earnings then collapses after. Entering into earnings destroys the edge', 'Within 7 days = eliminated'],
+                      ['Reg SHO Status', 'SEC FINRA daily list', 'Step E filter', 'Rule 6 — must not be on list', 'Stocks with persistent delivery failures carry elevated short squeeze risk', 'On list = eliminated'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-text-muted">
-                Every ticker is shown below. Each cell shows the actual value for that rule. Red cell = the rule that killed it. ⚠ in the BORROW column means borrow rate data was unavailable — the ticker passed but is flagged for review. You can verify every rejection yourself. Step F takes the survivors and groups them with their industry peers.
-              </p>
             </div>
             {/* Full matrix table */}
             <p className="text-text-muted text-xs font-bold mb-1">
@@ -2273,33 +2279,41 @@ function PipelineFlowPanel({ result, progress, universe }: { result: any; progre
         {expanded['step_f'] && (
           <div className="border-t border-border bg-bg-row p-3">
             <div className="text-xs space-y-3 mb-4">
-              <p className="text-text-secondary">
-                Step F answers one question: is this stock&apos;s volatility high compared to companies just like it?
+              <p className="text-text-muted italic text-xs">
+                Step F answers one question: is this stock&apos;s volatility high compared to companies just like it? We pull peer groups from Finnhub and compute z-scores — how many standard deviations each stock sits above or below its peers. Context matters more than raw numbers.
               </p>
-              <div className="grid grid-cols-1 gap-1 pt-1">
-                {[
-                  ['Why peer grouping?',
-                   'Comparing AAPL\'s IV to the whole market is meaningless. Tech companies are always more volatile than utilities. What matters is whether AAPL\'s IV is elevated compared to MSFT, GOOGL, and META — its actual peers. That\'s the signal institutions trade on.'],
-                  ['How it works',
-                   'We send each stock\'s symbol to Finnhub\'s peer API. Finnhub returns a list of companies in the same industry. We group each stock with those peers and compute z-scores — how many standard deviations above or below the peer group average each metric sits.'],
-                  ['What is a z-score?',
-                   'A z-score of +2.0 means this stock\'s IV is 2 standard deviations above its peer group average. That is a statistically significant outlier. A z-score near 0 means it\'s average for its peer group. Negative means below average.'],
-                  ['What feeds into scoring?',
-                   'The z-scores for IV Percentile, IV30, and IV-HV Spread feed directly into the Info Edge gate in Step H. Peer-relative metrics are more actionable than market-wide comparisons.'],
-                ].map(([field, explanation], i) => (
-                  <div key={i} className="flex gap-2 py-1 border-b border-border/30">
-                    <span className="text-text-primary font-bold w-40 shrink-0">
-                      {field}
-                    </span>
-                    <span className="text-text-muted">
-                      {explanation}
-                    </span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">DATA POINT</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">SOURCE</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHEN APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHERE APPLIED</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">WHY</th>
+                      <th className="text-text-muted font-bold text-xs p-2 bg-bg-card border border-border">HOW / VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Peer group', 'Finnhub /stock/peers', 'Step F fetch', 'Z-score computation', 'Comparing a tech stock\'s IV to a utility\'s IV is meaningless. Peers provide the right baseline', 'Groups each stock with its actual industry competitors'],
+                      ['IV Percentile z-score', 'Computed from peer group', 'Step F output', 'Step K Info Edge gate', 'Peer-relative IV is more actionable than market-wide IV. Institutions trade relative value', 'Outlier z-score signals the stock is unusually cheap or expensive vs peers'],
+                      ['IV30 z-score', 'Computed from peer group', 'Step F output', 'Step K Vol Edge gate', 'Confirms whether implied move is elevated relative to similar companies', 'High positive z-score = vol is expensive relative to peers'],
+                      ['Beta z-score', 'Computed from peer group', 'Step F output', 'Step K Regime gate', 'Shows whether this stock moves more or less than its sector', 'Used to calibrate regime sensitivity per ticker'],
+                      ['GICS sector fallback', 'TastyTrade sector data', 'Step F fallback', 'Peer grouping when Finnhub peers unavailable', 'Some tickers have no Finnhub peers. Sector grouping ensures every ticker gets a peer comparison', 'Flagged with ⚠ in the TYPE column'],
+                    ].map(([dp, src, when, where, why, how], i) => (
+                      <tr key={i}>
+                        <td className="text-xs p-2 text-text-muted border border-border">{dp}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{src}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{when}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{where}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{why}</td>
+                        <td className="text-xs p-2 text-text-muted border border-border">{how}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-text-muted">
-                Step G re-scores all survivors using a richer formula before pulling institutional data.
-              </p>
             </div>
             <p className="text-text-muted text-xs font-bold mb-1">
               PEER GROUPING — ALL {' '}{(progress?.step_f?.data?.groups ?? []).length} SURVIVORS
