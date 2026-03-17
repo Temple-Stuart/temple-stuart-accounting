@@ -119,7 +119,7 @@ export default function TradingPage() {
   useEffect(() => {
     fetch('/api/trade-cards')
       .then(r => r.json())
-      .then(data => setTradeCards(Array.isArray(data) ? data : []));
+      .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
   }, []);
 
   // Journal modal
@@ -1054,7 +1054,7 @@ export default function TradingPage() {
                   onCardsChange={() => {
                     fetch('/api/trade-cards')
                       .then(r => r.json())
-                      .then(data => setTradeCards(Array.isArray(data) ? data : []));
+                      .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
                   }}
                 />
                 <div>
