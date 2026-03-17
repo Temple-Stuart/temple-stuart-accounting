@@ -420,26 +420,32 @@ export default function TradingPage() {
   // Metrics scoped to reconciliation (open positions only, filtered by scanner start date)
   const reconciliationMetrics = useMemo(() => {
     const trades = openPositions;
-    const closed: Trade[] = [];
+    const closed = filteredTrades.filter(t => t.status === 'CLOSED' || t.status === 'DISPOSED');
+    const wins = closed.filter(t => t.realizedPL >= 0);
+    const losses = closed.filter(t => t.realizedPL < 0);
+    const totalPL = closed.reduce((sum, t) => sum + t.realizedPL, 0);
+    const totalWins = wins.reduce((sum, t) => sum + t.realizedPL, 0);
+    const totalLosses = Math.abs(losses.reduce((sum, t) => sum + t.realizedPL, 0));
     return {
-      totalTrades: trades.length,
+      totalTrades: trades.length + closed.length,
       openTrades: trades.length,
-      closedTrades: 0,
-      totalRealizedPL: 0,
-      winRate: 0,
-      avgWin: 0,
-      avgLoss: 0,
-      profitFactor: 0,
-      largestWin: 0,
-      largestLoss: 0,
-      avgHoldDays: trades.length > 0 ? trades.reduce((sum, t) => {
-        const days = Math.ceil((Date.now() - new Date(t.openDate).getTime()) / (1000 * 60 * 60 * 24));
+      closedTrades: closed.length,
+      totalRealizedPL: totalPL,
+      winRate: closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : 0,
+      avgWin: wins.length > 0 ? totalWins / wins.length : 0,
+      avgLoss: losses.length > 0 ? totalLosses / losses.length : 0,
+      profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0,
+      largestWin: wins.length > 0 ? Math.max(...wins.map(t => t.realizedPL)) : 0,
+      largestLoss: losses.length > 0 ? Math.min(...losses.map(t => t.realizedPL)) : 0,
+      avgHoldDays: closed.length > 0 ? closed.reduce((sum, t) => {
+        if (!t.closeDate) return sum;
+        const days = Math.ceil((new Date(t.closeDate).getTime() - new Date(t.openDate).getTime()) / (1000 * 60 * 60 * 24));
         return sum + days;
-      }, 0) / trades.length : 0,
+      }, 0) / closed.length : 0,
       winStreak: calculateStreak(closed, true),
       lossStreak: calculateStreak(closed, false),
     };
-  }, [openPositions]);
+  }, [openPositions, filteredTrades]);
 
   // Equity curve data
   const equityCurve = useMemo(() => {
