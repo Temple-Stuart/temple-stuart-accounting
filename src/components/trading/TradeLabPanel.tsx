@@ -46,7 +46,7 @@ interface MatchablePosition {
   expiration_date: string | null;
 }
 
-export default function TradeLabPanel() {
+export default function TradeLabPanel({ onCardsChange }: { onCardsChange?: () => void }) {
   const [cards, setCards] = useState<TradeCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -128,6 +128,7 @@ export default function TradeLabPanel() {
       });
       if (res.ok) {
         setCards(prev => prev.filter(c => c.id !== id));
+        onCardsChange?.();
       }
     } catch (err) {
       console.error('Delete card error:', err);
@@ -176,6 +177,7 @@ export default function TradeLabPanel() {
       if (res.ok) {
         setLinkingCardId(null);
         await loadCards();
+        onCardsChange?.();
       } else {
         const data = await res.json().catch(() => ({}));
         setLinkError(data.error || 'Failed to link');
@@ -196,6 +198,7 @@ export default function TradeLabPanel() {
       });
       if (res.ok) {
         await loadCards();
+        onCardsChange?.();
       }
     } catch (err) {
       console.error('Unlink error:', err);
@@ -209,6 +212,7 @@ export default function TradeLabPanel() {
       const res = await fetch(`/api/trade-card-links?trade_card_id=${cardId}`);
       if (res.ok) {
         await loadCards();
+        onCardsChange?.();
       }
     } catch (err) {
       console.error('Grade error:', err);
