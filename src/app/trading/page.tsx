@@ -97,6 +97,12 @@ export default function TradingPage() {
   // Per-user scanner start date (for filtering legacy positions)
   const [scannerStartDate, setScannerStartDate] = useState<string | null>(null);
 
+  // Trade cards (for reconciliation metrics scoping)
+  const [tradeCards, setTradeCards] = useState<{
+    status: string;
+    link: { trade_num: string } | null;
+  }[]>([]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -107,7 +113,15 @@ export default function TradingPage() {
         }
       } catch { /* ignore */ }
     })();
-  }, []);  
+  }, []);
+
+  // Fetch trade cards for reconciliation metrics
+  useEffect(() => {
+    fetch('/api/trade-cards')
+      .then(r => r.json())
+      .then(data => setTradeCards(Array.isArray(data) ? data : []));
+  }, []);
+
   // Journal modal
   const [journalModal, setJournalModal] = useState<{ trade: Trade; entry?: JournalEntry } | null>(null);
   const [journalForm, setJournalForm] = useState({
@@ -420,7 +434,15 @@ export default function TradingPage() {
   // Metrics scoped to reconciliation (open positions only, filtered by scanner start date)
   const reconciliationMetrics = useMemo(() => {
     const trades = openPositions;
-    const closed = filteredTrades.filter(t => t.status === 'CLOSED');
+    const gradedTradeNums = new Set(
+      tradeCards
+        .filter(c => c.status === 'graded' && c.link?.trade_num)
+        .map(c => c.link!.trade_num)
+    );
+    const closed = filteredTrades.filter(t =>
+      t.status === 'CLOSED' &&
+      gradedTradeNums.has(t.tradeNum)
+    );
     const wins = closed.filter(t => t.realizedPL >= 0);
     const losses = closed.filter(t => t.realizedPL < 0);
     const totalPL = closed.reduce((sum, t) => sum + t.realizedPL, 0);
@@ -445,7 +467,7 @@ export default function TradingPage() {
       winStreak: calculateStreak(closed, true),
       lossStreak: calculateStreak(closed, false),
     };
-  }, [openPositions, filteredTrades]);
+  }, [openPositions, filteredTrades, tradeCards]);
 
   // Equity curve data
   const equityCurve = useMemo(() => {
@@ -1028,7 +1050,13 @@ export default function TradingPage() {
             {/* Trade Reconciliation Tab */}
             {activeTab === 'positions' && (
               <div className="space-y-6">
-                <TradeLabPanel />
+                <TradeLabPanel
+                  onCardsChange={() => {
+                    fetch('/api/trade-cards')
+                      .then(r => r.json())
+                      .then(data => setTradeCards(Array.isArray(data) ? data : []));
+                  }}
+                />
                 <div>
                   <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
                     Open Positions ({openPositions.length})
