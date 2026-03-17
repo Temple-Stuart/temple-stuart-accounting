@@ -420,7 +420,7 @@ export default function TradingPage() {
   // Metrics scoped to reconciliation (open positions only, filtered by scanner start date)
   const reconciliationMetrics = useMemo(() => {
     const trades = openPositions;
-    const closed = filteredTrades.filter(t => t.status === 'CLOSED' || t.status === 'DISPOSED');
+    const closed = filteredTrades.filter(t => t.status === 'CLOSED');
     const wins = closed.filter(t => t.realizedPL >= 0);
     const losses = closed.filter(t => t.realizedPL < 0);
     const totalPL = closed.reduce((sum, t) => sum + t.realizedPL, 0);
