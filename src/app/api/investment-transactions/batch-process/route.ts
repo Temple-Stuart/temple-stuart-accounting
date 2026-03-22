@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { classifyAndPreview, processStockBuys } from '@/lib/batch-trade-processor';
+import { classifyAndPreview, processStockBuys, processOptions } from '@/lib/batch-trade-processor';
 
 export async function POST(request: Request) {
   try {
@@ -47,16 +47,17 @@ export async function POST(request: Request) {
       return NextResponse.json(result);
     }
 
-    // Commit mode — process stock/crypto buys (step 2), rest coming in later prompts
+    // Commit mode — process in order: stock buys → options → (rest coming later)
     const preview = await classifyAndPreview(user.id, year);
     const stockBuyResult = await processStockBuys(user.id, year, preview);
+    const optionsResult = await processOptions(user.id, year, preview);
 
     return NextResponse.json({
       mode: 'commit',
       year,
       preview_summary: preview.summary,
       stock_buys: stockBuyResult,
-      options: { status: 'not_yet_implemented' },
+      options: optionsResult,
       stock_sells: { status: 'not_yet_implemented' },
       assignments_exercises: { status: 'not_yet_implemented' },
       dividends: { status: 'not_yet_implemented' },
