@@ -1513,3 +1513,337 @@ export async function runValidation(
     total_stock_realized_gl: Math.round(totalStockGL * 100) / 100,
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// processCallSpreadAssignments — Handle 6 ITM call spread pairs
+// Each pair: exercise on long call + assignment on short call
+// Net effect = cash settlement, no shares held
+// ═══════════════════════════════════════════════════════════════
+
+export interface CallSpreadAssignmentResult {
+  pairs_processed: number;
+  positions_closed: number;
+  journal_entries_created: number;
+  transactions_updated: number;
+  errors: Array<{ description: string; error: string }>;
+}
+
+export async function processCallSpreadAssignments(
+  userId: string,
+  year: number,
+  _preview: BatchPreviewResult
+): Promise<CallSpreadAssignmentResult> {
+  const result: CallSpreadAssignmentResult = {
+    pairs_processed: 0,
+    positions_closed: 0,
+    journal_entries_created: 0,
+    transactions_updated: 0,
+    errors: [],
+  };
+
+  const tradingEntity = await prisma.entities.findFirst({
+    where: { userId, entity_type: 'trading' },
+  });
+  if (!tradingEntity) {
+    result.errors.push({ description: '', error: 'No trading entity found.' });
+    return result;
+  }
+  const entityId = tradingEntity.id;
+
+  // Fetch unprocessed assignment/exercise transactions
+  const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+
+  const unprocessed = await prisma.investment_transactions.findMany({
+    where: {
+      tradeNum: null,
+      accounts: { userId },
+      date: { gte: startDate, lt: endDate },
+    },
+    include: { security: true },
+    orderBy: { date: 'asc' },
+  });
+
+  type AETxn = (typeof unprocessed)[number];
+  const assignmentExerciseTxns = unprocessed.filter((txn: AETxn) =>
+    txn.subtype === 'assignment' || txn.subtype === 'exercise'
+  );
+
+  if (assignmentExerciseTxns.length === 0) return result;
+
+  // Group by date to find pairs (exercise + assignment on same date = one spread settlement)
+  const byDate = new Map<string, AETxn[]>();
+  for (const txn of assignmentExerciseTxns) {
+    const dateKey = txn.date.toISOString().split('T')[0];
+    const group = byDate.get(dateKey);
+    if (group) { group.push(txn); } else { byDate.set(dateKey, [txn]); }
+  }
+
+  // Get global max trade number
+  const existingTradeNums = await prisma.investment_transactions.findMany({
+    where: { tradeNum: { not: null }, accounts: { userId } },
+    select: { tradeNum: true },
+    distinct: ['tradeNum'],
+  });
+  let globalMaxNum = 0;
+  for (const r of existingTradeNums) {
+    if (r.tradeNum) {
+      const match = r.tradeNum.match(/-(\d+)$/);
+      const num = match ? parseInt(match[1], 10) : parseInt(r.tradeNum, 10);
+      if (!isNaN(num) && num > globalMaxNum) globalMaxNum = num;
+    }
+  }
+
+  // Process each date group
+  for (const [dateKey, txns] of byDate) {
+    // Within each date, pair exercises with assignments by extracting symbol from security
+    // Group by underlying symbol
+    const bySymbol = new Map<string, { exercises: AETxn[]; assignments: AETxn[] }>();
+    for (const txn of txns) {
+      const symbol = (
+        txn.security?.option_underlying_ticker ||
+        txn.security?.ticker_symbol ||
+        'UNKNOWN'
+      ).toUpperCase();
+      if (!bySymbol.has(symbol)) bySymbol.set(symbol, { exercises: [], assignments: [] });
+      const group = bySymbol.get(symbol)!;
+      if (txn.subtype === 'exercise') group.exercises.push(txn);
+      else group.assignments.push(txn);
+    }
+
+    for (const [symbol, group] of bySymbol) {
+      const { exercises, assignments } = group;
+      const pairDesc = `${symbol} ${dateKey}: ${exercises.length} exercises, ${assignments.length} assignments`;
+
+      if (exercises.length === 0 && assignments.length === 0) continue;
+
+      globalMaxNum++;
+      const tradeNum = `${symbol}-${String(globalMaxNum).padStart(4, '0')}`;
+
+      try {
+        await prisma.$transaction(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async (tx: any) => {
+            // Build all legs as close legs and route through commitOptionsTrade
+            // which will detect the exercise/assignment pattern via name parsing
+            // and use closeSpreadAtomically()
+            const allTxns = [...exercises, ...assignments];
+            const legs = allTxns.map(txn => {
+              const name = txn.name.toLowerCase();
+              const action = txn.type as 'buy' | 'sell';
+              const sec = txn.security;
+
+              return {
+                id: txn.id,
+                date: txn.date,
+                name: txn.name,
+                symbol,
+                strike: sec?.option_strike_price || null,
+                expiry: sec?.option_expiration_date || null,
+                contractType: (sec?.option_contract_type as 'call' | 'put' | null) || null,
+                action,
+                positionEffect: 'close' as const,
+                quantity: Math.abs(txn.quantity || 1),
+                price: txn.price || 0,
+                fees: txn.rhFees || txn.fees || 0,
+                amount: txn.amount || 0,
+                subtype: txn.subtype || undefined,
+                txnType: txn.type || undefined,
+              };
+            });
+
+            // commitOptionsTrade detects exercise/assignment in names (lines 54-57)
+            // and routes to closeSpreadAtomically which finds open positions by trade_num.
+            // But these positions were opened with different trade numbers. So we need
+            // to find and close the positions directly.
+
+            // Find open positions matching each leg
+            for (const txn of allTxns) {
+              const sec = txn.security;
+              const strike = sec?.option_strike_price;
+              const optionType = sec?.option_contract_type?.toUpperCase();
+              const expiry = sec?.option_expiration_date;
+
+              if (!strike || !optionType) {
+                result.errors.push({
+                  description: pairDesc,
+                  error: `Cannot extract strike/type from txn ${txn.id}: ${txn.name}`,
+                });
+                continue;
+              }
+
+              // Find matching open position
+              const openPosition = await tx.trading_positions.findFirst({
+                where: {
+                  symbol,
+                  strike_price: strike,
+                  option_type: optionType,
+                  status: 'OPEN',
+                  // Match by expiration if available
+                  ...(expiry ? { expiration_date: expiry } : {}),
+                },
+                orderBy: { open_date: 'asc' },
+              });
+
+              if (!openPosition) {
+                result.errors.push({
+                  description: pairDesc,
+                  error: `No open ${optionType} position found for ${symbol} $${strike}`,
+                });
+                continue;
+              }
+
+              // Close the position: proceeds = 0 for exercise/assignment
+              // Realized P&L = -(cost_basis) for exercise (money spent on premium is lost)
+              // Realized P&L = +(cost_basis) for assignment (premium received is kept)
+              const isExercise = txn.subtype === 'exercise';
+              const costBasis = openPosition.cost_basis; // in dollars
+              const realizedPL = isExercise ? -(costBasis) : costBasis;
+
+              await tx.trading_positions.update({
+                where: { id: openPosition.id },
+                data: {
+                  status: 'CLOSED',
+                  remaining_quantity: 0,
+                  close_investment_txn_id: txn.id,
+                  close_date: txn.date,
+                  close_price: 0,
+                  close_fees: 0,
+                  proceeds: 0,
+                  realized_pl: realizedPL,
+                },
+              });
+              result.positions_closed++;
+
+              // Create journal entry to reverse the position
+              const positionAccount = openPosition.position_type === 'LONG'
+                ? (optionType === 'CALL' ? '1200' : '1210')
+                : (optionType === 'CALL' ? '2100' : '2110');
+              const originalCostCents = Math.round(Math.abs(costBasis) * 100);
+              const isGain = realizedPL > 0;
+              const plAccount = isGain ? '4100' : '5100';
+
+              const accounts = await tx.chart_of_accounts.findMany({
+                where: {
+                  code: { in: [positionAccount, plAccount] },
+                  userId,
+                  entity_id: entityId,
+                },
+              });
+
+              const posAcct = accounts.find((a: { code: string }) => a.code === positionAccount);
+              const plAcct = accounts.find((a: { code: string }) => a.code === plAccount);
+
+              if (!posAcct || !plAcct) {
+                result.errors.push({
+                  description: pairDesc,
+                  error: `Missing COA accounts: ${positionAccount} or ${plAccount}`,
+                });
+                continue;
+              }
+
+              // Journal entry: reverse the position, book P&L
+              // Exercise (LONG): CR position (remove asset), DR loss (premium lost)
+              // Assignment (SHORT): DR position (remove liability), CR gain (premium kept)
+              const journalEntry = await tx.journal_entries.create({
+                data: {
+                  userId,
+                  entity_id: entityId,
+                  date: txn.date,
+                  description: `${isExercise ? 'EXERCISE' : 'ASSIGNMENT'}: ${symbol} $${strike} ${optionType}`,
+                  source_type: 'investment_txn',
+                  source_id: txn.id,
+                  status: 'posted',
+                  metadata: { strategy: 'call-spread', tradeNum },
+                  request_id: randomUUID(),
+                  created_by: 'batch-trade-processor',
+                },
+              });
+
+              if (isExercise) {
+                // Remove LONG asset: CR position, DR loss
+                await tx.ledger_entries.create({
+                  data: {
+                    journal_entry_id: journalEntry.id,
+                    account_id: posAcct.id,
+                    amount: BigInt(originalCostCents),
+                    entry_type: 'C',
+                    created_by: 'batch-trade-processor',
+                  },
+                });
+                await tx.chart_of_accounts.update({
+                  where: { id: posAcct.id },
+                  data: { settled_balance: { increment: BigInt(-originalCostCents) }, version: { increment: 1 } },
+                });
+
+                await tx.ledger_entries.create({
+                  data: {
+                    journal_entry_id: journalEntry.id,
+                    account_id: plAcct.id,
+                    amount: BigInt(originalCostCents),
+                    entry_type: 'D',
+                    created_by: 'batch-trade-processor',
+                  },
+                });
+                await tx.chart_of_accounts.update({
+                  where: { id: plAcct.id },
+                  data: { settled_balance: { increment: BigInt(-originalCostCents) }, version: { increment: 1 } },
+                });
+              } else {
+                // Remove SHORT liability: DR position, CR gain
+                await tx.ledger_entries.create({
+                  data: {
+                    journal_entry_id: journalEntry.id,
+                    account_id: posAcct.id,
+                    amount: BigInt(originalCostCents),
+                    entry_type: 'D',
+                    created_by: 'batch-trade-processor',
+                  },
+                });
+                await tx.chart_of_accounts.update({
+                  where: { id: posAcct.id },
+                  data: { settled_balance: { increment: BigInt(originalCostCents) }, version: { increment: 1 } },
+                });
+
+                await tx.ledger_entries.create({
+                  data: {
+                    journal_entry_id: journalEntry.id,
+                    account_id: plAcct.id,
+                    amount: BigInt(originalCostCents),
+                    entry_type: 'C',
+                    created_by: 'batch-trade-processor',
+                  },
+                });
+                await tx.chart_of_accounts.update({
+                  where: { id: plAcct.id },
+                  data: { settled_balance: { increment: BigInt(originalCostCents) }, version: { increment: 1 } },
+                });
+              }
+
+              result.journal_entries_created++;
+
+              // Update investment_transaction
+              await tx.investment_transactions.update({
+                where: { id: txn.id },
+                data: {
+                  tradeNum,
+                  strategy: 'call-spread',
+                  accountCode: positionAccount,
+                },
+              });
+              result.transactions_updated++;
+            }
+
+            result.pairs_processed++;
+          },
+          { maxWait: 10000, timeout: 30000 }
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        result.errors.push({ description: pairDesc, error: message });
+      }
+    }
+  }
+
+  return result;
+}

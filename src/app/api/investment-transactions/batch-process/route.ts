@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { classifyAndPreview, processStockBuys, processOptions, processStockSells, processAssignmentsExercises, processDividends, processRemainingCloses, runValidation } from '@/lib/batch-trade-processor';
+import { classifyAndPreview, processStockBuys, processOptions, processStockSells, processAssignmentsExercises, processCallSpreadAssignments, processDividends, processRemainingCloses, runValidation } from '@/lib/batch-trade-processor';
 
 export async function POST(request: Request) {
   try {
@@ -56,13 +56,15 @@ export async function POST(request: Request) {
     const optionsResult = await processOptions(user.id, year, preview);
     // 3. Stock/ETF/crypto sells → FIFO lot matching + dispositions
     const stockSellResult = await processStockSells(user.id, year, preview);
-    // 4. Assignments/exercises → flagged for manual review
+    // 4. Call spread assignments → close both legs of ITM spreads
+    const callSpreadResult = await processCallSpreadAssignments(user.id, year, preview);
+    // 5. Remaining assignments/exercises → flagged for manual review
     const assignmentResult = await processAssignmentsExercises(user.id, year, preview);
-    // 5. Dividends → income journal entries
+    // 6. Dividends → income journal entries
     const dividendResult = await processDividends(user.id, year, preview);
-    // 6. Retry any stuck option closes
+    // 7. Retry any stuck option closes (after assignments close PLTR positions)
     const remainingClosesResult = await processRemainingCloses(user.id, year, preview);
-    // 7. Validation
+    // 8. Validation
     const validation = await runValidation(user.id, year);
 
     return NextResponse.json({
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       stock_buys: stockBuyResult,
       options: optionsResult,
       stock_sells: stockSellResult,
+      call_spread_assignments: callSpreadResult,
       assignments_exercises: assignmentResult,
       dividends: dividendResult,
       remaining_closes: remainingClosesResult,
