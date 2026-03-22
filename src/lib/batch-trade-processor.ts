@@ -528,3 +528,248 @@ export async function processStockBuys(
 
   return result;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// processOptions — Open and close option positions via
+// commitOptionsTrade() from position-tracker-service.ts
+// ═══════════════════════════════════════════════════════════════
+
+export interface OptionsProcessResult {
+  trades_processed: number;
+  positions_opened: number;
+  positions_closed: number;
+  journal_entries_created: number;
+  trade_numbers_assigned: string[];
+  errors: Array<{ trade_group: string; error: string }>;
+}
+
+export async function processOptions(
+  userId: string,
+  year: number,
+  preview: BatchPreviewResult
+): Promise<OptionsProcessResult> {
+  const result: OptionsProcessResult = {
+    trades_processed: 0,
+    positions_opened: 0,
+    positions_closed: 0,
+    journal_entries_created: 0,
+    trade_numbers_assigned: [],
+    errors: [],
+  };
+
+  // Get the trading entity
+  const tradingEntity = await prisma.entities.findFirst({
+    where: { userId, entity_type: 'trading' },
+  });
+  if (!tradingEntity) {
+    result.errors.push({ trade_group: '', error: 'No trading entity found for user.' });
+    return result;
+  }
+  const entityId = tradingEntity.id;
+
+  // Re-query unprocessed option transactions (timeout resilience: skips already-processed)
+  const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+
+  const allUnprocessed = await prisma.investment_transactions.findMany({
+    where: {
+      tradeNum: null,
+      accounts: { userId },
+      date: { gte: startDate, lt: endDate },
+    },
+    include: { security: true },
+    orderBy: { date: 'asc' },
+  });
+
+  // Build duplicate ID set (same logic as classifyAndPreview)
+  type InvTxn = (typeof allUnprocessed)[number];
+  const dedupMap = new Map<string, InvTxn[]>();
+  for (const txn of allUnprocessed) {
+    const dateStr = txn.date.toISOString().split('T')[0];
+    const key = [
+      txn.security_id || 'null', dateStr, String(txn.quantity),
+      String(txn.price), txn.type || 'null', txn.subtype || 'null',
+    ].join('|');
+    const group = dedupMap.get(key);
+    if (group) { group.push(txn); } else { dedupMap.set(key, [txn]); }
+  }
+  const duplicateIds = new Set<string>();
+  for (const group of dedupMap.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    for (let i = 1; i < group.length; i++) duplicateIds.add(group[i].id);
+  }
+
+  // Filter to option transactions only (non-duplicates, has option_contract_type,
+  // not assignment/exercise/expiration — those are Prompt 4)
+  const optionTxns = allUnprocessed.filter((txn: InvTxn) => {
+    if (duplicateIds.has(txn.id)) return false;
+    if (!txn.security?.option_contract_type) return false;
+    if (txn.subtype === 'assignment' || txn.subtype === 'exercise') return false;
+    const nameLower = (txn.name || '').toLowerCase();
+    if (nameLower.includes('expiration')) return false;
+    return true;
+  });
+
+  if (optionTxns.length === 0) return result;
+
+  // Get current global max trade number
+  const existingTradeNums = await prisma.investment_transactions.findMany({
+    where: { tradeNum: { not: null }, accounts: { userId } },
+    select: { tradeNum: true },
+    distinct: ['tradeNum'],
+  });
+  let globalMaxNum = 0;
+  for (const r of existingTradeNums) {
+    if (r.tradeNum) {
+      const match = r.tradeNum.match(/-(\d+)$/);
+      const num = match ? parseInt(match[1], 10) : parseInt(r.tradeNum, 10);
+      if (!isNaN(num) && num > globalMaxNum) globalMaxNum = num;
+    }
+  }
+
+  // Group option transactions into trades by (underlying, expiry, date)
+  const tradeGroups = new Map<string, InvTxn[]>();
+  for (const txn of optionTxns) {
+    const sec = txn.security;
+    const underlying = (sec?.option_underlying_ticker || sec?.ticker_symbol || 'UNKNOWN').toUpperCase();
+    const expiry = sec?.option_expiration_date
+      ? sec.option_expiration_date.toISOString().split('T')[0]
+      : 'unknown';
+    const tradeDate = txn.date.toISOString().split('T')[0];
+    const key = `${underlying}|${expiry}|${tradeDate}`;
+
+    const group = tradeGroups.get(key);
+    if (group) { group.push(txn); } else { tradeGroups.set(key, [txn]); }
+  }
+
+  // Separate into open-only groups, close-only groups, and mixed groups
+  const openGroups: Array<[string, InvTxn[]]> = [];
+  const closeGroups: Array<[string, InvTxn[]]> = [];
+  const mixedGroups: Array<[string, InvTxn[]]> = [];
+
+  for (const [key, txns] of tradeGroups) {
+    const hasOpens = txns.some(t => (t.name || '').toLowerCase().includes('to open'));
+    const hasCloses = txns.some(t => (t.name || '').toLowerCase().includes('to close'));
+    if (hasOpens && hasCloses) {
+      mixedGroups.push([key, txns]);
+    } else if (hasOpens) {
+      openGroups.push([key, txns]);
+    } else {
+      closeGroups.push([key, txns]);
+    }
+  }
+
+  // Helper: build InvestmentLeg[] from transactions
+  // Follows the exact pattern from commit-to-ledger/route.ts:75-102
+  function buildLegs(txns: InvTxn[]) {
+    return txns.map(txn => {
+      const name = txn.name.toLowerCase();
+      const positionEffect: 'open' | 'close' = name.includes('to open') ? 'open' : 'close';
+      const action = txn.type as 'buy' | 'sell';
+      const symbol = (
+        txn.security?.option_underlying_ticker ||
+        txn.security?.ticker_symbol ||
+        txn.name.split(' ').find((w: string) => /^[A-Z]{1,5}$/.test(w)) ||
+        'UNKNOWN'
+      ).toUpperCase();
+
+      return {
+        id: txn.id,
+        date: txn.date,
+        name: txn.name,
+        symbol,
+        strike: txn.security?.option_strike_price || null,
+        expiry: txn.security?.option_expiration_date || null,
+        contractType: (txn.security?.option_contract_type as 'call' | 'put' | null) || null,
+        action,
+        positionEffect,
+        quantity: txn.quantity || 1,
+        price: txn.price || 0,
+        fees: txn.rhFees || txn.fees || 0,
+        amount: txn.amount || 0,
+        subtype: txn.subtype || undefined,
+        txnType: txn.type || undefined,
+      };
+    });
+  }
+
+  // Helper: detect strategy from a list of transactions
+  function detectGroupStrategy(txns: InvTxn[]): string {
+    const contractTypes = txns.map(t => (t.security?.option_contract_type || '').toLowerCase());
+    const calls = contractTypes.filter(c => c === 'call').length;
+    const puts = contractTypes.filter(c => c === 'put').length;
+    const strikes = new Set(txns.map(t => t.security?.option_strike_price));
+
+    if (txns.length === 4 && calls === 2 && puts === 2) return 'iron-condor';
+    if (txns.length === 2 && (calls === 2 || puts === 2) && strikes.size === 2) {
+      return calls === 2 ? 'call-spread' : 'put-spread';
+    }
+    if (txns.length === 2 && calls === 1 && puts === 1) return 'straddle-strangle';
+    if (txns.length === 1) return 'single';
+    return `multi-leg-${txns.length}`;
+  }
+
+  // Helper: process a single trade group
+  async function processTradeGroup(key: string, txns: InvTxn[]): Promise<void> {
+    const [underlying] = key.split('|');
+    const strategy = detectGroupStrategy(txns);
+    const legs = buildLegs(txns);
+
+    globalMaxNum++;
+    const tradeNum = `${underlying}-${String(globalMaxNum).padStart(4, '0')}`;
+
+    try {
+      const commitResult = await prisma.$transaction(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (tx: any) => {
+          return await positionTrackerService.commitOptionsTrade({
+            legs,
+            strategy,
+            tradeNum,
+            userId,
+            entityId,
+            tx,
+            createdBy: 'batch-trade-processor',
+          });
+        },
+        { maxWait: 10000, timeout: 30000 }
+      );
+
+      result.trades_processed++;
+      result.trade_numbers_assigned.push(tradeNum);
+
+      // Count opens and closes from the results
+      for (const r of commitResult.results) {
+        if (r.action === 'OPEN') {
+          result.positions_opened++;
+          result.journal_entries_created++;
+        } else if (r.action === 'CLOSE' || r.action === 'PARTIAL_CLOSE' ||
+                   r.action === 'SPREAD_CLOSE' || r.action === 'SPREAD_CLOSE_SETTLEMENT') {
+          result.positions_closed++;
+          result.journal_entries_created++;
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      result.errors.push({ trade_group: key, error: message });
+    }
+  }
+
+  // STEP 1: Process all OPEN groups first (ensures positions exist before closes)
+  for (const [key, txns] of openGroups) {
+    await processTradeGroup(key, txns);
+  }
+
+  // STEP 2: Process mixed groups (opens first within group — handled by commitOptionsTrade)
+  for (const [key, txns] of mixedGroups) {
+    await processTradeGroup(key, txns);
+  }
+
+  // STEP 3: Process all CLOSE groups last
+  for (const [key, txns] of closeGroups) {
+    await processTradeGroup(key, txns);
+  }
+
+  return result;
+}
