@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { classifyAndPreview, processStockBuys, processOptions } from '@/lib/batch-trade-processor';
+import { classifyAndPreview, processStockBuys, processOptions, processStockSells, processAssignmentsExercises, processDividends, processRemainingCloses, runValidation } from '@/lib/batch-trade-processor';
 
 export async function POST(request: Request) {
   try {
@@ -47,10 +47,23 @@ export async function POST(request: Request) {
       return NextResponse.json(result);
     }
 
-    // Commit mode — process in order: stock buys → options → (rest coming later)
+    // Commit mode — process in order matching the pipeline spec
     const preview = await classifyAndPreview(user.id, year);
+
+    // 1. Stock/ETF/crypto buys → create lots
     const stockBuyResult = await processStockBuys(user.id, year, preview);
+    // 2. Options opens then closes
     const optionsResult = await processOptions(user.id, year, preview);
+    // 3. Stock/ETF/crypto sells → FIFO lot matching + dispositions
+    const stockSellResult = await processStockSells(user.id, year, preview);
+    // 4. Assignments/exercises → flagged for manual review
+    const assignmentResult = await processAssignmentsExercises(user.id, year, preview);
+    // 5. Dividends → income journal entries
+    const dividendResult = await processDividends(user.id, year, preview);
+    // 6. Retry any stuck option closes
+    const remainingClosesResult = await processRemainingCloses(user.id, year, preview);
+    // 7. Validation
+    const validation = await runValidation(user.id, year);
 
     return NextResponse.json({
       mode: 'commit',
@@ -58,9 +71,11 @@ export async function POST(request: Request) {
       preview_summary: preview.summary,
       stock_buys: stockBuyResult,
       options: optionsResult,
-      stock_sells: { status: 'not_yet_implemented' },
-      assignments_exercises: { status: 'not_yet_implemented' },
-      dividends: { status: 'not_yet_implemented' },
+      stock_sells: stockSellResult,
+      assignments_exercises: assignmentResult,
+      dividends: dividendResult,
+      remaining_closes: remainingClosesResult,
+      validation,
     });
 
   } catch (error: unknown) {
