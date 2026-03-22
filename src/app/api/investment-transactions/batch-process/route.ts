@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
-import { classifyAndPreview } from '@/lib/batch-trade-processor';
+import { classifyAndPreview, processStockBuys } from '@/lib/batch-trade-processor';
 
 export async function POST(request: Request) {
   try {
@@ -47,11 +47,20 @@ export async function POST(request: Request) {
       return NextResponse.json(result);
     }
 
-    // Commit mode — not yet implemented
-    return NextResponse.json(
-      { error: 'Commit mode not yet implemented' },
-      { status: 501 }
-    );
+    // Commit mode — process stock/crypto buys (step 2), rest coming in later prompts
+    const preview = await classifyAndPreview(user.id, year);
+    const stockBuyResult = await processStockBuys(user.id, year, preview);
+
+    return NextResponse.json({
+      mode: 'commit',
+      year,
+      preview_summary: preview.summary,
+      stock_buys: stockBuyResult,
+      options: { status: 'not_yet_implemented' },
+      stock_sells: { status: 'not_yet_implemented' },
+      assignments_exercises: { status: 'not_yet_implemented' },
+      dividends: { status: 'not_yet_implemented' },
+    });
 
   } catch (error: unknown) {
     console.error('Batch process error:', error);

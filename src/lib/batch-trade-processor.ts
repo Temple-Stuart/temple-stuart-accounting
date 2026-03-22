@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { positionTrackerService } from '@/lib/position-tracker-service';
 
 // ═══════════════════════════════════════════════════════════════
 // Classification categories for investment transactions
@@ -370,4 +371,160 @@ function detectStrategy(legs: ClassifiedTransaction[]): string {
   }
   // Fallback for 3-leg or other multi-leg structures
   return `multi-leg-${legs.length}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// processStockBuys — Create stock_lots + journal entries for
+// STOCK_BUY and CRYPTO_BUY transactions
+// ═══════════════════════════════════════════════════════════════
+
+export interface StockBuyProcessResult {
+  lots_created: number;
+  journal_entries_created: number;
+  trade_numbers_assigned: string[];
+  errors: Array<{ transactionId: string; symbol: string; error: string }>;
+}
+
+export async function processStockBuys(
+  userId: string,
+  year: number,
+  preview: BatchPreviewResult
+): Promise<StockBuyProcessResult> {
+  const result: StockBuyProcessResult = {
+    lots_created: 0,
+    journal_entries_created: 0,
+    trade_numbers_assigned: [],
+    errors: [],
+  };
+
+  // Get the trading entity for this user
+  const tradingEntity = await prisma.entities.findFirst({
+    where: { userId, entity_type: 'trading' },
+  });
+  if (!tradingEntity) {
+    result.errors.push({
+      transactionId: '',
+      symbol: '',
+      error: 'No trading entity found for user. Cannot create lots.',
+    });
+    return result;
+  }
+  const entityId = tradingEntity.id;
+
+  // Combine stock buys and crypto buys into one list
+  // Crypto buys from the preview are in classified as CRYPTO_BUY but not in preview.stock_buys.
+  // Re-query crypto buys from the classified data. Since classifyAndPreview doesn't expose
+  // crypto_buys separately, we query them directly here.
+  const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
+  const endDate = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+
+  const allUnprocessed = await prisma.investment_transactions.findMany({
+    where: {
+      tradeNum: null,
+      accounts: { userId },
+      date: { gte: startDate, lt: endDate },
+    },
+    include: { security: true },
+    orderBy: { date: 'asc' },
+  });
+
+  // Build the duplicate ID set (same logic as classifyAndPreview)
+  type InvTxn = (typeof allUnprocessed)[number];
+  const dedupMap = new Map<string, InvTxn[]>();
+  for (const txn of allUnprocessed) {
+    const dateStr = txn.date.toISOString().split('T')[0];
+    const key = [
+      txn.security_id || 'null',
+      dateStr,
+      String(txn.quantity),
+      String(txn.price),
+      txn.type || 'null',
+      txn.subtype || 'null',
+    ].join('|');
+    const group = dedupMap.get(key);
+    if (group) { group.push(txn); } else { dedupMap.set(key, [txn]); }
+  }
+  const duplicateIds = new Set<string>();
+  for (const group of dedupMap.values()) {
+    if (group.length < 2) continue;
+    group.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    for (let i = 1; i < group.length; i++) duplicateIds.add(group[i].id);
+  }
+
+  // Filter to stock/ETF buys and crypto buys (non-duplicates, non-options)
+  const buyTransactions = allUnprocessed.filter((txn: InvTxn) => {
+    if (duplicateIds.has(txn.id)) return false;
+    if (txn.type !== 'buy') return false;
+    const sec = txn.security;
+    if (sec?.option_contract_type) return false; // skip options
+    const secType = sec?.type || '';
+    return secType === 'equity' || secType === 'etf' || secType === 'cryptocurrency';
+  });
+
+  if (buyTransactions.length === 0) return result;
+
+  // Get current global max trade number to start incrementing from
+  const existingTradeNums = await prisma.investment_transactions.findMany({
+    where: { tradeNum: { not: null }, accounts: { userId } },
+    select: { tradeNum: true },
+    distinct: ['tradeNum'],
+  });
+  let globalMaxNum = 0;
+  for (const r of existingTradeNums) {
+    if (r.tradeNum) {
+      const match = r.tradeNum.match(/-(\d+)$/);
+      const num = match ? parseInt(match[1], 10) : parseInt(r.tradeNum, 10);
+      if (!isNaN(num) && num > globalMaxNum) globalMaxNum = num;
+    }
+  }
+
+  // Process each buy individually — each buy = one lot = one trade number
+  // Uses commitStockTrade() from position-tracker-service.ts (lines 691-769)
+  // which creates: stock_lot + journal entry + updates investment_transaction
+  for (const txn of buyTransactions) {
+    const ticker = (
+      txn.security?.ticker_symbol ||
+      txn.security?.option_underlying_ticker ||
+      'UNKNOWN'
+    ).toUpperCase();
+
+    globalMaxNum++;
+    const tradeNum = `${ticker}-${String(globalMaxNum).padStart(4, '0')}`;
+
+    try {
+      const commitResult = await prisma.$transaction(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (tx: any) => {
+          return await positionTrackerService.commitStockTrade({
+            legs: [{
+              id: txn.id,
+              date: txn.date,
+              symbol: ticker,
+              action: 'buy',
+              quantity: txn.quantity || 0,
+              price: txn.price || 0,
+              fees: txn.rhFees || txn.fees || 0,
+              amount: txn.amount || 0,
+            }],
+            strategy: txn.security?.type === 'cryptocurrency' ? 'long-crypto' : 'long-stock',
+            tradeNum,
+            userId,
+            entityId,
+            tx,
+            createdBy: 'batch-trade-processor',
+          });
+        },
+        { maxWait: 10000, timeout: 30000 }
+      );
+
+      result.lots_created += commitResult.committed;
+      result.journal_entries_created += commitResult.committed;
+      result.trade_numbers_assigned.push(tradeNum);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      result.errors.push({ transactionId: txn.id, symbol: ticker, error: message });
+    }
+  }
+
+  return result;
 }
