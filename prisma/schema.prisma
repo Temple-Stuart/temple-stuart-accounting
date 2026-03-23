@@ -467,6 +467,7 @@ model users {
   merchant_coa_mappings merchant_coa_mappings[]
   trade_cards           trade_cards[]
   tax_overrides         tax_overrides[]
+  tax_documents         tax_documents[]
   closing_periods       closing_periods[]
   bank_reconciliations  bank_reconciliations[]
   scan_snapshots        scan_snapshots[]
@@ -1423,6 +1424,26 @@ model tax_overrides {
 
   @@unique([userId, tax_year, field_key])
   @@index([userId, tax_year])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TAX DOCUMENTS — Structured intake for W-2, 1099-R, 1098-T, 1098-E
+// ═══════════════════════════════════════════════════════════════════
+
+model tax_documents {
+  id          String   @id @default(uuid())
+  userId      String
+  tax_year    Int
+  doc_type    String   @db.VarChar(20)   // w2, 1099r, 1098t, 1098e, 1099b, 1099int, 1099div
+  label       String?  @db.VarChar(100)  // "Wells Fargo W-2", "CSULA 1098-T", etc.
+  data        Json                       // structured data matching form fields
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        users    @relation(fields: [userId], references: [id])
+
+  @@index([userId, tax_year])
+  @@unique([userId, tax_year, doc_type, label])
 }
 
 // ═══════════════════════════════════════════════════════════════════
