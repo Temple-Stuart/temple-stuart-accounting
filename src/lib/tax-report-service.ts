@@ -160,7 +160,10 @@ export async function generateForm8949(
         const isLongTerm = holdingDays >= 366;
         const proceeds = pos.proceeds || 0;
         const costBasis = pos.cost_basis;
-        const gainOrLoss = proceeds - costBasis;
+        // Use the pre-calculated realized_pl which correctly handles
+        // LONG (proceeds - cost) vs SHORT (cost - proceeds) positions.
+        // Recomputing as proceeds - costBasis is wrong for short positions.
+        const gainOrLoss = pos.realized_pl ?? (proceeds - costBasis);
 
         // Build option description: "1 AAPL Jan 20 2025 $150 Call"
         const optDesc = buildOptionDescription(pos);

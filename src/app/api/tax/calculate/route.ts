@@ -89,7 +89,7 @@ export async function GET(request: Request) {
     const yearEnd = new Date(`${taxYear + 1}-01-01T00:00:00.000Z`);
 
     for (const expense of scheduleC.expenses) {
-      const lineKey = `line_${expense.line}_${expense.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const lineKey = `line_${expense.line}`;
       const sources: LineSource[] = [];
 
       for (const acct of expense.accounts) {
