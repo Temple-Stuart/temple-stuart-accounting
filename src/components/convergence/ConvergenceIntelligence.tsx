@@ -4622,23 +4622,42 @@ export default function ConvergenceIntelligence() {
       setBatchData(json);
       setScanning(false);
 
-      // Now enrich each top ticker sequentially
-      const symbols = json.top_9.map(r => r.symbol);
+      // Build TickerDetail from pipeline data — single source of truth (no second chain fetch)
+      const symbols = json.top_9.map((r: RankedRow) => r.symbol);
       if (symbols.length > 0) {
         setEnriching(true);
         setEnrichProgress({ done: 0, total: symbols.length, current: symbols[0] });
         const results: TickerDetail[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pr = pipelineResults as any;
         for (let i = 0; i < symbols.length; i++) {
-          setEnrichProgress({ done: i, total: symbols.length, current: symbols[i] });
-          try {
-            const r = await fetch(`/api/test/convergence?symbol=${encodeURIComponent(symbols[i])}`);
-            if (r.ok) {
-              const d: TickerDetail = await r.json();
-              results.push(d);
-              setEnriched([...results]);
-            }
-          } catch { /* skip failed ticker */ }
-          if (i < symbols.length - 1) await delay(1500);
+          const sym = symbols[i];
+          setEnrichProgress({ done: i, total: symbols.length, current: sym });
+
+          const scoring = pr?.scoring_details?.[sym];
+          const fullCards = pr?.full_trade_cards_per_ticker?.[sym];
+          const chainStats = pr?.chain_stats_per_ticker?.[sym];
+          const rejections = pr?.rejection_reasons?.[sym];
+
+          if (scoring) {
+            const detail: TickerDetail = {
+              symbol: sym,
+              pipeline_runtime_ms: pr?.pipeline_summary?.pipeline_runtime_ms ?? 0,
+              scores: {
+                vol_edge: scoring.vol_edge,
+                quality: scoring.quality,
+                regime: scoring.regime,
+                info_edge: scoring.info_edge,
+                composite: scoring.composite,
+              },
+              trade_cards: fullCards ?? [],
+              data_gaps: scoring.data_gaps ?? [],
+              _chain_stats: chainStats ?? undefined,
+              _rejection_reasons: rejections ?? undefined,
+            };
+            results.push(detail);
+            setEnriched([...results]);
+          }
         }
         setEnriching(false);
         setEnrichProgress({ done: symbols.length, total: symbols.length, current: '' });
