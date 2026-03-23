@@ -5,7 +5,7 @@ import type { CrossAssetCorrelations } from './types';
 import type { FinnhubData, CandleBatchStats } from './data-fetchers';
 import { fetchChainAndBuildCards, isMarketOpen } from './chain-fetcher';
 import type { ChainFetchStats, ChainFetchResult, PerTickerChainStats } from './chain-fetcher';
-import type { RejectionReason } from '@/lib/strategy-builder';
+import type { RejectionReason, StrategyCard } from '@/lib/strategy-builder';
 import { fetchSentimentBatch } from './sentiment';
 import type { SentimentResult } from './sentiment';
 import { computePeerStats, computeTextPeerGroups } from './sector-stats';
@@ -15,11 +15,13 @@ import type { FullScoringResult } from './composite';
 import { computePreFilter } from './pre-filter';
 import type { PreFilterResult } from './pre-filter';
 import { logScanSnapshotBatch } from './snapshot-logger';
+import { generateTradeCards } from './trade-cards';
 import type {
   TTScannerData,
   ConvergenceInput,
   FredMacroData,
   LegacyTradeCardData,
+  TradeCardData,
   AnnualFinancials,
   OptionsFlowData,
   NewsSentimentData,
@@ -137,6 +139,8 @@ export interface PipelineResult {
   };
   diversification: DiversificationResult;
   scoring_details: Record<string, FullScoringResult>;
+  full_trade_cards_per_ticker: Record<string, TradeCardData[]>;
+  chain_stats_per_ticker: Record<string, PerTickerChainStats>;
   pre_filter: PreFilterResult[];
   social_sentiment: Record<string, SentimentResult>;
   rejection_reasons: Record<string, RejectionReason[]>;
@@ -1488,6 +1492,7 @@ export async function runPipeline(
   let chainMarketOpen = true;
   let chainMarketNote: string | undefined;
   let perTickerStats = new Map<string, PerTickerChainStats>();
+  let rawStrategyCards = new Map<string, StrategyCard[]>();
 
   const marketStatus = isMarketOpen();
   if (!marketStatus.open) {
@@ -1538,6 +1543,7 @@ export async function runPipeline(
       chainStats = chainResult.stats;
       chainRejections = chainResult.rejections;
       perTickerStats = chainResult.perTickerStats;
+      rawStrategyCards = chainResult.cards;
       chainMarketOpen = chainResult.marketOpen;
       chainMarketNote = chainResult.marketNote;
 
@@ -1773,6 +1779,63 @@ export async function runPipeline(
     }
   }
 
+  // Generate full TradeCardData (setup + why + key_stats) for each top-9 ticker
+  // This is the single source of truth — no second chain fetch needed
+  const fullTradeCardsPerTicker: Record<string, TradeCardData[]> = {};
+  for (const row of top9) {
+    const ticker = scoredTickers.find(t => t.symbol === row.symbol);
+    const stratCards = rawStrategyCards.get(row.symbol);
+    if (!ticker || !stratCards || stratCards.length === 0) {
+      fullTradeCardsPerTicker[row.symbol] = [];
+      continue;
+    }
+
+    // Rebuild ConvergenceInput for generateTradeCards (same shape used in re-scoring)
+    const tt = ticker.scannerData;
+    const input: ConvergenceInput = {
+      symbol: row.symbol,
+      ttScanner: tt,
+      candles: candleDataMap.get(row.symbol) ?? [],
+      finnhubFundamentals: ticker.finnhubData.fundamentals,
+      finnhubRecommendations: ticker.finnhubData.recommendations,
+      finnhubInsiderSentiment: ticker.finnhubData.insiderSentiment,
+      finnhubEarnings: ticker.finnhubData.earnings,
+      finnhubEstimates: ticker.finnhubData.estimateData ?? null,
+      fredMacro: fredResult.data,
+      annualFinancials: annualFinancialsMap.get(row.symbol) ?? null,
+      quarterlyFinancials: quarterlyFinancialsMap.get(row.symbol) ?? null,
+      optionsFlow: optionsFlowMap.get(row.symbol) ?? null,
+      newsSentiment: newsSentimentMap.get(row.symbol) ?? null,
+      finnhubNewsSentiment: finbertMap.get(row.symbol) ?? null,
+      finnhubEarningsQuality: earningsQualityMap.get(row.symbol) ?? null,
+      finnhubInstitutionalOwnership: institutionalOwnershipMap.get(row.symbol) ?? null,
+      finnhubRevenueBreakdown: revenueBreakdownMap.get(row.symbol) ?? null,
+      secFilingData: secFilingMap.get(row.symbol) ?? null,
+      secForm4Data: secForm4Map.get(row.symbol) ?? null,
+      finnhubFundOwnership: fundOwnershipMap.get(row.symbol) ?? null,
+      edgar8kScan: edgar8kMap.get(row.symbol) ?? null,
+      crossAssetCorrelations,
+      peerStats,
+      peerGroupAssignment,
+      textPeerGroups: Object.keys(textPeerGroups).length > 0 ? textPeerGroups : undefined,
+    };
+
+    try {
+      const fullCards = generateTradeCards(stratCards, ticker.scoring, input);
+      fullTradeCardsPerTicker[row.symbol] = fullCards;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[Pipeline] generateTradeCards failed for ${row.symbol}:`, msg);
+      fullTradeCardsPerTicker[row.symbol] = [];
+    }
+  }
+
+  // Build chain stats per ticker for result
+  const chainStatsPerTicker: Record<string, PerTickerChainStats> = {};
+  for (const [sym, stats] of perTickerStats) {
+    chainStatsPerTicker[sym] = stats;
+  }
+
   // Data gaps
   if (candleStats.symbols_with_data === scoredSymbols.length) {
     // All symbols got candles — no gap
@@ -1825,6 +1888,8 @@ export async function runPipeline(
     },
     diversification,
     scoring_details: scoringDetails,
+    full_trade_cards_per_ticker: fullTradeCardsPerTicker,
+    chain_stats_per_ticker: chainStatsPerTicker,
     pre_filter: preFilterResults,
     social_sentiment: socialSentiment,
     rejection_reasons: Object.fromEntries(chainRejections),
