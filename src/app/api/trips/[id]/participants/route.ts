@@ -47,7 +47,13 @@ export async function GET(
         unavailableDays: true,
         rsvpStatus: true,
         rsvpAt: true,
-        isOwner: true
+        isOwner: true,
+        profileTripType: true,
+        profileBudget: true,
+        profilePriorities: true,
+        profileVibe: true,
+        profilePace: true,
+        profileGroupSize: true,
       },
       orderBy: [{ isOwner: 'desc' }, { firstName: 'asc' }]
     });
@@ -143,6 +149,83 @@ export async function POST(
   } catch (error) {
     console.error('Add participant error:', error);
     return NextResponse.json({ error: 'Failed to add participant' }, { status: 500 });
+  }
+}
+
+// PATCH update participant profile
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const userEmail = await getVerifiedEmail();
+
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { email: userEmail },
+      select: { id: true }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const trip = await prisma.trips.findFirst({
+      where: { id, userId: user.id }
+    });
+
+    const body = await request.json();
+    const { participantId, profile } = body;
+
+    if (!participantId || !profile) {
+      return NextResponse.json({ error: 'Missing participantId or profile' }, { status: 400 });
+    }
+
+    const participant = await prisma.trip_participants.findUnique({
+      where: { id: participantId }
+    });
+
+    if (!participant || participant.tripId !== id) {
+      return NextResponse.json({ error: 'Participant not found' }, { status: 404 });
+    }
+
+    // Auth: participant can update their own profile, or trip organizer can update anyone's
+    const isOrganizer = !!trip;
+    const isSelf = participant.email.toLowerCase() === userEmail.toLowerCase();
+
+    if (!isOrganizer && !isSelf) {
+      return NextResponse.json({ error: 'Not authorized to update this profile' }, { status: 403 });
+    }
+
+    const updated = await prisma.trip_participants.update({
+      where: { id: participantId },
+      data: {
+        profileTripType: profile.tripType ?? undefined,
+        profileBudget: profile.budget ?? undefined,
+        profilePriorities: profile.priorities ?? undefined,
+        profileVibe: profile.vibe ?? undefined,
+        profilePace: profile.pace ?? undefined,
+        profileGroupSize: profile.groupSize ?? undefined,
+      },
+      select: {
+        id: true,
+        profileTripType: true,
+        profileBudget: true,
+        profilePriorities: true,
+        profileVibe: true,
+        profilePace: true,
+        profileGroupSize: true,
+      }
+    });
+
+    return NextResponse.json({ participant: updated });
+  } catch (error) {
+    console.error('Update participant profile error:', error);
+    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 });
   }
 }
 

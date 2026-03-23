@@ -140,6 +140,9 @@ export async function analyzeWithLiveSearch(options: {
     `${i + 1}. ${p.name} | Rating: ${p.rating} (${p.reviewCount} reviews) | ${p.address}`
   ).join('\n');
 
+  const vibeStr = profile.vibe || '';
+  const paceStr = profile.pace || '';
+
   const prompt = `You are a travel intelligence agent with access to live X (Twitter) and web search.
 
 ## TRAVELER PROFILE
@@ -150,7 +153,7 @@ export async function analyzeWithLiveSearch(options: {
 - Dealbreakers: ${dealbreakersStr}
 - Budget: ${profile.budget}
 - Group Size: ${profile.groupSize}
-- Timeframe: ${timeframe}
+- Timeframe: ${timeframe}${vibeStr ? `\n- Vibe: ${vibeStr}` : ''}${paceStr ? `\n- Pace: ${paceStr}` : ''}
 
 ## CATEGORY: ${category.toUpperCase()}
 
