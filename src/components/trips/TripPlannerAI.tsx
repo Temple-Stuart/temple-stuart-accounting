@@ -62,6 +62,8 @@ interface Props {
   daysTravel: number;
   onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
   committedBudget?: { category: string; amount: number; description: string; photoUrl?: string | null }[];
+  participantId?: string;
+  initialProfile?: Partial<TravelerProfile>;
 }
 
 // Enhanced trip types with images/colors
@@ -160,7 +162,7 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   wellness: { label: 'Wellness/Gym', icon: '💆' },
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -169,17 +171,36 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [byCategory, setByCategory] = useState<Record<string, GrokRecommendation[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  
+
   const [minRating, setMinRating] = useState(4.0);
   const [minReviews, setMinReviews] = useState(50);
-  
+
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
   const [editForm, setEditForm] = useState({ days: [] as number[], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily' as 'daily' | 'weekly' | 'monthly', customPrice: 0, splitType: 'personal' as 'personal' | 'split' });
 
-  const [profile, setProfile] = useState<TravelerProfile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<TravelerProfile>(() => {
+    if (initialProfile && (initialProfile.tripType || initialProfile.budget)) {
+      return { ...DEFAULT_PROFILE, ...initialProfile };
+    }
+    return DEFAULT_PROFILE;
+  });
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileStep, setProfileStep] = useState(1);
+
+  // Persist profile to DB when modal closes
+  const saveProfileToDb = async (profileToSave: TravelerProfile) => {
+    if (!participantId) return;
+    try {
+      await fetch(`/api/trips/${tripId}/participants`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId, profile: profileToSave }),
+      });
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+    }
+  };
 
 
   // Custom add state
@@ -664,7 +685,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                   Next →
                 </Button>
               ) : (
-                <Button onClick={() => setShowProfileModal(false)} className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600">
+                <Button onClick={() => { setShowProfileModal(false); saveProfileToDb(profile); }} className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600">
                   ✨ Save & Find Spots
                 </Button>
               )}

@@ -25,6 +25,12 @@ interface Participant {
   isOwner: boolean;
   unavailableDays: number[] | null;
   inviteUrl?: string;
+  profileTripType?: string | null;
+  profileBudget?: string | null;
+  profilePriorities?: string[];
+  profileVibe?: string[];
+  profilePace?: string | null;
+  profileGroupSize?: number | null;
 }
 
 interface ExpenseSplit {
@@ -457,9 +463,199 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* ═══════════════════════════════════════════════════════════ */}
-          {/* PLANNING FLOW — Steps 1 through 6                         */}
+          {/* SCOREBOARD — Itinerary + Crew (reference while planning)  */}
           {/* ═══════════════════════════════════════════════════════════ */}
           <div className="space-y-4">
+
+            {/* ── Itinerary (scoreboard — fills up as you commit vendors) ── */}
+            <div className="bg-white border border-border">
+              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <span>Itinerary</span>
+                <button onClick={() => setShowExpenseForm(!showExpenseForm)}
+                  className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
+                  {showExpenseForm ? 'Cancel' : '+ Add Expense'}
+                </button>
+              </div>
+
+              {/* Inline Add Expense Form */}
+              {showExpenseForm && (
+                <form onSubmit={handleAddExpense} className="p-4 bg-bg-row border-b border-border">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs" required>
+                      <option value="">Paid by...</option>
+                      {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
+                    </select>
+                    <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs">
+                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs" required />
+                    <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs" required />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs" />
+                    <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs" />
+                    <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                      className="bg-white border border-border px-2 py-1.5 text-xs col-span-2" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-text-muted">Split:</span>
+                    {confirmedParticipants.map(p => (
+                      <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
+                        className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-brand-purple text-white' : 'bg-border text-text-secondary'}`}>
+                        {p.firstName}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="submit" disabled={savingExpense}
+                    className="px-4 py-2 bg-brand-purple text-white text-xs font-medium disabled:opacity-50">
+                    {savingExpense ? '...' : 'Add'}
+                  </button>
+                </form>
+              )}
+
+              {trip.startDate ? (
+                <div>
+                  {/* Day Selector */}
+                  <div className="flex flex-wrap gap-2 p-3 border-b border-border">
+                    {itineraryDays.map(day => (
+                      <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
+                        className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
+                          selectedDay === day.dayNum ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
+                        }`}>
+                        Day {day.dayNum} · {day.dateStr}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Selected Day Content */}
+                  {(() => {
+                    const day = itineraryDays.find(d => d.dayNum === selectedDay);
+                    if (!day) return null;
+                    return (
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-brand-purple text-white flex items-center justify-center font-bold">
+                              {day.dayNum}
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-text-primary">{day.weekday}, {day.dateStr}</div>
+                              <div className="text-[10px] text-text-muted">{day.items.length} items</div>
+                            </div>
+                          </div>
+                          {day.totalCost > 0 && (
+                            <div className="text-right">
+                              <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {day.items.length > 0 ? (
+                          <div className="space-y-2">
+                            {day.items.map((item: any) => (
+                              <div key={item.id} className="flex items-center justify-between p-2 bg-bg-row text-xs">
+                                <div className="flex items-center gap-2">
+                                  {item.destTime && (
+                                    <span className="px-2 py-0.5 bg-brand-purple text-white text-[10px] font-mono">{item.destTime}</span>
+                                  )}
+                                  <span className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{item.category}</span>
+                                  <span className="font-medium">{item.vendor}</span>
+                                  {item.note && <span className="text-text-muted">· {item.note}</span>}
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-mono font-semibold">{fmt(parseFloat(item.cost || 0))}</div>
+                                  {item.splitBy > 1 && item.perPerson && (
+                                    <div className="text-[10px] text-text-muted">
+                                      {fmt(parseFloat(item.perPerson))}/person
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-text-faint italic">No activities planned for this day</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-text-faint">
+                  <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
+                  <p className="text-xs">Select dates and destination first</p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Crew ── */}
+            <div className="bg-white border border-border">
+              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+                Crew ({participants.length})
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-brand-purple-hover text-white">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Name</th>
+                      <th className="px-3 py-2 text-left font-medium">Email</th>
+                      <th className="px-3 py-2 text-center font-medium">Status</th>
+                      <th className="px-3 py-2 text-center font-medium">Role</th>
+                      <th className="px-3 py-2 text-center font-medium">Blackout Days</th>
+                      <th className="px-3 py-2 text-center font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {participants.map(p => (
+                      <tr key={p.id} className="hover:bg-bg-row">
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                              p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
+                            }`}>
+                              {p.firstName[0]}
+                            </div>
+                            <span className="font-medium text-text-primary">{p.firstName} {p.lastName}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-text-secondary font-mono">{p.email}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`px-2 py-0.5 text-[10px] ${
+                            p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                            p.rsvpStatus === 'declined' ? 'bg-red-100 text-brand-red' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {p.rsvpStatus}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {p.isOwner && <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">Organizer</span>}
+                        </td>
+                        <td className="px-3 py-3 text-center text-text-muted">
+                          {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {!p.isOwner && (
+                            <button onClick={() => removeParticipant(p.id, p.firstName)}
+                              className="text-text-faint hover:text-brand-red">×</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* PLANNING FLOW — Steps 1 through 6                         */}
+            {/* ═══════════════════════════════════════════════════════════ */}
 
             {/* ── Step 1: Dates ── */}
             <div className="bg-white border border-border">
@@ -586,6 +782,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     month={trip.month}
                     year={trip.year}
                     daysTravel={trip.daysTravel}
+                    participantId={participants.find(p => p.isOwner)?.id}
+                    initialProfile={(() => {
+                      const owner = participants.find(p => p.isOwner);
+                      if (!owner?.profileTripType) return undefined;
+                      return {
+                        tripType: owner.profileTripType || undefined,
+                        budget: owner.profileBudget || undefined,
+                        priorities: owner.profilePriorities || [],
+                        vibe: owner.profileVibe || [],
+                        pace: owner.profilePace || undefined,
+                        groupSize: owner.profileGroupSize || undefined,
+                      };
+                    })()}
                     onBudgetChange={(total: number, selections: any[], groupSize: number) => {
                       const catMap: Record<string, string> = {
                         lodging: "lodging", coworking: "coworking", motoRental: "car",
@@ -814,197 +1023,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             )}
-
-            {/* ── Itinerary ── */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
-                Itinerary
-              </div>
-
-              {trip.startDate ? (
-                <div>
-                  {/* Day Selector */}
-                  <div className="flex flex-wrap gap-2 p-3 border-b border-border">
-                    {itineraryDays.map(day => (
-                      <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
-                        className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
-                          selectedDay === day.dayNum ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                        }`}>
-                        Day {day.dayNum} · {day.dateStr}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Selected Day Content */}
-                  {(() => {
-                    const day = itineraryDays.find(d => d.dayNum === selectedDay);
-                    if (!day) return null;
-                    return (
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-brand-purple text-white flex items-center justify-center font-bold">
-                              {day.dayNum}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-text-primary">{day.weekday}, {day.dateStr}</div>
-                              <div className="text-[10px] text-text-muted">{day.items.length} items</div>
-                            </div>
-                          </div>
-                          {day.totalCost > 0 && (
-                            <div className="text-right">
-                              <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
-                            </div>
-                          )}
-                        </div>
-
-                        {day.items.length > 0 ? (
-                          <div className="space-y-2">
-                            {day.items.map((item: any) => (
-                              <div key={item.id} className="flex items-center justify-between p-2 bg-bg-row text-xs">
-                                <div className="flex items-center gap-2">
-                                  {item.destTime && (
-                                    <span className="px-2 py-0.5 bg-brand-purple text-white text-[10px] font-mono">{item.destTime}</span>
-                                  )}
-                                  <span className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{item.category}</span>
-                                  <span className="font-medium">{item.vendor}</span>
-                                  {item.note && <span className="text-text-muted">· {item.note}</span>}
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-mono font-semibold">{fmt(parseFloat(item.cost || 0))}</div>
-                                  {item.splitBy > 1 && item.perPerson && (
-                                    <div className="text-[10px] text-text-muted">
-                                      {fmt(parseFloat(item.perPerson))}/person
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-text-faint italic">No activities planned for this day</div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-text-faint">
-                  <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
-                  <p className="text-xs">Select dates and destination first</p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Add Expense ── */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
-                <span>Add Expense</span>
-                <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                  className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20">
-                  {showExpenseForm ? 'Cancel' : '+ New'}
-                </button>
-              </div>
-              {showExpenseForm && (
-                <form onSubmit={handleAddExpense} className="p-4 bg-bg-row">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs" required>
-                      <option value="">Paid by...</option>
-                      {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
-                    </select>
-                    <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs">
-                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                    <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs" required />
-                    <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs" required />
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs" />
-                    <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs" />
-                    <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                      className="bg-white border border-border px-2 py-1.5 text-xs col-span-2" />
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-text-muted">Split:</span>
-                    {confirmedParticipants.map(p => (
-                      <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
-                        className={`px-2 py-1 text-[10px] font-medium ${expenseForm.splitWith.includes(p.id) ? 'bg-brand-purple text-white' : 'bg-border text-text-secondary'}`}>
-                        {p.firstName}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="submit" disabled={savingExpense}
-                    className="px-4 py-2 bg-brand-purple text-white text-xs font-medium disabled:opacity-50">
-                    {savingExpense ? '...' : 'Add'}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* ── Crew ── */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
-                Crew ({participants.length})
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-brand-purple-hover text-white">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Name</th>
-                      <th className="px-3 py-2 text-left font-medium">Email</th>
-                      <th className="px-3 py-2 text-center font-medium">Status</th>
-                      <th className="px-3 py-2 text-center font-medium">Role</th>
-                      <th className="px-3 py-2 text-center font-medium">Blackout Days</th>
-                      <th className="px-3 py-2 text-center font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {participants.map(p => (
-                      <tr key={p.id} className="hover:bg-bg-row">
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                              p.rsvpStatus === 'confirmed' ? 'bg-emerald-500' : p.rsvpStatus === 'declined' ? 'bg-red-500' : 'bg-amber-500'
-                            }`}>
-                              {p.firstName[0]}
-                            </div>
-                            <span className="font-medium text-text-primary">{p.firstName} {p.lastName}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 text-text-secondary font-mono">{p.email}</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className={`px-2 py-0.5 text-[10px] ${
-                            p.rsvpStatus === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                            p.rsvpStatus === 'declined' ? 'bg-red-100 text-brand-red' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {p.rsvpStatus}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {p.isOwner && <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">Organizer</span>}
-                        </td>
-                        <td className="px-3 py-3 text-center text-text-muted">
-                          {(p.unavailableDays || []).length > 0 ? (p.unavailableDays || []).join(', ') : '—'}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {!p.isOwner && (
-                            <button onClick={() => removeParticipant(p.id, p.firstName)}
-                              className="text-text-faint hover:text-brand-red">×</button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
             {/* ── Settlement Matrix ── */}
             {confirmedParticipants.length > 1 && (

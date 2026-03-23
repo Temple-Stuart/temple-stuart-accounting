@@ -567,6 +567,14 @@ model trip_participants {
   homeAirport     String?   @db.VarChar(10)
   homeAddress     String?   @db.VarChar(500)
 
+  // Traveler profile — persisted per participant
+  profileTripType   String?   @db.VarChar(50)
+  profileBudget     String?   @db.VarChar(50)
+  profilePriorities String[]  @default([])
+  profileVibe       String[]  @default([])
+  profilePace       String?   @db.VarChar(20)
+  profileGroupSize  Int?      @default(1)
+
   trip          trips            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   expenseSplits expense_splits[]
   paidExpenses  trip_expenses[]  @relation("PaidBy")

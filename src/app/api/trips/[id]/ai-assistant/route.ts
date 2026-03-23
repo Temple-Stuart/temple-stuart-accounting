@@ -8,11 +8,13 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 
 // Trip-type focused profile
 interface TravelerProfile {
-  tripType: 'remote_work' | 'romantic' | 'friends' | 'family' | 'solo' | 'relaxation';
-  budget: 'under50' | '50to100' | '100to200' | '200to400' | 'over400';
+  tripType: string;
+  budget: string;
   priorities: string[];
   dealbreakers: string[];
   groupSize: number;
+  vibe?: string[];
+  pace?: string;
 }
 
 const BUDGET_LABELS: Record<string, string> = {
@@ -162,7 +164,9 @@ export async function POST(
         budget: BUDGET_LABELS[travelerProfile.budget] || "$100-200/night",
         priorities: travelerProfile.priorities,
         dealbreakers: travelerProfile.dealbreakers,
-        groupSize: travelerProfile.groupSize
+        groupSize: travelerProfile.groupSize,
+        vibe: (travelerProfile.vibe || []).join(', ') || undefined,
+        pace: travelerProfile.pace || undefined,
       },
       category,
       month: monthName,
