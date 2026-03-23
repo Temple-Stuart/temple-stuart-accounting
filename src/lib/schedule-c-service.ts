@@ -260,6 +260,10 @@ export async function generateScheduleC(
 // ─── Schedule SE generator ─────────────────────────────────────
 
 export function generateScheduleSE(scheduleCNetProfit: number): ScheduleSE {
+  // SE tax only applies to positive net self-employment income
+  if (scheduleCNetProfit <= 0) {
+    return { line2: round2(scheduleCNetProfit), line3: 0, line12: 0, line13: 0 };
+  }
   const line2 = round2(scheduleCNetProfit);
   const line3 = round2(line2 * 0.9235);
   const line12 = round2(line3 * 0.153);

@@ -363,7 +363,7 @@ export async function generateForm1040(
   const retCode = overrides['retirement_distribution_code'] || '1';
   const earlyWithdrawalPenalty = retCode === '1' ? round2(line5b * 0.10) : 0;
 
-  const selfEmploymentTax = scheduleSE.line12;
+  const selfEmploymentTax = Math.max(0, scheduleSE.line12);
   const totalTax = round2(incomeTax + ltcgTax + earlyWithdrawalPenalty + selfEmploymentTax);
 
   // ── CREDITS & PAYMENTS ──
