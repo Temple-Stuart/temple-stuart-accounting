@@ -202,12 +202,53 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [savingVendorOption, setSavingVendorOption] = useState(false);
   const [vendorAddCounts, setVendorAddCounts] = useState<Record<string, number>>({});
 
+  // Scanner results metadata (who scanned, when)
+  const [scannerMeta, setScannerMeta] = useState<{ scannedBy: string; updatedAt: string } | null>(null);
+
   // Clear "added" tracking when vendor options change externally (e.g. uncommit deletes the option)
   useEffect(() => {
     if (vendorRefreshKey !== undefined && vendorRefreshKey > 0) {
       setAddedToVendorOptions(new Set());
     }
   }, [vendorRefreshKey]);
+
+  // Load saved scanner results from DB on mount
+  useEffect(() => {
+    const loadSavedResults = async () => {
+      try {
+        const res = await fetch(`/api/trips/${tripId}/scanner-results`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const results = data.results || [];
+        if (results.length === 0) return;
+
+        const loaded: Record<string, GrokRecommendation[]> = {};
+        let allRecs: GrokRecommendation[] = [];
+        let latestMeta: { scannedBy: string; updatedAt: string } | null = null;
+
+        for (const r of results) {
+          const recs = r.recommendations as GrokRecommendation[];
+          if (recs && recs.length > 0) {
+            loaded[r.category] = recs;
+            allRecs = [...allRecs, ...recs];
+          }
+          if (!latestMeta || new Date(r.updatedAt) > new Date(latestMeta.updatedAt)) {
+            latestMeta = { scannedBy: r.scannedBy, updatedAt: r.updatedAt };
+          }
+        }
+
+        if (Object.keys(loaded).length > 0) {
+          setByCategory(loaded);
+          setRecommendations(allRecs.sort((a, b) => a.valueRank - b.valueRank));
+          setExpandedCategory(Object.keys(loaded)[0]);
+          setScannerMeta(latestMeta);
+        }
+      } catch (err) {
+        console.error('Failed to load saved scanner results:', err);
+      }
+    };
+    loadSavedResults();
+  }, [tripId]);
 
   const [profile, setProfile] = useState<TravelerProfile>(() => {
     if (initialProfile && (initialProfile.tripType || initialProfile.budget)) {
@@ -251,6 +292,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setSelections([]);
     setAddedToVendorOptions(new Set());
     setVendorAddCounts({});
+    setScannerMeta(null);
     setExpandedCategory(null);
     setCompletedCount(0);
 
@@ -933,7 +975,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Results */}
       {Object.keys(byCategory).length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-bold text-sm text-text-primary">📊 AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-text-primary">📊 AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
+            {scannerMeta && !loading && (
+              <span className="text-xs text-text-muted">
+                Scanned by {scannerMeta.scannedBy.split('@')[0]} · {new Date(scannerMeta.updatedAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
           {Object.entries(byCategory).map(([cat, items]) => {
             const info = CATEGORY_INFO[cat] || { label: cat, icon: '📍' };
             const isOpen = expandedCategory === cat;

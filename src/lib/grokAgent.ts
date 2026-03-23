@@ -328,7 +328,7 @@ export async function analyzeAllCategories(options: {
   year?: number;
   maxPlacesPerCall?: number;
 }): Promise<Record<string, GrokAnalysis[]>> {
-  const { placesByCategory, destination, activities, profile, month, year, maxPlacesPerCall = 10 } = options;
+  const { placesByCategory, destination, activities, profile, month, year, maxPlacesPerCall = 20 } = options;
 
   const categories = Object.keys(placesByCategory);
   const totalPlaces = Object.values(placesByCategory).flat().length;

@@ -541,6 +541,7 @@ model trips {
   transfer_options   trip_transfer_options[]
   vehicle_options    trip_vehicle_options[]
   activity_expenses  trip_activity_expenses[]
+  scannerResults     trip_scanner_results[]
 
   @@index([userId])
   @@index([year, month])
@@ -1703,4 +1704,24 @@ model trip_activity_expenses {
   trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
 
   @@index([trip_id])
+}
+
+model trip_scanner_results {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId          String
+  destination     String   @db.VarChar(200)
+  category        String   @db.VarChar(50)
+  recommendations Json
+  scannedBy       String   @db.VarChar(200)
+  minRating       Float    @default(4.0)
+  minReviews      Int      @default(50)
+  profileSnapshot Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trip            trips    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, destination, category])
+  @@index([tripId])
+  @@map("trip_scanner_results")
 }
