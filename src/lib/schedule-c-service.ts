@@ -201,8 +201,11 @@ export async function generateScheduleC(
     const rawAmount = round2(Math.abs(balance));
 
     // Use account_tax_mappings to determine Schedule C line
+    // form_line values are stored as "line_8", "line_27a" etc. — strip the "line_" prefix
+    // to match LINE_LABELS keys ("8", "27a")
     const mapping = taxMappingByAccountId.get(acct.id);
-    const line = mapping?.form_line || '27a';
+    const rawLine = mapping?.form_line || '27a';
+    const line = rawLine.replace(/^line_/, '');
     const multiplier = mapping?.multiplier ?? 1.0;
     const amount = round2(rawAmount * multiplier);
 
