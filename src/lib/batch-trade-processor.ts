@@ -1164,20 +1164,20 @@ export async function processDividends(
   const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
   const endDate = new Date(`${year + 1}-01-01T00:00:00.000Z`);
 
-  const unprocessed = await prisma.investment_transactions.findMany({
+  // Query dividends directly by type+subtype rather than filtering all unprocessed.
+  // Cash/dividend transactions may not have a security_id, so we query specifically
+  // for type='cash' + subtype='dividend' to avoid issues with security joins.
+  const dividendTxns = await prisma.investment_transactions.findMany({
     where: {
       tradeNum: null,
       accounts: { userId },
       date: { gte: startDate, lt: endDate },
+      type: 'cash',
+      subtype: 'dividend',
     },
     include: { security: true },
     orderBy: { date: 'asc' },
   });
-
-  type DivTxn = (typeof unprocessed)[number];
-  const dividendTxns = unprocessed.filter((txn: DivTxn) =>
-    txn.type === 'cash' && txn.subtype === 'dividend'
-  );
 
   if (dividendTxns.length === 0) return result;
 
@@ -1660,8 +1660,19 @@ export async function processCallSpreadAssignments(
             // Find open positions matching each leg
             for (const txn of allTxns) {
               const sec = txn.security;
-              const strike = sec?.option_strike_price;
-              const optionType = sec?.option_contract_type?.toUpperCase();
+              // Assignment/exercise transactions are type='transfer' — their security
+              // may not have option fields. Parse strike and type from the name:
+              // "transfer - exercise of 1 PLTR call with strike of $170.00"
+              // "transfer - assignment of 3 XOM calls with strike of $111.00"
+              const nameLower = (txn.name || '').toLowerCase();
+              const nameMatch = nameLower.match(/\b(call|put)s?\b.*?strike\s+of\s+\$?([\d.]+)/);
+
+              const strike = nameMatch
+                ? parseFloat(nameMatch[2])
+                : sec?.option_strike_price;
+              const optionType = nameMatch
+                ? nameMatch[1].toUpperCase()  // "call" → "CALL"
+                : sec?.option_contract_type?.toUpperCase();
               const expiry = sec?.option_expiration_date;
 
               if (!strike || !optionType) {
