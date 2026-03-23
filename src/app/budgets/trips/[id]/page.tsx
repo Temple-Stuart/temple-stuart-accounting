@@ -811,6 +811,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       }));
                       setTripBudget(items);
                     }}
+                    onVendorOptionCreated={() => setVendorRefreshKey(k => k + 1)}
                   />
                 )
               );
