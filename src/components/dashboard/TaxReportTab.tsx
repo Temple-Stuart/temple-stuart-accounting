@@ -133,6 +133,47 @@ const FILING_STATUSES = [
   { value: 'head_of_household', label: 'Head of Household' },
 ];
 
+// ─── Document form definitions ────────────────────────────────
+
+const DOC_FORM_FIELDS: Record<string, Array<{ key: string; label: string; type: 'text' | 'number' | 'select'; options?: { value: string; label: string }[] }>> = {
+  w2: [
+    { key: 'employer_name', label: 'Employer Name', type: 'text' },
+    { key: 'wages', label: 'Wages (Box 1)', type: 'number' },
+    { key: 'federal_tax_withheld', label: 'Federal Tax Withheld (Box 2)', type: 'number' },
+    { key: 'social_security_wages', label: 'SS Wages (Box 3)', type: 'number' },
+    { key: 'social_security_tax', label: 'SS Tax (Box 4)', type: 'number' },
+    { key: 'medicare_wages', label: 'Medicare Wages (Box 5)', type: 'number' },
+    { key: 'medicare_tax', label: 'Medicare Tax (Box 6)', type: 'number' },
+    { key: 'state', label: 'State', type: 'text' },
+    { key: 'state_wages', label: 'State Wages', type: 'number' },
+    { key: 'state_tax_withheld', label: 'State Tax Withheld', type: 'number' },
+  ],
+  '1099r': [
+    { key: 'payer_name', label: 'Payer Name', type: 'text' },
+    { key: 'gross_distribution', label: 'Gross Distribution (Box 1)', type: 'number' },
+    { key: 'taxable_amount', label: 'Taxable Amount (Box 2a)', type: 'number' },
+    { key: 'federal_tax_withheld', label: 'Federal Tax Withheld (Box 4)', type: 'number' },
+    { key: 'distribution_code', label: 'Distribution Code (Box 7)', type: 'select', options: [
+      { value: '1', label: '1 - Early distribution' },
+      { value: '2', label: '2 - Early, exception applies' },
+      { value: '7', label: '7 - Normal distribution' },
+    ]},
+  ],
+  '1098t': [
+    { key: 'institution', label: 'Institution Name', type: 'text' },
+    { key: 'qualified_tuition', label: 'Qualified Tuition (Box 1)', type: 'number' },
+    { key: 'scholarships', label: 'Scholarships (Box 5)', type: 'number' },
+  ],
+  '1098e': [
+    { key: 'lender', label: 'Lender Name', type: 'text' },
+    { key: 'interest_paid', label: 'Interest Paid (Box 1)', type: 'number' },
+  ],
+};
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  w2: 'W-2', '1099r': '1099-R', '1098t': '1098-T', '1098e': '1098-E',
+};
+
 // ════════════════════════════════════════════════════════════════
 // Component
 // ════════════════════════════════════════════════════════════════
@@ -153,6 +194,18 @@ export default function TaxReportTab() {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [savingOverride, setSavingOverride] = useState<string | null>(null);
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // Drill-down state
+  const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
+  const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [auditData, setAuditData] = useState<any>(null);
+
+  // Document entry modal state
+  const [docModal, setDocModal] = useState<string | null>(null);
+  const [docForm, setDocForm] = useState<Record<string, string>>({});
+  const [docLabel, setDocLabel] = useState('');
+  const [savingDoc, setSavingDoc] = useState(false);
 
   // ── Load existing Schedule D / Form 8949 data ──
 
@@ -215,12 +268,82 @@ export default function TaxReportTab() {
     setForm1040Loading(false);
   }, []);
 
+  // ── Load audit trail data from /api/tax/calculate ──
+
+  const loadAuditData = useCallback(async (y: number) => {
+    try {
+      const res = await fetch(`/api/tax/calculate?year=${y}`);
+      if (res.ok) setAuditData(await res.json());
+    } catch (error) {
+      console.error('Error loading audit data:', error);
+    }
+  }, []);
+
+  // ── Toggle helpers ──
+
+  const toggleLine = (id: string) => {
+    setExpandedLines((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAccount = (id: string) => {
+    setExpandedAccounts((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // ── Document entry helpers ──
+
+  const openDocForm = (docType: string) => {
+    setDocModal(docType);
+    setDocForm({});
+    setDocLabel('');
+  };
+
+  const saveDocument = async () => {
+    if (!docModal) return;
+    setSavingDoc(true);
+    try {
+      const formData: Record<string, unknown> = {};
+      const fields = DOC_FORM_FIELDS[docModal] || [];
+      for (const field of fields) {
+        const val = docForm[field.key] || '';
+        formData[field.key] = field.type === 'number' ? (val ? parseFloat(val) : 0) : val;
+      }
+      const res = await fetch('/api/tax/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tax_year: year,
+          doc_type: docModal,
+          label: docLabel || DOC_TYPE_LABELS[docModal] || docModal,
+          data: formData,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setDocModal(null);
+      // Refresh data
+      loadForm1040(year);
+      loadAuditData(year);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSavingDoc(false);
+    }
+  };
+
   // ── Lazy-load new tabs on first switch or year change ──
 
   useEffect(() => {
-    if (view === 'scheduleC') loadScheduleC(year);
+    if (view === 'scheduleC') { loadScheduleC(year); loadAuditData(year); }
+    if (view === 'scheduleD') { loadAuditData(year); }
     if (view === 'form1040') loadForm1040(year);
-  }, [view, year, loadScheduleC, loadForm1040]);
+  }, [view, year, loadScheduleC, loadForm1040, loadAuditData]);
 
   // ── Save override with debounce ──
 
@@ -381,18 +504,54 @@ export default function TaxReportTab() {
               </div>
             </div>
             <div className="border border-border rounded p-2">
-              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Short-Term</div>
-              <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partI.line7.gainOrLoss)}`}>
-                {fmt(scheduleD.partI.line7.gainOrLoss)}
-              </div>
-              <div className="text-terminal-xs text-text-faint">{summary.shortTermCount} dispositions</div>
+              <button onClick={() => toggleLine('sd-st')} className="w-full text-left">
+                <div className="text-terminal-xs text-text-muted uppercase tracking-widest flex items-center gap-1">
+                  <span>{expandedLines.has('sd-st') ? '\u25BC' : '\u25B6'}</span> Short-Term
+                </div>
+                <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partI.line7.gainOrLoss)}`}>
+                  {fmt(scheduleD.partI.line7.gainOrLoss)}
+                </div>
+                <div className="text-terminal-xs text-text-faint">{summary.shortTermCount} dispositions</div>
+              </button>
+              {expandedLines.has('sd-st') && auditData?.schedule_d?.short_term_gain_loss?.sources && (
+                <div className="mt-2 pt-2 border-t border-border space-y-1">
+                  {auditData.schedule_d.short_term_gain_loss.sources.map((s: { description: string; amount: number; position_count?: number; disposition_count?: number }, i: number) => (
+                    <div key={i} className="flex justify-between text-terminal-xs font-mono">
+                      <span className="text-text-muted">
+                        {s.description}
+                        {s.position_count != null && <span className="text-text-faint"> ({s.position_count})</span>}
+                        {s.disposition_count != null && <span className="text-text-faint"> ({s.disposition_count})</span>}
+                      </span>
+                      <span className={plColor(s.amount)}>{fmt(s.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="border border-border rounded p-2">
-              <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Long-Term</div>
-              <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partII.line15.gainOrLoss)}`}>
-                {fmt(scheduleD.partII.line15.gainOrLoss)}
-              </div>
-              <div className="text-terminal-xs text-text-faint">{summary.longTermCount} dispositions</div>
+              <button onClick={() => toggleLine('sd-lt')} className="w-full text-left">
+                <div className="text-terminal-xs text-text-muted uppercase tracking-widest flex items-center gap-1">
+                  <span>{expandedLines.has('sd-lt') ? '\u25BC' : '\u25B6'}</span> Long-Term
+                </div>
+                <div className={`text-terminal-lg font-bold font-mono ${plColor(scheduleD.partII.line15.gainOrLoss)}`}>
+                  {fmt(scheduleD.partII.line15.gainOrLoss)}
+                </div>
+                <div className="text-terminal-xs text-text-faint">{summary.longTermCount} dispositions</div>
+              </button>
+              {expandedLines.has('sd-lt') && auditData?.schedule_d?.long_term_gain_loss?.sources && (
+                <div className="mt-2 pt-2 border-t border-border space-y-1">
+                  {auditData.schedule_d.long_term_gain_loss.sources.map((s: { description: string; amount: number; position_count?: number; disposition_count?: number }, i: number) => (
+                    <div key={i} className="flex justify-between text-terminal-xs font-mono">
+                      <span className="text-text-muted">
+                        {s.description}
+                        {s.position_count != null && <span className="text-text-faint"> ({s.position_count})</span>}
+                        {s.disposition_count != null && <span className="text-text-faint"> ({s.disposition_count})</span>}
+                      </span>
+                      <span className={plColor(s.amount)}>{fmt(s.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="border border-border rounded p-2">
               <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Wash Sales</div>
@@ -615,20 +774,74 @@ export default function TaxReportTab() {
                 </div>
                 <table className="w-full text-terminal-base">
                   <tbody>
-                    {scheduleCData.scheduleC.expenses.map(exp => (
-                      <tr key={exp.line} className="border-b">
-                        <td className="py-1 px-2 w-2/3">
-                          <span className="font-medium">Line {exp.line}: {exp.label}</span>
-                          {exp.accounts.length > 1 && (
-                            <span className="text-text-faint text-terminal-xs ml-2">({exp.accounts.length} accounts)</span>
-                          )}
-                          {exp.accounts.map(a => (
-                            <div key={a.code} className="text-terminal-xs text-text-faint pl-4">{a.code} — {a.name}: {fmt(a.amount)}</div>
-                          ))}
-                        </td>
-                        <td className="py-1 px-2 text-right font-mono align-top">{fmt(exp.amount)}</td>
-                      </tr>
-                    ))}
+                    {scheduleCData.scheduleC.expenses.map(exp => {
+                      const lineId = `sc-${exp.line}`;
+                      const isLineOpen = expandedLines.has(lineId);
+                      // Find matching audit data for this line
+                      const auditLine = auditData?.schedule_c?.[`line_${exp.line}`];
+                      return (
+                        <tr key={exp.line} className="border-b align-top">
+                          <td className="py-1 px-2 w-2/3">
+                            <button
+                              onClick={() => toggleLine(lineId)}
+                              className="w-full text-left flex items-center gap-1.5 hover:text-text-primary transition-colors"
+                            >
+                              <span className="text-terminal-xs text-text-faint shrink-0">{isLineOpen ? '\u25BC' : '\u25B6'}</span>
+                              <span className="font-medium">Line {exp.line}: {exp.label}</span>
+                              {exp.accounts.length > 1 && (
+                                <span className="text-text-faint text-terminal-xs ml-1">({exp.accounts.length} accounts)</span>
+                              )}
+                            </button>
+
+                            {/* Level 2: Expanded accounts */}
+                            {isLineOpen && exp.accounts.map((a, ai) => {
+                              const acctId = `sc-${exp.line}-${a.code}`;
+                              const isAcctOpen = expandedAccounts.has(acctId);
+                              // Find entries from audit data
+                              const auditSource = auditLine?.sources?.find(
+                                (s: { account_code?: string }) => s.account_code === a.code
+                              );
+                              const entries = auditSource?.entries || [];
+                              return (
+                                <div key={a.code} className="pl-5 mt-0.5">
+                                  <button
+                                    onClick={() => entries.length > 0 ? toggleAccount(acctId) : undefined}
+                                    className="w-full text-left flex items-center gap-1.5 py-0.5 text-terminal-xs text-text-muted hover:text-text-primary transition-colors"
+                                  >
+                                    {entries.length > 0 && (
+                                      <span className="text-text-faint shrink-0">{isAcctOpen ? '\u25BC' : '\u25B6'}</span>
+                                    )}
+                                    <span>{a.code} — {a.name}</span>
+                                    <span className="ml-auto font-mono">{fmt(a.amount)}</span>
+                                  </button>
+
+                                  {/* Level 3: Individual ledger entries */}
+                                  {isAcctOpen && entries.length > 0 && (
+                                    <div className="pl-5 border-l border-dashed border-border ml-1.5 mt-0.5">
+                                      {entries.map((entry: { date: string; description: string; amount: number }, ei: number) => (
+                                        <div key={ei} className="flex items-center justify-between py-0.5 text-terminal-xs font-mono text-text-faint">
+                                          <div className="flex items-center gap-2 truncate">
+                                            <span className="shrink-0">{entry.date}</span>
+                                            <span className="truncate">{entry.description}</span>
+                                          </div>
+                                          <span className="shrink-0 ml-2">{fmt(entry.amount)}</span>
+                                        </div>
+                                      ))}
+                                      <div className="pt-0.5 mt-0.5 border-t border-dashed border-border flex justify-between text-terminal-xs font-mono">
+                                        <span className="text-brand-green">
+                                          {'\u2713'} {entries.length} entries = {fmt(entries.reduce((s: number, e: { amount: number }) => s + e.amount, 0))}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </td>
+                          <td className="py-1 px-2 text-right font-mono">{fmt(exp.amount)}</td>
+                        </tr>
+                      );
+                    })}
                     {scheduleCData.scheduleC.expenses.length === 0 && (
                       <tr className="border-b">
                         <td className="py-1 px-2 text-text-faint text-center" colSpan={2}>No business expenses recorded</td>
@@ -712,26 +925,40 @@ export default function TaxReportTab() {
                   <tbody>
                     <tr className="border-b">
                       <td className="py-1 px-2">Line 1: Wages, salaries, tips (W-2)</td>
-                      <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.line1)}</td>
-                      <td className="py-1 px-2 text-right text-terminal-xs text-text-faint w-28">{form1040Data.line1Source}</td>
+                      <td className="py-1 px-2 text-right font-mono">{form1040Data.line1 > 0 ? fmt(form1040Data.line1) : <span className="text-text-faint italic">--</span>}</td>
+                      <td className="py-1 px-2 text-right text-terminal-xs text-text-faint w-36">
+                        {form1040Data.line1 > 0 ? form1040Data.line1Source : (
+                          <button onClick={() => openDocForm('w2')} className="text-brand-purple hover:underline">+ Enter W-2</button>
+                        )}
+                      </td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-1 px-2">Line 5a: Pensions and annuities (gross)</td>
-                      <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.line5a)}</td>
-                      <td className="py-1 px-2 text-right text-terminal-xs text-text-faint">403(b)/DCP</td>
+                      <td className="py-1 px-2 text-right font-mono">{form1040Data.line5a > 0 ? fmt(form1040Data.line5a) : <span className="text-text-faint italic">--</span>}</td>
+                      <td className="py-1 px-2 text-right text-terminal-xs text-text-faint">
+                        {form1040Data.line5a > 0 ? '403(b)/DCP' : (
+                          <button onClick={() => openDocForm('1099r')} className="text-brand-purple hover:underline">+ Enter 1099-R</button>
+                        )}
+                      </td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-1 px-2">Line 5b: Taxable amount</td>
-                      <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.line5b)}</td>
+                      <td className="py-1 px-2 text-right font-mono">{form1040Data.line5b > 0 ? fmt(form1040Data.line5b) : <span className="text-text-faint italic">--</span>}</td>
                       <td></td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-1 px-2">Line 7: Capital gain or (loss) — Schedule D</td>
+                      <td className="py-1 px-2">
+                        Line 7: Capital gain or (loss)
+                        <span className="text-terminal-xs text-text-faint ml-1">from Schedule D</span>
+                      </td>
                       <td className={`py-1 px-2 text-right font-mono ${plColor(form1040Data.line7)}`}>{fmt(form1040Data.line7)}</td>
                       <td></td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-1 px-2">Line 8: Other income — Schedule C net profit</td>
+                      <td className="py-1 px-2">
+                        Line 8: Other income
+                        <span className="text-terminal-xs text-text-faint ml-1">from Schedule C ({fmt(form1040Data.line8)})</span>
+                      </td>
                       <td className={`py-1 px-2 text-right font-mono ${plColor(form1040Data.line8)}`}>{fmt(form1040Data.line8)}</td>
                       <td></td>
                     </tr>
@@ -929,6 +1156,68 @@ export default function TaxReportTab() {
               </div>
             </>
           )}
+        </div>
+      )}
+      {/* ═══ DOCUMENT ENTRY MODAL ═══ */}
+      {docModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-border rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="px-4 py-3 border-b border-border bg-bg-row">
+              <span className="text-terminal-lg font-semibold">Enter {DOC_TYPE_LABELS[docModal] || docModal.toUpperCase()}</span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-terminal-xs text-text-muted block mb-0.5">Label (optional)</label>
+                <input
+                  type="text"
+                  value={docLabel}
+                  onChange={(e) => setDocLabel(e.target.value)}
+                  placeholder={`e.g. "${DOC_TYPE_LABELS[docModal]} - Employer"`}
+                  className="w-full text-terminal-base font-mono border border-border rounded h-7 px-2"
+                />
+              </div>
+              {(DOC_FORM_FIELDS[docModal] || []).map(field => (
+                <div key={field.key}>
+                  <label className="text-terminal-xs text-text-muted block mb-0.5">{field.label}</label>
+                  {field.type === 'select' ? (
+                    <select
+                      value={docForm[field.key] || ''}
+                      onChange={(e) => setDocForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className="w-full text-terminal-base font-mono border border-border rounded h-7 px-2"
+                    >
+                      <option value="">Select...</option>
+                      {field.options?.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      step={field.type === 'number' ? '0.01' : undefined}
+                      value={docForm[field.key] || ''}
+                      onChange={(e) => setDocForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className="w-full text-terminal-base font-mono border border-border rounded h-7 px-2"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-3 border-t border-border flex justify-end gap-2">
+              <button
+                onClick={() => setDocModal(null)}
+                className="px-3 py-1 text-terminal-sm text-text-muted border border-border rounded hover:bg-bg-row"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDocument}
+                disabled={savingDoc}
+                className="px-3 py-1 text-terminal-sm font-medium bg-brand-purple text-white rounded hover:bg-brand-purple-hover disabled:opacity-50"
+              >
+                {savingDoc ? 'Saving...' : 'Save & Recalculate'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
