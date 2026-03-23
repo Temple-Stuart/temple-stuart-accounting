@@ -402,6 +402,31 @@ export default function TaxReportTab() {
     setExporting(false);
   };
 
+  // ── Download PDF ──
+
+  const [downloadingPDF, setDownloadingPDF] = useState<string | null>(null);
+
+  const downloadPDF = async (form: string) => {
+    setDownloadingPDF(form);
+    try {
+      const res = await fetch(`/api/tax/generate-pdf?year=${year}&form=${form}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const disposition = res.headers.get('Content-Disposition');
+        const filenameMatch = disposition?.match(/filename="(.+?)"/);
+        a.download = filenameMatch?.[1] || `TaxForm_${year}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('PDF download error:', error);
+    }
+    setDownloadingPDF(null);
+  };
+
   // ── Formatting helpers (unchanged) ──
 
   const fmt = (val: number) => {
@@ -470,6 +495,13 @@ export default function TaxReportTab() {
               {exporting ? 'Exporting...' : 'Export CSV'}
             </button>
           )}
+          <button
+            onClick={() => downloadPDF('all')}
+            disabled={downloadingPDF !== null}
+            className="text-terminal-sm bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {downloadingPDF === 'all' ? 'Generating...' : 'Download All PDFs'}
+          </button>
         </div>
       </div>
 
@@ -501,6 +533,13 @@ export default function TaxReportTab() {
       {/* ────────────────────────────────────────────────────────── */}
       {view === 'scheduleD' && (
         <div className="p-4 space-y-4">
+          {/* PDF download */}
+          <div className="flex justify-end">
+            <button onClick={() => downloadPDF('schedule-d')} disabled={downloadingPDF !== null}
+              className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+              {downloadingPDF === 'schedule-d' ? 'Generating...' : 'Download Schedule D PDF'}
+            </button>
+          </div>
           {/* Summary Cards */}
           <div className="grid grid-cols-5 gap-3">
             <div className="border border-border rounded p-2">
@@ -660,6 +699,13 @@ export default function TaxReportTab() {
       {/* ────────────────────────────────────────────────────────── */}
       {view === 'form8949' && (
         <div className="p-4 space-y-4">
+          {/* PDF download */}
+          <div className="flex justify-end">
+            <button onClick={() => downloadPDF('8949')} disabled={downloadingPDF !== null}
+              className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+              {downloadingPDF === '8949' ? 'Generating...' : 'Download Form 8949 PDF'}
+            </button>
+          </div>
           {data.form8949.shortTerm.length > 0 && (
             <div className="border border-border rounded overflow-hidden">
               <div className="bg-yellow-50 px-3 py-1.5 text-terminal-lg font-semibold text-yellow-800">
@@ -737,9 +783,15 @@ export default function TaxReportTab() {
             <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load Schedule C</div>
           ) : (
             <>
-              {/* Business name */}
-              <div className="text-terminal-base text-text-muted">
-                Schedule C — Profit or Loss From Business: <span className="font-semibold text-text-secondary">{scheduleCData.scheduleC.businessName}</span>
+              {/* Business name + PDF */}
+              <div className="flex items-center justify-between">
+                <div className="text-terminal-base text-text-muted">
+                  Schedule C — Profit or Loss From Business: <span className="font-semibold text-text-secondary">{scheduleCData.scheduleC.businessName}</span>
+                </div>
+                <button onClick={() => downloadPDF('schedule-c')} disabled={downloadingPDF !== null}
+                  className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 shrink-0">
+                  {downloadingPDF === 'schedule-c' ? 'Generating...' : 'Download Schedule C PDF'}
+                </button>
               </div>
 
               {/* Part I: Income */}
@@ -922,6 +974,14 @@ export default function TaxReportTab() {
             <div className="p-8 text-center text-terminal-sm text-brand-red">Failed to load Form 1040</div>
           ) : (
             <>
+              {/* PDF download */}
+              <div className="flex justify-end">
+                <button onClick={() => downloadPDF('1040')} disabled={downloadingPDF !== null}
+                  className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+                  {downloadingPDF === '1040' ? 'Generating...' : 'Download Form 1040 PDF'}
+                </button>
+              </div>
+
               {/* INCOME */}
               <div className="border border-border rounded overflow-hidden">
                 <div className="bg-green-50 px-3 py-1.5 text-terminal-lg font-semibold text-green-800">
