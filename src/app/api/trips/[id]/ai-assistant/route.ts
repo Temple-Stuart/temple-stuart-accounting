@@ -136,7 +136,7 @@ export async function POST(
 
     const filtered = enriched.filter(p => p.rating >= minRating && p.reviewCount >= minReviews);
 
-    const placesToAnalyze = filtered.slice(0, 10).map(p => ({
+    const placesToAnalyze = filtered.slice(0, 20).map(p => ({
       name: p.name,
       address: p.address,
       rating: p.rating,
@@ -174,6 +174,37 @@ export async function POST(
     });
 
     console.log(`[Grok AI] ${category}: ${recommendations.length} results`);
+
+    // Persist scanner results for sharing with trip participants
+    const { id: tripId } = await params;
+    try {
+      await prisma.trip_scanner_results.upsert({
+        where: {
+          tripId_destination_category: { tripId, destination: `${city}, ${country}`, category },
+        },
+        update: {
+          recommendations: recommendations as any,
+          scannedBy: userEmail,
+          minRating,
+          minReviews,
+          profileSnapshot: travelerProfile as any,
+          updatedAt: new Date(),
+        },
+        create: {
+          tripId,
+          destination: `${city}, ${country}`,
+          category,
+          recommendations: recommendations as any,
+          scannedBy: userEmail,
+          minRating,
+          minReviews,
+          profileSnapshot: travelerProfile as any,
+        },
+      });
+    } catch (saveErr) {
+      console.error(`[Grok AI] Failed to save scanner results for ${category}:`, saveErr);
+      // Non-fatal — still return results even if save fails
+    }
 
     return NextResponse.json({ category, recommendations });
 
