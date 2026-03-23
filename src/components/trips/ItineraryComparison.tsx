@@ -118,18 +118,8 @@ export default function ItineraryComparison({
     setLoading(prev => ({ ...prev, [resortId]: true }));
 
     try {
-      // Fetch optimized flights (earliest, shortest, direct preferred)
-      const flightRes = await fetch(
-        `/api/travel/flights?origin=${homeAirport}&destination=${airport}&departureDate=${departureDate}&returnDate=${returnDate}&optimize=time`
-      );
-      
-      let flightData: FlightDetails | null = null;
-      if (flightRes.ok) {
-        const data = await flightRes.json();
-        if (data.flights?.[0]) {
-          flightData = data.flights[0];
-        }
-      }
+      // Flight data not available — use defaults for itinerary timing
+      const flightData: FlightDetails | null = null;
 
       // Calculate derived times based on flight
       const landingTime = flightData?.outbound?.arrival?.localTime || '14:00';

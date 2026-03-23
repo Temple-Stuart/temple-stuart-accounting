@@ -13,11 +13,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const options = await prisma.$queryRaw`
-      SELECT * FROM trip_transfer_options 
-      WHERE trip_id = ${id}
-      ORDER BY direction ASC, is_selected DESC, created_at ASC
-    `;
+    const options = await prisma.trip_transfer_options.findMany({
+      where: { trip_id: id },
+      orderBy: [{ direction: 'asc' }, { is_selected: 'desc' }, { created_at: 'asc' }],
+    });
     return NextResponse.json({ options });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
@@ -35,19 +34,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
     const { url, transfer_type, direction, title, vendor, price, per_person, notes } = await request.json();
-    
-    const count = await prisma.$queryRaw`SELECT COUNT(*)::int as count FROM trip_transfer_options WHERE trip_id = ${id}` as any[];
-    if (count[0].count >= 10) {
+
+    const count = await prisma.trip_transfer_options.count({ where: { trip_id: id } });
+    if (count >= 10) {
       return NextResponse.json({ error: 'Maximum 10 transfer options per trip' }, { status: 400 });
     }
 
-    const result = await prisma.$queryRaw`
-      INSERT INTO trip_transfer_options (trip_id, url, transfer_type, direction, title, vendor, price, per_person, notes)
-      VALUES (${id}, ${url || null}, ${transfer_type}, ${direction}, ${title || null}, ${vendor || null}, 
-              ${price || null}, ${per_person || null}, ${notes || null})
-      RETURNING *
-    `;
-    return NextResponse.json({ option: (result as any[])[0] });
+    const option = await prisma.trip_transfer_options.create({
+      data: {
+        trip_id: id,
+        url: url || null,
+        transfer_type,
+        direction,
+        title: title || null,
+        vendor: vendor || null,
+        price: price || null,
+        per_person: per_person || null,
+        notes: notes || null,
+      },
+    });
+    return NextResponse.json({ option });
   } catch (error) {
     console.error('Error:', error);
     return NextResponse.json({ error: 'Failed to create' }, { status: 500 });

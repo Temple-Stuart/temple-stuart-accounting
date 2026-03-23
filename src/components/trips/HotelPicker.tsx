@@ -58,25 +58,11 @@ export default function HotelPicker({
   const fetchHotels = async () => {
     setLoading(true);
     setError('');
-    
     try {
-      const res = await fetch(
-        `/api/travel/hotels?resortId=${resortId}&checkInDate=${checkInDate}&checkOutDate=${checkOutDate}&adults=${adults}&rooms=${rooms}&radius=30`
-      );
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch hotels');
-      }
-      
-      const data = await res.json();
-      
-      if (data.error) {
-        setError(data.error);
-      }
-      
-      setHotels(data.hotels || []);
+      setHotels([]);
       setSearched(true);
       setExpanded(true);
+      setError('Hotel search is not available. Use manual entry below.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch hotels');
       setSearched(true);
