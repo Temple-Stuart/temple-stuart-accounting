@@ -60,10 +60,12 @@ interface Props {
   month: number;
   year: number;
   daysTravel: number;
+  // TODO: Remove onBudgetChange once all budget flows through vendor-commit bridge
   onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
   committedBudget?: { category: string; amount: number; description: string; photoUrl?: string | null }[];
   participantId?: string;
   initialProfile?: Partial<TravelerProfile>;
+  onVendorOptionCreated?: () => void;
 }
 
 // Enhanced trip types with images/colors
@@ -162,7 +164,22 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   wellness: { label: 'Wellness/Gym', icon: '💆' },
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile }: Props) {
+// Maps scanner categories to vendor option API endpoints
+const CATEGORY_TO_VENDOR_API: Record<string, string> = {
+  lodging: 'lodging',
+  airportTransfers: 'transfers',
+  motoRental: 'vehicles',
+  equipmentRental: 'vehicles',
+  coworking: 'activities',
+  brunchCoffee: 'activities',
+  dinner: 'activities',
+  activities: 'activities',
+  nightlife: 'activities',
+  toiletries: 'activities',
+  wellness: 'activities',
+};
+
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile, onVendorOptionCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -178,6 +195,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
   const [editForm, setEditForm] = useState({ days: [] as number[], allDay: true, startTime: '09:00', endTime: '17:00', rateType: 'daily' as 'daily' | 'weekly' | 'monthly', customPrice: 0, splitType: 'personal' as 'personal' | 'split' });
+
+  // Track which recommendations have been added to vendor options (prevents duplicates)
+  const [addedToVendorOptions, setAddedToVendorOptions] = useState<Set<string>>(new Set());
+  const [savingVendorOption, setSavingVendorOption] = useState(false);
+  const [vendorAddCounts, setVendorAddCounts] = useState<Record<string, number>>({});
 
   const [profile, setProfile] = useState<TravelerProfile>(() => {
     if (initialProfile && (initialProfile.tripType || initialProfile.budget)) {
@@ -219,6 +241,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setByCategory({});
     setRecommendations([]);
     setSelections([]);
+    setAddedToVendorOptions(new Set());
+    setVendorAddCounts({});
     setExpandedCategory(null);
     setCompletedCount(0);
 
@@ -283,22 +307,107 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setEditForm({ days: [1], allDay: newSel.allDay, startTime: '09:00', endTime: '17:00', rateType: 'daily', customPrice: 0, splitType: 'personal' });
   };
 
-  const confirmSelection = () => {
+  // Build the request body for creating a vendor option based on scanner category
+  const buildVendorBody = (sel: ScheduledSelection) => {
+    const { category, item, customPrice, days, rateType, splitType } = sel;
+    const vendorApi = CATEGORY_TO_VENDOR_API[category];
+    const scheduleNote = `Days: ${days.join(', ')} | Rate: ${rateType} | Split: ${splitType}`;
+    const aiNote = `AI Score: ${item.sentimentScore}/10 | Fit: ${item.fitScore}/10 | ${item.summary}`;
+    const notes = `${scheduleNote}\n${aiNote}`;
+
+    if (vendorApi === 'lodging') {
+      return {
+        title: item.name,
+        url: item.website || null,
+        image_url: item.photoUrl || null,
+        location: item.address,
+        price_per_night: customPrice || null,
+        total_price: rateType === 'daily' ? (customPrice * days.length) || null : customPrice || null,
+        notes,
+      };
+    }
+    if (vendorApi === 'transfers') {
+      return {
+        title: item.name,
+        url: item.website || null,
+        transfer_type: 'private',
+        direction: 'airport_to_hotel',
+        vendor: item.name,
+        price: customPrice || null,
+        notes,
+      };
+    }
+    if (vendorApi === 'vehicles') {
+      return {
+        title: item.name,
+        url: item.website || null,
+        vehicle_type: category === 'motoRental' ? 'motorbike' : 'equipment',
+        vendor: item.name,
+        price_per_day: customPrice || null,
+        total_price: rateType === 'daily' ? (customPrice * days.length) || null : customPrice || null,
+        notes,
+      };
+    }
+    // activities (default for coworking, brunchCoffee, dinner, activities, nightlife, toiletries, wellness)
+    return {
+      category,
+      title: item.name,
+      url: item.website || null,
+      vendor: item.name,
+      price: customPrice || null,
+      is_per_person: splitType === 'split',
+      notes,
+    };
+  };
+
+  const confirmSelection = async () => {
     if (!editingSelection || editForm.days.length === 0) return;
     const updated: ScheduledSelection = { ...editingSelection, ...editForm };
-    setSelections(prev => {
-      const idx = prev.findIndex(s => s.category === updated.category && s.item.name === updated.item.name);
-      if (idx >= 0) { const n = [...prev]; n[idx] = updated; return n; }
-      return [...prev, updated];
-    });
-    setEditingSelection(null);
+    const vendorApi = CATEGORY_TO_VENDOR_API[updated.category];
+    if (!vendorApi) return;
+
+    setSavingVendorOption(true);
+    try {
+      const body = buildVendorBody(updated);
+      const res = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create vendor option');
+      }
+
+      // Track as added
+      const key = `${updated.category}:${updated.item.name}`;
+      setAddedToVendorOptions(prev => new Set(prev).add(key));
+      setVendorAddCounts(prev => ({ ...prev, [vendorApi]: (prev[vendorApi] || 0) + 1 }));
+
+      // Still add to selections for onBudgetChange compatibility
+      setSelections(prev => {
+        const idx = prev.findIndex(s => s.category === updated.category && s.item.name === updated.item.name);
+        if (idx >= 0) { const n = [...prev]; n[idx] = updated; return n; }
+        return [...prev, updated];
+      });
+
+      // Tell parent to refresh vendor option components
+      if (onVendorOptionCreated) onVendorOptionCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add vendor option');
+    } finally {
+      setSavingVendorOption(false);
+      setEditingSelection(null);
+    }
   };
 
   const removeSelection = (category: string, name: string) => {
     setSelections(prev => prev.filter(s => !(s.category === category && s.item.name === name)));
   };
 
-  const isSelected = (item: GrokRecommendation) => selections.some(s => s.category === item.category && s.item.name === item.name);
+  const isAddedToVendor = (item: GrokRecommendation) => addedToVendorOptions.has(`${item.category}:${item.name}`);
+  const isSelected = (item: GrokRecommendation) => isAddedToVendor(item) || selections.some(s => s.category === item.category && s.item.name === item.name);
 
   // Custom spot functions
   const fetchUrlPreview = async (url: string) => {
@@ -345,6 +454,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       valueRank: 0,
       category: customCategory
     };
+    // Open the scheduling modal so user can set price before DB creation
     handleSelectItem(customItem);
     setShowCustomModal(false);
   };
@@ -424,9 +534,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               return (
                 <tr key={idx} className={selected ? 'bg-green-50' : idx % 2 ? 'bg-bg-row' : 'bg-white'}>
                   <td className="py-2 px-2 text-center">
-                    <button onClick={() => handleSelectItem(rec)} className={'w-7 h-7 rounded-full font-bold text-xs ' + (selected ? 'bg-green-500 text-white' : 'bg-border hover:bg-brand-purple hover:text-white')}>
-                      {selected ? '✓' : '+'}
-                    </button>
+                    {isAddedToVendor(rec) ? (
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-xs font-bold" title="Added to Vendor Options">✓</span>
+                    ) : (
+                      <button onClick={() => handleSelectItem(rec)} className={'w-7 h-7 rounded-full font-bold text-xs ' + (selected ? 'bg-green-500 text-white' : 'bg-border hover:bg-brand-purple hover:text-white')}>
+                        {selected ? '✓' : '+'}
+                      </button>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-center">
                     <span className={'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ' + (rec.valueRank <= 3 ? 'bg-green-500 text-white' : rec.valueRank <= 6 ? 'bg-yellow-400 text-white' : 'bg-border')}>{rec.valueRank}</span>
@@ -738,7 +852,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="secondary" onClick={() => setEditingSelection(null)} className="flex-1">Cancel</Button>
-              <Button onClick={confirmSelection} className="flex-1" disabled={editForm.days.length === 0}>✓ Add</Button>
+              <Button onClick={confirmSelection} className="flex-1" disabled={editForm.days.length === 0 || savingVendorOption} loading={savingVendorOption}>
+                {savingVendorOption ? 'Adding...' : '✓ Add to Vendor Options'}
+              </Button>
             </div>
           </div>
         </div>
@@ -788,25 +904,20 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </div>
       )}
 
-      {/* Budget Summary */}
-      {selections.length > 0 && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-purple-800 text-terminal-lg">🗺️ Your Trip Plan ({selections.length})</h3>
-            <div className="text-sm font-bold text-purple-700">${totalBudget.toLocaleString()}</div>
-          </div>
-          <div className="grid md:grid-cols-3 gap-3">
-            {selections.map((sel, idx) => (
-              <div key={idx} className="bg-white rounded border p-4 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <span className="text-terminal-lg">{CATEGORY_INFO[sel.category]?.icon}</span>
-                  <button onClick={() => removeSelection(sel.category, sel.item.name)} className="text-brand-red hover:text-brand-red text-sm">✕</button>
-                </div>
-                <div className="text-xs text-text-muted mt-1">{CATEGORY_INFO[sel.category]?.label}</div>
-                <div className="font-semibold text-sm truncate">{sel.item.name}</div>
-                <div className="text-purple-600 font-bold">${calculateItemCost(sel).toLocaleString()}</div>
-              </div>
-            ))}
+      {/* Vendor Options Added Summary */}
+      {addedToVendorOptions.size > 0 && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-green-800 text-sm">✓ {addedToVendorOptions.size} vendor option{addedToVendorOptions.size !== 1 ? 's' : ''} added</h3>
+              <p className="text-green-700 text-xs mt-1">
+                {Object.entries(vendorAddCounts).map(([api, count]) => `${count} ${api}`).join(', ')}
+                {' — scroll to Step 5 to review and commit'}
+              </p>
+            </div>
+            <div className="text-green-600 text-xs font-medium">
+              Step 5: Vendor Options ↓
+            </div>
           </div>
         </div>
       )}
