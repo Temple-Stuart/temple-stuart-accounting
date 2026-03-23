@@ -334,23 +334,51 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Day-by-day itinerary (from trip_itinerary, not expenses)
   const itineraryDays = useMemo(() => {
-    if (!trip || !trip.startDate) return [];
-    const days = [];
-    const start = new Date(trip.startDate);
-    for (let i = 0; i < trip.daysTravel; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-      const dayItems = (trip.itinerary || []).filter((item: any) => item.day === i + 1);
-      days.push({
-        dayNum: i + 1,
-        date: date,
-        weekday: WEEKDAYS[date.getDay()],
-        dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        items: dayItems,
-        totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
-      });
+    if (!trip) return [];
+    const itineraryItems = trip.itinerary || [];
+
+    // If trip has a startDate, build days from that
+    if (trip.startDate) {
+      const days = [];
+      const start = new Date(trip.startDate);
+      for (let i = 0; i < trip.daysTravel; i++) {
+        const date = new Date(start);
+        date.setDate(start.getDate() + i);
+        const dayItems = itineraryItems.filter((item: any) => item.day === i + 1);
+        days.push({
+          dayNum: i + 1,
+          date: date,
+          weekday: WEEKDAYS[date.getDay()],
+          dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          items: dayItems,
+          totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
+        });
+      }
+      return days;
     }
-    return days;
+
+    // No startDate but itinerary records exist (from vendor-commit) — build days from records
+    if (itineraryItems.length > 0) {
+      const maxDay = Math.max(...itineraryItems.map((item: any) => item.day || 1), trip.daysTravel);
+      const days = [];
+      for (let i = 0; i < maxDay; i++) {
+        const dayItems = itineraryItems.filter((item: any) => item.day === i + 1);
+        // Use homeDate from itinerary if available for the date display
+        const firstItem = dayItems.find((item: any) => item.homeDate);
+        const date = firstItem ? new Date(firstItem.homeDate) : null;
+        days.push({
+          dayNum: i + 1,
+          date: date,
+          weekday: date ? WEEKDAYS[date.getDay()] : `Day`,
+          dateStr: date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Day ${i + 1}`,
+          items: dayItems,
+          totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
+        });
+      }
+      return days;
+    }
+
+    return [];
   }, [trip]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -519,7 +547,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </form>
               )}
 
-              {trip.startDate ? (
+              {(trip.startDate || itineraryDays.length > 0) ? (
                 <div>
                   {/* Day Selector */}
                   <div className="flex flex-wrap gap-2 p-3 border-b border-border">
@@ -812,6 +840,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       setTripBudget(items);
                     }}
                     onVendorOptionCreated={() => setVendorRefreshKey(k => k + 1)}
+                    vendorRefreshKey={vendorRefreshKey}
                   />
                 )
               );

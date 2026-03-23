@@ -66,6 +66,7 @@ interface Props {
   participantId?: string;
   initialProfile?: Partial<TravelerProfile>;
   onVendorOptionCreated?: () => void;
+  vendorRefreshKey?: number;
 }
 
 // Enhanced trip types with images/colors
@@ -179,7 +180,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   wellness: 'activities',
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile, onVendorOptionCreated }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile, onVendorOptionCreated, vendorRefreshKey }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -200,6 +201,13 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [addedToVendorOptions, setAddedToVendorOptions] = useState<Set<string>>(new Set());
   const [savingVendorOption, setSavingVendorOption] = useState(false);
   const [vendorAddCounts, setVendorAddCounts] = useState<Record<string, number>>({});
+
+  // Clear "added" tracking when vendor options change externally (e.g. uncommit deletes the option)
+  useEffect(() => {
+    if (vendorRefreshKey !== undefined && vendorRefreshKey > 0) {
+      setAddedToVendorOptions(new Set());
+    }
+  }, [vendorRefreshKey]);
 
   const [profile, setProfile] = useState<TravelerProfile>(() => {
     if (initialProfile && (initialProfile.tripType || initialProfile.budget)) {
