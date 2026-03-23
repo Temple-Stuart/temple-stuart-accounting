@@ -101,6 +101,7 @@ interface Form1040Data {
   line8: number;
   line9: number;
   seTaxDeduction: number;
+  studentLoanDeduction: number;
   line11: number;
   standardDeduction: number;
   line15: number;
@@ -109,6 +110,11 @@ interface Form1040Data {
   earlyWithdrawalPenalty: number;
   selfEmploymentTax: number;
   totalTax: number;
+  educationCredit: number;
+  educationCreditType: string;
+  aotcAmount: number;
+  llcAmount: number;
+  aotcRefundable: number;
   w2Withheld: number;
   retirementWithheld: number;
   estimatedPayments: number;
@@ -982,6 +988,17 @@ export default function TaxReportTab() {
                       <td className="py-1 px-2">Deductible half of self-employment tax</td>
                       <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.seTaxDeduction)}</td>
                     </tr>
+                    <tr className="border-b">
+                      <td className="py-1 px-2">
+                        Student loan interest deduction (Schedule 1, Line 21)
+                        {form1040Data.studentLoanDeduction === 0 && (
+                          <span className="text-terminal-xs text-text-faint ml-1">
+                            <button onClick={() => openDocForm('1098e')} className="text-brand-purple hover:underline">+ Enter 1098-E</button>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.studentLoanDeduction)}</td>
+                    </tr>
                     <tr className="bg-blue-50 font-semibold border-t-2 border-blue-300">
                       <td className="py-1 px-2 text-blue-800">Line 11: Adjusted gross income (AGI)</td>
                       <td className="py-1 px-2 text-right font-mono text-blue-800">{fmt(form1040Data.line11)}</td>
@@ -1045,6 +1062,46 @@ export default function TaxReportTab() {
                       <td className="py-1 px-2 text-orange-800" colSpan={3}>Line 16: Income tax</td>
                       <td className="py-1 px-2 text-right font-mono text-orange-800">{fmt(form1040Data.incomeTax)}</td>
                     </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* EDUCATION CREDITS (Form 8863) */}
+              <div className="border border-border rounded overflow-hidden">
+                <div className="bg-emerald-50 px-3 py-1.5 text-terminal-lg font-semibold text-emerald-800">
+                  Form 8863 — Education Credits
+                </div>
+                <table className="w-full text-terminal-base">
+                  <tbody>
+                    {form1040Data.educationCredit > 0 ? (
+                      <>
+                        <tr className="border-b">
+                          <td className="py-1 px-2">American Opportunity Credit (AOTC)</td>
+                          <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.aotcAmount)}</td>
+                          <td className="py-1 px-2 text-right text-terminal-xs text-text-faint w-36">
+                            {form1040Data.aotcRefundable > 0 && `(${fmt(form1040Data.aotcRefundable)} refundable)`}
+                          </td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-1 px-2">Lifetime Learning Credit (LLC)</td>
+                          <td className="py-1 px-2 text-right font-mono">{fmt(form1040Data.llcAmount)}</td>
+                          <td className="py-1 px-2 text-right text-terminal-xs text-text-faint">non-refundable</td>
+                        </tr>
+                        <tr className="bg-emerald-50 font-semibold border-t-2 border-emerald-300">
+                          <td className="py-1 px-2 text-emerald-800">
+                            Line 29: Education credit ({form1040Data.educationCreditType === 'aotc' ? 'AOTC' : 'LLC'} selected)
+                          </td>
+                          <td className="py-1 px-2 text-right font-mono text-emerald-800">{fmt(form1040Data.educationCredit)}</td>
+                          <td></td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr>
+                        <td className="py-2 px-2 text-text-faint text-center" colSpan={3}>
+                          <button onClick={() => openDocForm('1098t')} className="text-brand-purple hover:underline">+ Enter 1098-T to calculate education credits</button>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1145,6 +1202,21 @@ export default function TaxReportTab() {
                         <option value="7">7 — Normal distribution</option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* 1098-T fields */}
+                  <div className="text-terminal-base font-semibold text-text-secondary border-b pb-1 pt-2">1098-T Education (Tuition)</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {renderOverrideField('education_institution', 'Institution name')}
+                    {renderOverrideField('education_qualified_tuition', 'Qualified tuition paid')}
+                    {renderOverrideField('education_scholarships', 'Scholarships/grants received')}
+                  </div>
+
+                  {/* 1098-E fields */}
+                  <div className="text-terminal-base font-semibold text-text-secondary border-b pb-1 pt-2">1098-E Student Loan Interest</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {renderOverrideField('student_loan_lender', 'Lender / servicer name')}
+                    {renderOverrideField('student_loan_interest_paid', 'Interest paid in tax year')}
                   </div>
 
                   {/* Estimated payments */}

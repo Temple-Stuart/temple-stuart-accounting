@@ -31,10 +31,10 @@ const TAX_BRACKETS_2026 = [
 ];
 
 const STANDARD_DEDUCTION: Record<string, Record<number, number>> = {
-  single: { 2025: 14600, 2026: 15000 },
-  married_joint: { 2025: 29200, 2026: 30000 },
-  married_separate: { 2025: 14600, 2026: 15000 },
-  head_of_household: { 2025: 21900, 2026: 22500 },
+  single: { 2025: 15000, 2026: 15000 },
+  married_joint: { 2025: 30000, 2026: 30000 },
+  married_separate: { 2025: 15000, 2026: 15000 },
+  head_of_household: { 2025: 22500, 2026: 22500 },
 };
 
 // ─── LTCG Tax Brackets (2025 Single) ───────────────────────────
@@ -78,6 +78,7 @@ export interface Form1040 {
 
   // ADJUSTMENTS
   seTaxDeduction: number;  // Deductible half of SE tax
+  studentLoanDeduction: number;  // Student loan interest (Schedule 1, Line 21, max $2,500)
   line11: number;  // Adjusted Gross Income (AGI)
 
   // DEDUCTIONS
@@ -93,7 +94,14 @@ export interface Form1040 {
   selfEmploymentTax: number;       // From Schedule SE
   totalTax: number;
 
-  // CREDITS & PAYMENTS
+  // CREDITS
+  educationCredit: number;         // Form 8863 — AOTC or LLC (whichever is higher)
+  educationCreditType: string;     // 'aotc' | 'llc' | 'none'
+  aotcAmount: number;
+  llcAmount: number;
+  aotcRefundable: number;          // 40% of AOTC, max $1,000
+
+  // PAYMENTS
   w2Withheld: number;
   retirementWithheld: number;
   estimatedPayments: number;
@@ -281,6 +289,52 @@ function computeLtcgTax(
   return { tax: round2(totalTax), breakdown };
 }
 
+// ─── Education credit calculations (Form 8863) ─────────────────
+
+function calculateAOTC(qualifiedExpenses: number, magi: number): { credit: number; refundable: number } {
+  if (qualifiedExpenses <= 0) return { credit: 0, refundable: 0 };
+  // 100% of first $2,000 + 25% of next $2,000
+  const rawCredit = Math.min(2000, qualifiedExpenses) + Math.max(0, Math.min(2000, qualifiedExpenses - 2000)) * 0.25;
+  // Income phaseout for single: $80,000 - $90,000
+  const phaseoutStart = 80000;
+  const phaseoutEnd = 90000;
+  let phaseoutFactor = 1;
+  if (magi > phaseoutStart) {
+    phaseoutFactor = Math.max(0, 1 - (magi - phaseoutStart) / (phaseoutEnd - phaseoutStart));
+  }
+  const credit = round2(rawCredit * phaseoutFactor);
+  const refundable = round2(credit * 0.40); // 40% refundable, max $1,000
+  return { credit: Math.min(credit, 2500), refundable: Math.min(refundable, 1000) };
+}
+
+function calculateLLC(qualifiedExpenses: number, magi: number): number {
+  if (qualifiedExpenses <= 0) return 0;
+  // 20% of first $10,000
+  const rawCredit = Math.min(10000, qualifiedExpenses) * 0.20;
+  // Income phaseout for single: $80,000 - $90,000
+  const phaseoutStart = 80000;
+  const phaseoutEnd = 90000;
+  let phaseoutFactor = 1;
+  if (magi > phaseoutStart) {
+    phaseoutFactor = Math.max(0, 1 - (magi - phaseoutStart) / (phaseoutEnd - phaseoutStart));
+  }
+  return round2(Math.min(rawCredit * phaseoutFactor, 2000));
+}
+
+function calculateStudentLoanDeduction(interestPaid: number, magi: number): number {
+  if (interestPaid <= 0) return 0;
+  const maxDeduction = 2500;
+  const raw = Math.min(interestPaid, maxDeduction);
+  // Income phaseout for single: $80,000 - $95,000
+  const phaseoutStart = 80000;
+  const phaseoutEnd = 95000;
+  if (magi > phaseoutStart) {
+    const factor = Math.max(0, 1 - (magi - phaseoutStart) / (phaseoutEnd - phaseoutStart));
+    return round2(raw * factor);
+  }
+  return round2(raw);
+}
+
 // ─── Main Form 1040 generator ──────────────────────────────────
 
 export async function generateForm1040(
@@ -330,14 +384,51 @@ export async function generateForm1040(
   // Line 9: Total income
   const line9 = round2(line1 + line5b + line7 + line8);
 
+  // ── Load tax documents for education + student loan ──
+
+  const taxDocs = await prisma.tax_documents.findMany({
+    where: { userId, tax_year: taxYear },
+  });
+  const docsByType = new Map<string, Array<{ label: string | null; data: Record<string, unknown> }>>();
+  for (const doc of taxDocs) {
+    const list = docsByType.get(doc.doc_type) || [];
+    list.push({ label: doc.label, data: doc.data as Record<string, unknown> });
+    docsByType.set(doc.doc_type, list);
+  }
+
+  const doc1098t = docsByType.get('1098t') || [];
+  const doc1098e = docsByType.get('1098e') || [];
+
+  // Education: use tax_documents if available, otherwise check overrides
+  const docTuition = doc1098t.reduce((s, d) => s + (Number(d.data.qualified_tuition) || 0), 0);
+  const docScholarships = doc1098t.reduce((s, d) => s + (Number(d.data.scholarships) || 0), 0);
+  const ovTuition = overrideNum(overrides, 'education_qualified_tuition', 0);
+  const ovScholarships = overrideNum(overrides, 'education_scholarships', 0);
+  if (ovTuition.used) overridesUsed.push('education_qualified_tuition');
+  if (ovScholarships.used) overridesUsed.push('education_scholarships');
+  const totalTuition = doc1098t.length > 0 ? docTuition : ovTuition.value;
+  const totalScholarships = doc1098t.length > 0 ? docScholarships : ovScholarships.value;
+  const qualifiedEducationExpense = Math.max(0, totalTuition - totalScholarships);
+
+  // Student loan interest: use tax_documents if available, otherwise check overrides
+  const docInterest = doc1098e.reduce((s, d) => s + (Number(d.data.interest_paid) || 0), 0);
+  const ovInterest = overrideNum(overrides, 'student_loan_interest_paid', 0);
+  if (ovInterest.used) overridesUsed.push('student_loan_interest_paid');
+  const totalStudentLoanInterest = doc1098e.length > 0 ? docInterest : ovInterest.value;
+
   // ── ADJUSTMENTS ──
 
   // Schedule SE
   const scheduleSE = generateScheduleSE(line8);
   const seTaxDeduction = Math.max(0, scheduleSE.line13);
 
+  // Student loan interest deduction (Schedule 1, Line 21)
+  // Need preliminary AGI for phaseout — compute without student loan deduction first
+  const prelimAGI = round2(line9 - seTaxDeduction);
+  const studentLoanDeduction = calculateStudentLoanDeduction(totalStudentLoanInterest, prelimAGI);
+
   // Line 11: AGI
-  const line11 = round2(line9 - seTaxDeduction);
+  const line11 = round2(line9 - seTaxDeduction - studentLoanDeduction);
 
   // ── DEDUCTIONS ──
 
@@ -364,7 +455,32 @@ export async function generateForm1040(
   const earlyWithdrawalPenalty = retCode === '1' ? round2(line5b * 0.10) : 0;
 
   const selfEmploymentTax = Math.max(0, scheduleSE.line12);
-  const totalTax = round2(incomeTax + ltcgTax + earlyWithdrawalPenalty + selfEmploymentTax);
+
+  // ── EDUCATION CREDITS (Form 8863) ──
+
+  const aotcResult = calculateAOTC(qualifiedEducationExpense, line11);
+  const aotcAmount = aotcResult.credit;
+  const aotcRefundable = aotcResult.refundable;
+  const llcAmount = calculateLLC(qualifiedEducationExpense, line11);
+
+  // Pick the higher credit; AOTC has a refundable portion so it's often better
+  let educationCredit = 0;
+  let educationCreditType = 'none';
+  if (aotcAmount >= llcAmount && aotcAmount > 0) {
+    educationCredit = aotcAmount;
+    educationCreditType = 'aotc';
+  } else if (llcAmount > 0) {
+    educationCredit = llcAmount;
+    educationCreditType = 'llc';
+  }
+
+  // Non-refundable portion reduces tax (can't go below 0)
+  const nonRefundableCredit = educationCreditType === 'aotc'
+    ? round2(educationCredit - aotcRefundable)
+    : educationCredit; // LLC is fully non-refundable
+
+  const grossTax = round2(incomeTax + ltcgTax + earlyWithdrawalPenalty + selfEmploymentTax);
+  const totalTax = round2(Math.max(0, grossTax - nonRefundableCredit));
 
   // ── CREDITS & PAYMENTS ──
 
@@ -380,7 +496,9 @@ export async function generateForm1040(
   const estimatedPayments = estPay.value;
   if (estPay.used) overridesUsed.push('estimated_payments_made');
 
-  const totalPayments = round2(w2Withheld + retirementWithheld + estimatedPayments);
+  // Refundable portion of AOTC counts as a payment/credit
+  const refundableEducation = educationCreditType === 'aotc' ? aotcRefundable : 0;
+  const totalPayments = round2(w2Withheld + retirementWithheld + estimatedPayments + refundableEducation);
 
   // ── BOTTOM LINE ──
 
@@ -402,6 +520,7 @@ export async function generateForm1040(
     line9,
 
     seTaxDeduction,
+    studentLoanDeduction,
     line11,
 
     standardDeduction,
@@ -414,6 +533,12 @@ export async function generateForm1040(
     earlyWithdrawalPenalty,
     selfEmploymentTax,
     totalTax,
+
+    educationCredit,
+    educationCreditType,
+    aotcAmount,
+    llcAmount,
+    aotcRefundable,
 
     w2Withheld,
     retirementWithheld,

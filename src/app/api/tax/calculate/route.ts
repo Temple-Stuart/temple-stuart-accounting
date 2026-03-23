@@ -115,10 +115,12 @@ export async function GET(request: Request) {
           });
 
           for (const le of ledgerEntries) {
+            // For expense accounts (debit-normal): debits are positive, credits are negative (refunds)
+            const sign = le.entry_type === 'D' ? 1 : -1;
             entries.push({
               date: le.journal_entry.date.toISOString().split('T')[0],
               description: le.journal_entry.description,
-              amount: Number(le.amount) / 100,
+              amount: round2(Number(le.amount) / 100 * sign),
               journal_entry_id: le.journal_entry.id,
             });
           }
