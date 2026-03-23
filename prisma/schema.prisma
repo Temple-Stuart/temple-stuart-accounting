@@ -529,12 +529,18 @@ model trips {
   latitude     Decimal?  @db.Decimal(10, 6)
   longitude    Decimal?  @db.Decimal(10, 6)
 
+  tripType     TripType  @default(personal)
+
   owner        users               @relation(fields: [userId], references: [id], onDelete: Cascade)
   participants trip_participants[]
   expenses     trip_expenses[]
   itinerary    trip_itinerary[]
   destinations trip_destinations[]
   budget_line_items budget_line_items[]
+  lodging_options    trip_lodging_options[]
+  transfer_options   trip_transfer_options[]
+  vehicle_options    trip_vehicle_options[]
+  activity_expenses  trip_activity_expenses[]
 
   @@index([userId])
   @@index([year, month])
@@ -613,28 +619,31 @@ model expense_splits {
 }
 
 model trip_itinerary {
-  id           String   @id @default(cuid())
-  tripId       String
-  day          Int
-  homeDate     DateTime
-  homeTime     String?  @db.VarChar(10)
-  destDate     DateTime
-  destTime     String?  @db.VarChar(10)
-  category     String   @db.VarChar(50)
-  vendor       String   @db.VarChar(255)
-  cost         Decimal  @db.Decimal(12, 2)
-  note         String?
-  splitNames   String?
-  splitBy      Int      @default(1)
-  perPerson    Decimal? @db.Decimal(12, 2)
-  location     String?  @db.VarChar(255)
-  verticalDrop Int?
-  avgSnow      Int?
-  createdAt    DateTime @default(now())
+  id               String   @id @default(cuid())
+  tripId           String
+  day              Int
+  homeDate         DateTime
+  homeTime         String?  @db.VarChar(10)
+  destDate         DateTime
+  destTime         String?  @db.VarChar(10)
+  category         String   @db.VarChar(50)
+  vendor           String   @db.VarChar(255)
+  cost             Decimal  @db.Decimal(12, 2)
+  note             String?
+  splitNames       String?
+  splitBy          Int      @default(1)
+  perPerson        Decimal? @db.Decimal(12, 2)
+  location         String?  @db.VarChar(255)
+  verticalDrop     Int?
+  avgSnow          Int?
+  vendorOptionId   String?  @db.VarChar(100)
+  vendorOptionType String?  @db.VarChar(20)
+  createdAt        DateTime @default(now())
 
   trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   @@index([tripId, day])
+  @@index([vendorOptionId])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1577,4 +1586,113 @@ model ObservatoryHealthLog {
 
   @@index([symbol, sourceId])
   @@index([checkedAt])
+}
+
+// ─── Trip Type & Vendor Option Status ─────────────────────────
+
+enum TripType {
+  personal
+  business
+  mixed
+}
+
+enum VendorOptionStatus {
+  proposed
+  selected
+  committed
+}
+
+// ─── Vendor Option Tables (previously raw SQL) ────────────────
+
+model trip_lodging_options {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id         String
+  url             String?
+  title           String?
+  image_url       String?
+  location        String?
+  price_per_night Decimal?            @db.Decimal(12, 2)
+  total_price     Decimal?            @db.Decimal(12, 2)
+  taxes_estimate  Decimal?            @db.Decimal(12, 2)
+  per_person      Decimal?            @db.Decimal(12, 2)
+  notes           String?
+  votes_up        Int                 @default(0)
+  votes_down      Int                 @default(0)
+  is_selected     Boolean             @default(false)
+  status          VendorOptionStatus  @default(proposed)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
+
+  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+
+  @@index([trip_id])
+}
+
+model trip_transfer_options {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id         String
+  url             String?
+  transfer_type   String
+  direction       String
+  title           String?
+  vendor          String?
+  price           Decimal?            @db.Decimal(12, 2)
+  per_person      Decimal?            @db.Decimal(12, 2)
+  notes           String?
+  votes_up        Int                 @default(0)
+  votes_down      Int                 @default(0)
+  is_selected     Boolean             @default(false)
+  status          VendorOptionStatus  @default(proposed)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
+
+  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+
+  @@index([trip_id])
+}
+
+model trip_vehicle_options {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id         String
+  url             String?
+  vehicle_type    String
+  title           String?
+  vendor          String?
+  price_per_day   Decimal?            @db.Decimal(12, 2)
+  total_price     Decimal?            @db.Decimal(12, 2)
+  per_person      Decimal?            @db.Decimal(12, 2)
+  notes           String?
+  votes_up        Int                 @default(0)
+  votes_down      Int                 @default(0)
+  is_selected     Boolean             @default(false)
+  status          VendorOptionStatus  @default(proposed)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
+
+  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+
+  @@index([trip_id])
+}
+
+model trip_activity_expenses {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id         String
+  category        String
+  title           String?
+  vendor          String?
+  url             String?
+  price           Decimal?            @db.Decimal(12, 2)
+  is_per_person   Boolean             @default(true)
+  per_person      Decimal?            @db.Decimal(12, 2)
+  notes           String?
+  votes_up        Int                 @default(0)
+  votes_down      Int                 @default(0)
+  is_selected     Boolean             @default(false)
+  status          VendorOptionStatus  @default(proposed)
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @default(now()) @updatedAt
+
+  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+
+  @@index([trip_id])
 }

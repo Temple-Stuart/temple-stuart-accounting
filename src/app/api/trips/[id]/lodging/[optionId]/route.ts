@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -15,46 +14,46 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
     const body = await request.json();
-    
+
     // Handle vote
     if (body.action === 'vote_up') {
-      await prisma.$queryRaw`UPDATE trip_lodging_options SET votes_up = votes_up + 1, updated_at = NOW() WHERE id = ${optionId}::uuid`;
+      await prisma.trip_lodging_options.update({ where: { id: optionId }, data: { votes_up: { increment: 1 } } });
       return NextResponse.json({ success: true });
     }
     if (body.action === 'vote_down') {
-      await prisma.$queryRaw`UPDATE trip_lodging_options SET votes_down = votes_down + 1, updated_at = NOW() WHERE id = ${optionId}::uuid`;
+      await prisma.trip_lodging_options.update({ where: { id: optionId }, data: { votes_down: { increment: 1 } } });
       return NextResponse.json({ success: true });
     }
-    
+
     // Handle select (lock in this option)
     if (body.action === 'select') {
       // Deselect all others first
-      await prisma.$queryRaw`UPDATE trip_lodging_options SET is_selected = false WHERE trip_id = ${id}`;
-      await prisma.$queryRaw`UPDATE trip_lodging_options SET is_selected = true, updated_at = NOW() WHERE id = ${optionId}::uuid`;
+      await prisma.trip_lodging_options.updateMany({ where: { trip_id: id }, data: { is_selected: false } });
+      await prisma.trip_lodging_options.update({ where: { id: optionId }, data: { is_selected: true } });
       return NextResponse.json({ success: true });
     }
-    
+
     // Handle deselect
     if (body.action === 'deselect') {
-      await prisma.$queryRaw`UPDATE trip_lodging_options SET is_selected = false, updated_at = NOW() WHERE id = ${optionId}::uuid`;
+      await prisma.trip_lodging_options.update({ where: { id: optionId }, data: { is_selected: false } });
       return NextResponse.json({ success: true });
     }
-    
+
     // Handle general update
     const { title, location, price_per_night, total_price, taxes_estimate, per_person, notes } = body;
-    await prisma.$queryRaw`
-      UPDATE trip_lodging_options SET
-        title = COALESCE(${title}, title),
-        location = COALESCE(${location}, location),
-        price_per_night = COALESCE(${price_per_night}, price_per_night),
-        total_price = COALESCE(${total_price}, total_price),
-        taxes_estimate = COALESCE(${taxes_estimate}, taxes_estimate),
-        per_person = COALESCE(${per_person}, per_person),
-        notes = COALESCE(${notes}, notes),
-        updated_at = NOW()
-      WHERE id = ${optionId}::uuid
-    `;
-    
+    await prisma.trip_lodging_options.update({
+      where: { id: optionId },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(location !== undefined && { location }),
+        ...(price_per_night !== undefined && { price_per_night }),
+        ...(total_price !== undefined && { total_price }),
+        ...(taxes_estimate !== undefined && { taxes_estimate }),
+        ...(per_person !== undefined && { per_person }),
+        ...(notes !== undefined && { notes }),
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error:', error);
@@ -73,7 +72,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    await prisma.$queryRaw`DELETE FROM trip_lodging_options WHERE id = ${optionId}::uuid`;
+    await prisma.trip_lodging_options.delete({ where: { id: optionId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error:', error);

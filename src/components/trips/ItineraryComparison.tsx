@@ -118,45 +118,24 @@ export default function ItineraryComparison({
     setLoading(prev => ({ ...prev, [resortId]: true }));
 
     try {
-      // Fetch optimized flights (earliest, shortest, direct preferred)
-      const flightRes = await fetch(
-        `/api/travel/flights?origin=${homeAirport}&destination=${airport}&departureDate=${departureDate}&returnDate=${returnDate}&optimize=time`
-      );
-      
-      let flightData: FlightDetails | null = null;
-      if (flightRes.ok) {
-        const data = await flightRes.json();
-        if (data.flights?.[0]) {
-          flightData = data.flights[0];
-        }
-      }
+      // TODO: Wire to Duffel flight data from FlightPicker selectedFlight prop
+      // Flight data not available after Amadeus removal — use defaults for itinerary timing
+      const landingTime = '14:00';
+      const hotelCheckIn = addHours(landingTime, 2);
 
-      // Calculate derived times based on flight
-      const landingTime = flightData?.outbound?.arrival?.localTime || '14:00';
-      const hotelCheckIn = addHours(landingTime, 2); // +1hr luggage, +1hr drive estimate
-      
       setDestData(prev => ({
         ...prev,
         [resortId]: {
-          flight: flightData,
+          flight: null,
           costs: {
-            rideshare_to: { cost: 75, vendor: 'Uber', time: addHours(flightData?.outbound?.departure?.localTime || '06:00', -2) },
-            flight_out: { 
-              cost: flightData?.price || 0, 
-              vendor: flightData?.outbound?.carriers?.map(c => AIRLINE_NAMES[c] || c).join('/') || 'TBD',
-              time: flightData?.outbound?.departure?.localTime || 'TBD',
-            },
-            flight_return: { 
-              cost: 0, // Included in round trip
-              vendor: flightData?.return?.carriers?.map(c => AIRLINE_NAMES[c] || c).join('/') || 'TBD',
-              time: flightData?.return?.departure?.localTime || 'TBD',
-            },
+            rideshare_to: { cost: 75, vendor: 'Uber', time: addHours('06:00', -2) },
+            flight_out: { cost: 0, vendor: 'TBD', time: 'TBD' },
+            flight_return: { cost: 0, vendor: 'TBD', time: 'TBD' },
             rental_car: { cost: 0, vendor: 'TBD (Van/SUV)', time: landingTime },
             lodging: { cost: 0, vendor: 'TBD (5mi of resort)', time: hotelCheckIn },
             lift_ticket: { cost: 0, vendor: 'Resort', time: RESORT_HOURS.firstChair },
             equipment: { cost: 0, vendor: 'Resort Demo', time: addHours(RESORT_HOURS.firstChair, -0.5) },
-            rideshare_from: { cost: 75, vendor: 'Uber', time: flightData?.return?.arrival?.localTime || '22:00' },
-            // Per-day costs (will multiply by days)
+            rideshare_from: { cost: 75, vendor: 'Uber', time: '22:00' },
             breakfast: { cost: 25, vendor: 'TBD', time: addHours(RESORT_HOURS.firstChair, -1) },
             lunch: { cost: 30, vendor: 'On-Mountain', time: '12:00' },
             dinner: { cost: 50, vendor: 'TBD', time: addHours(RESORT_HOURS.lastChair, 1) },

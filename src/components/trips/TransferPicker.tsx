@@ -72,33 +72,12 @@ export default function TransferPicker({
   const fetchTransfers = async (type: string = transferType) => {
     setLoading(true);
     setError('');
-    
     try {
-      // Fetch both arrival and departure transfers
-      const [arrivalRes, departureRes] = await Promise.all([
-        fetch(`/api/travel/transfers?resortId=${resortId}&dateTime=${encodeURIComponent(arrivalDateTime)}&passengers=${passengers}&transferType=${type}`),
-        fetch(`/api/travel/transfers?resortId=${resortId}&dateTime=${encodeURIComponent(departureDateTime)}&passengers=${passengers}&transferType=${type}&direction=departure`),
-      ]);
-      
-      if (!arrivalRes.ok || !departureRes.ok) {
-        throw new Error('Failed to fetch transfers');
-      }
-      
-      const [arrivalData, departureData] = await Promise.all([
-        arrivalRes.json(),
-        departureRes.json(),
-      ]);
-      
-      if (arrivalData.error) setError(arrivalData.error);
-      
-      // Tag transfers with direction
-      const taggedArrivals = (arrivalData.transfers || []).map((t: TransferOption) => ({ ...t, direction: 'arrival' as const }));
-      const taggedDepartures = (departureData.transfers || []).map((t: TransferOption) => ({ ...t, direction: 'departure' as const }));
-      
-      setArrivalTransfers(taggedArrivals);
-      setDepartureTransfers(taggedDepartures);
+      setArrivalTransfers([]);
+      setDepartureTransfers([]);
       setSearched(true);
       setExpanded(true);
+      setError('Transfer search is not available. Use manual entry below.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch transfers');
       setSearched(true);
