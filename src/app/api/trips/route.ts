@@ -88,11 +88,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Require at least one activity
-    const activityArray = activities || (activity ? [activity] : []);
-    if (activityArray.length === 0) {
-      return NextResponse.json({ error: 'At least one activity is required' }, { status: 400 });
-    }
+    // Default to 'all' activities — activity field is no longer used as a filter
+    const primaryActivity = activity || 'all';
+    const activityArray = activities && activities.length > 0 ? activities : [primaryActivity];
 
     // Generate invite token for the trip
     const tripInviteToken = randomBytes(16).toString('hex');
@@ -103,7 +101,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         name,
         destination: destination || null,
-        activity: activityArray[0] || null,  // backward compat: store primary activity
+        activity: primaryActivity,            // backward compat: store primary activity
         activities: activityArray,            // NEW: store full array
         month: parseInt(month),
         year: parseInt(year),

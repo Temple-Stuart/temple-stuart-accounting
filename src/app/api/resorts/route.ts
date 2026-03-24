@@ -32,6 +32,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   content: 'all',
   education: 'all',
   party: 'all',
+  all: 'all',
 };
 
 // Helper to normalize and group destinations
@@ -132,8 +133,8 @@ async function getAllDestinations() {
 
 export async function GET(request: NextRequest) {
   try {
-    const activity = request.nextUrl.searchParams.get('activity') || 'snowboard';
-    const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
+    const activity = request.nextUrl.searchParams.get('activity') || 'all';
+    const table = ACTIVITY_TABLE_MAP[activity] || 'all';
 
     let resorts: any[] = [];
     let grouped: Record<string, Record<string, any[]>> = {};

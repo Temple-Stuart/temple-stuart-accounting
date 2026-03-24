@@ -120,7 +120,7 @@ export default function DestinationSelector({
   const [showPicker, setShowPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const columns = ACTIVITY_COLUMNS[activity || 'snowboard'] || ACTIVITY_COLUMNS.snowboard;
+  const columns = ACTIVITY_COLUMNS[activity || 'all'] || ACTIVITY_COLUMNS.all || [];
 
   useEffect(() => {
     loadResorts();
@@ -128,7 +128,7 @@ export default function DestinationSelector({
 
   const loadResorts = async () => {
     try {
-      const res = await fetch('/api/resorts?activity=' + (activity || 'snowboard'));
+      const res = await fetch('/api/resorts?activity=' + (activity || 'all'));
       if (res.ok) {
         const data = await res.json();
         setResorts(data.resorts || []);

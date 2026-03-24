@@ -34,6 +34,8 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   content: 'all',
   education: 'all',
   party: 'all',
+  // Default: all destination types
+  all: 'all',
 };
 
 // Helper to get destination data from the correct table
@@ -223,8 +225,8 @@ export async function GET(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const activity = trip?.activity || 'snowboard';
-    const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
+    const activity = trip?.activity || 'all';
+    const table = ACTIVITY_TABLE_MAP[activity] || 'all';
 
     const destinations = await prisma.trip_destinations.findMany({
       where: { tripId: id },
@@ -280,8 +282,8 @@ export async function POST(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const activity = trip?.activity || 'snowboard';
-    const table = ACTIVITY_TABLE_MAP[activity] || 'ikon_resorts';
+    const activity = trip?.activity || 'all';
+    const table = ACTIVITY_TABLE_MAP[activity] || 'all';
 
     const destination = await prisma.trip_destinations.upsert({
       where: {
