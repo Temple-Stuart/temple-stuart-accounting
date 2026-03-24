@@ -204,6 +204,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   // Scanner results metadata (who scanned, when)
   const [scannerMeta, setScannerMeta] = useState<{ scannedBy: string; updatedAt: string } | null>(null);
+  const [scannerProfile, setScannerProfile] = useState<TravelerProfile | null>(null);
 
   // Clear "added" tracking when vendor options change externally (e.g. uncommit deletes the option)
   useEffect(() => {
@@ -225,6 +226,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         const loaded: Record<string, GrokRecommendation[]> = {};
         let allRecs: GrokRecommendation[] = [];
         let latestMeta: { scannedBy: string; updatedAt: string } | null = null;
+        let savedProfile: TravelerProfile | null = null;
 
         for (const r of results) {
           const recs = r.recommendations as GrokRecommendation[];
@@ -234,6 +236,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           }
           if (!latestMeta || new Date(r.updatedAt) > new Date(latestMeta.updatedAt)) {
             latestMeta = { scannedBy: r.scannedBy, updatedAt: r.updatedAt };
+            if (r.profileSnapshot) savedProfile = r.profileSnapshot as TravelerProfile;
           }
         }
 
@@ -242,6 +245,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           setRecommendations(allRecs.sort((a, b) => a.valueRank - b.valueRank));
           setExpandedCategory(Object.keys(loaded)[0]);
           setScannerMeta(latestMeta);
+          setScannerProfile(savedProfile);
         }
       } catch (err) {
         console.error('Failed to load saved scanner results:', err);
@@ -293,6 +297,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setAddedToVendorOptions(new Set());
     setVendorAddCounts({});
     setScannerMeta(null);
+    setScannerProfile(null);
     setExpandedCategory(null);
     setCompletedCount(0);
 
@@ -536,6 +541,22 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       vibeLabels,
       acts
     ].filter(Boolean).join(' • ');
+  };
+
+  const formatScanProfile = (p: TravelerProfile) => {
+    const tripType = TRIP_TYPES.find(t => t.value === p.tripType);
+    const budget = BUDGET_OPTIONS.find(b => b.value === p.budget);
+    const pace = PACE_OPTIONS.find(pa => pa.value === p.pace);
+    const vibes = (p.vibe || []).map(v => VIBE_OPTIONS.find(vo => vo.value === v)?.label).filter(Boolean);
+    const prios = (p.priorities || []).slice(0, 4).join(', ');
+    const parts = [
+      tripType ? `${tripType.icon} ${tripType.label}` : p.tripType,
+      budget ? `${budget.label}${budget.sublabel}` : p.budget,
+      prios ? `Priorities: ${prios}` : null,
+      vibes.length > 0 ? `Vibe: ${vibes.join(', ')}` : null,
+      pace ? pace.label : null,
+    ].filter(Boolean);
+    return parts.join(' · ');
   };
 
   const getSentimentColor = (s: string) => s === 'positive' ? 'bg-green-100 text-brand-green' : s === 'negative' ? 'bg-red-100 text-brand-red' : 'bg-bg-row text-text-secondary';
@@ -983,6 +1004,17 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               </span>
             )}
           </div>
+          {scannerProfile && !loading && (
+            <div className="flex items-center justify-between px-4 py-2.5 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800">
+              <span>{formatScanProfile(scannerProfile)}</span>
+              {!participantId && (
+                <button onClick={() => setShowProfileModal(true)} className="text-purple-600 hover:text-purple-800 font-medium ml-3 whitespace-nowrap">Customize</button>
+              )}
+            </div>
+          )}
+          {!scannerProfile && Object.keys(byCategory).length > 0 && !loading && (
+            <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
+          )}
           {Object.entries(byCategory).map(([cat, items]) => {
             const info = CATEGORY_INFO[cat] || { label: cat, icon: '📍' };
             const isOpen = expandedCategory === cat;
