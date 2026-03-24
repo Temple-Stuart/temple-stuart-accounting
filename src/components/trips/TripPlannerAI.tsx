@@ -162,16 +162,6 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   wellness: { label: 'Wellness/Gym', icon: '💆' },
 };
 
-// Budget category groups for card grid rendering
-const BUDGET_GROUPS = [
-  { key: 'lodging', label: 'Lodging', icon: '🏨', scannerCategories: ['lodging'], vendorApi: 'lodging', optionType: 'lodging' as const, multiDay: true },
-  { key: 'meals', label: 'Meals & Dining', icon: '🍽️', scannerCategories: ['brunchCoffee', 'dinner'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
-  { key: 'activities', label: 'Activities', icon: '🎯', scannerCategories: ['activities', 'coworking', 'wellness', 'nightlife'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
-  { key: 'transport', label: 'Ground Transport', icon: '🚕', scannerCategories: ['airportTransfers'], vendorApi: 'transfers', optionType: 'transfer' as const, multiDay: false },
-  { key: 'vehicles', label: 'Vehicle Rental', icon: '🏍️', scannerCategories: ['motoRental', 'equipmentRental'], vendorApi: 'vehicles', optionType: 'vehicle' as const, multiDay: true },
-  { key: 'incidentals', label: 'Incidentals', icon: '🛒', scannerCategories: ['toiletries'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
-];
-
 const FREQUENCY_OPTIONS = [
   { value: 'per_night', label: '/night' },
   { value: 'per_day', label: '/day' },
@@ -180,13 +170,32 @@ const FREQUENCY_OPTIONS = [
   { value: 'total', label: 'total' },
 ] as const;
 
-const DEFAULT_FREQUENCY: Record<string, string> = {
+const CATEGORY_DEFAULT_FREQ: Record<string, string> = {
   lodging: 'per_night',
-  meals: 'per_visit',
+  brunchCoffee: 'per_visit',
+  dinner: 'per_visit',
   activities: 'per_visit',
-  transport: 'per_trip',
-  vehicles: 'per_day',
-  incidentals: 'total',
+  coworking: 'per_day',
+  wellness: 'per_visit',
+  nightlife: 'per_visit',
+  airportTransfers: 'per_trip',
+  motoRental: 'per_day',
+  equipmentRental: 'per_day',
+  toiletries: 'total',
+};
+
+const CATEGORY_VENDOR_INFO: Record<string, { vendorApi: string; optionType: string; multiDay: boolean }> = {
+  lodging: { vendorApi: 'lodging', optionType: 'lodging', multiDay: true },
+  brunchCoffee: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
+  dinner: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
+  activities: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
+  coworking: { vendorApi: 'activities', optionType: 'activity', multiDay: true },
+  wellness: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
+  nightlife: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
+  airportTransfers: { vendorApi: 'transfers', optionType: 'transfer', multiDay: false },
+  motoRental: { vendorApi: 'vehicles', optionType: 'vehicle', multiDay: true },
+  equipmentRental: { vendorApi: 'vehicles', optionType: 'vehicle', multiDay: true },
+  toiletries: { vendorApi: 'activities', optionType: 'activity', multiDay: false },
 };
 
 function calcDaysBetween(start: string, end?: string): number {
@@ -534,11 +543,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const isSelected = (item: GrokRecommendation) => isAddedToVendor(item) || selections.some(s => s.category === item.category && s.item.name === item.name);
 
   // Direct commit from scanner card: create vendor option then commit it
-  const handleCommitCard = async (rec: GrokRecommendation, group: typeof BUDGET_GROUPS[number]) => {
+  const handleCommitCard = async (rec: GrokRecommendation) => {
     const cardKey = `${rec.category}:${rec.name}`;
+    const catInfo = CATEGORY_VENDOR_INFO[rec.category] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
     const unitPrice = parseFloat(cardPrices[cardKey] || '0');
     const dates = cardDates[cardKey];
-    const freq = cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total';
+    const freq = cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total';
     if (!unitPrice || !dates?.start) return;
 
     const totalPrice = calcTotal(unitPrice, freq, dates.start, dates.end);
@@ -550,7 +560,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       // Step 1: Create the vendor option record
       const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}\n${rateNote}`;
       let body: Record<string, any> = {};
-      const vendorApi = group.vendorApi;
+      const vendorApi = catInfo.vendorApi;
 
       if (vendorApi === 'lodging') {
         body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: unitPrice, total_price: totalPrice, notes: aiNote };
@@ -584,7 +594,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       const commitRes = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          optionType: group.optionType, optionId,
+          optionType: catInfo.optionType, optionId,
           startDate: dates.start, endDate: dates.end || null,
         }),
       });
@@ -598,7 +608,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         });
       }
 
-      setCommittedCards(prev => ({ ...prev, [cardKey]: { optionType: group.optionType, optionId } }));
+      setCommittedCards(prev => ({ ...prev, [cardKey]: { optionType: catInfo.optionType, optionId } }));
       setCommitCardKey(null);
       if (onCommitted) onCommitted();
     } catch (err) {
@@ -1132,7 +1142,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </div>
       )}
 
-      {/* Results — Card Grid grouped by budget category */}
+      {/* Results — Card Grid grouped by scanner category */}
       {Object.keys(byCategory).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -1155,17 +1165,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
           )}
 
-          {BUDGET_GROUPS.map(group => {
-            const groupItems = group.scannerCategories.flatMap(sc => byCategory[sc] || []);
-            if (groupItems.length === 0) return null;
+          {Object.keys(CATEGORY_INFO).map(cat => {
+            const items = byCategory[cat];
+            if (!items || items.length === 0) return null;
+            const info = CATEGORY_INFO[cat];
+            const catVendor = CATEGORY_VENDOR_INFO[cat] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
             return (
-              <div key={group.key} className="border border-border rounded overflow-hidden">
+              <div key={cat} className="border border-border rounded overflow-hidden">
                 <div className="flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border">
-                  <span className="flex items-center gap-2"><span>{group.icon}</span><span className="font-semibold text-sm">{group.label}</span></span>
-                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{groupItems.length}</span>
+                  <span className="flex items-center gap-2"><span>{info.icon}</span><span className="font-semibold text-sm">{info.label}</span></span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span>
                 </div>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupItems.map((rec, idx) => {
+                  {items.map((rec, idx) => {
                     const cardKey = `${rec.category}:${rec.name}`;
                     const committed = committedCards[cardKey];
                     const isCommitting = committingCard === cardKey;
@@ -1208,7 +1220,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                   <span className="text-xs text-text-muted">$</span>
                                   <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
                                     className="flex-1 min-w-0 border border-border rounded px-2 py-1.5 text-xs" />
-                                  <select value={cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total'} onChange={e => setCardFrequency(p => ({ ...p, [cardKey]: e.target.value }))}
+                                  <select value={cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total'} onChange={e => setCardFrequency(p => ({ ...p, [cardKey]: e.target.value }))}
                                     className="border border-border rounded px-1 py-1.5 text-xs bg-white">
                                     {FREQUENCY_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                                   </select>
@@ -1216,7 +1228,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               </div>
                               {(() => {
                                 const up = parseFloat(cardPrices[cardKey] || '0');
-                                const fr = cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total';
+                                const fr = cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total';
                                 const d = cardDates[cardKey];
                                 if (!up) return null;
                                 const tot = calcTotal(up, fr, d?.start || '', d?.end);
@@ -1230,7 +1242,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                   <input type="date" value={cardDates[cardKey]?.start || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
                                     className="w-full border border-border rounded px-2 py-1.5 text-xs" />
                                 </div>
-                                {group.multiDay && (
+                                {catVendor.multiDay && (
                                   <div>
                                     <label className="text-[10px] text-text-muted block mb-0.5">End</label>
                                     <input type="date" value={cardDates[cardKey]?.end || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
@@ -1239,7 +1251,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                 )}
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={() => handleCommitCard(rec, group)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
+                                <button onClick={() => handleCommitCard(rec)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
                                   className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 disabled:opacity-50">
                                   {isCommitting ? 'Committing...' : 'Confirm'}
                                 </button>
@@ -1248,7 +1260,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: DEFAULT_FREQUENCY[group.key] || 'total' })); }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || 'total' })); }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
@@ -1259,9 +1271,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                   })}
                 </div>
                 <div className="px-5 py-3 bg-bg-row border-t border-border">
-                  <button onClick={() => openCustomModal(group.scannerCategories[0])} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
+                  <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">+</span>
-                    Add Custom {group.label}
+                    Add Custom {info.label}
                   </button>
                 </div>
               </div>
