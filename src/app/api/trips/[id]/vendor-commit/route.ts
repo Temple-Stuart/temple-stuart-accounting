@@ -131,34 +131,44 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
 
-      // C. Create trip_itinerary entries for each day the commitment spans
+      // C. Create trip_itinerary entries
       const end = endDate ? new Date(endDate) : start;
       const tripStart = trip.startDate ? new Date(trip.startDate) : start;
       const itineraryEntries = [];
-      const current = new Date(start);
-      const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      const dailyCost = details.amount / totalDays;
 
-      while (current <= end) {
-        const dayNum = Math.round((current.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // Transfers are one-time events: arrival on start date, departure on end date
+      if (optionType === 'transfer') {
+        const transferOpt = await tx.trip_transfer_options.findFirst({ where: { id: optionId, trip_id: id } });
+        const transferDate = transferOpt?.direction === 'departure' ? end : start;
+        const dayNum = Math.round((transferDate.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         const entry = await tx.trip_itinerary.create({
           data: {
-            tripId: id,
-            day: dayNum,
-            homeDate: current,
-            homeTime: startTime || null,
-            destDate: current,
-            destTime: startTime || null,
-            category: optionType,
-            vendor: details.title,
-            cost: Math.round(dailyCost * 100) / 100,
-            note: notes || null,
-            vendorOptionId: optionId,
-            vendorOptionType: optionType,
+            tripId: id, day: dayNum, homeDate: transferDate, homeTime: startTime || null,
+            destDate: transferDate, destTime: startTime || null,
+            category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
+            note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
           },
         });
         itineraryEntries.push(entry);
-        current.setDate(current.getDate() + 1);
+      } else {
+        // Multi-day bookings (lodging, vehicles, etc.) — create entry per day
+        const current = new Date(start);
+        const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+        const dailyCost = details.amount / totalDays;
+
+        while (current <= end) {
+          const dayNum = Math.round((current.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          const entry = await tx.trip_itinerary.create({
+            data: {
+              tripId: id, day: dayNum, homeDate: current, homeTime: startTime || null,
+              destDate: current, destTime: startTime || null,
+              category: optionType, vendor: details.title, cost: Math.round(dailyCost * 100) / 100,
+              note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
+            },
+          });
+          itineraryEntries.push(entry);
+          current.setDate(current.getDate() + 1);
+        }
       }
 
       return { budgetItem, itineraryEntries, optionType, optionId };

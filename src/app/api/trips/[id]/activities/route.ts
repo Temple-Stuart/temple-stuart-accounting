@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { category, title, vendor, url, price, is_per_person, per_person, notes } = await request.json();
+    const { category, title, vendor, url, image_url, price, is_per_person, per_person, notes } = await request.json();
 
     const option = await prisma.trip_activity_expenses.create({
       data: {
@@ -45,6 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         title: title || null,
         vendor: vendor || null,
         url: url || null,
+        image_url: image_url || null,
         price: price || null,
         is_per_person: is_per_person ?? true,
         per_person: per_person || null,

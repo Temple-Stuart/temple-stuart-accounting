@@ -53,6 +53,7 @@ interface ActivityExpense {
   title: string | null;
   vendor: string | null;
   url: string | null;
+  image_url: string | null;
   price: number | null;
   is_per_person: boolean;
   per_person: number | null;
@@ -278,10 +279,13 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {items.map(exp => (
-                    <Card 
+                    <Card
                       key={exp.id}
                       className={`p-3 ${exp.is_selected ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
                     >
+                      {exp.image_url && (
+                        <img src={exp.image_url} alt={exp.title || 'Activity'} className="w-full h-24 object-cover rounded mb-2" />
+                      )}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <h5 className="font-medium text-sm text-text-primary truncate">

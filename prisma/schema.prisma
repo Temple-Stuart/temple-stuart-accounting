@@ -1690,6 +1690,7 @@ model trip_activity_expenses {
   title           String?
   vendor          String?
   url             String?
+  image_url       String?             @db.Text
   price           Decimal?            @db.Decimal(12, 2)
   is_per_person   Boolean             @default(true)
   per_person      Decimal?            @db.Decimal(12, 2)
