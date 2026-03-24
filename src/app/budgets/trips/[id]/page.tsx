@@ -7,7 +7,23 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
+import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import 'leaflet/dist/leaflet.css';
+
+const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
+  lodging:      { label: 'Lodging',          icon: '🏨', bg: 'bg-blue-100',    dot: 'bg-blue-400',    badge: 'bg-blue-400' },
+  flight:       { label: 'Flights',          icon: '✈️', bg: 'bg-purple-100',  dot: 'bg-purple-400',  badge: 'bg-purple-400' },
+  transfer:     { label: 'Ground Transport', icon: '🚕', bg: 'bg-yellow-100',  dot: 'bg-yellow-500',  badge: 'bg-yellow-500' },
+  vehicle:      { label: 'Vehicle Rental',   icon: '🏍️', bg: 'bg-orange-100', dot: 'bg-orange-400',  badge: 'bg-orange-400' },
+  brunchCoffee: { label: 'Brunch & Coffee',  icon: '☕', bg: 'bg-amber-100',   dot: 'bg-amber-400',   badge: 'bg-amber-400' },
+  dinner:       { label: 'Dinner',           icon: '🍽️', bg: 'bg-red-100',    dot: 'bg-red-400',     badge: 'bg-red-400' },
+  activities:   { label: 'Activities',       icon: '🎯', bg: 'bg-green-100',   dot: 'bg-green-500',   badge: 'bg-green-500' },
+  activity:     { label: 'Activities',       icon: '🎯', bg: 'bg-green-100',   dot: 'bg-green-500',   badge: 'bg-green-500' },
+  coworking:    { label: 'Coworking',        icon: '💼', bg: 'bg-indigo-100',  dot: 'bg-indigo-400',  badge: 'bg-indigo-400' },
+  nightlife:    { label: 'Nightlife',        icon: '🌙', bg: 'bg-pink-100',    dot: 'bg-pink-400',    badge: 'bg-pink-400' },
+  wellness:     { label: 'Wellness',         icon: '🏋️', bg: 'bg-teal-100',   dot: 'bg-teal-400',    badge: 'bg-teal-400' },
+  toiletries:   { label: 'Incidentals',      icon: '🛒', bg: 'bg-gray-100',    dot: 'bg-gray-400',    badge: 'bg-gray-400' },
+};
 
 interface Participant {
   id: string;
@@ -125,7 +141,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
   });
   const [savingExpense, setSavingExpense] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(1);
   const [userTier, setUserTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -298,54 +313,67 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     return windows;
   }, [trip, participants]);
 
-  // Day-by-day itinerary (from trip_itinerary, not expenses)
-  const itineraryDays = useMemo(() => {
+
+  // Transform itinerary into CalendarGrid events
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
     if (!trip) return [];
-    const itineraryItems = trip.itinerary || [];
-
-    // If trip has a startDate, build days from that
-    if (trip.startDate) {
-      const days = [];
-      const start = new Date(trip.startDate);
-      for (let i = 0; i < trip.daysTravel; i++) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i);
-        const dayItems = itineraryItems.filter((item: any) => item.day === i + 1);
-        days.push({
-          dayNum: i + 1,
-          date: date,
-          weekday: WEEKDAYS[date.getDay()],
-          dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          items: dayItems,
-          totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
-        });
-      }
-      return days;
-    }
-
-    // No startDate but itinerary records exist (from vendor-commit) — build days from records
-    if (itineraryItems.length > 0) {
-      const maxDay = Math.max(...itineraryItems.map((item: any) => item.day || 1), trip.daysTravel);
-      const days = [];
-      for (let i = 0; i < maxDay; i++) {
-        const dayItems = itineraryItems.filter((item: any) => item.day === i + 1);
-        // Use homeDate from itinerary if available for the date display
-        const firstItem = dayItems.find((item: any) => item.homeDate);
-        const date = firstItem ? new Date(firstItem.homeDate) : null;
-        days.push({
-          dayNum: i + 1,
-          date: date,
-          weekday: date ? WEEKDAYS[date.getDay()] : `Day`,
-          dateStr: date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Day ${i + 1}`,
-          items: dayItems,
-          totalCost: dayItems.reduce((sum: number, item: any) => sum + parseFloat(item.cost || 0), 0)
-        });
-      }
-      return days;
-    }
-
-    return [];
+    const items = trip.itinerary || [];
+    // Deduplicate by vendorOptionId — group multi-day entries into single events
+    const grouped: Record<string, any[]> = {};
+    items.forEach((item: any) => {
+      const key = item.vendorOptionId || item.id;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+    return Object.entries(grouped).map(([key, entries]) => {
+      const first = entries[0];
+      const source = first.vendorOptionType || first.category || 'activities';
+      const cfg = TRIP_SOURCE_CONFIG[source];
+      const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
+      const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
+      return {
+        id: key,
+        source,
+        title: `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`,
+        icon: cfg?.icon || null,
+        startDate: dateStr,
+        endDate: entries.length > 1 && entries[entries.length - 1].homeDate
+          ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
+          : null,
+        budgetAmount: totalCost,
+        // Stash for uncommit
+        _vendorOptionId: first.vendorOptionId,
+        _vendorOptionType: first.vendorOptionType,
+        _vendor: first.vendor,
+        _note: first.note,
+      } as CalendarEvent & Record<string, any>;
+    });
   }, [trip]);
+
+  // Event click: show detail popover
+  const [clickedEvent, setClickedEvent] = useState<(CalendarEvent & Record<string, any>) | null>(null);
+  const [uncommitting, setUncommitting] = useState(false);
+
+  const handleUncommitEvent = async () => {
+    if (!clickedEvent?._vendorOptionId) return;
+    setUncommitting(true);
+    try {
+      const res = await fetch(`/api/trips/${id}/vendor-commit`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: clickedEvent._vendorOptionType || 'activity',
+          optionId: clickedEvent._vendorOptionId,
+          notes: clickedEvent._vendor || clickedEvent.title,
+        }),
+      });
+      if (!res.ok) throw new Error('Uncommit failed');
+      setClickedEvent(null);
+      loadTrip();
+      loadBudgetItems();
+    } catch (err) { alert(err instanceof Error ? err.message : 'Uncommit failed'); }
+    finally { setUncommitting(false); }
+  };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -513,77 +541,52 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </form>
               )}
 
-              {(trip.startDate || itineraryDays.length > 0) ? (
-                <div>
-                  {/* Day Selector */}
-                  <div className="flex flex-wrap gap-2 p-3 border-b border-border">
-                    {itineraryDays.map(day => (
-                      <button key={day.dayNum} onClick={() => setSelectedDay(day.dayNum)}
-                        className={`px-3 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors ${
-                          selectedDay === day.dayNum ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                        }`}>
-                        Day {day.dayNum} · {day.dateStr}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Selected Day Content */}
-                  {(() => {
-                    const day = itineraryDays.find(d => d.dayNum === selectedDay);
-                    if (!day) return null;
-                    return (
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-brand-purple text-white flex items-center justify-center font-bold">
-                              {day.dayNum}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold text-text-primary">{day.weekday}, {day.dateStr}</div>
-                              <div className="text-[10px] text-text-muted">{day.items.length} items</div>
-                            </div>
+              {calendarEvents.length > 0 || tripDates ? (
+                <div className="p-4">
+                  <CalendarGrid
+                    events={calendarEvents}
+                    sourceConfig={TRIP_SOURCE_CONFIG}
+                    defaultView="week"
+                    anchorDate={tripDates?.departure || trip.startDate || undefined}
+                    highlightStart={tripDates?.departure || trip.startDate || undefined}
+                    highlightEnd={tripDates?.return || trip.endDate || undefined}
+                    onEventClick={(event) => setClickedEvent(event as any)}
+                    showBudgetTotals={true}
+                    showCategoryLegend={true}
+                    compact={true}
+                  />
+                  {/* Event detail popover */}
+                  {clickedEvent && (
+                    <div className="mt-3 p-3 bg-white border border-border rounded shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-text-primary">{clickedEvent.title}</div>
+                          <div className="text-xs text-text-muted mt-0.5">
+                            {TRIP_SOURCE_CONFIG[clickedEvent.source]?.label || clickedEvent.source}
+                            {clickedEvent.startDate && <span className="ml-2">{clickedEvent.startDate}</span>}
+                            {clickedEvent.endDate && clickedEvent.endDate !== clickedEvent.startDate && <span> — {clickedEvent.endDate}</span>}
                           </div>
-                          {day.totalCost > 0 && (
-                            <div className="text-right">
-                              <div className="text-sm font-mono font-semibold text-emerald-700">{fmt(day.totalCost)}</div>
-                            </div>
+                          {(clickedEvent.budgetAmount || 0) > 0 && (
+                            <div className="text-sm font-mono font-semibold text-emerald-700 mt-1">{fmt(clickedEvent.budgetAmount || 0)}</div>
                           )}
                         </div>
-
-                        {day.items.length > 0 ? (
-                          <div className="space-y-2">
-                            {day.items.map((item: any) => (
-                              <div key={item.id} className="flex items-center justify-between p-2 bg-bg-row text-xs">
-                                <div className="flex items-center gap-2">
-                                  {item.destTime && (
-                                    <span className="px-2 py-0.5 bg-brand-purple text-white text-[10px] font-mono">{item.destTime}</span>
-                                  )}
-                                  <span className="px-2 py-0.5 bg-border text-text-secondary text-[10px]">{item.category}</span>
-                                  <span className="font-medium">{item.vendor}</span>
-                                  {item.note && <span className="text-text-muted">· {item.note}</span>}
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-mono font-semibold">{fmt(parseFloat(item.cost || 0))}</div>
-                                  {item.splitBy > 1 && item.perPerson && (
-                                    <div className="text-[10px] text-text-muted">
-                                      {fmt(parseFloat(item.perPerson))}/person
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-xs text-text-faint italic">No activities planned for this day</div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {clickedEvent._vendorOptionId && (
+                            <button onClick={handleUncommitEvent} disabled={uncommitting}
+                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded disabled:opacity-50">
+                              {uncommitting ? '...' : 'Uncommit'}
+                            </button>
+                          )}
+                          <button onClick={() => setClickedEvent(null)} className="px-2 py-1.5 text-xs text-text-muted hover:bg-bg-row rounded">Close</button>
+                        </div>
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-8 text-center text-text-faint">
-                  <p className="text-sm mb-2">Commit the trip to see day-by-day itinerary</p>
-                  <p className="text-xs">Select dates and destination first</p>
+                  <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
+                  <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
                 </div>
               )}
             </div>

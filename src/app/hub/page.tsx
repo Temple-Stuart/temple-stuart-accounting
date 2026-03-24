@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
+import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 
 import dynamic from 'next/dynamic';
 
@@ -53,6 +54,18 @@ const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: stri
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
 };
 
+// CalendarGrid-compatible config derived from SOURCE_CONFIG
+const HUB_GRID_CONFIG: Record<string, SourceConfig> = Object.fromEntries(
+  Object.entries(SOURCE_CONFIG).map(([key, cfg]) => [key, {
+    label: key.charAt(0).toUpperCase() + key.slice(1),
+    icon: cfg.icon,
+    bg: cfg.bgColor,
+    dot: cfg.dotColor,
+    badge: cfg.calendarColor,
+    text: cfg.color,
+  }])
+);
+
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
   return new Date(year, month - 1, day);
@@ -81,14 +94,6 @@ export default function HubPage() {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [calendarView, setCalendarView] = useState<'month' | 'week'>('week');
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const start = new Date(today);
-    start.setDate(today.getDate() - dayOfWeek);
-    return start;
-  });
 
   const [committedTrips, setCommittedTrips] = useState<Array<{
     id: string; name: string; destination: string | null;
@@ -120,9 +125,6 @@ export default function HubPage() {
     actualGrandTotal: number;
   }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
 
-  const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({
-    home: true, auto: true, shopping: true, personal: true, health: true, growth: true, trip: true,
-  });
 
   const [drillDown, setDrillDown] = useState<{
     coaCodes: string[];
@@ -210,39 +212,6 @@ export default function HubPage() {
     if (amount > 0) setDrillDown({ coaCodes, month, year: selectedYear, categoryName: name, cellAmount: amount, entityType });
   };
 
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-  const firstDay = getFirstDayOfMonth(selectedYear, selectedMonth);
-
-  const eventsByDay: Record<number, CalendarEvent[]> = {};
-  events.forEach(e => {
-    const eventDate = parseDate(e.start_date);
-    if (eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear) {
-      const day = eventDate.getDate();
-      if (!eventsByDay[day]) eventsByDay[day] = [];
-      eventsByDay[day].push(e);
-    }
-  });
-
-  const prevMonth = () => { if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(selectedYear - 1); } else { setSelectedMonth(selectedMonth - 1); } };
-  const nextMonth = () => { if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(selectedYear + 1); } else { setSelectedMonth(selectedMonth + 1); } };
-  const prevWeek = () => { const newStart = new Date(selectedWeekStart); newStart.setDate(newStart.getDate() - 7); setSelectedWeekStart(newStart); setSelectedMonth(newStart.getMonth()); setSelectedYear(newStart.getFullYear()); };
-  const nextWeek = () => { const newStart = new Date(selectedWeekStart); newStart.setDate(newStart.getDate() + 7); setSelectedWeekStart(newStart); setSelectedMonth(newStart.getMonth()); setSelectedYear(newStart.getFullYear()); };
-  const goToToday = () => { setSelectedYear(now.getFullYear()); setSelectedMonth(now.getMonth()); const today = new Date(); const dayOfWeek = today.getDay(); const start = new Date(today); start.setDate(today.getDate() - dayOfWeek); setSelectedWeekStart(start); };
-
-  const calendarDays: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) { calendarDays.push(null); }
-  for (let day = 1; day <= daysInMonth; day++) { calendarDays.push(day); }
-
-  const getWeekDays = () => { const days = []; for (let i = 0; i < 7; i++) { const day = new Date(selectedWeekStart); day.setDate(selectedWeekStart.getDate() + i); days.push(day); } return days; };
-  const weekDays = getWeekDays();
-
-  const getEventsForDate = (date: Date) => events.filter(e => {
-    const eventDate = parseDate(e.start_date);
-    return eventDate.getDate() === date.getDate() && eventDate.getMonth() === date.getMonth() && eventDate.getFullYear() === date.getFullYear() && visibleCategories[e.source];
-  });
 
   // Calculator logic
   const homeMonths = MONTHS.map((_, i) => i).filter(i => !travelMonths.includes(i));
@@ -259,6 +228,19 @@ export default function HubPage() {
   const yearlyBusinessBudget = businessBudget.budgetGrandTotal;
   const yearlyBusinessActual = businessBudget.actualGrandTotal;
   const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget + yearlyBusinessBudget;
+
+  // Transform hub events to CalendarGrid format
+  const gridEvents: GridEvent[] = useMemo(() => events.map(e => ({
+    id: e.id,
+    source: e.source,
+    title: e.title,
+    icon: e.icon,
+    startDate: e.start_date,
+    endDate: e.end_date,
+    isRecurring: e.is_recurring,
+    location: e.location,
+    budgetAmount: e.budget_amount,
+  })), [events]);
 
   return (
     <AppLayout>
@@ -284,98 +266,16 @@ export default function HubPage() {
 
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          {/* CALENDAR - macOS STYLE */}
+          {/* CALENDAR - macOS STYLE (extracted CalendarGrid component) */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-6 bg-white rounded border border-border overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50">
-              <div className="flex items-center gap-4">
-                <div className="flex bg-border/70 rounded p-0.5">
-                  <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
-                  <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
-                </div>
-              </div>
-              <h2 className="text-sm font-semibold text-text-primary">{calendarView === 'week' ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}` : `${MONTHS[selectedMonth]} ${selectedYear}`}</h2>
-              <div className="flex items-center gap-2">
-                <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors">Today</button>
-                <button onClick={calendarView === 'week' ? prevWeek : prevMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
-                <button onClick={calendarView === 'week' ? nextWeek : nextMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
-              </div>
-            </div>
-            <div className="flex">
-              <div className="w-44 border-r border-border p-3 bg-bg-row/30 hidden sm:block">
-                <div className="space-y-0.5">
-                  {Object.entries(SOURCE_CONFIG).map(([source, config]) => (
-                    <label key={source} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-bg-row transition-colors">
-                      <input type="checkbox" checked={visibleCategories[source]} onChange={(e) => setVisibleCategories(prev => ({ ...prev, [source]: e.target.checked }))} className="sr-only" />
-                      <div className={`w-3 h-3 rounded-sm transition-colors ${visibleCategories[source] ? config.calendarColor : 'bg-border'}`} />
-                      <span className={`text-sm transition-colors ${visibleCategories[source] ? 'text-text-secondary font-medium' : 'text-text-faint'}`}>{source.charAt(0).toUpperCase() + source.slice(1)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                {calendarView === 'week' ? (
-                  <div>
-                    <div className="grid grid-cols-7 border-b border-border">
-                      {weekDays.map((day, idx) => {
-                        const isToday = day.toDateString() === now.toDateString();
-                        return (
-                          <div key={idx} className={`text-center py-3 border-r border-border-light last:border-r-0 ${isToday ? 'bg-red-50' : ''}`}>
-                            <div className="text-xs text-text-muted uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
-                            <div className={`text-sm font-light mt-0.5 ${isToday ? 'bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="grid grid-cols-7 min-h-[320px]">
-                      {weekDays.map((day, idx) => {
-                        const dayEvents = getEventsForDate(day);
-                        const isToday = day.toDateString() === now.toDateString();
-                        return (
-                          <div key={idx} className={`border-r border-border-light last:border-r-0 p-1.5 ${isToday ? 'bg-red-50/30' : ''}`}>
-                            <div className="space-y-1">
-                              {dayEvents.slice(0, 8).map((event, eventIdx) => {
-                                const config = SOURCE_CONFIG[event.source] || SOURCE_CONFIG.home;
-                                return (<div key={event.id || eventIdx} className={`${config.calendarColor} text-white text-xs px-2 py-1.5 rounded truncate cursor-pointer hover:opacity-90 transition-opacity`} title={`${event.title} - ${formatCurrency(event.budget_amount)}`}>{event.title}</div>);
-                              })}
-                              {dayEvents.length > 8 && <div className="text-xs text-text-muted px-2">+{dayEvents.length - 8} more</div>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4">
-                    <div className="grid grid-cols-7 gap-1 mb-2">{DAYS.map(day => <div key={day} className="text-center text-sm font-semibold text-text-muted py-2">{day}</div>)}</div>
-                    <div className="grid grid-cols-7 gap-1">
-                      {calendarDays.map((day, idx) => {
-                        if (!day) return <div key={`empty-${idx}`} className="aspect-square" />;
-                        const dayEvents = eventsByDay[day]?.filter(e => visibleCategories[e.source]) || [];
-                        const dayTotal = dayEvents.reduce((sum: number, e: CalendarEvent) => sum + e.budget_amount, 0);
-                        const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
-                        return (
-                          <div key={day} className={`aspect-square p-1 rounded border overflow-hidden transition-all cursor-pointer hover:border-border ${isToday ? "border-red-400 border-2 bg-red-50" : "border-border-light bg-bg-row/50"}`}>
-                            <div className="flex flex-col h-full">
-                              <div className={`text-xs font-semibold mb-1 ${isToday ? "text-brand-red" : "text-text-secondary"}`}>{day}</div>
-                              {dayEvents.length > 0 && (
-                                <div className="flex-1 flex flex-col justify-end">
-                                  <div className="flex flex-wrap gap-0.5 mb-1">
-                                    {dayEvents.slice(0, 4).map((e: CalendarEvent, i: number) => { const config = SOURCE_CONFIG[e.source] || SOURCE_CONFIG.home; return <div key={i} className={`w-2 h-2 rounded-full ${config.dotColor}`} title={e.title} />; })}
-                                    {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
-                                  </div>
-                                  <div className="text-[10px] font-bold text-text-secondary tabular-nums truncate">{formatCurrency(dayTotal)}</div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="mb-6">
+            <CalendarGrid
+              events={gridEvents}
+              sourceConfig={HUB_GRID_CONFIG}
+              defaultView="week"
+              showBudgetTotals={true}
+              showCategoryLegend={true}
+            />
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
