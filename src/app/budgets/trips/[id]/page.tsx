@@ -181,10 +181,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const items = data.items || [];
 
       const COA_TO_CATEGORY: Record<string, string> = {
-        'P-7100': 'flight', 'P-7200': 'hotel', 'P-7300': 'car', 'P-7400': 'activities',
-        'P-7500': 'equipment', 'P-7600': 'groundTransport', 'P-7700': 'meals', 'P-7800': 'tips', 'P-8220': 'bizdev',
-        // Legacy vendor-commit codes (pre-migration)
-        'P-9910': 'flight', 'P-9920': 'hotel', 'P-9930': 'groundTransport', 'P-9940': 'car', 'P-9960': 'activities',
+        // Travel COA codes (9xxx) — strip prefix for lookup, support both P- and B-
+        'P-9100': 'Flights', 'P-9200': 'Lodging', 'P-9300': 'Vehicle Rental', 'P-9350': 'Equipment Rental',
+        'P-9400': 'Activities', 'P-9450': 'Nightlife', 'P-9500': 'Meals & Dining',
+        'P-9600': 'Ground Transport', 'P-9700': 'Coworking', 'P-9800': 'Incidentals',
+        'P-9900': 'Insurance', 'P-9950': 'Tips & Misc',
+        'B-9100': 'Flights', 'B-9200': 'Lodging', 'B-9300': 'Vehicle Rental', 'B-9350': 'Equipment Rental',
+        'B-9400': 'Activities', 'B-9450': 'Nightlife', 'B-9500': 'Meals & Dining',
+        'B-9600': 'Ground Transport', 'B-9700': 'Coworking', 'B-9800': 'Incidentals',
+        'B-9900': 'Insurance', 'B-9950': 'Tips & Misc',
+        // Legacy 7xxx codes (backward compat)
+        'P-7100': 'Flights', 'P-7200': 'Lodging', 'P-7300': 'Vehicle Rental', 'P-7400': 'Activities',
+        'P-7500': 'Equipment Rental', 'P-7600': 'Ground Transport', 'P-7700': 'Meals & Dining',
+        'P-7800': 'Tips & Misc', 'P-8220': 'Coworking',
+        // Legacy vendor-commit placeholder codes
+        'P-9910': 'Flights', 'P-9920': 'Lodging', 'P-9930': 'Ground Transport', 'P-9940': 'Vehicle Rental', 'P-9960': 'Activities',
       };
 
       const restoredBudget = items.map((item: any) => ({

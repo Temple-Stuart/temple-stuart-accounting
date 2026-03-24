@@ -3,15 +3,31 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
-// Fallback names used before travel COA codes are created in DB
-const FALLBACK_NAMES: Record<string, string> = {
-  '7100': 'Flight',
+// Travel COA labels (9xxx range)
+const TRAVEL_COA_NAMES: Record<string, string> = {
+  '9100': 'Flights',
+  '9200': 'Lodging',
+  '9300': 'Vehicle Rental',
+  '9350': 'Equipment Rental',
+  '9400': 'Activities',
+  '9450': 'Nightlife',
+  '9500': 'Meals & Dining',
+  '9600': 'Ground Transport',
+  '9700': 'Coworking',
+  '9800': 'Incidentals',
+  '9900': 'Insurance',
+  '9950': 'Tips & Misc',
+};
+
+// Legacy 7xxx fallback names (for old budget items)
+const LEGACY_COA_NAMES: Record<string, string> = {
+  '7100': 'Flights',
   '7200': 'Lodging',
-  '7300': 'Travel Transport',
+  '7300': 'Vehicle Rental',
   '7400': 'Activities',
-  '7500': 'Travel Equipment',
+  '7500': 'Equipment Rental',
   '7600': 'Ground Transport',
-  '7700': 'Travel Dining',
+  '7700': 'Meals & Dining',
   '7800': 'Tips & Misc',
 };
 
@@ -35,7 +51,7 @@ export async function GET(request: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // Get Travel COA accounts from DB (7xxx codes under personal entity)
+    // Get Travel COA accounts from DB (9xxx travel codes + legacy 7xxx)
     // ═══════════════════════════════════════════════════════════════════
     const personalEntity = await prisma.entities.findFirst({
       where: { userId: user.id, entity_type: 'personal' }
@@ -48,18 +64,23 @@ export async function GET(request: Request) {
             entity_id: personalEntity.id,
             account_type: 'expense',
             is_archived: false,
-            code: { startsWith: '7' }
+            OR: [{ code: { startsWith: '9' } }, { code: { startsWith: '7' } }],
           },
           select: { code: true, name: true }
         })
       : [];
 
-    // Use DB names if available, otherwise fallback
+    // Use DB names if available, otherwise use static fallbacks
     const COA_NAMES: Record<string, string> = {};
     if (travelAccounts.length > 0) {
       travelAccounts.forEach(acc => { COA_NAMES[acc.code] = acc.name; });
-    } else {
-      Object.assign(COA_NAMES, FALLBACK_NAMES);
+    }
+    // Always include fallbacks for any missing codes
+    for (const [code, name] of Object.entries(TRAVEL_COA_NAMES)) {
+      if (!COA_NAMES[code]) COA_NAMES[code] = name;
+    }
+    for (const [code, name] of Object.entries(LEGACY_COA_NAMES)) {
+      if (!COA_NAMES[code]) COA_NAMES[code] = name;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -83,8 +104,8 @@ export async function GET(request: Request) {
     let budgetGrandTotal = 0;
 
     for (const item of items) {
-      // Normalize: strip P- prefix if budget_line_items stored it
-      const coa = (item.coaCode || '7800').replace(/^P-/, '');
+      // Normalize: strip P-/B- prefix if budget_line_items stored it
+      const coa = (item.coaCode || '9950').replace(/^[PB]-/, '');
       const month = item.month - 1; // 0-indexed
       const amount = Number(item.amount || 0);
 
