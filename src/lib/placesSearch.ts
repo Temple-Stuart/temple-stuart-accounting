@@ -162,50 +162,142 @@ export function filterPlaces(
   return { verified, unverified };
 }
 
-// Category search configs
-export const CATEGORY_SEARCHES: Record<string, { query: string; defaultFilters: FilterCriteria }> = {
+// Category search configs — multiple queries per category for diverse results
+export const CATEGORY_SEARCHES: Record<string, { queries: string[]; defaultFilters: FilterCriteria }> = {
   lodging: {
-    query: 'boutique hotel hostel guesthouse',
+    queries: ['boutique hotel hostel guesthouse'],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   coworking: {
-    query: 'coworking space shared office',
+    queries: [
+      'coworking space shared office',
+      'coliving coworking digital nomad',
+      'cafe wifi laptop friendly workspace',
+      'library study space quiet work',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   motoRental: {
-    query: 'motorbike scooter rental',
+    queries: [
+      'motorbike scooter rental',
+      'car rental vehicle hire',
+      'electric scooter ebike rental',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 10 }
   },
   equipmentRental: {
-    query: 'surf rental sports equipment',
+    queries: [
+      'surfboard rental surf shop',
+      'bike bicycle rental cycling',
+      'diving snorkel equipment rental',
+      'kayak paddleboard SUP rental',
+      'sports equipment rental outdoor gear',
+      'camera drone rental photography',
+      'sailing boat charter rental',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 10 }
   },
   airportTransfers: {
-    query: 'airport transfer taxi service',
+    queries: ['airport transfer taxi service'],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   brunchCoffee: {
-    query: 'cafe brunch coffee specialty',
+    queries: [
+      'cafe brunch coffee specialty',
+      'brunch breakfast restaurant morning',
+      'specialty coffee roaster third wave',
+      'bakery pastry patisserie',
+      'juice smoothie acai bowl healthy',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   dinner: {
-    query: 'restaurant dinner dining',
+    queries: [
+      'restaurant dinner dining',
+      'fine dining restaurant tasting menu',
+      'seafood restaurant fresh fish',
+      'local cuisine traditional food authentic',
+      'steakhouse grill BBQ smokehouse',
+      'vegetarian vegan plant based restaurant',
+      'street food night market food court',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 50 }
   },
   activities: {
-    query: 'tours activities adventures experiences',
+    queries: [
+      'museum art gallery cultural center',
+      'temple historical site monument',
+      'cooking class workshop experience',
+      'adventure tour excursion day trip',
+      'water sports diving snorkeling kayak',
+      'yoga retreat meditation wellness class',
+      'nature hiking waterfall rice terrace',
+      'festival event concert',
+      'amusement park theme park attraction',
+      'photography tour art walk',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   },
   nightlife: {
-    query: 'bar nightclub rooftop beach club',
+    queries: [
+      'bar cocktail lounge speakeasy',
+      'nightclub dance club DJ',
+      'rooftop bar sky lounge',
+      'beach club sunset bar',
+      'live music venue jazz blues',
+      'brewery craft beer taproom',
+      'wine bar wine tasting',
+      'karaoke comedy club entertainment',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 3.5, minReviews: 30 }
   },
   toiletries: {
-    query: 'pharmacy convenience store supermarket',
+    queries: ['pharmacy convenience store supermarket'],
     defaultFilters: { mustBeOpen: true, minRating: 3.0, minReviews: 10 }
   },
   wellness: {
-    query: 'gym fitness yoga spa ice bath',
+    queries: [
+      'gym fitness center crossfit',
+      'yoga studio pilates reformer',
+      'spa massage wellness center',
+      'ice bath cold plunge recovery',
+      'martial arts muay thai boxing',
+      'swimming pool lap pool aquatic',
+      'meditation retreat sound healing',
+      'sauna steam room hot spring',
+    ],
     defaultFilters: { mustBeOpen: true, minRating: 4.0, minReviews: 20 }
   }
 };
+
+// Run multiple queries for a category, merge & deduplicate results
+export async function searchPlacesMultiQuery(
+  queries: string[],
+  city: string,
+  country: string,
+  maxResults: number = 60
+): Promise<PlaceResult[]> {
+  // Run all queries in parallel (each query paginates internally)
+  const allResults = await Promise.all(
+    queries.map(q => searchPlaces(q, city, country, 60))
+  );
+
+  // Merge and deduplicate by placeId (keep first occurrence — highest quality from its query)
+  const seen = new Set<string>();
+  const merged: PlaceResult[] = [];
+  for (const results of allResults) {
+    for (const place of results) {
+      if (!seen.has(place.placeId)) {
+        seen.add(place.placeId);
+        merged.push(place);
+      }
+    }
+  }
+
+  console.log(`[PLACES] Multi-query: ${queries.length} queries, ${merged.length} unique places for ${city}`);
+
+  // Sort by popularity score and take top N
+  return merged
+    .sort((a, b) => b.popularityScore - a.popularityScore)
+    .slice(0, maxResults);
+}

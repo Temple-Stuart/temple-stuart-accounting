@@ -2,7 +2,7 @@ import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { analyzeWithLiveSearch } from '@/lib/grokAgent';
-import { searchPlaces, CATEGORY_SEARCHES } from '@/lib/placesSearch';
+import { searchPlaces, searchPlacesMultiQuery, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
@@ -103,23 +103,23 @@ export async function POST(
 
     console.log(`[Grok AI] ${category}: Starting analysis for ${city}, ${country}`);
 
-    // Customize lodging query based on trip type
-    let query = CATEGORY_SEARCHES[category].query;
+    // Customize lodging queries based on trip type
+    let queries = CATEGORY_SEARCHES[category].queries;
     if (category === 'lodging') {
       if (travelerProfile.tripType === 'family') {
-        query = 'family hotel resort apartment';
+        queries = ['family hotel resort apartment'];
       } else if (travelerProfile.tripType === 'romantic') {
-        query = 'boutique hotel romantic resort';
+        queries = ['boutique hotel romantic resort'];
       } else if (travelerProfile.tripType === 'solo') {
-        query = 'hostel guesthouse budget hotel';
+        queries = ['hostel guesthouse budget hotel'];
       } else if (travelerProfile.tripType === 'friends') {
-        query = 'villa apartment hostel group accommodation';
+        queries = ['villa apartment hostel group accommodation'];
       } else if (travelerProfile.tripType === 'remote_work') {
-        query = 'hotel coworking coliving digital nomad';
+        queries = ['hotel coworking coliving digital nomad'];
       }
     }
 
-    // Fetch places from Google (cached)
+    // Fetch places from Google (cached per city/country/category)
     let enriched: any[] = [];
     const cacheIsFresh = await isCacheFresh(city, country, category);
 
@@ -127,8 +127,8 @@ export async function POST(
       enriched = await getCachedPlaces(city, country, category);
       console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
     } else {
-      console.log(`[Grok AI] ${category}: Cache miss — calling Google`);
-      const places = await searchPlaces(query, city, country, 60);
+      console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries`);
+      const places = await searchPlacesMultiQuery(queries, city, country, 60);
       enriched = await enrichPlaceDetails(places);
       await cachePlaces(enriched, city, country, category);
       console.log(`[Grok AI] ${category}: Cached ${enriched.length} places`);
