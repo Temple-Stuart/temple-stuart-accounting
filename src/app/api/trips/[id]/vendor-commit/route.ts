@@ -102,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, notes } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, notes, amount: requestAmount } = await request.json();
 
     if (!optionType || !optionId || !startDate) {
       return NextResponse.json({ error: 'optionType, optionId, and startDate are required' }, { status: 400 });
@@ -116,7 +116,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const result = await prisma.$transaction(async (tx) => {
       // A. Verify option exists and get details
       const details = optionType === 'flight'
-        ? { title: notes || 'Flight', amount: 0, tripId: id }
+        ? { title: notes || 'Flight', amount: Number(requestAmount || 0), tripId: id }
         : await getOptionDetails(tx, optionType, optionId, id);
       if (!details) throw new Error('Vendor option not found');
 
@@ -222,7 +222,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId } = await request.json();
+    const { optionType, optionId, notes: deleteNotes } = await request.json();
 
     if (!optionType || !optionId) {
       return NextResponse.json({ error: 'optionType and optionId are required' }, { status: 400 });
@@ -235,15 +235,23 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       }
 
       // B. Delete budget_line_items created by this vendor option
-      // Match on tripId + description from the vendor option
-      const details = optionType === 'flight'
-        ? null
-        : await getOptionDetails(tx, optionType, optionId, id);
-
-      if (details) {
-        await tx.budget_line_items.deleteMany({
-          where: { tripId: id, description: details.title, source: 'trip' },
+      if (optionType === 'flight') {
+        // For flights, match on itinerary entries to find the budget item description
+        const itinEntries = await tx.trip_itinerary.findMany({
+          where: { tripId: id, vendorOptionId: optionId, vendorOptionType: 'flight' },
+          select: { vendor: true },
         });
+        const flightTitle = itinEntries[0]?.vendor || deleteNotes || 'Flight';
+        await tx.budget_line_items.deleteMany({
+          where: { tripId: id, description: flightTitle, source: 'trip' },
+        });
+      } else {
+        const details = await getOptionDetails(tx, optionType, optionId, id);
+        if (details) {
+          await tx.budget_line_items.deleteMany({
+            where: { tripId: id, description: details.title, source: 'trip' },
+          });
+        }
       }
 
       // C. Delete trip_itinerary entries linked to this vendor option

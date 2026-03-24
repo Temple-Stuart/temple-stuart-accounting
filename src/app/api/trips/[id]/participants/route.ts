@@ -54,6 +54,7 @@ export async function GET(
         profileVibe: true,
         profilePace: true,
         profileGroupSize: true,
+        homeAirport: true,
       },
       orderBy: [{ isOwner: 'desc' }, { firstName: 'asc' }]
     });
