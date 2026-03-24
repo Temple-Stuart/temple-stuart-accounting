@@ -2,19 +2,19 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
-// TODO: Replace with final COA codes after COA restructure
+// COA codes aligned with trip commit (7xxx travel codes)
 const VENDOR_COA_MAP: Record<string, Record<string, string>> = {
   personal: {
-    flight: 'P-9910', lodging: 'P-9920', transfer: 'P-9930',
-    vehicle: 'P-9940', activity: 'P-9960',
+    flight: 'P-7100', lodging: 'P-7200', transfer: 'P-7600',
+    vehicle: 'P-7300', activity: 'P-7400',
   },
   business: {
-    flight: 'B-9910', lodging: 'B-9920', transfer: 'B-9930',
-    vehicle: 'B-9940', activity: 'B-9960',
+    flight: 'B-7100', lodging: 'B-7200', transfer: 'B-7600',
+    vehicle: 'B-7300', activity: 'B-7400',
   },
   mixed: {
-    flight: 'P-9910', lodging: 'P-9920', transfer: 'P-9930',
-    vehicle: 'P-9940', activity: 'P-9960',
+    flight: 'P-7100', lodging: 'P-7200', transfer: 'P-7600',
+    vehicle: 'P-7300', activity: 'P-7400',
   },
 };
 
@@ -115,7 +115,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // B. Create budget_line_item
       const tripType = trip.tripType || 'personal';
       const coaMap = VENDOR_COA_MAP[tripType] || VENDOR_COA_MAP.personal;
-      const coaCode = coaMap[optionType] || 'P-9990';
+      const coaCode = coaMap[optionType] || 'P-7800';
       const start = new Date(startDate);
 
       const budgetItem = await tx.budget_line_items.create({
