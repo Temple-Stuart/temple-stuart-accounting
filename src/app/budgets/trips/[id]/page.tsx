@@ -7,10 +7,6 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
-import LodgingOptions from '@/components/trips/LodgingOptions';
-import TransferOptions from '@/components/trips/TransferOptions';
-import VehicleOptions from '@/components/trips/VehicleOptions';
-import ActivityExpenses from '@/components/trips/ActivityExpenses';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -133,11 +129,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [userTier, setUserTier] = useState<string>('free');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // Vendor commitment state
-  const [commitPanel, setCommitPanel] = useState<{ optionType: string; optionId: string; title: string } | null>(null);
-  const [commitDates, setCommitDates] = useState({ startDate: '', endDate: '', startTime: '', endTime: '', notes: '' });
-  const [vendorCommitting, setVendorCommitting] = useState(false);
-  const [vendorRefreshKey, setVendorRefreshKey] = useState(0);
+  // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
   useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); }); }, [id]);
 
@@ -269,53 +261,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       alert(err instanceof Error ? err.message : 'Failed');
     } finally {
       setCommitting(false);
-    }
-  };
-
-  const vendorCommit = async () => {
-    if (!commitPanel) return;
-    setVendorCommitting(true);
-    try {
-      const res = await fetch(`/api/trips/${id}/vendor-commit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          optionType: commitPanel.optionType,
-          optionId: commitPanel.optionId,
-          startDate: commitDates.startDate,
-          endDate: commitDates.endDate || null,
-          startTime: commitDates.startTime || null,
-          endTime: commitDates.endTime || null,
-          notes: commitDates.notes || null,
-        }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      setCommitPanel(null);
-      setCommitDates({ startDate: '', endDate: '', startTime: '', endTime: '', notes: '' });
-      setVendorRefreshKey(k => k + 1);
-      loadTrip();
-      loadBudgetItems();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Commit failed');
-    } finally {
-      setVendorCommitting(false);
-    }
-  };
-
-  const vendorUncommit = async (optionType: string, optionId: string) => {
-    if (!confirm('Uncommit this option? Budget and itinerary entries will be removed.')) return;
-    try {
-      const res = await fetch(`/api/trips/${id}/vendor-commit`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ optionType, optionId }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      setVendorRefreshKey(k => k + 1);
-      loadTrip();
-      loadBudgetItems();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Uncommit failed');
     }
   };
 
@@ -797,11 +742,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
 
-            {/* ── Step 3: AI Trip Planner ── */}
+            {/* ── Step 3: Trip Planner & Budget ── */}
             <div className="bg-white border border-border">
               <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
                 <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">3</span>
-                AI Trip Planner
+                Trip Planner &amp; Budget
               </div>
               <div className="p-4">
               {(() => {
@@ -815,7 +760,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                 ) : (
                   <TripPlannerAI
-                    committedBudget={tripBudget}
                     tripId={id}
                     city={selectedDest?.resort?.name || trip.destination}
                     country={selectedDest?.resort?.country || null}
@@ -836,24 +780,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                         groupSize: owner.profileGroupSize || undefined,
                       };
                     })()}
-                    onBudgetChange={(total: number, selections: any[], groupSize: number) => {
-                      const catMap: Record<string, string> = {
-                        lodging: "lodging", coworking: "coworking", motoRental: "car",
-                        equipmentRental: "equipment", airportTransfers: "airportTransfers",
-                        brunchCoffee: "meals", dinner: "meals", activities: "activities",
-                        nightlife: "activities", toiletries: "tips", wellness: "wellness",
-                      };
-                      const items = selections.map((sel: any) => ({
-                        splitType: sel.splitType || "personal",
-                        category: catMap[sel.category] || sel.category,
-                        amount: (sel.customPrice * (sel.rateType === "daily" ? sel.days.length : sel.rateType === "weekly" ? Math.ceil(sel.days.length / 7) : 1)) / (sel.splitType === "split" ? groupSize : 1),
-                        description: sel.item.name,
-                        photoUrl: sel.item.photoUrl || null,
-                      }));
-                      setTripBudget(items);
-                    }}
-                    onVendorOptionCreated={() => setVendorRefreshKey(k => k + 1)}
-                    vendorRefreshKey={vendorRefreshKey}
+                    tripDates={tripDates}
+                    onCommitted={() => { loadTrip(); loadBudgetItems(); }}
                   />
                 )
               );
@@ -883,115 +811,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* ── Step 5: Vendor Options ── */}
+            {/* ── Step 5: Commit Trip ── */}
             <div className="bg-white border border-border">
               <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
                 <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">5</span>
-                Vendor Options
-              </div>
-              <div className="divide-y divide-border">
-                {/* Lodging */}
-                <div className="p-4">
-                  <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Lodging</div>
-                  <LodgingOptions
-                    key={`lodging-${vendorRefreshKey}`}
-                    tripId={id}
-                    participantCount={confirmedParticipants.length || 1}
-                    nights={trip.daysTravel - 1}
-                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: tripDates?.return || '', startTime: '', endTime: '', notes: '' }); }}
-                    onUncommitOption={vendorUncommit}
-                  />
-                </div>
-
-                {/* Transfers */}
-                <div className="p-4">
-                  <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Transfers</div>
-                  <TransferOptions
-                    key={`transfer-${vendorRefreshKey}`}
-                    tripId={id}
-                    participantCount={confirmedParticipants.length || 1}
-                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: '', startTime: '', endTime: '', notes: '' }); }}
-                    onUncommitOption={vendorUncommit}
-                  />
-                </div>
-
-                {/* Vehicles */}
-                <div className="p-4">
-                  <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Vehicles</div>
-                  <VehicleOptions
-                    key={`vehicle-${vendorRefreshKey}`}
-                    tripId={id}
-                    participantCount={confirmedParticipants.length || 1}
-                    days={trip.daysTravel}
-                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: tripDates?.return || '', startTime: '', endTime: '', notes: '' }); }}
-                    onUncommitOption={vendorUncommit}
-                  />
-                </div>
-
-                {/* Activities */}
-                <div className="p-4">
-                  <div className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Activities</div>
-                  <ActivityExpenses
-                    key={`activity-${vendorRefreshKey}`}
-                    tripId={id}
-                    activity={trip.activity}
-                    participantCount={confirmedParticipants.length || 1}
-                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: '', startTime: '', endTime: '', notes: '' }); }}
-                    onUncommitOption={vendorUncommit}
-                  />
-                </div>
-              </div>
-
-              {/* Vendor Commitment Panel (shown when user clicks Commit on any option) */}
-              {commitPanel && (
-                <div className="border-t border-border bg-emerald-50 p-4">
-                  <div className="text-xs font-semibold text-emerald-800 mb-3">
-                    Commit: {commitPanel.title} ({commitPanel.optionType})
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                    <div>
-                      <label className="text-[10px] text-text-muted block mb-0.5">Start Date *</label>
-                      <input type="date" value={commitDates.startDate}
-                        onChange={e => setCommitDates(p => ({ ...p, startDate: e.target.value }))}
-                        className="w-full bg-white border border-border px-2 py-1.5 text-xs" required />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-text-muted block mb-0.5">End Date</label>
-                      <input type="date" value={commitDates.endDate}
-                        onChange={e => setCommitDates(p => ({ ...p, endDate: e.target.value }))}
-                        className="w-full bg-white border border-border px-2 py-1.5 text-xs" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-text-muted block mb-0.5">Start Time</label>
-                      <input type="time" value={commitDates.startTime}
-                        onChange={e => setCommitDates(p => ({ ...p, startTime: e.target.value }))}
-                        className="w-full bg-white border border-border px-2 py-1.5 text-xs" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-text-muted block mb-0.5">Notes</label>
-                      <input type="text" value={commitDates.notes} placeholder="Optional notes"
-                        onChange={e => setCommitDates(p => ({ ...p, notes: e.target.value }))}
-                        className="w-full bg-white border border-border px-2 py-1.5 text-xs" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={vendorCommit} disabled={!commitDates.startDate || vendorCommitting}
-                      className="px-4 py-2 bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 disabled:opacity-50">
-                      {vendorCommitting ? 'Committing...' : 'Confirm Commitment'}
-                    </button>
-                    <button onClick={() => setCommitPanel(null)}
-                      className="px-4 py-2 text-xs border border-border text-text-secondary hover:bg-bg-row">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── Step 6: Commit Trip ── */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
-                <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">6</span>
                 Commit to Calendar
               </div>
               <div className="p-4">

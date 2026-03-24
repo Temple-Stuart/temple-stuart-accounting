@@ -60,13 +60,10 @@ interface Props {
   month: number;
   year: number;
   daysTravel: number;
-  // TODO: Remove onBudgetChange once all budget flows through vendor-commit bridge
-  onBudgetChange?: (total: number, items: ScheduledSelection[], groupSize: number) => void;
-  committedBudget?: { category: string; amount: number; description: string; photoUrl?: string | null }[];
   participantId?: string;
   initialProfile?: Partial<TravelerProfile>;
-  onVendorOptionCreated?: () => void;
-  vendorRefreshKey?: number;
+  tripDates?: { departure: string; return: string } | null;
+  onCommitted?: () => void;
 }
 
 // Enhanced trip types with images/colors
@@ -165,6 +162,16 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
   wellness: { label: 'Wellness/Gym', icon: '💆' },
 };
 
+// Budget category groups for card grid rendering
+const BUDGET_GROUPS = [
+  { key: 'lodging', label: 'Lodging', icon: '🏨', scannerCategories: ['lodging'], vendorApi: 'lodging', optionType: 'lodging' as const, multiDay: true },
+  { key: 'meals', label: 'Meals & Dining', icon: '🍽️', scannerCategories: ['brunchCoffee', 'dinner'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
+  { key: 'activities', label: 'Activities', icon: '🎯', scannerCategories: ['activities', 'coworking', 'wellness', 'nightlife'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
+  { key: 'transport', label: 'Ground Transport', icon: '🚕', scannerCategories: ['airportTransfers'], vendorApi: 'transfers', optionType: 'transfer' as const, multiDay: false },
+  { key: 'vehicles', label: 'Vehicle Rental', icon: '🏍️', scannerCategories: ['motoRental', 'equipmentRental'], vendorApi: 'vehicles', optionType: 'vehicle' as const, multiDay: true },
+  { key: 'incidentals', label: 'Incidentals', icon: '🛒', scannerCategories: ['toiletries'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
+];
+
 // Maps scanner categories to vendor option API endpoints
 const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   lodging: 'lodging',
@@ -180,7 +187,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   wellness: 'activities',
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, onBudgetChange, committedBudget, participantId, initialProfile, onVendorOptionCreated, vendorRefreshKey }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, participantId, initialProfile, tripDates, onCommitted }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -206,12 +213,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [scannerMeta, setScannerMeta] = useState<{ scannedBy: string; updatedAt: string } | null>(null);
   const [scannerProfile, setScannerProfile] = useState<TravelerProfile | null>(null);
 
-  // Clear "added" tracking when vendor options change externally (e.g. uncommit deletes the option)
-  useEffect(() => {
-    if (vendorRefreshKey !== undefined && vendorRefreshKey > 0) {
-      setAddedToVendorOptions(new Set());
-    }
-  }, [vendorRefreshKey]);
+  // Card commit state
+  const [commitCardKey, setCommitCardKey] = useState<string | null>(null);
+  const [committingCard, setCommittingCard] = useState<string | null>(null);
+  const [committedCards, setCommittedCards] = useState<Record<string, { optionType: string; optionId: string }>>({});
+  const [cardPrices, setCardPrices] = useState<Record<string, string>>({});
+  const [cardDates, setCardDates] = useState<Record<string, { start: string; end?: string }>>({});
 
   // Load saved scanner results from DB on mount
   useEffect(() => {
@@ -474,8 +481,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         return [...prev, updated];
       });
 
-      // Tell parent to refresh vendor option components
-      if (onVendorOptionCreated) onVendorOptionCreated();
+      if (onCommitted) onCommitted();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add vendor option');
     } finally {
@@ -490,6 +496,91 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   const isAddedToVendor = (item: GrokRecommendation) => addedToVendorOptions.has(`${item.category}:${item.name}`);
   const isSelected = (item: GrokRecommendation) => isAddedToVendor(item) || selections.some(s => s.category === item.category && s.item.name === item.name);
+
+  // Direct commit from scanner card: create vendor option then commit it
+  const handleCommitCard = async (rec: GrokRecommendation, group: typeof BUDGET_GROUPS[number]) => {
+    const cardKey = `${rec.category}:${rec.name}`;
+    const price = parseFloat(cardPrices[cardKey] || '0');
+    const dates = cardDates[cardKey];
+    if (!price || !dates?.start) return;
+
+    setCommittingCard(cardKey);
+    try {
+      // Step 1: Create the vendor option record
+      const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}`;
+      let body: Record<string, any> = {};
+      const vendorApi = group.vendorApi;
+
+      if (vendorApi === 'lodging') {
+        body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: price, total_price: price, notes: aiNote };
+      } else if (vendorApi === 'transfers') {
+        body = { title: rec.name, url: rec.website || null, transfer_type: 'private', direction: 'arrival', vendor: rec.name, price, notes: aiNote };
+      } else if (vendorApi === 'vehicles') {
+        body = { title: rec.name, url: rec.website || null, vehicle_type: rec.category === 'motoRental' ? 'motorbike' : 'equipment', vendor: rec.name, price_per_day: price, total_price: price, notes: aiNote };
+      } else {
+        body = { category: rec.category, title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price, is_per_person: true, notes: aiNote };
+      }
+
+      const createRes = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      if (!createRes.ok) { const d = await createRes.json(); throw new Error(d.error || 'Failed to create option'); }
+      const created = await createRes.json();
+      const optionId = created.option?.id;
+      if (!optionId) throw new Error('No option ID returned');
+
+      // For transfers, also create departure
+      let depOptionId: string | null = null;
+      if (vendorApi === 'transfers') {
+        const depRes = await fetch(`/api/trips/${tripId}/transfers`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, direction: 'departure' }),
+        });
+        if (depRes.ok) { const dep = await depRes.json(); depOptionId = dep.option?.id; }
+      }
+
+      // Step 2: Commit via vendor-commit endpoint
+      const commitRes = await fetch(`/api/trips/${tripId}/vendor-commit`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optionType: group.optionType, optionId,
+          startDate: dates.start, endDate: dates.end || null,
+        }),
+      });
+      if (!commitRes.ok) { const d = await commitRes.json(); throw new Error(d.error || 'Commit failed'); }
+
+      // Commit departure transfer too
+      if (depOptionId) {
+        await fetch(`/api/trips/${tripId}/vendor-commit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ optionType: 'transfer', optionId: depOptionId, startDate: dates.start, endDate: dates.end || dates.start }),
+        });
+      }
+
+      setCommittedCards(prev => ({ ...prev, [cardKey]: { optionType: group.optionType, optionId } }));
+      setCommitCardKey(null);
+      if (onCommitted) onCommitted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Commit failed');
+    } finally {
+      setCommittingCard(null);
+    }
+  };
+
+  const handleUncommitCard = async (cardKey: string, optionType: string, optionId: string) => {
+    if (!confirm('Uncommit this option?')) return;
+    try {
+      const res = await fetch(`/api/trips/${tripId}/vendor-commit`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionType, optionId }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
+      setCommittedCards(prev => { const n = { ...prev }; delete n[cardKey]; return n; });
+      if (onCommitted) onCommitted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Uncommit failed');
+    }
+  };
 
   // Custom spot functions
   const fetchUrlPreview = async (url: string) => {
@@ -552,8 +643,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   };
 
   const totalBudget = useMemo(() => selections.reduce((sum, sel) => sum + calculateItemCost(sel), 0), [selections]);
-
-  useEffect(() => { if (onBudgetChange) onBudgetChange(totalBudget, selections, profile.groupSize); }, [totalBudget, selections, profile.groupSize]);
 
   const getProfileSummary = () => {
     const tripType = TRIP_TYPES.find(t => t.value === profile.tripType);
@@ -1002,27 +1091,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         </div>
       )}
 
-      {/* Vendor Options Added Summary */}
-      {addedToVendorOptions.size > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-green-800 text-sm">✓ {addedToVendorOptions.size} vendor option{addedToVendorOptions.size !== 1 ? 's' : ''} added</h3>
-              <p className="text-green-700 text-xs mt-1">
-                {Object.entries(vendorAddCounts).map(([api, count]) => `${count} ${api}`).join(', ')}
-                {' — scroll to Step 5 to review and commit'}
-              </p>
-            </div>
-            <div className="text-green-600 text-xs font-medium">
-              Step 5: Vendor Options ↓
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Results */}
+      {/* Results — Card Grid grouped by budget category */}
       {Object.keys(byCategory).length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-text-primary">📊 AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
             {scannerMeta && !loading && (
@@ -1042,24 +1113,99 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           {!scannerProfile && Object.keys(byCategory).length > 0 && !loading && (
             <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
           )}
-          {Object.entries(byCategory).map(([cat, items]) => {
-            const info = CATEGORY_INFO[cat] || { label: cat, icon: '📍' };
-            const isOpen = expandedCategory === cat;
+
+          {BUDGET_GROUPS.map(group => {
+            const groupItems = group.scannerCategories.flatMap(sc => byCategory[sc] || []);
+            if (groupItems.length === 0) return null;
             return (
-              <div key={cat} className="border border-border rounded overflow-hidden">
-                <button onClick={() => setExpandedCategory(isOpen ? null : cat)} className="w-full flex justify-between items-center px-5 py-4 bg-bg-row hover:bg-bg-row transition-colors">
-                  <span className="flex items-center gap-3"><span className="text-sm">{info.icon}</span><span className="font-semibold">{info.label}</span></span>
-                  <span className="flex items-center gap-3"><span className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span><span className={'transition-transform ' + (isOpen ? 'rotate-180' : '')}>▼</span></span>
-                </button>
-                {isOpen && (<>
-                {renderSentimentTable(items)}
+              <div key={group.key} className="border border-border rounded overflow-hidden">
+                <div className="flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border">
+                  <span className="flex items-center gap-2"><span>{group.icon}</span><span className="font-semibold text-sm">{group.label}</span></span>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{groupItems.length}</span>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {groupItems.map((rec, idx) => {
+                    const cardKey = `${rec.category}:${rec.name}`;
+                    const committed = committedCards[cardKey];
+                    const isCommitting = committingCard === cardKey;
+                    const showPanel = commitCardKey === cardKey;
+                    return (
+                      <div key={`${rec.category}-${idx}`} className={`border rounded overflow-hidden ${committed ? 'border-emerald-400 bg-emerald-50/30' : 'border-border'}`}>
+                        {rec.photoUrl && <img src={rec.photoUrl} alt={rec.name} className="w-full h-40 object-cover" />}
+                        <div className="p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-sm text-text-primary truncate">{rec.name}</h4>
+                              <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
+                                <span>{'*'.repeat(Math.round(rec.googleRating))} {rec.googleRating} ({rec.reviewCount})</span>
+                                {rec.trending && <span title="Trending">🔥</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>Fit {rec.fitScore}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getSentimentColor(rec.sentiment)}`}>
+                                {rec.sentiment === 'positive' ? '👍' : rec.sentiment === 'negative' ? '👎' : '😐'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-text-secondary line-clamp-2">{rec.summary}</p>
+                          {rec.warnings.length > 0 && (
+                            <div className="text-xs text-orange-600">{rec.warnings.slice(0, 1).map((w, i) => <span key={i}>⚠️ {w}</span>)}</div>
+                          )}
+
+                          {committed ? (
+                            <div className="flex items-center justify-between pt-2 border-t border-border">
+                              <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded">Committed</span>
+                              <button onClick={() => handleUncommitCard(cardKey, committed.optionType, committed.optionId)} className="text-xs text-text-muted hover:text-brand-red">Uncommit</button>
+                            </div>
+                          ) : showPanel ? (
+                            <div className="pt-2 border-t border-border space-y-2">
+                              <div>
+                                <label className="text-[10px] text-text-muted block mb-0.5">Price *</label>
+                                <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
+                                  className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-text-muted block mb-0.5">Start *</label>
+                                  <input type="date" value={cardDates[cardKey]?.start || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
+                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                </div>
+                                {group.multiDay && (
+                                  <div>
+                                    <label className="text-[10px] text-text-muted block mb-0.5">End</label>
+                                    <input type="date" value={cardDates[cardKey]?.end || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
+                                      className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => handleCommitCard(rec, group)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
+                                  className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 disabled:opacity-50">
+                                  {isCommitting ? 'Committing...' : 'Confirm'}
+                                </button>
+                                <button onClick={() => setCommitCardKey(null)} className="px-3 py-1.5 text-xs border border-border rounded">Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 pt-2 border-t border-border">
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); }}
+                                className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
+                              {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 <div className="px-5 py-3 bg-bg-row border-t border-border">
-                  <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
+                  <button onClick={() => openCustomModal(group.scannerCategories[0])} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">+</span>
-                    Add Custom {info.label}
+                    Add Custom {group.label}
                   </button>
                 </div>
-              </>)}
               </div>
             );
           })}
