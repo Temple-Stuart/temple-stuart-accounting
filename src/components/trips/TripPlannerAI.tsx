@@ -164,13 +164,16 @@ const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
 
 // Budget category groups for card grid rendering
 const BUDGET_GROUPS = [
-  { key: 'lodging', label: 'Lodging', icon: '🏨', scannerCategories: ['lodging'], vendorApi: 'lodging', optionType: 'lodging' as const, multiDay: true },
-  { key: 'meals', label: 'Meals & Dining', icon: '🍽️', scannerCategories: ['brunchCoffee', 'dinner'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
-  { key: 'activities', label: 'Activities', icon: '🎯', scannerCategories: ['activities', 'coworking', 'wellness', 'nightlife'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
-  { key: 'transport', label: 'Ground Transport', icon: '🚕', scannerCategories: ['airportTransfers'], vendorApi: 'transfers', optionType: 'transfer' as const, multiDay: false },
-  { key: 'vehicles', label: 'Vehicle Rental', icon: '🏍️', scannerCategories: ['motoRental', 'equipmentRental'], vendorApi: 'vehicles', optionType: 'vehicle' as const, multiDay: true },
-  { key: 'incidentals', label: 'Incidentals', icon: '🛒', scannerCategories: ['toiletries'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
+  { key: 'lodging', label: 'Lodging', icon: '🏨', scannerCategories: ['lodging'], vendorApi: 'lodging', optionType: 'lodging' as const, multiDay: true, defaultFreq: 'per_night' as const },
+  { key: 'meals', label: 'Meals & Dining', icon: '🍽️', scannerCategories: ['brunchCoffee', 'dinner'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false, defaultFreq: 'per_visit' as const },
+  { key: 'activities', label: 'Activities', icon: '🎯', scannerCategories: ['activities', 'coworking', 'wellness', 'nightlife'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false, defaultFreq: 'per_visit' as const },
+  { key: 'transport', label: 'Ground Transport', icon: '🚕', scannerCategories: ['airportTransfers'], vendorApi: 'transfers', optionType: 'transfer' as const, multiDay: false, defaultFreq: 'per_trip' as const },
+  { key: 'vehicles', label: 'Vehicle Rental', icon: '🏍️', scannerCategories: ['motoRental', 'equipmentRental'], vendorApi: 'vehicles', optionType: 'vehicle' as const, multiDay: true, defaultFreq: 'per_day' as const },
+  { key: 'incidentals', label: 'Incidentals', icon: '🛒', scannerCategories: ['toiletries'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false, defaultFreq: 'total' as const },
 ];
+
+type PriceFrequency = 'per_night' | 'per_day' | 'per_visit' | 'per_trip' | 'total';
+const FREQ_LABELS: Record<PriceFrequency, string> = { per_night: '/night', per_day: '/day', per_visit: '/visit', per_trip: '/trip', total: 'total' };
 
 // Maps scanner categories to vendor option API endpoints
 const CATEGORY_TO_VENDOR_API: Record<string, string> = {
@@ -218,6 +221,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [committingCard, setCommittingCard] = useState<string | null>(null);
   const [committedCards, setCommittedCards] = useState<Record<string, { optionType: string; optionId: string }>>({});
   const [cardPrices, setCardPrices] = useState<Record<string, string>>({});
+  const [cardFrequencies, setCardFrequencies] = useState<Record<string, PriceFrequency>>({});
   const [cardDates, setCardDates] = useState<Record<string, { start: string; end?: string }>>({});
 
   // Load saved scanner results from DB on mount
@@ -497,28 +501,64 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const isAddedToVendor = (item: GrokRecommendation) => addedToVendorOptions.has(`${item.category}:${item.name}`);
   const isSelected = (item: GrokRecommendation) => isAddedToVendor(item) || selections.some(s => s.category === item.category && s.item.name === item.name);
 
+  const calcDaysBetween = (start: string, end?: string) => {
+    if (!start || !end) return 1;
+    const d = Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(1, d);
+  };
+
+  const calcCardTotal = (cardKey: string) => {
+    const unitPrice = parseFloat(cardPrices[cardKey] || '0');
+    const freq = cardFrequencies[cardKey] || 'total';
+    const dates = cardDates[cardKey];
+    if (!unitPrice) return 0;
+    if (freq === 'per_night' || freq === 'per_day') {
+      return unitPrice * calcDaysBetween(dates?.start || '', dates?.end);
+    }
+    return unitPrice; // per_visit, per_trip, total
+  };
+
+  const formatCardTotal = (cardKey: string) => {
+    const unitPrice = parseFloat(cardPrices[cardKey] || '0');
+    const freq = cardFrequencies[cardKey] || 'total';
+    const dates = cardDates[cardKey];
+    const total = calcCardTotal(cardKey);
+    if (!unitPrice) return null;
+    if (freq === 'per_night' || freq === 'per_day') {
+      const days = calcDaysBetween(dates?.start || '', dates?.end);
+      const label = freq === 'per_night' ? 'night' : 'day';
+      return `$${unitPrice}/${label} × ${days} ${label}${days !== 1 ? 's' : ''} = $${total}`;
+    }
+    return null; // no breakdown needed for single-occurrence
+  };
+
   // Direct commit from scanner card: create vendor option then commit it
   const handleCommitCard = async (rec: GrokRecommendation, group: typeof BUDGET_GROUPS[number]) => {
     const cardKey = `${rec.category}:${rec.name}`;
-    const price = parseFloat(cardPrices[cardKey] || '0');
+    const unitPrice = parseFloat(cardPrices[cardKey] || '0');
     const dates = cardDates[cardKey];
-    if (!price || !dates?.start) return;
+    const freq = cardFrequencies[cardKey] || group.defaultFreq;
+    if (!unitPrice || !dates?.start) return;
+
+    const totalAmount = calcCardTotal(cardKey);
+    const rateNote = formatCardTotal(cardKey);
 
     setCommittingCard(cardKey);
     try {
       // Step 1: Create the vendor option record
       const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}`;
+      const notes = rateNote ? `Rate: ${rateNote}\n${aiNote}` : aiNote;
       let body: Record<string, any> = {};
       const vendorApi = group.vendorApi;
 
       if (vendorApi === 'lodging') {
-        body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: price, total_price: price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: unitPrice, total_price: totalAmount, notes };
       } else if (vendorApi === 'transfers') {
-        body = { title: rec.name, url: rec.website || null, transfer_type: 'private', direction: 'arrival', vendor: rec.name, price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, transfer_type: 'private', direction: 'arrival', vendor: rec.name, price: totalAmount, notes };
       } else if (vendorApi === 'vehicles') {
-        body = { title: rec.name, url: rec.website || null, vehicle_type: rec.category === 'motoRental' ? 'motorbike' : 'equipment', vendor: rec.name, price_per_day: price, total_price: price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, vehicle_type: rec.category === 'motoRental' ? 'motorbike' : 'equipment', vendor: rec.name, price_per_day: unitPrice, total_price: totalAmount, notes };
       } else {
-        body = { category: rec.category, title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price, is_per_person: true, notes: aiNote };
+        body = { category: rec.category, title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price: totalAmount, is_per_person: true, notes };
       }
 
       const createRes = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
@@ -1163,8 +1203,24 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             <div className="pt-2 border-t border-border space-y-2">
                               <div>
                                 <label className="text-[10px] text-text-muted block mb-0.5">Price *</label>
-                                <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
-                                  className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                <div className="flex gap-1">
+                                  <div className="relative flex-1">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-text-muted">$</span>
+                                    <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
+                                      className="w-full border border-border rounded pl-5 pr-2 py-1.5 text-xs" />
+                                  </div>
+                                  <select value={cardFrequencies[cardKey] || group.defaultFreq} onChange={e => setCardFrequencies(p => ({ ...p, [cardKey]: e.target.value as PriceFrequency }))}
+                                    className="border border-border rounded px-1.5 py-1.5 text-xs bg-white min-w-[70px]">
+                                    <option value="per_night">/night</option>
+                                    <option value="per_day">/day</option>
+                                    <option value="per_visit">/visit</option>
+                                    <option value="per_trip">/trip</option>
+                                    <option value="total">total</option>
+                                  </select>
+                                </div>
+                                {formatCardTotal(cardKey) && (
+                                  <div className="text-xs font-medium text-emerald-700 mt-1">= ${calcCardTotal(cardKey)} total</div>
+                                )}
                               </div>
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
@@ -1172,7 +1228,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                   <input type="date" value={cardDates[cardKey]?.start || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
                                     className="w-full border border-border rounded px-2 py-1.5 text-xs" />
                                 </div>
-                                {group.multiDay && (
+                                {(group.multiDay || (cardFrequencies[cardKey] || group.defaultFreq) === 'per_night' || (cardFrequencies[cardKey] || group.defaultFreq) === 'per_day') && (
                                   <div>
                                     <label className="text-[10px] text-text-muted block mb-0.5">End</label>
                                     <input type="date" value={cardDates[cardKey]?.end || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
@@ -1183,14 +1239,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               <div className="flex gap-2">
                                 <button onClick={() => handleCommitCard(rec, group)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
                                   className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 disabled:opacity-50">
-                                  {isCommitting ? 'Committing...' : 'Confirm'}
+                                  {isCommitting ? 'Committing...' : `Commit${calcCardTotal(cardKey) ? ' $' + calcCardTotal(cardKey) : ''}`}
                                 </button>
                                 <button onClick={() => setCommitCardKey(null)} className="px-3 py-1.5 text-xs border border-border rounded">Cancel</button>
                               </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequencies[cardKey]) setCardFrequencies(p => ({ ...p, [cardKey]: group.defaultFreq })); }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
