@@ -172,6 +172,41 @@ const BUDGET_GROUPS = [
   { key: 'incidentals', label: 'Incidentals', icon: '🛒', scannerCategories: ['toiletries'], vendorApi: 'activities', optionType: 'activity' as const, multiDay: false },
 ];
 
+const FREQUENCY_OPTIONS = [
+  { value: 'per_night', label: '/night' },
+  { value: 'per_day', label: '/day' },
+  { value: 'per_visit', label: '/visit' },
+  { value: 'per_trip', label: '/trip' },
+  { value: 'total', label: 'total' },
+] as const;
+
+const DEFAULT_FREQUENCY: Record<string, string> = {
+  lodging: 'per_night',
+  meals: 'per_visit',
+  activities: 'per_visit',
+  transport: 'per_trip',
+  vehicles: 'per_day',
+  incidentals: 'total',
+};
+
+function calcDaysBetween(start: string, end?: string): number {
+  if (!start || !end) return 1;
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const days = Math.round(ms / 86400000);
+  return days > 0 ? days : 1;
+}
+
+function calcTotal(unitPrice: number, frequency: string, start: string, end?: string): number {
+  if (frequency === 'per_night' || frequency === 'per_day') {
+    return unitPrice * calcDaysBetween(start, end);
+  }
+  return unitPrice;
+}
+
+function formatFreqLabel(frequency: string): string {
+  return FREQUENCY_OPTIONS.find(f => f.value === frequency)?.label || frequency;
+}
+
 // Maps scanner categories to vendor option API endpoints
 const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   lodging: 'lodging',
@@ -219,6 +254,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [committedCards, setCommittedCards] = useState<Record<string, { optionType: string; optionId: string }>>({});
   const [cardPrices, setCardPrices] = useState<Record<string, string>>({});
   const [cardDates, setCardDates] = useState<Record<string, { start: string; end?: string }>>({});
+  const [cardFrequency, setCardFrequency] = useState<Record<string, string>>({});
 
   // Load saved scanner results from DB on mount
   useEffect(() => {
@@ -500,25 +536,30 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // Direct commit from scanner card: create vendor option then commit it
   const handleCommitCard = async (rec: GrokRecommendation, group: typeof BUDGET_GROUPS[number]) => {
     const cardKey = `${rec.category}:${rec.name}`;
-    const price = parseFloat(cardPrices[cardKey] || '0');
+    const unitPrice = parseFloat(cardPrices[cardKey] || '0');
     const dates = cardDates[cardKey];
-    if (!price || !dates?.start) return;
+    const freq = cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total';
+    if (!unitPrice || !dates?.start) return;
+
+    const totalPrice = calcTotal(unitPrice, freq, dates.start, dates.end);
+    const days = calcDaysBetween(dates.start, dates.end);
+    const rateNote = freq === 'total' ? `Rate: $${unitPrice} total` : `Rate: $${unitPrice}${formatFreqLabel(freq)} × ${days} ${freq === 'per_night' ? 'nights' : 'days'} = $${totalPrice}`;
 
     setCommittingCard(cardKey);
     try {
       // Step 1: Create the vendor option record
-      const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}`;
+      const aiNote = `AI Score: ${rec.sentimentScore}/10 | Fit: ${rec.fitScore}/10 | ${rec.summary}\n${rateNote}`;
       let body: Record<string, any> = {};
       const vendorApi = group.vendorApi;
 
       if (vendorApi === 'lodging') {
-        body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: price, total_price: price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, location: rec.address, price_per_night: unitPrice, total_price: totalPrice, notes: aiNote };
       } else if (vendorApi === 'transfers') {
-        body = { title: rec.name, url: rec.website || null, transfer_type: 'private', direction: 'arrival', vendor: rec.name, price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, transfer_type: 'private', direction: 'arrival', vendor: rec.name, price: totalPrice, notes: aiNote };
       } else if (vendorApi === 'vehicles') {
-        body = { title: rec.name, url: rec.website || null, vehicle_type: rec.category === 'motoRental' ? 'motorbike' : 'equipment', vendor: rec.name, price_per_day: price, total_price: price, notes: aiNote };
+        body = { title: rec.name, url: rec.website || null, vehicle_type: rec.category === 'motoRental' ? 'motorbike' : 'equipment', vendor: rec.name, price_per_day: unitPrice, total_price: totalPrice, notes: aiNote };
       } else {
-        body = { category: rec.category, title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price, is_per_person: true, notes: aiNote };
+        body = { category: rec.category, title: rec.name, url: rec.website || null, image_url: rec.photoUrl || null, vendor: rec.name, price: totalPrice, is_per_person: true, notes: aiNote };
       }
 
       const createRes = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
@@ -1163,9 +1204,26 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             <div className="pt-2 border-t border-border space-y-2">
                               <div>
                                 <label className="text-[10px] text-text-muted block mb-0.5">Price *</label>
-                                <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
-                                  className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs text-text-muted">$</span>
+                                  <input type="number" min={0} placeholder="0" value={cardPrices[cardKey] || ''} onChange={e => setCardPrices(p => ({ ...p, [cardKey]: e.target.value }))}
+                                    className="flex-1 min-w-0 border border-border rounded px-2 py-1.5 text-xs" />
+                                  <select value={cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total'} onChange={e => setCardFrequency(p => ({ ...p, [cardKey]: e.target.value }))}
+                                    className="border border-border rounded px-1 py-1.5 text-xs bg-white">
+                                    {FREQUENCY_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                                  </select>
+                                </div>
                               </div>
+                              {(() => {
+                                const up = parseFloat(cardPrices[cardKey] || '0');
+                                const fr = cardFrequency[cardKey] || DEFAULT_FREQUENCY[group.key] || 'total';
+                                const d = cardDates[cardKey];
+                                if (!up) return null;
+                                const tot = calcTotal(up, fr, d?.start || '', d?.end);
+                                const nDays = calcDaysBetween(d?.start || '', d?.end);
+                                if (fr === 'total' || fr === 'per_visit' || fr === 'per_trip') return <div className="text-[11px] text-emerald-700 font-medium">${up} {formatFreqLabel(fr)} = ${tot} total</div>;
+                                return <div className="text-[11px] text-emerald-700 font-medium">${up}{formatFreqLabel(fr)} × {nDays} {fr === 'per_night' ? 'nights' : 'days'} = ${tot} total</div>;
+                              })()}
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
                                   <label className="text-[10px] text-text-muted block mb-0.5">Start *</label>
@@ -1190,7 +1248,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: group.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: DEFAULT_FREQUENCY[group.key] || 'total' })); }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
