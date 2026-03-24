@@ -9,6 +9,7 @@ interface TravelerProfile {
   groupSize: number;
   vibe?: string;
   pace?: string;
+  travelerContext?: string;
 }
 
 interface PlaceToAnalyze {
@@ -153,7 +154,7 @@ export async function analyzeWithLiveSearch(options: {
 - Dealbreakers: ${dealbreakersStr}
 - Budget: ${profile.budget}
 - Group Size: ${profile.groupSize}
-- Timeframe: ${timeframe}${vibeStr ? `\n- Vibe: ${vibeStr}` : ''}${paceStr ? `\n- Pace: ${paceStr}` : ''}
+- Timeframe: ${timeframe}${vibeStr ? `\n- Vibe: ${vibeStr}` : ''}${paceStr ? `\n- Pace: ${paceStr}` : ''}${profile.travelerContext ? `\n${profile.travelerContext}` : ''}
 
 ## CATEGORY: ${category.toUpperCase()}
 

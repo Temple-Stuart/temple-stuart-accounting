@@ -5,6 +5,7 @@ import { analyzeWithLiveSearch } from '@/lib/grokAgent';
 import { searchPlaces, searchPlacesMultiQuery, CATEGORY_SEARCHES } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 
 // Trip-type focused profile
 interface TravelerProfile {
@@ -15,15 +16,37 @@ interface TravelerProfile {
   groupSize: number;
   vibe?: string[];
   pace?: string;
+  activities?: string[];
+  travelerDescriptions?: string[];
 }
 
 const BUDGET_LABELS: Record<string, string> = {
   'under50': 'Under $50/night',
+  'backpacker': '$0-50/night',
   '50to100': '$50-100/night',
+  'budget': '$50-100/night',
   '100to200': '$100-200/night',
+  'midrange': '$100-200/night',
   '200to400': '$200-400/night',
-  'over400': '$400+/night'
+  'comfort': '$200-350/night',
+  'over400': '$400+/night',
+  'premium': '$350-500/night',
+  'luxury': '$500+/night',
 };
+
+// Budget tier ordering for range calculation
+const BUDGET_ORDER = ['backpacker', 'under50', 'budget', '50to100', 'midrange', '100to200', 'comfort', '200to400', 'premium', 'over400', 'luxury'];
+
+function mergeBudgets(budgets: string[]): string {
+  if (budgets.length === 0) return 'midrange';
+  if (budgets.length === 1) return budgets[0];
+  const indices = budgets.map(b => BUDGET_ORDER.indexOf(b)).filter(i => i >= 0);
+  if (indices.length === 0) return budgets[0];
+  const minBudget = BUDGET_ORDER[Math.min(...indices)];
+  const maxBudget = BUDGET_ORDER[Math.max(...indices)];
+  return `${BUDGET_LABELS[minBudget] || minBudget} to ${BUDGET_LABELS[maxBudget] || maxBudget}`;
+}
+
 
 // Enrich places with website from Place Details API
 async function enrichPlaceDetails(places: any[]): Promise<any[]> {
@@ -86,27 +109,77 @@ export async function POST(
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
     }
 
-    const tripActivities = activities.length > 0 ? activities : (activity ? [activity] : []);
+    const { id: tripId } = await params;
 
-    const travelerProfile: TravelerProfile = profile || {
-      tripType: 'relaxation',
-      budget: '100to200',
-      priorities: ['best_value'],
-      dealbreakers: [],
-      groupSize: 1
+    // Load ALL participants to build combined profile
+    const allParticipants = await prisma.trip_participants.findMany({
+      where: { tripId },
+      select: {
+        firstName: true,
+        profileTripType: true,
+        profileBudget: true,
+        profilePriorities: true,
+        profileVibe: true,
+        profilePace: true,
+        profileActivities: true,
+      },
+    });
+
+    // Merge all participant profiles
+    const allActivities = [...new Set(
+      allParticipants.flatMap(p => p.profileActivities || [])
+    )];
+    const allPriorities = [...new Set(
+      allParticipants.flatMap(p => p.profilePriorities || [])
+    )];
+    const allVibes = [...new Set(
+      allParticipants.flatMap(p => p.profileVibe || [])
+    )];
+    const paces = allParticipants.map(p => p.profilePace).filter(Boolean) as string[];
+    const combinedPace = paces.length === 0 ? 'balanced' :
+      paces.length === 1 ? paces[0] :
+      paces.every(p => p === paces[0]) ? paces[0] : 'balanced';
+    const budgets = allParticipants.map(p => p.profileBudget).filter(Boolean) as string[];
+
+    // Build per-traveler descriptions for the Grok prompt
+    const travelerDescriptions = allParticipants
+      .filter(p => p.profileTripType)
+      .map(p => {
+        const acts = (p.profileActivities || []).map(a => ACTIVITY_LABELS[a] || a).join(', ');
+        const vibes = (p.profileVibe || []).join(', ');
+        return `${p.firstName}: ${p.profileTripType}, interests: ${acts || 'none specified'}. Budget: ${BUDGET_LABELS[p.profileBudget || ''] || p.profileBudget || 'unset'}. Vibe: ${vibes || 'unset'}`;
+      });
+
+    const tripActivities = [
+      ...(activities.length > 0 ? activities : (activity ? [activity] : [])),
+      ...allActivities,
+    ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+    // Use combined profile (merged from all participants), falling back to request body profile
+    const travelerProfile: TravelerProfile = {
+      tripType: profile?.tripType || allParticipants.find(p => p.profileTripType)?.profileTripType || 'relaxation',
+      budget: profile?.budget || (budgets.length > 0 ? budgets[0] : '100to200'),
+      priorities: allPriorities.length > 0 ? allPriorities : (profile?.priorities || ['best_value']),
+      dealbreakers: profile?.dealbreakers || [],
+      groupSize: profile?.groupSize || allParticipants.length || 1,
+      vibe: allVibes.length > 0 ? allVibes : profile?.vibe,
+      pace: combinedPace,
+      activities: allActivities,
+      travelerDescriptions,
     };
 
-    // Skip nightlife for family trips
-    if (travelerProfile.tripType === 'family' && category === 'nightlife') {
+    // Skip nightlife for family trips (check if ANY participant is family)
+    const anyFamily = allParticipants.some(p => p.profileTripType === 'family');
+    if ((travelerProfile.tripType === 'family' || anyFamily) && category === 'nightlife') {
       return NextResponse.json({ category, recommendations: [] });
     }
 
     console.log(`[Grok AI] ${category}: Starting analysis for ${city}, ${country}`);
 
     // Customize lodging queries based on trip type
-    let queries = CATEGORY_SEARCHES[category].queries;
+    let queries = [...CATEGORY_SEARCHES[category].queries];
     if (category === 'lodging') {
-      if (travelerProfile.tripType === 'family') {
+      if (travelerProfile.tripType === 'family' || anyFamily) {
         queries = ['family hotel resort apartment'];
       } else if (travelerProfile.tripType === 'romantic') {
         queries = ['boutique hotel romantic resort'];
@@ -116,6 +189,19 @@ export async function POST(
         queries = ['villa apartment hostel group accommodation'];
       } else if (travelerProfile.tripType === 'remote_work') {
         queries = ['hotel coworking coliving digital nomad'];
+      }
+    }
+
+    // Expand queries based on combined participant interests
+    for (const act of allActivities) {
+      const expansions = ACTIVITY_SEARCH_EXPANSIONS[act];
+      if (!expansions) continue;
+      for (const exp of expansions) {
+        if (exp.category === category) {
+          for (const q of exp.queries) {
+            if (!queries.includes(q)) queries.push(q);
+          }
+        }
       }
     }
 
@@ -155,18 +241,29 @@ export async function POST(
     // Single Grok call for this one category
     const monthName = month ? new Date(year || 2025, month - 1).toLocaleString('en-US', { month: 'long' }) : undefined;
 
+    // Build budget label — show range if multiple budgets
+    const budgetLabel = budgets.length > 1
+      ? mergeBudgets(budgets)
+      : BUDGET_LABELS[travelerProfile.budget] || "$100-200/night";
+
+    // Build traveler context for Grok prompt
+    const travelerContext = travelerDescriptions.length > 0
+      ? `\nTravelers in this group:\n${travelerDescriptions.map(d => `- ${d}`).join('\n')}\nRank recommendations considering ALL travelers' interests. A good recommendation appeals to at least one traveler. Ideal recommendations appeal to multiple.`
+      : undefined;
+
     const recommendations = await analyzeWithLiveSearch({
       places: placesToAnalyze,
       destination: `${city}, ${country}`,
       activities: tripActivities,
       profile: {
         tripType: travelerProfile.tripType,
-        budget: BUDGET_LABELS[travelerProfile.budget] || "$100-200/night",
+        budget: budgetLabel,
         priorities: travelerProfile.priorities,
         dealbreakers: travelerProfile.dealbreakers,
         groupSize: travelerProfile.groupSize,
         vibe: (travelerProfile.vibe || []).join(', ') || undefined,
         pace: travelerProfile.pace || undefined,
+        travelerContext,
       },
       category,
       month: monthName,
@@ -176,7 +273,6 @@ export async function POST(
     console.log(`[Grok AI] ${category}: ${recommendations.length} results`);
 
     // Persist scanner results for sharing with trip participants
-    const { id: tripId } = await params;
     try {
       await prisma.trip_scanner_results.upsert({
         where: {

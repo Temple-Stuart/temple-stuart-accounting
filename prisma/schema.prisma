@@ -575,6 +575,7 @@ model trip_participants {
   profileVibe       String[]  @default([])
   profilePace       String?   @db.VarChar(20)
   profileGroupSize  Int?      @default(1)
+  profileActivities String[]  @default([])
 
   trip          trips            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   expenseSplits expense_splits[]

@@ -7,6 +7,7 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
+import TripProfileCard from '@/components/trips/TripProfileCard';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -27,6 +28,7 @@ interface Participant {
   profileVibe?: string[];
   profilePace?: string | null;
   profileGroupSize?: number | null;
+  profileActivities?: string[];
   homeAirport?: string | null;
 }
 
@@ -127,11 +129,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [savingExpense, setSavingExpense] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [userTier, setUserTier] = useState<string>('free');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); }); }, [id]);
 
   // Derive origin airport from current user's participant record
   useEffect(() => {
@@ -456,6 +459,27 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
+          {/* Trip Profiles — each participant fills out their travel preferences */}
+          <div className="bg-white rounded-lg border border-border p-4 mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-sm text-text-primary">Trip Profiles</h3>
+              <span className="text-xs text-text-muted">
+                {participants.filter(p => !!p.profileTripType).length} of {participants.length} profiles complete
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {participants.map(p => (
+                <TripProfileCard
+                  key={p.id}
+                  participant={p}
+                  isCurrentUser={p.email.toLowerCase() === currentUserEmail.toLowerCase()}
+                  tripId={id}
+                  onProfileSaved={() => { loadParticipants(); }}
+                />
+              ))}
+            </div>
+          </div>
+
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* SCOREBOARD — Itinerary + Crew (reference while planning)  */}
           {/* ═══════════════════════════════════════════════════════════ */}
@@ -772,6 +796,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     city={selectedDest?.resort?.name || trip.destination}
                     country={selectedDest?.resort?.country || null}
                     activity={trip.activity}
+                    participantProfiles={participants.map(p => ({
+                      firstName: p.firstName,
+                      profileTripType: p.profileTripType,
+                      profileActivities: p.profileActivities,
+                    }))}
                     month={trip.month}
                     year={trip.year}
                     daysTravel={trip.daysTravel}
