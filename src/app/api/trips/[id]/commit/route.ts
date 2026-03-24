@@ -47,57 +47,64 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { tripId: id }
     });
 
-    // COA code mapping - Personal travel + Business cross-entity
+    // Travel COA mapping — uses P-9xxx (personal) or B-9xxx (business)
+    const prefix = trip.tripType === 'business' ? 'B' : 'P';
     const coaMapping: Record<string, string> = {
-      // Flight & Lodging
-      'flight': 'P-7100',
-      'hotel': 'P-7200',
-      'lodging': 'P-7200',
+      // Flights
+      'flight': `${prefix}-9100`,
+      // Lodging
+      'hotel': `${prefix}-9200`,
+      'lodging': `${prefix}-9200`,
       // Vehicle rentals
-      'car': 'P-7300',
-      'rental_car': 'P-7300',
-      'carRental': 'P-7300',
-      // Ground transport
-      'transfers': 'P-7600',
-      'airportTransfers': 'P-7600',
-      'groundTransport': 'P-7600',
-      'transport': 'P-7600',
-      // Activities & Entertainment
-      'activities': 'P-7400',
-      'liftTickets': 'P-7400',
-      'lift_pass': 'P-7400',
-      'lessons': 'P-7400',
-      'apres': 'P-7400',
-      'yoga': 'P-7400',
-      'massage': 'P-7400',
-      'conference': 'P-7400',
-      'networking': 'P-7400',
-      'nightlife': 'P-7400',
-      'fitness': 'P-7400',
-      'wellness': 'P-7400',
+      'car': `${prefix}-9300`,
+      'rental_car': `${prefix}-9300`,
+      'carRental': `${prefix}-9300`,
       // Equipment rentals
-      'equipment': 'P-7500',
-      'equipmentRental': 'P-7500',
-      'board_rental': 'P-7500',
-      'kite_rental': 'P-7500',
+      'equipment': `${prefix}-9350`,
+      'equipmentRental': `${prefix}-9350`,
+      'board_rental': `${prefix}-9350`,
+      'kite_rental': `${prefix}-9350`,
+      // Activities & Entertainment
+      'activities': `${prefix}-9400`,
+      'liftTickets': `${prefix}-9400`,
+      'lift_pass': `${prefix}-9400`,
+      'lessons': `${prefix}-9400`,
+      'apres': `${prefix}-9400`,
+      'yoga': `${prefix}-9400`,
+      'massage': `${prefix}-9400`,
+      'conference': `${prefix}-9400`,
+      'networking': `${prefix}-9400`,
+      'fitness': `${prefix}-9400`,
+      'wellness': `${prefix}-9400`,
+      // Nightlife
+      'nightlife': `${prefix}-9450`,
       // Food & Meals
-      'meals': 'P-7700',
-      'travelMeals': 'P-7700',
-      'food': 'P-7700',
-      'coffee': 'P-7700',
+      'meals': `${prefix}-9500`,
+      'travelMeals': `${prefix}-9500`,
+      'food': `${prefix}-9500`,
+      'coffee': `${prefix}-9500`,
+      'brunchCoffee': `${prefix}-9500`,
+      'dinner': `${prefix}-9500`,
+      // Ground transport
+      'transfers': `${prefix}-9600`,
+      'airportTransfers': `${prefix}-9600`,
+      'groundTransport': `${prefix}-9600`,
+      'transport': `${prefix}-9600`,
+      // Coworking
+      'coworking': `${prefix}-9700`,
+      'bizdev': `${prefix}-9700`,
+      // Incidentals
+      'toiletries': `${prefix}-9800`,
       // Tips & Misc
-      'tips': 'P-7800',
-      'tipsMisc': 'P-7800',
-      // Personal expense - coworking/bizdev
-      'coworking': 'P-8220',
-      'bizdev': 'P-8220',
+      'tips': `${prefix}-9950`,
+      'tipsMisc': `${prefix}-9950`,
     };
 
     // Save new budget items from request
     let totalBudget = 0;
     if (budgetItems && budgetItems.length > 0) {
       for (const item of budgetItems) {
-        const coaCode = coaMapping[item.category] || coaMapping[item.description] || 'P-7800';
+        const coaCode = coaMapping[item.category] || coaMapping[item.description] || `${prefix}-9950`;
         totalBudget += Number(item.amount);
         
         await prisma.budget_line_items.create({
@@ -194,7 +201,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const month = startDate.getMonth();
       
       for (const item of budgetItems) {
-        const coaCode = coaMapping[item.category] || coaMapping[item.description] || 'P-7800';
+        const coaCode = coaMapping[item.category] || coaMapping[item.description] || `${prefix}-9950`;
         const amount = Number(item.amount);
         
         const jan = month === 0 ? amount : null;

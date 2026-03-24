@@ -2,20 +2,33 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
-// COA codes aligned with trip commit (7xxx travel codes)
-const VENDOR_COA_MAP: Record<string, Record<string, string>> = {
-  personal: {
-    flight: 'P-7100', lodging: 'P-7200', transfer: 'P-7600',
-    vehicle: 'P-7300', activity: 'P-7400',
-  },
-  business: {
-    flight: 'B-7100', lodging: 'B-7200', transfer: 'B-7600',
-    vehicle: 'B-7300', activity: 'B-7400',
-  },
-  mixed: {
-    flight: 'P-7100', lodging: 'P-7200', transfer: 'P-7600',
-    vehicle: 'P-7300', activity: 'P-7400',
-  },
+// Travel COA codes: P-9xxx (personal) / B-9xxx (business)
+// Maps vendor optionType to the 9xxx travel COA number
+const VENDOR_TYPE_TO_COA: Record<string, string> = {
+  flight: '9100',
+  lodging: '9200',
+  vehicle: '9300',
+  transfer: '9600',
+  activity: '9400',
+};
+
+// Granular mapping: scanner subcategory → travel COA number
+// Used when the activity record has a specific category field
+const ACTIVITY_CATEGORY_TO_COA: Record<string, string> = {
+  coworking: '9700',
+  brunchCoffee: '9500',
+  dinner: '9500',
+  food: '9500',
+  coffee: '9500',
+  nightlife: '9450',
+  toiletries: '9800',
+  wellness: '9400',
+  activities: '9400',
+  lift_pass: '9400',
+  lessons: '9400',
+  equipment: '9350',
+  board_rental: '9350',
+  kite_rental: '9350',
 };
 
 type OptionType = 'lodging' | 'transfer' | 'vehicle' | 'activity' | 'flight';
@@ -113,9 +126,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
 
       // B. Create budget_line_item
-      const tripType = trip.tripType || 'personal';
-      const coaMap = VENDOR_COA_MAP[tripType] || VENDOR_COA_MAP.personal;
-      const coaCode = coaMap[optionType] || 'P-7800';
+      const prefix = trip.tripType === 'business' ? 'B' : 'P';
+
+      // For activities, try the granular category mapping first
+      let coaNumber = VENDOR_TYPE_TO_COA[optionType] || '9950';
+      if (optionType === 'activity') {
+        const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true } });
+        if (actOpt?.category && ACTIVITY_CATEGORY_TO_COA[actOpt.category]) {
+          coaNumber = ACTIVITY_CATEGORY_TO_COA[actOpt.category];
+        }
+      }
+      const coaCode = `${prefix}-${coaNumber}`;
       const start = new Date(startDate);
 
       const budgetItem = await tx.budget_line_items.create({
