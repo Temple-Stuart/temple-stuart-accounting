@@ -60,6 +60,7 @@ interface ActivityExpense {
   votes_up: number;
   votes_down: number;
   is_selected: boolean;
+  status: string;
 }
 
 interface Props {
@@ -67,9 +68,11 @@ interface Props {
   activity: string | null;
   participantCount: number;
   onCategoryTotals?: (totals: Record<string, number>) => void;
+  onCommitOption?: (optionType: string, optionId: string, title: string) => void;
+  onUncommitOption?: (optionType: string, optionId: string) => void;
 }
 
-export default function ActivityExpenses({ tripId, activity, participantCount, onCategoryTotals }: Props) {
+export default function ActivityExpenses({ tripId, activity, participantCount, onCategoryTotals, onCommitOption, onUncommitOption }: Props) {
   const [expenses, setExpenses] = useState<ActivityExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -315,17 +318,29 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                               Link
                             </a>
                           )}
-                          <button
-                            onClick={() => handleAction(exp.id, exp.is_selected ? 'deselect' : 'select')}
-                            className={`px-2 py-0.5 text-xs rounded ${
-                              exp.is_selected 
-                                ? 'bg-green-600 text-white' 
-                                : 'bg-border text-text-secondary hover:bg-border'
-                            }`}
-                          >
-                            {exp.is_selected ? '✓' : 'Add'}
-                          </button>
-                          <button onClick={() => handleDelete(exp.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
+                          {exp.status === 'committed' ? (
+                            <>
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded">Committed</span>
+                              {onUncommitOption && (
+                                <button onClick={() => onUncommitOption('activity', exp.id)} className="text-xs text-text-muted hover:text-brand-red">Undo</button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {exp.is_selected && onCommitOption ? (
+                                <button onClick={() => onCommitOption('activity', exp.id, exp.title || 'Activity')}
+                                  className="px-2 py-0.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">Commit</button>
+                              ) : (
+                                <button
+                                  onClick={() => handleAction(exp.id, exp.is_selected ? 'deselect' : 'select')}
+                                  className={`px-2 py-0.5 text-xs rounded ${exp.is_selected ? 'bg-green-600 text-white' : 'bg-border text-text-secondary hover:bg-border'}`}
+                                >
+                                  {exp.is_selected ? '✓' : 'Add'}
+                                </button>
+                              )}
+                              <button onClick={() => handleDelete(exp.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </Card>

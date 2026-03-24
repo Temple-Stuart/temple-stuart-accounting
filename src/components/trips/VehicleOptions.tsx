@@ -27,6 +27,7 @@ interface VehicleOption {
   votes_up: number;
   votes_down: number;
   is_selected: boolean;
+  status: string;
 }
 
 interface Props {
@@ -34,9 +35,11 @@ interface Props {
   participantCount: number;
   days: number;
   onSelect?: (option: VehicleOption) => void;
+  onCommitOption?: (optionType: string, optionId: string, title: string) => void;
+  onUncommitOption?: (optionType: string, optionId: string) => void;
 }
 
-export default function VehicleOptions({ tripId, participantCount, days, onSelect }: Props) {
+export default function VehicleOptions({ tripId, participantCount, days, onSelect, onCommitOption, onUncommitOption }: Props) {
   const [options, setOptions] = useState<VehicleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -273,21 +276,36 @@ export default function VehicleOptions({ tripId, participantCount, days, onSelec
                 </div>
 
                 <div className="flex gap-2 mt-3 pt-3 border-t">
-                  {!option.is_selected ? (
-                    <Button size="sm" className="flex-1" onClick={() => handleSelect(option.id)}>
-                      Lock In This Option
-                    </Button>
+                  {option.status === 'committed' ? (
+                    <>
+                      <span className="flex-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-medium text-center rounded">Committed</span>
+                      {onUncommitOption && (
+                        <button onClick={() => onUncommitOption('vehicle', option.id)} className="text-xs text-text-muted hover:text-brand-red">Uncommit</button>
+                      )}
+                    </>
                   ) : (
-                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => handleSelect(option.id)}>
-                      Change Selection
-                    </Button>
+                    <>
+                      {!option.is_selected ? (
+                        <Button size="sm" className="flex-1" onClick={() => handleSelect(option.id)}>
+                          Lock In This Option
+                        </Button>
+                      ) : (
+                        <>
+                          {onCommitOption ? (
+                            <button onClick={() => onCommitOption('vehicle', option.id, option.title || 'Vehicle')}
+                              className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">
+                              Commit
+                            </button>
+                          ) : (
+                            <Button size="sm" variant="secondary" className="flex-1" onClick={() => handleSelect(option.id)}>
+                              Change Selection
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      <button onClick={() => handleDelete(option.id)} className="text-brand-red text-xs hover:underline">Remove</button>
+                    </>
                   )}
-                  <button
-                    onClick={() => handleDelete(option.id)}
-                    className="text-brand-red text-xs hover:underline"
-                  >
-                    Remove
-                  </button>
                 </div>
               </Card>
             );

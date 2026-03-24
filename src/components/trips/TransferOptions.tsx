@@ -27,15 +27,18 @@ interface TransferOption {
   votes_up: number;
   votes_down: number;
   is_selected: boolean;
+  status: string;
 }
 
 interface Props {
   tripId: string;
   participantCount: number;
   onSelect?: (option: TransferOption) => void;
+  onCommitOption?: (optionType: string, optionId: string, title: string) => void;
+  onUncommitOption?: (optionType: string, optionId: string) => void;
 }
 
-export default function TransferOptions({ tripId, participantCount, onSelect }: Props) {
+export default function TransferOptions({ tripId, participantCount, onSelect, onCommitOption, onUncommitOption }: Props) {
   const [options, setOptions] = useState<TransferOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -178,14 +181,26 @@ export default function TransferOptions({ tripId, participantCount, onSelect }: 
                 Link ↗
               </a>
             )}
-            {!option.is_selected ? (
-              <button onClick={() => handleSelect(option.id)} className="px-2 py-1 bg-brand-green text-white text-xs rounded hover:bg-brand-green">
-                Select
-              </button>
+            {option.status === 'committed' ? (
+              <>
+                <span className="px-2 py-1 bg-emerald-100 text-emerald-800 text-xs font-medium rounded">Committed</span>
+                {onUncommitOption && (
+                  <button onClick={() => onUncommitOption('transfer', option.id)} className="text-xs text-text-muted hover:text-brand-red">Undo</button>
+                )}
+              </>
             ) : (
-              <span className="text-xs text-brand-green">Selected</span>
+              <>
+                {option.is_selected && onCommitOption ? (
+                  <button onClick={() => onCommitOption('transfer', option.id, option.title || 'Transfer')}
+                    className="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700">Commit</button>
+                ) : !option.is_selected ? (
+                  <button onClick={() => handleSelect(option.id)} className="px-2 py-1 bg-brand-green text-white text-xs rounded hover:bg-brand-green">Select</button>
+                ) : (
+                  <span className="text-xs text-brand-green">Selected</span>
+                )}
+                <button onClick={() => handleDelete(option.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
+              </>
             )}
-            <button onClick={() => handleDelete(option.id)} className="text-brand-red text-xs hover:text-brand-red">✕</button>
           </div>
         </div>
       </Card>
