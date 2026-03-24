@@ -117,7 +117,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [destinationAirport, setDestinationAirport] = useState("");
   const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
+  // TODO: onBudgetChange/tripBudget is legacy — budget now flows through vendor-commit only
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
+  const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string}[]>([]);
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
 
   // Expense form
@@ -177,22 +179,20 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       if (!res.ok) return;
       const data = await res.json();
       const items = data.items || [];
-      if (items.length === 0) return;
-      
+
       const COA_TO_CATEGORY: Record<string, string> = {
         'P-7100': 'flight', 'P-7200': 'hotel', 'P-7300': 'car', 'P-7400': 'activities',
         'P-7500': 'equipment', 'P-7600': 'groundTransport', 'P-7700': 'meals', 'P-7800': 'tips', 'P-8220': 'bizdev',
         // Legacy vendor-commit codes (pre-migration)
         'P-9910': 'flight', 'P-9920': 'hotel', 'P-9930': 'groundTransport', 'P-9940': 'car', 'P-9960': 'activities',
       };
-      
+
       const restoredBudget = items.map((item: any) => ({
         category: COA_TO_CATEGORY[item.coaCode] || item.coaCode,
         amount: Number(item.amount),
         description: item.description || '',
-        photoUrl: item.photoUrl || null
       }));
-      setTripBudget(restoredBudget);
+      setCommittedBudgetItems(restoredBudget);
     } catch (err) {
       console.error('Failed to load budget items:', err);
     }
@@ -222,7 +222,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
     setCommitting(true);
-    const allBudgetItems = [...tripBudget];
+    const allBudgetItems = [...committedBudgetItems];
     if (selectedFlight?.price) {
       allBudgetItems.push({
         category: 'flight',
@@ -426,7 +426,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const confirmedParticipants = participants.filter(p => p.rsvpStatus === 'confirmed');
   const totalExpenses = trip.expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-  const totalBudget = tripBudget.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalBudget = committedBudgetItems.reduce((sum, item) => sum + Number(item.amount), 0);
 
   return (
     <AppLayout>
@@ -1007,8 +1007,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                         <div className="text-terminal-lg mb-1">{trip.destination ? '✓' : '—'}</div>
                         <div className="text-[10px] text-text-muted">Destination</div>
                       </div>
-                      <div className={`p-3 text-center border ${tripBudget.length > 0 ? 'border-emerald-500 bg-emerald-50' : 'border-border'}`}>
-                        <div className="text-terminal-lg mb-1">{tripBudget.length > 0 ? '✓' : '—'}</div>
+                      <div className={`p-3 text-center border ${committedBudgetItems.length > 0 ? 'border-emerald-500 bg-emerald-50' : 'border-border'}`}>
+                        <div className="text-terminal-lg mb-1">{committedBudgetItems.length > 0 ? '✓' : '—'}</div>
                         <div className="text-[10px] text-text-muted">Budget</div>
                       </div>
                     </div>
@@ -1026,10 +1026,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ═══════════════════════════════════════════════════════════ */}
 
             {/* ── Budget Summary ── */}
-            {tripBudget.length > 0 && (
+            {committedBudgetItems.length > 0 && (
               <div className="bg-white border border-border">
                 <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                  Budget Summary
+                  Committed Budget
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -1037,25 +1037,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Item</th>
                         <th className="px-3 py-2 text-left font-medium">Category</th>
-                        <th className="px-3 py-2 text-center font-medium">Split</th>
                         <th className="px-3 py-2 text-right font-medium">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {tripBudget.map((item, idx) => (
+                      {committedBudgetItems.map((item, idx) => (
                         <tr key={idx} className="hover:bg-bg-row">
                           <td className="px-3 py-2 font-medium">{item.description || item.category}</td>
                           <td className="px-3 py-2 text-text-secondary">{item.category}</td>
-                          <td className="px-3 py-2 text-center">
-                            {item.splitType === 'split' && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px]">Split</span>}
-                          </td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-700">{fmt(item.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot className="bg-bg-row border-t border-border">
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 font-semibold">Total</td>
+                        <td colSpan={2} className="px-3 py-2 font-semibold">Total</td>
                         <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">{fmt(totalBudget)}</td>
                       </tr>
                     </tfoot>

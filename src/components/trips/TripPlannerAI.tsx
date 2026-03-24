@@ -408,6 +408,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       category,
       title: item.name,
       url: item.website || null,
+      image_url: item.photoUrl || null,
       vendor: item.name,
       price: customPrice || null,
       is_per_person: splitType === 'split',
@@ -423,22 +424,48 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
     setSavingVendorOption(true);
     try {
-      const body = buildVendorBody(updated);
-      const res = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      // For airport transfers, create both arrival and departure records
+      if (vendorApi === 'transfers') {
+        const arrivalBody = { ...buildVendorBody(updated), direction: 'arrival' };
+        const departureBody = { ...buildVendorBody(updated), direction: 'departure' };
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to create vendor option');
+        const arrRes = await fetch(`/api/trips/${tripId}/transfers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(arrivalBody),
+        });
+        if (!arrRes.ok) {
+          const data = await arrRes.json();
+          throw new Error(data.error || 'Failed to create arrival transfer');
+        }
+
+        const depRes = await fetch(`/api/trips/${tripId}/transfers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(departureBody),
+        });
+        if (!depRes.ok) {
+          const data = await depRes.json();
+          throw new Error(data.error || 'Failed to create departure transfer');
+        }
+      } else {
+        const body = buildVendorBody(updated);
+        const res = await fetch(`/api/trips/${tripId}/${vendorApi}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to create vendor option');
+        }
       }
 
       // Track as added
       const key = `${updated.category}:${updated.item.name}`;
       setAddedToVendorOptions(prev => new Set(prev).add(key));
-      setVendorAddCounts(prev => ({ ...prev, [vendorApi]: (prev[vendorApi] || 0) + 1 }));
+      setVendorAddCounts(prev => ({ ...prev, [vendorApi]: (prev[vendorApi] || 0) + (vendorApi === 'transfers' ? 2 : 1) }));
 
       // Still add to selections for onBudgetChange compatibility
       setSelections(prev => {
