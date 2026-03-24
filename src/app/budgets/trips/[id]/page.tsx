@@ -7,11 +7,8 @@ import DestinationSelector from '@/components/trips/DestinationSelector';
 import FlightPicker from '@/components/trips/FlightPicker';
 import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
-<<<<<<< HEAD
 import TripProfileCard from '@/components/trips/TripProfileCard';
-=======
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
->>>>>>> main
 import 'leaflet/dist/leaflet.css';
 
 const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
