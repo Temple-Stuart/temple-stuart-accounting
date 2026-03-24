@@ -27,6 +27,7 @@ interface Participant {
   profileVibe?: string[];
   profilePace?: string | null;
   profileGroupSize?: number | null;
+  homeAirport?: string | null;
 }
 
 interface ExpenseSplit {
