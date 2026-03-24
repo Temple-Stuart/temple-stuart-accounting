@@ -192,8 +192,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       }
 
-      return { budgetItem, itineraryEntries, optionType, optionId };
+      return { budgetItem, itineraryEntries, optionType, optionId, details };
     }, { maxWait: 10000, timeout: 30000 });
+
+    // D. Write calendar_events for hub visibility (outside transaction — uses raw SQL)
+    const OPTION_TYPE_ICONS: Record<string, string> = {
+      lodging: '🏨', flight: '✈️', transfer: '🚕', vehicle: '🏍️', activity: '🎯',
+    };
+    const calIcon = OPTION_TYPE_ICONS[optionType] || '📌';
+    const calTitle = `${result.details.title} (${optionType})`;
+    const calSourceId = `trip:${id}:vendor:${optionId}`;
+    const calStart = new Date(startDate);
+    const calEnd = endDate ? new Date(endDate) : calStart;
+    try {
+      await prisma.$queryRaw`
+        INSERT INTO calendar_events (user_id, source, source_id, title, category, icon, color, start_date, end_date, is_recurring, coa_code, budget_amount)
+        VALUES (${user.id}, 'trip', ${calSourceId}, ${calTitle}, 'trip', ${calIcon}, 'cyan', ${calStart}, ${calEnd}, false, ${result.budgetItem.coaCode}, ${Math.round(result.details.amount)})
+      `;
+    } catch (calErr) {
+      console.error('Calendar event insert failed (non-fatal):', calErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -259,6 +277,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         where: { tripId: id, vendorOptionId: optionId, vendorOptionType: optionType },
       });
     }, { maxWait: 10000, timeout: 30000 });
+
+    // D. Delete corresponding calendar_events
+    const calSourceId = `trip:${id}:vendor:${optionId}`;
+    try {
+      await prisma.$queryRaw`DELETE FROM calendar_events WHERE source = 'trip' AND source_id = ${calSourceId}`;
+    } catch (calErr) {
+      console.error('Calendar event delete failed (non-fatal):', calErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

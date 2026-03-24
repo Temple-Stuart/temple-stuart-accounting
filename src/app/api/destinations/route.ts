@@ -32,6 +32,7 @@ const ACTIVITY_TABLE_MAP: Record<string, string> = {
   content: 'all',
   education: 'all',
   party: 'all',
+  all: 'all',
 };
 
 // Helper to normalize destinations from different tables
@@ -116,13 +117,9 @@ async function getAllDestinations() {
 
 export async function GET(request: NextRequest) {
   try {
-    const activity = request.nextUrl.searchParams.get('activity');
-    
-    if (!activity) {
-      return NextResponse.json({ error: 'Activity required' }, { status: 400 });
-    }
+    const activity = request.nextUrl.searchParams.get('activity') || 'all';
 
-    const table = ACTIVITY_TABLE_MAP[activity];
+    const table = ACTIVITY_TABLE_MAP[activity] || 'all';
     if (!table) {
       return NextResponse.json({ error: 'Unknown activity', activity }, { status: 400 });
     }

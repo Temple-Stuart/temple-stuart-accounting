@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
-import { ACTIVITY_GROUPS } from '@/lib/activities';
 
 export default function NewTripPage() {
   const router = useRouter();
@@ -12,13 +11,9 @@ export default function NewTripPage() {
   const [created, setCreated] = useState<{ id: string; inviteUrl: string } | null>(null);
 
   const [name, setName] = useState('');
-  const [activities, setActivities] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [daysTravel, setDaysTravel] = useState(7);
-
-  const toggleActivity = (value: string) => {
-    setActivities(prev => prev.includes(value) ? prev.filter(a => a !== value) : [...prev, value]);
-  };
+  const [tripType, setTripType] = useState<'personal' | 'business'>('personal');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,13 +26,13 @@ export default function NewTripPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          activities,
-          activity: activities[0] || null,
+          activity: 'all',
           month: new Date(startDate + 'T12:00:00').getMonth() + 1,
           year: new Date(startDate + 'T12:00:00').getFullYear(),
           startDate,
           daysTravel,
-          daysRiding: daysTravel
+          daysRiding: daysTravel,
+          tripType,
         })
       });
 
@@ -111,8 +106,8 @@ export default function NewTripPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-bg-terminal">
-        <div className="p-4 lg:p-6 max-w-2xl mx-auto">
-          
+        <div className="p-4 lg:p-6 max-w-xl mx-auto">
+
           {/* Header */}
           <div className="mb-4 bg-brand-purple text-white p-4 flex items-center justify-between">
             <div>
@@ -129,7 +124,6 @@ export default function NewTripPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Trip Name */}
             <div className="bg-white border border-border">
               <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
                 Trip Details
@@ -142,7 +136,7 @@ export default function NewTripPage() {
                     className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple"
                     required />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-text-secondary mb-1">Start Date</label>
@@ -157,63 +151,28 @@ export default function NewTripPage() {
                       className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Activities */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider flex items-center justify-between">
-                <span>Activities</span>
-                {activities.length > 0 && (
-                  <span className="text-[10px] bg-white/20 px-2 py-0.5">{activities.length} selected</span>
-                )}
-              </div>
-              <div className="p-4 max-h-[400px] overflow-y-auto space-y-4">
-                {ACTIVITY_GROUPS.map(group => (
-                  <div key={group.label}>
-                    <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">{group.label}</div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {group.activities.map(a => {
-                        const isSelected = activities.includes(a.value);
-                        return (
-                          <button key={a.value} type="button" onClick={() => toggleActivity(a.value)}
-                            className={`px-3 py-2 text-xs font-medium transition-all ${
-                              isSelected
-                                ? 'bg-brand-purple text-white'
-                                : 'bg-bg-row text-text-secondary hover:bg-bg-row border border-border'
-                            }`}>
-                            {a.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Selected summary */}
-              {activities.length > 0 && (
-                <div className="px-4 py-3 border-t border-border bg-bg-row">
-                  <div className="flex flex-wrap gap-1">
-                    {activities.map(actValue => {
-                      const act = ACTIVITY_GROUPS.flatMap(g => g.activities).find(a => a.value === actValue);
-                      return act ? (
-                        <span key={actValue}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-brand-purple text-white text-[10px] font-medium">
-                          {act.label}
-                          <button type="button" onClick={() => toggleActivity(actValue)} className="ml-1 hover:text-text-faint">×</button>
-                        </span>
-                      ) : null;
-                    })}
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Trip Type</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setTripType('personal')}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${tripType === 'personal' ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border border border-border'}`}>
+                      Personal
+                    </button>
+                    <button type="button" onClick={() => setTripType('business')}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${tripType === 'business' ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border border border-border'}`}>
+                      Business
+                    </button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Info Box */}
             <div className="bg-brand-purple-wash border border-blue-200 p-4 text-xs text-blue-800">
-              <strong>How it works:</strong> After creating, you'll get a shareable invite link. 
+              <strong>How it works:</strong> After creating, you'll get a shareable invite link.
               Send it to your crew — they'll add their names and mark blackout dates.
+              You'll pick destinations and activities on the trip page.
             </div>
 
             {/* Actions */}
@@ -222,7 +181,7 @@ export default function NewTripPage() {
                 className="flex-1 px-4 py-3 border border-border text-text-secondary text-xs font-medium hover:bg-bg-row">
                 Cancel
               </button>
-              <button type="submit" disabled={saving || !name || activities.length === 0}
+              <button type="submit" disabled={saving || !name}
                 className="flex-1 px-4 py-3 bg-brand-purple text-white text-xs font-medium hover:bg-brand-purple-hover disabled:opacity-50">
                 {saving ? 'Creating...' : 'Create Trip'}
               </button>

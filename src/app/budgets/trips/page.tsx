@@ -39,8 +39,6 @@ interface Trip {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const ACTIVITIES: Record<string, string> = {
   surf: 'Surf', kitesurf: 'Kitesurf', sail: 'Sail', snowboard: 'Snowboard', ski: 'Ski',
@@ -64,7 +62,7 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
   useEffect(() => { loadTrips(); }, []);
@@ -183,101 +181,6 @@ export default function TripsPage() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Calendar */}
-          <div className="bg-white border border-border mb-4">
-            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
-              <button onClick={() => {
-                if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
-                else setSelectedMonth(m => m - 1);
-              }} className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20">←</button>
-              <span>{FULL_MONTHS[selectedMonth]} {selectedYear}</span>
-              <button onClick={() => {
-                if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
-                else setSelectedMonth(m => m + 1);
-              }} className="px-2 py-1 text-xs bg-white/10 hover:bg-white/20">→</button>
-            </div>
-
-            {(() => {
-              const monthIndex = selectedMonth;
-              const monthNum = monthIndex + 1;
-              const daysInMonth = new Date(selectedYear, monthNum, 0).getDate();
-              const firstDayOfWeek = new Date(selectedYear, monthIndex, 1).getDay();
-
-              const monthTrips = committedTrips.filter(t => {
-                if (!t.startDate) return false;
-                const start = new Date(t.startDate);
-                const end = new Date(t.endDate!);
-                const monthStart = new Date(selectedYear, monthIndex, 1);
-                const monthEnd = new Date(selectedYear, monthNum, 0);
-                return start <= monthEnd && end >= monthStart;
-              });
-
-              return (
-                <div className="p-4">
-                  <div className="grid grid-cols-7 gap-px text-center mb-1">
-                    {WEEKDAYS.map((d, i) => (
-                      <div key={i} className="text-[9px] text-text-faint font-medium py-1">{d[0]}</div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-px">
-                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                      <div key={`empty-${i}`} className="aspect-square" />
-                    ))}
-                    {Array.from({ length: daysInMonth }).map((_, dayIndex) => {
-                      const day = dayIndex + 1;
-                      const currentDate = new Date(selectedYear, monthIndex, day);
-
-                      const tripOnDay = monthTrips.find(t => {
-                        const start = new Date(t.startDate!);
-                        const end = new Date(t.endDate!);
-                        start.setHours(0, 0, 0, 0);
-                        end.setHours(23, 59, 59, 999);
-                        return currentDate >= start && currentDate <= end;
-                      });
-
-                      const isStart = tripOnDay && new Date(tripOnDay.startDate!).getDate() === day &&
-                        new Date(tripOnDay.startDate!).getMonth() === monthIndex;
-                      const isEnd = tripOnDay && new Date(tripOnDay.endDate!).getDate() === day &&
-                        new Date(tripOnDay.endDate!).getMonth() === monthIndex;
-
-                      return (
-                        <div key={day}
-                          onClick={() => tripOnDay && router.push(`/budgets/trips/${tripOnDay.id}`)}
-                          className={`aspect-square flex items-center justify-center text-[10px] transition-all relative ${
-                            tripOnDay
-                              ? 'text-white cursor-pointer hover:opacity-80'
-                              : 'text-text-muted hover:bg-bg-row'
-                          }`}
-                          style={tripOnDay ? { backgroundColor: ACTIVITY_COLORS[tripOnDay.activity || ''] || '#2d1b4e' } : {}}
-                          title={tripOnDay ? `${tripOnDay.name} - ${tripOnDay.destination}` : undefined}
-                        >
-                          {day}
-                          {isStart && <div className="absolute -left-px top-0 bottom-0 w-1 bg-black/30" />}
-                          {isEnd && <div className="absolute -right-px top-0 bottom-0 w-1 bg-black/30" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Month trips list */}
-                  {monthTrips.length > 0 && (
-                    <div className="mt-3 space-y-1">
-                      {monthTrips.map(t => (
-                        <div key={t.id} onClick={() => router.push(`/budgets/trips/${t.id}`)}
-                          className="text-[10px] px-2 py-1 cursor-pointer hover:opacity-80 flex items-center gap-1 text-white truncate"
-                          style={{ backgroundColor: ACTIVITY_COLORS[t.activity || ''] || '#2d1b4e' }}>
-                          <span className="font-medium">{t.destination || t.name}</span>
-                          <span className="opacity-70">· {t.daysTravel}d</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
 
           {/* Trip List */}
