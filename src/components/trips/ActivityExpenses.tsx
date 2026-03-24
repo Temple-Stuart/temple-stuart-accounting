@@ -284,7 +284,7 @@ export default function ActivityExpenses({ tripId, activity, participantCount, o
                       className={`p-3 ${exp.is_selected ? 'ring-2 ring-green-500 bg-green-50' : ''}`}
                     >
                       {exp.image_url && (
-                        <img src={exp.image_url} alt={exp.title || 'Activity'} className="w-full h-24 object-cover rounded mb-2" />
+                        <img src={exp.image_url} alt={exp.title || 'Activity'} className="w-full h-40 object-cover rounded-t-lg mb-2" />
                       )}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
