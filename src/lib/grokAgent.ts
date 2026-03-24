@@ -9,6 +9,7 @@ interface TravelerProfile {
   groupSize: number;
   vibe?: string;
   pace?: string;
+  travelerContext?: string;
 }
 
 interface PlaceToAnalyze {
@@ -153,7 +154,7 @@ export async function analyzeWithLiveSearch(options: {
 - Dealbreakers: ${dealbreakersStr}
 - Budget: ${profile.budget}
 - Group Size: ${profile.groupSize}
-- Timeframe: ${timeframe}${vibeStr ? `\n- Vibe: ${vibeStr}` : ''}${paceStr ? `\n- Pace: ${paceStr}` : ''}
+- Timeframe: ${timeframe}${vibeStr ? `\n- Vibe: ${vibeStr}` : ''}${paceStr ? `\n- Pace: ${paceStr}` : ''}${profile.travelerContext ? `\n${profile.travelerContext}` : ''}
 
 ## CATEGORY: ${category.toUpperCase()}
 
@@ -187,9 +188,12 @@ Return ONLY a valid JSON array with this exact structure:
 IMPORTANT:
 - index: matches the place number (1-indexed)
 - sentimentScore: 1-10 based on X/web sentiment
-- fitScore: 1-10 how well it matches THIS traveler's activities
+- fitScore: 1-10 how well it matches THIS traveler's activities and profile priorities
 - valueRank: 1 to ${places.length} (1 = best for this traveler)
-- Include real evidence from your X/web searches in xEvidence`;
+- Include real evidence from your X/web searches in xEvidence
+- Return a DIVERSE set of recommendations — avoid clustering in one sub-category. If there are museums, temples, cooking classes, and adventure tours, include the best of each type rather than 20 similar options.
+- Rank by OVERALL value and fit to the traveler's profile — consider uniqueness, cultural value, and experience quality, not just rating.
+- For equipment rental: prioritize relevance to the traveler's stated interests and activities.`;
 
   try {
     const promptLen = prompt.length;

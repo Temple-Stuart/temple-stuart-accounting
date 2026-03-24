@@ -54,6 +54,7 @@ export async function GET(
         profileVibe: true,
         profilePace: true,
         profileGroupSize: true,
+        profileActivities: true,
         homeAirport: true,
       },
       orderBy: [{ isOwner: 'desc' }, { firstName: 'asc' }]
@@ -211,6 +212,7 @@ export async function PATCH(
         profileVibe: profile.vibe ?? undefined,
         profilePace: profile.pace ?? undefined,
         profileGroupSize: profile.groupSize ?? undefined,
+        profileActivities: profile.activities ?? undefined,
       },
       select: {
         id: true,
@@ -220,6 +222,7 @@ export async function PATCH(
         profileVibe: true,
         profilePace: true,
         profileGroupSize: true,
+        profileActivities: true,
       }
     });
 

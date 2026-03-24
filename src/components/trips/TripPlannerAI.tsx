@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui';
+import { ACTIVITY_LABELS } from '@/lib/activities';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -51,6 +52,12 @@ const DEFAULT_PROFILE: TravelerProfile = {
   groupSize: 1
 };
 
+interface ParticipantProfile {
+  firstName: string;
+  profileTripType?: string | null;
+  profileActivities?: string[];
+}
+
 interface Props {
   tripId: string;
   city: string | null;
@@ -62,6 +69,7 @@ interface Props {
   daysTravel: number;
   participantId?: string;
   initialProfile?: Partial<TravelerProfile>;
+  participantProfiles?: ParticipantProfile[];
   tripDates?: { departure: string; return: string } | null;
   onCommitted?: () => void;
 }
@@ -231,7 +239,7 @@ const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   wellness: 'activities',
 };
 
-export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, participantId, initialProfile, tripDates, onCommitted }: Props) {
+export default function TripPlannerAI({ tripId, city, country, activity, activities = [], month, year, daysTravel, participantId, initialProfile, participantProfiles = [], tripDates, onCommitted }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
@@ -312,22 +320,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     }
     return DEFAULT_PROFILE;
   });
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileStep, setProfileStep] = useState(1);
 
-  // Persist profile to DB when modal closes
-  const saveProfileToDb = async (profileToSave: TravelerProfile) => {
-    if (!participantId) return;
-    try {
-      await fetch(`/api/trips/${tripId}/participants`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId, profile: profileToSave }),
-      });
-    } catch (err) {
-      console.error('Failed to save profile:', err);
-    }
-  };
+  // Combined interests from all participants (for display)
+  const combinedInterests = useMemo(() => {
+    const all = [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))];
+    return all.map(a => ACTIVITY_LABELS[a] || a);
+  }, [participantProfiles]);
+
+  const profilesComplete = participantProfiles.filter(p => !!p.profileTripType).length;
 
 
   // Custom add state
@@ -729,23 +729,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const getSentimentColor = (s: string) => s === 'positive' ? 'bg-green-100 text-brand-green' : s === 'negative' ? 'bg-red-100 text-brand-red' : 'bg-bg-row text-text-secondary';
   const getScoreColor = (n: number) => n >= 8 ? 'text-brand-green' : n >= 5 ? 'text-yellow-600' : 'text-brand-red';
 
-  const togglePriority = (value: string) => {
-    setProfile(p => ({
-      ...p,
-      priorities: (p.priorities || []).includes(value) 
-        ? (p.priorities || []).filter(x => x !== value)
-        : (p.priorities || []).length < 6 ? [...(p.priorities || []), value] : p.priorities
-    }));
-  };
-
-  const toggleVibe = (value: string) => {
-    setProfile(p => ({
-      ...p,
-      vibe: (p.vibe || []).includes(value) 
-        ? (p.vibe || []).filter(x => x !== value)
-        : (p.vibe || []).length < 3 ? [...(p.vibe || []), value] : p.vibe
-    }));
-  };
 
   const renderSentimentTable = (items: GrokRecommendation[]) => {
     if (!items?.length) return <p className="text-text-faint text-sm py-4 px-4">No recommendations found</p>;
@@ -823,20 +806,20 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {/* Profile Summary - Polished Header */}
       <div className="relative overflow-hidden rounded bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-sm">
         <div className="absolute inset-0 bg-black/10" />
-        <div className="relative flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-white/80 text-sm font-medium mb-1">
-              <span className="animate-pulse">🤖</span> Powered by Grok AI
-            </div>
-            <h2 className="text-sm font-bold mb-1">Trip Intelligence</h2>
-            <p className="text-white/80 text-sm">{getProfileSummary()}</p>
+        <div className="relative">
+          <div className="flex items-center gap-2 text-white/80 text-sm font-medium mb-1">
+            <span className="animate-pulse">🤖</span> Powered by Grok AI
           </div>
-          <button 
-            onClick={() => { setShowProfileModal(true); setProfileStep(1); }} 
-            className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-sm font-semibold transition-all border border-white/20"
-          >
-            ✏️ Customize Profile
-          </button>
+          <h2 className="text-sm font-bold mb-1">Trip Intelligence</h2>
+          {profilesComplete > 0 ? (
+            <p className="text-white/80 text-sm">
+              Scanning for: {combinedInterests.length > 0 ? combinedInterests.slice(0, 6).join(', ') : getProfileSummary()}
+              {combinedInterests.length > 6 && ` +${combinedInterests.length - 6} more`}
+              {' '}({profilesComplete} traveler{profilesComplete !== 1 ? 's' : ''})
+            </p>
+          ) : (
+            <p className="text-white/80 text-sm">Complete your travel profiles above to personalize scanner results</p>
+          )}
         </div>
       </div>
 
@@ -876,173 +859,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${(completedCount / totalCategories) * 100}%` }} />
             </div>
           )}
-        </div>
-      )}
-
-      {/* Enhanced Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded max-w-2xl w-full shadow-sm max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-sm">Tell Us About Your Trip</h3>
-                  <p className="text-white/80 text-sm mt-1">So we can find the perfect spots for you</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {[1,2,3,4].map(step => (
-                    <div key={step} className={'w-2.5 h-2.5 rounded-full transition-all ' + (profileStep >= step ? 'bg-white' : 'bg-white/30')} />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Step 1: Trip Type */}
-              {profileStep === 1 && (
-                <div className="space-y-4">
-                  <div className="text-center mb-6">
-                    <h4 className="font-semibold text-terminal-lg text-text-primary">What kind of trip is this?</h4>
-                    <p className="text-text-muted text-sm">Choose the style that best describes your adventure</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {TRIP_TYPES.map(opt => (
-                      <button key={opt.value} onClick={() => setProfile(p => ({ ...p, tripType: opt.value }))}
-                        className={'relative p-4 rounded border-2 text-center transition-all hover:scale-[1.02] ' + (profile.tripType === opt.value ? 'border-purple-500 bg-purple-50 shadow-sm' : 'border-border hover:border-border')}>
-                        <div className={'w-12 h-12 mx-auto mb-2 rounded bg-gradient-to-br ' + opt.color + ' flex items-center justify-center text-sm text-white shadow-sm'}>
-                          {opt.icon}
-                        </div>
-                        <div className="font-semibold text-sm text-text-primary">{opt.label}</div>
-                        <div className="text-xs text-text-muted mt-1 line-clamp-2">{opt.desc}</div>
-                        {profile.tripType === opt.value && <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-6">
-                    <label className="text-sm font-medium text-text-secondary block mb-2">👥 Group Size</label>
-                    <div className="flex gap-2">
-                      {[1,2,3,4,5,6,'7+'].map(n => (
-                        <button key={n} onClick={() => setProfile(p => ({ ...p, groupSize: typeof n === 'number' ? n : 7 }))}
-                          className={'flex-1 py-3 rounded font-medium transition-all ' + (profile.groupSize === (typeof n === 'number' ? n : 7) ? 'bg-purple-500 text-white' : 'bg-bg-row hover:bg-border')}>
-                          {n}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Budget */}
-              {profileStep === 2 && (
-                <div className="space-y-4">
-                  <div className="text-center mb-6">
-                    <h4 className="font-semibold text-terminal-lg text-text-primary">What's your daily budget?</h4>
-                    <p className="text-text-muted text-sm">Per person, including accommodation</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {BUDGET_OPTIONS.map(opt => (
-                      <button key={opt.value} onClick={() => setProfile(p => ({ ...p, budget: opt.value }))}
-                        className={'relative p-5 rounded border-2 text-left transition-all ' + (profile.budget === opt.value ? 'border-purple-500 bg-purple-50' : opt.color + ' hover:border-border')}>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm">{opt.icon}</span>
-                          <div>
-                            <div className="font-bold text-terminal-lg text-text-primary">{opt.label}<span className="text-sm font-normal text-text-muted">{opt.sublabel}</span></div>
-                            <div className="text-sm text-text-muted">{opt.desc}</div>
-                          </div>
-                        </div>
-                        {profile.budget === opt.value && <div className="absolute top-3 right-3 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Priorities */}
-              {profileStep === 3 && (
-                <div className="space-y-4">
-                  <div className="text-center mb-6">
-                    <h4 className="font-semibold text-terminal-lg text-text-primary">What matters most to you?</h4>
-                    <p className="text-text-muted text-sm">Select up to 6 priorities • {(profile.priorities || []).length}/6 selected</p>
-                  </div>
-                  {PRIORITY_GROUPS.map(group => (
-                    <div key={group.label} className="mb-4">
-                      <h5 className="text-xs font-semibold text-text-faint uppercase tracking-wider mb-2">{group.label}</h5>
-                      <div className="flex flex-wrap gap-2">
-                        {group.priorities.map(p => (
-                          <button key={p.value} onClick={() => togglePriority(p.value)}
-                            className={'px-3 py-2 rounded border-2 text-sm font-medium transition-all ' + ((profile.priorities || []).includes(p.value) ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-border hover:border-border')}>
-                            {p.icon} {p.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Step 4: Vibe & Pace */}
-              {profileStep === 4 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-4">
-                    <h4 className="font-semibold text-terminal-lg text-text-primary">What's your travel style?</h4>
-                    <p className="text-text-muted text-sm">Help us match the vibe</p>
-                  </div>
-                  
-                  <div>
-                    <h5 className="text-sm font-semibold text-text-secondary mb-3">🎭 Travel Vibe <span className="font-normal text-text-faint">(pick up to 3)</span></h5>
-                    <div className="grid grid-cols-2 gap-2">
-                      {VIBE_OPTIONS.map(opt => (
-                        <button key={opt.value} onClick={() => toggleVibe(opt.value)}
-                          className={'p-3 rounded border-2 text-left transition-all ' + ((profile.vibe || []).includes(opt.value) ? 'border-purple-500 bg-purple-50' : 'border-border hover:border-border')}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{opt.icon}</span>
-                            <div>
-                              <div className="font-medium text-sm">{opt.label}</div>
-                              <div className="text-xs text-text-muted">{opt.desc}</div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h5 className="text-sm font-semibold text-text-secondary mb-3">⏱️ Trip Pace</h5>
-                    <div className="flex gap-3">
-                      {PACE_OPTIONS.map(opt => (
-                        <button key={opt.value} onClick={() => setProfile(p => ({ ...p, pace: opt.value }))}
-                          className={'flex-1 p-4 rounded border-2 text-center transition-all ' + (profile.pace === opt.value ? 'border-purple-500 bg-purple-50' : 'border-border hover:border-border')}>
-                          <div className="text-sm mb-1">{opt.icon}</div>
-                          <div className="font-medium text-sm">{opt.label}</div>
-                          <div className="text-xs text-text-muted">{opt.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-border p-4 bg-bg-row flex gap-3">
-              {profileStep > 1 && (
-                <Button variant="secondary" onClick={() => setProfileStep(s => s - 1)} className="flex-1">
-                  ← Back
-                </Button>
-              )}
-              {profileStep < 4 ? (
-                <Button onClick={() => setProfileStep(s => s + 1)} className="flex-1">
-                  Next →
-                </Button>
-              ) : (
-                <Button onClick={() => { setShowProfileModal(false); saveProfileToDb(profile); }} className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600">
-                  ✨ Save & Find Spots
-                </Button>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
@@ -1156,9 +972,6 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           {scannerProfile && !loading && (
             <div className="flex items-center justify-between px-4 py-2.5 bg-purple-50 border border-purple-200 rounded text-xs text-purple-800">
               <span>{formatScanProfile(scannerProfile)}</span>
-              {!participantId && (
-                <button onClick={() => setShowProfileModal(true)} className="text-purple-600 hover:text-purple-800 font-medium ml-3 whitespace-nowrap">Customize</button>
-              )}
             </div>
           )}
           {!scannerProfile && Object.keys(byCategory).length > 0 && !loading && (
