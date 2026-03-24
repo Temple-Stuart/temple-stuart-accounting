@@ -1170,12 +1170,26 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             if (!items || items.length === 0) return null;
             const info = CATEGORY_INFO[cat];
             const catVendor = CATEGORY_VENDOR_INFO[cat] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
+            const isExpanded = expandedCategory === cat;
+            const committedCount = items.filter(r => committedCards[`${r.category}:${r.name}`]).length;
             return (
               <div key={cat} className="border border-border rounded overflow-hidden">
-                <div className="flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border">
-                  <span className="flex items-center gap-2"><span>{info.icon}</span><span className="font-semibold text-sm">{info.label}</span></span>
-                  <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span>
-                </div>
+                <button type="button" onClick={() => setExpandedCategory(isExpanded ? null : cat)} className="w-full flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border hover:bg-gray-100 transition-colors cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <span>{info.icon}</span>
+                    <span className="font-semibold text-sm">{info.label}</span>
+                    {committedCount > 0 && !isExpanded && (
+                      <span className="text-[11px] text-emerald-700 font-medium">&middot; {committedCount} committed</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-medium">{items.length}</span>
+                    <span className="text-xs text-text-muted">{isExpanded ? '▲' : '▼'}</span>
+                  </span>
+                </button>
+                {isExpanded && (
+                  <>
+                <div className="max-h-[780px] overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {items.map((rec, idx) => {
                     const cardKey = `${rec.category}:${rec.name}`;
@@ -1270,12 +1284,15 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     );
                   })}
                 </div>
+                </div>
                 <div className="px-5 py-3 bg-bg-row border-t border-border">
                   <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">+</span>
                     Add Custom {info.label}
                   </button>
                 </div>
+                  </>
+                )}
               </div>
             );
           })}
