@@ -109,9 +109,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [committing, setCommitting] = useState(false);
 
   // Flight booking state
-  const [originAirport, setOriginAirport] = useState("LAX");
+  const [originAirport, setOriginAirport] = useState("");
   const [destinationAirport, setDestinationAirport] = useState("");
-  const [selectedFlight, setSelectedFlight] = useState<any>(null);
 
   // TODO: onBudgetChange/tripBudget is legacy — budget now flows through vendor-commit only
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
@@ -132,6 +131,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
   useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); }); }, [id]);
+
+  // Derive origin airport from current user's participant record
+  useEffect(() => {
+    if (participants.length === 0 || originAirport) return;
+    const owner = participants.find((p: any) => p.isOwner);
+    if (owner?.homeAirport) setOriginAirport(owner.homeAirport);
+  }, [participants, originAirport]);
 
   const loadTrip = async () => {
     try {
@@ -164,6 +170,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       if (res.ok) { const data = await res.json(); setDestinations(data.destinations || []); }
     } catch (err) { console.error('Failed to load destinations:', err); }
   };
+
+  // Derive destination airport from loaded destination data
+  useEffect(() => {
+    if (!trip?.destination || destinations.length === 0) return;
+    const selected = destinations.find((d: any) => d.resort?.name === trip.destination);
+    const airport = selected?.resort?.nearestAirport || selected?.resort?.nearest_airport;
+    if (airport && !destinationAirport) setDestinationAirport(airport);
+  }, [trip?.destination, destinations, destinationAirport]);
 
   const loadBudgetItems = async () => {
     try {
@@ -226,13 +240,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }
     setCommitting(true);
     const allBudgetItems = [...committedBudgetItems];
-    if (selectedFlight?.price) {
-      allBudgetItems.push({
-        category: 'flight',
-        amount: selectedFlight.price,
-        description: selectedFlight.isManual ? 'Manual Flight' : `${selectedFlight.outbound?.carriers[0] || 'Flight'}`
-      });
-    }
     try {
       const res = await fetch(`/api/trips/${id}/commit`, {
         method: 'POST',
@@ -798,14 +805,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="p-4">
                   <FlightPicker
+                    tripId={id}
                     destinationName={trip.destination}
                     destinationAirport={destinationAirport}
                     originAirport={originAirport}
                     departureDate={tripDates.departure}
                     returnDate={tripDates.return}
                     passengers={confirmedParticipants.length || 1}
-                    selectedFlight={selectedFlight}
-                    onSelectFlight={setSelectedFlight}
+                    onCommitted={() => { loadTrip(); loadBudgetItems(); }}
                   />
                 </div>
               </div>

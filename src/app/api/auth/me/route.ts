@@ -18,9 +18,9 @@ export async function GET() {
       where: { 
         email: { equals: userEmail, mode: 'insensitive' }
       },
-      select: { 
+      select: {
         id: true,
-        email: true, 
+        email: true,
         name: true,
         createdAt: true,
         tier: true
