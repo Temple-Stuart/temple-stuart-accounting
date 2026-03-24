@@ -182,6 +182,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const COA_TO_CATEGORY: Record<string, string> = {
         'P-7100': 'flight', 'P-7200': 'hotel', 'P-7300': 'car', 'P-7400': 'activities',
         'P-7500': 'equipment', 'P-7600': 'groundTransport', 'P-7700': 'meals', 'P-7800': 'tips', 'P-8220': 'bizdev',
+        // Legacy vendor-commit codes (pre-migration)
+        'P-9910': 'flight', 'P-9920': 'hotel', 'P-9930': 'groundTransport', 'P-9940': 'car', 'P-9960': 'activities',
       };
       
       const restoredBudget = items.map((item: any) => ({
@@ -885,6 +887,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     tripId={id}
                     participantCount={confirmedParticipants.length || 1}
                     nights={trip.daysTravel - 1}
+                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: tripDates?.return || '', startTime: '', endTime: '', notes: '' }); }}
+                    onUncommitOption={vendorUncommit}
                   />
                 </div>
 
@@ -895,6 +899,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     key={`transfer-${vendorRefreshKey}`}
                     tripId={id}
                     participantCount={confirmedParticipants.length || 1}
+                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: '', startTime: '', endTime: '', notes: '' }); }}
+                    onUncommitOption={vendorUncommit}
                   />
                 </div>
 
@@ -906,6 +912,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     tripId={id}
                     participantCount={confirmedParticipants.length || 1}
                     days={trip.daysTravel}
+                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: tripDates?.return || '', startTime: '', endTime: '', notes: '' }); }}
+                    onUncommitOption={vendorUncommit}
                   />
                 </div>
 
@@ -917,6 +925,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     tripId={id}
                     activity={trip.activity}
                     participantCount={confirmedParticipants.length || 1}
+                    onCommitOption={(optionType, optionId, title) => { setCommitPanel({ optionType, optionId, title }); setCommitDates({ startDate: tripDates?.departure || '', endDate: '', startTime: '', endTime: '', notes: '' }); }}
+                    onUncommitOption={vendorUncommit}
                   />
                 </div>
               </div>

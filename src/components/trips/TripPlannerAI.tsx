@@ -386,7 +386,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         title: item.name,
         url: item.website || null,
         transfer_type: 'private',
-        direction: 'airport_to_hotel',
+        direction: 'arrival',
         vendor: item.name,
         price: customPrice || null,
         notes,
