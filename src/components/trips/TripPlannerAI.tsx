@@ -1011,7 +1011,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     const showPanel = commitCardKey === cardKey;
                     return (
                       <div key={`${rec.category}-${idx}`} className={`border rounded overflow-hidden ${committed ? 'border-emerald-400 bg-emerald-50/30' : 'border-border'}`}>
-                        {rec.photoUrl && <img src={rec.photoUrl} alt={rec.name} className="w-full h-40 object-cover" />}
+                        {rec.photoUrl ? (
+                          <img src={rec.photoUrl} alt={rec.name} className="w-full h-40 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                        ) : null}
+                        <div className={`w-full h-40 bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
+                          <span className="text-4xl">{info.icon}</span>
+                        </div>
                         <div className="p-3 space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">

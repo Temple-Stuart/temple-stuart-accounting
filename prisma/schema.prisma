@@ -1055,6 +1055,7 @@ model places_cache {
   priceLevel      Int?
   website         String?
   types           String?  // JSON array as string
+  photos          String?  @db.Text  // JSON array of photo references
   city            String
   country         String
   category        String   // coworking, lodging, etc.
