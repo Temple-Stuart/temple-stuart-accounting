@@ -2,7 +2,7 @@ import { requireTier } from '@/lib/auth-helpers';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { analyzeWithLiveSearch } from '@/lib/grokAgent';
-import { searchPlaces, searchPlacesMultiQuery, CATEGORY_SEARCHES } from '@/lib/placesSearch';
+import { searchPlaces, searchPlacesMultiQuery, CATEGORY_SEARCHES, formatPriceLevel } from '@/lib/placesSearch';
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
@@ -98,6 +98,7 @@ export async function POST(
       daysTravel,
       minRating = 4.0,
       minReviews = 50,
+      maxPriceLevel,
       category,
       profile
     } = body;
@@ -220,7 +221,12 @@ export async function POST(
       console.log(`[Grok AI] ${category}: Cached ${enriched.length} places`);
     }
 
-    const filtered = enriched.filter(p => p.rating >= minRating && p.reviewCount >= minReviews);
+    let filtered = enriched.filter(p => p.rating >= minRating && p.reviewCount >= minReviews);
+
+    // Apply price level filter — places without price data pass through (not excluded)
+    if (maxPriceLevel) {
+      filtered = filtered.filter(p => !p.priceLevel || p.priceLevel <= maxPriceLevel);
+    }
 
     const placesToAnalyze = filtered.slice(0, 20).map(p => ({
       name: p.name,
@@ -229,6 +235,8 @@ export async function POST(
       reviewCount: p.reviewCount,
       website: p.website || undefined,
       photoUrl: p.photos?.[0] || undefined,
+      priceLevel: p.priceLevel ?? null,
+      priceLevelDisplay: p.priceLevelDisplay || formatPriceLevel(p.priceLevel) || null,
       category
     }));
 

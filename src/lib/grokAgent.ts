@@ -20,6 +20,8 @@ interface PlaceToAnalyze {
   category: string;
   website?: string;
   photoUrl?: string;
+  priceLevel?: number | null;
+  priceLevelDisplay?: string | null;
 }
 
 interface GrokAnalysis {
@@ -27,6 +29,8 @@ interface GrokAnalysis {
   address: string;
   website: string | null;
   photoUrl: string | null;
+  priceLevel: number | null;
+  priceLevelDisplay: string | null;
   googleRating: number;
   reviewCount: number;
   sentimentScore: number;
@@ -137,9 +141,10 @@ export async function analyzeWithLiveSearch(options: {
   const activityQuestions = buildActivityQuestions(activities);
 
   // Build the place list
-  const placeList = places.map((p, i) => 
-    `${i + 1}. ${p.name} | Rating: ${p.rating} (${p.reviewCount} reviews) | ${p.address}`
-  ).join('\n');
+  const placeList = places.map((p, i) => {
+    const price = p.priceLevelDisplay ? ` | Price: ${p.priceLevelDisplay}` : '';
+    return `${i + 1}. ${p.name} | Rating: ${p.rating} (${p.reviewCount} reviews)${price} | ${p.address}`;
+  }).join('\n');
 
   const vibeStr = profile.vibe || '';
   const paceStr = profile.pace || '';
@@ -188,7 +193,7 @@ Return ONLY a valid JSON array with this exact structure:
 IMPORTANT:
 - index: matches the place number (1-indexed)
 - sentimentScore: 1-10 based on X/web sentiment
-- fitScore: 1-10 how well it matches THIS traveler's activities and profile priorities
+- fitScore: 1-10 how well it matches THIS traveler's activities, profile priorities, and budget. Consider price level relative to the traveler's stated budget — a budget traveler should see higher fit scores for $ and $$ places.
 - valueRank: 1 to ${places.length} (1 = best for this traveler)
 - Include real evidence from your X/web searches in xEvidence
 - Return a DIVERSE set of recommendations — avoid clustering in one sub-category. If there are museums, temples, cooking classes, and adventure tours, include the best of each type rather than 20 similar options.
@@ -293,6 +298,8 @@ IMPORTANT:
         address: place.address,
         website: place.website || null,
         photoUrl: place.photoUrl || null,
+        priceLevel: place.priceLevel ?? null,
+        priceLevelDisplay: place.priceLevelDisplay || null,
         googleRating: place.rating,
         reviewCount: place.reviewCount,
         sentimentScore: rank.sentimentScore || 5,
