@@ -147,6 +147,22 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
+  // Inline date editing
+  const [editingDates, setEditingDates] = useState(false);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+
+  const saveDates = async () => {
+    if (!editStartDate || !editEndDate) return;
+    try {
+      const res = await fetch(`/api/trips/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ startDate: editStartDate, endDate: editEndDate }),
+      });
+      if (res.ok) { loadTrip(); setEditingDates(false); }
+    } catch (err) { console.error('Failed to save dates:', err); }
+  };
+
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
   useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); }); }, [id]);
@@ -291,13 +307,20 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   const tripDates = useMemo(() => {
-    if (!trip || !confirmedStartDay) return null;
-    const start = new Date(trip.year, trip.month - 1, confirmedStartDay);
-    const end = new Date(trip.year, trip.month - 1, confirmedStartDay + trip.daysTravel - 1);
-    return {
-      departure: start.toISOString().split("T")[0],
-      return: end.toISOString().split("T")[0],
-    };
+    if (!trip) return null;
+    // Prefer stored startDate/endDate, fall back to confirmedStartDay
+    if (trip.startDate && trip.endDate) {
+      return {
+        departure: new Date(trip.startDate).toISOString().split("T")[0],
+        return: new Date(trip.endDate).toISOString().split("T")[0],
+      };
+    }
+    if (confirmedStartDay) {
+      const start = new Date(trip.year, trip.month - 1, confirmedStartDay);
+      const end = new Date(trip.year, trip.month - 1, confirmedStartDay + trip.daysTravel - 1);
+      return { departure: start.toISOString().split("T")[0], return: end.toISOString().split("T")[0] };
+    }
+    return null;
   }, [trip, confirmedStartDay]);
 
   const dateWindows = useMemo(() => {
@@ -682,67 +705,61 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             <div className="bg-white border border-border">
               <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
                 <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">1</span>
-                Date Selection
+                Dates
               </div>
               <div className="p-4">
-                <div className="text-xs text-text-muted mb-3">{MONTHS[trip.month]} {trip.year}</div>
-
-                {/* Mini Calendar */}
-                <div className="overflow-x-auto mb-4">
-                  <table className="w-full text-[10px]">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-1 px-1 text-text-faint w-16 sticky left-0 bg-white">Person</th>
-                        {calendarDays.map(day => (
-                          <th key={day} className="text-center py-1 px-0.5 text-text-faint min-w-[20px]">{day}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {confirmedParticipants.map(p => (
-                        <tr key={p.id} className="border-t border-border-light">
-                          <td className="py-1 px-1 text-text-secondary font-medium sticky left-0 bg-white text-[10px]">{p.firstName}</td>
-                          {calendarDays.map(day => {
-                            const blocked = (p.unavailableDays || []).includes(day);
-                            const inRange = confirmedStartDay && day >= confirmedStartDay && day < confirmedStartDay + trip.daysTravel;
-                            return (
-                              <td key={day} className="text-center py-0.5 px-0.5">
-                                <div className={`w-4 h-4 mx-auto flex items-center justify-center text-[8px] ${
-                                  blocked ? 'bg-red-100 text-brand-red' :
-                                  inRange ? 'bg-brand-purple text-white' :
-                                  'bg-emerald-100 text-emerald-600'
-                                }`}>
-                                  {blocked ? '×' : inRange ? '✓' : '·'}
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Date Windows */}
-                <div className="text-xs font-medium text-text-secondary mb-2">Valid {trip.daysTravel}-Day Windows:</div>
-                {dateWindows.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {dateWindows.map((w, idx) => (
-                      <button key={idx} onClick={() => setConfirmedStartDay(w.startDay)}
-                        className={`px-2 py-1 text-[10px] font-medium transition-all ${
-                          confirmedStartDay === w.startDay ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                        }`}>
-                        {MONTHS[trip.month].slice(0, 3)} {w.startDay}–{w.endDay}
+                {editingDates ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-text-muted block mb-1">Start Date</label>
+                        <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)}
+                          className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-muted block mb-1">End Date</label>
+                        <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)}
+                          min={editStartDate}
+                          className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={saveDates} disabled={!editStartDate || !editEndDate}
+                        className="px-4 py-1.5 bg-brand-purple text-white text-xs font-medium disabled:opacity-50">
+                        Save
                       </button>
-                    ))}
+                      <button onClick={() => setEditingDates(false)}
+                        className="px-4 py-1.5 border border-border text-text-secondary text-xs">
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-text-faint text-xs">{confirmedParticipants.length === 0 ? 'Waiting for RSVPs...' : 'No valid windows found.'}</p>
-                )}
-
-                {confirmedStartDay && (
-                  <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
-                    ✓ Selected: {MONTHS[trip.month]} {confirmedStartDay}–{confirmedStartDay + trip.daysTravel - 1}, {trip.year}
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <div className="text-[10px] text-text-muted uppercase tracking-wider">Start</div>
+                      <div className="text-sm font-semibold text-text-primary">
+                        {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}
+                      </div>
+                    </div>
+                    <span className="text-xl text-text-faint">→</span>
+                    <div>
+                      <div className="text-[10px] text-text-muted uppercase tracking-wider">End</div>
+                      <div className="text-sm font-semibold text-text-primary">
+                        {trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-text-muted uppercase tracking-wider">Duration</div>
+                      <div className="text-sm font-semibold text-text-primary">{trip.daysTravel} days</div>
+                    </div>
+                    <button onClick={() => {
+                      setEditStartDate(trip.startDate ? new Date(trip.startDate).toISOString().split('T')[0] : '');
+                      setEditEndDate(trip.endDate ? new Date(trip.endDate).toISOString().split('T')[0] : '');
+                      setEditingDates(true);
+                    }} className="ml-auto text-xs text-brand-purple hover:underline font-medium">
+                      Edit Dates
+                    </button>
                   </div>
                 )}
               </div>

@@ -71,20 +71,39 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      name, 
-      destination, 
+    const {
+      name,
+      destination,
       activity,      // backward compat: single activity (deprecated)
       activities,    // NEW: array of activities
-      month, 
-      year, 
-      daysTravel, 
-      daysRiding, 
-      startDate 
+      month,
+      year,
+      daysTravel,
+      daysRiding,
+      startDate,
+      endDate,
+      tripType,
     } = body;
 
+    // Calculate duration and month/year from dates if provided
+    let computedMonth = month;
+    let computedYear = year;
+    let computedDaysTravel = daysTravel;
+
+    if (startDate) {
+      const start = new Date(startDate + 'T12:00:00');
+      computedMonth = computedMonth || (start.getMonth() + 1);
+      computedYear = computedYear || start.getFullYear();
+
+      if (endDate) {
+        const end = new Date(endDate + 'T12:00:00');
+        const diffMs = end.getTime() - start.getTime();
+        computedDaysTravel = Math.round(diffMs / 86400000) + 1;
+      }
+    }
+
     // Validate required fields
-    if (!name || !month || !year || !daysTravel) {
+    if (!name || !computedMonth || !computedYear || !computedDaysTravel) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -96,6 +115,9 @@ export async function POST(request: NextRequest) {
     const tripInviteToken = randomBytes(16).toString('hex');
 
     // Create trip with owner as first participant
+    const parsedDays = typeof computedDaysTravel === 'number' ? computedDaysTravel : parseInt(computedDaysTravel);
+    const tripTypeValue = tripType === 'business' ? 'business' : tripType === 'mixed' ? 'mixed' : 'personal';
+
     const trip = await prisma.trips.create({
       data: {
         userId: user.id,
@@ -103,11 +125,13 @@ export async function POST(request: NextRequest) {
         destination: destination || null,
         activity: primaryActivity,            // backward compat: store primary activity
         activities: activityArray,            // NEW: store full array
-        month: parseInt(month),
-        year: parseInt(year),
-        daysTravel: parseInt(daysTravel),
-        daysRiding: daysRiding ? parseInt(daysRiding) : parseInt(daysTravel), // default to daysTravel
+        month: typeof computedMonth === 'number' ? computedMonth : parseInt(computedMonth),
+        year: typeof computedYear === 'number' ? computedYear : parseInt(computedYear),
+        daysTravel: parsedDays,
+        daysRiding: daysRiding ? parseInt(daysRiding) : parsedDays,
         startDate: startDate ? new Date(startDate + 'T12:00:00') : null,
+        endDate: endDate ? new Date(endDate + 'T12:00:00') : null,
+        tripType: tripTypeValue as any,
         inviteToken: tripInviteToken,
         participants: {
           create: {

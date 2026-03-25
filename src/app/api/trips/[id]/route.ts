@@ -180,11 +180,28 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { destination } = body;
+    const { destination, startDate, endDate } = body;
+
+    const updateData: Record<string, any> = {};
+    if (destination !== undefined) updateData.destination = destination;
+    if (startDate !== undefined) {
+      updateData.startDate = startDate ? new Date(startDate + 'T12:00:00') : null;
+    }
+    if (endDate !== undefined) {
+      updateData.endDate = endDate ? new Date(endDate + 'T12:00:00') : null;
+    }
+    // Recalculate duration if both dates provided
+    if (startDate && endDate) {
+      const s = new Date(startDate + 'T12:00:00');
+      const e = new Date(endDate + 'T12:00:00');
+      updateData.daysTravel = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+      updateData.month = s.getMonth() + 1;
+      updateData.year = s.getFullYear();
+    }
 
     const updatedTrip = await prisma.trips.update({
       where: { id },
-      data: { destination }
+      data: updateData
     });
 
     return NextResponse.json({ trip: updatedTrip });

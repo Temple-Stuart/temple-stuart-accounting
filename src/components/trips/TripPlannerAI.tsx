@@ -10,6 +10,8 @@ interface GrokRecommendation {
   address: string;
   website: string | null;
   photoUrl: string | null;
+  priceLevel: number | null;
+  priceLevelDisplay: string | null;
   googleRating: number;
   reviewCount: number;
   sentimentScore: number;
@@ -251,6 +253,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   const [minRating, setMinRating] = useState(4.0);
   const [minReviews, setMinReviews] = useState(50);
+  const [maxPriceLevel, setMaxPriceLevel] = useState(0); // 0 = any
 
   const [selections, setSelections] = useState<ScheduledSelection[]>([]);
   const [editingSelection, setEditingSelection] = useState<ScheduledSelection | null>(null);
@@ -366,7 +369,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, category: cat, profile })
+          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, profile })
         });
 
         // Guard against non-JSON responses (serverless timeout returns HTML)
@@ -667,6 +670,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       address: customForm.notes || "Custom addition",
       website: customForm.url || null,
       photoUrl: customPreview?.image || null,
+      priceLevel: null,
+      priceLevelDisplay: null,
       googleRating: 0,
       reviewCount: 0,
       sentimentScore: 10,
@@ -835,6 +840,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           <label className="text-xs text-text-muted font-medium block mb-1.5">📊 Min Reviews</label>
           <select value={minReviews} onChange={e => setMinReviews(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={10}>10+</option><option value={50}>50+</option><option value={100}>100+</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-text-muted font-medium block mb-1.5">💰 Max Price</label>
+          <select value={maxPriceLevel} onChange={e => setMaxPriceLevel(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
+            <option value={0}>Any</option><option value={1}>$</option><option value={2}>$$</option><option value={3}>$$$</option><option value={4}>$$$$</option>
           </select>
         </div>
         <Button onClick={analyzeDestination} loading={loading} disabled={!city} className="flex-1 py-3 text-base">
@@ -1018,6 +1029,17 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               <h4 className="font-semibold text-sm text-text-primary truncate">{rec.name}</h4>
                               <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
                                 <span>{'*'.repeat(Math.round(rec.googleRating))} {rec.googleRating} ({rec.reviewCount})</span>
+                                {rec.priceLevelDisplay ? (
+                                  <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${
+                                    rec.priceLevel === 1 ? 'bg-green-100 text-green-700' :
+                                    rec.priceLevel === 2 ? 'bg-blue-100 text-blue-700' :
+                                    rec.priceLevel === 3 ? 'bg-orange-100 text-orange-700' :
+                                    rec.priceLevel === 4 ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>{rec.priceLevelDisplay}</span>
+                                ) : (
+                                  <span className="px-1 py-0.5 rounded text-[9px] bg-gray-100 text-gray-400">N/A</span>
+                                )}
                                 {rec.trending && <span title="Trending">🔥</span>}
                               </div>
                             </div>
