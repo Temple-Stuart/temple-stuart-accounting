@@ -156,12 +156,14 @@ export default function DestinationSelector({
     }
   };
 
-  const removeDestination = async (resortId: string) => {
+  const removeDestination = async (resortId: string, destinationId?: string) => {
     try {
+      // Use destinationId for name-based destinations, resortId for resort-based
+      const body = destinationId ? { destinationId } : { resortId };
       const res = await fetch(`/api/trips/${tripId}/destinations`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resortId })
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         onDestinationsChange();
@@ -200,7 +202,7 @@ export default function DestinationSelector({
               {selectedDestinationId === d.resortId && ' ✓'}
             </span>
             <button
-              onClick={() => removeDestination(d.resortId)}
+              onClick={() => removeDestination(d.resortId, d.resortId === d.id ? d.id : undefined)}
               className={`text-xs ${selectedDestinationId === d.resortId ? 'text-white/70 hover:text-white' : 'text-text-faint hover:text-brand-red'}`}
             >
               ✕

@@ -688,7 +688,11 @@ model ikon_resorts {
 model trip_destinations {
   id              String   @id @default(cuid())
   tripId          String
-  resortId        String
+  resortId        String?
+  name            String?  @db.VarChar(255)
+  country         String?  @db.VarChar(100)
+  latitude        Decimal? @db.Decimal(10, 7)
+  longitude       Decimal? @db.Decimal(10, 7)
   isSelected      Boolean  @default(true)
   estimatedTotal  Decimal? @db.Decimal(12, 2)
   createdAt       DateTime @default(now())
