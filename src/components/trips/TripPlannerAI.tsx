@@ -22,6 +22,7 @@ interface GrokRecommendation {
   fitScore: number;
   valueRank: number;
   category: string;
+  compositeScore?: number;
 }
 
 interface ScheduledSelection {
@@ -305,7 +306,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
         if (Object.keys(loaded).length > 0) {
           setByCategory(loaded);
-          setRecommendations(allRecs.sort((a, b) => a.valueRank - b.valueRank));
+          setRecommendations(allRecs.sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0) || a.valueRank - b.valueRank));
           setExpandedCategory(Object.keys(loaded)[0]);
           setScannerMeta(latestMeta);
           setScannerProfile(savedProfile);
@@ -356,20 +357,44 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setExpandedCategory(null);
     setCompletedCount(0);
 
-    const categories = Object.keys(CATEGORY_INFO);
-    setTotalCategories(categories.length);
+    // Build mandate-driven category list from participant interests
+    const allInterestSlugs = [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))];
+
+    type ScanCategory = { key: string; label: string; maxResults: number };
+    const categoriesToScan: ScanCategory[] = [
+      { key: 'lodging', label: 'Lodging', maxResults: 10 },
+    ];
+
+    if (allInterestSlugs.length > 0) {
+      for (const slug of allInterestSlugs) {
+        categoriesToScan.push({
+          key: slug,
+          label: ACTIVITY_LABELS[slug] || slug,
+          maxResults: 5,
+        });
+      }
+    } else {
+      // Fallback: sensible defaults when no interests selected
+      categoriesToScan.push(
+        { key: 'brunchCoffee', label: 'Brunch & Coffee', maxResults: 5 },
+        { key: 'dinner', label: 'Dinner', maxResults: 5 },
+        { key: 'activities', label: 'Activities', maxResults: 5 },
+      );
+    }
+
+    setTotalCategories(categoriesToScan.length);
     let firstExpanded = false;
 
-    for (let i = 0; i < categories.length; i++) {
-      const cat = categories[i];
-      setLoadingCategory(CATEGORY_INFO[cat]?.label || cat);
+    for (let i = 0; i < categoriesToScan.length; i++) {
+      const { key: cat, label: catLabel, maxResults: catMaxResults } = categoriesToScan[i];
+      setLoadingCategory(catLabel);
       setCompletedCount(i);
 
       try {
         const res = await fetch('/api/trips/' + tripId + '/ai-assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, profile })
+          body: JSON.stringify({ city, country, activities: tripActivities, activity, month, year, daysTravel, minRating, minReviews, maxPriceLevel: maxPriceLevel || undefined, category: cat, profile, maxResults: catMaxResults })
         });
 
         // Guard against non-JSON responses (serverless timeout returns HTML)
@@ -391,7 +416,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
         if (items.length > 0) {
           setByCategory(prev => ({ ...prev, [cat]: items }));
-          setRecommendations(prev => [...prev, ...items].sort((a, b) => a.valueRank - b.valueRank));
+          setRecommendations(prev => [...prev, ...items].sort((a, b) => (b.compositeScore || 0) - (a.compositeScore || 0)));
           if (!firstExpanded) {
             setExpandedCategory(cat);
             firstExpanded = true;
@@ -402,9 +427,12 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       }
     }
 
-    setCompletedCount(categories.length);
+    setCompletedCount(categoriesToScan.length);
     setLoadingCategory(null);
     setLoading(false);
+
+    // Fix: set scannerProfile so the banner shows the actual profile used
+    setScannerProfile(profile);
   };
 
   const handleSelectItem = (item: GrokRecommendation) => {
@@ -420,7 +448,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // Build the request body for creating a vendor option based on scanner category
   const buildVendorBody = (sel: ScheduledSelection) => {
     const { category, item, customPrice, days, rateType, splitType } = sel;
-    const vendorApi = CATEGORY_TO_VENDOR_API[category];
+    const vendorApi = CATEGORY_TO_VENDOR_API[category] || 'activities';
     const scheduleNote = `Days: ${days.join(', ')} | Rate: ${rateType} | Split: ${splitType}`;
     const aiNote = `AI Score: ${item.sentimentScore}/10 | Fit: ${item.fitScore}/10 | ${item.summary}`;
     const notes = `${scheduleNote}\n${aiNote}`;
@@ -474,7 +502,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const confirmSelection = async () => {
     if (!editingSelection || editForm.days.length === 0) return;
     const updated: ScheduledSelection = { ...editingSelection, ...editForm };
-    const vendorApi = CATEGORY_TO_VENDOR_API[updated.category];
+    const vendorApi = CATEGORY_TO_VENDOR_API[updated.category] || 'activities';
     if (!vendorApi) return;
 
     setSavingVendorOption(true);
@@ -866,7 +894,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {editingSelection && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded max-w-lg w-full p-6 shadow-sm">
-            <h3 className="font-bold text-terminal-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon} {editingSelection.item.name}</h3>
+            <h3 className="font-bold text-terminal-lg mb-1">{CATEGORY_INFO[editingSelection.category]?.icon || ''} {editingSelection.item.name}</h3>
             <p className="text-sm text-text-muted mb-4">Sentiment: {editingSelection.item.sentiment} ({editingSelection.item.sentimentScore}/10)</p>
             
             <div className="space-y-4">
@@ -919,7 +947,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded max-w-lg w-full shadow-sm overflow-hidden">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-5 text-white">
-              <h3 className="font-bold text-terminal-lg">➕ Add Custom {CATEGORY_INFO[customCategory]?.label}</h3>
+              <h3 className="font-bold text-terminal-lg">+ Add Custom {CATEGORY_INFO[customCategory]?.label || ACTIVITY_LABELS[customCategory] || customCategory}</h3>
               <p className="text-white/80 text-sm">Paste a URL or enter details manually</p>
             </div>
             <div className="p-6 space-y-4">
@@ -978,10 +1006,10 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
           )}
 
-          {Object.keys(CATEGORY_INFO).map(cat => {
+          {Object.keys(byCategory).map(cat => {
             const items = byCategory[cat];
             if (!items || items.length === 0) return null;
-            const info = CATEGORY_INFO[cat];
+            const info = CATEGORY_INFO[cat] || { label: ACTIVITY_LABELS[cat] || cat, icon: '' };
             const catVendor = CATEGORY_VENDOR_INFO[cat] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
             const isExpanded = expandedCategory === cat;
             const committedCount = items.filter(r => committedCards[`${r.category}:${r.name}`]).length;
@@ -989,8 +1017,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               <div key={cat} className="border border-border rounded overflow-hidden">
                 <button type="button" onClick={() => setExpandedCategory(isExpanded ? null : cat)} className="w-full flex justify-between items-center px-5 py-3 bg-bg-row border-b border-border hover:bg-gray-100 transition-colors cursor-pointer">
                   <span className="flex items-center gap-2">
-                    <span>{info.icon}</span>
-                    <span className="font-semibold text-sm">{info.label}</span>
+                    {info.icon ? <span>{info.icon}</span> : <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />}
+                    <span className="font-semibold text-sm">{info.label}{cat === 'lodging' && profile.budget ? ` — ${BUDGET_OPTIONS.find(b => b.value === profile.budget)?.label || ''}${BUDGET_OPTIONS.find(b => b.value === profile.budget)?.sublabel || ''}` : ''}</span>
                     {committedCount > 0 && !isExpanded && (
                       <span className="text-[11px] text-emerald-700 font-medium">&middot; {committedCount} committed</span>
                     )}
@@ -1038,7 +1066,11 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>Fit {rec.fitScore}</span>
+                              {rec.compositeScore != null ? (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.compositeScore >= 75 ? 'bg-green-100 text-green-700' : rec.compositeScore >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{rec.compositeScore}</span>
+                              ) : (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>Fit {rec.fitScore}</span>
+                              )}
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getSentimentColor(rec.sentiment)}`}>
                                 {rec.sentiment === 'positive' ? '👍' : rec.sentiment === 'negative' ? '👎' : '😐'}
                               </span>
@@ -1116,8 +1148,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                 </div>
                 <div className="px-5 py-3 bg-bg-row border-t border-border">
                   <button onClick={() => openCustomModal(cat)} className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">+</span>
-                    Add Custom {info.label}
+                    <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs">+</span>
+                    Add Custom {info.label || ACTIVITY_LABELS[cat] || cat}
                   </button>
                 </div>
                   </>
