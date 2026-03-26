@@ -536,14 +536,15 @@ export const getEventsNearCity = (cityName: string, country: string) => {
 };
 
 /** Search across all destinations by name */
-export const searchDestinations = (query: string) => {
+export const searchDestinations = (query: string, limit: number = 12) => {
   const q = query.toLowerCase();
-  return ALL_DESTINATIONS.filter(d =>
+  const results = ALL_DESTINATIONS.filter(d =>
     d.name.toLowerCase().includes(q) ||
     d.country.toLowerCase().includes(q) ||
     d.region.toLowerCase().includes(q) ||
     (d.description && d.description.toLowerCase().includes(q))
   );
+  return results.slice(0, limit);
 };
 
 // =============================================================================
