@@ -137,8 +137,10 @@ export default function TripCreationBar() {
     const params = buildParams();
     const qs = params.toString() ? '?' + params.toString() : '';
     if (isOnNewPage) {
-      // Update URL params in-place so the form below picks up edits
-      router.replace(`/budgets/trips/new${qs}`, { scroll: false });
+      // Signal the form to save by adding save=1 param
+      params.set('save', '1');
+      const saveQs = params.toString() ? '?' + params.toString() : '';
+      router.replace(`/budgets/trips/new${saveQs}`, { scroll: false });
     } else {
       router.push(`/budgets/trips/new${qs}`);
     }
