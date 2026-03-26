@@ -2,19 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, FileText, MapPin, Calendar, Users, Mountain, Music, X } from 'lucide-react';
+import { Plane, FileText, MapPin, Calendar, Users, X } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
 
 const FILTER_CHIPS = [
   'Active & Outdoors', 'Festivals & Events', 'Conferences', 'Nightlife',
   'Food & Craft', 'Coworking', 'Culture & Discovery', 'Bucket List',
 ];
-
-function DestIcon({ type }: { type: string }) {
-  if (type === 'ski') return <Mountain className="w-4 h-4 text-gray-400 flex-shrink-0" />;
-  if (type === 'festival') return <Music className="w-4 h-4 text-gray-400 flex-shrink-0" />;
-  return <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />;
-}
 
 export default function TripCreationBar() {
   const router = useRouter();
@@ -36,7 +30,7 @@ export default function TripCreationBar() {
   const handleDestChange = (val: string) => {
     setDestQuery(val);
     const results = searchDestinations(val, 8).filter(
-      d => !selectedDestinations.includes(d.name)
+      d => d.type === 'city' && !selectedDestinations.includes(d.name)
     );
     setDestResults(results);
     setShowDropdown(results.length > 0 && val.length > 0);
@@ -166,7 +160,7 @@ export default function TripCreationBar() {
                     idx === highlightIdx ? 'bg-bg-row' : 'hover:bg-bg-row/50'
                   }`}
                 >
-                  <DestIcon type={dest.type} />
+                  <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="font-medium text-text-primary truncate">{dest.name}</span>
                   <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{dest.country}</span>
                 </button>
