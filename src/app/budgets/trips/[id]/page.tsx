@@ -461,7 +461,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <h2 className="text-sm font-semibold text-gray-900">{trip.name}</h2>
                   <p className="text-xs text-gray-500">
-                    {trip.destination || 'Destination TBD'} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days · {trip.committedAt ? 'Committed' : 'Planning'}
+                    {destinations.length > 0
+                      ? destinations.map((d: any) => d.name || d.resort?.name).filter(Boolean).join(' → ')
+                      : (trip.destination || 'Destination TBD')} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days
                   </p>
                 </div>
                 <button onClick={() => setShowExpenseForm(!showExpenseForm)}
@@ -635,64 +637,22 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
 
-            {/* ── Dates ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Dates</h2>
-              {editingDates ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Start Date</label>
-                      <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">End Date</label>
-                      <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)}
-                        min={editStartDate}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={saveDates} disabled={!editStartDate || !editEndDate}
-                      className="px-4 py-1.5 bg-brand-gold text-white text-xs font-medium rounded-lg disabled:opacity-50">
-                      Save
-                    </button>
-                    <button onClick={() => setEditingDates(false)}
-                      className="px-4 py-1.5 text-gray-500 hover:text-gray-700 text-xs">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-6">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wider">Start</div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {trip.startDate ? new Date(trip.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}
-                    </div>
-                  </div>
-                  <span className="text-xl text-gray-300">→</span>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wider">End</div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {trip.endDate ? new Date(trip.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wider">Duration</div>
-                    <div className="text-sm font-semibold text-gray-900">{trip.daysTravel} days</div>
-                  </div>
-                  <button onClick={() => {
-                    setEditStartDate(trip.startDate ? new Date(trip.startDate).toISOString().split('T')[0] : '');
-                    setEditEndDate(trip.endDate ? new Date(trip.endDate).toISOString().split('T')[0] : '');
-                    setEditingDates(true);
-                  }} className="ml-auto text-xs text-brand-purple hover:underline font-medium">
-                    Edit Dates
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* ── Flights ── */}
+            {tripDates && trip.destination && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Flights</h2>
+                <FlightPicker
+                  tripId={id}
+                  destinationName={trip.destination}
+                  destinationAirport={destinationAirport}
+                  originAirport={originAirport}
+                  departureDate={tripDates.departure}
+                  returnDate={tripDates.return}
+                  passengers={confirmedParticipants.length || 1}
+                  onCommitted={() => { loadTrip(); loadBudgetItems(); }}
+                />
+              </div>
+            )}
 
             {/* ── Destinations ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -763,23 +723,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               );
               })()}
             </div>
-
-            {/* ── Flights ── */}
-            {tripDates && trip.destination && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Flights</h2>
-                <FlightPicker
-                  tripId={id}
-                  destinationName={trip.destination}
-                  destinationAirport={destinationAirport}
-                  originAirport={originAirport}
-                  departureDate={tripDates.departure}
-                  returnDate={tripDates.return}
-                  passengers={confirmedParticipants.length || 1}
-                  onCommitted={() => { loadTrip(); loadBudgetItems(); }}
-                />
-              </div>
-            )}
 
             {/* ── Commit to Calendar ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
