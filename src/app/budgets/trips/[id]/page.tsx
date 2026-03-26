@@ -399,31 +399,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     });
   }, [trip]);
 
-  // Event click: show detail popover
-  const [clickedEvent, setClickedEvent] = useState<(CalendarEvent & Record<string, any>) | null>(null);
-  const [uncommitting, setUncommitting] = useState(false);
-
-  const handleUncommitEvent = async () => {
-    if (!clickedEvent?._vendorOptionId) return;
-    setUncommitting(true);
-    try {
-      const res = await fetch(`/api/trips/${id}/vendor-commit`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          optionType: clickedEvent._vendorOptionType || 'activity',
-          optionId: clickedEvent._vendorOptionId,
-          notes: clickedEvent._vendor || clickedEvent.title,
-        }),
-      });
-      if (!res.ok) throw new Error('Uncommit failed');
-      setClickedEvent(null);
-      loadTrip();
-      loadBudgetItems();
-    } catch (err) { alert(err instanceof Error ? err.message : 'Uncommit failed'); }
-    finally { setUncommitting(false); }
-  };
-
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingExpense(true);
@@ -544,38 +519,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
                     highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
                     highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
-                    onEventClick={(event) => setClickedEvent(event as any)}
+                    onEventClick={undefined}
                     showBudgetTotals={true}
                     showCategoryLegend={true}
                     compact={true}
                   />
-                  {clickedEvent && (
-                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg shadow-md">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{clickedEvent.title}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {TRIP_SOURCE_CONFIG[clickedEvent.source]?.label || clickedEvent.source}
-                            {clickedEvent.startDate && <span className="ml-2">{clickedEvent.startDate}</span>}
-                            {clickedEvent.endDate && clickedEvent.endDate !== clickedEvent.startDate && <span> — {clickedEvent.endDate}</span>}
-                            {clickedEvent._destTime && <span className="ml-2">arr {formatTime12h(clickedEvent._destTime)}</span>}
-                          </div>
-                          {(clickedEvent.budgetAmount || 0) > 0 && (
-                            <div className="text-sm font-semibold text-emerald-700 mt-1">{fmt(clickedEvent.budgetAmount || 0)}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {clickedEvent._vendorOptionId && (
-                            <button onClick={handleUncommitEvent} disabled={uncommitting}
-                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg disabled:opacity-50">
-                              {uncommitting ? '...' : 'Uncommit'}
-                            </button>
-                          )}
-                          <button onClick={() => setClickedEvent(null)} className="px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 rounded-lg">Close</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="p-8 text-center text-gray-400">
@@ -584,6 +532,41 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               )}
             </div>
+
+            {/* ── Committed Budget ── */}
+            {committedBudgetItems.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-500">Item</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-500">Category</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {committedBudgetItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
+                          <td className="px-3 py-2 text-gray-500">{item.category}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50 border-t border-gray-200">
+                      <tr>
+                        <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                        <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* ── Crew & Profiles ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -783,41 +766,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               )}
             </div>
-
-            {/* ── Budget Summary ── */}
-            {committedBudgetItems.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="p-4 border-b border-gray-200">
-                  <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Item</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Category</th>
-                        <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {committedBudgetItems.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
-                          <td className="px-3 py-2 text-gray-500">{item.category}</td>
-                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
-                      <tr>
-                        <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
-                        <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            )}
 
             {/* ── Settlement Matrix ── */}
             {confirmedParticipants.length > 1 && (
