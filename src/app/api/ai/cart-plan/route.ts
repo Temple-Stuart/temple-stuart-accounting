@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'ai');
+    const tierGate = requireTier(user.tier, 'ai', user.id);
     if (tierGate) return tierGate;
 
     const openai = new OpenAI({

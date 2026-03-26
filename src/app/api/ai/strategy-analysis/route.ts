@@ -112,7 +112,7 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const tierGate = requireTier(user.tier, 'ai');
+    const tierGate = requireTier(user.tier, 'ai', user.id);
     if (tierGate) return tierGate;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;

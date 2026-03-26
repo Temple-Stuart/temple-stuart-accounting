@@ -84,7 +84,7 @@ export async function POST(
 
     const user = await prisma.users.findFirst({ where: { email: { equals: userEmail, mode: 'insensitive' } } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    const tierGate = requireTier(user.tier, 'tripAI');
+    const tierGate = requireTier(user.tier, 'tripAI', user.id);
     if (tierGate) return tierGate;
 
     const body = await request.json();

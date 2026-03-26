@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/ui';
+import { ADMIN_USER_ID } from '@/lib/tiers';
 import MealPlannerForm, { MealPlan, Ingredient } from '@/components/shopping/MealPlannerForm';
 import MealPlanDashboard from '@/components/shopping/MealPlanDashboard';
 import CartPlannerForm, { CartPlan, CartItem, CartCategory } from '@/components/shopping/CartPlannerForm';
@@ -31,12 +32,13 @@ export default function ShoppingPage() {
   });
   const [activeCategory, setActiveCategory] = useState<PlannerCategory>('meals');
   const [userTier, setUserTier] = useState<string>('free');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [commitLoading, setCommitLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me').then(res => res.ok ? res.json() : null).then(data => {
-      if (data?.user?.tier) setUserTier(data.user.tier);
+      if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.id) setCurrentUserId(data.user.id);
     }).finally(() => setLoading(false));
 
     const saved = localStorage.getItem(getMealPlanKey());
@@ -245,7 +247,7 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit('meals')}
                   />
                 ) : (
-                  userTier === 'free' ? (
+                  userTier === 'free' && currentUserId !== ADMIN_USER_ID ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
                       <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>
@@ -270,7 +272,7 @@ export default function ShoppingPage() {
                     onCommit={commitLoading ? undefined : () => handleCommit(cat)}
                   />
                 ) : (
-                  userTier === 'free' ? (
+                  userTier === 'free' && currentUserId !== ADMIN_USER_ID ? (
                     <div className="text-center py-8">
                       <div className="text-sm font-medium text-text-primary mb-2">AI Shopping Planner requires Pro+</div>
                       <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered planning.</div>

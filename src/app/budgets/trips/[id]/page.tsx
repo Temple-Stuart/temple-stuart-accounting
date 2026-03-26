@@ -9,6 +9,7 @@ import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
+import { ADMIN_USER_ID } from '@/lib/tiers';
 import 'leaflet/dist/leaflet.css';
 
 const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
@@ -144,6 +145,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   });
   const [savingExpense, setSavingExpense] = useState(false);
   const [userTier, setUserTier] = useState<string>('free');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
@@ -165,7 +167,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
 
   // Derive origin airport from current user's participant record
   useEffect(() => {
@@ -804,7 +806,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               {(() => {
                 const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
                 return (
-                  userTier === 'free' || userTier === 'pro' ? (
+                  (userTier === 'free' || userTier === 'pro') && currentUserId !== ADMIN_USER_ID ? (
                   <div className="text-center py-8">
                     <div className="text-sm font-medium text-text-primary mb-2">AI Trip Planner requires Pro+</div>
                     <div className="text-xs text-text-muted mb-4">Upgrade to Pro+ ($40/mo) to unlock AI-powered trip planning.</div>

@@ -4,7 +4,13 @@
  * Free:  Manual entry only. No Plaid, no AI.
  * Pro:   Plaid sync + all bookkeeping features.
  * Pro+:  Everything in Pro + AI insights + trip AI + trading analytics.
+ *
+ * NOTE: All paid tiers are currently gated as "Coming Soon" for public users.
+ * Only the admin user (ADMIN_USER_ID) has full access to all features.
  */
+
+// Admin bypass — this user retains full access to all features
+export const ADMIN_USER_ID = 'cmfi3rcrl0000zcj0ajbj4za5';
 
 export type Tier = 'free' | 'pro' | 'pro_plus';
 
@@ -57,7 +63,16 @@ export function getTierConfig(tier: string | null | undefined): TierConfig {
   return TIER_MAP[normalized] || TIER_MAP.free;
 }
 
-export function canAccess(tier: string | null | undefined, feature: keyof TierConfig): boolean {
+export function canAccess(tier: string | null | undefined, feature: keyof TierConfig, userId?: string | null): boolean {
+  // Admin bypass — full access to all features
+  if (userId === ADMIN_USER_ID) return true;
   const config = getTierConfig(tier);
   return !!config[feature];
+}
+
+/**
+ * Check if a user is the admin (full-access) user.
+ */
+export function isAdminUser(userId: string | null | undefined): boolean {
+  return userId === ADMIN_USER_ID;
 }
