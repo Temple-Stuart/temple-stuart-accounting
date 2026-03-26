@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import { TRAVEL_INTERESTS, ACTIVITY_GROUPS, INTEREST_CATEGORIES } from '@/lib/activities';
+import { searchDestinations } from '@/lib/destinations';
 import { ChevronDown } from 'lucide-react';
 
 const BUDGET_OPTIONS = [
@@ -186,25 +187,23 @@ function NewTripForm() {
         });
       }
 
+      // Save destinations using name-based API with coordinates from destinations.ts
       for (const destName of destinations) {
-        try {
-          const searchRes = await fetch('/api/resorts?activity=all');
-          if (searchRes.ok) {
-            const data = await searchRes.json();
-            const match = (data.resorts || []).find((r: any) =>
-              r.name.toLowerCase() === destName.toLowerCase()
-            );
-            if (match) {
-              await fetch(`/api/trips/${tripId}/destinations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resortId: match.id }),
-              });
-            }
-          }
-        } catch {
-          // Destination name already set on trip
-        }
+        // Look up coordinates from the static destinations database
+        const matches = searchDestinations(destName, 1);
+        const match = matches.find(d => d.type === 'city' && d.name.toLowerCase() === destName.toLowerCase())
+          || matches.find(d => d.type === 'city');
+
+        await fetch(`/api/trips/${tripId}/destinations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: destName,
+            country: match?.country || null,
+            lat: match?.lat || null,
+            lng: match?.lng || null,
+          }),
+        });
       }
 
       router.push(`/budgets/trips/${tripId}`);

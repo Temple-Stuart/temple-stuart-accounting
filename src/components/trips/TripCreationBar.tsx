@@ -26,6 +26,10 @@ export default function TripCreationBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isOnNewPage = pathname === '/budgets/trips/new';
+  const tripDetailMatch = pathname?.match(/^\/budgets\/trips\/([^/]+)$/);
+  const isOnDetailPage = !!(tripDetailMatch && tripDetailMatch[1] !== 'new');
+  const detailTripId = tripDetailMatch?.[1] || null;
+  const mode: 'landing' | 'new' | 'detail' = isOnNewPage ? 'new' : isOnDetailPage ? 'detail' : 'landing';
 
   const [barName, setBarName] = useState('');
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
@@ -42,6 +46,35 @@ export default function TripCreationBar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const destInputRef = useRef<HTMLInputElement>(null);
   const [didInit, setDidInit] = useState(false);
+
+  // Pre-populate from trip data on detail page
+  useEffect(() => {
+    if (!isOnDetailPage || !detailTripId || didInit) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/trips/${detailTripId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const trip = data.trip;
+        if (trip.name) setBarName(trip.name);
+        if (trip.startDate) setBarStartDate(trip.startDate.split('T')[0]);
+        if (trip.endDate) setBarEndDate(trip.endDate.split('T')[0]);
+        if (trip.participants) setBarTravelers(trip.participants.length || 2);
+        // Load destinations
+        const destRes = await fetch(`/api/trips/${detailTripId}/destinations`);
+        if (destRes.ok) {
+          const destData = await destRes.json();
+          const names = (destData.destinations || [])
+            .map((d: any) => d.name || d.resort?.name)
+            .filter(Boolean);
+          if (names.length > 0) setSelectedDestinations(names);
+        } else if (trip.destination) {
+          setSelectedDestinations([trip.destination]);
+        }
+        setDidInit(true);
+      } catch { /* ignore */ }
+    })();
+  }, [isOnDetailPage, detailTripId, didInit]);
 
   // Pre-populate from URL params on /new page
   useEffect(() => {
@@ -130,11 +163,35 @@ export default function TripCreationBar() {
     return params;
   };
 
-  const handleButtonClick = () => {
+  const [updating, setUpdating] = useState(false);
+
+  const handleButtonClick = async () => {
     const params = buildParams();
     const qs = params.toString() ? '?' + params.toString() : '';
-    if (isOnNewPage) {
-      // Signal the form to save by adding save=1 param
+
+    if (mode === 'detail' && detailTripId) {
+      // PATCH the existing trip
+      setUpdating(true);
+      try {
+        const duration = barStartDate && barEndDate
+          ? Math.round((new Date(barEndDate + 'T12:00:00').getTime() - new Date(barStartDate + 'T12:00:00').getTime()) / 86400000) + 1
+          : undefined;
+        await fetch(`/api/trips/${detailTripId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: barName || undefined,
+            destination: selectedDestinations[0] || undefined,
+            startDate: barStartDate || undefined,
+            endDate: barEndDate || undefined,
+            daysTravel: duration,
+            tripType: tripType !== 'personal' ? tripType : undefined,
+          }),
+        });
+        router.refresh();
+      } catch { /* ignore */ }
+      finally { setUpdating(false); }
+    } else if (mode === 'new') {
       params.set('save', '1');
       const saveQs = params.toString() ? '?' + params.toString() : '';
       router.replace(`/budgets/trips/new${saveQs}`, { scroll: false });
@@ -245,18 +302,15 @@ export default function TripCreationBar() {
         {/* Section 5: Button */}
         <button
           onClick={handleButtonClick}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl"
+          disabled={updating}
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl disabled:opacity-50"
         >
-          {isOnNewPage ? (
-            <>
-              <Save className="w-4 h-4" />
-              Save
-            </>
+          {mode === 'detail' ? (
+            <>{updating ? 'Updating...' : <><Save className="w-4 h-4" /> Update</>}</>
+          ) : mode === 'new' ? (
+            <><Save className="w-4 h-4" /> Save</>
           ) : (
-            <>
-              <Plane className="w-4 h-4" />
-              Create Trip
-            </>
+            <><Plane className="w-4 h-4" /> Create Trip</>
           )}
         </button>
       </div>

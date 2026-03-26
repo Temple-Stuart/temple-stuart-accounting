@@ -215,7 +215,6 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get trip to determine activity (verify ownership)
     const trip = await prisma.trips.findFirst({
       where: { id, userId: user.id },
       select: { activity: true }
@@ -230,15 +229,37 @@ export async function GET(
 
     const destinations = await prisma.trip_destinations.findMany({
       where: { tripId: id },
-    });
+    }) as any[];
 
-    const resortIds = destinations.map(d => d.resortId);
-    const resorts = await getDestinationData(table, resortIds);
+    // Separate resort-based and name-based destinations
+    const resortDests = destinations.filter((d: any) => d.resortId);
+    const nameDests = destinations.filter((d: any) => !d.resortId && d.name);
 
-    const enriched = destinations.map(d => ({
-      ...d,
-      resort: resorts.find((r: any) => r.id === d.resortId)
-    }));
+    const resortIds = resortDests.map(d => d.resortId!);
+    const resorts = resortIds.length > 0 ? await getDestinationData(table, resortIds) : [];
+
+    const enriched = [
+      // Resort-based destinations enriched with resort data
+      ...resortDests.map(d => ({
+        ...d,
+        resort: resorts.find((r: any) => r.id === d.resortId) || null,
+      })),
+      // Name-based destinations (from search bar) — synthesize resort shape
+      ...nameDests.map(d => ({
+        ...d,
+        resortId: d.id, // Use the destination record ID as a fallback
+        resort: {
+          id: d.id,
+          name: d.name,
+          country: d.country || '',
+          region: '',
+          state: null,
+          nearestAirport: null,
+          latitude: d.latitude ? Number(d.latitude) : null,
+          longitude: d.longitude ? Number(d.longitude) : null,
+        },
+      })),
+    ];
 
     return NextResponse.json({ destinations: enriched });
   } catch (error) {
@@ -248,6 +269,7 @@ export async function GET(
 }
 
 // POST add destination to trip
+// Accepts either: { resortId } for resort-based, or { name, country?, lat?, lng? } for name-based
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -266,13 +288,12 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { resortId } = body;
+    const { resortId, name, country, lat, lng } = body;
 
-    if (!resortId) {
-      return NextResponse.json({ error: 'Missing resortId' }, { status: 400 });
+    if (!resortId && !name) {
+      return NextResponse.json({ error: 'Missing resortId or name' }, { status: 400 });
     }
 
-    // Get trip to determine activity (verify ownership)
     const trip = await prisma.trips.findFirst({
       where: { id, userId: user.id },
       select: { activity: true }
@@ -282,24 +303,53 @@ export async function POST(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const activity = trip?.activity || 'all';
-    const table = ACTIVITY_TABLE_MAP[activity] || 'all';
+    if (resortId) {
+      // Resort-based destination (legacy flow)
+      const activity = trip?.activity || 'all';
+      const table = ACTIVITY_TABLE_MAP[activity] || 'all';
 
-    const destination = await prisma.trip_destinations.upsert({
-      where: {
-        tripId_resortId: { tripId: id, resortId }
-      },
-      update: { isSelected: true },
-      create: {
-        tripId: id,
-        resortId,
-        isSelected: true
+      const destination = await prisma.trip_destinations.upsert({
+        where: { tripId_resortId: { tripId: id, resortId } },
+        update: { isSelected: true },
+        create: { tripId: id, resortId, isSelected: true },
+      });
+
+      const resort = await getSingleDestination(table, resortId);
+      return NextResponse.json({ destination: { ...destination, resort } }, { status: 201 });
+    } else {
+      // Name-based destination (from search bar / destinations.ts)
+      // Check if this destination name already exists for this trip
+      const existing = await (prisma.trip_destinations as any).findFirst({
+        where: { tripId: id, name: name },
+      });
+
+      if (existing) {
+        return NextResponse.json({
+          destination: {
+            ...existing,
+            resort: { id: existing.id, name: existing.name, country: existing.country || '', region: '', state: null, nearestAirport: null },
+          },
+        }, { status: 200 });
       }
-    });
 
-    const resort = await getSingleDestination(table, resortId);
+      const destination = await (prisma.trip_destinations as any).create({
+        data: {
+          tripId: id,
+          name,
+          country: country || null,
+          latitude: lat != null ? lat : null,
+          longitude: lng != null ? lng : null,
+          isSelected: true,
+        },
+      });
 
-    return NextResponse.json({ destination: { ...destination, resort } }, { status: 201 });
+      return NextResponse.json({
+        destination: {
+          ...destination,
+          resort: { id: destination.id, name, country: country || '', region: '', state: null, nearestAirport: null },
+        },
+      }, { status: 201 });
+    }
   } catch (error) {
     console.error('Add destination error:', error);
     return NextResponse.json({ error: 'Failed to add destination' }, { status: 500 });
@@ -330,17 +380,21 @@ export async function DELETE(
     }
 
     const body = await request.json();
-    const { resortId } = body;
+    const { resortId, destinationId } = body;
 
-    if (!resortId) {
-      return NextResponse.json({ error: 'Missing resortId' }, { status: 400 });
+    if (!resortId && !destinationId) {
+      return NextResponse.json({ error: 'Missing resortId or destinationId' }, { status: 400 });
     }
 
-    await prisma.trip_destinations.delete({
-      where: {
-        tripId_resortId: { tripId: id, resortId }
-      }
-    });
+    if (destinationId) {
+      // Delete by record ID (name-based destinations)
+      await prisma.trip_destinations.delete({ where: { id: destinationId } });
+    } else {
+      // Delete by compound key (resort-based destinations)
+      await prisma.trip_destinations.delete({
+        where: { tripId_resortId: { tripId: id, resortId } },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
