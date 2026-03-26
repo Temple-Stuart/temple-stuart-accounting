@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { BookOpen, User, Briefcase, Plane, TrendingUp, LayoutGrid, Menu, X } from 'lucide-react';
 import TripCreationBar from '@/components/trips/TripCreationBar';
@@ -228,7 +228,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         {showTravelSearch && (
           <div className="bg-brand-purple/80 border-t border-white/[.06]">
             <div className="max-w-[1800px] mx-auto px-6 py-4">
-              <TripCreationBar />
+              <Suspense><TripCreationBar /></Suspense>
             </div>
           </div>
         )}

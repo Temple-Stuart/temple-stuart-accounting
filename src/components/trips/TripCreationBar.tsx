@@ -1,15 +1,29 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plane, FileText, MapPin, Calendar, Users, X } from 'lucide-react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { Plane, FileText, MapPin, Calendar, Users, X, Save } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
 import { INTEREST_CATEGORIES } from '@/lib/activities';
 
 const FILTER_CHIPS = INTEREST_CATEGORIES;
 
+function parseToDateInput(val: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const match = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, m, d, y] = match;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
+}
+
 export default function TripCreationBar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isOnNewPage = pathname === '/budgets/trips/new';
+
   const [barName, setBarName] = useState('');
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
   const [barStartDate, setBarStartDate] = useState('');
@@ -24,6 +38,26 @@ export default function TripCreationBar() {
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const destInputRef = useRef<HTMLInputElement>(null);
+  const [didInit, setDidInit] = useState(false);
+
+  // Pre-populate from URL params on /new page
+  useEffect(() => {
+    if (!isOnNewPage || didInit) return;
+    const tripName = searchParams.get('tripName');
+    const dests = searchParams.get('destinations');
+    const sd = searchParams.get('startDate');
+    const ed = searchParams.get('endDate');
+    const travelers = searchParams.get('travelers');
+    const interests = searchParams.get('interests');
+
+    if (tripName) setBarName(tripName);
+    if (dests) setSelectedDestinations(dests.split(',').map(d => d.trim()).filter(Boolean));
+    if (sd) { const p = parseToDateInput(sd); if (p) setBarStartDate(p); }
+    if (ed) { const p = parseToDateInput(ed); if (p) setBarEndDate(p); }
+    if (travelers) setBarTravelers(parseInt(travelers) || 2);
+    if (interests) setSelectedChips(interests.split(',').map(c => c.trim()).filter(Boolean));
+    setDidInit(true);
+  }, [isOnNewPage, searchParams, didInit]);
 
   const handleDestChange = (val: string) => {
     setDestQuery(val);
@@ -52,7 +86,6 @@ export default function TripCreationBar() {
   };
 
   const handleDestKeyDown = (e: React.KeyboardEvent) => {
-    // Backspace on empty input removes last chip
     if (e.key === 'Backspace' && destQuery === '' && selectedDestinations.length > 0) {
       setSelectedDestinations(prev => prev.slice(0, -1));
       return;
@@ -72,7 +105,6 @@ export default function TripCreationBar() {
     }
   };
 
-  // Close dropdown on outside click
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
       setShowDropdown(false);
@@ -90,7 +122,7 @@ export default function TripCreationBar() {
     );
   };
 
-  const handleCreateFromBar = () => {
+  const buildParams = () => {
     const params = new URLSearchParams();
     if (barName) params.set('tripName', barName);
     if (selectedDestinations.length > 0) params.set('destinations', selectedDestinations.join(','));
@@ -98,7 +130,18 @@ export default function TripCreationBar() {
     if (barEndDate) params.set('endDate', barEndDate);
     if (barTravelers > 1) params.set('travelers', String(barTravelers));
     if (selectedChips.length > 0) params.set('interests', selectedChips.join(','));
-    router.push(`/budgets/trips/new${params.toString() ? '?' + params.toString() : ''}`);
+    return params;
+  };
+
+  const handleButtonClick = () => {
+    const params = buildParams();
+    const qs = params.toString() ? '?' + params.toString() : '';
+    if (isOnNewPage) {
+      // Update URL params in-place so the form below picks up edits
+      router.replace(`/budgets/trips/new${qs}`, { scroll: false });
+    } else {
+      router.push(`/budgets/trips/new${qs}`);
+    }
   };
 
   return (
@@ -147,7 +190,6 @@ export default function TripCreationBar() {
               className="flex-1 min-w-[60px] border-0 outline-none bg-transparent text-sm text-text-primary placeholder:text-gray-400 py-1"
             />
           </div>
-          {/* Autocomplete dropdown */}
           {showDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[280px] overflow-y-auto">
               {destResults.map((dest, idx) => (
@@ -201,13 +243,22 @@ export default function TripCreationBar() {
           </select>
         </div>
 
-        {/* Section 5: Create button */}
+        {/* Section 5: Button */}
         <button
-          onClick={handleCreateFromBar}
+          onClick={handleButtonClick}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl"
         >
-          <Plane className="w-4 h-4" />
-          Create Trip
+          {isOnNewPage ? (
+            <>
+              <Save className="w-4 h-4" />
+              Save
+            </>
+          ) : (
+            <>
+              <Plane className="w-4 h-4" />
+              Create Trip
+            </>
+          )}
         </button>
       </div>
 
