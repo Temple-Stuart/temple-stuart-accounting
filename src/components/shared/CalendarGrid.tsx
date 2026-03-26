@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -12,7 +12,7 @@ export interface CalendarEvent {
   title: string;
   icon?: string | null;
   startDate: string;        // YYYY-MM-DD
-  endDate?: string | null;
+  endDate?: string | null;  // YYYY-MM-DD (for multi-day events)
   startTime?: string | null; // HH:MM (24h) for time-based positioning
   endTime?: string | null;   // HH:MM (24h)
   isRecurring?: boolean;
@@ -23,23 +23,23 @@ export interface CalendarEvent {
 export interface SourceConfig {
   label: string;
   icon: string;
-  bg: string;         // badge/card background: 'bg-blue-100'
-  dot: string;         // month-view dot: 'bg-blue-400'
-  badge?: string;      // week-view event badge: 'bg-blue-400' (falls back to dot)
-  text?: string;       // text color for labels
+  bg: string;
+  dot: string;
+  badge?: string;
+  text?: string;
 }
 
 export interface CalendarGridProps {
   events: CalendarEvent[];
   sourceConfig: Record<string, SourceConfig>;
   defaultView?: 'week' | 'month';
-  anchorDate?: string;           // anchor calendar to this date instead of today (YYYY-MM-DD)
-  highlightStart?: string;       // highlight trip range start (YYYY-MM-DD)
-  highlightEnd?: string;         // highlight trip range end (YYYY-MM-DD)
+  anchorDate?: string;
+  highlightStart?: string;
+  highlightEnd?: string;
   onEventClick?: (event: CalendarEvent) => void;
   showBudgetTotals?: boolean;
   showCategoryLegend?: boolean;
-  compact?: boolean;             // smaller sizing for embedded use
+  compact?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -49,11 +49,11 @@ export interface CalendarGridProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const HOUR_HEIGHT = 40; // px per hour
-const START_HOUR = 5;   // 5 AM
-const END_HOUR = 23;    // 11 PM
-const TOTAL_HOURS = END_HOUR - START_HOUR;
-const MIN_EVENT_HEIGHT = HOUR_HEIGHT * 2; // minimum 2 hours tall for readability
+const HOUR_HEIGHT = 40;
+const START_HOUR = 0;   // 12 AM
+const END_HOUR = 24;    // 12 AM next day
+const TOTAL_HOURS = END_HOUR - START_HOUR; // 24
+const MIN_EVENT_HEIGHT = HOUR_HEIGHT * 1.5; // 60px minimum
 
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -78,6 +78,50 @@ const formatTime12h = (time: string): string => {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
 };
 
+type TzMode = 'local' | 'home';
+
+// ═══════════════════════════════════════════════════════════════
+// Multi-day event splitter
+// ═══════════════════════════════════════════════════════════════
+
+interface DayBlock {
+  event: CalendarEvent;
+  startMin: number;  // minutes from midnight
+  endMin: number;    // minutes from midnight
+  label: string;     // display label
+  isDepart: boolean; // true = departure half
+  isArrive: boolean; // true = arrival half
+}
+
+function getBlocksForDay(dayKey: string, events: CalendarEvent[]): DayBlock[] {
+  const blocks: DayBlock[] = [];
+
+  for (const event of events) {
+    if (!event.startTime) continue;
+    const evtStartKey = event.startDate;
+    const evtEndKey = event.endDate || event.startDate;
+    const startMin = timeToMinutes(event.startTime);
+    const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120;
+
+    if (evtStartKey === evtEndKey || !event.endDate) {
+      // Same-day event — only show on its start date
+      if (dayKey === evtStartKey) {
+        blocks.push({ event, startMin, endMin: Math.max(endMin, startMin + 60), label: event.title, isDepart: false, isArrive: false });
+      }
+    } else {
+      // Multi-day event
+      if (dayKey === evtStartKey) {
+        // Departure day: from departure time to end of day
+        blocks.push({ event, startMin, endMin: 24 * 60, label: event.title, isDepart: true, isArrive: false });
+      } else if (dayKey === evtEndKey) {
+        // Arrival day: from start of day to arrival time
+        blocks.push({ event, startMin: 0, endMin: Math.max(endMin, 60), label: `arr ${event.endTime ? formatTime12h(event.endTime) : ''} ${event.title.replace(/^\d+:\d+\s*(AM|PM)\s*/i, '')}`.trim(), isDepart: false, isArrive: true });
+      }
+    }
+  }
+  return blocks;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -96,6 +140,7 @@ export default function CalendarGrid({
 }: CalendarGridProps) {
   const now = new Date();
   const anchor = anchorDate ? parseDate(anchorDate) : now;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const [calendarView, setCalendarView] = useState<'week' | 'month'>(defaultView);
   const [selectedYear, setSelectedYear] = useState(anchor.getFullYear());
@@ -105,6 +150,7 @@ export default function CalendarGrid({
     d.setDate(d.getDate() - d.getDay());
     return d;
   });
+  const [tzMode, setTzMode] = useState<TzMode>('local');
 
   const allSources = Object.keys(sourceConfig);
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>(
@@ -134,6 +180,13 @@ export default function CalendarGrid({
       const key = dateToKey(d);
       if (!map[key]) map[key] = [];
       map[key].push(e);
+      // For multi-day events, also index on endDate
+      if (e.endDate && e.endDate !== e.startDate) {
+        const ed = parseDate(e.endDate);
+        const ekey = dateToKey(ed);
+        if (!map[ekey]) map[ekey] = [];
+        if (!map[ekey].some(x => x.id === e.id)) map[ekey].push(e);
+      }
     });
     return map;
   }, [events]);
@@ -166,8 +219,24 @@ export default function CalendarGrid({
     ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}`
     : `${MONTHS[selectedMonth]} ${selectedYear}`;
 
-  // Hour labels for the Y axis
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
+
+  // ── Auto-scroll to first timed event ──
+  useEffect(() => {
+    if (calendarView !== 'week' || !scrollRef.current) return;
+    const allWeekEvents = weekDays.flatMap(d => getEventsForDate(d));
+    const timedEvents = allWeekEvents.filter(e => e.startTime);
+    if (timedEvents.length > 0) {
+      const earliest = timedEvents.reduce((min, e) => {
+        const m = timeToMinutes(e.startTime!);
+        return m < min ? m : min;
+      }, 24 * 60);
+      const scrollTo = Math.max(0, ((earliest / 60) - 1) * HOUR_HEIGHT);
+      scrollRef.current.scrollTop = scrollTo;
+    } else {
+      scrollRef.current.scrollTop = 7 * HOUR_HEIGHT; // default: 7 AM
+    }
+  }, [calendarView, selectedWeekStart]);
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -182,6 +251,17 @@ export default function CalendarGrid({
             <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
             <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
           </div>
+          {/* Timezone toggle */}
+          {calendarView === 'week' && (
+            <select
+              value={tzMode}
+              onChange={e => setTzMode(e.target.value as TzMode)}
+              className="text-xs border border-border rounded px-2 py-1 text-text-secondary bg-white"
+            >
+              <option value="local">Trip Local</option>
+              <option value="home">Home (PST)</option>
+            </select>
+          )}
         </div>
         <h2 className="text-sm font-semibold text-text-primary">{headerTitle}</h2>
         <div className="flex items-center gap-2">
@@ -217,9 +297,8 @@ export default function CalendarGrid({
         <div className="flex-1 min-w-0">
           {calendarView === 'week' ? (
             <div>
-              {/* Week header — day names + dates */}
-              <div className="flex border-b border-border">
-                {/* Gutter for time labels */}
+              {/* Week header — sticky */}
+              <div className="flex border-b border-border sticky top-0 z-10 bg-white">
                 <div className="w-14 flex-shrink-0" />
                 {weekDays.map((day, idx) => {
                   const isToday = day.toDateString() === now.toDateString();
@@ -269,9 +348,10 @@ export default function CalendarGrid({
                 );
               })()}
 
-              {/* Time grid — full height, no scroll */}
-              <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
-                  {/* Time gutter (Y axis labels) */}
+              {/* Scrollable time grid */}
+              <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: '600px' }}>
+                <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
+                  {/* Time gutter */}
                   <div className="w-14 flex-shrink-0 relative">
                     {hours.map(hour => (
                       <div key={hour} className="absolute w-full text-right pr-2" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }}>
@@ -286,7 +366,9 @@ export default function CalendarGrid({
                   {weekDays.map((day, dayIdx) => {
                     const isToday = day.toDateString() === now.toDateString();
                     const hl = isInHighlight(day);
-                    const dayEvents = getEventsForDate(day).filter(e => e.startTime);
+                    const dayKey = dateToKey(day);
+                    const dayEvents = getEventsForDate(day);
+                    const blocks = getBlocksForDay(dayKey, dayEvents);
 
                     return (
                       <div key={dayIdx} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
@@ -294,16 +376,14 @@ export default function CalendarGrid({
                         {hours.map(hour => (
                           <div key={hour} className="absolute w-full border-t border-border-light/60" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
                         ))}
-                        {/* Half-hour lines */}
                         {hours.map(hour => (
                           <div key={`half-${hour}`} className="absolute w-full border-t border-border-light/30" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
                         ))}
 
                         {/* Current time indicator */}
                         {isToday && (() => {
-                          const nowMinutes = now.getHours() * 60 + now.getMinutes();
-                          const top = ((nowMinutes / 60) - START_HOUR) * HOUR_HEIGHT;
-                          if (top < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
+                          const nowMin = now.getHours() * 60 + now.getMinutes();
+                          const top = (nowMin / 60) * HOUR_HEIGHT;
                           return (
                             <div className="absolute w-full z-20" style={{ top: `${top}px` }}>
                               <div className="flex items-center">
@@ -315,30 +395,29 @@ export default function CalendarGrid({
                         })()}
 
                         {/* Timed events as positioned blocks */}
-                        {dayEvents.map((event, eventIdx) => {
-                          const startMin = timeToMinutes(event.startTime!);
-                          const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120; // default 2h
-                          const duration = Math.max(endMin - startMin, 120); // min 2 hours
-                          const top = ((startMin / 60) - START_HOUR) * HOUR_HEIGHT;
-                          const height = Math.max((duration / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT);
-                          const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
+                        {blocks.map((block, blockIdx) => {
+                          const top = (block.startMin / 60) * HOUR_HEIGHT;
+                          const height = Math.max(((block.endMin - block.startMin) / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT);
+                          const config = sourceConfig[block.event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                           const badgeColor = config.badge || config.dot;
+                          // No rounding on split edges
+                          const roundClass = block.isDepart ? 'rounded-t' : block.isArrive ? 'rounded-b' : 'rounded';
 
                           return (
                             <div
-                              key={event.id || eventIdx}
-                              onClick={() => onEventClick?.(event)}
-                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white rounded overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              key={`${block.event.id}-${blockIdx}`}
+                              onClick={() => onEventClick?.(block.event)}
+                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               style={{ top: `${top}px`, height: `${height}px` }}
-                              title={`${event.title}${event.budgetAmount ? ' - ' + formatCurrency(event.budgetAmount) : ''}`}
+                              title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}
                             >
                               <div className="px-1.5 py-1 h-full overflow-hidden">
-                                <div className="text-[11px] font-medium leading-tight truncate">{event.title}</div>
-                                {event.endTime && (
-                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">arr {formatTime12h(event.endTime)}</div>
+                                <div className="text-[11px] font-medium leading-tight truncate">{block.label}</div>
+                                {!block.isArrive && block.event.endTime && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">arr {formatTime12h(block.event.endTime)}</div>
                                 )}
-                                {event.budgetAmount && event.budgetAmount > 0 && (
-                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(event.budgetAmount)}</div>
+                                {block.event.budgetAmount && block.event.budgetAmount > 0 && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(block.event.budgetAmount)}</div>
                                 )}
                               </div>
                             </div>
@@ -348,6 +427,7 @@ export default function CalendarGrid({
                     );
                   })}
                 </div>
+              </div>
 
               {/* Budget totals row */}
               {showBudgetTotals && (
