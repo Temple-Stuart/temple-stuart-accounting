@@ -9,6 +9,7 @@ import DestinationMap from '@/components/trips/DestinationMap';
 import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
+import { getEventsNearCity, getDestinationsByCountry, Destination } from '@/lib/destinations';
 import 'leaflet/dist/leaflet.css';
 
 const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
@@ -972,6 +973,59 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             )}
+
+            {/* ── Discover in [Country] ── */}
+            {trip.destination && (() => {
+              const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
+              const country = selectedDest?.resort?.country;
+              if (!country) return null;
+              const cityName = trip.destination;
+              const nearbyEvents = getEventsNearCity(cityName, country);
+              const countryEvents = getDestinationsByCountry(country).filter(
+                (d: Destination) => d.type !== 'city' && !nearbyEvents.some(e => e.name === d.name)
+              );
+              const allDiscover = [...nearbyEvents, ...countryEvents];
+              if (allDiscover.length === 0) return null;
+
+              // Rough month filter if trip has dates
+              const tripMonth = trip.startDate ? new Date(trip.startDate).toLocaleString('en-US', { month: 'long' }) : null;
+              const filtered = tripMonth
+                ? allDiscover.filter(d => !d.when || d.when.toLowerCase().includes(tripMonth.toLowerCase().slice(0, 3)))
+                : allDiscover;
+              const toShow = filtered.length > 0 ? filtered : allDiscover.slice(0, 8);
+
+              const typeBadge: Record<string, { label: string; color: string }> = {
+                ski: { label: 'Ski', color: 'bg-cyan-100 text-cyan-700' },
+                festival: { label: 'Festival', color: 'bg-pink-100 text-pink-700' },
+                conference: { label: 'Conference', color: 'bg-amber-100 text-amber-700' },
+                event: { label: 'Event', color: 'bg-purple-100 text-purple-700' },
+                experience: { label: 'Experience', color: 'bg-emerald-100 text-emerald-700' },
+              };
+
+              return (
+                <div className="bg-white border border-border">
+                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+                    Discover in {country}
+                  </div>
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {toShow.slice(0, 9).map((d, i) => {
+                      const badge = typeBadge[d.type] || { label: d.type, color: 'bg-gray-100 text-gray-600' };
+                      return (
+                        <div key={`${d.name}-${i}`} className="border border-border rounded-lg p-3">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h4 className="text-sm font-semibold text-text-primary">{d.name}</h4>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${badge.color}`}>{badge.label}</span>
+                          </div>
+                          {d.when && <div className="text-xs text-text-muted mb-1">{d.when}</div>}
+                          {d.season && <div className="text-xs text-text-muted mb-1">Season: {d.season}</div>}
+                          {d.description && <p className="text-xs text-text-secondary line-clamp-2">{d.description}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
           </div>
         </div>

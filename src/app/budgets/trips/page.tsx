@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import TripMap from '@/components/trips/TripMap';
 import { Plane } from 'lucide-react';
+import { searchDestinations as searchDest, Destination } from '@/lib/destinations';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -69,14 +70,41 @@ export default function TripsPage() {
   // Trip creation bar state
   const [barName, setBarName] = useState('');
   const [barDestination, setBarDestination] = useState('');
+  const [barDestObj, setBarDestObj] = useState<Destination | null>(null);
+  const [destResults, setDestResults] = useState<Destination[]>([]);
+  const [destDropdownOpen, setDestDropdownOpen] = useState(false);
   const [barStartDate, setBarStartDate] = useState('');
   const [barEndDate, setBarEndDate] = useState('');
   const [barTravelers, setBarTravelers] = useState(2);
 
+  const handleDestSearch = (q: string) => {
+    setBarDestination(q);
+    setBarDestObj(null);
+    if (q.length >= 2) {
+      setDestResults(searchDest(q).slice(0, 12));
+      setDestDropdownOpen(true);
+    } else {
+      setDestResults([]);
+      setDestDropdownOpen(false);
+    }
+  };
+
+  const selectDest = (d: Destination) => {
+    setBarDestination(d.name);
+    setBarDestObj(d);
+    setDestResults([]);
+    setDestDropdownOpen(false);
+  };
+
   const handleCreateFromBar = () => {
     const params = new URLSearchParams();
     if (barName) params.set('tripName', barName);
-    if (barDestination) params.set('destination', barDestination);
+    if (barDestObj) {
+      params.set('destination', barDestObj.name);
+      params.set('country', barDestObj.country);
+    } else if (barDestination) {
+      params.set('destination', barDestination);
+    }
     if (barStartDate) params.set('startDate', barStartDate);
     if (barEndDate) params.set('endDate', barEndDate);
     if (barTravelers > 1) params.set('travelers', String(barTravelers));
@@ -178,11 +206,39 @@ export default function TripsPage() {
                   placeholder="e.g., Bali Surf Trip 2026"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
               </div>
-              <div className="lg:w-44">
+              <div className="lg:w-56 relative">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Destination</label>
-                <input type="text" value={barDestination} onChange={e => setBarDestination(e.target.value)}
-                  placeholder="City or country"
+                <input type="text" value={barDestination} onChange={e => handleDestSearch(e.target.value)}
+                  onFocus={() => { if (destResults.length > 0) setDestDropdownOpen(true); }}
+                  onBlur={() => setTimeout(() => setDestDropdownOpen(false), 200)}
+                  placeholder="City, country, or event"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
+                {destDropdownOpen && destResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                    {destResults.map((d, i) => {
+                      const typeBadge: Record<string, { label: string; color: string }> = {
+                        city: { label: 'city', color: 'bg-blue-100 text-blue-700' },
+                        ski: { label: 'ski', color: 'bg-cyan-100 text-cyan-700' },
+                        festival: { label: 'festival', color: 'bg-pink-100 text-pink-700' },
+                        conference: { label: 'conference', color: 'bg-amber-100 text-amber-700' },
+                        event: { label: 'event', color: 'bg-purple-100 text-purple-700' },
+                        experience: { label: 'experience', color: 'bg-emerald-100 text-emerald-700' },
+                      };
+                      const badge = typeBadge[d.type] || { label: d.type, color: 'bg-gray-100 text-gray-600' };
+                      return (
+                        <button key={`${d.name}-${d.country}-${i}`} type="button"
+                          onMouseDown={() => selectDest(d)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between gap-2 border-b border-gray-50 last:border-0">
+                          <div className="min-w-0">
+                            <span className="text-sm font-medium text-gray-900 truncate">{d.name}</span>
+                            <span className="text-xs text-gray-400 ml-1.5">{d.country}</span>
+                          </div>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${badge.color}`}>{badge.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="lg:w-36">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
