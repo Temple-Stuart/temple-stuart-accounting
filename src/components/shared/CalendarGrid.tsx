@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -49,10 +49,11 @@ export interface CalendarGridProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const HOUR_HEIGHT = 60; // px per hour
+const HOUR_HEIGHT = 40; // px per hour
 const START_HOUR = 5;   // 5 AM
-const END_HOUR = 24;    // midnight
+const END_HOUR = 23;    // 11 PM
 const TOTAL_HOURS = END_HOUR - START_HOUR;
+const MIN_EVENT_HEIGHT = HOUR_HEIGHT * 2; // minimum 2 hours tall for readability
 
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -95,7 +96,6 @@ export default function CalendarGrid({
 }: CalendarGridProps) {
   const now = new Date();
   const anchor = anchorDate ? parseDate(anchorDate) : now;
-  const timeGridRef = useRef<HTMLDivElement>(null);
 
   const [calendarView, setCalendarView] = useState<'week' | 'month'>(defaultView);
   const [selectedYear, setSelectedYear] = useState(anchor.getFullYear());
@@ -165,24 +165,6 @@ export default function CalendarGrid({
   const headerTitle = calendarView === 'week'
     ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}`
     : `${MONTHS[selectedMonth]} ${selectedYear}`;
-
-  // ── Auto-scroll to first timed event ──
-  useEffect(() => {
-    if (calendarView !== 'week' || !timeGridRef.current) return;
-    const allWeekEvents = weekDays.flatMap(d => getEventsForDate(d));
-    const timedEvents = allWeekEvents.filter(e => e.startTime);
-    if (timedEvents.length > 0) {
-      const earliest = timedEvents.reduce((min, e) => {
-        const m = timeToMinutes(e.startTime!);
-        return m < min ? m : min;
-      }, 24 * 60);
-      const scrollTo = Math.max(0, ((earliest / 60) - START_HOUR - 1) * HOUR_HEIGHT);
-      timeGridRef.current.scrollTop = scrollTo;
-    } else {
-      // Default: scroll to 8 AM
-      timeGridRef.current.scrollTop = (8 - START_HOUR) * HOUR_HEIGHT;
-    }
-  }, [calendarView, selectedWeekStart]);
 
   // Hour labels for the Y axis
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
@@ -287,9 +269,8 @@ export default function CalendarGrid({
                 );
               })()}
 
-              {/* Time grid — scrollable */}
-              <div ref={timeGridRef} className="overflow-y-auto" style={{ maxHeight: compact ? '400px' : '500px' }}>
-                <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
+              {/* Time grid — full height, no scroll */}
+              <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
                   {/* Time gutter (Y axis labels) */}
                   <div className="w-14 flex-shrink-0 relative">
                     {hours.map(hour => (
@@ -336,10 +317,10 @@ export default function CalendarGrid({
                         {/* Timed events as positioned blocks */}
                         {dayEvents.map((event, eventIdx) => {
                           const startMin = timeToMinutes(event.startTime!);
-                          const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 60; // default 1h
-                          const duration = Math.max(endMin - startMin, 30); // min 30min height
+                          const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 120; // default 2h
+                          const duration = Math.max(endMin - startMin, 120); // min 2 hours
                           const top = ((startMin / 60) - START_HOUR) * HOUR_HEIGHT;
-                          const height = (duration / 60) * HOUR_HEIGHT;
+                          const height = Math.max((duration / 60) * HOUR_HEIGHT, MIN_EVENT_HEIGHT);
                           const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                           const badgeColor = config.badge || config.dot;
 
@@ -348,16 +329,16 @@ export default function CalendarGrid({
                               key={event.id || eventIdx}
                               onClick={() => onEventClick?.(event)}
                               className={`absolute left-0.5 right-0.5 ${badgeColor} text-white rounded overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
-                              style={{ top: `${top}px`, height: `${Math.max(height, 24)}px` }}
+                              style={{ top: `${top}px`, height: `${height}px` }}
                               title={`${event.title}${event.budgetAmount ? ' - ' + formatCurrency(event.budgetAmount) : ''}`}
                             >
-                              <div className="px-1.5 py-0.5 h-full overflow-hidden">
-                                <div className="text-[10px] font-medium leading-tight truncate">{event.title}</div>
-                                {height > 36 && event.endTime && (
-                                  <div className="text-[9px] opacity-80 leading-tight">arr {formatTime12h(event.endTime)}</div>
+                              <div className="px-1.5 py-1 h-full overflow-hidden">
+                                <div className="text-[11px] font-medium leading-tight truncate">{event.title}</div>
+                                {event.endTime && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">arr {formatTime12h(event.endTime)}</div>
                                 )}
-                                {height > 48 && event.budgetAmount && event.budgetAmount > 0 && (
-                                  <div className="text-[9px] opacity-80 leading-tight">{formatCurrency(event.budgetAmount)}</div>
+                                {event.budgetAmount && event.budgetAmount > 0 && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(event.budgetAmount)}</div>
                                 )}
                               </div>
                             </div>
@@ -367,7 +348,6 @@ export default function CalendarGrid({
                     );
                   })}
                 </div>
-              </div>
 
               {/* Budget totals row */}
               {showBudgetTotals && (
