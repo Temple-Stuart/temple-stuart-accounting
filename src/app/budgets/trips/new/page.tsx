@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
-import { ACTIVITY_GROUPS, ACTIVITY_LABELS } from '@/lib/activities';
+import { ACTIVITY_GROUPS } from '@/lib/activities';
 
 const TRIP_TYPES = [
   { value: 'personal', label: 'Personal' },
@@ -37,6 +37,18 @@ const PACE_OPTIONS = [
   { value: 'packed', label: 'Packed & Hustling' },
 ];
 
+// Map filter chip labels → activity values for auto-selecting interests
+const INTEREST_TO_ACTIVITIES: Record<string, string[]> = {
+  'Active & Outdoors': ['surf', 'kitesurf', 'hike', 'climb', 'mtb', 'kayak', 'ski', 'snowboard', 'trail', 'skydive', 'paraglide'],
+  'Festivals & Events': ['festival', 'concert'],
+  'Conferences': ['conference'],
+  'Nightlife': ['festival', 'concert'],
+  'Food & Craft': ['foodtour', 'winetour'],
+  'Coworking': ['nomad', 'coworking'],
+  'Culture & Discovery': ['safari', 'nationalpark', 'foodtour'],
+  'Bucket List': ['skydive', 'paraglide', 'safari', 'sail'],
+};
+
 interface Resort {
   id: string;
   name: string;
@@ -48,9 +60,26 @@ interface Resort {
 }
 
 export default function NewTripPage() {
+  return (
+    <AppLayout>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <NewTripForm />
+      </Suspense>
+    </AppLayout>
+  );
+}
+
+function NewTripForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const profileRef = useRef<HTMLDivElement>(null);
+  const [didAutoScroll, setDidAutoScroll] = useState(false);
 
   // Section 1: Trip Details
   const [name, setName] = useState('');
@@ -70,6 +99,65 @@ export default function NewTripPage() {
   const [selectedDestinations, setSelectedDestinations] = useState<Resort[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Auto-populate from query params
+  useEffect(() => {
+    const tripName = searchParams.get('tripName');
+    const sd = searchParams.get('startDate');
+    const ed = searchParams.get('endDate');
+    const travelers = searchParams.get('travelers');
+    const interests = searchParams.get('interests');
+    const destinations = searchParams.get('destinations');
+
+    if (tripName) setName(tripName);
+
+    if (sd) {
+      // Handle both YYYY-MM-DD and MM/DD/YYYY formats
+      const parsed = parseToDateInput(sd);
+      if (parsed) setStartDate(parsed);
+    }
+    if (ed) {
+      const parsed = parseToDateInput(ed);
+      if (parsed) setEndDate(parsed);
+    }
+
+    // Map interest filter chips to activity toggles
+    if (interests) {
+      const chipLabels = interests.split(',');
+      const activities = new Set<string>();
+      chipLabels.forEach(label => {
+        const mapped = INTEREST_TO_ACTIVITIES[label.trim()];
+        if (mapped) mapped.forEach(a => activities.add(a));
+      });
+      if (activities.size > 0) setSelectedActivities(Array.from(activities));
+    }
+
+    // Pre-fill destinations as simple name entries (search will be needed for full resort data)
+    if (destinations) {
+      const destNames = destinations.split(',').map(d => d.trim()).filter(Boolean);
+      const fakeResorts: Resort[] = destNames.map((n, i) => ({
+        id: `param-${i}`,
+        name: n,
+        country: '',
+        state: null,
+        region: '',
+        nearestAirport: null,
+      }));
+      setSelectedDestinations(fakeResorts);
+    }
+  }, [searchParams]);
+
+  // Auto-scroll past pre-filled details to Travel Profile
+  useEffect(() => {
+    if (didAutoScroll) return;
+    const hasPreFilled = searchParams.get('tripName') && searchParams.get('startDate');
+    if (hasPreFilled && profileRef.current) {
+      setTimeout(() => {
+        profileRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      setDidAutoScroll(true);
+    }
+  }, [searchParams, didAutoScroll]);
+
   const duration = startDate && endDate
     ? Math.round((new Date(endDate + 'T12:00:00').getTime() - new Date(startDate + 'T12:00:00').getTime()) / 86400000) + 1
     : 0;
@@ -86,7 +174,7 @@ export default function NewTripPage() {
     );
   };
 
-  const searchDestinations = useCallback(async (q: string) => {
+  const searchDestinationsApi = useCallback(async (q: string) => {
     setSearchQuery(q);
     if (q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
@@ -128,7 +216,6 @@ export default function NewTripPage() {
     setError('');
 
     try {
-      // 1. Create trip
       const tripRes = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +241,6 @@ export default function NewTripPage() {
       const tripId = trip.id;
       const ownerId = trip.participants?.[0]?.id;
 
-      // 2. Save organizer profile
       if (ownerId && (selectedActivities.length > 0 || budget || vibes.length > 0 || pace)) {
         await fetch(`/api/trips/${tripId}/participants`, {
           method: 'PATCH',
@@ -172,8 +258,8 @@ export default function NewTripPage() {
         });
       }
 
-      // 3. Add destinations
       for (const dest of selectedDestinations) {
+        if (dest.id.startsWith('param-')) continue; // Skip placeholder entries
         await fetch(`/api/trips/${tripId}/destinations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -181,7 +267,6 @@ export default function NewTripPage() {
         });
       }
 
-      // Redirect to trip detail page
       router.push(`/budgets/trips/${tripId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create trip');
@@ -193,226 +278,206 @@ export default function NewTripPage() {
   const budgetHint = BUDGET_OPTIONS.find(b => b.value === budget)?.hint;
 
   return (
-    <AppLayout>
       <div className="min-h-screen bg-bg-terminal">
-        <div className="p-4 lg:p-6 max-w-2xl mx-auto">
-
-          {/* Header */}
-          <div className="mb-4 bg-brand-purple text-white p-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-terminal-lg font-semibold">New Trip</h1>
-              <p className="text-text-faint text-xs">Set up your trip, your profile, and destinations all in one go</p>
-            </div>
-            <button onClick={() => router.push('/budgets/trips')} className="text-xs text-text-faint hover:text-white">
-              ← Back
-            </button>
-          </div>
+        <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-brand-red px-4 py-3 mb-4 text-sm">{error}</div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
 
             {/* ═══ Section 1: Trip Details ═══ */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
-                <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">1</span>
-                Trip Details
-              </div>
-              <div className="p-4 space-y-4">
+            <div className="bg-white border border-border p-4">
+              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Trip Details</h2>
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Trip Name *</label>
                   <input type="text" value={name} onChange={e => setName(e.target.value)}
                     placeholder="e.g., Bali Surf Trip 2026"
-                    className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple"
                     required />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-text-secondary mb-1">Start Date *</label>
                     <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-text-secondary mb-1">End Date *</label>
                     <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
                       min={startDate || new Date().toISOString().split('T')[0]}
-                      className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple" />
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple" />
                   </div>
-                </div>
-
-                {duration > 0 && (
-                  <div className="text-xs text-text-muted bg-bg-row px-3 py-2">
-                    Duration: <span className="font-semibold text-text-primary">{duration} days</span>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Trip Type</label>
+                    <div className="flex gap-1">
+                      {TRIP_TYPES.map(tt => (
+                        <button key={tt.value} type="button" onClick={() => setTripType(tt.value)}
+                          className={`flex-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                            tripType === tt.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border border border-gray-200'
+                          }`}>
+                          {tt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Trip Type</label>
-                  <div className="flex gap-2">
-                    {TRIP_TYPES.map(tt => (
-                      <button key={tt.value} type="button" onClick={() => setTripType(tt.value)}
-                        className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                          tripType === tt.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border border border-border'
-                        }`}>
-                        {tt.label}
-                      </button>
-                    ))}
-                  </div>
+                  {duration > 0 && (
+                    <div className="flex items-end">
+                      <div className="text-xs text-text-muted bg-bg-row px-3 py-2 rounded-lg w-full text-center">
+                        <span className="font-semibold text-text-primary">{duration} days</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* ═══ Section 2: Your Travel Profile ═══ */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
-                <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">2</span>
+            <div className="bg-white border border-border p-4" ref={profileRef}>
+              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">
                 Your Travel Profile
-              </div>
-              <div className="p-4 space-y-5">
+                {selectedActivities.length > 0 && (
+                  <span className="ml-2 text-brand-purple font-normal text-xs">({selectedActivities.length} selected)</span>
+                )}
+              </h2>
+              <div className="space-y-4">
 
                 {/* Interests */}
                 <div>
-                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                    Your Interests
-                    {selectedActivities.length > 0 && (
-                      <span className="ml-2 text-brand-purple font-normal normal-case">({selectedActivities.length} selected)</span>
-                    )}
-                  </h4>
-                  {ACTIVITY_GROUPS.map(group => (
-                    <div key={group.label} className="mb-3">
-                      <div className="text-[11px] font-medium text-text-muted mb-1">{group.label}</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.activities.map(act => {
-                          const selected = selectedActivities.includes(act.value);
-                          return (
-                            <button key={act.value} type="button" onClick={() => toggleActivity(act.value)}
-                              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
-                                selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                              }`}>
-                              {act.label}
-                            </button>
-                          );
-                        })}
+                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Your Interests</h4>
+                  <div className="space-y-2">
+                    {ACTIVITY_GROUPS.map(group => (
+                      <div key={group.label}>
+                        <div className="text-[11px] font-medium text-text-muted mb-1">{group.label}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.activities.map(act => {
+                            const selected = selectedActivities.includes(act.value);
+                            return (
+                              <button key={act.value} type="button" onClick={() => toggleActivity(act.value)}
+                                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                                  selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
+                                }`}>
+                                {act.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Budget */}
-                <div>
-                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Budget per Night</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {BUDGET_OPTIONS.map(bo => (
-                      <button key={bo.value} type="button" onClick={() => setBudget(bo.value)}
-                        className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                          budget === bo.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                        }`}>
-                        {bo.label}
-                      </button>
                     ))}
                   </div>
-                  {budgetHint && (
-                    <div className="text-[10px] text-text-muted mt-1.5">{budgetHint}</div>
-                  )}
                 </div>
 
-                {/* Vibe */}
-                <div>
-                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
-                    Vibe <span className="font-normal text-text-muted">(up to 3)</span>
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {VIBE_OPTIONS.map(vo => {
-                      const selected = vibes.includes(vo.value);
-                      return (
-                        <button key={vo.value} type="button" onClick={() => toggleVibe(vo.value)}
+                {/* Budget + Vibe + Pace in a tighter grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Budget per Night</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {BUDGET_OPTIONS.map(bo => (
+                        <button key={bo.value} type="button" onClick={() => setBudget(bo.value)}
                           className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
-                            selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
+                            budget === bo.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
                           }`}>
-                          {vo.label}
+                          {bo.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
+                    {budgetHint && <div className="text-[10px] text-text-muted mt-1.5">{budgetHint}</div>}
                   </div>
-                </div>
 
-                {/* Pace */}
-                <div>
-                  <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Pace</h4>
-                  <div className="flex gap-2">
-                    {PACE_OPTIONS.map(po => (
-                      <button key={po.value} type="button" onClick={() => setPace(po.value)}
-                        className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors ${
-                          pace === po.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
-                        }`}>
-                        {po.label}
-                      </button>
-                    ))}
+                  <div>
+                    <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+                      Vibe <span className="font-normal text-text-muted">(up to 3)</span>
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {VIBE_OPTIONS.map(vo => {
+                        const selected = vibes.includes(vo.value);
+                        return (
+                          <button key={vo.value} type="button" onClick={() => toggleVibe(vo.value)}
+                            className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+                              selected ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
+                            }`}>
+                            {vo.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-2">Pace</h4>
+                    <div className="flex gap-2">
+                      {PACE_OPTIONS.map(po => (
+                        <button key={po.value} type="button" onClick={() => setPace(po.value)}
+                          className={`flex-1 px-3 py-2 rounded text-xs font-medium transition-colors ${
+                            pace === po.value ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-secondary hover:bg-border'
+                          }`}>
+                          {po.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* ═══ Section 3: Destinations ═══ */}
-            <div className="bg-white border border-border">
-              <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center gap-2">
-                <span className="w-5 h-5 bg-white/20 flex items-center justify-center text-[10px] font-bold">3</span>
+            <div className="bg-white border border-border p-4">
+              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">
                 Destinations
-                <span className="text-xs text-white/60 font-normal ml-auto">(optional — add later)</span>
-              </div>
-              <div className="p-4">
-                {/* Selected destinations */}
-                {selectedDestinations.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {selectedDestinations.map(d => (
-                      <div key={d.id} className="flex items-center gap-1.5 bg-brand-purple-wash border border-brand-purple/20 rounded-full px-3 py-1">
-                        <span className="text-xs text-text-primary">{d.name}</span>
-                        <span className="text-[10px] text-text-muted">{d.country}</span>
-                        {d.nearestAirport && <span className="text-[10px] font-mono text-text-faint">{d.nearestAirport}</span>}
-                        <button onClick={() => removeDestination(d.id)} className="text-text-faint hover:text-brand-red text-xs ml-1">×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <span className="text-xs text-text-muted font-normal ml-2">(optional — add later)</span>
+              </h2>
 
-                {/* Search */}
-                <input
-                  type="text"
-                  placeholder="Search destinations..."
-                  value={searchQuery}
-                  onChange={e => searchDestinations(e.target.value)}
-                  className="w-full px-3 py-2 border border-border text-sm focus:outline-none focus:border-brand-purple mb-2"
-                />
-                {searchResults.length > 0 && (
-                  <div className="max-h-48 overflow-y-auto border border-border rounded">
-                    {searchResults.map(r => (
-                      <button key={r.id} onClick={() => addDestination(r)}
-                        disabled={selectedDestinations.some(d => d.id === r.id)}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-bg-row flex justify-between items-center disabled:opacity-50 border-b border-border/50 last:border-0">
-                        <span>
-                          <span className="font-medium">{r.name}</span>
-                          <span className="text-text-muted ml-2">{r.state ? `${r.state}, ` : ''}{r.country}</span>
-                        </span>
-                        {r.nearestAirport && <span className="font-mono text-text-faint">{r.nearestAirport}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Selected destinations */}
+              {selectedDestinations.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedDestinations.map(d => (
+                    <div key={d.id} className="flex items-center gap-1.5 bg-brand-purple/10 border border-brand-purple/20 rounded-full px-3 py-1">
+                      <span className="text-xs text-text-primary">{d.name}</span>
+                      {d.country && <span className="text-[10px] text-text-muted">{d.country}</span>}
+                      {d.nearestAirport && <span className="text-[10px] font-mono text-text-faint">{d.nearestAirport}</span>}
+                      <button onClick={() => removeDestination(d.id)} className="text-text-faint hover:text-brand-red text-xs ml-1">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Search */}
+              <input
+                type="text"
+                placeholder="Search destinations..."
+                value={searchQuery}
+                onChange={e => searchDestinationsApi(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-purple mb-2"
+              />
+              {searchResults.length > 0 && (
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                  {searchResults.map(r => (
+                    <button key={r.id} onClick={() => addDestination(r)}
+                      disabled={selectedDestinations.some(d => d.id === r.id)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-bg-row flex justify-between items-center disabled:opacity-50 border-b border-border/50 last:border-0">
+                      <span>
+                        <span className="font-medium">{r.name}</span>
+                        <span className="text-text-muted ml-2">{r.state ? `${r.state}, ` : ''}{r.country}</span>
+                      </span>
+                      {r.nearestAirport && <span className="font-mono text-text-faint">{r.nearestAirport}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* ═══ Section 4: Create ═══ */}
-            <div className="flex gap-3">
+            {/* ═══ Actions ═══ */}
+            <div className="flex items-center justify-end gap-3 pt-1">
               <button type="button" onClick={() => router.back()}
-                className="flex-1 px-4 py-3 border border-border text-text-secondary text-xs font-medium hover:bg-bg-row">
+                className="text-gray-500 hover:text-gray-700 text-sm font-medium px-4 py-3 transition-colors">
                 Cancel
               </button>
               <button onClick={handleCreate} disabled={saving || !canCreate}
-                className="flex-1 px-4 py-3 bg-brand-purple text-white text-sm font-semibold hover:bg-brand-purple-hover disabled:opacity-50">
+                className="bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm px-8 py-3 rounded-lg disabled:opacity-50 transition-colors">
                 {saving ? 'Creating...' : 'Create Trip'}
               </button>
             </div>
@@ -420,6 +485,18 @@ export default function NewTripPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
   );
+}
+
+/** Parse date string (YYYY-MM-DD or MM/DD/YYYY) to YYYY-MM-DD for date inputs */
+function parseToDateInput(val: string): string | null {
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  // MM/DD/YYYY
+  const match = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, m, d, y] = match;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
 }
