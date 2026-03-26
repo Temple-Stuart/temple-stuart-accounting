@@ -38,8 +38,8 @@ export async function requireUser() {
  *   const gate = requireTier(user.tier, 'plaid');
  *   if (gate) return gate;
  */
-export function requireTier(tier: string | null | undefined, feature: keyof TierConfig): NextResponse | null {
-  if (!canAccess(tier, feature)) {
+export function requireTier(tier: string | null | undefined, feature: keyof TierConfig, userId?: string | null): NextResponse | null {
+  if (!canAccess(tier, feature, userId)) {
     return NextResponse.json(
       { error: 'Upgrade required', feature, message: `This feature requires a plan with ${feature} access.` },
       { status: 403 }

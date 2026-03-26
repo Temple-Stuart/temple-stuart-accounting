@@ -6,6 +6,7 @@ import Script from 'next/script';
 import { AppLayout } from '@/components/ui';
 import type { LedgerMetrics, EngineMetrics } from '@/components/ui/AppLayout';
 import UpgradePrompt from '@/components/UpgradePrompt';
+import { ADMIN_USER_ID } from '@/lib/tiers';
 import SpendingTab from '@/components/dashboard/SpendingTab';
 import InvestmentsTab from '@/components/dashboard/InvestmentsTab';
 import GeneralLedger from '@/components/dashboard/GeneralLedger';
@@ -107,6 +108,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string>('free');
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mappingTab, setMappingTab] = useState<'spending' | 'investments'>('spending');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -165,7 +167,7 @@ export default function Dashboard() {
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
-      if (meRes.ok) { const meData = await meRes.json(); setUserTier(meData.user?.tier || 'free'); }
+      if (meRes.ok) { const meData = await meRes.json(); setUserTier(meData.user?.tier || 'free'); if (meData.user?.id) setCurrentUserId(meData.user.id); }
     } catch (err) { console.error('Load error:', err); }
     finally { setLoading(false); }
   }, []);
@@ -321,7 +323,7 @@ export default function Dashboard() {
   }, [coaOptions]);
 
   const handleAddAccount = () => {
-    if (userTier === 'free') {
+    if (userTier === 'free' && currentUserId !== ADMIN_USER_ID) {
       setShowUpgradeModal(true);
       return;
     }

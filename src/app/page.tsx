@@ -356,7 +356,7 @@ export default function LandingPage() {
 
             {/* Pro */}
             <div className="border-2 border-brand-purple p-6 relative">
-              <div className="absolute -top-2.5 left-4 bg-brand-purple text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Popular</div>
+              <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Coming Soon</div>
               <div className="text-xs font-medium text-text-primary mb-1">Pro</div>
               <div className="text-sm font-bold font-mono text-brand-purple mb-1">$20<span className="text-sm font-normal text-text-muted">/mo</span></div>
               <div className="text-[10px] text-text-muted mb-4">Everything in Free, plus</div>
@@ -382,14 +382,15 @@ export default function LandingPage() {
                   <span>Bank reconciliation + period close</span>
                 </div>
               </div>
-              <button onClick={() => { setLoginMode('login'); setLoginRedirect('/pricing'); setShowLogin(true); }}
-                className="mt-6 w-full px-4 py-2 text-xs bg-brand-purple text-white font-medium hover:bg-brand-purple-hover">
-                Subscribe
+              <button disabled
+                className="mt-6 w-full px-4 py-2 text-xs border border-border text-text-faint font-medium cursor-not-allowed">
+                Coming Soon
               </button>
             </div>
 
             {/* Pro+ */}
-            <div className="border border-border p-6">
+            <div className="border border-border p-6 relative">
+              <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">Coming Soon</div>
               <div className="text-xs font-medium text-text-primary mb-1">Pro+</div>
               <div className="text-sm font-bold font-mono text-brand-purple mb-1">$40<span className="text-sm font-normal text-text-muted">/mo</span></div>
               <div className="text-[10px] text-text-muted mb-4">Everything in Pro, plus</div>
@@ -415,9 +416,9 @@ export default function LandingPage() {
                   <span>Priority support</span>
                 </div>
               </div>
-              <button onClick={() => { setLoginMode('login'); setLoginRedirect('/pricing'); setShowLogin(true); }}
-                className="mt-6 w-full px-4 py-2 text-xs border border-border text-text-secondary font-medium hover:bg-bg-row">
-                Subscribe
+              <button disabled
+                className="mt-6 w-full px-4 py-2 text-xs border border-border text-text-faint font-medium cursor-not-allowed">
+                Coming Soon
               </button>
             </div>
 

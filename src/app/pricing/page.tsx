@@ -18,7 +18,7 @@ const TIERS = [
       'Double-entry bookkeeping',
       'Hub command center',
     ],
-    cta: 'Current Plan',
+    cta: 'Get Started Free',
     highlight: false,
   },
   {
@@ -34,7 +34,7 @@ const TIERS = [
       'Wash sale tracking',
       'Bank reconciliation',
     ],
-    cta: 'Upgrade to Pro',
+    cta: 'Coming Soon',
     highlight: true,
   },
   {
@@ -50,7 +50,7 @@ const TIERS = [
       'Up to 25 linked accounts',
       'Priority support',
     ],
-    cta: 'Upgrade to Pro+',
+    cta: 'Coming Soon',
     highlight: false,
   },
   {
@@ -189,7 +189,7 @@ function PricingContent() {
                 Popular
               </div>
             )}
-            {t.tier === 'trader_pro' && (
+            {t.tier !== 'free' && (
               <div className="absolute -top-2.5 left-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 uppercase tracking-wider">
                 Coming Soon
               </div>
@@ -215,15 +215,11 @@ function PricingContent() {
             </div>
 
             <button
-              onClick={() => t.tier !== 'trader_pro' && handleUpgrade(t.tier)}
-              disabled={loading !== null || t.tier === 'trader_pro'}
+              onClick={() => t.tier === 'free' && handleUpgrade(t.tier)}
+              disabled={loading !== null || t.tier !== 'free'}
               className={`w-full px-4 py-2 text-xs font-medium ${
-                t.tier === 'trader_pro'
+                t.tier !== 'free'
                   ? 'bg-border text-text-muted cursor-not-allowed'
-                  : t.highlight
-                  ? 'bg-brand-purple text-white hover:bg-brand-purple-hover'
-                  : t.tier === 'free'
-                  ? 'border border-border text-text-secondary hover:bg-bg-row'
                   : 'border border-border text-text-secondary hover:bg-bg-row'
               }`}
             >

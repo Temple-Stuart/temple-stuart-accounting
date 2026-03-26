@@ -21,7 +21,7 @@ export async function POST() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const tierGate = requireTier(user.tier, 'plaid');
+    const tierGate = requireTier(user.tier, 'plaid', user.id);
     if (tierGate) return tierGate;
 
     const configs = {
