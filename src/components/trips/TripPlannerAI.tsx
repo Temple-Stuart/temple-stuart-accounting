@@ -808,25 +808,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   return (
     <div className="space-y-6">
-      {/* Profile Summary - Polished Header */}
-      <div className="relative overflow-hidden rounded bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 text-white shadow-sm">
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="relative">
-          <div className="flex items-center gap-2 text-white/80 text-sm font-medium mb-1">
-            <span className="animate-pulse">🤖</span> Powered by Grok AI
-          </div>
-          <h2 className="text-sm font-bold mb-1">Trip Intelligence</h2>
-          {profilesComplete > 0 ? (
-            <p className="text-white/80 text-sm">
-              Scanning for: {combinedInterests.length > 0 ? combinedInterests.slice(0, 6).join(', ') : getProfileSummary()}
-              {combinedInterests.length > 6 && ` +${combinedInterests.length - 6} more`}
-              {' '}({profilesComplete} traveler{profilesComplete !== 1 ? 's' : ''})
-            </p>
-          ) : (
-            <p className="text-white/80 text-sm">Complete your travel profiles above to personalize scanner results</p>
-          )}
+      {/* Profile Summary */}
+      {profilesComplete > 0 && combinedInterests.length > 0 && (
+        <div className="text-xs text-gray-500 mb-2">
+          Scanning for: {combinedInterests.slice(0, 6).join(', ')}
+          {combinedInterests.length > 6 && ` +${combinedInterests.length - 6} more`}
+          {' '}· {profilesComplete} traveler{profilesComplete !== 1 ? 's' : ''}
         </div>
-      </div>
+      )}
 
       {/* Search Controls */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-bg-row rounded border border-border">
