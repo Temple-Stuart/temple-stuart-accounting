@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export interface LedgerMetrics {
@@ -55,20 +55,25 @@ const BOOKKEEPING_PREFIXES = [
   '/transactions', '/net-worth',
 ];
 
-const BUDGETING_ITEMS = [
-  { name: 'Business', href: '/business' },
-  { name: 'Home', href: '/home' },
-  { name: 'Auto', href: '/auto' },
-  { name: 'Shopping', href: '/shopping' },
-  { name: 'Personal', href: '/personal' },
-  { name: 'Health', href: '/health' },
-  { name: 'Growth', href: '/growth' },
-  { name: 'Trips', href: '/budgets/trips' },
-  { name: 'Income', href: '/income' },
-  { name: 'Budget', href: '/hub/itinerary' },
+const PERSONAL_PREFIXES = [
+  '/personal', '/home', '/auto', '/shopping',
+  '/health', '/growth', '/income', '/hub/itinerary',
 ];
 
-const BUDGETING_PREFIXES = BUDGETING_ITEMS.map(i => i.href);
+const BUSINESS_PREFIXES = ['/business'];
+
+const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
+
+const TRADING_PREFIXES = ['/trading'];
+
+// Primary nav tabs — order matters (left to right)
+const NAV_TABS = [
+  { name: 'Bookkeeping', href: '/dashboard', icon: '📒', prefixes: BOOKKEEPING_PREFIXES },
+  { name: 'Personal', href: '/personal', icon: '👤', prefixes: PERSONAL_PREFIXES },
+  { name: 'Business', href: '/business', icon: '💼', prefixes: BUSINESS_PREFIXES },
+  { name: 'Travel', href: '/budgets/trips', icon: '✈️', prefixes: TRAVEL_PREFIXES },
+  { name: 'Trading', href: '/trading', icon: '📈', prefixes: TRADING_PREFIXES },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -96,10 +101,8 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [budgetingOpen, setBudgetingOpen] = useState(false);
   const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const budgetingRef = useRef<HTMLDivElement>(null);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -131,22 +134,8 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
     }
   }, [checkingAuth, status, isAuthenticated, router]);
 
-  // Close budgeting dropdown on click outside
+  // Close mobile menu on route change
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (budgetingRef.current && !budgetingRef.current.contains(e.target as Node)) {
-        setBudgetingOpen(false);
-      }
-    };
-    if (budgetingOpen) {
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }
-  }, [budgetingOpen]);
-
-  // Close budgeting dropdown on route change
-  useEffect(() => {
-    setBudgetingOpen(false);
     setMobileMenuOpen(false);
   }, [pathname]);
 
@@ -180,110 +169,83 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   // ─── Active State Detection ────────────────────────────────────────────────
 
   const isHubActive = pathname === '/hub';
-  const isBookkeepingActive = BOOKKEEPING_PREFIXES.some(p => pathname?.startsWith(p));
-  const isTradingActive = pathname?.startsWith('/trading');
-  const isBudgetingActive = BUDGETING_PREFIXES.some(p => pathname?.startsWith(p));
 
-  const navTabClass = (active: boolean) =>
-    `relative px-3 flex items-center text-terminal-lg font-medium transition-all h-full ${
-      active
-        ? 'text-white bg-white/[.07]'
-        : 'text-white/60 hover:text-white hover:bg-white/[.04]'
-    }`;
-
-  const navTabBorder = (active: boolean) =>
-    active ? 'absolute bottom-0 left-0 right-0 h-[2px] bg-brand-gold' : '';
+  const isTabActive = (prefixes: string[]) =>
+    prefixes.some(p => pathname?.startsWith(p));
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-bg-terminal">
       <header className="sticky top-0 z-50">
-        {/* ROW 1 — Navigation (28px) */}
-        <div className="bg-brand-purple" style={{ height: 28 }}>
-          <div className="max-w-[1800px] mx-auto flex items-center h-full px-3">
+        {/* ROW 1 — Navigation */}
+        <div className="bg-brand-purple">
+          <div className="max-w-[1800px] mx-auto flex items-center px-4">
             {/* Logo */}
-            <Link href="/hub" className="flex items-center gap-1.5 mr-4 flex-shrink-0">
-              <div className="w-4 h-4 rounded-sm bg-white/10 flex items-center justify-center">
-                <span className="text-white font-bold text-[7px] font-mono leading-none">TS</span>
+            <Link href="/hub" className="flex items-center gap-2 mr-6 py-3 flex-shrink-0">
+              <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
+                <span className="text-white font-bold text-[9px] font-mono leading-none">TS</span>
               </div>
-              <span className="hidden sm:inline text-[11px] font-semibold text-white tracking-tight">Temple Stuart</span>
+              <span className="hidden sm:inline text-sm font-semibold text-white">Temple Stuart</span>
             </Link>
 
-            {/* Desktop Nav */}
-            <nav className="hidden lg:flex items-center h-full gap-0">
-              {/* Hub */}
-              <Link href="/hub" className={navTabClass(isHubActive)}>
-                Hub
-                <div className={navTabBorder(isHubActive)} />
-              </Link>
-
-              {/* Bookkeeping */}
-              <Link href="/dashboard" className={navTabClass(isBookkeepingActive)}>
-                Bookkeeping
-                <div className={navTabBorder(isBookkeepingActive)} />
-              </Link>
-
-              {/* Trading */}
-              <Link href="/trading" className={navTabClass(isTradingActive)}>
-                Trading
-                <div className={navTabBorder(isTradingActive)} />
-              </Link>
-
-              {/* Budgeting (with dropdown) */}
-              <div ref={budgetingRef} className="relative h-full">
-                <button
-                  onClick={() => setBudgetingOpen(!budgetingOpen)}
-                  className={navTabClass(isBudgetingActive)}
-                >
-                  Budgeting
-                  <svg className="w-2.5 h-2.5 ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  <div className={navTabBorder(isBudgetingActive)} />
-                </button>
-
-                {/* Budgeting Dropdown */}
-                {budgetingOpen && (
-                  <div className="absolute top-full left-0 mt-0 bg-brand-purple-deep border border-white/10 shadow-sm z-50 min-w-[140px]">
-                    {BUDGETING_ITEMS.map(item => {
-                      const isSubActive = pathname?.startsWith(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`block px-3 py-1.5 text-[10px] font-medium transition-colors ${
-                            isSubActive
-                              ? 'text-brand-gold bg-white/[.05]'
-                              : 'text-white/70 hover:text-white hover:bg-white/[.05]'
-                          }`}
-                        >
-                          {item.name}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+            {/* Desktop Nav — 5 primary tabs */}
+            <nav className="hidden lg:flex items-center h-full">
+              {NAV_TABS.map(tab => {
+                const active = isTabActive(tab.prefixes);
+                return (
+                  <Link
+                    key={tab.href}
+                    href={tab.href}
+                    className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors ${
+                      active
+                        ? 'text-white'
+                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.name}</span>
+                    {active && (
+                      <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-brand-gold rounded-full" />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
 
-            {/* Right side */}
-            <div className="ml-auto flex items-center gap-2">
-              <span className="hidden sm:inline text-[9px] text-white/50 font-mono">
+            {/* Right side — Hub icon + user */}
+            <div className="ml-auto flex items-center gap-3">
+              {/* Hub icon */}
+              <Link
+                href="/hub"
+                className={`hidden lg:flex items-center gap-1 px-2 py-1.5 rounded transition-colors text-sm ${
+                  isHubActive
+                    ? 'text-white bg-white/10'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+                title="Hub"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </Link>
+
+              <span className="hidden sm:inline text-xs text-white/50">
                 {currentUser?.name || currentUser?.email?.split('@')[0]}
               </span>
               <button
                 onClick={handleSignOut}
-                className="text-[9px] text-white/40 hover:text-white transition-colors font-mono"
+                className="text-xs text-white/40 hover:text-white transition-colors"
               >
                 sign out
               </button>
+
               {/* Mobile hamburger */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1 hover:bg-white/10 rounded-sm"
+                className="lg:hidden p-1.5 hover:bg-white/10 rounded"
               >
-                <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen
                     ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -370,25 +332,32 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-brand-purple-deep border-t border-white/10 px-3 py-2">
-            <div className="grid grid-cols-2 gap-0.5">
-              <Link href="/hub" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isHubActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
-                Hub
-              </Link>
-              <Link href="/dashboard" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isBookkeepingActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
-                Bookkeeping
-              </Link>
-              <Link href="/trading" className={`px-2 py-1.5 text-[10px] font-medium text-center ${isTradingActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
-                Trading
-              </Link>
-              {BUDGETING_ITEMS.map(item => {
-                const isSubActive = pathname?.startsWith(item.href);
+            <div className="flex flex-col gap-0.5">
+              {NAV_TABS.map(tab => {
+                const active = isTabActive(tab.prefixes);
                 return (
-                  <Link key={item.href} href={item.href}
-                    className={`px-2 py-1.5 text-[10px] font-medium text-center ${isSubActive ? 'text-brand-gold bg-white/[.05]' : 'text-white/60 hover:bg-white/[.05] hover:text-white'}`}>
-                    {item.name}
+                  <Link key={tab.href} href={tab.href}
+                    className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded transition-colors ${
+                      active
+                        ? 'bg-white/10 text-white border-l-2 border-brand-gold'
+                        : 'text-white/70 hover:bg-white/[.05] hover:text-white border-l-2 border-transparent'
+                    }`}>
+                    <span>{tab.icon}</span>
+                    <span>{tab.name}</span>
                   </Link>
                 );
               })}
+              <Link href="/hub"
+                className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded transition-colors mt-1 border-t border-white/10 pt-3 ${
+                  isHubActive
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/60 hover:bg-white/[.05] hover:text-white'
+                }`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span>Hub Dashboard</span>
+              </Link>
             </div>
           </div>
         )}
