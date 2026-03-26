@@ -4,11 +4,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plane, FileText, MapPin, Calendar, Users, X } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
+import { INTEREST_CATEGORIES } from '@/lib/activities';
 
-const FILTER_CHIPS = [
-  'Active & Outdoors', 'Festivals & Events', 'Conferences', 'Nightlife',
-  'Food & Craft', 'Coworking', 'Culture & Discovery', 'Bucket List',
-];
+const FILTER_CHIPS = INTEREST_CATEGORIES;
 
 export default function TripCreationBar() {
   const router = useRouter();
