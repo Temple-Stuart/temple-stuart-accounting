@@ -102,7 +102,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, notes, amount: requestAmount } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount } = await request.json();
 
     if (!optionType || !optionId || !startDate) {
       return NextResponse.json({ error: 'optionType, optionId, and startDate are required' }, { status: 400 });
@@ -171,6 +171,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           },
         });
         itineraryEntries.push(entry);
+      } else if (optionType === 'flight') {
+        // Flights: single entry with departure date/time and arrival date/time
+        const dayNum = Math.round((start.getTime() - tripStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const flightArriveDate = arriveDate ? new Date(arriveDate) : end;
+        const entry = await tx.trip_itinerary.create({
+          data: {
+            tripId: id, day: dayNum, homeDate: start, homeTime: startTime || null,
+            destDate: flightArriveDate, destTime: endTime || null,
+            category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
+            note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
+          },
+        });
+        itineraryEntries.push(entry);
       } else {
         // Multi-day bookings (lodging, vehicles, etc.) — create entry per day
         const current = new Date(start);
@@ -182,7 +195,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           const entry = await tx.trip_itinerary.create({
             data: {
               tripId: id, day: dayNum, homeDate: current, homeTime: startTime || null,
-              destDate: current, destTime: startTime || null,
+              destDate: current, destTime: endTime || null,
               category: optionType, vendor: details.title, cost: Math.round(dailyCost * 100) / 100,
               note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
             },

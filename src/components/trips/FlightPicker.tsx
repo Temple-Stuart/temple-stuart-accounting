@@ -52,6 +52,7 @@ interface FlightLeg {
   manualPrice: string;
   manualDepartTime: string;
   manualArriveTime: string;
+  manualArriveDate: string;
 }
 
 interface Props {
@@ -97,6 +98,7 @@ export default function FlightPicker({
     manualPrice: '',
     manualDepartTime: '',
     manualArriveTime: '',
+    manualArriveDate: '',
     ...overrides,
   }), [originAirport, destinationAirport, departureDate, returnDate]);
 
@@ -239,7 +241,7 @@ export default function FlightPicker({
       currency: 'USD',
       outbound: {
         departure: { airport: leg.origin, localTime: leg.manualDepartTime || '', date: leg.departureDate },
-        arrival: { airport: leg.destination, localTime: leg.manualArriveTime || '', date: leg.departureDate },
+        arrival: { airport: leg.destination, localTime: leg.manualArriveTime || '', date: leg.manualArriveDate || leg.departureDate },
         duration: '',
         stops: 0,
         carriers: [leg.manualAirline || 'Manual Entry'],
@@ -254,7 +256,7 @@ export default function FlightPicker({
       isManual: true,
     };
 
-    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '' });
+    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '', manualArriveDate: '' });
   };
 
   // ── Commit via vendor-commit ──
@@ -272,9 +274,10 @@ export default function FlightPicker({
         : `${carrier} | ${title} | ${offer.outbound?.duration || ''} | ${formatStops(offer.outbound?.stops || 0)} | $${offer.price}`;
       const flightId = `flight-${leg.id}-${Date.now()}`;
 
-      // Extract departure/arrival times from offer
+      // Extract departure/arrival times and dates from offer
       const departTime = offer.outbound?.departure?.localTime || undefined;
       const arriveTime = offer.outbound?.arrival?.localTime || undefined;
+      const arriveDate = offer.outbound?.arrival?.date || undefined;
 
       const res = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST',
@@ -288,6 +291,7 @@ export default function FlightPicker({
           notes: title,
           startTime: departTime,
           endTime: arriveTime,
+          arriveDate,
         }),
       });
 
@@ -467,9 +471,12 @@ export default function FlightPicker({
                           placeholder="Price" className="w-24 bg-white border border-border rounded px-2 py-1.5 text-xs" />
                       </div>
                       <input type="time" value={leg.manualDepartTime} onChange={e => updateLeg(leg.id, { manualDepartTime: e.target.value })}
-                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Departure time" />
+                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Departure time" placeholder="Depart" />
                       <input type="time" value={leg.manualArriveTime} onChange={e => updateLeg(leg.id, { manualArriveTime: e.target.value })}
-                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Arrival time" />
+                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Arrival time" placeholder="Arrive" />
+                      <input type="date" value={leg.manualArriveDate} onChange={e => updateLeg(leg.id, { manualArriveDate: e.target.value })}
+                        min={leg.departureDate}
+                        className="w-[130px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Arrival date (if next day)" />
                       <button onClick={() => submitManual(leg.id)} disabled={!leg.manualPrice}
                         className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 disabled:opacity-50">
                         Use This
