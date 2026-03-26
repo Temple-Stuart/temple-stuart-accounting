@@ -484,14 +484,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ── Itinerary Calendar (primary view) ── */}
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900">{trip.name}</h2>
-                  <p className="text-xs text-gray-500">
-                    {destinations.length > 0
-                      ? destinations.map((d: any) => d.name || d.resort?.name).filter(Boolean).join(' → ')
-                      : (trip.destination || 'Destination TBD')} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days
-                  </p>
-                </div>
+                <h2 className="text-sm font-semibold text-gray-700">Itinerary</h2>
                 <button onClick={() => setShowExpenseForm(!showExpenseForm)}
                   className="px-3 py-1.5 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white rounded-lg font-medium">
                   {showExpenseForm ? 'Cancel' : '+ Add Expense'}
@@ -620,6 +613,115 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               );
             })()}
 
+            {/* ── Map with Lodging & Dining sidebars ── */}
+            {(() => {
+              const itinerary = trip.itinerary || [];
+              const lodgingItems = itinerary.filter((item: any) => (item.vendorOptionType || item.category) === 'lodging');
+              const diningItems = itinerary.filter((item: any) => {
+                const cat = item.vendorOptionType || item.category || '';
+                return cat === 'dinner' || cat === 'brunchCoffee';
+              });
+              // Deduplicate by vendorOptionId (multi-day lodging creates multiple entries)
+              const uniqueLodging = Object.values(
+                lodgingItems.reduce((acc: Record<string, any>, item: any) => {
+                  const key = item.vendorOptionId || item.id;
+                  if (!acc[key]) acc[key] = { ...item, nightCount: 1 };
+                  else acc[key].nightCount++;
+                  return acc;
+                }, {})
+              ) as any[];
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0 lg:gap-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  {/* Left — Lodging */}
+                  <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
+                    </div>
+                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
+                      {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
+                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg p-3 hover:border-purple-200 transition-colors">
+                          <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                            {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                            {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
+                          </div>
+                          {item.homeDate && (
+                            <div className="text-[10px] text-gray-400 mt-1">
+                              {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              {item.nightCount > 1 && ' onwards'}
+                            </div>
+                          )}
+                          <div className="mt-1.5">
+                            <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-400">
+                          <p className="text-xs">No lodging booked yet.</p>
+                          <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Center — Map */}
+                  <div className="relative">
+                    <DestinationMap
+                      destinations={destinations}
+                      selectedName={trip.destination}
+                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
+                      height="500px"
+                    />
+                  </div>
+
+                  {/* Right — Dining */}
+                  <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
+                    </div>
+                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
+                      {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
+                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg p-3 hover:border-red-200 transition-colors">
+                          <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                            {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                            {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
+                          </div>
+                          {item.homeDate && (
+                            <div className="text-[10px] text-gray-400 mt-1">
+                              {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          )}
+                          <div className="mt-1.5">
+                            <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-400">
+                          <p className="text-xs">No restaurants booked yet.</p>
+                          <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Destinations (add/manage) ── */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Destinations</h2>
+              <DestinationSelector
+                activity={trip.activity}
+                tripId={id}
+                selectedDestinations={destinations}
+                onDestinationsChange={loadDestinations}
+                selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
+                onSelectDestination={selectDestination}
+              />
+            </div>
+
             {/* ── Crew & Profiles ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
@@ -710,29 +812,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 />
               </div>
             )}
-
-            {/* ── Destinations ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Destinations</h2>
-              <DestinationSelector
-                activity={trip.activity}
-                tripId={id}
-                selectedDestinations={destinations}
-                onDestinationsChange={loadDestinations}
-                selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
-                onSelectDestination={selectDestination}
-              />
-              {destinations.length > 0 && (
-                <div className="mt-6">
-                  <div className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">Location Map</div>
-                  <DestinationMap
-                    destinations={destinations}
-                    selectedName={trip.destination}
-                    onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
-                  />
-                </div>
-              )}
-            </div>
 
             {/* ── Trip Planner & Budget ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Destination {
   id: string;
   resortId: string;
+  name?: string;
   resort?: {
     name: string;
     latitude?: string | number | null;
@@ -16,28 +17,18 @@ interface DestinationMapProps {
   destinations: Destination[];
   selectedName?: string | null;
   onDestinationClick?: (resortId: string, name: string) => void;
+  height?: string;
 }
 
-// Component to handle fitBounds after map loads
-function FitBoundsHandler({ map, bounds, L }: { map: any; bounds: [number, number][]; L: any }) {
-  useEffect(() => {
-    if (map && bounds.length > 0 && L) {
-      const leafletBounds = L.latLngBounds(bounds);
-      map.fitBounds(leafletBounds, { padding: [30, 30], maxZoom: 10 });
-    }
-  }, [map, bounds, L]);
-  return null;
-}
-
-export default function DestinationMap({ destinations, selectedName, onDestinationClick }: DestinationMapProps) {
+export default function DestinationMap({ destinations, selectedName, onDestinationClick, height = '500px' }: DestinationMapProps) {
   const [MapContainer, setMapContainer] = useState<any>(null);
   const [TileLayer, setTileLayer] = useState<any>(null);
   const [Marker, setMarker] = useState<any>(null);
   const [Popup, setPopup] = useState<any>(null);
-  const [useMapEvents, setUseMapEvents] = useState<any>(null);
+  const [Polyline, setPolyline] = useState<any>(null);
+  const [Tooltip, setTooltip] = useState<any>(null);
   const [L, setL] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
-  const [map, setMap] = useState<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -46,7 +37,8 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
       setTileLayer(() => mod.TileLayer);
       setMarker(() => mod.Marker);
       setPopup(() => mod.Popup);
-      setUseMapEvents(() => mod.useMapEvents);
+      setPolyline(() => mod.Polyline);
+      setTooltip(() => mod.Tooltip);
     });
     import('leaflet').then((mod) => {
       setL(() => mod.default);
@@ -55,14 +47,14 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
 
   if (!mounted || !MapContainer || !TileLayer || !Marker || !Popup || !L) {
     return (
-      <div className="h-48 bg-bg-row rounded flex items-center justify-center">
-        <div className="text-text-faint">Loading map...</div>
+      <div className="bg-gray-100 rounded-lg flex items-center justify-center" style={{ height }}>
+        <div className="text-gray-400 text-sm">Loading map...</div>
       </div>
     );
   }
 
   // Filter destinations that have coordinates
-  const locationsWithCoords = destinations.filter(d => 
+  const locationsWithCoords = destinations.filter(d =>
     d.resort?.latitude != null && d.resort?.longitude != null
   ).map(d => ({
     id: d.resortId,
@@ -73,76 +65,73 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
 
   if (locationsWithCoords.length === 0) {
     return (
-      <div className="h-48 bg-bg-row rounded flex items-center justify-center">
-        <div className="text-center text-text-faint">
-          <div className="text-3xl mb-2">🗺️</div>
+      <div className="bg-gray-100 rounded-lg flex items-center justify-center" style={{ height }}>
+        <div className="text-center text-gray-400">
           <p className="text-sm">Add destinations to see them on the map</p>
         </div>
       </div>
     );
   }
 
-  // Calculate initial center (will be overridden by fitBounds)
+  // Calculate initial center
   const centerLat = locationsWithCoords.reduce((sum, l) => sum + l.lat, 0) / locationsWithCoords.length;
   const centerLng = locationsWithCoords.reduce((sum, l) => sum + l.lng, 0) / locationsWithCoords.length;
 
   // Bounds for fitBounds
   const bounds: [number, number][] = locationsWithCoords.map(l => [l.lat, l.lng]);
 
-  // Create icons
+  // Route polyline: connect destinations in order
+  const routePositions: [number, number][] = locationsWithCoords.map(l => [l.lat, l.lng]);
+
+  // Create marker icons
   const createIcon = (isSelected: boolean) => {
     return L.divIcon({
       className: 'custom-marker',
       html: `<div style="
-        background-color: ${isSelected ? '#22c55e' : '#b4b237'};
-        width: ${isSelected ? '28px' : '20px'};
-        height: ${isSelected ? '28px' : '20px'};
+        background-color: ${isSelected ? '#22c55e' : '#7c3aed'};
+        width: ${isSelected ? '16px' : '12px'};
+        height: ${isSelected ? '16px' : '12px'};
         border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        transition: all 0.2s;
+        border: 2px solid white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
       "></div>`,
-      iconSize: isSelected ? [28, 28] : [20, 20],
-      iconAnchor: isSelected ? [14, 14] : [10, 10],
-      popupAnchor: [0, -10],
+      iconSize: isSelected ? [16, 16] : [12, 12],
+      iconAnchor: isSelected ? [8, 8] : [6, 6],
+      popupAnchor: [0, -8],
     });
-  };
-
-  // Map events handler component
-  const MapController = () => {
-    const mapInstance = useMapEvents({
-      load: () => {}
-    });
-    
-    useEffect(() => {
-      if (mapInstance && bounds.length > 0) {
-        const leafletBounds = L.latLngBounds(bounds);
-        mapInstance.fitBounds(leafletBounds, { padding: [30, 30], maxZoom: 10 });
-      }
-    }, [mapInstance]);
-    
-    return null;
   };
 
   return (
     <MapContainer
       center={[centerLat, centerLng]}
       zoom={5}
-      className="h-48 rounded z-0"
-      style={{ height: '192px' }}
+      className="rounded-lg z-0"
+      style={{ height }}
+      worldCopyJump={false}
+      maxBounds={[[-90, -180], [90, 180]]}
+      maxBoundsViscosity={1.0}
+      minZoom={2}
       whenReady={(e: any) => {
         const mapInstance = e.target;
         if (bounds.length > 0) {
           const leafletBounds = L.latLngBounds(bounds);
-          mapInstance.fitBounds(leafletBounds, { padding: [30, 30], maxZoom: 10 });
+          mapInstance.fitBounds(leafletBounds, { padding: [50, 50], maxZoom: 10 });
         }
       }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        noWrap={true}
       />
-      {locationsWithCoords.map(loc => (
+      {/* Route lines connecting destinations in order */}
+      {Polyline && routePositions.length > 1 && (
+        <Polyline
+          positions={routePositions}
+          pathOptions={{ color: '#7c3aed', weight: 2, opacity: 0.5, dashArray: '6 4' }}
+        />
+      )}
+      {locationsWithCoords.map((loc, idx) => (
         <Marker
           key={loc.id}
           position={[loc.lat, loc.lng]}
@@ -151,10 +140,18 @@ export default function DestinationMap({ destinations, selectedName, onDestinati
             click: () => onDestinationClick?.(loc.id, loc.name),
           }}
         >
+          {Tooltip && (
+            <Tooltip direction="top" offset={[0, -8]} permanent className="map-city-label">
+              <span className="text-[11px] font-medium text-gray-700">{loc.name}</span>
+            </Tooltip>
+          )}
           <Popup>
             <div className="text-sm font-medium">
-              {loc.name === selectedName && <span className="text-brand-green">✓ </span>}
+              {loc.name === selectedName && <span className="text-green-500">● </span>}
               {loc.name}
+              {idx < locationsWithCoords.length - 1 && (
+                <span className="text-gray-400 text-xs block">Stop {idx + 1}</span>
+              )}
             </div>
           </Popup>
         </Marker>
