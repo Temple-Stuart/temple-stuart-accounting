@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import TripMap from '@/components/trips/TripMap';
+import TripMonthCalendar from '@/components/trips/TripMonthCalendar';
 import { Plane } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
@@ -241,6 +242,20 @@ export default function TripsPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Trip Calendar */}
+          <div className="mb-4">
+            <TripMonthCalendar
+              trips={trips.map(t => ({
+                id: t.id,
+                name: t.name,
+                startDate: t.startDate,
+                endDate: t.endDate,
+                activity: t.activity,
+              }))}
+              onTripClick={(id) => router.push(`/budgets/trips/${id}`)}
+            />
           </div>
 
           {/* Trip List */}
