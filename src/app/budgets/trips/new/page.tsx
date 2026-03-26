@@ -218,6 +218,7 @@ function NewTripForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          destination: selectedDestinations.length > 0 ? selectedDestinations[0].name : undefined,
           startDate,
           endDate,
           activity: 'all',
@@ -255,13 +256,36 @@ function NewTripForm() {
         });
       }
 
+      // Save destinations — resolve placeholder entries by searching the resorts API
       for (const dest of selectedDestinations) {
-        if (dest.id.startsWith('param-')) continue; // Skip placeholder entries
-        await fetch(`/api/trips/${tripId}/destinations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resortId: dest.id }),
-        });
+        if (!dest.id.startsWith('param-')) {
+          // Real resort ID — save directly
+          await fetch(`/api/trips/${tripId}/destinations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resortId: dest.id }),
+          });
+        } else {
+          // Placeholder from query params — search for a matching resort by name
+          try {
+            const searchRes = await fetch('/api/resorts?activity=all');
+            if (searchRes.ok) {
+              const data = await searchRes.json();
+              const match = (data.resorts || []).find((r: Resort) =>
+                r.name.toLowerCase() === dest.name.toLowerCase()
+              );
+              if (match) {
+                await fetch(`/api/trips/${tripId}/destinations`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ resortId: match.id }),
+                });
+              }
+            }
+          } catch {
+            // Resort not found — destination name is already set on the trip
+          }
+        }
       }
 
       router.push(`/budgets/trips/${tripId}`);
