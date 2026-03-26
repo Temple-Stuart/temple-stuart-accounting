@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, FileText, MapPin, Calendar, Users, Mountain, Music } from 'lucide-react';
+import { Plane, FileText, MapPin, Calendar, Users, Mountain, Music, X } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
 
 const FILTER_CHIPS = [
-  'Surf', 'Ski', 'Food Tour', 'Festival', 'Nightlife', 'Coworking', 'Cultural', 'Adventure',
+  'Active & Outdoors', 'Festivals & Events', 'Conferences', 'Nightlife',
+  'Food & Craft', 'Coworking', 'Culture & Discovery', 'Bucket List',
 ];
 
 function DestIcon({ type }: { type: string }) {
@@ -18,7 +19,7 @@ function DestIcon({ type }: { type: string }) {
 export default function TripCreationBar() {
   const router = useRouter();
   const [barName, setBarName] = useState('');
-  const [barDestination, setBarDestination] = useState('');
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
   const [barStartDate, setBarStartDate] = useState('');
   const [barEndDate, setBarEndDate] = useState('');
   const [barTravelers, setBarTravelers] = useState(2);
@@ -34,21 +35,36 @@ export default function TripCreationBar() {
 
   const handleDestChange = (val: string) => {
     setDestQuery(val);
-    setBarDestination(val);
-    const results = searchDestinations(val, 8);
+    const results = searchDestinations(val, 8).filter(
+      d => !selectedDestinations.includes(d.name)
+    );
     setDestResults(results);
     setShowDropdown(results.length > 0 && val.length > 0);
     setHighlightIdx(-1);
   };
 
   const selectDestination = (dest: Destination) => {
-    setBarDestination(dest.name);
-    setDestQuery(dest.name);
+    if (!selectedDestinations.includes(dest.name)) {
+      setSelectedDestinations(prev => [...prev, dest.name]);
+    }
+    setDestQuery('');
+    setDestResults([]);
     setShowDropdown(false);
     setHighlightIdx(-1);
+    destInputRef.current?.focus();
+  };
+
+  const removeDestination = (name: string) => {
+    setSelectedDestinations(prev => prev.filter(d => d !== name));
+    destInputRef.current?.focus();
   };
 
   const handleDestKeyDown = (e: React.KeyboardEvent) => {
+    // Backspace on empty input removes last chip
+    if (e.key === 'Backspace' && destQuery === '' && selectedDestinations.length > 0) {
+      setSelectedDestinations(prev => prev.slice(0, -1));
+      return;
+    }
     if (!showDropdown) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -85,7 +101,7 @@ export default function TripCreationBar() {
   const handleCreateFromBar = () => {
     const params = new URLSearchParams();
     if (barName) params.set('tripName', barName);
-    if (barDestination) params.set('destination', barDestination);
+    if (selectedDestinations.length > 0) params.set('destinations', selectedDestinations.join(','));
     if (barStartDate) params.set('startDate', barStartDate);
     if (barEndDate) params.set('endDate', barEndDate);
     if (barTravelers > 1) params.set('travelers', String(barTravelers));
@@ -109,19 +125,36 @@ export default function TripCreationBar() {
           />
         </div>
 
-        {/* Section 2: Destination with autocomplete */}
-        <div className="relative flex items-center gap-2 px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0" ref={dropdownRef}>
+        {/* Section 2: Multi-destination with autocomplete */}
+        <div className="relative flex items-center gap-2 px-4 py-2 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0" ref={dropdownRef}>
           <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          <input
-            ref={destInputRef}
-            type="text"
-            value={destQuery}
-            onChange={e => handleDestChange(e.target.value)}
-            onFocus={() => { if (destResults.length > 0 && destQuery.length > 0) setShowDropdown(true); }}
-            onKeyDown={handleDestKeyDown}
-            placeholder="Where to?"
-            className="w-full border-0 outline-none bg-transparent text-sm text-text-primary placeholder:text-gray-400"
-          />
+          <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
+            {selectedDestinations.map(name => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+              >
+                {name}
+                <button
+                  onClick={() => removeDestination(name)}
+                  className="hover:text-brand-purple/70 transition-colors"
+                  type="button"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+            <input
+              ref={destInputRef}
+              type="text"
+              value={destQuery}
+              onChange={e => handleDestChange(e.target.value)}
+              onFocus={() => { if (destResults.length > 0 && destQuery.length > 0) setShowDropdown(true); }}
+              onKeyDown={handleDestKeyDown}
+              placeholder={selectedDestinations.length === 0 ? 'Where to?' : ''}
+              className="flex-1 min-w-[60px] border-0 outline-none bg-transparent text-sm text-text-primary placeholder:text-gray-400 py-1"
+            />
+          </div>
           {/* Autocomplete dropdown */}
           {showDropdown && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[280px] overflow-y-auto">
