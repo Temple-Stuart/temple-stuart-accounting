@@ -366,6 +366,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     const flightEvents: CalendarEvent[] = flightItems.map((item: any) => {
       const cfg = TRIP_SOURCE_CONFIG['flight'];
       const dateStr = item.homeDate ? new Date(item.homeDate).toISOString().split('T')[0] : '';
+      const destDateStr = item.destDate ? new Date(item.destDate).toISOString().split('T')[0] : null;
       let title = `${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
       if (item.homeTime) {
         title = `${formatTime12h(item.homeTime)} ${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
@@ -376,7 +377,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         title,
         icon: cfg?.icon || null,
         startDate: dateStr,
-        endDate: null,
+        endDate: destDateStr !== dateStr ? destDateStr : null,
         startTime: item.homeTime || null,
         endTime: item.destTime || null,
         budgetAmount: parseFloat(item.cost || 0),
