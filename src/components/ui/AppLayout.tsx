@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { BookOpen, User, Briefcase, Plane, TrendingUp, LayoutGrid, Menu, X } from 'lucide-react';
 
 export interface LedgerMetrics {
   balance: number;
@@ -68,11 +69,11 @@ const TRADING_PREFIXES = ['/trading'];
 
 // Primary nav tabs — order matters (left to right)
 const NAV_TABS = [
-  { name: 'Bookkeeping', href: '/dashboard', icon: '📒', prefixes: BOOKKEEPING_PREFIXES },
-  { name: 'Personal', href: '/personal', icon: '👤', prefixes: PERSONAL_PREFIXES },
-  { name: 'Business', href: '/business', icon: '💼', prefixes: BUSINESS_PREFIXES },
-  { name: 'Travel', href: '/budgets/trips', icon: '✈️', prefixes: TRAVEL_PREFIXES },
-  { name: 'Trading', href: '/trading', icon: '📈', prefixes: TRADING_PREFIXES },
+  { name: 'Bookkeeping', href: '/dashboard', Icon: BookOpen, prefixes: BOOKKEEPING_PREFIXES },
+  { name: 'Personal', href: '/personal', Icon: User, prefixes: PERSONAL_PREFIXES },
+  { name: 'Business', href: '/business', Icon: Briefcase, prefixes: BUSINESS_PREFIXES },
+  { name: 'Travel', href: '/budgets/trips', Icon: Plane, prefixes: TRAVEL_PREFIXES },
+  { name: 'Trading', href: '/trading', Icon: TrendingUp, prefixes: TRADING_PREFIXES },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -178,81 +179,45 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   return (
     <div className="min-h-screen bg-bg-terminal">
       <header className="sticky top-0 z-50">
-        {/* ROW 1 — Navigation */}
+        {/* ROW 1 — Top Bar (logo + user) */}
         <div className="bg-brand-purple">
-          <div className="max-w-[1800px] mx-auto flex items-center px-4">
-            {/* Logo */}
-            <Link href="/hub" className="flex items-center gap-2 mr-6 py-3 flex-shrink-0">
-              <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center">
-                <span className="text-white font-bold text-[9px] font-mono leading-none">TS</span>
+          <div className="max-w-[1800px] mx-auto flex items-center justify-between px-6 py-2">
+            <Link href="/hub" className="flex items-center gap-2 flex-shrink-0">
+              <div className="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center">
+                <span className="text-white font-bold text-[10px] font-mono leading-none">TS</span>
               </div>
-              <span className="hidden sm:inline text-sm font-semibold text-white">Temple Stuart</span>
+              <span className="hidden sm:inline text-lg font-semibold text-white">Temple Stuart</span>
             </Link>
-
-            {/* Desktop Nav — 5 primary tabs */}
-            <nav className="hidden lg:flex items-center h-full">
-              {NAV_TABS.map(tab => {
-                const active = isTabActive(tab.prefixes);
-                return (
-                  <Link
-                    key={tab.href}
-                    href={tab.href}
-                    className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors ${
-                      active
-                        ? 'text-white'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <span>{tab.icon}</span>
-                    <span>{tab.name}</span>
-                    {active && (
-                      <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-brand-gold rounded-full" />
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* Right side — Hub icon + user */}
-            <div className="ml-auto flex items-center gap-3">
-              {/* Hub icon */}
-              <Link
-                href="/hub"
-                className={`hidden lg:flex items-center gap-1 px-2 py-1.5 rounded transition-colors text-sm ${
-                  isHubActive
-                    ? 'text-white bg-white/10'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-                title="Hub"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
+            <div className="flex items-center gap-3">
+              <Link href="/hub" className={`hidden lg:flex items-center px-2.5 py-1.5 rounded-full transition-colors ${isHubActive ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`} title="Hub Dashboard">
+                <LayoutGrid className="w-4 h-4" />
               </Link>
-
-              <span className="hidden sm:inline text-xs text-white/50">
-                {currentUser?.name || currentUser?.email?.split('@')[0]}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="text-xs text-white/40 hover:text-white transition-colors"
-              >
-                sign out
-              </button>
-
-              {/* Mobile hamburger */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1.5 hover:bg-white/10 rounded"
-              >
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen
-                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  }
-                </svg>
+              <span className="hidden sm:inline text-sm text-white/60">{currentUser?.name || currentUser?.email?.split('@')[0]}</span>
+              <button onClick={handleSignOut} className="text-sm text-white/40 hover:text-white transition-colors">sign out</button>
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-1.5 hover:bg-white/10 rounded-md">
+                {mobileMenuOpen ? <X className="w-5 h-5 text-white/70" /> : <Menu className="w-5 h-5 text-white/70" />}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ROW 2 — Tab Bar (pill-shaped tabs) */}
+        <div className="bg-brand-purple/90 border-t border-white/[.06]">
+          <div className="max-w-[1800px] mx-auto hidden lg:flex items-center gap-2 px-6 py-2.5">
+            {NAV_TABS.map(tab => {
+              const active = isTabActive(tab.prefixes);
+              return (
+                <Link key={tab.href} href={tab.href}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    active
+                      ? 'border border-white bg-white/10 text-white'
+                      : 'border border-transparent text-white/70 hover:border-white/40 hover:text-white'
+                  }`}>
+                  <tab.Icon className="w-4 h-4" />
+                  <span>{tab.name}</span>
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -331,33 +296,31 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-brand-purple-deep border-t border-white/10 px-3 py-2">
-            <div className="flex flex-col gap-0.5">
+          <div className="lg:hidden bg-brand-purple-deep border-t border-white/10 px-4 py-3">
+            <div className="flex flex-col gap-1">
               {NAV_TABS.map(tab => {
                 const active = isTabActive(tab.prefixes);
                 return (
                   <Link key={tab.href} href={tab.href}
-                    className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded transition-colors ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                       active
                         ? 'bg-white/10 text-white border-l-2 border-brand-gold'
                         : 'text-white/70 hover:bg-white/[.05] hover:text-white border-l-2 border-transparent'
                     }`}>
-                    <span>{tab.icon}</span>
+                    <tab.Icon className="w-4 h-4" />
                     <span>{tab.name}</span>
                   </Link>
                 );
               })}
-              <Link href="/hub"
-                className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded transition-colors mt-1 border-t border-white/10 pt-3 ${
-                  isHubActive
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/60 hover:bg-white/[.05] hover:text-white'
-                }`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                <span>Hub Dashboard</span>
-              </Link>
+              <div className="border-t border-white/10 mt-2 pt-2">
+                <Link href="/hub"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isHubActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'
+                  }`}>
+                  <LayoutGrid className="w-4 h-4" />
+                  <span>Hub Dashboard</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}
