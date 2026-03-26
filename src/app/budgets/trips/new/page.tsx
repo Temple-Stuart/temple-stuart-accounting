@@ -3,14 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
-import { TRAVEL_INTERESTS, ACTIVITY_GROUPS } from '@/lib/activities';
+import { TRAVEL_INTERESTS, ACTIVITY_GROUPS, INTEREST_CATEGORIES } from '@/lib/activities';
 import { ChevronDown } from 'lucide-react';
-
-const TRIP_TYPES = [
-  { value: 'personal', label: 'Personal' },
-  { value: 'business', label: 'Business' },
-  { value: 'mixed', label: 'Mixed' },
-];
 
 const BUDGET_OPTIONS = [
   { value: 'backpacker', label: '$0-50/night', hint: 'We\'d suggest $ venues' },
@@ -73,7 +67,7 @@ function NewTripForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [tripType, setTripType] = useState('personal');
+  const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [budget, setBudget] = useState('midrange');
   const [vibes, setVibes] = useState<string[]>([]);
@@ -84,24 +78,20 @@ function NewTripForm() {
   // Track if we've already auto-created to prevent double submission
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  // Read interests from URL params and auto-expand/select matching categories
+  // Sync interest categories from filter chips
   useEffect(() => {
-    const interests = searchParams.get('interests');
-    if (interests) {
-      const chipLabels = interests.split(',').map(c => c.trim());
-      const expanded = new Set<string>();
-      const activities = new Set<string>();
-      chipLabels.forEach(label => {
-        const mapped = INTEREST_TO_ACTIVITIES[label];
-        if (mapped) {
-          expanded.add(label);
-          mapped.forEach(a => activities.add(a));
-        }
-      });
-      if (expanded.size > 0) setExpandedCategories(expanded);
-      if (activities.size > 0) setSelectedActivities(Array.from(activities));
-    }
-  }, [searchParams]);
+    const expanded = new Set<string>();
+    const activities = new Set<string>();
+    selectedChips.forEach(label => {
+      const mapped = INTEREST_TO_ACTIVITIES[label];
+      if (mapped) {
+        expanded.add(label);
+        mapped.forEach(a => activities.add(a));
+      }
+    });
+    setExpandedCategories(expanded);
+    setSelectedActivities(Array.from(activities));
+  }, [selectedChips]);
 
   // Auto-create when search bar sets save=1 in URL params
   useEffect(() => {
@@ -113,10 +103,17 @@ function NewTripForm() {
   const name = searchParams.get('tripName') || '';
   const startDate = parseDate(searchParams.get('startDate'));
   const endDate = parseDate(searchParams.get('endDate'));
+  const tripType = searchParams.get('tripType') || 'personal';
   const destinations = searchParams.get('destinations')?.split(',').map(d => d.trim()).filter(Boolean) || [];
   const duration = startDate && endDate
     ? Math.round((new Date(endDate + 'T12:00:00').getTime() - new Date(startDate + 'T12:00:00').getTime()) / 86400000) + 1
     : 0;
+
+  const toggleChip = (chip: string) => {
+    setSelectedChips(prev =>
+      prev.includes(chip) ? prev.filter(c => c !== chip) : [...prev, chip]
+    );
+  };
 
   const toggleActivity = (val: string) => {
     setSelectedActivities(prev =>
@@ -238,16 +235,24 @@ function NewTripForm() {
           </div>
         )}
 
-        {/* Trip Type — simple inline toggle */}
-        <div className="flex items-center gap-2 mb-4">
-          {TRIP_TYPES.map(tt => (
-            <button key={tt.value} type="button" onClick={() => setTripType(tt.value)}
-              className={`px-4 py-2 text-xs font-medium rounded-full transition-colors ${
-                tripType === tt.value ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-              }`}>
-              {tt.label}
-            </button>
-          ))}
+        {/* Activity filter chips — toggle interest categories below */}
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+          {INTEREST_CATEGORIES.map(chip => {
+            const active = selectedChips.includes(chip);
+            return (
+              <button
+                key={chip}
+                onClick={() => toggleChip(chip)}
+                className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-brand-purple text-white border-brand-purple'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
+                }`}
+              >
+                {chip}
+              </button>
+            );
+          })}
         </div>
 
         {/* Travel Profile — Interests */}

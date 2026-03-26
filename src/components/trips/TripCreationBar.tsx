@@ -4,9 +4,12 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Plane, FileText, MapPin, Calendar, Users, X, Save } from 'lucide-react';
 import { searchDestinations, type Destination } from '@/lib/destinations';
-import { INTEREST_CATEGORIES } from '@/lib/activities';
 
-const FILTER_CHIPS = INTEREST_CATEGORIES;
+const TRIP_TYPES = [
+  { value: 'personal', label: 'Personal' },
+  { value: 'business', label: 'Business' },
+  { value: 'mixed', label: 'Mixed' },
+];
 
 function parseToDateInput(val: string): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
@@ -29,7 +32,7 @@ export default function TripCreationBar() {
   const [barStartDate, setBarStartDate] = useState('');
   const [barEndDate, setBarEndDate] = useState('');
   const [barTravelers, setBarTravelers] = useState(2);
-  const [selectedChips, setSelectedChips] = useState<string[]>([]);
+  const [tripType, setTripType] = useState('personal');
 
   // Autocomplete state
   const [destQuery, setDestQuery] = useState('');
@@ -48,14 +51,14 @@ export default function TripCreationBar() {
     const sd = searchParams.get('startDate');
     const ed = searchParams.get('endDate');
     const travelers = searchParams.get('travelers');
-    const interests = searchParams.get('interests');
+    const tt = searchParams.get('tripType');
 
     if (tripName) setBarName(tripName);
     if (dests) setSelectedDestinations(dests.split(',').map(d => d.trim()).filter(Boolean));
     if (sd) { const p = parseToDateInput(sd); if (p) setBarStartDate(p); }
     if (ed) { const p = parseToDateInput(ed); if (p) setBarEndDate(p); }
     if (travelers) setBarTravelers(parseInt(travelers) || 2);
-    if (interests) setSelectedChips(interests.split(',').map(c => c.trim()).filter(Boolean));
+    if (tt) setTripType(tt);
     setDidInit(true);
   }, [isOnNewPage, searchParams, didInit]);
 
@@ -116,12 +119,6 @@ export default function TripCreationBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  const toggleChip = (chip: string) => {
-    setSelectedChips(prev =>
-      prev.includes(chip) ? prev.filter(c => c !== chip) : [...prev, chip]
-    );
-  };
-
   const buildParams = () => {
     const params = new URLSearchParams();
     if (barName) params.set('tripName', barName);
@@ -129,7 +126,7 @@ export default function TripCreationBar() {
     if (barStartDate) params.set('startDate', barStartDate);
     if (barEndDate) params.set('endDate', barEndDate);
     if (barTravelers > 1) params.set('travelers', String(barTravelers));
-    if (selectedChips.length > 0) params.set('interests', selectedChips.join(','));
+    if (tripType !== 'personal') params.set('tripType', tripType);
     return params;
   };
 
@@ -264,24 +261,21 @@ export default function TripCreationBar() {
         </button>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
-        {FILTER_CHIPS.map(chip => {
-          const active = selectedChips.includes(chip);
-          return (
-            <button
-              key={chip}
-              onClick={() => toggleChip(chip)}
-              className={`text-xs px-3 py-1 rounded-full border whitespace-nowrap transition-colors ${
-                active
-                  ? 'bg-white/20 text-white border-white/60'
-                  : 'border-white/30 text-white/70 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              {chip}
-            </button>
-          );
-        })}
+      {/* Trip type toggle */}
+      <div className="flex items-center gap-2">
+        {TRIP_TYPES.map(tt => (
+          <button
+            key={tt.value}
+            onClick={() => setTripType(tt.value)}
+            className={`text-xs px-3 py-1 rounded-full border whitespace-nowrap transition-colors ${
+              tripType === tt.value
+                ? 'bg-white/20 text-white border-white/60'
+                : 'border-white/30 text-white/70 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {tt.label}
+          </button>
+        ))}
       </div>
     </div>
   );
