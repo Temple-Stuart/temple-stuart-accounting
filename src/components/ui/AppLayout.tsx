@@ -210,7 +210,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
                 <Link key={tab.href} href={tab.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     active
-                      ? 'bg-brand-gold border border-brand-gold text-white shadow-sm'
+                      ? 'border border-white bg-white/10 text-white'
                       : 'border border-transparent text-white/70 hover:border-white/40 hover:text-white'
                   }`}>
                   <tab.Icon className="w-4 h-4" />
@@ -304,7 +304,7 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
                   <Link key={tab.href} href={tab.href}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-white/10 text-white border-l-2 border-brand-gold'
+                        ? 'bg-white/10 text-white border-l-2 border-white'
                         : 'text-white/70 hover:bg-white/[.05] hover:text-white border-l-2 border-transparent'
                     }`}>
                     <tab.Icon className="w-4 h-4" />
