@@ -148,6 +148,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [budgetSort, setBudgetSort] = useState<{ col: 'category' | 'item' | 'amount'; dir: 'asc' | 'desc' }>({ col: 'category', dir: 'asc' });
   const [expenseForm, setExpenseForm] = useState({
     paidById: '', day: '', category: 'meals', vendor: '', description: '',
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
@@ -355,26 +356,53 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     if (!trip) return [];
     const items = trip.itinerary || [];
-    // Deduplicate by vendorOptionId — group multi-day entries into single events
+
+    // For flights: each itinerary entry is its own event (don't group)
+    // For other types: group by vendorOptionId for multi-day bookings
+    const flightItems = items.filter((item: any) => (item.vendorOptionType || item.category) === 'flight');
+    const otherItems = items.filter((item: any) => (item.vendorOptionType || item.category) !== 'flight');
+
+    // Flight events — one per entry
+    const flightEvents: CalendarEvent[] = flightItems.map((item: any) => {
+      const cfg = TRIP_SOURCE_CONFIG['flight'];
+      const dateStr = item.homeDate ? new Date(item.homeDate).toISOString().split('T')[0] : '';
+      let title = `${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
+      if (item.homeTime) {
+        title = `${formatTime12h(item.homeTime)} ${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
+      }
+      return {
+        id: item.id,
+        source: 'flight',
+        title,
+        icon: cfg?.icon || null,
+        startDate: dateStr,
+        endDate: null,
+        startTime: item.homeTime || null,
+        endTime: item.destTime || null,
+        budgetAmount: parseFloat(item.cost || 0),
+        _vendorOptionId: item.vendorOptionId,
+        _vendorOptionType: item.vendorOptionType,
+        _vendor: item.vendor,
+        _note: item.note,
+        _homeTime: item.homeTime,
+        _destTime: item.destTime,
+      } as CalendarEvent & Record<string, any>;
+    });
+
+    // Other events — group by vendorOptionId for multi-day
     const grouped: Record<string, any[]> = {};
-    items.forEach((item: any) => {
+    otherItems.forEach((item: any) => {
       const key = item.vendorOptionId || item.id;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(item);
     });
-    return Object.entries(grouped).map(([key, entries]) => {
+    const otherEvents = Object.entries(grouped).map(([key, entries]) => {
       const first = entries[0];
       const source = first.vendorOptionType || first.category || 'activities';
       const cfg = TRIP_SOURCE_CONFIG[source];
       const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
       const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
-
-      // Build title with time for flights
-      let title = `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
-      if (source === 'flight' && first.homeTime) {
-        const timeStr = formatTime12h(first.homeTime);
-        title = `${timeStr} ${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
-      }
+      const title = `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
 
       return {
         id: key,
@@ -388,7 +416,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         startTime: first.homeTime || null,
         endTime: first.destTime || null,
         budgetAmount: totalCost,
-        // Stash for uncommit
         _vendorOptionId: first.vendorOptionId,
         _vendorOptionType: first.vendorOptionType,
         _vendor: first.vendor,
@@ -397,6 +424,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         _destTime: first.destTime,
       } as CalendarEvent & Record<string, any>;
     });
+
+    return [...flightEvents, ...otherEvents];
   }, [trip]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -534,39 +563,61 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* ── Committed Budget ── */}
-            {committedBudgetItems.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="p-4 border-b border-gray-200">
-                  <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Item</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Category</th>
-                        <th className="px-3 py-2 text-right font-medium text-gray-500">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {committedBudgetItems.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
-                          <td className="px-3 py-2 text-gray-500">{item.category}</td>
-                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+            {committedBudgetItems.length > 0 && (() => {
+              const toggleSort = (col: 'category' | 'item' | 'amount') => {
+                setBudgetSort(prev => ({
+                  col,
+                  dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc',
+                }));
+              };
+              const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+              const sorted = [...committedBudgetItems].sort((a, b) => {
+                const dir = budgetSort.dir === 'asc' ? 1 : -1;
+                if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
+                if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
+                return (a.amount - b.amount) * dir;
+              });
+              // Group by category — show category only on first row of each group
+              let lastCategory = '';
+
+              return (
+                <div className="bg-white rounded-lg border border-gray-200">
+                  <div className="p-4 border-b border-gray-200">
+                    <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
+                          <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
+                          <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
-                      <tr>
-                        <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
-                        <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {sorted.map((item, idx) => {
+                          const showCategory = item.category !== lastCategory;
+                          lastCategory = item.category;
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
+                              <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
+                              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ── Crew & Profiles ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
