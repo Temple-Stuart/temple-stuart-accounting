@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, User, Briefcase, Plane, TrendingUp, LayoutGrid, Menu, X } from 'lucide-react';
+import TripCreationBar from '@/components/trips/TripCreationBar';
 
 export interface LedgerMetrics {
   balance: number;
@@ -174,6 +175,8 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   const isTabActive = (prefixes: string[]) =>
     prefixes.some(p => pathname?.startsWith(p));
 
+  const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r));
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -220,6 +223,15 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
             })}
           </div>
         </div>
+
+        {/* ROW 3 — Travel Search Bar (only on Travel routes) */}
+        {showTravelSearch && (
+          <div className="bg-brand-purple/80 border-t border-white/[.06]">
+            <div className="max-w-[1800px] mx-auto px-6 py-4">
+              <TripCreationBar />
+            </div>
+          </div>
+        )}
 
         {/* Ledger Metrics Bar */}
         {ledgerMetrics && (
