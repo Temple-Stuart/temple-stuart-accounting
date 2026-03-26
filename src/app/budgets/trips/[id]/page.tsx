@@ -100,6 +100,15 @@ interface DateWindow {
 }
 
 const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function formatTime12h(time: string): string {
+  if (!time) return '';
+  const [h, m] = time.split(':').map(Number);
+  if (isNaN(h)) return time;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const CATEGORIES = [
@@ -359,10 +368,18 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const cfg = TRIP_SOURCE_CONFIG[source];
       const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
       const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
+
+      // Build title with time for flights
+      let title = `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
+      if (source === 'flight' && first.homeTime) {
+        const timeStr = formatTime12h(first.homeTime);
+        title = `${timeStr} ${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
+      }
+
       return {
         id: key,
         source,
-        title: `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`,
+        title,
         icon: cfg?.icon || null,
         startDate: dateStr,
         endDate: entries.length > 1 && entries[entries.length - 1].homeDate
@@ -374,6 +391,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         _vendorOptionType: first.vendorOptionType,
         _vendor: first.vendor,
         _note: first.note,
+        _homeTime: first.homeTime,
+        _destTime: first.destTime,
       } as CalendarEvent & Record<string, any>;
     });
   }, [trip]);
@@ -537,6 +556,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                             {TRIP_SOURCE_CONFIG[clickedEvent.source]?.label || clickedEvent.source}
                             {clickedEvent.startDate && <span className="ml-2">{clickedEvent.startDate}</span>}
                             {clickedEvent.endDate && clickedEvent.endDate !== clickedEvent.startDate && <span> — {clickedEvent.endDate}</span>}
+                            {clickedEvent._destTime && <span className="ml-2">arr {formatTime12h(clickedEvent._destTime)}</span>}
                           </div>
                           {(clickedEvent.budgetAmount || 0) > 0 && (
                             <div className="text-sm font-semibold text-emerald-700 mt-1">{fmt(clickedEvent.budgetAmount || 0)}</div>

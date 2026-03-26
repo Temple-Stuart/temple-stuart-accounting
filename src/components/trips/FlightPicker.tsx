@@ -50,6 +50,8 @@ interface FlightLeg {
   // Manual entry fields
   manualAirline: string;
   manualPrice: string;
+  manualDepartTime: string;
+  manualArriveTime: string;
 }
 
 interface Props {
@@ -93,6 +95,8 @@ export default function FlightPicker({
     expanded: true,
     manualAirline: '',
     manualPrice: '',
+    manualDepartTime: '',
+    manualArriveTime: '',
     ...overrides,
   }), [originAirport, destinationAirport, departureDate, returnDate]);
 
@@ -234,8 +238,8 @@ export default function FlightPicker({
       price: parseFloat(leg.manualPrice),
       currency: 'USD',
       outbound: {
-        departure: { airport: leg.origin, localTime: '', date: leg.departureDate },
-        arrival: { airport: leg.destination, localTime: '', date: leg.departureDate },
+        departure: { airport: leg.origin, localTime: leg.manualDepartTime || '', date: leg.departureDate },
+        arrival: { airport: leg.destination, localTime: leg.manualArriveTime || '', date: leg.departureDate },
         duration: '',
         stops: 0,
         carriers: [leg.manualAirline || 'Manual Entry'],
@@ -250,7 +254,7 @@ export default function FlightPicker({
       isManual: true,
     };
 
-    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '' });
+    updateLeg(legId, { selectedOffer: manualFlight, expanded: false, manualAirline: '', manualPrice: '', manualDepartTime: '', manualArriveTime: '' });
   };
 
   // ── Commit via vendor-commit ──
@@ -268,6 +272,10 @@ export default function FlightPicker({
         : `${carrier} | ${title} | ${offer.outbound?.duration || ''} | ${formatStops(offer.outbound?.stops || 0)} | $${offer.price}`;
       const flightId = `flight-${leg.id}-${Date.now()}`;
 
+      // Extract departure/arrival times from offer
+      const departTime = offer.outbound?.departure?.localTime || undefined;
+      const arriveTime = offer.outbound?.arrival?.localTime || undefined;
+
       const res = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -278,6 +286,8 @@ export default function FlightPicker({
           endDate: leg.tripType === 'roundtrip' && leg.returnDate ? leg.returnDate : leg.departureDate,
           amount: offer.price,
           notes: title,
+          startTime: departTime,
+          endTime: arriveTime,
         }),
       });
 
@@ -448,14 +458,18 @@ export default function FlightPicker({
                         <a href="https://www.kayak.com/flights" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-purple">Kayak ↗</a>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <input type="text" value={leg.manualAirline} onChange={e => updateLeg(leg.id, { manualAirline: e.target.value })}
-                        placeholder="Airline" className="flex-1 bg-white border border-border rounded px-2 py-1.5 text-xs" />
+                        placeholder="Airline" className="flex-1 min-w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" />
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-text-muted">$</span>
                         <input type="number" value={leg.manualPrice} onChange={e => updateLeg(leg.id, { manualPrice: e.target.value })}
                           placeholder="Price" className="w-24 bg-white border border-border rounded px-2 py-1.5 text-xs" />
                       </div>
+                      <input type="time" value={leg.manualDepartTime} onChange={e => updateLeg(leg.id, { manualDepartTime: e.target.value })}
+                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Departure time" />
+                      <input type="time" value={leg.manualArriveTime} onChange={e => updateLeg(leg.id, { manualArriveTime: e.target.value })}
+                        className="w-[100px] bg-white border border-border rounded px-2 py-1.5 text-xs" title="Arrival time" />
                       <button onClick={() => submitManual(leg.id)} disabled={!leg.manualPrice}
                         className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 disabled:opacity-50">
                         Use This
