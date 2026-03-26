@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import TripMap from '@/components/trips/TripMap';
-import TripMonthCalendar from '@/components/trips/TripMonthCalendar';
+import CalendarGrid, { type CalendarEvent, type SourceConfig } from '@/components/shared/CalendarGrid';
 import 'leaflet/dist/leaflet.css';
 
 interface Participant {
@@ -39,6 +39,19 @@ interface Trip {
   };
 }
 
+interface ItineraryItem {
+  id: string;
+  tripId: string;
+  day: number;
+  destDate: string;
+  destTime: string | null;
+  category: string;
+  vendor: string;
+  cost: string;
+  note: string | null;
+  location: string | null;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const ACTIVITIES: Record<string, string> = {
@@ -57,12 +70,36 @@ const ACTIVITY_COLORS: Record<string, string> = {
   conference: '#6b7280', nomad: '#f59e0b',
 };
 
+// Trip calendar source config — maps to trip booking categories
+const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
+  flight:    { label: 'Flights',     icon: 'plane',    bg: 'bg-blue-100',    dot: 'bg-blue-400',    badge: 'bg-blue-500' },
+  hotel:     { label: 'Hotels',      icon: 'bed',      bg: 'bg-purple-100',  dot: 'bg-purple-400',  badge: 'bg-purple-500' },
+  activity:  { label: 'Activities',  icon: 'compass',  bg: 'bg-emerald-100', dot: 'bg-emerald-400', badge: 'bg-emerald-500' },
+  transfer:  { label: 'Transfers',   icon: 'car',      bg: 'bg-amber-100',   dot: 'bg-amber-400',   badge: 'bg-amber-500' },
+  nightlife: { label: 'Nightlife',   icon: 'music',    bg: 'bg-pink-100',    dot: 'bg-pink-400',    badge: 'bg-pink-500' },
+  coworking: { label: 'Coworking',   icon: 'laptop',   bg: 'bg-cyan-100',    dot: 'bg-cyan-400',    badge: 'bg-cyan-500' },
+  food:      { label: 'Food',        icon: 'utensils', bg: 'bg-orange-100',  dot: 'bg-orange-400',  badge: 'bg-orange-500' },
+  trip:      { label: 'Trip Range',  icon: 'map',      bg: 'bg-indigo-100',  dot: 'bg-indigo-400',  badge: 'bg-indigo-400' },
+};
+
+// Map itinerary categories to source config keys
+function mapCategory(cat: string): string {
+  const lower = cat.toLowerCase();
+  if (lower.includes('flight') || lower.includes('air')) return 'flight';
+  if (lower.includes('hotel') || lower.includes('accom') || lower.includes('stay') || lower.includes('lodge') || lower.includes('hostel') || lower.includes('airbnb')) return 'hotel';
+  if (lower.includes('transfer') || lower.includes('taxi') || lower.includes('uber') || lower.includes('car') || lower.includes('rental') || lower.includes('train') || lower.includes('bus')) return 'transfer';
+  if (lower.includes('night') || lower.includes('bar') || lower.includes('club')) return 'nightlife';
+  if (lower.includes('cowork') || lower.includes('office') || lower.includes('work')) return 'coworking';
+  if (lower.includes('food') || lower.includes('dining') || lower.includes('restaurant') || lower.includes('meal') || lower.includes('breakfast') || lower.includes('lunch') || lower.includes('dinner')) return 'food';
+  return 'activity';
+}
+
 export default function TripsPage() {
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
@@ -79,12 +116,78 @@ export default function TripsPage() {
           return dateA - dateB;
         });
         setTrips(sortedTrips);
+        // Fetch itinerary items for each trip with dates
+        loadItineraryEvents(sortedTrips);
       }
     } catch (error) {
       console.error('Failed to load trips:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadItineraryEvents = async (loadedTrips: Trip[]) => {
+    const tripsWithDates = loadedTrips.filter(t => t.startDate && t.endDate);
+    const events: CalendarEvent[] = [];
+
+    // Add trip date ranges as background events
+    for (const trip of tripsWithDates) {
+      const start = trip.startDate!.split('T')[0];
+      const end = trip.endDate!.split('T')[0];
+      // Create one event per day of the trip range
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      const cursor = new Date(startDate);
+      while (cursor <= endDate) {
+        const dateKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+        const isFirst = cursor.getTime() === startDate.getTime();
+        events.push({
+          id: `trip-${trip.id}-${dateKey}`,
+          source: 'trip',
+          title: isFirst ? trip.name : (trip.destination || trip.name),
+          startDate: dateKey,
+          location: trip.destination,
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
+    // Fetch itinerary items from each trip
+    const itineraryPromises = tripsWithDates.map(async (trip) => {
+      try {
+        const res = await fetch(`/api/trips/${trip.id}/itinerary`);
+        if (res.ok) {
+          const data = await res.json();
+          return (data.items || data.itinerary || []).map((item: ItineraryItem) => ({
+            ...item,
+            tripId: trip.id,
+            tripName: trip.name,
+          }));
+        }
+      } catch {
+        // Skip failed fetches
+      }
+      return [];
+    });
+
+    const allItems = (await Promise.all(itineraryPromises)).flat();
+    for (const item of allItems) {
+      if (!item.destDate) continue;
+      const dateStr = typeof item.destDate === 'string' ? item.destDate.split('T')[0] : '';
+      if (!dateStr) continue;
+      const source = mapCategory(item.category || '');
+      const timeStr = item.destTime ? ` ${item.destTime}` : '';
+      events.push({
+        id: item.id,
+        source,
+        title: `${item.vendor}${timeStr}`,
+        startDate: dateStr,
+        location: item.location,
+        budgetAmount: item.cost ? Math.round(parseFloat(item.cost) * 100) : undefined,
+      });
+    }
+
+    setCalendarEvents(events);
   };
 
   const deleteTrip = async (id: string, e: React.MouseEvent) => {
@@ -102,22 +205,6 @@ export default function TripsPage() {
   };
 
   const committedTrips = trips.filter(t => t.committedAt && t.startDate);
-  const plannedTrips = trips.filter(t => !t.committedAt);
-
-  // Stats
-  const stats = useMemo(() => {
-    const yearTrips = committedTrips.filter(t => {
-      const start = new Date(t.startDate!);
-      return start.getFullYear() === selectedYear;
-    });
-    const totalDays = yearTrips.reduce((sum, t) => sum + t.daysTravel, 0);
-    const totalBudget = yearTrips.reduce((sum, t) => sum + (t._count.expenses || 0), 0);
-    const uniqueDestinations = new Set(yearTrips.map(t => t.destination).filter(Boolean)).size;
-    
-    return { count: yearTrips.length, days: totalDays, budget: totalBudget, destinations: uniqueDestinations };
-  }, [committedTrips, selectedYear]);
-
-  const fmt = (n: number) => '$' + n.toLocaleString();
 
   if (loading) {
     return (
@@ -133,70 +220,6 @@ export default function TripsPage() {
     <AppLayout>
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
-          
-          {/* Header */}
-          <div className="mb-4 bg-brand-purple text-white p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h1 className="text-terminal-lg font-semibold tracking-tight">Trip Command Center</h1>
-                <p className="text-text-faint text-xs font-mono">
-                  {trips.length} trips · {committedTrips.length} committed · {plannedTrips.length} planning
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => router.push('/budgets/trips/new')}
-                  className="px-4 py-2 text-xs bg-white text-brand-purple font-medium hover:bg-bg-row">
-                  + New Trip
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Trips {selectedYear}</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{stats.count}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Travel Days</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{stats.days}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Destinations</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{stats.destinations}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Budget Items</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{stats.budget}</div>
-            </div>
-          </div>
-
-          {/* Year Selector */}
-          <div className="flex items-center justify-end mb-4">
-            <div className="flex gap-1 bg-white border border-border">
-              {[selectedYear - 1, selectedYear, selectedYear + 1].map(year => (
-                <button key={year} onClick={() => setSelectedYear(year)}
-                  className={`px-4 py-2 text-xs font-medium ${year === selectedYear ? 'bg-brand-purple text-white' : 'text-text-secondary hover:bg-bg-row'}`}>
-                  {year}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Trip Calendar */}
-          <div className="mb-4">
-            <TripMonthCalendar
-              trips={trips.map(t => ({
-                id: t.id,
-                name: t.name,
-                startDate: t.startDate,
-                endDate: t.endDate,
-                activity: t.activity,
-              }))}
-              onTripClick={(id) => router.push(`/budgets/trips/${id}`)}
-            />
-          </div>
 
           {/* Trip List */}
           <div className="bg-white border border-border mb-4">
@@ -206,11 +229,7 @@ export default function TripsPage() {
 
             {trips.length === 0 ? (
               <div className="p-8 text-center text-text-faint">
-                <p className="text-sm mb-4">No trips yet. Create your first trip to start planning.</p>
-                <button onClick={() => router.push('/budgets/trips/new')}
-                  className="px-4 py-2 text-sm bg-brand-purple text-white hover:bg-brand-purple-hover">
-                  Create First Trip
-                </button>
+                <p className="text-sm mb-4">No trips yet. Use the search bar above to create your first trip.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -285,6 +304,20 @@ export default function TripsPage() {
                 </table>
               </div>
             )}
+          </div>
+
+          {/* Trip Calendar */}
+          <div className="bg-white border border-border mb-4">
+            <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+              Trip Calendar
+            </div>
+            <CalendarGrid
+              events={calendarEvents}
+              sourceConfig={TRIP_SOURCE_CONFIG}
+              defaultView="month"
+              showCategoryLegend={true}
+              showBudgetTotals={true}
+            />
           </div>
 
           {/* Map */}
