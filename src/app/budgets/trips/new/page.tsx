@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
-import { ACTIVITY_GROUPS } from '@/lib/activities';
+import { TRAVEL_INTERESTS, ACTIVITY_GROUPS } from '@/lib/activities';
 
 const TRIP_TYPES = [
   { value: 'personal', label: 'Personal' },
@@ -38,16 +38,13 @@ const PACE_OPTIONS = [
 ];
 
 // Map filter chip labels → activity values for auto-selecting interests
-const INTEREST_TO_ACTIVITIES: Record<string, string[]> = {
-  'Active & Outdoors': ['surf', 'kitesurf', 'hike', 'climb', 'mtb', 'kayak', 'ski', 'snowboard', 'trail', 'skydive', 'paraglide'],
-  'Festivals & Events': ['festival', 'concert'],
-  'Conferences': ['conference'],
-  'Nightlife': ['festival', 'concert'],
-  'Food & Craft': ['foodtour', 'winetour'],
-  'Coworking': ['nomad', 'coworking'],
-  'Culture & Discovery': ['safari', 'nationalpark', 'foodtour'],
-  'Bucket List': ['skydive', 'paraglide', 'safari', 'sail'],
-};
+// Derived from TRAVEL_INTERESTS: each item becomes a lowercase slug value
+const INTEREST_TO_ACTIVITIES: Record<string, string[]> = Object.fromEntries(
+  Object.entries(TRAVEL_INTERESTS).map(([category, items]) => [
+    category,
+    items.map(item => item.toLowerCase().replace(/[^a-z0-9]/g, '_')),
+  ])
+);
 
 interface Resort {
   id: string;
