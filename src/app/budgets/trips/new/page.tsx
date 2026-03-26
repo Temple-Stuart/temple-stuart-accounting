@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppLayout } from '@/components/ui';
 import { ACTIVITY_GROUPS } from '@/lib/activities';
@@ -60,6 +60,20 @@ interface Resort {
 }
 
 export default function NewTripPage() {
+  return (
+    <AppLayout>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <NewTripForm />
+      </Suspense>
+    </AppLayout>
+  );
+}
+
+function NewTripForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [saving, setSaving] = useState(false);
@@ -264,7 +278,6 @@ export default function NewTripPage() {
   const budgetHint = BUDGET_OPTIONS.find(b => b.value === budget)?.hint;
 
   return (
-    <AppLayout>
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
@@ -472,7 +485,6 @@ export default function NewTripPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
   );
 }
 
