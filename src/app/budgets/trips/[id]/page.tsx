@@ -453,56 +453,113 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
-          {/* Header */}
-          <div className="mb-4 bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <button onClick={() => router.push('/budgets/trips')} className="text-gray-400 hover:text-gray-700 text-xs">
-                    ← Trips
-                  </button>
-                  <span className={`px-2 py-0.5 text-xs rounded ${trip.committedAt ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {trip.committedAt ? 'Committed' : 'Planning'}
-                  </span>
-                </div>
-                <h1 className="text-lg font-semibold text-gray-900">{trip.name}</h1>
-                <p className="text-gray-500 text-sm">
-                  {trip.destination || 'Destination TBD'} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-sm font-bold text-gray-900">{fmt(totalBudget || totalExpenses)}</div>
-                  <div className="text-xs text-gray-500">total budget</div>
-                </div>
-                {trip.inviteToken && (
-                  <button onClick={copyInviteLink}
-                    className="px-3 py-2 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white rounded-lg font-medium">
-                    {copiedLink ? '✓ Copied' : 'Copy Invite'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-            {[
-              { label: 'Crew', value: String(confirmedParticipants.length), sub: `${participants.length} invited` },
-              { label: 'Days', value: String(trip.daysTravel) },
-              { label: 'Expenses', value: String(trip.expenses.length) },
-              { label: 'Budget', value: fmt(totalBudget || totalExpenses), color: 'text-emerald-700' },
-              { label: 'Per Person', value: confirmedParticipants.length > 0 ? fmt((totalBudget || totalExpenses) / confirmedParticipants.length) : '—' },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white rounded-lg border border-gray-200 p-3">
-                <div className="text-xs text-gray-500 uppercase tracking-wider">{stat.label}</div>
-                <div className={`text-sm font-bold ${stat.color || 'text-gray-900'}`}>{stat.value}</div>
-                {stat.sub && <div className="text-xs text-gray-400">{stat.sub}</div>}
-              </div>
-            ))}
-          </div>
-
           <div className="space-y-4">
+
+            {/* ── Itinerary Calendar (primary view) ── */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">{trip.name}</h2>
+                  <p className="text-xs text-gray-500">
+                    {trip.destination || 'Destination TBD'} · {MONTHS[trip.month]} {trip.year} · {trip.daysTravel} days · {trip.committedAt ? 'Committed' : 'Planning'}
+                  </p>
+                </div>
+                <button onClick={() => setShowExpenseForm(!showExpenseForm)}
+                  className="px-3 py-1.5 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white rounded-lg font-medium">
+                  {showExpenseForm ? 'Cancel' : '+ Add Expense'}
+                </button>
+              </div>
+
+              {/* Inline Add Expense Form */}
+              {showExpenseForm && (
+                <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required>
+                      <option value="">Paid by...</option>
+                      {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
+                    </select>
+                    <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs">
+                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required />
+                    <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                    <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
+                    <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs col-span-2" />
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-500">Split:</span>
+                    {confirmedParticipants.map(p => (
+                      <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
+                        className={`px-2 py-1 text-xs font-medium rounded ${expenseForm.splitWith.includes(p.id) ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        {p.firstName}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="submit" disabled={savingExpense}
+                    className="px-4 py-2 bg-brand-gold text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                    {savingExpense ? '...' : 'Add'}
+                  </button>
+                </form>
+              )}
+
+              {calendarEvents.length > 0 || tripDates ? (
+                <div className="p-4">
+                  <CalendarGrid
+                    events={calendarEvents}
+                    sourceConfig={TRIP_SOURCE_CONFIG}
+                    defaultView="week"
+                    anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                    highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                    highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
+                    onEventClick={(event) => setClickedEvent(event as any)}
+                    showBudgetTotals={true}
+                    showCategoryLegend={true}
+                    compact={true}
+                  />
+                  {clickedEvent && (
+                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{clickedEvent.title}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {TRIP_SOURCE_CONFIG[clickedEvent.source]?.label || clickedEvent.source}
+                            {clickedEvent.startDate && <span className="ml-2">{clickedEvent.startDate}</span>}
+                            {clickedEvent.endDate && clickedEvent.endDate !== clickedEvent.startDate && <span> — {clickedEvent.endDate}</span>}
+                          </div>
+                          {(clickedEvent.budgetAmount || 0) > 0 && (
+                            <div className="text-sm font-semibold text-emerald-700 mt-1">{fmt(clickedEvent.budgetAmount || 0)}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {clickedEvent._vendorOptionId && (
+                            <button onClick={handleUncommitEvent} disabled={uncommitting}
+                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg disabled:opacity-50">
+                              {uncommitting ? '...' : 'Uncommit'}
+                            </button>
+                          )}
+                          <button onClick={() => setClickedEvent(null)} className="px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 rounded-lg">Close</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400">
+                  <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
+                  <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
+                </div>
+              )}
+            </div>
 
             {/* ── Crew & Profiles ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -656,108 +713,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     selectedName={trip.destination}
                     onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
                   />
-                </div>
-              )}
-            </div>
-
-            {/* ── Itinerary Calendar ── */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-700">Itinerary</h2>
-                <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                  className="px-3 py-1.5 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white rounded-lg font-medium">
-                  {showExpenseForm ? 'Cancel' : '+ Add Expense'}
-                </button>
-              </div>
-
-              {/* Inline Add Expense Form */}
-              {showExpenseForm && (
-                <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required>
-                      <option value="">Paid by...</option>
-                      {confirmedParticipants.map(p => <option key={p.id} value={p.id}>{p.firstName}</option>)}
-                    </select>
-                    <select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs">
-                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                    <input type="text" placeholder="Vendor *" value={expenseForm.vendor} onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required />
-                    <input type="number" step="0.01" placeholder="Amount *" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required />
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                    <input type="number" min="1" max={trip.daysTravel} placeholder="Day #" value={expenseForm.day} onChange={(e) => setExpenseForm({ ...expenseForm, day: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
-                    <input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" />
-                    <input type="text" placeholder="Description" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                      className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs col-span-2" />
-                  </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-gray-500">Split:</span>
-                    {confirmedParticipants.map(p => (
-                      <button key={p.id} type="button" onClick={() => toggleSplitWith(p.id)}
-                        className={`px-2 py-1 text-xs font-medium rounded ${expenseForm.splitWith.includes(p.id) ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600'}`}>
-                        {p.firstName}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="submit" disabled={savingExpense}
-                    className="px-4 py-2 bg-brand-gold text-white text-xs font-medium rounded-lg disabled:opacity-50">
-                    {savingExpense ? '...' : 'Add'}
-                  </button>
-                </form>
-              )}
-
-              {calendarEvents.length > 0 || tripDates ? (
-                <div className="p-4">
-                  <CalendarGrid
-                    events={calendarEvents}
-                    sourceConfig={TRIP_SOURCE_CONFIG}
-                    defaultView="week"
-                    anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
-                    onEventClick={(event) => setClickedEvent(event as any)}
-                    showBudgetTotals={true}
-                    showCategoryLegend={true}
-                    compact={true}
-                  />
-                  {/* Event detail popover */}
-                  {clickedEvent && (
-                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg shadow-md">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{clickedEvent.title}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {TRIP_SOURCE_CONFIG[clickedEvent.source]?.label || clickedEvent.source}
-                            {clickedEvent.startDate && <span className="ml-2">{clickedEvent.startDate}</span>}
-                            {clickedEvent.endDate && clickedEvent.endDate !== clickedEvent.startDate && <span> — {clickedEvent.endDate}</span>}
-                          </div>
-                          {(clickedEvent.budgetAmount || 0) > 0 && (
-                            <div className="text-sm font-semibold text-emerald-700 mt-1">{fmt(clickedEvent.budgetAmount || 0)}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {clickedEvent._vendorOptionId && (
-                            <button onClick={handleUncommitEvent} disabled={uncommitting}
-                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg disabled:opacity-50">
-                              {uncommitting ? '...' : 'Uncommit'}
-                            </button>
-                          )}
-                          <button onClick={() => setClickedEvent(null)} className="px-2 py-1.5 text-xs text-gray-400 hover:bg-gray-50 rounded-lg">Close</button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-gray-400">
-                  <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
-                  <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
                 </div>
               )}
             </div>
