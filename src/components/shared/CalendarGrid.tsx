@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -13,6 +13,8 @@ export interface CalendarEvent {
   icon?: string | null;
   startDate: string;        // YYYY-MM-DD
   endDate?: string | null;
+  startTime?: string | null; // HH:MM (24h) for time-based positioning
+  endTime?: string | null;   // HH:MM (24h)
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
@@ -47,6 +49,11 @@ export interface CalendarGridProps {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const HOUR_HEIGHT = 60; // px per hour
+const START_HOUR = 5;   // 5 AM
+const END_HOUR = 24;    // midnight
+const TOTAL_HOURS = END_HOUR - START_HOUR;
+
 const parseDate = (dateStr: string): Date => {
   const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
   return new Date(year, month - 1, day);
@@ -56,6 +63,19 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
 
 const dateToKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + (m || 0);
+};
+
+const formatTime12h = (time: string): string => {
+  const [h, m] = time.split(':').map(Number);
+  if (isNaN(h)) return time;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+};
 
 // ═══════════════════════════════════════════════════════════════
 // COMPONENT
@@ -74,9 +94,8 @@ export default function CalendarGrid({
   compact = false,
 }: CalendarGridProps) {
   const now = new Date();
-
-  // Determine initial anchor
   const anchor = anchorDate ? parseDate(anchorDate) : now;
+  const timeGridRef = useRef<HTMLDivElement>(null);
 
   const [calendarView, setCalendarView] = useState<'week' | 'month'>(defaultView);
   const [selectedYear, setSelectedYear] = useState(anchor.getFullYear());
@@ -87,7 +106,6 @@ export default function CalendarGrid({
     return d;
   });
 
-  // Visible categories (all on by default)
   const allSources = Object.keys(sourceConfig);
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>(
     () => Object.fromEntries(allSources.map(s => [s, true]))
@@ -148,7 +166,26 @@ export default function CalendarGrid({
     ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}`
     : `${MONTHS[selectedMonth]} ${selectedYear}`;
 
-  const maxEventsWeek = compact ? 5 : 8;
+  // ── Auto-scroll to first timed event ──
+  useEffect(() => {
+    if (calendarView !== 'week' || !timeGridRef.current) return;
+    const allWeekEvents = weekDays.flatMap(d => getEventsForDate(d));
+    const timedEvents = allWeekEvents.filter(e => e.startTime);
+    if (timedEvents.length > 0) {
+      const earliest = timedEvents.reduce((min, e) => {
+        const m = timeToMinutes(e.startTime!);
+        return m < min ? m : min;
+      }, 24 * 60);
+      const scrollTo = Math.max(0, ((earliest / 60) - START_HOUR - 1) * HOUR_HEIGHT);
+      timeGridRef.current.scrollTop = scrollTo;
+    } else {
+      // Default: scroll to 8 AM
+      timeGridRef.current.scrollTop = (8 - START_HOUR) * HOUR_HEIGHT;
+    }
+  }, [calendarView, selectedWeekStart]);
+
+  // Hour labels for the Y axis
+  const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -198,53 +235,158 @@ export default function CalendarGrid({
         <div className="flex-1 min-w-0">
           {calendarView === 'week' ? (
             <div>
-              {/* Week header */}
-              <div className="grid grid-cols-7 border-b border-border">
+              {/* Week header — day names + dates */}
+              <div className="flex border-b border-border">
+                {/* Gutter for time labels */}
+                <div className="w-14 flex-shrink-0" />
                 {weekDays.map((day, idx) => {
                   const isToday = day.toDateString() === now.toDateString();
                   const hl = isInHighlight(day);
                   return (
-                    <div key={idx} className={`text-center py-3 border-r border-border-light last:border-r-0 ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}>
+                    <div key={idx} className={`flex-1 text-center py-2 border-l border-border-light ${isToday ? 'bg-red-50' : hl ? 'bg-purple-50/40' : ''}`}>
                       <div className="text-xs text-text-muted uppercase tracking-wide font-medium">{DAYS[day.getDay()]}</div>
-                      <div className={`text-sm font-light mt-0.5 ${isToday ? 'bg-red-500 text-white w-9 h-9 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
+                      <div className={`text-sm font-medium mt-0.5 ${isToday ? 'bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-text-primary'}`}>{day.getDate()}</div>
                     </div>
                   );
                 })}
               </div>
-              {/* Week body */}
-              <div className="grid grid-cols-7 min-h-[320px]">
-                {weekDays.map((day, idx) => {
-                  const dayEvents = getEventsForDate(day);
-                  const isToday = day.toDateString() === now.toDateString();
-                  const hl = isInHighlight(day);
-                  return (
-                    <div key={idx} className={`border-r border-border-light last:border-r-0 p-1.5 ${isToday ? 'bg-red-50/30' : hl ? 'bg-purple-50/20' : ''}`}>
-                      <div className="space-y-1">
-                        {dayEvents.slice(0, maxEventsWeek).map((event, eventIdx) => {
-                          const config = sourceConfig[event.source] || { dot: 'bg-gray-400', badge: 'bg-gray-400', label: event.source, icon: '', bg: '' };
-                          const badgeColor = config.badge || config.dot;
+
+              {/* All-day events row */}
+              {(() => {
+                const allDayEvents = weekDays.map(day => {
+                  const dayEvts = getEventsForDate(day);
+                  return dayEvts.filter(e => !e.startTime);
+                });
+                const hasAnyAllDay = allDayEvents.some(evts => evts.length > 0);
+                if (!hasAnyAllDay) return null;
+                return (
+                  <div className="flex border-b border-border">
+                    <div className="w-14 flex-shrink-0 text-right pr-2 py-1">
+                      <span className="text-[10px] text-text-faint">all day</span>
+                    </div>
+                    {weekDays.map((day, idx) => {
+                      const evts = allDayEvents[idx];
+                      return (
+                        <div key={idx} className="flex-1 border-l border-border-light p-0.5 min-h-[28px]">
+                          {evts.slice(0, 3).map((event, i) => {
+                            const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
+                            return (
+                              <div key={event.id || i}
+                                onClick={() => onEventClick?.(event)}
+                                className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                title={event.title}>
+                                {event.title}
+                              </div>
+                            );
+                          })}
+                          {evts.length > 3 && <div className="text-[10px] text-text-muted px-1">+{evts.length - 3}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Time grid — scrollable */}
+              <div ref={timeGridRef} className="overflow-y-auto" style={{ maxHeight: compact ? '400px' : '500px' }}>
+                <div className="flex relative" style={{ height: `${TOTAL_HOURS * HOUR_HEIGHT}px` }}>
+                  {/* Time gutter (Y axis labels) */}
+                  <div className="w-14 flex-shrink-0 relative">
+                    {hours.map(hour => (
+                      <div key={hour} className="absolute w-full text-right pr-2" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }}>
+                        <span className="text-[10px] text-text-faint leading-none relative -top-1.5">
+                          {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day columns */}
+                  {weekDays.map((day, dayIdx) => {
+                    const isToday = day.toDateString() === now.toDateString();
+                    const hl = isInHighlight(day);
+                    const dayEvents = getEventsForDate(day).filter(e => e.startTime);
+
+                    return (
+                      <div key={dayIdx} className={`flex-1 relative border-l border-border-light ${isToday ? 'bg-red-50/20' : hl ? 'bg-purple-50/10' : ''}`}>
+                        {/* Hour grid lines */}
+                        {hours.map(hour => (
+                          <div key={hour} className="absolute w-full border-t border-border-light/60" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT}px` }} />
+                        ))}
+                        {/* Half-hour lines */}
+                        {hours.map(hour => (
+                          <div key={`half-${hour}`} className="absolute w-full border-t border-border-light/30" style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2}px` }} />
+                        ))}
+
+                        {/* Current time indicator */}
+                        {isToday && (() => {
+                          const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                          const top = ((nowMinutes / 60) - START_HOUR) * HOUR_HEIGHT;
+                          if (top < 0 || top > TOTAL_HOURS * HOUR_HEIGHT) return null;
                           return (
-                            <div key={event.id || eventIdx}
+                            <div className="absolute w-full z-20" style={{ top: `${top}px` }}>
+                              <div className="flex items-center">
+                                <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+                                <div className="flex-1 h-[2px] bg-red-500" />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Timed events as positioned blocks */}
+                        {dayEvents.map((event, eventIdx) => {
+                          const startMin = timeToMinutes(event.startTime!);
+                          const endMin = event.endTime ? timeToMinutes(event.endTime) : startMin + 60; // default 1h
+                          const duration = Math.max(endMin - startMin, 30); // min 30min height
+                          const top = ((startMin / 60) - START_HOUR) * HOUR_HEIGHT;
+                          const height = (duration / 60) * HOUR_HEIGHT;
+                          const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
+                          const badgeColor = config.badge || config.dot;
+
+                          return (
+                            <div
+                              key={event.id || eventIdx}
                               onClick={() => onEventClick?.(event)}
-                              className={`${badgeColor} text-white text-xs px-2 py-1.5 rounded truncate ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
-                              title={`${event.title}${event.budgetAmount ? ' - ' + formatCurrency(event.budgetAmount) : ''}`}>
-                              {event.title}
+                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white rounded overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              style={{ top: `${top}px`, height: `${Math.max(height, 24)}px` }}
+                              title={`${event.title}${event.budgetAmount ? ' - ' + formatCurrency(event.budgetAmount) : ''}`}
+                            >
+                              <div className="px-1.5 py-0.5 h-full overflow-hidden">
+                                <div className="text-[10px] font-medium leading-tight truncate">{event.title}</div>
+                                {height > 36 && event.endTime && (
+                                  <div className="text-[9px] opacity-80 leading-tight">arr {formatTime12h(event.endTime)}</div>
+                                )}
+                                {height > 48 && event.budgetAmount && event.budgetAmount > 0 && (
+                                  <div className="text-[9px] opacity-80 leading-tight">{formatCurrency(event.budgetAmount)}</div>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
-                        {dayEvents.length > maxEventsWeek && <div className="text-xs text-text-muted px-2">+{dayEvents.length - maxEventsWeek} more</div>}
-                        {showBudgetTotals && dayEvents.length > 0 && (() => {
-                          const total = dayEvents.reduce((s, e) => s + (e.budgetAmount || 0), 0);
-                          return total > 0 ? <div className="text-[10px] font-bold text-text-secondary tabular-nums px-1 pt-1">{formatCurrency(total)}</div> : null;
-                        })()}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Budget totals row */}
+              {showBudgetTotals && (
+                <div className="flex border-t border-border">
+                  <div className="w-14 flex-shrink-0" />
+                  {weekDays.map((day, idx) => {
+                    const dayEvents = getEventsForDate(day);
+                    const total = dayEvents.reduce((s, e) => s + (e.budgetAmount || 0), 0);
+                    return (
+                      <div key={idx} className="flex-1 border-l border-border-light px-1 py-1 text-center">
+                        {total > 0 && <div className="text-[10px] font-bold text-text-secondary tabular-nums">{formatCurrency(total)}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
-            /* Month view */
+            /* Month view — unchanged */
             <div className="p-4">
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {DAYS.map(day => <div key={day} className="text-center text-sm font-semibold text-text-muted py-2">{day}</div>)}

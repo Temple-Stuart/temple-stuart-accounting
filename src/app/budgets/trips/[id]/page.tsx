@@ -385,6 +385,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         endDate: entries.length > 1 && entries[entries.length - 1].homeDate
           ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
           : null,
+        startTime: first.homeTime || null,
+        endTime: first.destTime || null,
         budgetAmount: totalCost,
         // Stash for uncommit
         _vendorOptionId: first.vendorOptionId,
