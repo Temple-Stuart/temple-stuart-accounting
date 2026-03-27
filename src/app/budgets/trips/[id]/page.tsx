@@ -123,6 +123,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [error, setError] = useState('');
   const [destinations, setDestinations] = useState<any[]>([]);
   const [vendorOptions, setVendorOptions] = useState<Record<string, { category?: string; imageUrl?: string; title?: string }>>({});
+  const [scannerResults, setScannerResults] = useState<any[]>([]);
+  const [viatorCategoryFilter, setViatorCategoryFilter] = useState<string | null>(null);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -167,7 +169,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
 
   // Derive origin airport from current user's participant record
   useEffect(() => {
@@ -229,6 +231,15 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       }
       setVendorOptions(map);
     } catch (err) { console.error('Failed to load vendor options:', err); }
+  };
+
+  const loadScannerResults = async () => {
+    try {
+      const res = await fetch(`/api/trips/${id}/scanner-results`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setScannerResults(data.results || []);
+    } catch (err) { console.error('Failed to load scanner results:', err); }
   };
 
   // Derive destination airport from loaded destination data
@@ -550,38 +561,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="space-y-4">
 
-            {/* ── Map with Lodging, Dining sidebars + Activities bar ── */}
+            {/* ── Map + Committed Rows ── */}
             {(() => {
               const itinerary = trip.itinerary || [];
               const DINING_CATEGORIES = new Set(['dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food']);
               const EXCLUDE_FROM_ACTIVITIES = new Set(['flight', 'lodging', 'dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals']);
 
-              // Resolve each itinerary item's true category from vendorOptions lookup
               const resolvedItems = itinerary.map((item: any) => {
                 const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
-                return {
-                  ...item,
-                  resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '',
-                  imageUrl: optInfo?.imageUrl || null,
-                };
+                return { ...item, resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '', imageUrl: optInfo?.imageUrl || null };
               });
 
-              const lodgingItems = resolvedItems.filter((item: any) =>
-                item.resolvedCategory === 'lodging' || item.vendorOptionType === 'lodging'
-              );
-              const diningItems = resolvedItems.filter((item: any) =>
-                DINING_CATEGORIES.has(item.resolvedCategory) ||
-                DINING_CATEGORIES.has(item.vendorOptionType) ||
-                DINING_CATEGORIES.has(item.category)
-              );
-              const activityItems = resolvedItems.filter((item: any) =>
-                !EXCLUDE_FROM_ACTIVITIES.has(item.resolvedCategory) &&
-                !EXCLUDE_FROM_ACTIVITIES.has(item.vendorOptionType || '') &&
-                !EXCLUDE_FROM_ACTIVITIES.has(item.category || '') &&
-                item.vendorOptionType !== 'flight' && item.vendorOptionType !== 'lodging'
-              );
+              const lodgingItems = resolvedItems.filter((item: any) => item.resolvedCategory === 'lodging' || item.vendorOptionType === 'lodging');
+              const diningItems = resolvedItems.filter((item: any) => DINING_CATEGORIES.has(item.resolvedCategory) || DINING_CATEGORIES.has(item.vendorOptionType) || DINING_CATEGORIES.has(item.category));
+              const activityItems = resolvedItems.filter((item: any) => !EXCLUDE_FROM_ACTIVITIES.has(item.resolvedCategory) && !EXCLUDE_FROM_ACTIVITIES.has(item.vendorOptionType || '') && !EXCLUDE_FROM_ACTIVITIES.has(item.category || '') && item.vendorOptionType !== 'flight' && item.vendorOptionType !== 'lodging');
 
-              // Deduplicate lodging by vendorOptionId (multi-day creates multiple entries)
               const uniqueLodging = Object.values(
                 lodgingItems.reduce((acc: Record<string, any>, item: any) => {
                   const key = item.vendorOptionId || item.id;
@@ -591,23 +585,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 }, {})
               ) as any[];
 
-              return (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {/* Top section: Lodging | Map | Dining */}
-                  <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0">
-                    {/* Left — Lodging */}
-                    <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
-                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
-                      </div>
-                      <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px', scrollBehavior: 'smooth' }}>
-                        {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
-                          <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-purple-200 transition-colors">
+              const renderScrollRow = (title: string, items: any[], emptyText: string, placeholderLabel: string, gradientFrom: string, gradientTo: string) => (
+                <div className="rounded-lg overflow-hidden border border-gray-200">
+                  <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">{title} <span className="font-normal opacity-70">({items.length})</span></div>
+                  {items.length > 0 ? (
+                    <div className="overflow-x-auto bg-white p-3" style={{ scrollSnapType: 'x mandatory' }}>
+                      <div className="flex gap-3">
+                        {items.map((item: any, idx: number) => (
+                          <div key={item.vendorOptionId || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
                             {item.imageUrl ? (
                               <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
                             ) : null}
-                            <div className={`w-full h-[120px] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                              <span className="text-sm font-medium text-blue-300">HOTEL</span>
+                            <div className={`w-full h-[120px] bg-gradient-to-br ${gradientFrom} ${gradientTo} flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                              <span className="text-sm font-medium text-gray-400">{placeholderLabel}</span>
                             </div>
                             <div className="p-3">
                               <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
@@ -626,107 +616,33 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                               </div>
                             </div>
                           </div>
-                        )) : (
-                          <div className="text-center py-8 text-gray-400">
-                            <p className="text-xs">No lodging booked yet.</p>
-                            <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </div>
-
-                    {/* Center — Map */}
-                    <div className="relative">
-                      <DestinationMap
-                        destinations={destinations}
-                        selectedName={trip.destination}
-                        onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
-                        height="500px"
-                      />
+                  ) : (
+                    <div className="bg-white text-center py-6 text-gray-400">
+                      <p className="text-xs">{emptyText}</p>
                     </div>
-
-                    {/* Right — Dining */}
-                    <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
-                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
-                      </div>
-                      <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px', scrollBehavior: 'smooth' }}>
-                        {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
-                          <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-red-200 transition-colors">
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                            ) : null}
-                            <div className={`w-full h-[120px] bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                              <span className="text-sm font-medium text-red-300">DINING</span>
-                            </div>
-                            <div className="p-3">
-                              <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                                {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                                {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
-                              </div>
-                              {item.homeDate && (
-                                <div className="text-[10px] text-gray-400 mt-1">
-                                  {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </div>
-                              )}
-                              <div className="mt-1.5">
-                                <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                              </div>
-                            </div>
-                          </div>
-                        )) : (
-                          <div className="text-center py-8 text-gray-400">
-                            <p className="text-xs">No restaurants booked yet.</p>
-                            <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom — Activities horizontal scroll bar */}
-                  <div className="border-t border-gray-200">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Activities <span className="text-gray-400 font-normal">({activityItems.length})</span></h3>
-                    </div>
-                    {activityItems.length > 0 ? (
-                      <div className="overflow-x-auto p-3" style={{ scrollSnapType: 'x mandatory' }}>
-                        <div className="flex gap-3">
-                          {activityItems.map((item: any, idx: number) => (
-                            <div key={item.vendorOptionId || idx} className="w-[200px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:border-green-200 transition-colors" style={{ scrollSnapAlign: 'start' }}>
-                              {item.imageUrl ? (
-                                <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[100px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                              ) : null}
-                              <div className={`w-full h-[100px] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                                <span className="text-sm font-medium text-green-300">ACTIVITY</span>
-                              </div>
-                              <div className="p-2.5">
-                                <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                                  {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                                </div>
-                                {item.homeDate && (
-                                  <div className="text-[10px] text-gray-400 mt-0.5">
-                                    {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </div>
-                                )}
-                                <div className="mt-1">
-                                  <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 text-gray-400">
-                        <p className="text-xs">No activities booked yet.</p>
-                        <p className="text-[11px] mt-1">Scan destinations to find things to do.</p>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
+              );
+
+              return (
+                <>
+                  {/* Full-width Map */}
+                  <div className="rounded-lg overflow-hidden border border-gray-200">
+                    <DestinationMap
+                      destinations={destinations}
+                      selectedName={trip.destination}
+                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
+                      height="400px"
+                    />
+                  </div>
+
+                  {renderScrollRow('Lodging', uniqueLodging, 'No lodging booked yet. Scan destinations to find hotels.', 'HOTEL', 'from-blue-50', 'to-indigo-100')}
+                  {renderScrollRow('Dining', diningItems, 'No restaurants booked yet. Scan destinations to find dining.', 'DINING', 'from-red-50', 'to-orange-100')}
+                  {renderScrollRow('Activities', activityItems, 'No activities booked yet. Scan destinations to find things to do.', 'ACTIVITY', 'from-green-50', 'to-emerald-100')}
+                </>
               );
             })()}
 
@@ -748,11 +664,9 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               let lastCategory = '';
 
               return (
-                <div className="bg-white rounded-lg border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
-                  </div>
-                  <div className="overflow-x-auto">
+                <div className="rounded-lg overflow-hidden border border-gray-200">
+                  <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Committed Budget</div>
+                  <div className="overflow-x-auto bg-white">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50">
                         <tr>
@@ -787,11 +701,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             })()}
 
             {/* ── Itinerary Calendar (primary view) ── */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-700">Itinerary</h2>
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <div className="bg-brand-purple-deep text-white px-4 py-2 flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Itinerary</h2>
                 <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                  className="px-3 py-1.5 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white rounded-lg font-medium">
+                  className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 text-white rounded font-medium">
                   {showExpenseForm ? 'Cancel' : '+ Add Expense'}
                 </button>
               </div>
@@ -862,13 +776,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* ── Crew & Profiles ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
-                <h2 className="text-sm font-semibold text-gray-700">Crew ({participants.length})</h2>
-                <span className="text-xs text-gray-500">
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <div className="bg-brand-purple-deep text-white px-4 py-2 flex justify-between items-center">
+                <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
+                <span className="text-xs opacity-70">
                   {participants.filter(p => !!p.profileTripType).length} of {participants.length} profiles complete
                 </span>
               </div>
+              <div className="bg-white p-4">
               <div className="overflow-x-auto mb-4">
                 <table className="w-full text-xs">
                   <thead className="border-b border-gray-200">
@@ -933,12 +848,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   />
                 ))}
               </div>
+              </div>
             </div>
 
             {/* ── Flights ── */}
             {tripDates && trip.destination && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Flights</h2>
+              <div className="rounded-lg overflow-hidden border border-gray-200">
+                <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Flights</div>
+                <div className="bg-white p-4">
                 <FlightPicker
                   tripId={id}
                   destinationName={trip.destination}
@@ -947,16 +864,93 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   departureDate={tripDates.departure}
                   returnDate={tripDates.return}
                   passengers={confirmedParticipants.length || 1}
-                  onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); }}
+                  onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
                 />
+                </div>
               </div>
             )}
 
+            {/* ── Bookable Experiences (Viator) ── */}
+            {(() => {
+              const VIATOR_CATS = new Set(['sports_fitness', 'arts_culture', 'nightlife', 'festivals', 'wellness', 'bucket_list', 'ground_transport']);
+              const viatorResults = scannerResults.filter((r: any) => VIATOR_CATS.has(r.category));
+              const allRecs = viatorResults.flatMap((r: any) => (r.recommendations || []).map((rec: any) => ({ ...rec, _scanCategory: r.category })));
+              const viatorCats = [...new Set(viatorResults.map((r: any) => r.category))];
+              const filteredRecs = viatorCategoryFilter ? allRecs.filter((r: any) => r._scanCategory === viatorCategoryFilter) : allRecs;
+              const COA_LABELS: Record<string, string> = { sports_fitness: 'Sports & Fitness', arts_culture: 'Arts & Culture', nightlife: 'Nightlife', festivals: 'Festivals', wellness: 'Wellness', bucket_list: 'Bucket List', ground_transport: 'Transport' };
+
+              return (
+                <div className="rounded-lg overflow-hidden border border-gray-200">
+                  <div className="bg-brand-purple-deep text-white px-4 py-2 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Bookable Experiences</h2>
+                    <span className="text-[10px] opacity-60">via Viator</span>
+                  </div>
+                  <div className="bg-white">
+                    {viatorCats.length > 0 ? (
+                      <>
+                        <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+                          <button onClick={() => setViatorCategoryFilter(null)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${!viatorCategoryFilter ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                            All ({allRecs.length})
+                          </button>
+                          {viatorCats.map(cat => (
+                            <button key={cat} onClick={() => setViatorCategoryFilter(viatorCategoryFilter === cat ? null : cat)}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${viatorCategoryFilter === cat ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                              {COA_LABELS[cat] || cat}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="overflow-x-auto px-4 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
+                          <div className="flex gap-3">
+                            {filteredRecs.slice(0, 50).map((rec: any, idx: number) => (
+                              <div key={rec.viatorProductCode || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
+                                {rec.photoUrl ? (
+                                  <img src={rec.photoUrl} alt={rec.name || ''} className="w-full h-[140px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                                ) : null}
+                                <div className={`w-full h-[140px] bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
+                                  <span className="text-sm font-medium text-purple-300">EXPERIENCE</span>
+                                </div>
+                                <div className="p-3">
+                                  <div className="font-medium text-xs text-gray-900 line-clamp-2 leading-snug">{rec.name}</div>
+                                  <div className="flex items-center gap-2 mt-1.5 text-[11px]">
+                                    {rec.price != null && <span className="font-semibold text-emerald-700">From ${rec.price}</span>}
+                                    {rec.durationMinutes != null && (
+                                      <span className="text-gray-400">
+                                        {rec.durationMinutes >= 60 ? `${Math.floor(rec.durationMinutes / 60)}h${rec.durationMinutes % 60 ? ` ${rec.durationMinutes % 60}m` : ''}` : `${rec.durationMinutes}m`}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-500">
+                                    <span>{rec.googleRating} ({rec.reviewCount})</span>
+                                  </div>
+                                  <div className="mt-2">
+                                    {(rec.bookingUrl || rec.website) ? (
+                                      <a href={rec.bookingUrl || rec.website} target="_blank" rel="noopener noreferrer"
+                                        className="block text-center px-3 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
+                                        Book
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <p className="text-xs">Scan a destination in Trip Planner below to find bookable experiences.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Trip Planner & Budget (with integrated destination selector) ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-4">
-                <h2 className="text-sm font-semibold text-gray-700">Trip Planner &amp; Budget</h2>
-              </div>
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Trip Planner &amp; Budget</div>
+              <div className="bg-white p-4">
               {/* Destination pills — select scan target */}
               {destinations.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1031,16 +1025,18 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       };
                     })()}
                     tripDates={tripDates}
-                    onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); }}
+                    onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); }}
                   />
                 )
               );
               })()}
+              </div>
             </div>
 
-            {/* ── Commit to Calendar ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Commit to Calendar</h2>
+            {/* ── Commit to Ledger ── */}
+            <div className="rounded-lg overflow-hidden border border-gray-200">
+              <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Commit to Ledger</div>
+              <div className="bg-white p-4">
               {trip.committedAt ? (
                 <div className="text-center py-4">
                   <div className="text-sm font-semibold text-emerald-700 mb-1">Trip Committed</div>
@@ -1074,6 +1070,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                 </div>
               )}
+              </div>
             </div>
 
             {/* ── Settlement Matrix ── */}

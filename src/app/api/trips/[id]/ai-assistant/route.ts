@@ -7,6 +7,7 @@ import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
 import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
+import { isViatorCategory, searchViatorProducts, viatorProductToRecommendation } from '@/lib/viatorClient';
 
 // Trip-type focused profile
 interface TravelerProfile {
@@ -238,9 +239,67 @@ export async function POST(
       return NextResponse.json({ category, recommendations: [] });
     }
 
-    console.log(`[Grok AI] ${category}: Starting analysis for ${city}, ${country}`);
+    console.log(`[Scanner] ${category}: Starting analysis for ${city}, ${country}`);
 
-    // ─── Build search queries ────────────────────────────────────────────────
+    // ─── Viator path: bookable activities/experiences (skip Google Places + Grok) ─
+    if (isViatorCategory(category) && process.env.VIATOR_API_KEY) {
+      console.log(`[Viator] ${category}: Using Viator API for ${city}, ${country}`);
+      try {
+        const viatorProducts = await searchViatorProducts(city, country, category, allActivities, maxResults);
+
+        if (viatorProducts.length === 0) {
+          console.log(`[Viator] ${category}: 0 products, falling through to Google Places`);
+        } else {
+          // Convert Viator products to recommendation format
+          const viatorResults = viatorProducts.map((p, idx) => {
+            const rec = viatorProductToRecommendation(p, category, travelerProfile.budget);
+            return { ...rec, valueRank: idx + 1 };
+          });
+
+          // Sort by compositeScore and limit
+          const finalResults = viatorResults
+            .sort((a, b) => b.compositeScore - a.compositeScore)
+            .slice(0, maxResults);
+
+          console.log(`[Viator] ${category}: ${finalResults.length} results`);
+
+          // Persist scanner results
+          try {
+            await prisma.trip_scanner_results.upsert({
+              where: {
+                tripId_destination_category: { tripId, destination: `${city}, ${country}`, category },
+              },
+              update: {
+                recommendations: finalResults as any,
+                scannedBy: userEmail,
+                minRating,
+                minReviews,
+                profileSnapshot: travelerProfile as any,
+                updatedAt: new Date(),
+              },
+              create: {
+                tripId,
+                destination: `${city}, ${country}`,
+                category,
+                recommendations: finalResults as any,
+                scannedBy: userEmail,
+                minRating,
+                minReviews,
+                profileSnapshot: travelerProfile as any,
+              },
+            });
+          } catch (saveErr) {
+            console.error(`[Viator] Failed to save results for ${category}:`, saveErr);
+          }
+
+          return NextResponse.json({ category, recommendations: finalResults });
+        }
+      } catch (viatorErr) {
+        console.error(`[Viator] ${category} error, falling back to Google Places:`, viatorErr);
+      }
+    }
+
+    // ─── Google Places + Grok path (accommodation, dining, or Viator fallback) ─
     let queries: string[] = [];
 
     if (isCOACategory) {
@@ -325,15 +384,15 @@ export async function POST(
 
     if (cacheIsFresh) {
       enriched = await getCachedPlaces(city, country, category);
-      console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
+      console.log(`[Scanner] ${category}: ${enriched.length} cached places`);
     } else {
       // Skip Google Places type filter — queries are specific enough, type filter can cause 0 results
       const googlePlacesType = undefined;
-      console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries${googlePlacesType ? ` (type=${googlePlacesType})` : ''}`);
+      console.log(`[Scanner] ${category}: Cache miss — running ${queries.length} queries${googlePlacesType ? ` (type=${googlePlacesType})` : ''}`);
       const places = await searchPlacesMultiQuery(queries, city, country, 60, googlePlacesType as string | undefined);
       enriched = await enrichPlaceDetails(places);
       await cachePlaces(enriched, city, country, category);
-      console.log(`[Grok AI] ${category}: Cached ${enriched.length} places`);
+      console.log(`[Scanner] ${category}: Cached ${enriched.length} places`);
     }
 
     let filtered = enriched.filter(p => p.rating >= minRating && p.reviewCount >= minReviews);
@@ -365,7 +424,7 @@ export async function POST(
       category
     }));
 
-    console.log(`[Grok AI] ${category}: ${placesToAnalyze.length} places after filter`);
+    console.log(`[Scanner] ${category}: ${placesToAnalyze.length} places after filter`);
 
     if (placesToAnalyze.length === 0) {
       return NextResponse.json({ category, recommendations: [] });
@@ -409,7 +468,7 @@ export async function POST(
       year: year,
     });
 
-    console.log(`[Grok AI] ${category}: ${recommendations.length} results from AI`);
+    console.log(`[Scanner] ${category}: ${recommendations.length} results from AI`);
 
     // ─── Score, sort, and limit results ──────────────────────────────────────
     const scored = recommendations.map((rec: any) => ({
@@ -427,7 +486,7 @@ export async function POST(
       .sort((a: any, b: any) => b.compositeScore - a.compositeScore)
       .slice(0, maxResults);
 
-    console.log(`[Grok AI] ${category}: ${finalResults.length} final results`);
+    console.log(`[Scanner] ${category}: ${finalResults.length} final results`);
 
     // Persist scanner results for sharing with trip participants
     try {
@@ -455,7 +514,7 @@ export async function POST(
         },
       });
     } catch (saveErr) {
-      console.error(`[Grok AI] Failed to save scanner results for ${category}:`, saveErr);
+      console.error(`[Scanner] Failed to save scanner results for ${category}:`, saveErr);
       // Non-fatal — still return results even if save fails
     }
 
