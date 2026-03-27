@@ -661,99 +661,116 @@ export default function TradingPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
-          {/* ── Search Bar ── */}
-          <div className="mb-4 bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
-            {activeTab !== 'market-intelligence' ? (
-              <>
-                {/* Section 1: Title */}
-                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <span className="text-sm text-text-primary">Trading Dashboard</span>
-                </div>
-                {/* Section 2: Trade counts as pills */}
-                <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1">
-                    {(() => { const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics; return (<>
-                      <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{m.totalTrades} trades</span>
-                      <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{m.closedTrades} closed</span>
-                      <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{m.openTrades} open</span>
-                    </>); })()}
+          {/* ── Purple Background Zone (matches AppLayout Row 3 bg-brand-purple/80) ── */}
+          <div className="-mx-4 lg:-mx-6 px-4 lg:px-6 py-4 mb-4 bg-brand-purple/80">
+
+            {/* Search Bar */}
+            <div className="max-w-[1800px] mx-auto mb-3 bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
+              {activeTab !== 'market-intelligence' ? (
+                <>
+                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <span className="text-sm text-text-primary">Trading Dashboard</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(() => { const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics; return (<>
+                        <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{m.totalTrades} trades</span>
+                        <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{m.closedTrades} closed</span>
+                        <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{m.openTrades} open</span>
+                      </>); })()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                      className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
+                    <span className="text-gray-300">—</span>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                      className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
+                    {(dateFrom || dateTo) && (
+                      <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                        className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
+                    Overview
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <span className="text-sm text-text-primary">Market Intelligence</span>
+                  </div>
+                  {/* Universe selector pills */}
+                  <div className="flex items-center gap-2 px-4 py-2 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full">S&P 500</span>
+                      <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full">Nasdaq 100</span>
+                    </div>
+                  </div>
+                  {/* Direction + DTE summary */}
+                  <div className="flex items-center gap-3 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                    <div className="flex gap-0.5 rounded overflow-hidden bg-gray-100 border border-gray-200">
+                      {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
+                        <span key={d} className={`px-2 py-0.5 text-[10px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'text-gray-500'}`}>{d}</span>
+                      ))}
+                    </div>
+                    <span className="text-xs text-text-muted">30-60 DTE</span>
+                    <span className="text-xs text-text-muted">16 strategies</span>
+                  </div>
+                  <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
+                    Scan Market
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Persistent Metrics Strip */}
+            <div className="max-w-[1800px] mx-auto mb-3 bg-white/90 backdrop-blur-sm rounded-lg">
+              <div className="flex items-center justify-between px-6 py-2.5">
+                <div className="flex-1 text-center">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
+                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {fmtPL(persistentMetrics.totalPL)}
                   </div>
                 </div>
-                {/* Section 3: Date range */}
-                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                  <span className="text-gray-300">—</span>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                  {(dateFrom || dateTo) && (
-                    <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                      className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
-                  )}
+                <div className="w-px h-6 bg-gray-200" />
+                <div className="flex-1 text-center">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Expectancy</div>
+                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}
+                  </div>
                 </div>
-                {/* Section 4: Action button (matches TripCreationBar gold button) */}
-                <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
-                  Overview
+                <div className="w-px h-6 bg-gray-200" />
+                <div className="flex-1 text-center">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
+                  <div className="text-sm font-mono font-semibold text-text-primary">
+                    {persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}
+                  </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 px-4 py-3 flex-1 min-w-0">
-                  <span className="text-sm text-text-primary">Market Intelligence</span>
-                  <span className="text-xs text-text-muted ml-2">Scanner filters integrated below</span>
-                </div>
-                <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
-                  Scanner
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* ── Persistent Metrics Strip ── */}
-          <div className="bg-gray-50 border-b border-gray-200 mb-4 rounded-lg">
-            <div className="flex items-center justify-between px-6 py-2.5">
-              <div className="flex-1 text-center">
-                <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
-                <div className={`text-sm font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {fmtPL(persistentMetrics.totalPL)}
-                </div>
-              </div>
-              <div className="w-px h-6 bg-gray-200" />
-              <div className="flex-1 text-center">
-                <div className="text-[10px] text-text-muted uppercase tracking-wider">Expectancy</div>
-                <div className={`text-sm font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}
-                </div>
-              </div>
-              <div className="w-px h-6 bg-gray-200" />
-              <div className="flex-1 text-center">
-                <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
-                <div className="text-sm font-mono font-semibold text-text-primary">
-                  {persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}
-                </div>
-              </div>
-              <div className="w-px h-6 bg-gray-200" />
-              <div className="flex-1 text-center">
-                <div className="text-[10px] text-text-muted uppercase tracking-wider">Max Drawdown</div>
-                <div className={`text-sm font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>
-                  {persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}
+                <div className="w-px h-6 bg-gray-200" />
+                <div className="flex-1 text-center">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Max Drawdown</div>
+                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>
+                    {persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Tab Pills ── */}
-          <div className="flex gap-2 mb-4">
-            {[
-              { key: 'overview', label: 'Overview' },
-              { key: 'positions', label: 'Trade Reconciliation' },
-              { key: 'market-intelligence', label: 'Market Intelligence' },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeTab === tab.key ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' 🔒' : ''}
-              </button>
-            ))}
+            {/* Tab Pills */}
+            <div className="max-w-[1800px] mx-auto flex gap-2">
+              {[
+                { key: 'overview', label: 'Overview' },
+                { key: 'positions', label: 'Trade Reconciliation' },
+                { key: 'market-intelligence', label: 'Market Intelligence' },
+              ].map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-brand-purple' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' 🔒' : ''}
+                </button>
+              ))}
+            </div>
+
           </div>
 
           {/* Tab Content */}
@@ -1185,7 +1202,7 @@ export default function TradingPage() {
                 {isOwner ? (
                   <div className="space-y-4 p-4">
                     {/* Tastytrade Connection Card */}
-                    <div className="bg-white border border-border p-6">
+                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm bg-white p-6">
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Brokerage Connection</div>
@@ -1571,7 +1588,7 @@ export default function TradingPage() {
       {journalModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setJournalModal(null)}>
           <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="bg-brand-purple text-white px-4 py-3 flex justify-between items-center sticky top-0">
+            <div className="bg-brand-purple/80 text-white px-4 py-3 flex justify-between items-center sticky top-0">
               <div>
                 <div className="font-semibold">Trade Journal</div>
                 <div className="text-xs text-text-faint">#{journalModal.trade.tradeNum} · {journalModal.trade.underlying}</div>
