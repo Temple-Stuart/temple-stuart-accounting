@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui';
 import { ACTIVITY_LABELS } from '@/lib/activities';
+import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 
 // Grok response format with sentiment analysis
 interface GrokRecommendation {
@@ -369,30 +370,17 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setExpandedCategory(null);
     setCompletedCount(0);
 
-    // Build mandate-driven category list from participant interests
+    // Build COA-driven category list from participant interests
     const allInterestSlugs = [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))];
+    const tripType = profile.tripType || 'adventure';
 
     type ScanCategory = { key: string; label: string; maxResults: number };
-    const categoriesToScan: ScanCategory[] = [
-      { key: 'lodging', label: 'Lodging', maxResults: 10 },
-    ];
-
-    if (allInterestSlugs.length > 0) {
-      for (const slug of allInterestSlugs) {
-        categoriesToScan.push({
-          key: slug,
-          label: ACTIVITY_LABELS[slug] || slug,
-          maxResults: 5,
-        });
-      }
-    } else {
-      // Fallback: sensible defaults when no interests selected
-      categoriesToScan.push(
-        { key: 'brunchCoffee', label: 'Brunch & Coffee', maxResults: 5 },
-        { key: 'dinner', label: 'Dinner', maxResults: 5 },
-        { key: 'activities', label: 'Activities', maxResults: 5 },
-      );
-    }
+    const activeCoaKeys = getActiveScanCategories(allInterestSlugs, tripType);
+    const categoriesToScan: ScanCategory[] = activeCoaKeys.map(key => ({
+      key,
+      label: TRAVEL_COA[key]?.label || key,
+      maxResults: key === 'accommodation' ? 10 : 5,
+    }));
 
     setTotalCategories(categoriesToScan.length);
     let firstExpanded = false;
@@ -588,7 +576,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   // Direct commit from scanner card: create vendor option then commit it
   const handleCommitCard = async (rec: GrokRecommendation) => {
     const cardKey = `${rec.category}:${rec.name}`;
-    const catInfo = CATEGORY_VENDOR_INFO[rec.category] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
+    const coaInfo = TRAVEL_COA[rec.category];
+    const catInfo = CATEGORY_VENDOR_INFO[rec.category] || (coaInfo ? { vendorApi: coaInfo.vendorApi, optionType: coaInfo.optionType, multiDay: coaInfo.multiDay } : { vendorApi: 'activities', optionType: 'activity', multiDay: false });
     const unitPrice = parseFloat(cardPrices[cardKey] || '0');
     const dates = cardDates[cardKey];
     const freq = cardFrequency[cardKey] || CATEGORY_DEFAULT_FREQ[rec.category] || 'total';
@@ -1024,8 +1013,10 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           {Object.keys(byCategory).map(cat => {
             const items = byCategory[cat];
             if (!items || items.length === 0) return null;
-            const info = CATEGORY_INFO[cat] || { label: ACTIVITY_LABELS[cat] || cat, icon: '' };
-            const catVendor = CATEGORY_VENDOR_INFO[cat] || { vendorApi: 'activities', optionType: 'activity', multiDay: false };
+            const coaCat = TRAVEL_COA[cat];
+            const info = CATEGORY_INFO[cat] || (coaCat ? { label: coaCat.label, icon: '' } : { label: ACTIVITY_LABELS[cat] || cat, icon: '' });
+            const coaVendor = TRAVEL_COA[cat];
+            const catVendor = CATEGORY_VENDOR_INFO[cat] || (coaVendor ? { vendorApi: coaVendor.vendorApi, optionType: coaVendor.optionType, multiDay: coaVendor.multiDay } : { vendorApi: 'activities', optionType: 'activity', multiDay: false });
             const isExpanded = expandedCategory === cat;
             const committedCount = items.filter(r => committedCards[`${r.category}:${r.name}`]).length;
             return (
@@ -1189,7 +1180,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || TRAVEL_COA[rec.category]?.defaultFrequency || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
