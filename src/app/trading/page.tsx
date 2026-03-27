@@ -688,19 +688,19 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-                {/* Zone 2: Risk Profile */}
-                <div className="px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0 space-y-1.5">
+                {/* Zone 2: Strategy Profile — all discrete choice filters */}
+                <div className="px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     {[{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }].map(u => (
                       <button key={u.val} onClick={() => setScannerUniverse(u.val)}
-                        className={`text-xs px-2 py-1 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30 font-medium' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                        className={`text-[11px] px-2 py-1 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30 font-medium' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}>
                         {u.label}
                       </button>
                     ))}
                     <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
                       {(['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'] as const).map(d => (
                         <button key={d} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, direction: d } })}
-                          className={`px-2 py-1 text-xs font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
+                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
                           {d === 'BULLISH' ? 'Bull' : d === 'BEARISH' ? 'Bear' : d === 'NEUTRAL' ? 'Ntrl' : 'All'}
                         </button>
                       ))}
@@ -710,17 +710,37 @@ export default function TradingPage() {
                     <div className="flex gap-px rounded overflow-hidden border border-gray-200">
                       {(['SELL', 'BUY', 'BOTH'] as const).map(s => (
                         <button key={s} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, premiumStance: s } })}
-                          className={`px-2 py-1 text-xs font-bold ${scannerFilters.risk.premiumStance === s ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
+                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.premiumStance === s ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
                           {s === 'BOTH' ? 'Both' : s}
                         </button>
                       ))}
                     </div>
-                    <span className="text-xs font-mono text-gray-600">{scannerFilters.risk.minDte}-{scannerFilters.risk.maxDte}d</span>
-                    <span className="text-xs font-mono text-gray-600">${scannerFilters.risk.minSpreadWidth}-${scannerFilters.risk.maxSpreadWidth}w</span>
-                    <div className="relative">
+                    <div className="flex gap-px rounded overflow-hidden border border-gray-200">
+                      {(['DEFINED_ONLY', 'INCLUDE_UNLIMITED'] as const).map(r => (
+                        <button key={r} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, riskType: r } })}
+                          className={`px-2 py-1 text-[11px] font-bold ${scannerFilters.risk.riskType === r ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>
+                          {r === 'DEFINED_ONLY' ? 'Defined' : 'Unlimited'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500">DTE</span>
+                    <input type="number" min={0} max={365} value={scannerFilters.risk.minDte} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, minDte: +e.target.value } })}
+                      className="w-12 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
+                    <span className="text-gray-400">—</span>
+                    <input type="number" min={0} max={365} value={scannerFilters.risk.maxDte} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, maxDte: +e.target.value } })}
+                      className="w-12 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
+                    <span className="text-[10px] text-gray-500 ml-2">Width $</span>
+                    <input type="number" min={0} max={100} value={scannerFilters.risk.minSpreadWidth} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, minSpreadWidth: +e.target.value } })}
+                      className="w-12 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
+                    <span className="text-gray-400">—</span>
+                    <input type="number" min={0} max={100} value={scannerFilters.risk.maxSpreadWidth} onChange={e => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, maxSpreadWidth: +e.target.value } })}
+                      className="w-12 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-mono text-center" />
+                    <div className="relative ml-1">
                       <button onClick={() => setShowStrategyPopover(p => !p)}
-                        className="text-xs px-2 py-1 text-brand-purple hover:underline border border-brand-purple/20 rounded">
-                        {scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length} strategies` : '16 strategies'}
+                        className="text-[11px] px-2 py-1 text-brand-purple border border-brand-purple/20 rounded hover:bg-brand-purple/5">
+                        {scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length}/16 strats` : '16 strats'}
                       </button>
                       {showStrategyPopover && (
                         <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-[320px]" onClick={e => e.stopPropagation()}>
@@ -747,27 +767,29 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-                {/* Zone 3: Quantitative Filters */}
+                {/* Zone 3: Quantitative Filters — all slider/toggle controls */}
                 <div className="px-4 py-3 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0">
                     {/* Liquidity Gates */}
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Liquidity</div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">Min OI</span><input type="range" min={0} max={5000} step={50} value={scannerFilters.liquidity.minOpenInterest} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.minOpenInterest}</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">Spread</span><input type="range" min={1} max={50} value={scannerFilters.liquidity.maxBidAskSpreadPct} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.maxBidAskSpreadPct}%</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">Volume</span><input type="range" min={0} max={10000000} step={100000} value={scannerFilters.liquidity.minUnderlyingVolume} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.minUnderlyingVolume >= 1e6 ? `${(scannerFilters.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(scannerFilters.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">Liq</span><div className="flex gap-1">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minLiquidityRating: n } })} className={`text-sm ${n <= scannerFilters.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`}>*</button>))}</div></div>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Min OI</span><input type="range" min={0} max={5000} step={50} value={scannerFilters.liquidity.minOpenInterest} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.minOpenInterest}</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Spread</span><input type="range" min={1} max={50} value={scannerFilters.liquidity.maxBidAskSpreadPct} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.maxBidAskSpreadPct}%</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Volume</span><input type="range" min={0} max={10000000} step={100000} value={scannerFilters.liquidity.minUnderlyingVolume} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.liquidity.minUnderlyingVolume >= 1e6 ? `${(scannerFilters.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(scannerFilters.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Liq</span><div className="flex gap-1">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minLiquidityRating: n } })} className={`text-sm ${n <= scannerFilters.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`}>*</button>))}</div></div>
                       </div>
                     </div>
                     {/* Edge Metrics */}
                     <div>
                       <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Edge Metrics</div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">PoP</span><input type="range" min={0} max={100} value={scannerFilters.edge.minPop} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minPop: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.edge.minPop}%</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">EV</span><input type="range" min={-500} max={1000} step={10} value={scannerFilters.edge.minEv} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEv: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">${scannerFilters.edge.minEv}</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">IV Rank</span><input type="range" min={0} max={100} value={scannerFilters.edge.minIvRank} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minIvRank: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.edge.minIvRank}%</span></div>
-                        <div className="flex items-center gap-2"><span className="text-[11px] text-gray-600 w-[60px] shrink-0 text-right">Vol</span><div className="flex gap-px rounded overflow-hidden border border-gray-200">{(['IV_ABOVE_HV', 'IV_BELOW_HV', 'ANY'] as const).map(v => (<button key={v} onClick={() => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, volEdge: v } })} className={`px-1.5 py-0.5 text-[10px] font-bold ${scannerFilters.edge.volEdge === v ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{v === 'IV_ABOVE_HV' ? 'IV>HV' : v === 'IV_BELOW_HV' ? 'IV<HV' : 'Any'}</button>))}</div></div>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">PoP</span><input type="range" min={0} max={100} value={scannerFilters.edge.minPop} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minPop: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.edge.minPop}%</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">EV</span><input type="range" min={-500} max={1000} step={10} value={scannerFilters.edge.minEv} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEv: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">${scannerFilters.edge.minEv}</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">EV/Risk</span><input type="range" min={-200} max={200} step={5} value={Math.round(scannerFilters.edge.minEvPerRisk * 100)} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEvPerRisk: +e.target.value / 100 } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.edge.minEvPerRisk.toFixed(2)}</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">IV Rank</span><input type="range" min={0} max={100} value={scannerFilters.edge.minIvRank} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minIvRank: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{scannerFilters.edge.minIvRank}%</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Sentiment</span><input type="range" min={-100} max={100} value={scannerFilters.edge.minSentiment} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minSentiment: +e.target.value } })} className="flex-1 h-1.5 accent-brand-purple cursor-pointer" /><span className="text-[11px] font-mono font-semibold text-gray-800 w-[45px] text-right">{(scannerFilters.edge.minSentiment / 100).toFixed(1)}</span></div>
+                        <div className="flex items-center gap-1.5"><span className="text-[11px] text-gray-600 w-[65px] shrink-0 text-right">Vol</span><div className="flex gap-px rounded overflow-hidden border border-gray-200">{(['IV_ABOVE_HV', 'IV_BELOW_HV', 'ANY'] as const).map(v => (<button key={v} onClick={() => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, volEdge: v } })} className={`px-1.5 py-0.5 text-[10px] font-bold ${scannerFilters.edge.volEdge === v ? 'bg-brand-purple text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}>{v === 'IV_ABOVE_HV' ? 'IV>HV' : v === 'IV_BELOW_HV' ? 'IV<HV' : 'Any'}</button>))}</div></div>
                       </div>
                     </div>
                   </div>
@@ -780,25 +802,25 @@ export default function TradingPage() {
                 </button>
               </div>
 
-              {/* ROW 2 — 7 Metrics Bar (readable on purple) */}
+              {/* ROW 2 — 7 Metrics Bar */}
               {(() => { const m = filteredMetrics; return (
-              <div className="bg-brand-purple/90 rounded-lg mt-2 px-4 py-2.5">
-                <div className="flex flex-wrap items-center gap-0">
-                  <div className="flex items-center gap-1.5 pr-4 border-r border-white/20">
-                    <span className="text-[10px] text-white/50 uppercase tracking-wider">Period</span>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/20 border border-white/30 rounded px-2 py-0.5 text-white text-xs font-mono w-[105px] outline-none placeholder-white/40" />
-                    <span className="text-white/60 text-xs">—</span>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/20 border border-white/30 rounded px-2 py-0.5 text-white text-xs font-mono w-[105px] outline-none placeholder-white/40" />
-                    {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-xs text-white/50 hover:text-white ml-1">x</button>}
+              <div className="bg-brand-purple/90 rounded-lg mt-2 px-3 py-2">
+                <div className="flex items-center">
+                  <div className="flex items-center gap-1.5 pr-3 border-r border-white/20 shrink-0">
+                    <span className="text-[9px] text-white/50 uppercase">Period</span>
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[100px] outline-none" />
+                    <span className="text-white/50">—</span>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="bg-white/20 border border-white/30 rounded px-1.5 py-0.5 text-white text-[11px] font-mono w-[100px] outline-none" />
+                    {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-white/50 hover:text-white text-xs">x</button>}
                   </div>
-                  <div className="flex-1 flex items-center justify-around">
-                    <div className="text-center px-2"><div className="text-[10px] text-white/50 uppercase tracking-wider">P&L</div><div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">WR</div><div className="text-sm font-bold font-mono text-white">{m.winRate}%</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">PF</div><div className="text-sm font-bold font-mono text-white">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">Max W</div><div className="text-sm font-bold font-mono text-emerald-300">{fmt(m.largestWin)}</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">Max L</div><div className="text-sm font-bold font-mono text-red-300">{fmt(Math.abs(m.largestLoss))}</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">Avg W</div><div className="text-sm font-bold font-mono text-emerald-300">{fmt(m.avgWin)}</div></div>
-                    <div className="text-center px-2 border-l border-white/20"><div className="text-[10px] text-white/50 uppercase tracking-wider">Avg L</div><div className="text-sm font-bold font-mono text-red-300">{fmt(m.avgLoss)}</div></div>
+                  <div className="flex-1 grid grid-cols-7 text-center">
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">P&L</div><div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(m.totalRealizedPL)}</div></div>
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">WR</div><div className="text-sm font-bold font-mono text-white">{m.winRate}%</div></div>
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">PF</div><div className="text-sm font-bold font-mono text-white">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div></div>
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">Max W</div><div className="text-sm font-bold font-mono text-emerald-300">{fmt(m.largestWin)}</div></div>
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">Max L</div><div className="text-sm font-bold font-mono text-red-300">{fmt(Math.abs(m.largestLoss))}</div></div>
+                    <div className="border-r border-white/10 px-1"><div className="text-[9px] text-white/50 uppercase">Avg W</div><div className="text-sm font-bold font-mono text-emerald-300">{fmt(m.avgWin)}</div></div>
+                    <div className="px-1"><div className="text-[9px] text-white/50 uppercase">Avg L</div><div className="text-sm font-bold font-mono text-red-300">{fmt(m.avgLoss)}</div></div>
                   </div>
                 </div>
               </div>
