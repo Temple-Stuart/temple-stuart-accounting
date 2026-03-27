@@ -227,6 +227,17 @@ function formatFreqLabel(frequency: string): string {
   return FREQUENCY_OPTIONS.find(f => f.value === frequency)?.label || frequency;
 }
 
+// Default start/end times by category
+const CATEGORY_DEFAULT_TIMES: Record<string, { startTime: string; endTime: string }> = {
+  lodging: { startTime: '15:00', endTime: '11:00' },
+  dinner: { startTime: '19:00', endTime: '21:00' },
+  brunchCoffee: { startTime: '09:00', endTime: '10:30' },
+  activities: { startTime: '10:00', endTime: '12:00' },
+  nightlife: { startTime: '21:00', endTime: '00:00' },
+  coworking: { startTime: '09:00', endTime: '17:00' },
+  wellness: { startTime: '10:00', endTime: '11:30' },
+};
+
 // Maps scanner categories to vendor option API endpoints
 const CATEGORY_TO_VENDOR_API: Record<string, string> = {
   lodging: 'lodging',
@@ -276,6 +287,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
   const [cardPrices, setCardPrices] = useState<Record<string, string>>({});
   const [cardDates, setCardDates] = useState<Record<string, { start: string; end?: string }>>({});
   const [cardFrequency, setCardFrequency] = useState<Record<string, string>>({});
+  const [cardTimes, setCardTimes] = useState<Record<string, { startTime: string; endTime: string }>>({});
 
   // Load saved scanner results from DB on mount
   useEffect(() => {
@@ -621,12 +633,15 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         if (depRes.ok) { const dep = await depRes.json(); depOptionId = dep.option?.id; }
       }
 
-      // Step 2: Commit via vendor-commit endpoint
+      // Step 2: Commit via vendor-commit endpoint (with times)
+      const times = cardTimes[cardKey];
       const commitRes = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           optionType: catInfo.optionType, optionId,
           startDate: dates.start, endDate: dates.end || null,
+          startTime: times?.startTime || null,
+          endTime: times?.endTime || null,
         }),
       });
       if (!commitRes.ok) { const d = await commitRes.json(); throw new Error(d.error || 'Commit failed'); }
@@ -1089,6 +1104,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : showPanel ? (
                             <div className="pt-2 border-t border-border space-y-2">
+                              <div className="font-medium text-[11px] text-gray-700 truncate">{rec.name}</div>
                               <div>
                                 <label className="text-[10px] text-text-muted block mb-0.5">Price *</label>
                                 <div className="flex items-center gap-1">
@@ -1111,19 +1127,57 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                 if (fr === 'total' || fr === 'per_visit' || fr === 'per_trip') return <div className="text-[11px] text-emerald-700 font-medium">${up} {formatFreqLabel(fr)} = ${tot} total</div>;
                                 return <div className="text-[11px] text-emerald-700 font-medium">${up}{formatFreqLabel(fr)} × {nDays} {fr === 'per_night' ? 'nights' : 'days'} = ${tot} total</div>;
                               })()}
+                              {/* Quick date pills */}
+                              {tripDates?.departure && (
+                                <div className="flex flex-wrap gap-1">
+                                  {Array.from({ length: Math.min(7, daysTravel) }, (_, i) => {
+                                    const d = new Date(tripDates.departure + 'T12:00:00');
+                                    d.setDate(d.getDate() + i);
+                                    const val = d.toISOString().split('T')[0];
+                                    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                    const isSelected = cardDates[cardKey]?.start === val;
+                                    return (
+                                      <button key={val} type="button" onClick={() => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: val } }))}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                        {label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {/* Date inputs */}
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="text-[10px] text-text-muted block mb-0.5">Start *</label>
-                                  <input type="date" value={cardDates[cardKey]?.start || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
+                                  <label className="text-[10px] text-text-muted block mb-0.5">{catVendor.multiDay ? 'Check-in' : 'Date'} *</label>
+                                  <input type="date" value={cardDates[cardKey]?.start || ''}
+                                    min={tripDates?.departure || ''} max={tripDates?.return || ''}
+                                    onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], start: e.target.value } }))}
                                     className="w-full border border-border rounded px-2 py-1.5 text-xs" />
                                 </div>
                                 {catVendor.multiDay && (
                                   <div>
-                                    <label className="text-[10px] text-text-muted block mb-0.5">End</label>
-                                    <input type="date" value={cardDates[cardKey]?.end || ''} onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
+                                    <label className="text-[10px] text-text-muted block mb-0.5">Check-out</label>
+                                    <input type="date" value={cardDates[cardKey]?.end || ''}
+                                      min={cardDates[cardKey]?.start || tripDates?.departure || ''} max={tripDates?.return || ''}
+                                      onChange={e => setCardDates(p => ({ ...p, [cardKey]: { ...p[cardKey], end: e.target.value } }))}
                                       className="w-full border border-border rounded px-2 py-1.5 text-xs" />
                                   </div>
                                 )}
+                              </div>
+                              {/* Time inputs */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-text-muted block mb-0.5">From</label>
+                                  <input type="time" value={cardTimes[cardKey]?.startTime || ''}
+                                    onChange={e => setCardTimes(p => ({ ...p, [cardKey]: { ...(p[cardKey] || { startTime: '', endTime: '' }), startTime: e.target.value } }))}
+                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-text-muted block mb-0.5">To</label>
+                                  <input type="time" value={cardTimes[cardKey]?.endTime || ''}
+                                    onChange={e => setCardTimes(p => ({ ...p, [cardKey]: { ...(p[cardKey] || { startTime: '', endTime: '' }), endTime: e.target.value } }))}
+                                    className="w-full border border-border rounded px-2 py-1.5 text-xs" />
+                                </div>
                               </div>
                               <div className="flex gap-2">
                                 <button onClick={() => handleCommitCard(rec)} disabled={!cardPrices[cardKey] || !cardDates[cardKey]?.start || isCommitting}
@@ -1135,7 +1189,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || 'total' })); }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>

@@ -421,34 +421,108 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(item);
     });
-    const otherEvents = Object.entries(grouped).map(([key, entries]) => {
+
+    const otherEvents: (CalendarEvent & Record<string, any>)[] = [];
+
+    for (const [key, entries] of Object.entries(grouped)) {
       const first = entries[0];
       const source = first.vendorOptionType || first.category || 'activities';
       const cfg = TRIP_SOURCE_CONFIG[source];
       const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
-      const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
-      const title = `${cfg?.icon || ''} ${first.vendor || 'Untitled'}`;
+      const vendorName = first.vendor || 'Untitled';
+      const title = `${cfg?.icon || ''} ${vendorName}`;
+      const isLodging = source === 'lodging';
+      const checkInTime = first.homeTime || null;
+      const checkOutTime = first.destTime || null;
 
-      return {
-        id: key,
-        source,
-        title,
-        icon: cfg?.icon || null,
-        startDate: dateStr,
-        endDate: entries.length > 1 && entries[entries.length - 1].homeDate
-          ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
-          : null,
-        startTime: first.homeTime || null,
-        endTime: first.destTime || null,
-        budgetAmount: totalCost,
-        _vendorOptionId: first.vendorOptionId,
-        _vendorOptionType: first.vendorOptionType,
-        _vendor: first.vendor,
-        _note: first.note,
-        _homeTime: first.homeTime,
-        _destTime: first.destTime,
-      } as CalendarEvent & Record<string, any>;
-    });
+      if (isLodging && entries.length > 1) {
+        // Multi-day lodging: check-in block + middle-day banners + check-out block
+        const sortedEntries = [...entries].sort((a, b) =>
+          new Date(a.homeDate).getTime() - new Date(b.homeDate).getTime()
+        );
+        const firstDate = new Date(sortedEntries[0].homeDate).toISOString().split('T')[0];
+        const lastDate = new Date(sortedEntries[sortedEntries.length - 1].homeDate).toISOString().split('T')[0];
+
+        for (let ei = 0; ei < sortedEntries.length; ei++) {
+          const entry = sortedEntries[ei];
+          const dateStr = new Date(entry.homeDate).toISOString().split('T')[0];
+          const isCheckIn = ei === 0;
+          const isCheckOut = ei === sortedEntries.length - 1;
+
+          if (isCheckIn) {
+            // Check-in day: timed block from check-in time to end of day
+            otherEvents.push({
+              id: `${key}-checkin`,
+              source,
+              title: `${cfg?.icon || ''} ${vendorName} (check-in)`,
+              icon: cfg?.icon || null,
+              startDate: dateStr,
+              endDate: null,
+              startTime: checkInTime || '15:00',
+              endTime: '23:59',
+              budgetAmount: totalCost,
+              _vendorOptionId: first.vendorOptionId,
+              _vendorOptionType: first.vendorOptionType,
+              _vendor: vendorName,
+            } as any);
+          } else if (isCheckOut) {
+            // Check-out day: timed block from start of day to check-out time
+            otherEvents.push({
+              id: `${key}-checkout`,
+              source,
+              title: `${cfg?.icon || ''} ${vendorName} (check-out)`,
+              icon: cfg?.icon || null,
+              startDate: dateStr,
+              endDate: null,
+              startTime: '00:00',
+              endTime: checkOutTime || '11:00',
+              budgetAmount: 0,
+              _vendorOptionId: first.vendorOptionId,
+              _vendorOptionType: first.vendorOptionType,
+              _vendor: vendorName,
+            } as any);
+          } else {
+            // Middle days: all-day banner (no startTime = all-day row)
+            otherEvents.push({
+              id: `${key}-day-${ei}`,
+              source,
+              title: `${cfg?.icon || ''} ${vendorName}`,
+              icon: cfg?.icon || null,
+              startDate: dateStr,
+              endDate: null,
+              startTime: null,
+              endTime: null,
+              budgetAmount: 0,
+              _vendorOptionId: first.vendorOptionId,
+              _vendorOptionType: first.vendorOptionType,
+              _vendor: vendorName,
+            } as any);
+          }
+        }
+      } else {
+        // Single-day events (or non-lodging multi-day): use time data if available
+        const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
+        otherEvents.push({
+          id: key,
+          source,
+          title,
+          icon: cfg?.icon || null,
+          startDate: dateStr,
+          endDate: entries.length > 1 && entries[entries.length - 1].homeDate
+            ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
+            : null,
+          startTime: first.homeTime || null,
+          endTime: first.destTime || null,
+          budgetAmount: totalCost,
+          _vendorOptionId: first.vendorOptionId,
+          _vendorOptionType: first.vendorOptionType,
+          _vendor: first.vendor,
+          _note: first.note,
+          _homeTime: first.homeTime,
+          _destTime: first.destTime,
+        } as any);
+      }
+    }
 
     return [...flightEvents, ...otherEvents];
   }, [trip]);
