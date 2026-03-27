@@ -323,19 +323,9 @@ export function buildCalendarSourceConfig(): Record<string, { label: string; ico
     toiletries: 'shopping',
   };
 
-  // Icon mapping
-  const ICONS: Record<string, string> = {
-    flights: '✈️', accommodation: '🏨', brunch_coffee: '☕', dinner: '🍽️',
-    business_meals: '💼', sports_fitness: '🏄', arts_culture: '🎨',
-    nightlife: '🌙', festivals: '🎪', conferences: '🏛️', coworking: '💻',
-    ground_transport: '🚗', wellness: '🧘', shopping: '🛒',
-    bucket_list: '🌋', communication: '📱', insurance_fees: '🛡️',
-  };
-
-  // Add primary COA entries
+  // Add primary COA entries (no icons — clean text only)
   for (const [coaKey, cat] of Object.entries(TRAVEL_COA)) {
-    const icon = ICONS[coaKey] || '';
-    config[coaKey] = { label: cat.label, icon, bg: cat.bg, dot: cat.dot, badge: cat.badge };
+    config[coaKey] = { label: cat.label, icon: '', bg: cat.bg, dot: cat.dot, badge: cat.badge };
   }
 
   // Add backward-compat aliases (point to same visual config, won't appear in legend twice)

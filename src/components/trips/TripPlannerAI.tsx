@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui';
-import { ACTIVITY_LABELS } from '@/lib/activities';
+import { ACTIVITY_LABELS, ACTIVITY_GROUPS } from '@/lib/activities';
 import { TRAVEL_COA, getActiveScanCategories } from '@/lib/travelCOA';
 
 // Grok response format with sentiment analysis
@@ -80,28 +80,28 @@ interface Props {
 
 // Enhanced trip types with images/colors
 const TRIP_TYPES = [
-  { value: 'remote_work', label: 'Digital Nomad', icon: '💻', color: 'from-blue-500 to-cyan-500', desc: 'Work remotely with reliable wifi & coworking' },
-  { value: 'adventure', label: 'Adventure', icon: '🏔️', color: 'from-orange-500 to-red-500', desc: 'Outdoor activities, hiking, extreme sports' },
-  { value: 'romantic', label: 'Romantic Escape', icon: '💕', color: 'from-pink-500 to-rose-500', desc: 'Couples getaway, intimate experiences' },
-  { value: 'friends', label: 'Squad Trip', icon: '🎊', color: 'from-purple-500 to-indigo-500', desc: 'Group fun, nightlife, shared memories' },
-  { value: 'family', label: 'Family Fun', icon: '👨‍👩‍👧‍👦', color: 'from-green-500 to-emerald-500', desc: 'Kid-friendly, safe, educational' },
-  { value: 'solo', label: 'Solo Explorer', icon: '🎒', color: 'from-amber-500 to-yellow-500', desc: 'Independent travel, meet locals' },
-  { value: 'wellness', label: 'Wellness Retreat', icon: '🧘', color: 'from-teal-500 to-green-500', desc: 'Spa, yoga, meditation, healing' },
-  { value: 'cultural', label: 'Culture Seeker', icon: '🏛️', color: 'from-violet-500 to-purple-500', desc: 'Museums, history, local traditions' },
-  { value: 'foodie', label: 'Food & Wine', icon: '🍷', color: 'from-red-500 to-pink-500', desc: 'Culinary experiences, local cuisine' },
-  { value: 'party', label: 'Party Mode', icon: '🎉', color: 'from-fuchsia-500 to-pink-500', desc: 'Nightlife, festivals, social scenes' },
-  { value: 'luxury', label: 'Luxury Escape', icon: '✨', color: 'from-amber-400 to-yellow-300', desc: 'Premium experiences, 5-star service' },
-  { value: 'budget', label: 'Budget Backpacker', icon: '🏕️', color: 'from-lime-500 to-green-500', desc: 'Hostels, street food, local transport' },
+  { value: 'remote_work', label: 'Digital Nomad', icon: '', color: 'from-blue-500 to-cyan-500', desc: 'Work remotely with reliable wifi & coworking' },
+  { value: 'adventure', label: 'Adventure', icon: '', color: 'from-orange-500 to-red-500', desc: 'Outdoor activities, hiking, extreme sports' },
+  { value: 'romantic', label: 'Romantic Escape', icon: '', color: 'from-pink-500 to-rose-500', desc: 'Couples getaway, intimate experiences' },
+  { value: 'friends', label: 'Squad Trip', icon: '', color: 'from-purple-500 to-indigo-500', desc: 'Group fun, nightlife, shared memories' },
+  { value: 'family', label: 'Family Fun', icon: '', color: 'from-green-500 to-emerald-500', desc: 'Kid-friendly, safe, educational' },
+  { value: 'solo', label: 'Solo Explorer', icon: '', color: 'from-amber-500 to-yellow-500', desc: 'Independent travel, meet locals' },
+  { value: 'wellness', label: 'Wellness Retreat', icon: '', color: 'from-teal-500 to-green-500', desc: 'Spa, yoga, meditation, healing' },
+  { value: 'cultural', label: 'Culture Seeker', icon: '', color: 'from-violet-500 to-purple-500', desc: 'Museums, history, local traditions' },
+  { value: 'foodie', label: 'Food & Wine', icon: '', color: 'from-red-500 to-pink-500', desc: 'Culinary experiences, local cuisine' },
+  { value: 'party', label: 'Party Mode', icon: '', color: 'from-fuchsia-500 to-pink-500', desc: 'Nightlife, festivals, social scenes' },
+  { value: 'luxury', label: 'Luxury Escape', icon: '', color: 'from-amber-400 to-yellow-300', desc: 'Premium experiences, 5-star service' },
+  { value: 'budget', label: 'Budget Backpacker', icon: '', color: 'from-lime-500 to-green-500', desc: 'Hostels, street food, local transport' },
 ];
 
 // Budget with context
 const BUDGET_OPTIONS = [
-  { value: 'backpacker', label: '$0-50', sublabel: '/night', desc: 'Hostels, street food', icon: '🎒', color: 'bg-green-100 border-green-300' },
-  { value: 'budget', label: '$50-100', sublabel: '/night', desc: 'Budget hotels, local eats', icon: '💚', color: 'bg-emerald-100 border-emerald-300' },
-  { value: 'midrange', label: '$100-200', sublabel: '/night', desc: '3-4 star comfort', icon: '⭐', color: 'bg-brand-purple-wash border-border' },
-  { value: 'comfort', label: '$200-350', sublabel: '/night', desc: 'Nice hotels, good dining', icon: '🌟', color: 'bg-purple-100 border-purple-300' },
-  { value: 'premium', label: '$350-500', sublabel: '/night', desc: 'Premium experiences', icon: '💫', color: 'bg-amber-100 border-amber-300' },
-  { value: 'luxury', label: '$500+', sublabel: '/night', desc: 'Luxury & 5-star', icon: '👑', color: 'bg-yellow-100 border-yellow-300' },
+  { value: 'backpacker', label: '$0-50', sublabel: '/night', desc: 'Hostels, street food', icon: '', color: 'bg-green-100 border-green-300' },
+  { value: 'budget', label: '$50-100', sublabel: '/night', desc: 'Budget hotels, local eats', icon: '', color: 'bg-emerald-100 border-emerald-300' },
+  { value: 'midrange', label: '$100-200', sublabel: '/night', desc: '3-4 star comfort', icon: '', color: 'bg-brand-purple-wash border-border' },
+  { value: 'comfort', label: '$200-350', sublabel: '/night', desc: 'Nice hotels, good dining', icon: '', color: 'bg-purple-100 border-purple-300' },
+  { value: 'premium', label: '$350-500', sublabel: '/night', desc: 'Premium experiences', icon: '', color: 'bg-amber-100 border-amber-300' },
+  { value: 'luxury', label: '$500+', sublabel: '/night', desc: 'Luxury & 5-star', icon: '', color: 'bg-yellow-100 border-yellow-300' },
 ];
 
 // Expanded priorities organized by category
@@ -109,69 +109,69 @@ const PRIORITY_GROUPS = [
   {
     label: 'Accommodation',
     priorities: [
-      { value: 'wifi', label: 'Fast WiFi', icon: '📶' },
-      { value: 'pool', label: 'Pool', icon: '🏊' },
-      { value: 'kitchen', label: 'Kitchen', icon: '🍳' },
-      { value: 'workspace', label: 'Workspace', icon: '🖥️' },
-      { value: 'ac', label: 'A/C', icon: '❄️' },
-      { value: 'gym', label: 'Gym', icon: '💪' },
+      { value: 'wifi', label: 'Fast WiFi', icon: '' },
+      { value: 'pool', label: 'Pool', icon: '' },
+      { value: 'kitchen', label: 'Kitchen', icon: '' },
+      { value: 'workspace', label: 'Workspace', icon: '' },
+      { value: 'ac', label: 'A/C', icon: '' },
+      { value: 'gym', label: 'Gym', icon: '' },
     ]
   },
   {
     label: 'Location',
     priorities: [
-      { value: 'central', label: 'Central Location', icon: '📍' },
-      { value: 'walkable', label: 'Walkable Area', icon: '🚶' },
-      { value: 'beach', label: 'Near Beach', icon: '🏖️' },
-      { value: 'nature', label: 'Near Nature', icon: '🌲' },
-      { value: 'nightlife', label: 'Near Nightlife', icon: '🌃' },
-      { value: 'transit', label: 'Public Transit', icon: '🚇' },
+      { value: 'central', label: 'Central Location', icon: '' },
+      { value: 'walkable', label: 'Walkable Area', icon: '' },
+      { value: 'beach', label: 'Near Beach', icon: '' },
+      { value: 'nature', label: 'Near Nature', icon: '' },
+      { value: 'nightlife', label: 'Near Nightlife', icon: '' },
+      { value: 'transit', label: 'Public Transit', icon: '' },
     ]
   },
   {
     label: 'Experience',
     priorities: [
-      { value: 'quiet', label: 'Quiet & Peaceful', icon: '🤫' },
-      { value: 'social', label: 'Social Scene', icon: '👥' },
-      { value: 'authentic', label: 'Authentic Local', icon: '🏠' },
-      { value: 'instagram', label: 'Instagrammable', icon: '📸' },
-      { value: 'petfriendly', label: 'Pet Friendly', icon: '🐕' },
-      { value: 'accessible', label: 'Accessible', icon: '♿' },
+      { value: 'quiet', label: 'Quiet & Peaceful', icon: '' },
+      { value: 'social', label: 'Social Scene', icon: '' },
+      { value: 'authentic', label: 'Authentic Local', icon: '' },
+      { value: 'instagram', label: 'Instagrammable', icon: '' },
+      { value: 'petfriendly', label: 'Pet Friendly', icon: '' },
+      { value: 'accessible', label: 'Accessible', icon: '' },
     ]
   },
 ];
 
 // Travel vibe/style
 const VIBE_OPTIONS = [
-  { value: 'chill', label: 'Chill & Relaxed', icon: '😌', desc: 'No rushing, go with flow' },
-  { value: 'active', label: 'Active & Energetic', icon: '⚡', desc: 'Pack in activities' },
-  { value: 'spontaneous', label: 'Spontaneous', icon: '🎲', desc: 'Minimal planning' },
-  { value: 'planned', label: 'Well Planned', icon: '📋', desc: 'Itinerary ready' },
-  { value: 'offbeat', label: 'Off the Beaten Path', icon: '🗺️', desc: 'Hidden gems only' },
-  { value: 'touristy', label: 'Hit the Highlights', icon: '🏆', desc: 'Must-see spots' },
-  { value: 'local', label: 'Live Like a Local', icon: '🏘️', desc: 'Blend in' },
-  { value: 'splurge', label: 'Treat Yourself', icon: '💎', desc: 'Special occasions' },
+  { value: 'chill', label: 'Chill & Relaxed', icon: '', desc: 'No rushing, go with flow' },
+  { value: 'active', label: 'Active & Energetic', icon: '', desc: 'Pack in activities' },
+  { value: 'spontaneous', label: 'Spontaneous', icon: '', desc: 'Minimal planning' },
+  { value: 'planned', label: 'Well Planned', icon: '', desc: 'Itinerary ready' },
+  { value: 'offbeat', label: 'Off the Beaten Path', icon: '', desc: 'Hidden gems only' },
+  { value: 'touristy', label: 'Hit the Highlights', icon: '', desc: 'Must-see spots' },
+  { value: 'local', label: 'Live Like a Local', icon: '', desc: 'Blend in' },
+  { value: 'splurge', label: 'Treat Yourself', icon: '', desc: 'Special occasions' },
 ];
 
 // Pace preference
 const PACE_OPTIONS = [
-  { value: 'slow', label: 'Slow & Savoring', icon: '🐢', desc: '1-2 activities per day' },
-  { value: 'balanced', label: 'Balanced', icon: '⚖️', desc: 'Mix of activity & rest' },
-  { value: 'packed', label: 'Action-Packed', icon: '🚀', desc: 'Maximum experiences' },
+  { value: 'slow', label: 'Slow & Savoring', icon: '', desc: '1-2 activities per day' },
+  { value: 'balanced', label: 'Balanced', icon: '', desc: 'Mix of activity & rest' },
+  { value: 'packed', label: 'Action-Packed', icon: '', desc: 'Maximum experiences' },
 ];
 
 const CATEGORY_INFO: Record<string, { label: string; icon: string }> = {
-  lodging: { label: 'Lodging', icon: '🏨' },
-  coworking: { label: 'Coworking', icon: '🏢' },
-  motoRental: { label: 'Moto/Car Rental', icon: '🏍️' },
-  equipmentRental: { label: 'Equipment Rental', icon: '🏄' },
-  airportTransfers: { label: 'Airport Transfers', icon: '🚕' },
-  brunchCoffee: { label: 'Brunch & Coffee', icon: '☕' },
-  dinner: { label: 'Dinner', icon: '🍽️' },
-  activities: { label: 'Activities/Tours', icon: '🎯' },
-  nightlife: { label: 'Nightlife', icon: '🎉' },
-  toiletries: { label: 'Toiletries/Supplies', icon: '🛒' },
-  wellness: { label: 'Wellness/Gym', icon: '💆' },
+  lodging: { label: 'Lodging', icon: '' },
+  coworking: { label: 'Coworking', icon: '' },
+  motoRental: { label: 'Moto/Car Rental', icon: '' },
+  equipmentRental: { label: 'Equipment Rental', icon: '' },
+  airportTransfers: { label: 'Airport Transfers', icon: '' },
+  brunchCoffee: { label: 'Brunch & Coffee', icon: '' },
+  dinner: { label: 'Dinner', icon: '' },
+  activities: { label: 'Activities/Tours', icon: '' },
+  nightlife: { label: 'Nightlife', icon: '' },
+  toiletries: { label: 'Toiletries/Supplies', icon: '' },
+  wellness: { label: 'Wellness/Gym', icon: '' },
 };
 
 const FREQUENCY_OPTIONS = [
@@ -338,11 +338,42 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     return DEFAULT_PROFILE;
   });
 
-  // Combined interests from all participants (for display)
+  // Editable interests — initialized from participant profiles, user can toggle
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(() =>
+    [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))]
+  );
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const toggleInterest = (slug: string) => {
+    setSelectedInterests(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]);
+  };
+
+  const saveProfileToParticipant = async () => {
+    if (!participantId) return;
+    setSavingProfile(true);
+    try {
+      await fetch(`/api/trips/${tripId}/participants`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          participantId,
+          profile: {
+            activities: selectedInterests,
+            budget: profile.budget,
+            vibe: profile.vibe,
+            pace: profile.pace,
+            tripType: profile.tripType,
+          },
+        }),
+      });
+    } catch (err) { console.error('Failed to save profile:', err); }
+    finally { setSavingProfile(false); }
+  };
+
   const combinedInterests = useMemo(() => {
-    const all = [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))];
-    return all.map(a => ACTIVITY_LABELS[a] || a);
-  }, [participantProfiles]);
+    return selectedInterests.map(a => ACTIVITY_LABELS[a] || a);
+  }, [selectedInterests]);
 
   const profilesComplete = participantProfiles.filter(p => !!p.profileTripType).length;
 
@@ -370,8 +401,8 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     setExpandedCategory(null);
     setCompletedCount(0);
 
-    // Build COA-driven category list from participant interests
-    const allInterestSlugs = [...new Set(participantProfiles.flatMap(p => p.profileActivities || []))];
+    // Build COA-driven category list from editable interests
+    const allInterestSlugs = selectedInterests;
     const tripType = profile.tripType || 'adventure';
 
     type ScanCategory = { key: string; label: string; maxResults: number };
@@ -782,7 +813,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
               <th className="py-3 px-2 text-center w-14">Score</th>
               <th className="py-3 px-2 text-left max-w-[280px]">Summary</th>
               <th className="py-3 px-2 text-left max-w-[140px]">Warnings</th>
-              <th className="py-3 px-2 text-center w-12">🔥</th>
+              <th className="py-3 px-2 text-center w-12">Trend</th>
               <th className="py-3 px-2 text-center w-14">Fit</th>
             </tr>
           </thead>
@@ -804,15 +835,15 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     <span className={'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ' + (rec.valueRank <= 3 ? 'bg-green-500 text-white' : rec.valueRank <= 6 ? 'bg-yellow-400 text-white' : 'bg-border')}>{rec.valueRank}</span>
                   </td>
                   <td className="py-2 px-2">
-                    {rec.photoUrl ? <img src={rec.photoUrl} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-border rounded flex items-center justify-center text-text-faint text-xs">📷</div>}
+                    {rec.photoUrl ? <img src={rec.photoUrl} alt="" className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-border rounded flex items-center justify-center text-text-faint text-xs">img</div>}
                   </td>
                   <td className="py-2 px-2">
                     <div className="font-medium text-text-primary">{rec.name}</div>
-                    <div className="text-xs text-text-muted">⭐ {rec.googleRating} ({rec.reviewCount}) {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline ml-1">Visit →</a>}</div>
+                    <div className="text-xs text-text-muted">{rec.googleRating} ({rec.reviewCount}) {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="text-brand-purple hover:underline ml-1">Visit</a>}</div>
                   </td>
                   <td className="py-2 px-2 text-center">
                     <span className={'inline-block px-2 py-0.5 rounded-full text-xs font-medium ' + getSentimentColor(rec.sentiment)}>
-                      {rec.sentiment === 'positive' ? '👍' : rec.sentiment === 'negative' ? '👎' : '😐'} {rec.sentiment}
+                      {rec.sentiment}
                     </span>
                   </td>
                   <td className="py-2 px-2 text-center">
@@ -823,9 +854,9 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                     <div className="line-clamp-3">{rec.summary}</div>
                   </td>
                   <td className="py-2 px-2 text-xs max-w-[140px]">
-                    {rec.warnings.length > 0 ? rec.warnings.slice(0, 2).map((w, i) => <div key={i} className="text-orange-600">⚠️ {w}</div>) : <span className="text-text-faint">—</span>}
+                    {rec.warnings.length > 0 ? rec.warnings.slice(0, 2).map((w, i) => <div key={i} className="text-orange-600">{w}</div>) : <span className="text-text-faint">—</span>}
                   </td>
-                  <td className="py-2 px-2 text-center">{rec.trending ? <span title="Trending">🔥</span> : <span className="text-text-faint">—</span>}</td>
+                  <td className="py-2 px-2 text-center">{rec.trending ? <span className="text-orange-500 font-bold text-xs" title="Trending">HOT</span> : <span className="text-text-faint">—</span>}</td>
                   <td className="py-2 px-2 text-center">
                     <span className={'inline-block px-2 py-0.5 rounded text-xs font-bold ' + (rec.fitScore >= 8 ? 'bg-green-100 text-brand-green' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-brand-red')}>{rec.fitScore}/10</span>
                   </td>
@@ -840,37 +871,107 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
   return (
     <div className="space-y-6">
-      {/* Profile Summary */}
-      {profilesComplete > 0 && combinedInterests.length > 0 && (
-        <div className="text-xs text-gray-500 mb-2">
-          Scanning for: {combinedInterests.slice(0, 6).join(', ')}
-          {combinedInterests.length > 6 && ` +${combinedInterests.length - 6} more`}
-          {' '}· {profilesComplete} traveler{profilesComplete !== 1 ? 's' : ''}
+      {/* Inline Profile Editor */}
+      <div className="bg-bg-row rounded border border-border p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-gray-700">Your Interests ({selectedInterests.length} selected)</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowProfileEditor(p => !p)} className="text-xs text-brand-purple hover:underline">
+              {showProfileEditor ? 'Collapse' : 'Edit Profile'}
+            </button>
+            {participantId && (
+              <button onClick={saveProfileToParticipant} disabled={savingProfile} className="text-xs text-emerald-600 hover:underline disabled:opacity-50">
+                {savingProfile ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Compact interest chips — always visible */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selectedInterests.slice(0, showProfileEditor ? undefined : 12).map(slug => (
+            <button key={slug} onClick={() => toggleInterest(slug)}
+              className="px-2 py-0.5 rounded text-[10px] font-medium bg-brand-purple text-white hover:bg-brand-purple-hover">
+              {ACTIVITY_LABELS[slug] || slug} x
+            </button>
+          ))}
+          {!showProfileEditor && selectedInterests.length > 12 && (
+            <span className="text-[10px] text-gray-400 self-center">+{selectedInterests.length - 12} more</span>
+          )}
+        </div>
+
+        {/* Expanded editor */}
+        {showProfileEditor && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            {/* Interest categories */}
+            {ACTIVITY_GROUPS.map(group => (
+              <div key={group.label}>
+                <div className="text-[10px] font-medium text-gray-500 mb-1">{group.label}</div>
+                <div className="flex flex-wrap gap-1">
+                  {group.activities.map(act => {
+                    const active = selectedInterests.includes(act.value);
+                    return (
+                      <button key={act.value} onClick={() => toggleInterest(act.value)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium ${active ? 'bg-brand-purple text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+                        {act.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Budget / Vibe / Pace row */}
+            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1">Budget</label>
+                <select value={profile.budget} onChange={e => setProfile(p => ({ ...p, budget: e.target.value }))}
+                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
+                  {BUDGET_OPTIONS.map(b => <option key={b.value} value={b.value}>{b.label}{b.sublabel}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1">Vibe</label>
+                <select value={(profile.vibe || [])[0] || ''} onChange={e => setProfile(p => ({ ...p, vibe: e.target.value ? [e.target.value] : [] }))}
+                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
+                  <option value="">Any</option>
+                  {VIBE_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1">Pace</label>
+                <select value={profile.pace} onChange={e => setProfile(p => ({ ...p, pace: e.target.value }))}
+                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
+                  {PACE_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Search Controls */}
       <div className="flex flex-wrap items-end gap-4 p-4 bg-bg-row rounded border border-border">
         <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">⭐ Min Rating</label>
+          <label className="text-xs text-text-muted font-medium block mb-1.5">Min Rating</label>
           <select value={minRating} onChange={e => setMinRating(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={3.5}>3.5+</option><option value={4.0}>4.0+</option><option value={4.5}>4.5+</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">📊 Min Reviews</label>
+          <label className="text-xs text-text-muted font-medium block mb-1.5">Min Reviews</label>
           <select value={minReviews} onChange={e => setMinReviews(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={10}>10+</option><option value={50}>50+</option><option value={100}>100+</option>
           </select>
         </div>
         <div>
-          <label className="text-xs text-text-muted font-medium block mb-1.5">💰 Max Price</label>
+          <label className="text-xs text-text-muted font-medium block mb-1.5">Max Price</label>
           <select value={maxPriceLevel} onChange={e => setMaxPriceLevel(+e.target.value)} className="border border-border rounded px-3 py-2.5 text-sm bg-white">
             <option value={0}>Any</option><option value={1}>$</option><option value={2}>$$</option><option value={3}>$$$</option><option value={4}>$$$$</option>
           </select>
         </div>
         <Button onClick={analyzeDestination} loading={loading} disabled={!city} className="flex-1 py-3 text-base">
-          🔍 Analyze {city || 'Destination'} with AI
+          Analyze {city || 'Destination'} with AI
         </Button>
       </div>
 
@@ -956,7 +1057,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="text-sm font-medium text-text-secondary block mb-2">🔗 Paste URL (optional)</label>
+                <label className="text-sm font-medium text-text-secondary block mb-2">Paste URL (optional)</label>
                 <div className="flex gap-2">
                   <input type="url" value={customForm.url} onChange={e => setCustomForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." className="flex-1 border border-border rounded px-3 py-2.5 text-sm" />
                   <button onClick={() => fetchUrlPreview(customForm.url)} disabled={!customForm.url || customLoading} className="px-4 py-2 bg-purple-500 text-white rounded text-sm font-medium disabled:opacity-50 hover:bg-purple-600">
@@ -970,21 +1071,21 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-text-secondary block mb-2">📍 Name *</label>
+                <label className="text-sm font-medium text-text-secondary block mb-2">Name *</label>
                 <input type="text" value={customForm.name} onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))} placeholder="Villa Sunset Paradise" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="text-sm font-medium text-text-secondary block mb-2">💰 Price</label>
+                <label className="text-sm font-medium text-text-secondary block mb-2">Price</label>
                 <input type="text" value={customForm.price} onChange={e => setCustomForm(f => ({ ...f, price: e.target.value }))} placeholder="$150/night" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="text-sm font-medium text-text-secondary block mb-2">📝 Notes (optional)</label>
+                <label className="text-sm font-medium text-text-secondary block mb-2">Notes (optional)</label>
                 <input type="text" value={customForm.notes} onChange={e => setCustomForm(f => ({ ...f, notes: e.target.value }))} placeholder="Great reviews, close to beach" className="w-full border border-border rounded px-3 py-2.5 text-sm" />
               </div>
             </div>
             <div className="border-t border-border p-4 bg-bg-row flex gap-3">
               <Button variant="secondary" onClick={() => setShowCustomModal(false)} className="flex-1">Cancel</Button>
-              <Button onClick={handleAddCustomItem} className="flex-1" disabled={!customForm.name}>➕ Add to Plan</Button>
+              <Button onClick={handleAddCustomItem} className="flex-1" disabled={!customForm.name}>Add to Plan</Button>
             </div>
           </div>
         </div>
@@ -994,7 +1095,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
       {Object.keys(byCategory).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-text-primary">📊 AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
+            <h3 className="font-bold text-sm text-text-primary">AI Analysis Results <span className="text-sm font-normal text-text-muted">({recommendations.length} places)</span></h3>
             {scannerMeta && !loading && (
               <span className="text-xs text-text-muted">
                 Scanned by {scannerMeta.scannedBy.split('@')[0]} · {new Date(scannerMeta.updatedAt).toLocaleDateString()}
@@ -1010,7 +1111,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
             <div className="px-4 py-2 bg-bg-row border border-border rounded text-xs text-text-muted">Default profile used</div>
           )}
 
-          {Object.keys(byCategory).map(cat => {
+          {/* Sort: accommodation first, brunch_coffee second, dinner third, rest alphabetical */}
+          {Object.keys(byCategory).sort((a, b) => {
+            const order: Record<string, number> = { accommodation: 0, brunch_coffee: 1, dinner: 2 };
+            const oa = order[a] ?? 99;
+            const ob = order[b] ?? 99;
+            if (oa !== ob) return oa - ob;
+            return a.localeCompare(b);
+          }).map(cat => {
             const items = byCategory[cat];
             if (!items || items.length === 0) return null;
             const coaCat = TRAVEL_COA[cat];
@@ -1068,7 +1176,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                 ) : (
                                   <span className="px-1 py-0.5 rounded text-[9px] bg-gray-100 text-gray-400">N/A</span>
                                 )}
-                                {rec.trending && <span title="Trending">🔥</span>}
+                                {rec.trending && <span className="text-orange-500 font-bold text-[9px]" title="Trending">HOT</span>}
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
@@ -1078,14 +1186,14 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${rec.fitScore >= 8 ? 'bg-green-100 text-green-700' : rec.fitScore >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>Fit {rec.fitScore}</span>
                               )}
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getSentimentColor(rec.sentiment)}`}>
-                                {rec.sentiment === 'positive' ? '👍' : rec.sentiment === 'negative' ? '👎' : '😐'}
+                                {rec.sentiment === 'positive' ? '+' : rec.sentiment === 'negative' ? '-' : '~'}
                               </span>
                             </div>
                           </div>
 
                           <p className="text-xs text-text-secondary line-clamp-2">{rec.summary}</p>
                           {rec.warnings.length > 0 && (
-                            <div className="text-xs text-orange-600">{rec.warnings.slice(0, 1).map((w, i) => <span key={i}>⚠️ {w}</span>)}</div>
+                            <div className="text-xs text-orange-600">{rec.warnings.slice(0, 1).map((w, i) => <span key={i}>{w}</span>)}</div>
                           )}
 
                           {committed ? (
@@ -1207,8 +1315,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
 
       {!loading && Object.keys(byCategory).length === 0 && !error && (
         <div className="text-center py-16 bg-gradient-to-b from-bg-row to-white rounded border border-border">
-          <div className="text-6xl mb-4">🤖</div>
-          <h3 className="font-bold text-sm text-text-primary mb-2">Grok AI Trip Analyzer</h3>
+          <h3 className="font-bold text-sm text-text-primary mb-2">AI Trip Analyzer</h3>
           <p className="text-text-muted">Customize your profile, pick a destination, and let AI find the perfect spots</p>
         </div>
       )}
