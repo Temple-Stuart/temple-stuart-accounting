@@ -5,11 +5,10 @@ import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
-import FilterPanel from '@/components/convergence/FilterPanel';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
-import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 
 
 interface TradeSummary {
@@ -110,7 +109,7 @@ export default function TradingPage() {
     return DEFAULT_FILTERS;
   });
   const [scannerUniverse, setScannerUniverse] = useState('sp500');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showStrategyPopover, setShowStrategyPopover] = useState(false);
   const scanTriggerRef = useRef<(() => void) | null>(null);
   const scanningRef = useRef<boolean>(false);
   const [scanningDisplay, setScanningDisplay] = useState(false);
@@ -669,105 +668,146 @@ export default function TradingPage() {
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
           {/* ── Purple Background Zone ── */}
-          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-4 lg:px-6 py-3 mb-4 bg-brand-purple/80">
-            <div className="max-w-[1800px] mx-auto space-y-2">
+          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-2 mb-3 bg-brand-purple/80">
+            <div className="max-w-[1800px] mx-auto space-y-1">
 
-              {/* ROW 1 — Scanner Bar */}
-              <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
-                {/* Identity + Brokerage */}
-                <div className="px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <div className="text-sm text-text-primary">Trading Dashboard</div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+              {/* ROW 1 — Dense Scanner Bar (4 zones) */}
+              <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row overflow-hidden">
+
+                {/* Zone 1: Identity */}
+                <div className="px-3 py-2 lg:w-[140px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
+                  <div className="text-sm text-text-primary leading-tight">Trading</div>
+                  <div className="flex items-center gap-1 mt-0.5">
                     {ttConnected ? (
-                      <><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /><span className="text-[11px] text-emerald-600">Tastytrade Connected</span></>
+                      <><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /><span className="text-[9px] text-emerald-600">TT Connected</span></>
                     ) : ttConnected === false ? (
-                      <><div className="w-1.5 h-1.5 bg-red-400 rounded-full" /><span className="text-[11px] text-text-muted">No Brokerage</span></>
+                      <><div className="w-1.5 h-1.5 bg-red-400 rounded-full" /><span className="text-[9px] text-text-muted">No Broker</span></>
                     ) : (
-                      <span className="text-[11px] text-text-faint">Checking...</span>
+                      <span className="text-[9px] text-text-faint">...</span>
                     )}
                   </div>
                 </div>
-                {/* Scanner Filters — wired to lifted state */}
-                <div className="px-4 py-2 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
+
+                {/* Zone 2: Risk Profile */}
+                <div className="px-3 py-1.5 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0 space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     {[{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }].map(u => (
                       <button key={u.val} onClick={() => setScannerUniverse(u.val)}
-                        className={`text-[11px] px-2 py-0.5 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                        className={`text-[10px] px-1.5 py-px rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
                         {u.label}
                       </button>
                     ))}
-                    <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
+                    <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-0.5">
                       {(['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'] as const).map(d => (
                         <button key={d} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, direction: d } })}
-                          className={`px-1.5 py-0.5 text-[9px] font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
+                          className={`px-1 py-px text-[9px] font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
                           {d === 'BULLISH' ? 'Bull' : d === 'BEARISH' ? 'Bear' : d === 'NEUTRAL' ? 'Ntrl' : 'All'}
                         </button>
                       ))}
                     </div>
-                    <span className="text-[10px] text-text-muted">{scannerFilters.risk.minDte}-{scannerFilters.risk.maxDte}d</span>
-                    <span className="text-[10px] text-text-muted">{scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length} strategies` : '16 strategies'}</span>
-                    <button onClick={() => setShowAdvancedFilters(p => !p)} className="text-[10px] text-brand-purple hover:underline ml-1">
-                      {showAdvancedFilters ? 'Hide' : 'Filters'}
-                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <div className="flex gap-px rounded overflow-hidden border border-gray-200">
+                      {(['SELL', 'BUY', 'BOTH'] as const).map(s => (
+                        <button key={s} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, premiumStance: s } })}
+                          className={`px-1 py-px text-[9px] font-bold ${scannerFilters.risk.premiumStance === s ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
+                          {s === 'BOTH' ? 'Both' : s}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[9px] text-gray-500">{scannerFilters.risk.minDte}-{scannerFilters.risk.maxDte}d</span>
+                    <span className="text-[9px] text-gray-500">${scannerFilters.risk.minSpreadWidth}-${scannerFilters.risk.maxSpreadWidth}w</span>
+                    <div className="relative">
+                      <button onClick={() => setShowStrategyPopover(p => !p)}
+                        className="text-[9px] text-brand-purple hover:underline">
+                        {scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length} strats` : '16 strats'}
+                      </button>
+                      {showStrategyPopover && (
+                        <div className="absolute top-full left-0 mt-1 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-2 w-[280px]" onClick={e => e.stopPropagation()}>
+                          <div className="flex flex-wrap gap-1">
+                            {AVAILABLE_STRATEGIES.map(s => {
+                              const active = scannerFilters.risk.strategies.length === 0 || scannerFilters.risk.strategies.includes(s);
+                              return (
+                                <button key={s} onClick={() => {
+                                  const curr = scannerFilters.risk.strategies;
+                                  const next = curr.includes(s) ? curr.filter(x => x !== s) : [...curr, s];
+                                  handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, strategies: next } });
+                                }}
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${active ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                                  {s}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, strategies: [] } })}
+                            className="text-[9px] text-brand-purple hover:underline mt-1">Reset all</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {/* Scan Market */}
+
+                {/* Zone 3: Quantitative Filters (Liquidity + Edge) */}
+                <div className="px-3 py-1.5 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0">
+                    {/* Liquidity Gates */}
+                    <div className="space-y-0">
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">Min OI</span><input type="range" min={0} max={5000} step={50} value={scannerFilters.liquidity.minOpenInterest} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minOpenInterest: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">{scannerFilters.liquidity.minOpenInterest}</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">Spread</span><input type="range" min={1} max={50} value={scannerFilters.liquidity.maxBidAskSpreadPct} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, maxBidAskSpreadPct: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">{scannerFilters.liquidity.maxBidAskSpreadPct}%</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">Volume</span><input type="range" min={0} max={10000000} step={100000} value={scannerFilters.liquidity.minUnderlyingVolume} onChange={e => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minUnderlyingVolume: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">{scannerFilters.liquidity.minUnderlyingVolume >= 1e6 ? `${(scannerFilters.liquidity.minUnderlyingVolume / 1e6).toFixed(1)}M` : `${(scannerFilters.liquidity.minUnderlyingVolume / 1e3).toFixed(0)}K`}</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">Liq</span><div className="flex gap-0.5">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => handleFiltersChange({ ...scannerFilters, liquidity: { ...scannerFilters.liquidity, minLiquidityRating: n } })} className={`text-[10px] ${n <= scannerFilters.liquidity.minLiquidityRating ? 'text-brand-gold' : 'text-gray-300'}`}>*</button>))}</div></div>
+                    </div>
+                    {/* Edge Metrics */}
+                    <div className="space-y-0">
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">PoP</span><input type="range" min={0} max={100} value={scannerFilters.edge.minPop} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minPop: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">{scannerFilters.edge.minPop}%</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">EV</span><input type="range" min={-500} max={1000} step={10} value={scannerFilters.edge.minEv} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minEv: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">${scannerFilters.edge.minEv}</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">IV Rank</span><input type="range" min={0} max={100} value={scannerFilters.edge.minIvRank} onChange={e => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, minIvRank: +e.target.value } })} className="flex-1 h-0.5 accent-brand-purple" /><span className="text-[8px] font-mono text-gray-600 w-8 text-right">{scannerFilters.edge.minIvRank}%</span></div>
+                      <div className="flex items-center gap-1"><span className="text-[8px] text-gray-400 w-14 text-right shrink-0">Vol</span><div className="flex gap-px rounded overflow-hidden border border-gray-200">{(['IV_ABOVE_HV', 'IV_BELOW_HV', 'ANY'] as const).map(v => (<button key={v} onClick={() => handleFiltersChange({ ...scannerFilters, edge: { ...scannerFilters.edge, volEdge: v } })} className={`px-1 py-px text-[8px] font-bold ${scannerFilters.edge.volEdge === v ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{v === 'IV_ABOVE_HV' ? 'IV>HV' : v === 'IV_BELOW_HV' ? 'IV<HV' : 'Any'}</button>))}</div></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zone 4: Scan Market */}
                 <button onClick={() => { if (scanTriggerRef.current) scanTriggerRef.current(); }}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl disabled:opacity-50">
-                  Scan Market
+                  className="flex items-center justify-center px-4 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white font-bold text-sm transition-colors whitespace-nowrap lg:rounded-r-xl">
+                  Scan
                 </button>
               </div>
 
-              {/* Expandable Advanced Filters */}
-              {showAdvancedFilters && (
-                <div className="bg-white rounded-b-xl border-x-2 border-b-2 border-brand-gold/60 shadow-md -mt-1 px-4 py-3">
-                  <FilterPanel filters={scannerFilters} onChange={handleFiltersChange} />
-                </div>
-              )}
-
-              {/* ROW 2 — Metrics Bar (date-filterable) */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/30 shadow-sm">
-                <div className="flex flex-wrap items-center gap-4 px-4 py-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">Period</span>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                      className="border-0 outline-none bg-transparent text-[11px] text-white w-[100px] min-w-0" />
-                    <span className="text-white/40 text-[10px]">—</span>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                      className="border-0 outline-none bg-transparent text-[11px] text-white w-[100px] min-w-0" />
-                    {(dateFrom || dateTo) && (
-                      <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                        className="text-[10px] text-white/60 hover:text-white">Clear</button>
-                    )}
-                  </div>
-                  <div className="w-px h-4 bg-white/20" />
+              {/* ROW 2 — 7 Metrics Bar */}
+              {(() => { const m = filteredMetrics; return (
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg">
+                <div className="flex flex-wrap items-center gap-3 px-3 py-1.5">
                   <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">P&L</span>
-                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(persistentMetrics.totalPL)}</span>
+                    <span className="text-[8px] text-white/50 uppercase tracking-wider">Period</span>
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="border-0 outline-none bg-transparent text-[10px] text-white w-[90px]" />
+                    <span className="text-white/30 text-[9px]">—</span>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="border-0 outline-none bg-transparent text-[10px] text-white w-[90px]" />
+                    {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="text-[9px] text-white/50 hover:text-white">x</button>}
                   </div>
-                  <div className="w-px h-4 bg-white/20" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">Expect</span>
-                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-white/50' : persistentMetrics.expectancy >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}</span>
-                  </div>
-                  <div className="w-px h-4 bg-white/20" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">PF</span>
-                    <span className="text-xs font-mono font-semibold text-white/80">{persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}</span>
-                  </div>
-                  <div className="w-px h-4 bg-white/20" />
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">MaxDD</span>
-                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-300' : 'text-white/50'}`}>{persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}</span>
-                  </div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">P&L </span><span className={`text-[11px] font-mono font-semibold ${m.totalRealizedPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(m.totalRealizedPL)}</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">WR </span><span className="text-[11px] font-mono font-semibold text-white">{m.winRate}%</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">PF </span><span className="text-[11px] font-mono font-semibold text-white">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">Max W </span><span className="text-[11px] font-mono font-semibold text-emerald-300">{fmt(m.largestWin)}</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">Max L </span><span className="text-[11px] font-mono font-semibold text-red-300">{fmt(Math.abs(m.largestLoss))}</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">Avg W </span><span className="text-[11px] font-mono font-semibold text-emerald-300">{fmt(m.avgWin)}</span></div>
+                  <div className="w-px h-3 bg-white/20" />
+                  <div><span className="text-[8px] text-white/50 uppercase">Avg L </span><span className="text-[11px] font-mono font-semibold text-red-300">{fmt(m.avgLoss)}</span></div>
                 </div>
               </div>
+              ); })()}
 
             </div>
           </div>
 
-          {/* ── Page Content — single scrollable page, no tabs ── */}
-          <div className="space-y-4">
+          {/* ── Page Content ── */}
+          <div className="space-y-3">
             {/* P&L Calendar */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">P&L Calendar</div>
