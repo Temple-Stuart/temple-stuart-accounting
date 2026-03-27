@@ -24,6 +24,11 @@ interface GrokRecommendation {
   valueRank: number;
   category: string;
   compositeScore?: number;
+  // Viator-specific fields (present when result is from Viator API)
+  viatorProductCode?: string;
+  bookingUrl?: string | null;
+  durationMinutes?: number | null;
+  price?: number | null;
 }
 
 interface ScheduledSelection {
@@ -1192,6 +1197,19 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                           </div>
 
                           <p className="text-xs text-text-secondary line-clamp-2">{rec.summary}</p>
+                          {rec.viatorProductCode && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              {rec.price != null && <span className="font-semibold text-emerald-700">From ${rec.price}</span>}
+                              {rec.durationMinutes != null && (
+                                <span className="text-text-muted">
+                                  {rec.durationMinutes >= 60
+                                    ? `${Math.floor(rec.durationMinutes / 60)}h${rec.durationMinutes % 60 ? ` ${rec.durationMinutes % 60}m` : ''}`
+                                    : `${rec.durationMinutes}m`}
+                                </span>
+                              )}
+                              <span className="text-[9px] text-gray-400 ml-auto">via Viator</span>
+                            </div>
+                          )}
                           {rec.warnings.length > 0 && (
                             <div className="text-xs text-orange-600">{rec.warnings.slice(0, 1).map((w, i) => <span key={i}>{w}</span>)}</div>
                           )}
@@ -1288,7 +1306,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 pt-2 border-t border-border">
-                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || TRAVEL_COA[rec.category]?.defaultFrequency || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } }}
+                              <button onClick={() => { setCommitCardKey(cardKey); if (!cardDates[cardKey]) setCardDates(p => ({ ...p, [cardKey]: { start: tripDates?.departure || '', end: catVendor.multiDay ? (tripDates?.return || '') : '' } })); if (!cardFrequency[cardKey]) setCardFrequency(p => ({ ...p, [cardKey]: CATEGORY_DEFAULT_FREQ[rec.category] || TRAVEL_COA[rec.category]?.defaultFrequency || 'total' })); if (!cardTimes[cardKey]) { const defaults = CATEGORY_DEFAULT_TIMES[rec.category] || { startTime: '10:00', endTime: '12:00' }; setCardTimes(p => ({ ...p, [cardKey]: defaults })); } if (!cardPrices[cardKey] && rec.price) setCardPrices(p => ({ ...p, [cardKey]: String(rec.price) })); }}
                                 className="flex-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700">Commit</button>
                               {rec.website && <a href={rec.website} target="_blank" rel="noopener noreferrer" className="px-2 py-1.5 text-xs border border-border rounded hover:bg-bg-row">Visit</a>}
                             </div>
