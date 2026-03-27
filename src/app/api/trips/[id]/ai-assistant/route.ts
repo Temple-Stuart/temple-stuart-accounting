@@ -327,9 +327,8 @@ export async function POST(
       enriched = await getCachedPlaces(city, country, category);
       console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
     } else {
-      // Only apply Google Places type filter for accommodation and dinner — too restrictive for other categories
-      const typeFilterCategories = new Set(['accommodation', 'dinner']);
-      const googlePlacesType = typeFilterCategories.has(category) ? TRAVEL_COA[category]?.googlePlacesType || undefined : undefined;
+      // Skip Google Places type filter — queries are specific enough, type filter can cause 0 results
+      const googlePlacesType = undefined;
       console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries${googlePlacesType ? ` (type=${googlePlacesType})` : ''}`);
       const places = await searchPlacesMultiQuery(queries, city, country, 60, googlePlacesType as string | undefined);
       enriched = await enrichPlaceDetails(places);
@@ -353,7 +352,7 @@ export async function POST(
     }
 
     // Send more places to Grok than maxResults so it has room to rank
-    const grokLimit = Math.min(maxResults * 2, 20);
+    const grokLimit = Math.min(Math.max(maxResults, 33), 40);
     const placesToAnalyze = filtered.slice(0, grokLimit).map(p => ({
       name: p.name,
       address: p.address,
