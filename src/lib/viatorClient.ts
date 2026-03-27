@@ -238,6 +238,14 @@ function buildSearchTerms(coaCategory: string, userInterests: string[]): string[
   return [...new Set(terms)];
 }
 
+// ─── Affiliate URL Construction ──────────────────────────────────────────────
+const VIATOR_PARTNER_ID = 'P00294427';
+const VIATOR_MCID = '42383';
+
+function buildAffiliateUrl(productCode: string): string {
+  return `https://www.viator.com/tours/${productCode}?pid=${VIATOR_PARTNER_ID}&mcid=${VIATOR_MCID}&medium=api`;
+}
+
 // ─── Product Search ──────────────────────────────────────────────────────────
 
 /** V2 /products/search — best for destination-based filtering with tags */
@@ -456,10 +464,12 @@ export function viatorProductToRecommendation(
   const priceText = price != null ? `From $${price}` : '';
   const summaryParts = [product.description || '', durationText ? `Duration: ${durationText}` : '', priceText].filter(Boolean);
 
+  const affiliateUrl = buildAffiliateUrl(product.productCode);
+
   return {
     name: product.title,
     address: product.destinationName || '',
-    website: product.productUrl || null,
+    website: affiliateUrl,
     photoUrl: product.thumbnailUrl || null,
     priceLevel,
     priceLevelDisplay: price != null ? `$${price}` : null,
@@ -475,7 +485,7 @@ export function viatorProductToRecommendation(
     category,
     compositeScore,
     viatorProductCode: product.productCode,
-    bookingUrl: product.productUrl || null,
+    bookingUrl: affiliateUrl,
     durationMinutes,
     price,
   };
