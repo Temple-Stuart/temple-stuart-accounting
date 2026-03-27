@@ -4390,9 +4390,30 @@ function FilteredResultsSection({
 
 // ── Main Component ──────────────────────────────────────────────────
 
-export default function ConvergenceIntelligence() {
+interface ConvergenceIntelligenceProps {
+  externalFilters?: ScannerFilters;
+  onFiltersChange?: (filters: ScannerFilters) => void;
+  externalUniverse?: string;
+  onUniverseChange?: (universe: string) => void;
+  hideControls?: boolean;
+  scanTriggerRef?: React.MutableRefObject<(() => void) | null>;
+  scanningRef?: React.MutableRefObject<boolean>;
+}
+
+export default function ConvergenceIntelligence({
+  externalFilters,
+  onFiltersChange,
+  externalUniverse,
+  onUniverseChange,
+  hideControls = false,
+  scanTriggerRef,
+  scanningRef,
+}: ConvergenceIntelligenceProps = {}) {
   // Batch scan state
-  const [universe, setUniverse] = useState('sp500');
+  const [internalUniverse, setInternalUniverse] = useState('sp500');
+  const universe = externalUniverse ?? internalUniverse;
+  const setUniverse = onUniverseChange ?? setInternalUniverse;
+
   const [scanning, setScanning] = useState(false);
   const [batchData, setBatchData] = useState<BatchResponse | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
@@ -4412,8 +4433,8 @@ export default function ConvergenceIntelligence() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  // Filter state — persisted in localStorage
-  const [filters, setFilters] = useState<ScannerFilters>(() => {
+  // Filter state — use external props when provided, else internal + localStorage
+  const [internalFilters, setInternalFilters] = useState<ScannerFilters>(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
       if (saved) return JSON.parse(saved);
@@ -4421,10 +4442,16 @@ export default function ConvergenceIntelligence() {
     return DEFAULT_FILTERS;
   });
 
+  const filters = externalFilters ?? internalFilters;
+
   const handleFiltersChange = useCallback((next: ScannerFilters) => {
-    setFilters(next);
+    if (onFiltersChange) {
+      onFiltersChange(next);
+    } else {
+      setInternalFilters(next);
+    }
     try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
-  }, []);
+  }, [onFiltersChange]);
 
   // Trade card queue — Map<"SYMBOL|strategy|expiration|strikes", savedCardId>
   const [savedCards, setSavedCards] = useState<Map<string, string>>(new Map());
@@ -4668,6 +4695,14 @@ export default function ConvergenceIntelligence() {
     }
   }, [universe]);
 
+  // Expose scan trigger and scanning state to parent via refs
+  useEffect(() => {
+    if (scanTriggerRef) scanTriggerRef.current = scanMarket;
+  }, [scanMarket, scanTriggerRef]);
+  useEffect(() => {
+    if (scanningRef) scanningRef.current = scanning;
+  }, [scanning, scanningRef]);
+
   // Single ticker lookup
   const lookupAnalyze = useCallback(async () => {
     const sym = lookupTicker.trim().toUpperCase();
@@ -4689,56 +4724,54 @@ export default function ConvergenceIntelligence() {
   return (
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
-      {/* SECTION 1: UNIVERSE SELECTOR — matches Data Observatory header */}
-      <div className="bg-brand-purple/80 rounded-t-lg">
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <span className="text-sm font-semibold text-white">
-            Market Intelligence
-          </span>
-          <div className="flex items-center gap-2">
-            <select
-              value={universe}
-              onChange={e => setUniverse(e.target.value)}
-              disabled={scanning || enriching}
-              className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50"
-            >
-              <option value="sp500">S&amp;P 500</option>
-              <option value="nasdaq100">Nasdaq 100</option>
-              <option value="russell2000">Russell 2000</option>
-              <option value="sp400">S&amp;P 400 MidCap</option>
-              <option value="dow30">Dow Jones (30)</option>
-              <option value="sp600">S&amp;P 600 SmallCap</option>
-              <option value="wilshire5000">Wilshire 5000</option>
-              <option value="msciusa">MSCI USA</option>
-              <option value="russell1000">Russell 1000</option>
-            </select>
-            <button
-              onClick={scanMarket}
-              disabled={scanning || enriching}
-              className="bg-brand-gold text-white text-xs font-semibold font-mono px-3 py-1 rounded hover:bg-brand-gold-bright transition-colors disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {(scanning || enriching) && (
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              )}
-              {scanning ? 'SCANNING...' : enriching ? `LOADING ${enrichProgress.current}...` : 'SCAN MARKET'}
-            </button>
+      {/* Header — show controls only when not hidden */}
+      {!hideControls ? (
+        <div className="bg-brand-purple/80 rounded-t-lg">
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="text-sm font-semibold text-white">Market Intelligence</span>
+            <div className="flex items-center gap-2">
+              <select value={universe} onChange={e => setUniverse(e.target.value)} disabled={scanning || enriching}
+                className="bg-brand-purple-deep text-white text-xs font-mono px-2 py-1 border border-white/10 rounded focus:outline-none focus:ring-1 focus:ring-brand-gold disabled:opacity-50">
+                <option value="sp500">S&amp;P 500</option>
+                <option value="nasdaq100">Nasdaq 100</option>
+                <option value="russell2000">Russell 2000</option>
+                <option value="sp400">S&amp;P 400 MidCap</option>
+                <option value="dow30">Dow Jones (30)</option>
+                <option value="sp600">S&amp;P 600 SmallCap</option>
+                <option value="wilshire5000">Wilshire 5000</option>
+                <option value="msciusa">MSCI USA</option>
+                <option value="russell1000">Russell 1000</option>
+              </select>
+              <button onClick={scanMarket} disabled={scanning || enriching}
+                className="bg-brand-gold text-white text-xs font-semibold font-mono px-3 py-1 rounded hover:bg-brand-gold-bright transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                {(scanning || enriching) && (
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {scanning ? 'SCANNING...' : enriching ? `LOADING ${enrichProgress.current}...` : 'SCAN MARKET'}
+              </button>
+            </div>
           </div>
+          {batchData && (
+            <div className="px-4 pb-1.5 text-[10px] text-white/60 font-mono">
+              {batchData.pipeline_summary.total_universe} scanned
+              {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
+              {' \u2192 '}{batchData.pipeline_summary.scored} scored
+              {' \u2192 '}{batchData.top_9.length} selected
+              {' ('}{(batchData.timing.total_ms / 1000).toFixed(1)}s)
+            </div>
+          )}
         </div>
-        {/* Pipeline summary — second row inside purple header */}
-        {batchData && (
-          <div className="px-4 pb-1.5 text-[10px] text-white/60 font-mono">
-            {batchData.pipeline_summary.total_universe} scanned
-            {' \u2192 '}{batchData.pipeline_summary.after_hard_filters} filtered
-            {' \u2192 '}{batchData.pipeline_summary.scored} scored
-            {' \u2192 '}{batchData.top_9.length} selected
-            {' ('}
-            {(batchData.timing.total_ms / 1000).toFixed(1)}s)
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="bg-brand-purple/80 rounded-t-lg px-4 py-2.5 flex items-center justify-between">
+          <span className="text-sm font-semibold text-white">Market Intelligence</span>
+          <span className="text-xs text-white/50 font-mono">
+            {batchData ? `${batchData.top_9.length} results · ${(batchData.timing.total_ms / 1000).toFixed(1)}s` : scanning ? 'Scanning...' : 'Run scan from bar above'}
+          </span>
+        </div>
+      )}
 
       {/* Loading state */}
       {scanning && (
@@ -4770,7 +4803,7 @@ export default function ConvergenceIntelligence() {
       )}
 
       {/* FILTER PANEL */}
-      <FilterPanel filters={filters} onChange={handleFiltersChange} />
+      {!hideControls && <FilterPanel filters={filters} onChange={handleFiltersChange} />}
 
       {/* PIPELINE FLOW PANEL */}
       {(pipelineResult || Object.keys(pipelineProgress).length > 0) && (
@@ -4804,13 +4837,13 @@ export default function ConvergenceIntelligence() {
       {/* Empty state — no scan yet */}
       {!scanning && !batchData && !batchError && enriched.length === 0 && (
         <div className="px-5 py-16 text-center">
-          <div className="text-text-muted text-sm">Set your preferences above, then click Scan Market</div>
-          <div className="text-text-faint text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>
+          <div className="text-text-muted text-sm">{hideControls ? 'Run a scan from the bar above to see results' : 'Set your preferences above, then click Scan Market'}</div>
+          {!hideControls && <div className="text-text-faint text-xs mt-1">Filters are applied after enrichment — adjust them now or after the scan</div>}
         </div>
       )}
 
-      {/* SECTION 3: SINGLE TICKER LOOKUP */}
-      <div className="px-5 py-4 border-t border-border">
+      {/* SECTION 3: SINGLE TICKER LOOKUP — hidden when controls are in bar */}
+      {!hideControls && <div className="px-5 py-4 border-t border-border">
         <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2">Look Up a Specific Ticker</div>
         <div className="flex items-center gap-2">
           <input
@@ -4837,7 +4870,7 @@ export default function ConvergenceIntelligence() {
             <TickerCard detail={lookupData} savedCards={savedCards} savingCards={savingCards} saveErrors={saveErrors} onSave={saveCard} onRemove={removeCard} />
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

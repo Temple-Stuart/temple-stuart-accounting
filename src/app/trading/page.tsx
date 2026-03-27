@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
+import FilterPanel from '@/components/convergence/FilterPanel';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
+import type { ScannerFilters } from '@/lib/convergence/filter-types';
+import { DEFAULT_FILTERS } from '@/lib/convergence/filter-types';
 
 
 interface TradeSummary {
@@ -97,6 +100,25 @@ export default function TradingPage() {
 
   // Per-user scanner start date (for filtering legacy positions)
   const [scannerStartDate, setScannerStartDate] = useState<string | null>(null);
+
+  // Lifted scanner filter state (shared between search bar and ConvergenceIntelligence)
+  const [scannerFilters, setScannerFilters] = useState<ScannerFilters>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('scanner-filters') : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_FILTERS;
+  });
+  const [scannerUniverse, setScannerUniverse] = useState('sp500');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const scanTriggerRef = useRef<(() => void) | null>(null);
+  const scanningRef = useRef<boolean>(false);
+  const [scanningDisplay, setScanningDisplay] = useState(false);
+
+  const handleFiltersChange = useCallback((next: ScannerFilters) => {
+    setScannerFilters(next);
+    try { localStorage.setItem('scanner-filters', JSON.stringify(next)); } catch {}
+  }, []);
 
   // Trade cards (for reconciliation metrics scoping)
   const [tradeCards, setTradeCards] = useState<{
@@ -665,25 +687,43 @@ export default function TradingPage() {
                     )}
                   </div>
                 </div>
-                {/* Scanner Filters */}
+                {/* Scanner Filters — wired to lifted state */}
                 <div className="px-4 py-2 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">S&P 500</span>
-                    <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">Nasdaq 100</span>
+                    {[{ val: 'sp500', label: 'S&P 500' }, { val: 'nasdaq100', label: 'Nasdaq 100' }].map(u => (
+                      <button key={u.val} onClick={() => setScannerUniverse(u.val)}
+                        className={`text-[11px] px-2 py-0.5 rounded-full border ${scannerUniverse === u.val ? 'bg-brand-purple/10 text-brand-purple border-brand-purple/30' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                        {u.label}
+                      </button>
+                    ))}
                     <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
-                      {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
-                        <span key={d} className={`px-1.5 py-0.5 text-[9px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{d}</span>
+                      {(['ALL', 'BULLISH', 'BEARISH', 'NEUTRAL'] as const).map(d => (
+                        <button key={d} onClick={() => handleFiltersChange({ ...scannerFilters, risk: { ...scannerFilters.risk, direction: d } })}
+                          className={`px-1.5 py-0.5 text-[9px] font-bold ${scannerFilters.risk.direction === d ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>
+                          {d === 'BULLISH' ? 'Bull' : d === 'BEARISH' ? 'Bear' : d === 'NEUTRAL' ? 'Ntrl' : 'All'}
+                        </button>
                       ))}
                     </div>
-                    <span className="text-[10px] text-text-muted">30-60d</span>
-                    <span className="text-[10px] text-text-muted">16 strategies</span>
+                    <span className="text-[10px] text-text-muted">{scannerFilters.risk.minDte}-{scannerFilters.risk.maxDte}d</span>
+                    <span className="text-[10px] text-text-muted">{scannerFilters.risk.strategies.length > 0 ? `${scannerFilters.risk.strategies.length} strategies` : '16 strategies'}</span>
+                    <button onClick={() => setShowAdvancedFilters(p => !p)} className="text-[10px] text-brand-purple hover:underline ml-1">
+                      {showAdvancedFilters ? 'Hide' : 'Filters'}
+                    </button>
                   </div>
                 </div>
                 {/* Scan Market */}
-                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
+                <button onClick={() => { if (scanTriggerRef.current) scanTriggerRef.current(); }}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl disabled:opacity-50">
                   Scan Market
                 </button>
               </div>
+
+              {/* Expandable Advanced Filters */}
+              {showAdvancedFilters && (
+                <div className="bg-white rounded-b-xl border-x-2 border-b-2 border-brand-gold/60 shadow-md -mt-1 px-4 py-3">
+                  <FilterPanel filters={scannerFilters} onChange={handleFiltersChange} />
+                </div>
+              )}
 
               {/* ROW 2 — Metrics Bar (date-filterable) */}
               <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/30 shadow-sm">
@@ -756,7 +796,15 @@ export default function TradingPage() {
                     <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
                   </div>
                 ) : (
-                  <ConvergenceIntelligence />
+                  <ConvergenceIntelligence
+                    externalFilters={scannerFilters}
+                    onFiltersChange={handleFiltersChange}
+                    externalUniverse={scannerUniverse}
+                    onUniverseChange={setScannerUniverse}
+                    hideControls={true}
+                    scanTriggerRef={scanTriggerRef}
+                    scanningRef={scanningRef}
+                  />
                 )}
               </div>
             )}
