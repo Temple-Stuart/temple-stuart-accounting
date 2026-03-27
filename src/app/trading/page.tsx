@@ -482,6 +482,23 @@ export default function TradingPage() {
     });
   }, [filteredTrades]);
 
+  // Persistent metrics: Expectancy + Max Drawdown (always visible regardless of tab)
+  const persistentMetrics = useMemo(() => {
+    const m = filteredMetrics;
+    const expectancy = m.closedTrades > 0 ? m.totalRealizedPL / m.closedTrades : null;
+
+    // Max drawdown: walk cumulative P&L curve, track peak, find deepest peak-to-trough
+    let maxDrawdown = 0;
+    let peak = 0;
+    for (const point of equityCurve) {
+      if (point.cumulative > peak) peak = point.cumulative;
+      const drawdown = point.cumulative - peak;
+      if (drawdown < maxDrawdown) maxDrawdown = drawdown;
+    }
+
+    return { expectancy, maxDrawdown, totalPL: m.totalRealizedPL, profitFactor: m.profitFactor };
+  }, [filteredMetrics, equityCurve]);
+
   // P&L by actual date (365 day calendar)
   const plByDate = useMemo(() => {
     const byDate: Record<string, { pl: number; count: number; trades: Trade[] }> = {};
@@ -644,127 +661,168 @@ export default function TradingPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
-          {/* Header */}
-          <div className="mb-4 bg-brand-purple text-white p-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h1 className="text-terminal-lg font-semibold tracking-tight">Trading Dashboard</h1>
-                <p className="text-text-faint text-xs font-mono">
-                  {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).totalTrades} trades · {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).closedTrades} closed · {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).openTrades} open
-                </p>
+          {/* ── Search Bar ── */}
+          <div className="mb-4 bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
+            {activeTab !== 'market-intelligence' ? (
+              <>
+                {/* Section 1: Title */}
+                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <span className="text-sm font-semibold text-text-primary">Trading Dashboard</span>
+                </div>
+                {/* Section 2: Trade counts */}
+                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <span className="text-xs text-text-muted">
+                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).totalTrades} trades
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).closedTrades} closed
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).openTrades} open
+                  </span>
+                </div>
+                {/* Section 3: Date range */}
+                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] min-w-0">
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[130px] min-w-0" />
+                  <span className="text-gray-300">—</span>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[130px] min-w-0" />
+                  {(dateFrom || dateTo) && (
+                    <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-3 flex-1">
+                <span className="text-sm font-semibold text-text-primary">Market Intelligence</span>
+                <span className="text-xs text-text-muted ml-2">Scanner filters integrated below</span>
               </div>
-              
-              {/* Date Range Filter */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-text-faint">Period:</span>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="bg-brand-purple-hover text-white border-0 px-2 py-1 text-xs" />
-                <span className="text-text-faint">to</span>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                  className="bg-brand-purple-hover text-white border-0 px-2 py-1 text-xs" />
-                {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(''); setDateTo(''); }} 
-                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-xs">Clear</button>
-                )}
+            )}
+          </div>
+
+          {/* ── Persistent Metrics Strip ── */}
+          <div className="bg-gray-50 border-b border-gray-200 mb-4 rounded-lg">
+            <div className="flex items-center justify-between px-6 py-2.5">
+              <div className="flex-1 text-center">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
+                <div className={`text-sm font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  {fmtPL(persistentMetrics.totalPL)}
+                </div>
+              </div>
+              <div className="w-px h-6 bg-gray-200" />
+              <div className="flex-1 text-center">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">Expectancy</div>
+                <div className={`text-sm font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  {persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}
+                </div>
+              </div>
+              <div className="w-px h-6 bg-gray-200" />
+              <div className="flex-1 text-center">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
+                <div className="text-sm font-mono font-semibold text-text-primary">
+                  {persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}
+                </div>
+              </div>
+              <div className="w-px h-6 bg-gray-200" />
+              <div className="flex-1 text-center">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider">Max Drawdown</div>
+                <div className={`text-sm font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>
+                  {persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Stats Dashboard — hidden on Market Intelligence tab */}
-          {activeTab !== 'market-intelligence' && (() => {
-            const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics;
-            return (
-            <>
-          {/* Hero Stats Row */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-            <div className={`p-4 border ${m.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
-              <div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                {fmtPL(m.totalRealizedPL)}
-              </div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Win Rate</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{m.winRate}%</div>
-              <div className="text-[10px] text-text-faint">{m.closedTrades} closed</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{m.profitFactor.toFixed(2)}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Win</div>
-              <div className="text-sm font-bold font-mono text-brand-green">{fmt(m.avgWin)}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Loss</div>
-              <div className="text-sm font-bold font-mono text-brand-red">{fmt(m.avgLoss)}</div>
-            </div>
-            <div className="bg-white border border-border p-4">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Hold</div>
-              <div className="text-sm font-bold font-mono text-text-primary">{m.avgHoldDays.toFixed(1)}d</div>
-            </div>
-          </div>
-
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Largest Win</div>
-              <div className="text-sm font-mono font-semibold text-brand-green">{fmt(m.largestWin)}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Largest Loss</div>
-              <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(m.largestLoss))}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Win Streak</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{m.winStreak}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Loss Streak</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{m.lossStreak}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Options</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'option').length}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Stocks</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'stock').length}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Strategies</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredByStrategy.length}</div>
-            </div>
-            <div className="bg-white border border-border p-2 text-center">
-              <div className="text-[9px] text-text-muted uppercase">Tickers</div>
-              <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
-            </div>
-          </div>
-            </>
-            );
-          })()}
-
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 overflow-x-auto bg-white border border-border">
+          {/* ── Tab Pills ── */}
+          <div className="flex gap-2 mb-4">
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'positions', label: 'Trade Reconciliation' },
               { key: 'market-intelligence', label: 'Market Intelligence' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
-                className={`px-4 py-2 text-xs font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-brand-purple text-white' : 'text-text-secondary hover:bg-bg-row'}`}>
-                {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' \uD83D\uDD12' : ''}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeTab === tab.key ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' 🔒' : ''}
               </button>
             ))}
           </div>
 
           {/* Tab Content */}
           <div className="bg-white border border-border">
-            
+
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div>
+                {/* Stat Cards — inside Overview tab */}
+                {(() => {
+                  const m = filteredMetrics;
+                  return (
+                    <div className="p-4 border-b border-border">
+                      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-3">
+                        <div className={`p-4 border rounded ${m.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
+                          <div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtPL(m.totalRealizedPL)}</div>
+                        </div>
+                        <div className="bg-white border border-border p-4 rounded">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Win Rate</div>
+                          <div className="text-sm font-bold font-mono text-text-primary">{m.winRate}%</div>
+                          <div className="text-[10px] text-text-faint">{m.closedTrades} closed</div>
+                        </div>
+                        <div className="bg-white border border-border p-4 rounded">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
+                          <div className="text-sm font-bold font-mono text-text-primary">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div>
+                        </div>
+                        <div className="bg-white border border-border p-4 rounded">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Win</div>
+                          <div className="text-sm font-bold font-mono text-brand-green">{fmt(m.avgWin)}</div>
+                        </div>
+                        <div className="bg-white border border-border p-4 rounded">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Loss</div>
+                          <div className="text-sm font-bold font-mono text-brand-red">{fmt(m.avgLoss)}</div>
+                        </div>
+                        <div className="bg-white border border-border p-4 rounded">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Hold</div>
+                          <div className="text-sm font-bold font-mono text-text-primary">{m.avgHoldDays.toFixed(1)}d</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Largest Win</div>
+                          <div className="text-sm font-mono font-semibold text-brand-green">{fmt(m.largestWin)}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Largest Loss</div>
+                          <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(m.largestLoss))}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Win Streak</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{m.winStreak}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Loss Streak</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{m.lossStreak}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Options</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'option').length}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Stocks</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'stock').length}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Strategies</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredByStrategy.length}</div>
+                        </div>
+                        <div className="bg-white border border-border p-2 text-center rounded">
+                          <div className="text-[9px] text-text-muted uppercase">Tickers</div>
+                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* P&L Calendar - 365 Day Heatmap */}
                 <div className="border-b border-border">
                   <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">

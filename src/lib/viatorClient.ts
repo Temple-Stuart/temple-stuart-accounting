@@ -151,6 +151,10 @@ function parseDurationMinutes(duration: string): number | null {
 }
 
 function normalizeV1Product(p: any): ViatorProduct {
+  console.log('[Viator V1] Raw product fields:', JSON.stringify({
+    code: p.code, productCode: p.productCode, webURL: p.webURL,
+    title: p.title?.substring(0, 50),
+  }));
   return {
     productCode: p.code || p.productCode || '',
     title: p.title || p.shortTitle || '',
@@ -173,6 +177,11 @@ function normalizeV1Product(p: any): ViatorProduct {
 // ─── V2 Response Normalizer ──────────────────────────────────────────────────
 
 function normalizeV2Product(p: any): ViatorProduct {
+  console.log('[Viator V2] Raw product fields:', JSON.stringify({
+    productCode: p.productCode, code: p.code, productUrl: p.productUrl,
+    title: p.title?.substring(0, 50),
+    allKeys: Object.keys(p).join(','),
+  }));
   const coverImage = p.images?.find((i: any) => i.isCover) || p.images?.[0];
   const photoVariant = coverImage?.variants
     ?.filter((v: any) => v.width >= 400)
@@ -469,6 +478,13 @@ export function viatorProductToRecommendation(
   const affiliateUrl = product.productCode
     ? buildAffiliateUrl(product.productCode)
     : product.productUrl || null;
+
+  console.log('[Viator] URL resolution:', JSON.stringify({
+    productCode: product.productCode,
+    productUrl: product.productUrl?.substring(0, 80),
+    affiliateUrl: affiliateUrl?.substring(0, 80),
+    title: product.title?.substring(0, 40),
+  }));
 
   return {
     name: product.title,
