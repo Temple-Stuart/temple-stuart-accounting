@@ -666,37 +666,46 @@ export default function TradingPage() {
             {activeTab !== 'market-intelligence' ? (
               <>
                 {/* Section 1: Title */}
-                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <span className="text-sm font-semibold text-text-primary">Trading Dashboard</span>
+                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <span className="text-sm text-text-primary">Trading Dashboard</span>
                 </div>
-                {/* Section 2: Trade counts */}
-                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                  <span className="text-xs text-text-muted">
-                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).totalTrades} trades
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).closedTrades} closed
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    {(activeTab === 'positions' ? reconciliationMetrics : filteredMetrics).openTrades} open
-                  </span>
+                {/* Section 2: Trade counts as pills */}
+                <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(() => { const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics; return (<>
+                      <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{m.totalTrades} trades</span>
+                      <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{m.closedTrades} closed</span>
+                      <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{m.openTrades} open</span>
+                    </>); })()}
+                  </div>
                 </div>
                 {/* Section 3: Date range */}
-                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] min-w-0">
+                <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
                   <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[130px] min-w-0" />
+                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
                   <span className="text-gray-300">—</span>
                   <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[130px] min-w-0" />
+                    className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
                   {(dateFrom || dateTo) && (
                     <button onClick={() => { setDateFrom(''); setDateTo(''); }}
                       className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
                   )}
                 </div>
+                {/* Section 4: Action button (matches TripCreationBar gold button) */}
+                <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
+                  Overview
+                </div>
               </>
             ) : (
-              <div className="flex items-center gap-2 px-4 py-3 flex-1">
-                <span className="text-sm font-semibold text-text-primary">Market Intelligence</span>
-                <span className="text-xs text-text-muted ml-2">Scanner filters integrated below</span>
-              </div>
+              <>
+                <div className="flex items-center gap-2 px-4 py-3 flex-1 min-w-0">
+                  <span className="text-sm text-text-primary">Market Intelligence</span>
+                  <span className="text-xs text-text-muted ml-2">Scanner filters integrated below</span>
+                </div>
+                <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
+                  Scanner
+                </div>
+              </>
             )}
           </div>
 
@@ -757,7 +766,9 @@ export default function TradingPage() {
                 {(() => {
                   const m = filteredMetrics;
                   return (
-                    <div className="p-4 border-b border-border">
+                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Performance Summary</div>
+                      <div className="bg-white p-4">
                       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-3">
                         <div className={`p-4 border rounded ${m.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
                           <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
@@ -819,13 +830,14 @@ export default function TradingPage() {
                           <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
                         </div>
                       </div>
+                      </div>
                     </div>
                   );
                 })()}
 
                 {/* P&L Calendar - 365 Day Heatmap */}
-                <div className="border-b border-border">
-                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                     <span>P&L Calendar</span>
                     <span className="text-xs text-text-faint">Last 365 days</span>
                   </div>
@@ -903,10 +915,10 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-                <div className="grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4 grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
                   {/* By Strategy */}
                   <div>
-                    <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
                       P&L by Strategy
                     </div>
                     <div className="max-h-64 overflow-y-auto">
@@ -938,7 +950,7 @@ export default function TradingPage() {
 
                   {/* By Ticker */}
                   <div>
-                    <div className="bg-brand-purple-hover text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
                       P&L by Ticker
                     </div>
                     <div className="max-h-64 overflow-y-auto">
@@ -970,14 +982,14 @@ export default function TradingPage() {
                 </div>
 
                 {/* Trade Journal */}
-                <div className="border-t border-border">
-                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold flex items-center justify-between">
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                     <span>Trade Journal</span>
                     <span className="text-xs text-text-faint">{filteredTrades.length} trades · {journalEntries.length} entries</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-brand-purple-hover text-white">
+                      <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Trade #</th>
                           <th className="px-3 py-2 text-left font-medium">Date</th>
@@ -1115,13 +1127,13 @@ export default function TradingPage() {
                       .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
                   }}
                 />
-                <div>
-                  <div className="bg-brand-purple text-white px-4 py-2 text-sm font-semibold">
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
+                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
                     Open Positions ({openPositions.length})
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-brand-purple-hover text-white">
+                      <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Trade #</th>
                           <th className="px-3 py-2 text-left font-medium">Opened</th>
