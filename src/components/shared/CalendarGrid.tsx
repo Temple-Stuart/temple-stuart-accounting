@@ -277,22 +277,29 @@ export default function CalendarGrid({
         </div>
       </div>
 
-      <div className="flex">
-        {/* Category legend sidebar */}
-        {showCategoryLegend && (
-          <div className="w-44 border-r border-border p-3 bg-bg-row/30 hidden sm:block">
-            <div className="space-y-0.5">
-              {Object.entries(sourceConfig).map(([source, config]) => (
-                <label key={source} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-bg-row transition-colors">
-                  <input type="checkbox" checked={visibleCategories[source] !== false} onChange={e => setVisibleCategories(prev => ({ ...prev, [source]: e.target.checked }))} className="sr-only" />
-                  <div className={`w-3 h-3 rounded-sm transition-colors ${visibleCategories[source] !== false ? (config.badge || config.dot) : 'bg-border'}`} />
-                  <span className={`text-sm transition-colors ${visibleCategories[source] !== false ? 'text-text-secondary font-medium' : 'text-text-faint'}`}>{config.label}</span>
-                </label>
-              ))}
-            </div>
+      {/* Compact horizontal legend — only categories with events, deduplicated */}
+      {showCategoryLegend && (() => {
+        const activeSources = new Set(events.map(e => e.source));
+        const seen = new Set<string>();
+        const legendItems = Object.entries(sourceConfig).filter(([source, config]) => {
+          if (!activeSources.has(source)) return false;
+          if (seen.has(config.label)) return false;
+          seen.add(config.label);
+          return true;
+        });
+        return legendItems.length > 0 ? (
+          <div className="px-4 py-2 border-b border-border flex flex-wrap gap-x-4 gap-y-1">
+            {legendItems.map(([source, config]) => (
+              <label key={source} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setVisibleCategories(prev => ({ ...prev, [source]: prev[source] === false ? true : false }))}>
+                <div className={`w-2.5 h-2.5 rounded-sm ${visibleCategories[source] !== false ? (config.badge || config.dot) : 'bg-border'}`} />
+                <span className={`text-xs ${visibleCategories[source] !== false ? 'text-text-secondary' : 'text-text-faint line-through'}`}>{config.label}</span>
+              </label>
+            ))}
           </div>
-        )}
+        ) : null;
+      })()}
 
+      <div className="flex">
         {/* Calendar body */}
         <div className="flex-1 min-w-0">
           {calendarView === 'week' ? (

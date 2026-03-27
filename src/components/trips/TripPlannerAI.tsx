@@ -379,7 +379,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
     const categoriesToScan: ScanCategory[] = activeCoaKeys.map(key => ({
       key,
       label: TRAVEL_COA[key]?.label || key,
-      maxResults: key === 'accommodation' ? 10 : 5,
+      maxResults: 33,
     }));
 
     setTotalCategories(categoriesToScan.length);

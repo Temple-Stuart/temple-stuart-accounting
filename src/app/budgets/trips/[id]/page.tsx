@@ -900,22 +900,48 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* ── Destinations (add/manage) ── */}
+            {/* ── Trip Planner & Budget (with integrated destination selector) ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Destinations</h2>
-              <DestinationSelector
-                activity={trip.activity}
-                tripId={id}
-                selectedDestinations={destinations}
-                onDestinationsChange={loadDestinations}
-                selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
-                onSelectDestination={selectDestination}
-              />
-            </div>
-
-            {/* ── Trip Planner & Budget ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Trip Planner &amp; Budget</h2>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-4">
+                <h2 className="text-sm font-semibold text-gray-700">Trip Planner &amp; Budget</h2>
+              </div>
+              {/* Destination pills — select scan target */}
+              {destinations.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <span className="text-xs text-gray-500">Scan:</span>
+                  {destinations.map((d: any) => {
+                    const name = d.name || d.resort?.name || '';
+                    const isActive = name === trip.destination;
+                    return (
+                      <button key={d.id} type="button" onClick={() => selectDestination(d.resortId, name)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isActive ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {name}
+                      </button>
+                    );
+                  })}
+                  <DestinationSelector
+                    activity={trip.activity}
+                    tripId={id}
+                    selectedDestinations={destinations}
+                    onDestinationsChange={loadDestinations}
+                    selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
+                    onSelectDestination={selectDestination}
+                    compact
+                  />
+                </div>
+              )}
+              {destinations.length === 0 && (
+                <div className="mb-4">
+                  <DestinationSelector
+                    activity={trip.activity}
+                    tripId={id}
+                    selectedDestinations={destinations}
+                    onDestinationsChange={loadDestinations}
+                    selectedDestinationId={undefined}
+                    onSelectDestination={selectDestination}
+                  />
+                </div>
+              )}
               {(() => {
                 const selectedDest = destinations.find((d: any) => d.resort?.name === trip.destination);
                 return (

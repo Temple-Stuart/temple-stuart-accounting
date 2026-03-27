@@ -47,6 +47,7 @@ interface Props {
   onDestinationsChange: () => void;
   selectedDestinationId?: string | null;
   onSelectDestination?: (resortId: string, resortName: string) => void;
+  compact?: boolean;
 }
 
 const ACTIVITY_COLUMNS: Record<string, { key: string; label: string; align: string; format: (r: Resort) => string }[]> = {
@@ -106,13 +107,14 @@ const ACTIVITY_COLUMNS: Record<string, { key: string; label: string; align: stri
   ],
 };
 
-export default function DestinationSelector({ 
-  tripId, 
-  activity, 
-  selectedDestinations, 
+export default function DestinationSelector({
+  tripId,
+  activity,
+  selectedDestinations,
   onDestinationsChange,
   selectedDestinationId,
-  onSelectDestination 
+  onSelectDestination,
+  compact = false,
 }: Props) {
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [grouped, setGrouped] = useState<Record<string, Record<string, Resort[]>>>({});
@@ -183,6 +185,35 @@ export default function DestinationSelector({
         r.region?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
+
+  // Compact mode: just the "+ Add" button with inline picker
+  if (compact) {
+    return (
+      <div className="inline-block relative">
+        <button onClick={() => setShowPicker(!showPicker)}
+          className="text-xs text-brand-purple hover:text-brand-purple-hover font-medium">
+          + Add
+        </button>
+        {showPicker && (
+          <div className="absolute top-8 left-0 z-50 bg-white rounded-lg border border-gray-200 shadow-lg p-4 w-80">
+            <input type="text" placeholder="Search destinations..." value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-border rounded px-3 py-2 text-text-primary text-sm mb-3" autoFocus />
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {(searchQuery ? filteredResorts : resorts.slice(0, 30)).map(resort => (
+                <button key={resort.id} onClick={() => { if (!isSelected(resort.id)) { addDestination(resort.id); } setSearchQuery(''); setShowPicker(false); }}
+                  disabled={isSelected(resort.id)}
+                  className={`w-full text-left px-3 py-1.5 rounded text-sm ${isSelected(resort.id) ? 'bg-gray-100 text-gray-400' : 'hover:bg-gray-50 text-gray-700'}`}>
+                  {resort.name} <span className="text-gray-400 text-xs">{resort.country}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setShowPicker(false); setSearchQuery(''); }} className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700">Close</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
