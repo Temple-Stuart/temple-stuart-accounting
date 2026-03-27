@@ -253,21 +253,22 @@ export function getCOAScanQueries(coaKey: string, userInterests: string[]): stri
   return queries;
 }
 
-/** Which COA categories should be scanned based on user interests and trip type */
+/** Which COA categories should be scanned based on trip type.
+ *  User interests still drive which ACTIVITY_SEARCH_EXPANSIONS queries
+ *  get added within each category, but they don't gate whether a
+ *  category is searched at all. */
 export function getActiveScanCategories(userInterests: string[], tripType: string): string[] {
   const active: string[] = [];
 
   for (const [key, cat] of Object.entries(TRAVEL_COA)) {
-    // Always scan these
-    if (cat.alwaysScan) { active.push(key); continue; }
-    // Flights handled by Duffel / manual — never auto-scanned
+    // Skip flights — handled by Duffel/manual
     if (key === 'flights') continue;
-    // Business meals only for business/mixed trips
-    if (key === 'business_meals' && (tripType === 'business' || tripType === 'mixed')) { active.push(key); continue; }
-    // Communication and insurance — no scan needed
+    // Skip communication and insurance — no scannable results
     if (key === 'communication' || key === 'insurance_fees') continue;
-    // Interest-driven categories — scan if user has at least one interest in this category
-    if (cat.interestSlugs && cat.interestSlugs.some(s => userInterests.includes(s))) { active.push(key); continue; }
+    // Skip business meals unless business/mixed trip
+    if (key === 'business_meals' && tripType !== 'business' && tripType !== 'mixed') continue;
+    // Everything else gets scanned
+    active.push(key);
   }
 
   return active;
