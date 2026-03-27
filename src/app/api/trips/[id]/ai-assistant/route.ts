@@ -172,7 +172,7 @@ export async function POST(
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
     }
 
-    const maxResults = rawMaxResults || (category === 'lodging' || category === 'accommodation' ? 10 : 5);
+    const maxResults = rawMaxResults || 33;
     const { id: tripId } = await params;
 
     // Load ALL participants to build combined profile
@@ -327,7 +327,9 @@ export async function POST(
       enriched = await getCachedPlaces(city, country, category);
       console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
     } else {
-      const googlePlacesType = TRAVEL_COA[category]?.googlePlacesType || undefined;
+      // Only apply Google Places type filter for accommodation and dinner — too restrictive for other categories
+      const typeFilterCategories = new Set(['accommodation', 'dinner']);
+      const googlePlacesType = typeFilterCategories.has(category) ? TRAVEL_COA[category]?.googlePlacesType || undefined : undefined;
       console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries${googlePlacesType ? ` (type=${googlePlacesType})` : ''}`);
       const places = await searchPlacesMultiQuery(queries, city, country, 60, googlePlacesType as string | undefined);
       enriched = await enrichPlaceDetails(places);

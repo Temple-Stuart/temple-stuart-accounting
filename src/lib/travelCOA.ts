@@ -229,7 +229,9 @@ export function interestToCOA(slug: string): string {
   return 'arts_culture'; // default fallback
 }
 
-/** Get all scan queries for a COA category, expanding active user interests */
+/** Get all scan queries for a COA category, expanding active user interests.
+ *  Falls back to generating queries from the category label if no specific
+ *  queries or interest expansions are available. */
 export function getCOAScanQueries(coaKey: string, userInterests: string[]): string[] {
   const cat = TRAVEL_COA[coaKey];
   if (!cat) return [];
@@ -248,6 +250,11 @@ export function getCOAScanQueries(coaKey: string, userInterests: string[]): stri
         }
       }
     }
+  }
+
+  // Fallback: generate a generic query from the category label
+  if (queries.length === 0) {
+    queries.push(cat.label.toLowerCase());
   }
 
   return queries;
@@ -303,32 +310,20 @@ export function coaCodeToLabel(code: string): string {
 
 // ─── Calendar Source Config (derived from COA) ───────────────────────────────
 
-/** Build TRIP_SOURCE_CONFIG for CalendarGrid from TRAVEL_COA */
+/** Build TRIP_SOURCE_CONFIG for CalendarGrid from TRAVEL_COA.
+ *  Returns both COA keys and backward-compat aliases for event matching. */
 export function buildCalendarSourceConfig(): Record<string, { label: string; icon: string; bg: string; dot: string; badge: string }> {
   const config: Record<string, { label: string; icon: string; bg: string; dot: string; badge: string }> = {};
 
-  // Map COA keys to calendar source keys (some need aliases for backward compat)
-  const COA_TO_SOURCE: Record<string, string[]> = {
-    flights: ['flight'],
-    accommodation: ['lodging'],
-    brunch_coffee: ['brunchCoffee'],
-    dinner: ['dinner'],
-    business_meals: ['business_meals'],
-    sports_fitness: ['activities', 'activity'],
-    arts_culture: ['arts_culture'],
-    nightlife: ['nightlife'],
-    festivals: ['festivals'],
-    conferences: ['conferences'],
-    coworking: ['coworking'],
-    ground_transport: ['transfer', 'vehicle'],
-    wellness: ['wellness'],
-    shopping: ['toiletries', 'shopping'],
-    bucket_list: ['bucket_list'],
-    communication: ['communication'],
-    insurance_fees: ['insurance_fees'],
+  // Backward-compat aliases: map old event source keys to COA categories
+  const ALIASES: Record<string, string> = {
+    flight: 'flights', lodging: 'accommodation', brunchCoffee: 'brunch_coffee',
+    activities: 'sports_fitness', activity: 'sports_fitness',
+    transfer: 'ground_transport', vehicle: 'ground_transport',
+    toiletries: 'shopping',
   };
 
-  // Icon mapping (plain text icons for calendar)
+  // Icon mapping
   const ICONS: Record<string, string> = {
     flights: '✈️', accommodation: '🏨', brunch_coffee: '☕', dinner: '🍽️',
     business_meals: '💼', sports_fitness: '🏄', arts_culture: '🎨',
@@ -337,11 +332,16 @@ export function buildCalendarSourceConfig(): Record<string, { label: string; ico
     bucket_list: '🌋', communication: '📱', insurance_fees: '🛡️',
   };
 
+  // Add primary COA entries
   for (const [coaKey, cat] of Object.entries(TRAVEL_COA)) {
-    const sourceKeys = COA_TO_SOURCE[coaKey] || [coaKey];
     const icon = ICONS[coaKey] || '';
-    for (const sk of sourceKeys) {
-      config[sk] = { label: cat.label, icon, bg: cat.bg, dot: cat.dot, badge: cat.badge };
+    config[coaKey] = { label: cat.label, icon, bg: cat.bg, dot: cat.dot, badge: cat.badge };
+  }
+
+  // Add backward-compat aliases (point to same visual config, won't appear in legend twice)
+  for (const [alias, coaKey] of Object.entries(ALIASES)) {
+    if (!config[alias] && config[coaKey]) {
+      config[alias] = config[coaKey];
     }
   }
 
