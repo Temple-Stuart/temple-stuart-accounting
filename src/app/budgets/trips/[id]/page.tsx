@@ -133,6 +133,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [destinations, setDestinations] = useState<any[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<Record<string, { category?: string; imageUrl?: string; title?: string }>>({});
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -177,7 +178,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
-  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
+  useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
 
   // Derive origin airport from current user's participant record
   useEffect(() => {
@@ -216,6 +217,29 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const res = await fetch(`/api/trips/${id}/destinations`);
       if (res.ok) { const data = await res.json(); setDestinations(data.destinations || []); }
     } catch (err) { console.error('Failed to load destinations:', err); }
+  };
+
+  const loadVendorOptions = async () => {
+    try {
+      const [actRes, lodgRes] = await Promise.all([
+        fetch(`/api/trips/${id}/activities`),
+        fetch(`/api/trips/${id}/lodging`),
+      ]);
+      const map: Record<string, { category?: string; imageUrl?: string; title?: string }> = {};
+      if (actRes.ok) {
+        const data = await actRes.json();
+        for (const opt of (data.options || data.activities || [])) {
+          map[opt.id] = { category: opt.category, imageUrl: opt.image_url || opt.imageUrl, title: opt.title };
+        }
+      }
+      if (lodgRes.ok) {
+        const data = await lodgRes.json();
+        for (const opt of (data.options || data.lodging || [])) {
+          map[opt.id] = { category: 'lodging', imageUrl: opt.image_url || opt.imageUrl, title: opt.title };
+        }
+      }
+      setVendorOptions(map);
+    } catch (err) { console.error('Failed to load vendor options:', err); }
   };
 
   // Derive destination airport from loaded destination data
@@ -481,6 +505,190 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="space-y-4">
 
+            {/* ── Map with Lodging & Dining sidebars ── */}
+            {(() => {
+              const itinerary = trip.itinerary || [];
+              const DINING_CATEGORIES = new Set(['dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food']);
+
+              // Resolve each itinerary item's true category from vendorOptions lookup
+              const resolvedItems = itinerary.map((item: any) => {
+                const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
+                return {
+                  ...item,
+                  resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '',
+                  imageUrl: optInfo?.imageUrl || null,
+                };
+              });
+
+              const lodgingItems = resolvedItems.filter((item: any) =>
+                item.resolvedCategory === 'lodging' || item.vendorOptionType === 'lodging'
+              );
+              const diningItems = resolvedItems.filter((item: any) =>
+                DINING_CATEGORIES.has(item.resolvedCategory) ||
+                DINING_CATEGORIES.has(item.vendorOptionType) ||
+                DINING_CATEGORIES.has(item.category)
+              );
+
+              // Deduplicate lodging by vendorOptionId (multi-day creates multiple entries)
+              const uniqueLodging = Object.values(
+                lodgingItems.reduce((acc: Record<string, any>, item: any) => {
+                  const key = item.vendorOptionId || item.id;
+                  if (!acc[key]) acc[key] = { ...item, nightCount: 1 };
+                  else acc[key].nightCount++;
+                  return acc;
+                }, {})
+              ) as any[];
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  {/* Left — Lodging */}
+                  <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
+                    </div>
+                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
+                      {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
+                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-purple-200 transition-colors">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                          ) : null}
+                          <div className={`w-full h-[120px] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                            <span className="text-3xl text-blue-300">🏨</span>
+                          </div>
+                          <div className="p-3">
+                            <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                              {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                              {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
+                            </div>
+                            {item.homeDate && (
+                              <div className="text-[10px] text-gray-400 mt-1">
+                                {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                {item.nightCount > 1 && ' onwards'}
+                              </div>
+                            )}
+                            <div className="mt-1.5">
+                              <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-400">
+                          <p className="text-xs">No lodging booked yet.</p>
+                          <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Center — Map */}
+                  <div className="relative">
+                    <DestinationMap
+                      destinations={destinations}
+                      selectedName={trip.destination}
+                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
+                      height="500px"
+                    />
+                  </div>
+
+                  {/* Right — Dining */}
+                  <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
+                    </div>
+                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
+                      {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
+                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-red-200 transition-colors">
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                          ) : null}
+                          <div className={`w-full h-[120px] bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                            <span className="text-3xl text-red-300">🍽️</span>
+                          </div>
+                          <div className="p-3">
+                            <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                              {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                              {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
+                            </div>
+                            {item.homeDate && (
+                              <div className="text-[10px] text-gray-400 mt-1">
+                                {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </div>
+                            )}
+                            <div className="mt-1.5">
+                              <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                            </div>
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-8 text-gray-400">
+                          <p className="text-xs">No restaurants booked yet.</p>
+                          <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Committed Budget ── */}
+            {committedBudgetItems.length > 0 && (() => {
+              const toggleSort = (col: 'category' | 'item' | 'amount') => {
+                setBudgetSort(prev => ({
+                  col,
+                  dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc',
+                }));
+              };
+              const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+              const sorted = [...committedBudgetItems].sort((a, b) => {
+                const dir = budgetSort.dir === 'asc' ? 1 : -1;
+                if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
+                if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
+                return (a.amount - b.amount) * dir;
+              });
+              let lastCategory = '';
+
+              return (
+                <div className="bg-white rounded-lg border border-gray-200">
+                  <div className="p-4 border-b border-gray-200">
+                    <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
+                          <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
+                          <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {sorted.map((item, idx) => {
+                          const showCategory = item.category !== lastCategory;
+                          lastCategory = item.category;
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
+                              <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
+                              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t border-gray-200">
+                        <tr>
+                          <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Itinerary Calendar (primary view) ── */}
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -554,172 +762,6 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
                 </div>
               )}
-            </div>
-
-            {/* ── Committed Budget ── */}
-            {committedBudgetItems.length > 0 && (() => {
-              const toggleSort = (col: 'category' | 'item' | 'amount') => {
-                setBudgetSort(prev => ({
-                  col,
-                  dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc',
-                }));
-              };
-              const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-              const sorted = [...committedBudgetItems].sort((a, b) => {
-                const dir = budgetSort.dir === 'asc' ? 1 : -1;
-                if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
-                if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
-                return (a.amount - b.amount) * dir;
-              });
-              // Group by category — show category only on first row of each group
-              let lastCategory = '';
-
-              return (
-                <div className="bg-white rounded-lg border border-gray-200">
-                  <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-sm font-semibold text-gray-700">Committed Budget</h2>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
-                          <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
-                          <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {sorted.map((item, idx) => {
-                          const showCategory = item.category !== lastCategory;
-                          lastCategory = item.category;
-                          return (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
-                              <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
-                              <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot className="bg-gray-50 border-t border-gray-200">
-                        <tr>
-                          <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
-                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Map with Lodging & Dining sidebars ── */}
-            {(() => {
-              const itinerary = trip.itinerary || [];
-              const lodgingItems = itinerary.filter((item: any) => (item.vendorOptionType || item.category) === 'lodging');
-              const diningItems = itinerary.filter((item: any) => {
-                const cat = item.vendorOptionType || item.category || '';
-                return cat === 'dinner' || cat === 'brunchCoffee';
-              });
-              // Deduplicate by vendorOptionId (multi-day lodging creates multiple entries)
-              const uniqueLodging = Object.values(
-                lodgingItems.reduce((acc: Record<string, any>, item: any) => {
-                  const key = item.vendorOptionId || item.id;
-                  if (!acc[key]) acc[key] = { ...item, nightCount: 1 };
-                  else acc[key].nightCount++;
-                  return acc;
-                }, {})
-              ) as any[];
-
-              return (
-                <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0 lg:gap-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {/* Left — Lodging */}
-                  <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
-                    </div>
-                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
-                      {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
-                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg p-3 hover:border-purple-200 transition-colors">
-                          <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                            {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                            {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
-                          </div>
-                          {item.homeDate && (
-                            <div className="text-[10px] text-gray-400 mt-1">
-                              {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              {item.nightCount > 1 && ' onwards'}
-                            </div>
-                          )}
-                          <div className="mt-1.5">
-                            <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="text-center py-8 text-gray-400">
-                          <p className="text-xs">No lodging booked yet.</p>
-                          <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Center — Map */}
-                  <div className="relative">
-                    <DestinationMap
-                      destinations={destinations}
-                      selectedName={trip.destination}
-                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
-                      height="500px"
-                    />
-                  </div>
-
-                  {/* Right — Dining */}
-                  <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
-                    </div>
-                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
-                      {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
-                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg p-3 hover:border-red-200 transition-colors">
-                          <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                            {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                            {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
-                          </div>
-                          {item.homeDate && (
-                            <div className="text-[10px] text-gray-400 mt-1">
-                              {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </div>
-                          )}
-                          <div className="mt-1.5">
-                            <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                          </div>
-                        </div>
-                      )) : (
-                        <div className="text-center py-8 text-gray-400">
-                          <p className="text-xs">No restaurants booked yet.</p>
-                          <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── Destinations (add/manage) ── */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Destinations</h2>
-              <DestinationSelector
-                activity={trip.activity}
-                tripId={id}
-                selectedDestinations={destinations}
-                onDestinationsChange={loadDestinations}
-                selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
-                onSelectDestination={selectDestination}
-              />
             </div>
 
             {/* ── Crew & Profiles ── */}
@@ -808,10 +850,23 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                   departureDate={tripDates.departure}
                   returnDate={tripDates.return}
                   passengers={confirmedParticipants.length || 1}
-                  onCommitted={() => { loadTrip(); loadBudgetItems(); }}
+                  onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); }}
                 />
               </div>
             )}
+
+            {/* ── Destinations (add/manage) ── */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h2 className="text-sm font-semibold text-gray-700 border-b border-gray-200 pb-2 mb-4">Destinations</h2>
+              <DestinationSelector
+                activity={trip.activity}
+                tripId={id}
+                selectedDestinations={destinations}
+                onDestinationsChange={loadDestinations}
+                selectedDestinationId={destinations.find((d: any) => d.resort?.name === trip.destination)?.resortId}
+                onSelectDestination={selectDestination}
+              />
+            </div>
 
             {/* ── Trip Planner & Budget ── */}
             <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -853,7 +908,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       };
                     })()}
                     tripDates={tripDates}
-                    onCommitted={() => { loadTrip(); loadBudgetItems(); }}
+                    onCommitted={() => { loadTrip(); loadBudgetItems(); loadVendorOptions(); }}
                   />
                 )
               );
