@@ -125,6 +125,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [vendorOptions, setVendorOptions] = useState<Record<string, { category?: string; imageUrl?: string; title?: string }>>({});
   const [scannerResults, setScannerResults] = useState<any[]>([]);
   const [viatorCategoryFilter, setViatorCategoryFilter] = useState<string | null>(null);
+  const [viatorDestFilter, setViatorDestFilter] = useState<string | null>(null);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -586,8 +587,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               ) as any[];
 
               const renderScrollRow = (title: string, items: any[], emptyText: string, placeholderLabel: string, gradientFrom: string, gradientTo: string) => (
-                <div className="rounded-lg overflow-hidden border border-gray-200">
-                  <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">{title} <span className="font-normal opacity-70">({items.length})</span></div>
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                  <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 text-sm font-semibold tracking-wide shadow-sm">{title} <span className="font-normal opacity-70">({items.length})</span></div>
                   {items.length > 0 ? (
                     <div className="overflow-x-auto bg-white p-3" style={{ scrollSnapType: 'x mandatory' }}>
                       <div className="flex gap-3">
@@ -630,7 +631,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               return (
                 <>
                   {/* Full-width Map */}
-                  <div className="rounded-lg overflow-hidden border border-gray-200">
+                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
                     <DestinationMap
                       destinations={destinations}
                       selectedName={trip.destination}
@@ -664,8 +665,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               let lastCategory = '';
 
               return (
-                <div className="rounded-lg overflow-hidden border border-gray-200">
-                  <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Committed Budget</div>
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                  <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 text-sm font-semibold tracking-wide shadow-sm">Committed Budget</div>
                   <div className="overflow-x-auto bg-white">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50">
@@ -701,8 +702,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             })()}
 
             {/* ── Itinerary Calendar (primary view) ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200">
-              <div className="bg-brand-purple-deep text-white px-4 py-2 flex items-center justify-between">
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 flex items-center justify-between shadow-sm">
                 <h2 className="text-sm font-semibold">Itinerary</h2>
                 <button onClick={() => setShowExpenseForm(!showExpenseForm)}
                   className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 text-white rounded font-medium">
@@ -776,7 +777,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* ── Crew & Profiles ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200">
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
               <div className="bg-brand-purple-deep text-white px-4 py-2 flex justify-between items-center">
                 <h2 className="text-sm font-semibold">Crew ({participants.length})</h2>
                 <span className="text-xs opacity-70">
@@ -853,8 +854,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
             {/* ── Flights ── */}
             {tripDates && trip.destination && (
-              <div className="rounded-lg overflow-hidden border border-gray-200">
-                <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Flights</div>
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 text-sm font-semibold tracking-wide shadow-sm">Flights</div>
                 <div className="bg-white p-4">
                 <FlightPicker
                   tripId={id}
@@ -874,24 +875,45 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {(() => {
               const VIATOR_CATS = new Set(['sports_fitness', 'arts_culture', 'nightlife', 'festivals', 'wellness', 'bucket_list', 'ground_transport']);
               const viatorResults = scannerResults.filter((r: any) => VIATOR_CATS.has(r.category));
-              const allRecs = viatorResults.flatMap((r: any) => (r.recommendations || []).map((rec: any) => ({ ...rec, _scanCategory: r.category })));
+              const allRecs = viatorResults.flatMap((r: any) => (r.recommendations || []).map((rec: any) => ({ ...rec, _scanCategory: r.category, _scanDest: r.destination })));
               const viatorCats = [...new Set(viatorResults.map((r: any) => r.category))];
-              const filteredRecs = viatorCategoryFilter ? allRecs.filter((r: any) => r._scanCategory === viatorCategoryFilter) : allRecs;
+              const viatorDests = [...new Set(viatorResults.map((r: any) => r.destination).filter(Boolean))];
+              let filteredRecs = allRecs;
+              if (viatorDestFilter) filteredRecs = filteredRecs.filter((r: any) => r._scanDest === viatorDestFilter);
+              if (viatorCategoryFilter) filteredRecs = filteredRecs.filter((r: any) => r._scanCategory === viatorCategoryFilter);
               const COA_LABELS: Record<string, string> = { sports_fitness: 'Sports & Fitness', arts_culture: 'Arts & Culture', nightlife: 'Nightlife', festivals: 'Festivals', wellness: 'Wellness', bucket_list: 'Bucket List', ground_transport: 'Transport' };
 
+              const fmtDuration = (mins: number) => mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}` : `${mins}m`;
+
               return (
-                <div className="rounded-lg overflow-hidden border border-gray-200">
-                  <div className="bg-brand-purple-deep text-white px-4 py-2 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold">Bookable Experiences</h2>
+                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                  <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 flex items-center justify-between shadow-sm">
+                    <h2 className="text-sm font-semibold tracking-wide">Bookable Experiences</h2>
                     <span className="text-[10px] opacity-60">via Viator</span>
                   </div>
-                  <div className="bg-white">
+                  <div className="bg-white rounded-b-lg">
                     {viatorCats.length > 0 ? (
                       <>
-                        <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+                        {/* Destination filter */}
+                        {viatorDests.length > 1 && (
+                          <div className="px-4 pt-3 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] text-gray-400 mr-1">Scan:</span>
+                            {viatorDests.map(dest => {
+                              const label = dest.split(',')[0].trim();
+                              return (
+                                <button key={dest} onClick={() => setViatorDestFilter(viatorDestFilter === dest ? null : dest)}
+                                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${viatorDestFilter === dest ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Category filter */}
+                        <div className="px-4 pt-2 pb-2 flex flex-wrap gap-1.5">
                           <button onClick={() => setViatorCategoryFilter(null)}
                             className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${!viatorCategoryFilter ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                            All ({allRecs.length})
+                            All ({filteredRecs.length})
                           </button>
                           {viatorCats.map(cat => (
                             <button key={cat} onClick={() => setViatorCategoryFilter(viatorCategoryFilter === cat ? null : cat)}
@@ -900,40 +922,40 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                             </button>
                           ))}
                         </div>
+                        {/* Cards */}
                         <div className="overflow-x-auto px-4 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
                           <div className="flex gap-3">
-                            {filteredRecs.slice(0, 50).map((rec: any, idx: number) => (
-                              <div key={rec.viatorProductCode || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
-                                {rec.photoUrl ? (
-                                  <img src={rec.photoUrl} alt={rec.name || ''} className="w-full h-[140px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                                ) : null}
-                                <div className={`w-full h-[140px] bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
-                                  <span className="text-sm font-medium text-purple-300">EXPERIENCE</span>
+                            {filteredRecs.slice(0, 50).map((rec: any, idx: number) => {
+                              const destCity = rec._scanDest ? rec._scanDest.split(',')[0].trim() : '';
+                              return (
+                                <div key={rec.viatorProductCode || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white" style={{ scrollSnapAlign: 'start' }}>
+                                  {rec.photoUrl ? (
+                                    <img src={rec.photoUrl} alt={rec.name || ''} className="w-full h-[140px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                                  ) : null}
+                                  <div className={`w-full h-[140px] bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center ${rec.photoUrl ? 'hidden' : ''}`}>
+                                    <span className="text-sm font-medium text-purple-300">EXPERIENCE</span>
+                                  </div>
+                                  <div className="p-3 space-y-1.5">
+                                    <div className="font-medium text-xs text-gray-900 line-clamp-2 leading-snug">{rec.name}</div>
+                                    <div className="text-[11px] font-semibold text-emerald-700">
+                                      {rec.price != null ? `From $${rec.price}/person` : 'See pricing'}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                                      {rec.durationMinutes != null && <span>{fmtDuration(rec.durationMinutes)}</span>}
+                                      {rec.durationMinutes != null && destCity && <span>·</span>}
+                                      {destCity && <span>{destCity}</span>}
+                                    </div>
+                                    <div className="text-[11px] text-gray-500">
+                                      {rec.googleRating} ({rec.reviewCount})
+                                    </div>
+                                    <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
+                                      className="block text-center px-3 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded mt-1">
+                                      Book
+                                    </a>
+                                  </div>
                                 </div>
-                                <div className="p-3">
-                                  <div className="font-medium text-xs text-gray-900 line-clamp-2 leading-snug">{rec.name}</div>
-                                  <div className="flex items-center gap-2 mt-1.5 text-[11px]">
-                                    {rec.price != null && <span className="font-semibold text-emerald-700">From ${rec.price}</span>}
-                                    {rec.durationMinutes != null && (
-                                      <span className="text-gray-400">
-                                        {rec.durationMinutes >= 60 ? `${Math.floor(rec.durationMinutes / 60)}h${rec.durationMinutes % 60 ? ` ${rec.durationMinutes % 60}m` : ''}` : `${rec.durationMinutes}m`}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-500">
-                                    <span>{rec.googleRating} ({rec.reviewCount})</span>
-                                  </div>
-                                  <div className="mt-2">
-                                    {(rec.bookingUrl || rec.website) ? (
-                                      <a href={rec.bookingUrl || rec.website} target="_blank" rel="noopener noreferrer"
-                                        className="block text-center px-3 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
-                                        Book
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       </>
@@ -948,8 +970,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             })()}
 
             {/* ── Trip Planner & Budget (with integrated destination selector) ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200">
-              <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Trip Planner &amp; Budget</div>
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 text-sm font-semibold tracking-wide shadow-sm">Trip Planner &amp; Budget</div>
               <div className="bg-white p-4">
               {/* Destination pills — select scan target */}
               {destinations.length > 0 && (
@@ -1034,8 +1056,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             </div>
 
             {/* ── Commit to Ledger ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200">
-              <div className="bg-brand-purple-deep text-white px-4 py-2 text-sm font-semibold">Commit to Ledger</div>
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-gradient-to-r from-[#2d1b4e] to-[#3d2b5e] text-white px-5 py-3 text-sm font-semibold tracking-wide shadow-sm">Commit to Ledger</div>
               <div className="bg-white p-4">
               {trip.committedAt ? (
                 <div className="text-center py-4">
