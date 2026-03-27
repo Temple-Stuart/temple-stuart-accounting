@@ -6,6 +6,7 @@ import { searchPlacesMultiQuery, CATEGORY_SEARCHES, formatPriceLevel } from '@/l
 import { getCachedPlaces, cachePlaces, isCacheFresh } from '@/lib/placesCache';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ACTIVITY_SEARCH_EXPANSIONS, ACTIVITY_LABELS } from '@/lib/activities';
+import { TRAVEL_COA, getCOAScanQueries } from '@/lib/travelCOA';
 
 // Trip-type focused profile
 interface TravelerProfile {
@@ -163,14 +164,15 @@ export async function POST(
       return NextResponse.json({ error: 'City and country required' }, { status: 400 });
     }
 
-    // Accept legacy CATEGORY_SEARCHES keys OR interest slugs from ACTIVITY_SEARCH_EXPANSIONS
+    // Accept COA keys, legacy CATEGORY_SEARCHES keys, or interest slugs
+    const isCOACategory = !!TRAVEL_COA[category];
     const isLegacyCategory = !!CATEGORY_SEARCHES[category];
     const isInterestCategory = !!ACTIVITY_SEARCH_EXPANSIONS[category];
-    if (!category || (!isLegacyCategory && !isInterestCategory)) {
+    if (!category || (!isCOACategory && !isLegacyCategory && !isInterestCategory)) {
       return NextResponse.json({ error: 'Valid category required' }, { status: 400 });
     }
 
-    const maxResults = rawMaxResults || (category === 'lodging' ? 10 : 5);
+    const maxResults = rawMaxResults || (category === 'lodging' || category === 'accommodation' ? 10 : 5);
     const { id: tripId } = await params;
 
     // Load ALL participants to build combined profile
@@ -241,12 +243,35 @@ export async function POST(
     // ─── Build search queries ────────────────────────────────────────────────
     let queries: string[] = [];
 
-    if (isLegacyCategory) {
+    if (isCOACategory) {
+      // COA-driven queries — expands interest slugs automatically
+      queries = getCOAScanQueries(category, allActivities);
+
+      if (category === 'accommodation') {
+        // Customize lodging queries based on trip type
+        if (travelerProfile.tripType === 'family' || anyFamily) {
+          queries = ['family hotel resort apartment', ...queries];
+        } else if (travelerProfile.tripType === 'romantic') {
+          queries = ['boutique hotel romantic resort', ...queries];
+        } else if (travelerProfile.tripType === 'solo') {
+          queries = ['hostel guesthouse budget hotel', ...queries];
+        } else if (travelerProfile.tripType === 'friends') {
+          queries = ['villa apartment hostel group accommodation', ...queries];
+        } else if (travelerProfile.tripType === 'remote_work') {
+          queries = ['hotel coworking coliving digital nomad', ...queries];
+        }
+
+        // Add budget-specific lodging keywords
+        const budgetKw = BUDGET_LODGING_KEYWORDS[travelerProfile.budget];
+        if (budgetKw && !queries.some(q => q.includes(budgetKw.split(' ')[0]))) {
+          queries.push(budgetKw);
+        }
+      }
+    } else if (isLegacyCategory) {
       // Legacy category: lodging, brunchCoffee, dinner, activities, etc.
       queries = [...CATEGORY_SEARCHES[category].queries];
 
       if (category === 'lodging') {
-        // Customize lodging queries based on trip type
         if (travelerProfile.tripType === 'family' || anyFamily) {
           queries = ['family hotel resort apartment'];
         } else if (travelerProfile.tripType === 'romantic') {
@@ -258,15 +283,12 @@ export async function POST(
         } else if (travelerProfile.tripType === 'remote_work') {
           queries = ['hotel coworking coliving digital nomad'];
         }
-
-        // Add budget-specific lodging keywords
         const budgetKw = BUDGET_LODGING_KEYWORDS[travelerProfile.budget];
         if (budgetKw && !queries.some(q => q.includes(budgetKw.split(' ')[0]))) {
           queries.push(budgetKw);
         }
       }
 
-      // Expand queries based on combined participant interests (legacy behavior)
       for (const act of allActivities) {
         const expansions = ACTIVITY_SEARCH_EXPANSIONS[act];
         if (!expansions) continue;
@@ -284,7 +306,6 @@ export async function POST(
       for (const exp of expansions) {
         queries.push(...exp.queries);
       }
-      // Fallback: use the interest label as a search term
       if (queries.length === 0) {
         queries.push(ACTIVITY_LABELS[category] || category);
       }
@@ -306,8 +327,9 @@ export async function POST(
       enriched = await getCachedPlaces(city, country, category);
       console.log(`[Grok AI] ${category}: ${enriched.length} cached places`);
     } else {
-      console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries`);
-      const places = await searchPlacesMultiQuery(queries, city, country, 60);
+      const googlePlacesType = TRAVEL_COA[category]?.googlePlacesType || undefined;
+      console.log(`[Grok AI] ${category}: Cache miss — running ${queries.length} queries${googlePlacesType ? ` (type=${googlePlacesType})` : ''}`);
+      const places = await searchPlacesMultiQuery(queries, city, country, 60, googlePlacesType as string | undefined);
       enriched = await enrichPlaceDetails(places);
       await cachePlaces(enriched, city, country, category);
       console.log(`[Grok AI] ${category}: Cached ${enriched.length} places`);
@@ -320,8 +342,8 @@ export async function POST(
       filtered = filtered.filter(p => !p.priceLevel || p.priceLevel <= maxPriceLevel);
     }
 
-    // Budget-based price filter for lodging (auto-applied unless manual override set)
-    if (category === 'lodging' && !maxPriceLevel) {
+    // Budget-based price filter for lodging/accommodation (auto-applied unless manual override set)
+    if ((category === 'lodging' || category === 'accommodation') && !maxPriceLevel) {
       const budgetMaxPL = BUDGET_MAX_PRICE_LEVEL[travelerProfile.budget];
       if (budgetMaxPL) {
         filtered = filtered.filter(p => !p.priceLevel || p.priceLevel <= budgetMaxPL);
@@ -361,10 +383,10 @@ export async function POST(
       ? `\nTravelers in this group:\n${travelerDescriptions.map(d => `- ${d}`).join('\n')}\nRank recommendations considering ALL travelers' interests. A good recommendation appeals to at least one traveler. Ideal recommendations appeal to multiple.`
       : undefined;
 
-    // For interest categories, tell Grok what specific interest we're searching for
-    const interestLabel = isInterestCategory ? (ACTIVITY_LABELS[category] || category) : undefined;
-    const categoryForPrompt = isInterestCategory
-      ? `${interestLabel} (${ACTIVITY_SEARCH_EXPANSIONS[category]?.[0]?.category || 'activities'})`
+    // Build a descriptive category label for the Grok prompt
+    const coaCat = TRAVEL_COA[category];
+    const categoryForPrompt = coaCat ? coaCat.label
+      : isInterestCategory ? `${ACTIVITY_LABELS[category] || category} (${ACTIVITY_SEARCH_EXPANSIONS[category]?.[0]?.category || 'activities'})`
       : category;
 
     const recommendations = await analyzeWithLiveSearch({

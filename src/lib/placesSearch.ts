@@ -39,7 +39,8 @@ export async function searchPlaces(
   query: string,
   city: string,
   country: string,
-  maxResults: number = 60
+  maxResults: number = 60,
+  type?: string
 ): Promise<PlaceResult[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -68,7 +69,7 @@ export async function searchPlaces(
     for (let page = 0; page < 3 && allPlaces.length < maxResults; page++) {
       const searchUrl: string = nextPageToken 
         ? `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${apiKey}`
-        : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city + ' ' + country)}&location=${lat},${lng}&radius=20000&key=${apiKey}`;
+        : `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query + ' in ' + city + ' ' + country)}&location=${lat},${lng}&radius=20000${type ? `&type=${type}` : ''}&key=${apiKey}`;
       
       if (page > 0 && nextPageToken) {
         // Google requires 2 second delay between page requests
@@ -275,11 +276,12 @@ export async function searchPlacesMultiQuery(
   queries: string[],
   city: string,
   country: string,
-  maxResults: number = 60
+  maxResults: number = 60,
+  type?: string
 ): Promise<PlaceResult[]> {
   // Run all queries in parallel (each query paginates internally)
   const allResults = await Promise.all(
-    queries.map(q => searchPlaces(q, city, country, 60))
+    queries.map(q => searchPlaces(q, city, country, 60, type))
   );
 
   // Merge and deduplicate by placeId (keep first occurrence — highest quality from its query)

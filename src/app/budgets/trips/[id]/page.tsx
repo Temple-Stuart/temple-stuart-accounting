@@ -10,22 +10,11 @@ import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { ADMIN_USER_ID } from '@/lib/tiers';
+import { buildCalendarSourceConfig, coaCodeToLabel } from '@/lib/travelCOA';
 import 'leaflet/dist/leaflet.css';
 
-const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = {
-  lodging:      { label: 'Lodging',          icon: '🏨', bg: 'bg-blue-100',    dot: 'bg-blue-400',    badge: 'bg-blue-400' },
-  flight:       { label: 'Flights',          icon: '✈️', bg: 'bg-purple-100',  dot: 'bg-purple-400',  badge: 'bg-purple-400' },
-  transfer:     { label: 'Ground Transport', icon: '🚕', bg: 'bg-yellow-100',  dot: 'bg-yellow-500',  badge: 'bg-yellow-500' },
-  vehicle:      { label: 'Vehicle Rental',   icon: '🏍️', bg: 'bg-orange-100', dot: 'bg-orange-400',  badge: 'bg-orange-400' },
-  brunchCoffee: { label: 'Brunch & Coffee',  icon: '☕', bg: 'bg-amber-100',   dot: 'bg-amber-400',   badge: 'bg-amber-400' },
-  dinner:       { label: 'Dinner',           icon: '🍽️', bg: 'bg-red-100',    dot: 'bg-red-400',     badge: 'bg-red-400' },
-  activities:   { label: 'Activities',       icon: '🎯', bg: 'bg-green-100',   dot: 'bg-green-500',   badge: 'bg-green-500' },
-  activity:     { label: 'Activities',       icon: '🎯', bg: 'bg-green-100',   dot: 'bg-green-500',   badge: 'bg-green-500' },
-  coworking:    { label: 'Coworking',        icon: '💼', bg: 'bg-indigo-100',  dot: 'bg-indigo-400',  badge: 'bg-indigo-400' },
-  nightlife:    { label: 'Nightlife',        icon: '🌙', bg: 'bg-pink-100',    dot: 'bg-pink-400',    badge: 'bg-pink-400' },
-  wellness:     { label: 'Wellness',         icon: '🏋️', bg: 'bg-teal-100',   dot: 'bg-teal-400',    badge: 'bg-teal-400' },
-  toiletries:   { label: 'Incidentals',      icon: '🛒', bg: 'bg-gray-100',    dot: 'bg-gray-400',    badge: 'bg-gray-400' },
-};
+// Calendar source config derived from unified TRAVEL_COA
+const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = buildCalendarSourceConfig();
 
 interface Participant {
   id: string;
@@ -257,26 +246,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const data = await res.json();
       const items = data.items || [];
 
-      const COA_TO_CATEGORY: Record<string, string> = {
-        // Travel COA codes (9xxx) — strip prefix for lookup, support both P- and B-
-        'P-9100': 'Flights', 'P-9200': 'Lodging', 'P-9300': 'Vehicle Rental', 'P-9350': 'Equipment Rental',
-        'P-9400': 'Activities', 'P-9450': 'Nightlife', 'P-9500': 'Meals & Dining',
-        'P-9600': 'Ground Transport', 'P-9700': 'Coworking', 'P-9800': 'Incidentals',
-        'P-9900': 'Insurance', 'P-9950': 'Tips & Misc',
-        'B-9100': 'Flights', 'B-9200': 'Lodging', 'B-9300': 'Vehicle Rental', 'B-9350': 'Equipment Rental',
-        'B-9400': 'Activities', 'B-9450': 'Nightlife', 'B-9500': 'Meals & Dining',
-        'B-9600': 'Ground Transport', 'B-9700': 'Coworking', 'B-9800': 'Incidentals',
-        'B-9900': 'Insurance', 'B-9950': 'Tips & Misc',
-        // Legacy 7xxx codes (backward compat)
-        'P-7100': 'Flights', 'P-7200': 'Lodging', 'P-7300': 'Vehicle Rental', 'P-7400': 'Activities',
-        'P-7500': 'Equipment Rental', 'P-7600': 'Ground Transport', 'P-7700': 'Meals & Dining',
-        'P-7800': 'Tips & Misc', 'P-8220': 'Coworking',
-        // Legacy vendor-commit placeholder codes
-        'P-9910': 'Flights', 'P-9920': 'Lodging', 'P-9930': 'Ground Transport', 'P-9940': 'Vehicle Rental', 'P-9960': 'Activities',
-      };
-
       const restoredBudget = items.map((item: any) => ({
-        category: COA_TO_CATEGORY[item.coaCode] || item.coaCode,
+        category: coaCodeToLabel(item.coaCode),
         amount: Number(item.amount),
         description: item.description || '',
       }));
