@@ -550,10 +550,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="space-y-4">
 
-            {/* ── Map with Lodging & Dining sidebars ── */}
+            {/* ── Map with Lodging, Dining sidebars + Activities bar ── */}
             {(() => {
               const itinerary = trip.itinerary || [];
               const DINING_CATEGORIES = new Set(['dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food']);
+              const EXCLUDE_FROM_ACTIVITIES = new Set(['flight', 'lodging', 'dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals']);
 
               // Resolve each itinerary item's true category from vendorOptions lookup
               const resolvedItems = itinerary.map((item: any) => {
@@ -573,6 +574,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 DINING_CATEGORIES.has(item.vendorOptionType) ||
                 DINING_CATEGORIES.has(item.category)
               );
+              const activityItems = resolvedItems.filter((item: any) =>
+                !EXCLUDE_FROM_ACTIVITIES.has(item.resolvedCategory) &&
+                !EXCLUDE_FROM_ACTIVITIES.has(item.vendorOptionType || '') &&
+                !EXCLUDE_FROM_ACTIVITIES.has(item.category || '') &&
+                item.vendorOptionType !== 'flight' && item.vendorOptionType !== 'lodging'
+              );
 
               // Deduplicate lodging by vendorOptionId (multi-day creates multiple entries)
               const uniqueLodging = Object.values(
@@ -585,94 +592,139 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               ) as any[];
 
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {/* Left — Lodging */}
-                  <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
-                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
-                    </div>
-                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
-                      {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
-                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-purple-200 transition-colors">
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                          ) : null}
-                          <div className={`w-full h-[120px] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                            <span className="text-3xl text-blue-300">🏨</span>
-                          </div>
-                          <div className="p-3">
-                            <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                            <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                              {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                              {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  {/* Top section: Lodging | Map | Dining */}
+                  <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_240px] gap-0">
+                    {/* Left — Lodging */}
+                    <div className="border-b lg:border-b-0 lg:border-r border-gray-200">
+                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Lodging <span className="text-gray-400 font-normal">({uniqueLodging.length})</span></h3>
+                      </div>
+                      <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px', scrollBehavior: 'smooth' }}>
+                        {uniqueLodging.length > 0 ? uniqueLodging.map((item: any, idx: number) => (
+                          <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-purple-200 transition-colors">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                            ) : null}
+                            <div className={`w-full h-[120px] bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                              <span className="text-sm font-medium text-blue-300">HOTEL</span>
                             </div>
-                            {item.homeDate && (
-                              <div className="text-[10px] text-gray-400 mt-1">
-                                {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                {item.nightCount > 1 && ' onwards'}
+                            <div className="p-3">
+                              <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                                {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
                               </div>
-                            )}
-                            <div className="mt-1.5">
-                              <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                              {item.homeDate && (
+                                <div className="text-[10px] text-gray-400 mt-1">
+                                  {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  {item.nightCount > 1 && ' onwards'}
+                                </div>
+                              )}
+                              <div className="mt-1.5">
+                                <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )) : (
-                        <div className="text-center py-8 text-gray-400">
-                          <p className="text-xs">No lodging booked yet.</p>
-                          <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
-                        </div>
-                      )}
+                        )) : (
+                          <div className="text-center py-8 text-gray-400">
+                            <p className="text-xs">No lodging booked yet.</p>
+                            <p className="text-[11px] mt-1">Scan destinations to find hotels.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Center — Map */}
+                    <div className="relative">
+                      <DestinationMap
+                        destinations={destinations}
+                        selectedName={trip.destination}
+                        onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
+                        height="500px"
+                      />
+                    </div>
+
+                    {/* Right — Dining */}
+                    <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
+                      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
+                      </div>
+                      <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px', scrollBehavior: 'smooth' }}>
+                        {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
+                          <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-red-200 transition-colors">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                            ) : null}
+                            <div className={`w-full h-[120px] bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                              <span className="text-sm font-medium text-red-300">DINING</span>
+                            </div>
+                            <div className="p-3">
+                              <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                                {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
+                              </div>
+                              {item.homeDate && (
+                                <div className="text-[10px] text-gray-400 mt-1">
+                                  {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </div>
+                              )}
+                              <div className="mt-1.5">
+                                <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                              </div>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="text-center py-8 text-gray-400">
+                            <p className="text-xs">No restaurants booked yet.</p>
+                            <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Center — Map */}
-                  <div className="relative">
-                    <DestinationMap
-                      destinations={destinations}
-                      selectedName={trip.destination}
-                      onDestinationClick={(resortId: string, name: string) => selectDestination(resortId, name)}
-                      height="500px"
-                    />
-                  </div>
-
-                  {/* Right — Dining */}
-                  <div className="border-t lg:border-t-0 lg:border-l border-gray-200">
+                  {/* Bottom — Activities horizontal scroll bar */}
+                  <div className="border-t border-gray-200">
                     <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Dining <span className="text-gray-400 font-normal">({diningItems.length})</span></h3>
+                      <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Activities <span className="text-gray-400 font-normal">({activityItems.length})</span></h3>
                     </div>
-                    <div className="overflow-y-auto p-3 space-y-2" style={{ maxHeight: '500px' }}>
-                      {diningItems.length > 0 ? diningItems.map((item: any, idx: number) => (
-                        <div key={item.vendorOptionId || idx} className="border border-gray-200 rounded-lg overflow-hidden hover:border-red-200 transition-colors">
-                          {item.imageUrl ? (
-                            <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                          ) : null}
-                          <div className={`w-full h-[120px] bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                            <span className="text-3xl text-red-300">🍽️</span>
-                          </div>
-                          <div className="p-3">
-                            <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                            <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                              {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                              {item.note && <span className="truncate max-w-[120px]">{item.note}</span>}
-                            </div>
-                            {item.homeDate && (
-                              <div className="text-[10px] text-gray-400 mt-1">
-                                {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {activityItems.length > 0 ? (
+                      <div className="overflow-x-auto p-3" style={{ scrollSnapType: 'x mandatory' }}>
+                        <div className="flex gap-3">
+                          {activityItems.map((item: any, idx: number) => (
+                            <div key={item.vendorOptionId || idx} className="w-[200px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:border-green-200 transition-colors" style={{ scrollSnapAlign: 'start' }}>
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[100px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                              ) : null}
+                              <div className={`w-full h-[100px] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                                <span className="text-sm font-medium text-green-300">ACTIVITY</span>
                               </div>
-                            )}
-                            <div className="mt-1.5">
-                              <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                              <div className="p-2.5">
+                                <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                  {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                                </div>
+                                {item.homeDate && (
+                                  <div className="text-[10px] text-gray-400 mt-0.5">
+                                    {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </div>
+                                )}
+                                <div className="mt-1">
+                                  <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
+                          ))}
                         </div>
-                      )) : (
-                        <div className="text-center py-8 text-gray-400">
-                          <p className="text-xs">No restaurants booked yet.</p>
-                          <p className="text-[11px] mt-1">Scan destinations to find dining.</p>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-gray-400">
+                        <p className="text-xs">No activities booked yet.</p>
+                        <p className="text-[11px] mt-1">Scan destinations to find things to do.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
