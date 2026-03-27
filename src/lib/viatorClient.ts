@@ -303,7 +303,8 @@ async function searchV2Freetext(searchTerm: string, destId: number | null, maxCo
   }
 
   const data = await res.json();
-  const products = data.products || [];
+  // Freetext response: products may be at data.products or nested in searchTypes
+  const products = data.products || data.data || [];
   return products.map(normalizeV2Product);
 }
 
@@ -355,8 +356,9 @@ export async function searchViatorProducts(
 
   const addProducts = (products: ViatorProduct[]) => {
     for (const p of products) {
-      if (p.productCode && !seenCodes.has(p.productCode)) {
-        seenCodes.add(p.productCode);
+      const key = p.productCode || p.title;
+      if (key && !seenCodes.has(key)) {
+        seenCodes.add(key);
         allProducts.push(p);
       }
     }
@@ -464,12 +466,14 @@ export function viatorProductToRecommendation(
   const priceText = price != null ? `From $${price}` : '';
   const summaryParts = [product.description || '', durationText ? `Duration: ${durationText}` : '', priceText].filter(Boolean);
 
-  const affiliateUrl = buildAffiliateUrl(product.productCode);
+  const affiliateUrl = product.productCode
+    ? buildAffiliateUrl(product.productCode)
+    : product.productUrl || null;
 
   return {
     name: product.title,
     address: product.destinationName || '',
-    website: affiliateUrl,
+    website: affiliateUrl || product.productUrl || null,
     photoUrl: product.thumbnailUrl || null,
     priceLevel,
     priceLevelDisplay: price != null ? `$${price}` : null,
@@ -485,7 +489,7 @@ export function viatorProductToRecommendation(
     category,
     compositeScore,
     viatorProductCode: product.productCode,
-    bookingUrl: affiliateUrl,
+    bookingUrl: affiliateUrl || product.productUrl || null,
     durationMinutes,
     price,
   };

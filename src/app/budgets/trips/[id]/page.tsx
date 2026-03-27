@@ -1013,9 +1013,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                         </button>
                                         <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
                                           className="flex-1 text-center px-2 py-1.5 border border-brand-gold text-brand-gold hover:bg-brand-gold/5 text-xs font-medium rounded">
-                                          Book
+                                          View
                                         </a>
                                       </div>
+                                      <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
+                                        className="block text-center w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded mt-1.5">
+                                        Book on Viator
+                                      </a>
                                     )}
                                   </div>
                                 </div>
