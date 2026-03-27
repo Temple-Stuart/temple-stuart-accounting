@@ -165,9 +165,9 @@ export default function TradingPage() {
   const [ttGreeksFetched, setTtGreeksFetched] = useState<Set<number>>(new Set());
   const [ttShowAllStrikes, setTtShowAllStrikes] = useState(false);
 
-  // Check Tastytrade connection status when owner loads Market Intelligence
+  // Check Tastytrade connection status on load
   useEffect(() => {
-    if (!isOwner || activeTab !== 'market-intelligence') return;
+    if (!isOwner) return;
     fetch('/api/tastytrade/status')
       .then(res => res.json())
       .then(data => {
@@ -175,7 +175,7 @@ export default function TradingPage() {
         setTtAccounts(data.accountNumbers || []);
       })
       .catch(() => setTtConnected(false));
-  }, [isOwner, activeTab]);
+  }, [isOwner]);
 
 
 
@@ -237,10 +237,10 @@ export default function TradingPage() {
 
   // Fetch positions + balances when connected on Market Intelligence tab
   useEffect(() => {
-    if (ttConnected && activeTab === 'market-intelligence') {
+    if (ttConnected) {
       fetchTtData();
     }
-  }, [ttConnected, activeTab]);
+  }, [ttConnected]);
 
   const handleTtRefresh = async () => {
     setTtRefreshing(true);
@@ -666,62 +666,30 @@ export default function TradingPage() {
 
             {/* Search Bar */}
             <div className="max-w-[1800px] mx-auto mb-3 bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
-              {activeTab !== 'market-intelligence' ? (
-                <>
-                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <span className="text-sm text-text-primary">Trading Dashboard</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <div className="flex flex-wrap items-center gap-1">
-                      {(() => { const m = activeTab === 'positions' ? reconciliationMetrics : filteredMetrics; return (<>
-                        <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{m.totalTrades} trades</span>
-                        <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{m.closedTrades} closed</span>
-                        <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{m.openTrades} open</span>
-                      </>); })()}
+              <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <span className="text-sm text-text-primary">Trading Dashboard</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.totalTrades} trades</span>
+                  <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.closedTrades} closed</span>
+                  <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.openTrades} open</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                      className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                    <span className="text-gray-300">—</span>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                      className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                    {(dateFrom || dateTo) && (
-                      <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                        className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
-                    Overview
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <span className="text-sm text-text-primary">Market Intelligence</span>
-                  </div>
-                  {/* Universe selector pills */}
-                  <div className="flex items-center gap-2 px-4 py-2 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full">S&P 500</span>
-                      <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-xs px-2 py-0.5 rounded-full">Nasdaq 100</span>
-                    </div>
-                  </div>
-                  {/* Direction + DTE summary */}
-                  <div className="flex items-center gap-3 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                    <div className="flex gap-0.5 rounded overflow-hidden bg-gray-100 border border-gray-200">
-                      {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
-                        <span key={d} className={`px-2 py-0.5 text-[10px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'text-gray-500'}`}>{d}</span>
-                      ))}
-                    </div>
-                    <span className="text-xs text-text-muted">30-60 DTE</span>
-                    <span className="text-xs text-text-muted">16 strategies</span>
-                  </div>
-                  <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
-                    Scan Market
-                  </button>
-                </>
-              )}
+              <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
+                <span className="text-gray-300">—</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                    className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
+                )}
+              </div>
+              <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
+                Trading
+              </div>
             </div>
 
             {/* Persistent Metrics Strip */}
@@ -757,102 +725,10 @@ export default function TradingPage() {
               </div>
             </div>
 
-            {/* Tab Pills */}
-            <div className="max-w-[1800px] mx-auto flex gap-2">
-              {[
-                { key: 'overview', label: 'Overview' },
-                { key: 'positions', label: 'Trade Reconciliation' },
-                { key: 'market-intelligence', label: 'Market Intelligence' },
-              ].map(tab => (
-                <button key={tab.key} onClick={() => setActiveTab(tab.key as TabType)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-brand-purple' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                  {tab.label}{tab.key === 'market-intelligence' && !isOwner ? ' 🔒' : ''}
-                </button>
-              ))}
-            </div>
-
           </div>
 
-          {/* Tab Content */}
-          <div className="bg-white border border-border">
-
-            {/* Overview Tab */}
-            {activeTab === 'overview' && (
-              <div>
-                {/* Stat Cards — inside Overview tab */}
-                {(() => {
-                  const m = filteredMetrics;
-                  return (
-                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Performance Summary</div>
-                      <div className="bg-white p-4">
-                      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-3">
-                        <div className={`p-4 border rounded ${m.totalRealizedPL >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
-                          <div className={`text-sm font-bold font-mono ${m.totalRealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>{fmtPL(m.totalRealizedPL)}</div>
-                        </div>
-                        <div className="bg-white border border-border p-4 rounded">
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Win Rate</div>
-                          <div className="text-sm font-bold font-mono text-text-primary">{m.winRate}%</div>
-                          <div className="text-[10px] text-text-faint">{m.closedTrades} closed</div>
-                        </div>
-                        <div className="bg-white border border-border p-4 rounded">
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
-                          <div className="text-sm font-bold font-mono text-text-primary">{m.profitFactor >= 999 ? '∞' : m.profitFactor.toFixed(2)}</div>
-                        </div>
-                        <div className="bg-white border border-border p-4 rounded">
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Win</div>
-                          <div className="text-sm font-bold font-mono text-brand-green">{fmt(m.avgWin)}</div>
-                        </div>
-                        <div className="bg-white border border-border p-4 rounded">
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Loss</div>
-                          <div className="text-sm font-bold font-mono text-brand-red">{fmt(m.avgLoss)}</div>
-                        </div>
-                        <div className="bg-white border border-border p-4 rounded">
-                          <div className="text-[10px] text-text-muted uppercase tracking-wider">Avg Hold</div>
-                          <div className="text-sm font-bold font-mono text-text-primary">{m.avgHoldDays.toFixed(1)}d</div>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-4 lg:grid-cols-8 gap-2">
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Largest Win</div>
-                          <div className="text-sm font-mono font-semibold text-brand-green">{fmt(m.largestWin)}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Largest Loss</div>
-                          <div className="text-sm font-mono font-semibold text-brand-red">{fmt(Math.abs(m.largestLoss))}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Win Streak</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{m.winStreak}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Loss Streak</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{m.lossStreak}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Options</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'option').length}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Stocks</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredTrades.filter(t => t.type === 'stock').length}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Strategies</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredByStrategy.length}</div>
-                        </div>
-                        <div className="bg-white border border-border p-2 text-center rounded">
-                          <div className="text-[9px] text-text-muted uppercase">Tickers</div>
-                          <div className="text-sm font-mono font-semibold text-text-primary">{filteredByTicker.length}</div>
-                        </div>
-                      </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* P&L Calendar - 365 Day Heatmap */}
+          {/* ── Page Content — single scrollable page, no tabs ── */}
+          <div className="space-y-4">
                 <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
                   <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
                     <span>P&L Calendar</span>
@@ -932,71 +808,78 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4 grid lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
-                  {/* By Strategy */}
-                  <div>
-                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-                      P&L by Strategy
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-bg-row sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left font-medium">Strategy</th>
-                            <th className="px-3 py-2 text-center font-medium">W/L</th>
-                            <th className="px-3 py-2 text-right font-medium">P&L</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {filteredByStrategy.map(s => (
-                            <tr key={s.strategy} className="hover:bg-bg-row">
-                              <td className="px-3 py-2 font-medium">{s.strategy}</td>
-                              <td className="px-3 py-2 text-center text-text-muted">{s.wins}W/{s.losses}L</td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${s.pl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                                {fmtPL(s.pl)}
-                              </td>
-                            </tr>
-                          ))}
-                          {filteredByStrategy.length === 0 && (
-                            <tr><td colSpan={3} className="px-3 py-4 text-center text-text-faint">No data</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+            {/* ── Brokerage Connection ── */}
+            {isOwner && (
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Brokerage Connection</div>
+                <div className="bg-white p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-medium text-text-primary">Tastytrade</div>
+                    {ttConnected && (
+                      <div className="flex items-center gap-3">
+                        <button onClick={handleTtRefresh} disabled={ttRefreshing} className="text-xs text-text-muted hover:text-text-secondary underline disabled:opacity-50">
+                          {ttRefreshing ? 'Refreshing...' : 'Refresh Data'}
+                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                          <span className="text-xs text-brand-green font-medium">Connected</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* By Ticker */}
-                  <div>
-                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-                      P&L by Ticker
+                  {ttConnected === null ? (
+                    <div className="text-xs text-text-faint">Checking connection...</div>
+                  ) : ttConnected ? (
+                    <div>
+                      <div className="text-xs text-text-muted mb-2">Accounts: {ttAccounts.length > 0 ? ttAccounts.join(', ') : 'None found'}</div>
+                      <button onClick={handleTtDisconnect} className="text-xs text-brand-red hover:text-brand-red underline">Disconnect</button>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-bg-row sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left font-medium">Ticker</th>
-                            <th className="px-3 py-2 text-center font-medium">W/L</th>
-                            <th className="px-3 py-2 text-right font-medium">P&L</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {filteredByTicker.slice(0, 15).map(t => (
-                            <tr key={t.ticker} className="hover:bg-bg-row">
-                              <td className="px-3 py-2 font-mono font-medium">{t.ticker}</td>
-                              <td className="px-3 py-2 text-center text-text-muted">{t.wins}W/{t.losses}L</td>
-                              <td className={`px-3 py-2 text-right font-mono font-semibold ${t.pl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                                {fmtPL(t.pl)}
-                              </td>
-                            </tr>
-                          ))}
-                          {filteredByTicker.length === 0 && (
-                            <tr><td colSpan={3} className="px-3 py-4 text-center text-text-faint">No data</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-text-muted">Connect your Tastytrade account to enable market data and trading features.</p>
+                      {ttError && <div className="text-xs text-brand-red bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>}
+                      <button onClick={handleTtConnect} disabled={ttConnecting} className="w-full px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50">
+                        {ttConnecting ? 'Connecting...' : 'Connect Tastytrade'}
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {/* ── Market Intelligence ── */}
+            {isOwner && ttConnected && (
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Market Intelligence</div>
+                <div className="bg-white p-4">
+                  {ttLoading ? (
+                    <div className="p-8 text-center text-text-faint text-sm">Loading account data...</div>
+                  ) : ttDataError ? (
+                    <div className="p-6">
+                      <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
+                      <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
+                    </div>
+                  ) : (
+                    <ConvergenceIntelligence />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Trade Lab ── */}
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Trade Lab</div>
+              <div className="bg-white">
+                <TradeLabPanel
+                  onCardsChange={() => {
+                    fetch('/api/trade-cards')
+                      .then(r => r.json())
+                      .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
+                  }}
+                />
+              </div>
+            </div>
+
 
                 {/* Trade Journal */}
                 <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
@@ -1131,451 +1014,18 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-              </div>
-            )}
 
-            {/* Trade Reconciliation Tab */}
-            {activeTab === 'positions' && (
-              <div className="space-y-6">
-                <TradeLabPanel
-                  onCardsChange={() => {
-                    fetch('/api/trade-cards')
-                      .then(r => r.json())
-                      .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
-                  }}
-                />
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">
-                    Open Positions ({openPositions.length})
+            {/* ── Data Observatory ── */}
+            {isOwner && (
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <details>
+                  <summary className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold cursor-pointer hover:bg-brand-purple/90 transition-colors">
+                    Data Observatory — Live API Health
+                  </summary>
+                  <div className="bg-white p-4">
+                    <DataObservatory />
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium">Trade #</th>
-                          <th className="px-3 py-2 text-left font-medium">Opened</th>
-                          <th className="px-3 py-2 text-left font-medium">Ticker</th>
-                          <th className="px-3 py-2 text-left font-medium">Strategy</th>
-                          <th className="px-3 py-2 text-center font-medium">Type</th>
-                          <th className="px-3 py-2 text-center font-medium">Status</th>
-                          <th className="px-3 py-2 text-right font-medium">Days Open</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {openPositions.map(trade => {
-                          const daysOpen = Math.ceil((Date.now() - new Date(trade.openDate).getTime()) / (1000 * 60 * 60 * 24));
-                          return (
-                            <tr key={trade.tradeNum} className="hover:bg-bg-row">
-                              <td className="px-3 py-2 font-mono text-text-secondary">#{trade.tradeNum}</td>
-                              <td className="px-3 py-2 text-text-secondary">{new Date(trade.openDate).toLocaleDateString()}</td>
-                              <td className="px-3 py-2 font-mono font-semibold">{trade.underlying}</td>
-                              <td className="px-3 py-2">
-                                <span className="px-2 py-0.5 bg-brand-purple-wash text-brand-purple text-[10px]">{trade.strategy}</span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 text-[10px] ${trade.type === 'option' ? 'bg-purple-100 text-purple-700' : 'bg-bg-row text-text-secondary'}`}>
-                                  {trade.type}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 text-[10px] ${trade.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-brand-green'}`}>
-                                  {trade.status}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-right font-mono">{daysOpen}d</td>
-                            </tr>
-                          );
-                        })}
-                        {openPositions.length === 0 && (
-                          <tr><td colSpan={7} className="px-3 py-8 text-center text-text-faint">No open positions</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Market Intelligence Tab */}
-            {activeTab === 'market-intelligence' && (
-              <div>
-                {isOwner ? (
-                  <div className="space-y-4 p-4">
-                    {/* Tastytrade Connection Card */}
-                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm bg-white p-6">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Brokerage Connection</div>
-                          <div className="text-sm font-medium text-text-primary">Tastytrade</div>
-                        </div>
-                        {ttConnected && (
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={handleTtRefresh}
-                              disabled={ttRefreshing}
-                              className="text-xs text-text-muted hover:text-text-secondary underline disabled:opacity-50"
-                            >
-                              {ttRefreshing ? 'Refreshing...' : 'Refresh Data'}
-                            </button>
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                              <span className="text-xs text-brand-green font-medium">Connected</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {ttConnected === null ? (
-                        <div className="text-xs text-text-faint">Checking connection...</div>
-                      ) : ttConnected ? (
-                        <div>
-                          <div className="text-xs text-text-muted mb-2">
-                            Accounts: {ttAccounts.length > 0 ? ttAccounts.join(', ') : 'None found'}
-                          </div>
-                          <button
-                            onClick={handleTtDisconnect}
-                            className="text-xs text-brand-red hover:text-brand-red underline"
-                          >
-                            Disconnect
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-xs text-text-muted">Connect your Tastytrade account to enable market data and trading features.</p>
-                          {ttError && (
-                            <div className="text-xs text-brand-red bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>
-                          )}
-                          <button
-                            onClick={handleTtConnect}
-                            disabled={ttConnecting}
-                            className="w-full px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
-                          >
-                            {ttConnecting ? 'Connecting...' : 'Connect Tastytrade'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Live data or loading state */}
-                    {ttConnected && ttLoading ? (
-                      <div className="bg-white border border-border p-8 text-center">
-                        <div className="text-sm text-text-faint">Loading account data...</div>
-                      </div>
-                    ) : ttConnected && ttDataError ? (
-                      <div className="bg-white border border-border p-6">
-                        <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
-                        <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
-                      </div>
-                    ) : ttConnected ? (
-                      <>
-                        {/* Market Intelligence — unified scanner + trade cards */}
-                        <ConvergenceIntelligence />
-
-                        {/* Card 1 — Account Overview */}
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Account Overview</div>
-                          {ttBalances.length === 0 ? (
-                            <div className="text-sm text-text-faint">No account data available</div>
-                          ) : (
-                            <div className="space-y-3">
-                              {ttBalances.map((bal: any) => (
-                                <div key={bal.accountNumber} className="border border-border-light p-3">
-                                  <div className="text-xs font-medium text-text-secondary mb-2">{bal.accountNumber}</div>
-                                  <div className="grid grid-cols-3 gap-3">
-                                    <div>
-                                      <div className="text-[10px] text-text-faint uppercase">Net Liq</div>
-                                      <div className="text-sm font-mono font-medium">{fmtCurrency(bal.netLiq)}</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-[10px] text-text-faint uppercase">Cash</div>
-                                      <div className="text-sm font-mono">{fmtCurrency(bal.cashBalance)}</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-[10px] text-text-faint uppercase">Buying Power</div>
-                                      <div className="text-sm font-mono">{fmtCurrency(bal.buyingPower)}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Card 2 — Open Positions */}
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Open Positions</div>
-                          {ttPositions.length === 0 ? (
-                            <div className="text-sm text-text-faint">No open positions</div>
-                          ) : (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="border-b border-border text-text-muted">
-                                    <th className="text-left px-2 py-1.5 font-medium">Symbol</th>
-                                    <th className="text-left px-2 py-1.5 font-medium">Type</th>
-                                    <th className="text-right px-2 py-1.5 font-medium">Qty</th>
-                                    <th className="text-right px-2 py-1.5 font-medium">Avg Price</th>
-                                    <th className="text-right px-2 py-1.5 font-medium">Mkt Value</th>
-                                    <th className="text-right px-2 py-1.5 font-medium">P&L</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {ttPositions.map((pos: any, i: number) => (
-                                    <tr key={i} className="border-b border-border-light hover:bg-bg-row">
-                                      <td className="px-2 py-1.5 font-medium">{pos.symbol}</td>
-                                      <td className="px-2 py-1.5">
-                                        <span className={`px-1.5 py-0.5 text-[10px] ${pos.instrumentType === 'Equity' ? 'bg-brand-purple-wash text-brand-purple' : 'bg-purple-50 text-purple-600'}`}>
-                                          {pos.instrumentType}
-                                        </span>
-                                      </td>
-                                      <td className="px-2 py-1.5 text-right font-mono">{pos.quantity}</td>
-                                      <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.averageOpenPrice)}</td>
-                                      <td className="px-2 py-1.5 text-right font-mono">{fmtCurrency(pos.marketValue)}</td>
-                                      <td className={`px-2 py-1.5 text-right font-mono ${pos.unrealizedPL >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                                        {pos.unrealizedPL >= 0 ? '+' : ''}{fmtCurrency(pos.unrealizedPL)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Card 3 — Quick Quote */}
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Quick Quote</div>
-                          <div className="flex gap-2 mb-3">
-                            <input
-                              type="text"
-                              placeholder="Symbol (e.g. SPY)"
-                              value={ttQuoteSymbol}
-                              onChange={e => setTtQuoteSymbol(e.target.value.toUpperCase())}
-                              onKeyDown={e => e.key === 'Enter' && handleTtQuote()}
-                              className="flex-1 border border-border px-3 py-2 text-sm font-mono"
-                            />
-                            <button
-                              onClick={handleTtQuote}
-                              disabled={ttQuoteLoading || !ttQuoteSymbol.trim()}
-                              className="px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
-                            >
-                              {ttQuoteLoading ? 'Loading...' : 'Get Quote'}
-                            </button>
-                          </div>
-                          {ttQuoteData && Object.keys(ttQuoteData).length > 0 && (
-                            <div className="border border-border-light p-3">
-                              {Object.entries(ttQuoteData).map(([sym, q]: [string, any]) => (
-                                <div key={sym}>
-                                  <div className="text-sm font-medium text-text-primary mb-2">{sym}</div>
-                                  <div className="grid grid-cols-5 gap-3 text-xs">
-                                    <div><span className="text-text-faint">Bid</span><div className="font-mono">{q.bid?.toFixed(2)}</div></div>
-                                    <div><span className="text-text-faint">Ask</span><div className="font-mono">{q.ask?.toFixed(2)}</div></div>
-                                    <div><span className="text-text-faint">Mid</span><div className="font-mono">{q.mid?.toFixed(2)}</div></div>
-                                    <div><span className="text-text-faint">Last</span><div className="font-mono">{q.last?.toFixed(2) || '—'}</div></div>
-                                    <div><span className="text-text-faint">Volume</span><div className="font-mono">{(q.volume || 0).toLocaleString()}</div></div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {ttQuoteData && Object.keys(ttQuoteData).length === 0 && (
-                            <div className="text-xs text-text-faint">No quote data received — market may be closed</div>
-                          )}
-                        </div>
-
-                        {/* Card 4 — Option Chain Lookup */}
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Option Chain Lookup</div>
-                          <div className="flex gap-2 mb-3">
-                            <input
-                              type="text"
-                              placeholder="Symbol (e.g. AAPL)"
-                              value={ttChainSymbol}
-                              onChange={e => setTtChainSymbol(e.target.value.toUpperCase())}
-                              onKeyDown={e => e.key === 'Enter' && handleTtChain()}
-                              className="flex-1 border border-border px-3 py-2 text-sm font-mono"
-                            />
-                            <button
-                              onClick={handleTtChain}
-                              disabled={ttChainLoading || !ttChainSymbol.trim()}
-                              className="px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50"
-                            >
-                              {ttChainLoading ? 'Loading...' : 'Load Chain'}
-                            </button>
-                          </div>
-                          {ttChainData && ttChainData.expirations?.length > 0 && (
-                            <div className="space-y-1">
-                              {ttChainData.expirations.map((exp: any, i: number) => {
-                                const isExp = ttExpandedExp === i;
-                                const hasFetched = ttGreeksFetched.has(i);
-                                const visibleStrikes = (exp.strikes || []).filter((s: any) => {
-                                  if (ttShowAllStrikes || !hasFetched) return true;
-                                  return ttGreeksData[s.callStreamerSymbol] || ttGreeksData[s.putStreamerSymbol];
-                                });
-                                return (
-                                  <div key={i} className="border border-border-light">
-                                    <div
-                                      className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-bg-row"
-                                      onClick={() => handleExpandExp(i, exp)}
-                                    >
-                                      <div className="font-medium text-text-secondary">{exp.date}</div>
-                                      <div className="flex gap-4 text-text-muted items-center">
-                                        <span>{exp.dte} DTE</span>
-                                        <span>{exp.strikes?.length || 0} strikes</span>
-                                        <span className="text-[10px]">{isExp ? '\u25B2' : '\u25BC'}</span>
-                                      </div>
-                                    </div>
-                                    {isExp && (
-                                      <div className="border-t border-border-light px-2 py-2">
-                                        {ttGreeksLoading && !hasFetched ? (
-                                          <div className="flex items-center justify-center py-4 gap-2 text-xs text-text-faint">
-                                            <div className="w-3 h-3 border border-border border-t-transparent rounded-full animate-spin" />
-                                            Loading Greeks...
-                                          </div>
-                                        ) : (
-                                          <>
-                                            {hasFetched && (
-                                              <div className="flex justify-end mb-1">
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); setTtShowAllStrikes(p => !p); }}
-                                                  className="text-[10px] text-text-faint hover:text-text-secondary underline"
-                                                >
-                                                  {ttShowAllStrikes ? 'Show active only' : 'Show all strikes'}
-                                                </button>
-                                              </div>
-                                            )}
-                                            <div className="overflow-x-auto">
-                                              <table className="w-full text-[10px]">
-                                                <thead>
-                                                  <tr className="border-b border-border text-text-muted">
-                                                    <th className="text-right px-1 py-1 font-medium">Bid</th>
-                                                    <th className="text-right px-1 py-1 font-medium">Ask</th>
-                                                    <th className="text-right px-1 py-1 font-medium">Vol</th>
-                                                    <th className="text-right px-1 py-1 font-medium">OI</th>
-                                                    <th className="text-right px-1 py-1 font-medium">IV</th>
-                                                    <th className="text-right px-1 py-1 font-medium">{'\u0394'}</th>
-                                                    <th className="text-right px-1 py-1 font-medium">{'\u0393'}</th>
-                                                    <th className="text-right px-1 py-1 font-medium">{'\u0398'}</th>
-                                                    <th className="text-right px-1 py-1 font-medium">{'\u03BD'}</th>
-                                                    <th className="text-right px-1 py-1 font-medium">{'\u03C1'}</th>
-                                                    <th className="text-center px-1 py-1 font-semibold bg-bg-row">Strike</th>
-                                                    <th className="text-left px-1 py-1 font-medium">{'\u03C1'}</th>
-                                                    <th className="text-left px-1 py-1 font-medium">{'\u03BD'}</th>
-                                                    <th className="text-left px-1 py-1 font-medium">{'\u0398'}</th>
-                                                    <th className="text-left px-1 py-1 font-medium">{'\u0393'}</th>
-                                                    <th className="text-left px-1 py-1 font-medium">{'\u0394'}</th>
-                                                    <th className="text-left px-1 py-1 font-medium">IV</th>
-                                                    <th className="text-left px-1 py-1 font-medium">OI</th>
-                                                    <th className="text-left px-1 py-1 font-medium">Vol</th>
-                                                    <th className="text-left px-1 py-1 font-medium">Bid</th>
-                                                    <th className="text-left px-1 py-1 font-medium">Ask</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {visibleStrikes.map((s: any, j: number) => {
-                                                    const cg = ttGreeksData[s.callStreamerSymbol];
-                                                    const pg = ttGreeksData[s.putStreamerSymbol];
-                                                    const d = '\u2014';
-                                                    return (
-                                                      <tr key={j} className="border-b border-border-light hover:bg-bg-row">
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.bid != null ? cg.bid.toFixed(2) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.ask != null ? cg.ask.toFixed(2) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.volume != null ? cg.volume.toLocaleString() : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.openInterest != null ? cg.openInterest.toLocaleString() : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-secondary">{cg?.iv != null ? (cg.iv * 100).toFixed(1) + '%' : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-brand-green">{cg?.delta != null ? cg.delta.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.gamma != null ? cg.gamma.toFixed(4) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.theta != null ? cg.theta.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.vega != null ? cg.vega.toFixed(3) : d}</td>
-                                                        <td className="text-right px-1 py-0.5 font-mono text-text-muted">{cg?.rho != null ? cg.rho.toFixed(4) : d}</td>
-                                                        <td className="text-center px-1 py-0.5 font-mono font-semibold bg-bg-row">{s.strike.toFixed(2)}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.rho != null ? pg.rho.toFixed(4) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.vega != null ? pg.vega.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.theta != null ? pg.theta.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.gamma != null ? pg.gamma.toFixed(4) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-brand-red">{pg?.delta != null ? pg.delta.toFixed(3) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.iv != null ? (pg.iv * 100).toFixed(1) + '%' : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.openInterest != null ? pg.openInterest.toLocaleString() : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-muted">{pg?.volume != null ? pg.volume.toLocaleString() : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.bid != null ? pg.bid.toFixed(2) : d}</td>
-                                                        <td className="text-left px-1 py-0.5 font-mono text-text-secondary">{pg?.ask != null ? pg.ask.toFixed(2) : d}</td>
-                                                      </tr>
-                                                    );
-                                                  })}
-                                                  {visibleStrikes.length === 0 && hasFetched && (
-                                                    <tr><td colSpan={21} className="text-center py-3 text-text-faint text-xs">No active strikes with data</td></tr>
-                                                  )}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {ttChainData && ttChainData.expirations?.length === 0 && (
-                            <div className="text-xs text-text-faint">No expirations found in 0–45 DTE range</div>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Account Overview</div>
-                          <div className="text-sm text-text-faint">Connect brokerage to view account data</div>
-                        </div>
-                        <div className="bg-white border border-border p-6">
-                          <div className="text-xs text-text-muted uppercase tracking-wider mb-1">Positions</div>
-                          <div className="text-sm text-text-faint">Connect brokerage to view positions</div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Always visible to owner */}
-                    <details className="mt-6">
-                      <summary className="cursor-pointer text-text-muted text-xs px-4 py-2 border border-border rounded hover:bg-bg-row">
-                        ▶ DATA OBSERVATORY — Live API Health
-                      </summary>
-                      <div className="mt-2">
-                        <DataObservatory />
-                      </div>
-                    </details>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center min-h-[500px] p-8">
-                    <div className="max-w-md w-full bg-gradient-to-b from-panel-highlight to-brand-purple-deep border border-brand-purple-hover p-8 text-center">
-                      <div className="mb-4">
-                        <svg className="w-12 h-12 mx-auto text-text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                      </div>
-                      <h2 className="text-sm font-bold text-white mb-2">Market Intelligence</h2>
-                      <p className="text-sm text-text-faint mb-6">Real-time market data, AI-powered strategy builder, and live trading signals</p>
-                      <div className="text-left space-y-3 mb-8">
-                        {[
-                          'Live stock, options, crypto & futures data',
-                          'AI algo builder — describe strategies in plain English',
-                          'IV-HV spread analysis & options scanner',
-                          'Live signal alerts',
-                          'Tax-aware trade warnings (wash sales, ST/LT impact)',
-                        ].map((feature, i) => (
-                          <div key={i} className="flex items-center gap-2 text-sm text-text-faint">
-                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0"></div>
-                            <span>{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="inline-block px-6 py-2 bg-white/10 border border-white/20 text-sm font-medium text-text-faint cursor-default">
-                        Coming Soon
-                      </div>
-                      <p className="text-xs text-text-muted mt-4">Included in the Trader Pro plan</p>
-                    </div>
-                  </div>
-                )}
+                </details>
               </div>
             )}
 
