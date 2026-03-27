@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { AppLayout } from '@/components/ui';
+import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import ConvergenceIntelligence from '@/components/convergence/ConvergenceIntelligence';
 import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
@@ -514,37 +515,21 @@ export default function TradingPage() {
     return byDate;
   }, [filteredTrades]);
 
-  // Calendar data for the last 365 days
-  const calendarData = useMemo(() => {
-    const today = new Date();
-    const days: { date: Date; dateStr: string; pl: number; count: number }[] = [];
-    
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const data = plByDate[dateStr];
-      days.push({
-        date,
-        dateStr,
-        pl: data?.pl || 0,
-        count: data?.count || 0
-      });
-    }
-    
-    return days;
+  // P&L events for CalendarGrid — one event per day that had closed trades
+  const plCalendarEvents: CalendarEvent[] = useMemo(() => {
+    return Object.entries(plByDate).map(([dateKey, data]) => ({
+      id: `pl-${dateKey}`,
+      source: data.pl >= 0 ? 'win' : 'loss',
+      title: `${data.pl >= 0 ? '+' : ''}$${Math.abs(data.pl).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+      startDate: dateKey,
+      budgetAmount: data.pl,
+    }));
   }, [plByDate]);
 
-  // Group calendar by month for display
-  const calendarByMonth = useMemo(() => {
-    const months: Record<string, typeof calendarData> = {};
-    calendarData.forEach(day => {
-      const monthKey = day.dateStr.slice(0, 7); // YYYY-MM
-      if (!months[monthKey]) months[monthKey] = [];
-      months[monthKey].push(day);
-    });
-    return Object.entries(months).sort(([a], [b]) => a.localeCompare(b));
-  }, [calendarData]);
+  const PL_SOURCE_CONFIG: Record<string, SourceConfig> = {
+    win: { label: 'Win', icon: '', bg: 'bg-emerald-50', dot: 'bg-emerald-500', badge: 'bg-emerald-500' },
+    loss: { label: 'Loss', icon: '', bg: 'bg-red-50', dot: 'bg-red-500', badge: 'bg-red-500' },
+  };
 
   // P&L by strategy (filtered)
   const filteredByStrategy = useMemo(() => {
@@ -663,158 +648,100 @@ export default function TradingPage() {
           
           {/* ── Purple Background Zone ── */}
           <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-4 lg:px-6 py-3 mb-4 bg-brand-purple/80">
-            {/* Consolidated Search Bar: Identity + Brokerage | Filters | Metrics | Action */}
-            <div className="max-w-[1800px] mx-auto bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
+            <div className="max-w-[1800px] mx-auto space-y-2">
 
-              {/* Section 1: Identity + Brokerage status */}
-              <div className="px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <div className="text-sm text-text-primary">Trading Dashboard</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  {ttConnected ? (
-                    <><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /><span className="text-[11px] text-emerald-600">Tastytrade Connected</span></>
-                  ) : ttConnected === false ? (
-                    <><div className="w-1.5 h-1.5 bg-red-400 rounded-full" /><span className="text-[11px] text-text-muted">No Brokerage</span></>
-                  ) : (
-                    <span className="text-[11px] text-text-faint">Checking...</span>
-                  )}
+              {/* ROW 1 — Scanner Bar */}
+              <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
+                {/* Identity + Brokerage */}
+                <div className="px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <div className="text-sm text-text-primary">Trading Dashboard</div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {ttConnected ? (
+                      <><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /><span className="text-[11px] text-emerald-600">Tastytrade Connected</span></>
+                    ) : ttConnected === false ? (
+                      <><div className="w-1.5 h-1.5 bg-red-400 rounded-full" /><span className="text-[11px] text-text-muted">No Brokerage</span></>
+                    ) : (
+                      <span className="text-[11px] text-text-faint">Checking...</span>
+                    )}
+                  </div>
                 </div>
+                {/* Scanner Filters */}
+                <div className="px-4 py-2 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">S&P 500</span>
+                    <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">Nasdaq 100</span>
+                    <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
+                      {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
+                        <span key={d} className={`px-1.5 py-0.5 text-[9px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{d}</span>
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-text-muted">30-60d</span>
+                    <span className="text-[10px] text-text-muted">16 strategies</span>
+                  </div>
+                </div>
+                {/* Scan Market */}
+                <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
+                  Scan Market
+                </button>
               </div>
 
-              {/* Section 2: Scanner filters (universe, direction, DTE) + Date range */}
-              <div className="px-4 py-2 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                  <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">S&P 500</span>
-                  <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">Nasdaq 100</span>
-                  <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
-                    {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
-                      <span key={d} className={`px-1.5 py-0.5 text-[9px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{d}</span>
-                    ))}
+              {/* ROW 2 — Metrics Bar (date-filterable) */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-white/30 shadow-sm">
+                <div className="flex flex-wrap items-center gap-4 px-4 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">Period</span>
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                      className="border-0 outline-none bg-transparent text-[11px] text-white w-[100px] min-w-0" />
+                    <span className="text-white/40 text-[10px]">—</span>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                      className="border-0 outline-none bg-transparent text-[11px] text-white w-[100px] min-w-0" />
+                    {(dateFrom || dateTo) && (
+                      <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                        className="text-[10px] text-white/60 hover:text-white">Clear</button>
+                    )}
                   </div>
-                  <span className="text-[10px] text-text-muted">30-60d</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-[11px] text-text-primary w-[100px] min-w-0" />
-                  <span className="text-gray-300 text-[10px]">—</span>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className="border-0 outline-none bg-transparent text-[11px] text-text-primary w-[100px] min-w-0" />
-                  {(dateFrom || dateTo) && (
-                    <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                      className="text-[10px] text-text-muted hover:text-text-primary">Clear</button>
-                  )}
-                </div>
-              </div>
-
-              {/* Section 3: Key Metrics (inline) */}
-              <div className="px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                  <div>
-                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">P&L</div>
-                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{fmtPL(persistentMetrics.totalPL)}</div>
+                  <div className="w-px h-4 bg-white/20" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">P&L</span>
+                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{fmtPL(persistentMetrics.totalPL)}</span>
                   </div>
-                  <div>
-                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">Expect</div>
-                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}</div>
+                  <div className="w-px h-4 bg-white/20" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">Expect</span>
+                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-white/50' : persistentMetrics.expectancy >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>{persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}</span>
                   </div>
-                  <div>
-                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">PF</div>
-                    <div className="text-xs font-mono font-semibold text-text-primary">{persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}</div>
+                  <div className="w-px h-4 bg-white/20" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">PF</span>
+                    <span className="text-xs font-mono font-semibold text-white/80">{persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}</span>
                   </div>
-                  <div>
-                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">MaxDD</div>
-                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>{persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}</div>
+                  <div className="w-px h-4 bg-white/20" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">MaxDD</span>
+                    <span className={`text-xs font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-300' : 'text-white/50'}`}>{persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Section 4: Action */}
-              <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
-                Scan Market
-              </button>
 
             </div>
           </div>
 
           {/* ── Page Content — single scrollable page, no tabs ── */}
           <div className="space-y-4">
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm mb-4">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
-                    <span>P&L Calendar</span>
-                    <span className="text-xs text-text-faint">Last 365 days</span>
-                  </div>
-                  <div className="p-4 overflow-x-auto">
-                    {calendarByMonth.length > 0 ? (
-                      <div className="space-y-3">
-                        {calendarByMonth.map(([monthKey, days]) => {
-                          const monthDate = new Date(monthKey + '-01');
-                          const monthName = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                          const monthTotal = days.reduce((sum, d) => sum + d.pl, 0);
-                          const tradeDays = days.filter(d => d.count > 0).length;
-                          
-                          return (
-                            <div key={monthKey} className="flex items-start gap-3">
-                              <div className="w-20 flex-shrink-0">
-                                <div className="text-xs font-medium text-text-secondary">{monthName}</div>
-                                <div className={`text-[10px] font-mono ${monthTotal >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                                  {monthTotal !== 0 ? fmtPL(monthTotal) : '—'}
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap gap-[2px]">
-                                {days.map((day, i) => {
-                                  const intensity = day.pl === 0 ? 0 : Math.min(Math.abs(day.pl) / 500, 1);
-                                  const isPositive = day.pl >= 0;
-                                  const dayOfWeek = day.date.getDay();
-                                  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                                  
-                                  let bgColor = 'bg-bg-row';
-                                  if (day.count > 0) {
-                                    if (isPositive) {
-                                      bgColor = intensity > 0.7 ? 'bg-emerald-600' : intensity > 0.3 ? 'bg-emerald-400' : 'bg-emerald-200';
-                                    } else {
-                                      bgColor = intensity > 0.7 ? 'bg-red-600' : intensity > 0.3 ? 'bg-red-400' : 'bg-red-200';
-                                    }
-                                  } else if (isWeekend) {
-                                    bgColor = 'bg-bg-row';
-                                  }
-                                  
-                                  return (
-                                    <div key={i} className="group relative">
-                                      <div className={`w-4 h-4 ${bgColor} ${day.count > 0 ? 'cursor-pointer' : ''}`} />
-                                      {day.count > 0 && (
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-brand-purple text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20">
-                                          <div className="font-medium">{day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                                          <div className={day.pl >= 0 ? 'text-brand-green' : 'text-brand-red'}>{fmtPL(day.pl)}</div>
-                                          <div className="text-text-faint">{day.count} trade{day.count > 1 ? 's' : ''}</div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="h-32 flex items-center justify-center text-text-faint text-sm">No trading data</div>
-                    )}
-                    
-                    {/* Legend */}
-                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border-light">
-                      <span className="text-[10px] text-text-muted">Less</span>
-                      <div className="flex gap-1">
-                        <div className="w-3 h-3 bg-red-600" title="Large Loss" />
-                        <div className="w-3 h-3 bg-red-400" title="Medium Loss" />
-                        <div className="w-3 h-3 bg-red-200" title="Small Loss" />
-                        <div className="w-3 h-3 bg-bg-row" title="No Trades" />
-                        <div className="w-3 h-3 bg-emerald-200" title="Small Win" />
-                        <div className="w-3 h-3 bg-emerald-400" title="Medium Win" />
-                        <div className="w-3 h-3 bg-emerald-600" title="Large Win" />
-                      </div>
-                      <span className="text-[10px] text-text-muted">More</span>
-                    </div>
-                  </div>
-                </div>
+            {/* P&L Calendar */}
+            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">P&L Calendar</div>
+              <div className="bg-white">
+                <CalendarGrid
+                  events={plCalendarEvents}
+                  sourceConfig={PL_SOURCE_CONFIG}
+                  defaultView="month"
+                  showBudgetTotals={true}
+                  showCategoryLegend={false}
+                  compact={true}
+                />
+              </div>
+            </div>
 
             {/* Brokerage Connection now in search bar — standalone section removed */}
 
