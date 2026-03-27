@@ -4690,9 +4690,9 @@ export default function ConvergenceIntelligence() {
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
 
       {/* SECTION 1: UNIVERSE SELECTOR — matches Data Observatory header */}
-      <div className="bg-brand-purple">
-        <div className="flex items-center justify-between px-4 py-2">
-          <span className="text-xs font-semibold text-white font-mono uppercase tracking-wider">
+      <div className="bg-brand-purple/80 rounded-t-lg">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-sm font-semibold text-white">
             Market Intelligence
           </span>
           <div className="flex items-center gap-2">

@@ -661,70 +661,78 @@ export default function TradingPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
-          {/* ── Purple Background Zone (matches AppLayout Row 3 bg-brand-purple/80) ── */}
-          <div className="-mx-4 lg:-mx-6 px-4 lg:px-6 py-4 mb-4 bg-brand-purple/80">
+          {/* ── Purple Background Zone ── */}
+          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-4 lg:px-6 py-3 mb-4 bg-brand-purple/80">
+            {/* Consolidated Search Bar: Identity + Brokerage | Filters | Metrics | Action */}
+            <div className="max-w-[1800px] mx-auto bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
 
-            {/* Search Bar */}
-            <div className="max-w-[1800px] mx-auto mb-3 bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
-              <div className="flex items-center gap-2 px-4 py-3 lg:flex-[2.5] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <span className="text-sm text-text-primary">Trading Dashboard</span>
+              {/* Section 1: Identity + Brokerage status */}
+              <div className="px-4 py-3 lg:flex-[2] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <div className="text-sm text-text-primary">Trading Dashboard</div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {ttConnected ? (
+                    <><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /><span className="text-[11px] text-emerald-600">Tastytrade Connected</span></>
+                  ) : ttConnected === false ? (
+                    <><div className="w-1.5 h-1.5 bg-red-400 rounded-full" /><span className="text-[11px] text-text-muted">No Brokerage</span></>
+                  ) : (
+                    <span className="text-[11px] text-text-faint">Checking...</span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <div className="flex flex-wrap items-center gap-1">
-                  <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.totalTrades} trades</span>
-                  <span className="inline-flex items-center bg-emerald-50 text-emerald-700 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.closedTrades} closed</span>
-                  <span className="inline-flex items-center bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full">{filteredMetrics.openTrades} open</span>
-                    </div>
+
+              {/* Section 2: Scanner filters (universe, direction, DTE) + Date range */}
+              <div className="px-4 py-2 lg:flex-[4] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                  <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">S&P 500</span>
+                  <span className="inline-flex items-center bg-brand-purple/10 text-brand-purple text-[11px] px-2 py-0.5 rounded-full border border-brand-purple/20">Nasdaq 100</span>
+                  <div className="flex gap-px rounded overflow-hidden border border-gray-200 ml-1">
+                    {['All', 'Bull', 'Bear', 'Ntrl'].map(d => (
+                      <span key={d} className={`px-1.5 py-0.5 text-[9px] font-bold ${d === 'All' ? 'bg-brand-purple text-white' : 'bg-white text-gray-400'}`}>{d}</span>
+                    ))}
                   </div>
-              <div className="flex items-center gap-2 px-4 py-3 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                <span className="text-gray-300">—</span>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                  className="border-0 outline-none bg-transparent text-sm text-text-primary w-[120px] min-w-0" />
-                {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                    className="text-xs text-text-muted hover:text-text-primary px-2 py-0.5 rounded hover:bg-gray-100">Clear</button>
-                )}
+                  <span className="text-[10px] text-text-muted">30-60d</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                    className="border-0 outline-none bg-transparent text-[11px] text-text-primary w-[100px] min-w-0" />
+                  <span className="text-gray-300 text-[10px]">—</span>
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                    className="border-0 outline-none bg-transparent text-[11px] text-text-primary w-[100px] min-w-0" />
+                  {(dateFrom || dateTo) && (
+                    <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                      className="text-[10px] text-text-muted hover:text-text-primary">Clear</button>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center justify-center px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl cursor-default">
-                Trading
+
+              {/* Section 3: Key Metrics (inline) */}
+              <div className="px-4 py-2 lg:flex-[3] lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">P&L</div>
+                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{fmtPL(persistentMetrics.totalPL)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">Expect</div>
+                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">PF</div>
+                    <div className="text-xs font-mono font-semibold text-text-primary">{persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-400 uppercase tracking-wider">MaxDD</div>
+                    <div className={`text-xs font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>{persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}</div>
+                  </div>
+                </div>
               </div>
+
+              {/* Section 4: Action */}
+              <button className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold text-sm transition-colors whitespace-nowrap rounded-b-xl lg:rounded-b-none lg:rounded-r-xl">
+                Scan Market
+              </button>
+
             </div>
-
-            {/* Persistent Metrics Strip */}
-            <div className="max-w-[1800px] mx-auto mb-3 bg-white/90 backdrop-blur-sm rounded-lg">
-              <div className="flex items-center justify-between px-6 py-2.5">
-                <div className="flex-1 text-center">
-                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Total P&L</div>
-                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.totalPL >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {fmtPL(persistentMetrics.totalPL)}
-                  </div>
-                </div>
-                <div className="w-px h-6 bg-gray-200" />
-                <div className="flex-1 text-center">
-                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Expectancy</div>
-                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.expectancy === null ? 'text-text-muted' : persistentMetrics.expectancy >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {persistentMetrics.expectancy === null ? '—' : fmtPL(persistentMetrics.expectancy)}
-                  </div>
-                </div>
-                <div className="w-px h-6 bg-gray-200" />
-                <div className="flex-1 text-center">
-                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Profit Factor</div>
-                  <div className="text-sm font-mono font-semibold text-text-primary">
-                    {persistentMetrics.profitFactor >= 999 ? '∞' : persistentMetrics.profitFactor.toFixed(2)}
-                  </div>
-                </div>
-                <div className="w-px h-6 bg-gray-200" />
-                <div className="flex-1 text-center">
-                  <div className="text-[10px] text-text-muted uppercase tracking-wider">Max Drawdown</div>
-                  <div className={`text-sm font-mono font-semibold ${persistentMetrics.maxDrawdown < 0 ? 'text-red-600' : 'text-text-muted'}`}>
-                    {persistentMetrics.maxDrawdown < 0 ? fmtPL(persistentMetrics.maxDrawdown) : '—'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
           </div>
 
           {/* ── Page Content — single scrollable page, no tabs ── */}
@@ -808,76 +816,33 @@ export default function TradingPage() {
                   </div>
                 </div>
 
-            {/* ── Brokerage Connection ── */}
-            {isOwner && (
-              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Brokerage Connection</div>
-                <div className="bg-white p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-medium text-text-primary">Tastytrade</div>
-                    {ttConnected && (
-                      <div className="flex items-center gap-3">
-                        <button onClick={handleTtRefresh} disabled={ttRefreshing} className="text-xs text-text-muted hover:text-text-secondary underline disabled:opacity-50">
-                          {ttRefreshing ? 'Refreshing...' : 'Refresh Data'}
-                        </button>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                          <span className="text-xs text-brand-green font-medium">Connected</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {ttConnected === null ? (
-                    <div className="text-xs text-text-faint">Checking connection...</div>
-                  ) : ttConnected ? (
-                    <div>
-                      <div className="text-xs text-text-muted mb-2">Accounts: {ttAccounts.length > 0 ? ttAccounts.join(', ') : 'None found'}</div>
-                      <button onClick={handleTtDisconnect} className="text-xs text-brand-red hover:text-brand-red underline">Disconnect</button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-text-muted">Connect your Tastytrade account to enable market data and trading features.</p>
-                      {ttError && <div className="text-xs text-brand-red bg-red-50 border border-red-200 px-3 py-2">{ttError}</div>}
-                      <button onClick={handleTtConnect} disabled={ttConnecting} className="w-full px-4 py-2 text-xs font-medium bg-brand-purple text-white hover:bg-brand-purple-hover disabled:opacity-50">
-                        {ttConnecting ? 'Connecting...' : 'Connect Tastytrade'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Brokerage Connection now in search bar — standalone section removed */}
 
             {/* ── Market Intelligence ── */}
             {isOwner && ttConnected && (
-              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Market Intelligence</div>
-                <div className="bg-white p-4">
-                  {ttLoading ? (
-                    <div className="p-8 text-center text-text-faint text-sm">Loading account data...</div>
-                  ) : ttDataError ? (
-                    <div className="p-6">
-                      <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
-                      <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
-                    </div>
-                  ) : (
-                    <ConvergenceIntelligence />
-                  )}
-                </div>
+              <div className="mb-4">
+                {ttLoading ? (
+                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm bg-white p-8 text-center text-text-faint text-sm">Loading account data...</div>
+                ) : ttDataError ? (
+                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm bg-white p-6">
+                    <div className="text-sm text-brand-red mb-3">{ttDataError}</div>
+                    <button onClick={fetchTtData} className="text-xs text-brand-purple hover:underline font-medium">Retry</button>
+                  </div>
+                ) : (
+                  <ConvergenceIntelligence />
+                )}
               </div>
             )}
 
             {/* ── Trade Lab ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Trade Lab</div>
-              <div className="bg-white">
-                <TradeLabPanel
-                  onCardsChange={() => {
-                    fetch('/api/trade-cards')
-                      .then(r => r.json())
-                      .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
-                  }}
-                />
-              </div>
+            <div className="mb-4">
+              <TradeLabPanel
+                onCardsChange={() => {
+                  fetch('/api/trade-cards')
+                    .then(r => r.json())
+                    .then(data => setTradeCards(Array.isArray(data?.cards) ? data.cards : []));
+                }}
+              />
             </div>
 
 
@@ -1017,15 +982,8 @@ export default function TradingPage() {
 
             {/* ── Data Observatory ── */}
             {isOwner && (
-              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                <details>
-                  <summary className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold cursor-pointer hover:bg-brand-purple/90 transition-colors">
-                    Data Observatory — Live API Health
-                  </summary>
-                  <div className="bg-white p-4">
-                    <DataObservatory />
-                  </div>
-                </details>
+              <div className="mb-4">
+                <DataObservatory />
               </div>
             )}
 
