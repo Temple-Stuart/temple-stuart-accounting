@@ -238,8 +238,39 @@ function buildSearchTerms(coaCategory: string, userInterests: string[]): string[
   return [...new Set(terms)];
 }
 
-// ─── Product Search (V2 freetext with V1 fallback) ───────────────────────────
+// ─── Product Search ──────────────────────────────────────────────────────────
 
+/** V2 /products/search — best for destination-based filtering with tags */
+async function searchV2Products(destId: number, maxCount: number, tagIds?: number[]): Promise<ViatorProduct[]> {
+  const body: Record<string, any> = {
+    filtering: {
+      destination: String(destId),
+    },
+    sorting: { sort: 'DEFAULT' },
+    pagination: { start: 1, count: Math.min(maxCount, 50) },
+    currency: 'USD',
+  };
+  if (tagIds && tagIds.length > 0) {
+    body.filtering.tags = tagIds;
+  }
+
+  const res = await fetch(`${VIATOR_V2_BASE}/products/search`, {
+    method: 'POST',
+    headers: v2Headers(),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[Viator V2] /products/search failed: ${res.status} ${text.substring(0, 200)}`);
+    return [];
+  }
+
+  const data = await res.json();
+  return (data.products || []).map(normalizeV2Product);
+}
+
+/** V2 /search/freetext — best for keyword-based searching */
 async function searchV2Freetext(searchTerm: string, destId: number | null, maxCount: number): Promise<ViatorProduct[]> {
   const body: Record<string, any> = {
     searchTerm,
@@ -314,35 +345,45 @@ export async function searchViatorProducts(
   const allProducts: ViatorProduct[] = [];
   const seenCodes = new Set<string>();
 
-  // Try V2 freetext search for each term
-  for (const term of searchTerms.slice(0, 5)) {
-    try {
-      const searchQuery = destId ? term : `${term} ${city}`;
-      const products = await searchV2Freetext(searchQuery, destId, Math.min(maxResults, 50));
-
-      for (const p of products) {
-        if (p.productCode && !seenCodes.has(p.productCode)) {
-          seenCodes.add(p.productCode);
-          allProducts.push(p);
-        }
+  const addProducts = (products: ViatorProduct[]) => {
+    for (const p of products) {
+      if (p.productCode && !seenCodes.has(p.productCode)) {
+        seenCodes.add(p.productCode);
+        allProducts.push(p);
       }
+    }
+  };
 
-      if (allProducts.length >= maxResults) break;
+  // 1. Try V2 /products/search if we have a destId (fastest, best filtering)
+  if (destId) {
+    try {
+      const products = await searchV2Products(destId, Math.min(maxResults, 50));
+      addProducts(products);
+      console.log(`[Viator] V2 /products/search: ${products.length} results for destId ${destId}`);
     } catch (err) {
-      console.error(`[Viator] V2 search error for "${term}":`, err);
+      console.error('[Viator] V2 /products/search error:', err);
     }
   }
 
-  // If V2 returned few results and we have a destId, try V1 as supplement
+  // 2. Supplement with V2 freetext for each search term (more targeted)
+  if (allProducts.length < maxResults) {
+    for (const term of searchTerms.slice(0, 3)) {
+      if (allProducts.length >= maxResults) break;
+      try {
+        const searchQuery = destId ? term : `${term} ${city}`;
+        const products = await searchV2Freetext(searchQuery, destId, Math.min(maxResults, 50));
+        addProducts(products);
+      } catch (err) {
+        console.error(`[Viator] V2 freetext error for "${term}":`, err);
+      }
+    }
+  }
+
+  // 3. V1 fallback if still few results
   if (allProducts.length < 10 && destId) {
     try {
       const v1Products = await searchV1Products(destId, searchTerms[0], 50);
-      for (const p of v1Products) {
-        if (p.productCode && !seenCodes.has(p.productCode)) {
-          seenCodes.add(p.productCode);
-          allProducts.push(p);
-        }
-      }
+      addProducts(v1Products);
     } catch (err) {
       console.error('[Viator] V1 fallback error:', err);
     }
