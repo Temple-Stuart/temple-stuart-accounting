@@ -1006,20 +1006,22 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="flex gap-1.5 mt-2">
-                                        <button onClick={() => { setViatorCommitKey(rec.viatorProductCode || rec.name); setViatorCommitDate(tripDates?.departure || ''); }}
-                                          className="flex-1 text-center px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
-                                          Commit
-                                        </button>
+                                      <>
+                                        <div className="flex gap-1.5 mt-2">
+                                          <button onClick={() => { setViatorCommitKey(rec.viatorProductCode || rec.name); setViatorCommitDate(tripDates?.departure || ''); }}
+                                            className="flex-1 text-center px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
+                                            Commit
+                                          </button>
+                                          <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
+                                            className="flex-1 text-center px-2 py-1.5 border border-brand-gold text-brand-gold hover:bg-brand-gold/5 text-xs font-medium rounded">
+                                            View
+                                          </a>
+                                        </div>
                                         <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
-                                          className="flex-1 text-center px-2 py-1.5 border border-brand-gold text-brand-gold hover:bg-brand-gold/5 text-xs font-medium rounded">
-                                          View
+                                          className="block text-center w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded mt-1.5">
+                                          Book on Viator
                                         </a>
-                                      </div>
-                                      <a href={rec.bookingUrl || rec.website || '#'} target="_blank" rel="noopener noreferrer"
-                                        className="block text-center w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded mt-1.5">
-                                        Book on Viator
-                                      </a>
+                                      </>
                                     )}
                                   </div>
                                 </div>
