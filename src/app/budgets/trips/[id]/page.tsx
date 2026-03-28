@@ -362,6 +362,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     }
   };
 
+  const handleUncommitItem = async (vendorOptionId: string, vendorOptionType: string) => {
+    if (!confirm('Remove this from your itinerary and budget?')) return;
+    try {
+      const res = await fetch(`/api/trips/${id}/vendor-commit`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionType: vendorOptionType, optionId: vendorOptionId }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to uncommit'); }
+      loadTrip(); loadBudgetItems(); loadVendorOptions(); loadScannerResults();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Uncommit failed');
+    }
+  };
+
   const tripDates = useMemo(() => {
     if (!trip) return null;
     // Prefer stored startDate/endDate, fall back to confirmedStartDay
@@ -606,8 +621,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                   {item.nightCount > 1 && ' onwards'}
                                 </div>
                               )}
-                              <div className="mt-1.5">
+                              <div className="mt-1.5 flex items-center gap-2">
                                 <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                                {item.vendorOptionId && (
+                                  <button onClick={() => handleUncommitItem(item.vendorOptionId, item.vendorOptionType || item.resolvedCategory || 'activity')}
+                                    className="text-[9px] text-red-400 hover:text-red-600">Uncommit</button>
+                                )}
                               </div>
                             </div>
                           </div>
