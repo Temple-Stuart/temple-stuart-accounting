@@ -574,7 +574,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ── Map + Committed Rows ── */}
             {(() => {
               const itinerary = trip.itinerary || [];
-              const DINING_CATEGORIES = new Set(['dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food']);
+              const DINING_CATEGORIES = new Set(['dinner', 'brunch_coffee', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals', 'coffee', 'restaurant', 'dining', 'cafe']);
               const EXCLUDE_FROM_ACTIVITIES = new Set(['flight', 'lodging', 'dinner', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals']);
 
               const resolvedItems = itinerary.map((item: any) => {
