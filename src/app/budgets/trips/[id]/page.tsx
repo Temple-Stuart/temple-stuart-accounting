@@ -130,6 +130,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [viatorCommitDate, setViatorCommitDate] = useState('');
   const [viatorCommitStartTime, setViatorCommitStartTime] = useState('10:00');
   const [viatorCommitEndTime, setViatorCommitEndTime] = useState('12:00');
+  const [viatorCommitPrice, setViatorCommitPrice] = useState('');
   const [viatorCommitting, setViatorCommitting] = useState(false);
   const [confirmedStartDay, setConfirmedStartDay] = useState<number | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -335,7 +336,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     setViatorCommitting(true);
     try {
       // Step 1: Create activity vendor option
-      const price = rec.price || 0;
+      const price = viatorCommitPrice ? parseFloat(viatorCommitPrice) : (rec.price || 0);
       const notes = [rec.summary, rec.bookingUrl ? `Booking: ${rec.bookingUrl}` : ''].filter(Boolean).join('\n');
       const createRes = await fetch(`/api/trips/${id}/activities`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -451,92 +452,25 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const vendorName = first.vendor || 'Untitled';
       const title = `${cfg?.icon || ''} ${vendorName}`;
       const isLodging = source === 'lodging';
-      const checkInTime = first.homeTime || '15:00';
-      const checkOutTime = first.destTime || '11:00';
 
-      if (isLodging && entries.length > 1) {
-        // Multi-day lodging: check-in block + middle-day banners + check-out block
+      if (isLodging) {
+        // Lodging: single all-day event spanning check-in to check-out
         const sortedEntries = [...entries].sort((a, b) =>
           new Date(a.homeDate).getTime() - new Date(b.homeDate).getTime()
         );
-
-        for (let ei = 0; ei < sortedEntries.length; ei++) {
-          const entry = sortedEntries[ei];
-          const dateStr = new Date(entry.homeDate).toISOString().split('T')[0];
-          const isCheckIn = ei === 0;
-          const isCheckOut = ei === sortedEntries.length - 1;
-
-          if (isCheckIn) {
-            // Check-in day: compact 2-hour block at check-in time
-            const ciTime = checkInTime;
-            const ciEndH = parseInt(ciTime.split(':')[0]) + 2;
-            const ciEnd = `${Math.min(ciEndH, 23).toString().padStart(2, '0')}:${ciTime.split(':')[1]}`;
-            otherEvents.push({
-              id: `${key}-checkin`,
-              source,
-              title: `Check-in: ${vendorName}`,
-              icon: cfg?.icon || null,
-              startDate: dateStr,
-              endDate: null,
-              startTime: ciTime,
-              endTime: ciEnd,
-              budgetAmount: totalCost,
-              _vendorOptionId: first.vendorOptionId,
-              _vendorOptionType: first.vendorOptionType,
-              _vendor: vendorName,
-            } as any);
-          } else if (isCheckOut) {
-            // Check-out day: compact 2-hour block ending at check-out time
-            const coTime = checkOutTime;
-            const coStartH = Math.max(parseInt(coTime.split(':')[0]) - 2, 0);
-            const coStart = `${coStartH.toString().padStart(2, '0')}:${coTime.split(':')[1]}`;
-            otherEvents.push({
-              id: `${key}-checkout`,
-              source,
-              title: `Check-out: ${vendorName}`,
-              icon: cfg?.icon || null,
-              startDate: dateStr,
-              endDate: null,
-              startTime: coStart,
-              endTime: coTime,
-              budgetAmount: 0,
-              _vendorOptionId: first.vendorOptionId,
-              _vendorOptionType: first.vendorOptionType,
-              _vendor: vendorName,
-            } as any);
-          } else {
-            // Middle days: all-day banner (no startTime = slim bar in all-day row)
-            otherEvents.push({
-              id: `${key}-day-${ei}`,
-              source,
-              title: vendorName,
-              icon: cfg?.icon || null,
-              startDate: dateStr,
-              endDate: null,
-              startTime: null,
-              endTime: null,
-              budgetAmount: 0,
-              _vendorOptionId: first.vendorOptionId,
-              _vendorOptionType: first.vendorOptionType,
-              _vendor: vendorName,
-            } as any);
-          }
-        }
-      } else if (isLodging && entries.length === 1) {
-        // Single-night lodging: compact 2-hour check-in block
-        const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
-        const ciTime = checkInTime;
-        const ciEndH = parseInt(ciTime.split(':')[0]) + 2;
-        const ciEnd = `${Math.min(ciEndH, 23).toString().padStart(2, '0')}:${ciTime.split(':')[1]}`;
+        const firstDate = new Date(sortedEntries[0].homeDate).toISOString().split('T')[0];
+        const lastDate = sortedEntries.length > 1
+          ? new Date(sortedEntries[sortedEntries.length - 1].homeDate).toISOString().split('T')[0]
+          : null;
         otherEvents.push({
-          id: `${key}-checkin`,
+          id: key,
           source,
-          title: `Check-in: ${vendorName}`,
+          title: vendorName,
           icon: cfg?.icon || null,
-          startDate: dateStr,
-          endDate: null,
-          startTime: ciTime,
-          endTime: ciEnd,
+          startDate: firstDate,
+          endDate: lastDate,
+          startTime: null,
+          endTime: null,
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
@@ -1020,6 +954,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                           <input type="time" value={viatorCommitEndTime} onChange={e => setViatorCommitEndTime(e.target.value)}
                                             className="border border-gray-200 rounded px-2 py-1 text-xs" />
                                         </div>
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-xs text-gray-500">$</span>
+                                          <input type="number" step="0.01" min="0" placeholder="0.00" value={viatorCommitPrice}
+                                            onChange={e => setViatorCommitPrice(e.target.value)}
+                                            className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs font-mono" />
+                                        </div>
                                         <div className="flex gap-1">
                                           <button onClick={() => handleViatorCommit(rec)} disabled={!viatorCommitDate || viatorCommitting}
                                             className="flex-1 px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded disabled:opacity-50">
@@ -1032,7 +972,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                                     ) : (
                                       <>
                                         <div className="flex gap-1.5 mt-2">
-                                          <button onClick={() => { setViatorCommitKey(rec.viatorProductCode || rec.name); setViatorCommitDate(tripDates?.departure || ''); }}
+                                          <button onClick={() => { setViatorCommitKey(rec.viatorProductCode || rec.name); setViatorCommitDate(tripDates?.departure || ''); setViatorCommitPrice(rec.price ? String(rec.price) : ''); }}
                                             className="flex-1 text-center px-2 py-1.5 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-medium rounded">
                                             Commit
                                           </button>
