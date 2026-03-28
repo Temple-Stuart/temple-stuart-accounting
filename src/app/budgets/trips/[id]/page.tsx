@@ -142,7 +142,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // TODO: onBudgetChange/tripBudget is legacy — budget now flows through vendor-commit only
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
-  const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string}[]>([]);
+  const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string; vote?: 'up' | 'down' | null}[]>([]);
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
 
   // Expense form
@@ -589,11 +589,23 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               const uniqueLodging = Object.values(
                 lodgingItems.reduce((acc: Record<string, any>, item: any) => {
                   const key = item.vendorOptionId || item.id;
-                  if (!acc[key]) acc[key] = { ...item, nightCount: 1 };
-                  else acc[key].nightCount++;
+                  if (!acc[key]) {
+                    acc[key] = { ...item, nightCount: 1, _firstDate: item.homeDate, _lastDate: item.homeDate };
+                  } else {
+                    acc[key].nightCount++;
+                    if (item.homeDate && new Date(item.homeDate) > new Date(acc[key]._lastDate)) acc[key]._lastDate = item.homeDate;
+                    if (item.homeDate && new Date(item.homeDate) < new Date(acc[key]._firstDate)) acc[key]._firstDate = item.homeDate;
+                  }
                   return acc;
                 }, {})
-              ) as any[];
+              ).map((item: any) => {
+                // Recalculate nightCount from actual date range
+                if (item._firstDate && item._lastDate) {
+                  const nights = Math.round((new Date(item._lastDate).getTime() - new Date(item._firstDate).getTime()) / (1000 * 60 * 60 * 24));
+                  item.nightCount = Math.max(nights, 1);
+                }
+                return item;
+              }) as any[];
 
               const renderScrollRow = (title: string, items: any[], emptyText: string, placeholderLabel: string, gradientFrom: string, gradientTo: string) => (
                 <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
@@ -685,8 +697,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       <thead className="bg-gray-50">
                         <tr>
                           <th onClick={() => toggleSort('category')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Category{arrow('category')}</th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-500">Country</th>
                           <th onClick={() => toggleSort('item')} className="px-3 py-2 text-left font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Item{arrow('item')}</th>
                           <th onClick={() => toggleSort('amount')} className="px-3 py-2 text-right font-medium text-gray-500 cursor-pointer hover:text-gray-700 select-none">Amount{arrow('amount')}</th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-500 w-16">Vote</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -696,16 +710,26 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           return (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
+                              <td className="px-3 py-2 text-gray-400 text-[11px]">{trip.destination || '—'}</td>
                               <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
                               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
+                              <td className="px-3 py-2 text-center">
+                                <button onClick={() => {
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === idx ? { ...b, vote: b.vote === 'up' ? null : 'up' } : b));
+                                }} className={`text-sm mr-1 ${item.vote === 'up' ? 'text-emerald-600' : 'text-gray-300 hover:text-gray-500'}`}>+</button>
+                                <button onClick={() => {
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === idx ? { ...b, vote: b.vote === 'down' ? null : 'down' } : b));
+                                }} className={`text-sm ${item.vote === 'down' ? 'text-red-500' : 'text-gray-300 hover:text-gray-500'}`}>-</button>
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                       <tfoot className="bg-gray-50 border-t border-gray-200">
                         <tr>
-                          <td colSpan={2} className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">Total</td>
                           <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
+                          <td></td>
                         </tr>
                       </tfoot>
                     </table>
