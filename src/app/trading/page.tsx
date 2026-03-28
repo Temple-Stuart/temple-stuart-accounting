@@ -668,7 +668,7 @@ export default function TradingPage() {
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
           
           {/* ── Purple Background Zone ── */}
-          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/80">
+          <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/95 backdrop-blur-sm sticky top-0 z-40">
             <div className="max-w-[1800px] mx-auto">
 
               {/* ROW 1 — Scanner Bar (compact with category popovers) */}
