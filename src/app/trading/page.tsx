@@ -842,8 +842,8 @@ export default function TradingPage() {
             </div>
           </div>
 
-          {/* ── Page Content (tight, no gaps — purple headers separate sections) ── */}
-          <div className="space-y-3">
+          {/* ── Page Content ── */}
+          <div className="space-y-3 mt-4">
             {/* P&L Calendar */}
             <div className="overflow-hidden border-x border-b border-gray-200/50">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">P&L Calendar</div>
