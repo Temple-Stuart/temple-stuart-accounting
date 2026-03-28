@@ -467,7 +467,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           const isCheckOut = ei === sortedEntries.length - 1;
 
           if (isCheckIn) {
-            // Check-in day: compact afternoon block
+            // Check-in day: compact 2-hour block at check-in time
+            const ciTime = checkInTime;
+            const ciEndH = parseInt(ciTime.split(':')[0]) + 2;
+            const ciEnd = `${Math.min(ciEndH, 23).toString().padStart(2, '0')}:${ciTime.split(':')[1]}`;
             otherEvents.push({
               id: `${key}-checkin`,
               source,
@@ -475,15 +478,18 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               icon: cfg?.icon || null,
               startDate: dateStr,
               endDate: null,
-              startTime: checkInTime,
-              endTime: '23:00',
+              startTime: ciTime,
+              endTime: ciEnd,
               budgetAmount: totalCost,
               _vendorOptionId: first.vendorOptionId,
               _vendorOptionType: first.vendorOptionType,
               _vendor: vendorName,
             } as any);
           } else if (isCheckOut) {
-            // Check-out day: compact morning block
+            // Check-out day: compact 2-hour block ending at check-out time
+            const coTime = checkOutTime;
+            const coStartH = Math.max(parseInt(coTime.split(':')[0]) - 2, 0);
+            const coStart = `${coStartH.toString().padStart(2, '0')}:${coTime.split(':')[1]}`;
             otherEvents.push({
               id: `${key}-checkout`,
               source,
@@ -491,8 +497,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               icon: cfg?.icon || null,
               startDate: dateStr,
               endDate: null,
-              startTime: '07:00',
-              endTime: checkOutTime,
+              startTime: coStart,
+              endTime: coTime,
               budgetAmount: 0,
               _vendorOptionId: first.vendorOptionId,
               _vendorOptionType: first.vendorOptionType,
@@ -517,8 +523,11 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           }
         }
       } else if (isLodging && entries.length === 1) {
-        // Single-night lodging: check-in afternoon block only
+        // Single-night lodging: compact 2-hour check-in block
         const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
+        const ciTime = checkInTime;
+        const ciEndH = parseInt(ciTime.split(':')[0]) + 2;
+        const ciEnd = `${Math.min(ciEndH, 23).toString().padStart(2, '0')}:${ciTime.split(':')[1]}`;
         otherEvents.push({
           id: `${key}-checkin`,
           source,
@@ -526,8 +535,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           icon: cfg?.icon || null,
           startDate: dateStr,
           endDate: null,
-          startTime: checkInTime,
-          endTime: '23:00',
+          startTime: ciTime,
+          endTime: ciEnd,
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
