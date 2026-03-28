@@ -451,16 +451,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const vendorName = first.vendor || 'Untitled';
       const title = `${cfg?.icon || ''} ${vendorName}`;
       const isLodging = source === 'lodging';
-      const checkInTime = first.homeTime || null;
-      const checkOutTime = first.destTime || null;
+      const checkInTime = first.homeTime || '15:00';
+      const checkOutTime = first.destTime || '11:00';
 
       if (isLodging && entries.length > 1) {
         // Multi-day lodging: check-in block + middle-day banners + check-out block
         const sortedEntries = [...entries].sort((a, b) =>
           new Date(a.homeDate).getTime() - new Date(b.homeDate).getTime()
         );
-        const firstDate = new Date(sortedEntries[0].homeDate).toISOString().split('T')[0];
-        const lastDate = new Date(sortedEntries[sortedEntries.length - 1].homeDate).toISOString().split('T')[0];
 
         for (let ei = 0; ei < sortedEntries.length; ei++) {
           const entry = sortedEntries[ei];
@@ -469,43 +467,43 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           const isCheckOut = ei === sortedEntries.length - 1;
 
           if (isCheckIn) {
-            // Check-in day: timed block from check-in time to end of day
+            // Check-in day: compact afternoon block
             otherEvents.push({
               id: `${key}-checkin`,
               source,
-              title: `${cfg?.icon || ''} ${vendorName} (check-in)`,
+              title: `Check-in: ${vendorName}`,
               icon: cfg?.icon || null,
               startDate: dateStr,
               endDate: null,
-              startTime: checkInTime || '15:00',
-              endTime: '23:59',
+              startTime: checkInTime,
+              endTime: '23:00',
               budgetAmount: totalCost,
               _vendorOptionId: first.vendorOptionId,
               _vendorOptionType: first.vendorOptionType,
               _vendor: vendorName,
             } as any);
           } else if (isCheckOut) {
-            // Check-out day: timed block from start of day to check-out time
+            // Check-out day: compact morning block
             otherEvents.push({
               id: `${key}-checkout`,
               source,
-              title: `${cfg?.icon || ''} ${vendorName} (check-out)`,
+              title: `Check-out: ${vendorName}`,
               icon: cfg?.icon || null,
               startDate: dateStr,
               endDate: null,
-              startTime: '00:00',
-              endTime: checkOutTime || '11:00',
+              startTime: '07:00',
+              endTime: checkOutTime,
               budgetAmount: 0,
               _vendorOptionId: first.vendorOptionId,
               _vendorOptionType: first.vendorOptionType,
               _vendor: vendorName,
             } as any);
           } else {
-            // Middle days: all-day banner (no startTime = all-day row)
+            // Middle days: all-day banner (no startTime = slim bar in all-day row)
             otherEvents.push({
               id: `${key}-day-${ei}`,
               source,
-              title: `${cfg?.icon || ''} ${vendorName}`,
+              title: vendorName,
               icon: cfg?.icon || null,
               startDate: dateStr,
               endDate: null,
@@ -518,6 +516,23 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             } as any);
           }
         }
+      } else if (isLodging && entries.length === 1) {
+        // Single-night lodging: check-in afternoon block only
+        const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
+        otherEvents.push({
+          id: `${key}-checkin`,
+          source,
+          title: `Check-in: ${vendorName}`,
+          icon: cfg?.icon || null,
+          startDate: dateStr,
+          endDate: null,
+          startTime: checkInTime,
+          endTime: '23:00',
+          budgetAmount: totalCost,
+          _vendorOptionId: first.vendorOptionId,
+          _vendorOptionType: first.vendorOptionType,
+          _vendor: vendorName,
+        } as any);
       } else {
         // Single-day events (or non-lodging multi-day): use time data if available
         const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
