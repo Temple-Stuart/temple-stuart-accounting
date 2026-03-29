@@ -115,17 +115,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       let activityCategory: string | null = null;
       let activityLocation: string | null = requestLocation || null;
       if (optionType === 'activity') {
-        const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true, vendor: true } });
+        const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true, vendor: true, notes: true } });
         if (actOpt?.category) {
           activityCategory = actOpt.category;
           const registryCode = getCOACode(actOpt.category);
           if (registryCode !== '9950') coaNumber = registryCode;
+        }
+        // If no location passed from frontend, try to find it from scanner results
+        if (!activityLocation && actOpt?.category) {
+          const scanResult = await tx.trip_scanner_results.findFirst({
+            where: { tripId: id, category: actOpt.category },
+            select: { destination: true },
+          });
+          if (scanResult?.destination) activityLocation = scanResult.destination;
         }
       }
       // For lodging, pull location from the lodging option
       if (optionType === 'lodging' && !activityLocation) {
         const lodgOpt = await tx.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: id }, select: { location: true } });
         if (lodgOpt?.location) activityLocation = lodgOpt.location;
+      }
+      // For flights, derive location from notes (e.g., "LAX → HND")
+      if (optionType === 'flight' && !activityLocation && notes) {
+        activityLocation = notes;
       }
       const coaCode = `${prefix}-${coaNumber}`;
       const start = new Date(startDate);
