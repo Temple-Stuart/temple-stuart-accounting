@@ -149,6 +149,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   // Expense form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [budgetSort, setBudgetSort] = useState<{ col: 'category' | 'item' | 'amount'; dir: 'asc' | 'desc' }>({ col: 'category', dir: 'asc' });
+  const [budgetFilter, setBudgetFilter] = useState<string>('all');
   const [expenseForm, setExpenseForm] = useState({
     paidById: '', day: '', category: 'meals', vendor: '', description: '',
     amount: '', date: new Date().toISOString().split('T')[0], location: '', splitWith: [] as string[]
@@ -838,7 +839,27 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                 }));
               };
               const arrow = (col: string) => budgetSort.col === col ? (budgetSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-              const sorted = [...committedBudgetItems].sort((a, b) => {
+
+              // Build destination filter pills with totals
+              const destTotals: Record<string, number> = {};
+              for (const item of committedBudgetItems) {
+                const dest = item.location || '—';
+                destTotals[dest] = (destTotals[dest] || 0) + item.amount;
+              }
+              // Sort: named destinations alphabetically, "—" last
+              const destKeys = Object.keys(destTotals).sort((a, b) => {
+                if (a === '—') return 1;
+                if (b === '—') return -1;
+                return a.localeCompare(b);
+              });
+
+              // Filter items
+              const filtered = budgetFilter === 'all'
+                ? committedBudgetItems
+                : committedBudgetItems.filter(item => (item.location || '—') === budgetFilter);
+              const filteredTotal = filtered.reduce((sum, item) => sum + item.amount, 0);
+
+              const sorted = [...filtered].sort((a, b) => {
                 const dir = budgetSort.dir === 'asc' ? 1 : -1;
                 if (budgetSort.col === 'category') return a.category.localeCompare(b.category) * dir;
                 if (budgetSort.col === 'item') return (a.description || a.category).localeCompare(b.description || b.category) * dir;
@@ -849,6 +870,19 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               return (
                 <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
                   <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Budget</div>
+                  {/* Destination filter pills */}
+                  <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex flex-wrap gap-1.5">
+                    <button onClick={() => setBudgetFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === 'all' ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      All ({fmt(totalBudget)})
+                    </button>
+                    {destKeys.map(dest => (
+                      <button key={dest} onClick={() => setBudgetFilter(budgetFilter === dest ? 'all' : dest)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${budgetFilter === dest ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {dest === '—' ? 'Other' : dest} ({fmt(destTotals[dest])})
+                      </button>
+                    ))}
+                  </div>
                   <div className="overflow-x-auto bg-white">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-50">
@@ -864,6 +898,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                         {sorted.map((item, idx) => {
                           const showCategory = item.category !== lastCategory;
                           lastCategory = item.category;
+                          // Find original index in committedBudgetItems for vote toggling
+                          const origIdx = committedBudgetItems.findIndex(b => b.description === item.description && b.amount === item.amount && b.category === item.category);
                           return (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
@@ -872,10 +908,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
                               <td className="px-3 py-2 text-center">
                                 <button onClick={() => {
-                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === idx ? { ...b, vote: b.vote === 'up' ? null : 'up' } : b));
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'up' ? null : 'up' } : b));
                                 }} className={`text-sm mr-1 ${item.vote === 'up' ? 'text-emerald-600' : 'text-gray-300 hover:text-gray-500'}`}>+</button>
                                 <button onClick={() => {
-                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === idx ? { ...b, vote: b.vote === 'down' ? null : 'down' } : b));
+                                  setCommittedBudgetItems(prev => prev.map((b, i) => i === origIdx ? { ...b, vote: b.vote === 'down' ? null : 'down' } : b));
                                 }} className={`text-sm ${item.vote === 'down' ? 'text-red-500' : 'text-gray-300 hover:text-gray-500'}`}>-</button>
                               </td>
                             </tr>
@@ -884,8 +920,10 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                       </tbody>
                       <tfoot className="bg-gray-50 border-t border-gray-200">
                         <tr>
-                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">Total</td>
-                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(totalBudget)}</td>
+                          <td colSpan={3} className="px-3 py-2 font-semibold text-gray-900">
+                            {budgetFilter === 'all' ? 'Total' : `Total — ${budgetFilter === '—' ? 'Other' : budgetFilter}`}
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold text-emerald-700">{fmt(filteredTotal)}</td>
                           <td></td>
                         </tr>
                       </tfoot>
