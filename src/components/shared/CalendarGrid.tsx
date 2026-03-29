@@ -419,11 +419,17 @@ export default function CalendarGrid({
                               title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}
                             >
                               <div className="px-1.5 py-1 h-full overflow-hidden">
-                                <div className="text-[11px] font-medium leading-tight truncate">{block.label}</div>
-                                {!block.isArrive && block.event.endTime && (
-                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">arr {formatTime12h(block.event.endTime)}</div>
+                                <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
+                                {block.event.startTime && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">
+                                    {formatTime12h(block.event.startTime)}
+                                    {block.event.endTime ? ` — ${formatTime12h(block.event.endTime)}` : ''}
+                                  </div>
                                 )}
-                                {block.event.budgetAmount && block.event.budgetAmount > 0 && (
+                                {block.event.location && (
+                                  <div className="text-[10px] opacity-70 leading-tight mt-0.5 truncate">{block.event.location}</div>
+                                )}
+                                {!block.event.startTime && block.event.budgetAmount && block.event.budgetAmount > 0 && (
                                   <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(block.event.budgetAmount)}</div>
                                 )}
                               </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { getCOACode } from '@/lib/travelCategories';
 
 // Travel COA codes: P-9xxx (personal) / B-9xxx (business)
 // Maps vendor optionType to the 9xxx travel COA number
@@ -10,36 +11,6 @@ const VENDOR_TYPE_TO_COA: Record<string, string> = {
   vehicle: '9300',
   transfer: '9600',
   activity: '9400',
-};
-
-// Granular mapping: scanner subcategory → travel COA number
-// Used when the activity record has a specific category field
-const ACTIVITY_CATEGORY_TO_COA: Record<string, string> = {
-  // COA keys (underscore format — what the scanner saves)
-  brunch_coffee: '9310',
-  dinner: '9320',
-  business_meals: '9330',
-  sports_fitness: '9410',
-  arts_culture: '9420',
-  nightlife: '9430',
-  festivals: '9440',
-  bucket_list: '9450',
-  conferences: '9500',
-  coworking: '9510',
-  ground_transport: '9600',
-  wellness: '9700',
-  shopping: '9800',
-  // Legacy camelCase keys (backward compat for older committed items)
-  brunchCoffee: '9310',
-  food: '9320',
-  coffee: '9310',
-  toiletries: '9800',
-  activities: '9420',
-  lift_pass: '9400',
-  lessons: '9400',
-  equipment: '9350',
-  board_rental: '9350',
-  kite_rental: '9350',
 };
 
 type OptionType = 'lodging' | 'transfer' | 'vehicle' | 'activity' | 'flight';
@@ -113,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const trip = await prisma.trips.findFirst({ where: { id, userId: user.id } });
     if (!trip) return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
 
-    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount } = await request.json();
+    const { optionType, optionId, startDate, endDate, startTime, endTime, arriveDate, notes, amount: requestAmount, location: requestLocation } = await request.json();
 
     if (!optionType || !optionId || !startDate) {
       return NextResponse.json({ error: 'optionType, optionId, and startDate are required' }, { status: 400 });
@@ -139,13 +110,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // B. Create budget_line_item
       const prefix = trip.tripType === 'business' ? 'B' : 'P';
 
-      // For activities, try the granular category mapping first
+      // For activities, use the category registry for granular COA codes
       let coaNumber = VENDOR_TYPE_TO_COA[optionType] || '9950';
+      let activityCategory: string | null = null;
+      let activityLocation: string | null = requestLocation || null;
       if (optionType === 'activity') {
-        const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true } });
-        if (actOpt?.category && ACTIVITY_CATEGORY_TO_COA[actOpt.category]) {
-          coaNumber = ACTIVITY_CATEGORY_TO_COA[actOpt.category];
+        const actOpt = await tx.trip_activity_expenses.findFirst({ where: { id: optionId, trip_id: id }, select: { category: true, vendor: true } });
+        if (actOpt?.category) {
+          activityCategory = actOpt.category;
+          const registryCode = getCOACode(actOpt.category);
+          if (registryCode !== '9950') coaNumber = registryCode;
         }
+      }
+      // For lodging, pull location from the lodging option
+      if (optionType === 'lodging' && !activityLocation) {
+        const lodgOpt = await tx.trip_lodging_options.findFirst({ where: { id: optionId, trip_id: id }, select: { location: true } });
+        if (lodgOpt?.location) activityLocation = lodgOpt.location;
       }
       const coaCode = `${prefix}-${coaNumber}`;
       const start = new Date(startDate);
@@ -178,7 +158,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             tripId: id, day: dayNum, homeDate: transferDate, homeTime: startTime || null,
             destDate: transferDate, destTime: startTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
-            note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
+            note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
           },
         });
         itineraryEntries.push(entry);
@@ -191,7 +171,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             tripId: id, day: dayNum, homeDate: start, homeTime: startTime || null,
             destDate: flightArriveDate, destTime: endTime || null,
             category: optionType, vendor: details.title, cost: Math.round(details.amount * 100) / 100,
-            note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
+            note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
           },
         });
         itineraryEntries.push(entry);
@@ -208,7 +188,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               tripId: id, day: dayNum, homeDate: current, homeTime: startTime || null,
               destDate: current, destTime: endTime || null,
               category: optionType, vendor: details.title, cost: Math.round(dailyCost * 100) / 100,
-              note: notes || null, vendorOptionId: optionId, vendorOptionType: optionType,
+              note: notes || null, location: activityLocation, vendorOptionId: optionId, vendorOptionType: optionType,
             },
           });
           itineraryEntries.push(entry);
