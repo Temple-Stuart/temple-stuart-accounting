@@ -36,7 +36,7 @@ export interface CalendarGridProps {
   anchorDate?: string;
   highlightStart?: string;
   highlightEnd?: string;
-  onEventClick?: (event: CalendarEvent) => void;
+  onEventClick?: (event: CalendarEvent, mouseEvent?: MouseEvent) => void;
   showBudgetTotals?: boolean;
   showCategoryLegend?: boolean;
   compact?: boolean;
@@ -340,7 +340,7 @@ export default function CalendarGrid({
                             const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                             return (
                               <div key={event.id || i}
-                                onClick={() => onEventClick?.(event)}
+                                onClick={(e) => onEventClick?.(event, e.nativeEvent)}
                                 className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''}`}
                                 title={event.title}>
                                 {event.title}
@@ -413,7 +413,7 @@ export default function CalendarGrid({
                           return (
                             <div
                               key={`${block.event.id}-${blockIdx}`}
-                              onClick={() => onEventClick?.(block.event)}
+                              onClick={(e) => onEventClick?.(block.event, e.nativeEvent)}
                               className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               style={{ top: `${top}px`, height: `${height}px` }}
                               title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}

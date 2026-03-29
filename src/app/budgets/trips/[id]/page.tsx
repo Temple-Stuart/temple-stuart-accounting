@@ -163,10 +163,17 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [popoverEvent, setPopoverEvent] = useState<(CalendarEvent & Record<string, any>) | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    // Position popover near mouse / center of viewport
-    const rect = document.querySelector('.space-y-4')?.getBoundingClientRect();
-    setPopoverPos({ top: (rect?.top || 100) + window.scrollY + 60, left: Math.min(window.innerWidth - 340, Math.max(16, (rect?.left || 0) + 40)) });
+  const handleEventClick = (event: CalendarEvent, mouseEvent?: MouseEvent) => {
+    // Position popover near the click position
+    if (mouseEvent) {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const top = mouseEvent.clientY + scrollY + 8;
+      const left = Math.min(window.innerWidth - 340, Math.max(16, mouseEvent.clientX - 160));
+      setPopoverPos({ top, left });
+    } else {
+      // Fallback: center of viewport
+      setPopoverPos({ top: window.scrollY + 200, left: Math.max(16, (window.innerWidth - 320) / 2) });
+    }
     setPopoverEvent(event as any);
   };
 
@@ -189,6 +196,13 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   // Vendor commitment state (legacy — commit now handled inside TripPlannerAI)
 
   useEffect(() => { loadTrip(); loadParticipants(); loadDestinations(); loadBudgetItems(); loadVendorOptions(); loadScannerResults(); fetch("/api/auth/me").then(res => res.ok ? res.json() : null).then(data => { if (data?.user?.tier) setUserTier(data.user.tier); if (data?.user?.email) setCurrentUserEmail(data.user.email); if (data?.user?.id) setCurrentUserId(data.user.id); }); }, [id]);
+
+  // Re-resolve budget item locations when scanner results or itinerary become available
+  useEffect(() => {
+    if (scannerResults.length > 0 || trip?.itinerary?.length) {
+      loadBudgetItems();
+    }
+  }, [scannerResults, trip?.itinerary]);
 
   // Derive origin airport from current user's participant record
   useEffect(() => {
@@ -276,7 +290,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const data = await res.json();
       const items = data.items || [];
 
-      // Build location lookup from itinerary (vendor → location)
+      // Level 1: itinerary entry location (vendor name → location)
       const itineraryLocationMap: Record<string, string> = {};
       if (trip?.itinerary) {
         for (const entry of trip.itinerary) {
@@ -286,12 +300,31 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         }
       }
 
-      const restoredBudget = items.map((item: any) => ({
-        category: coaCodeToLabel(item.coaCode),
-        amount: Number(item.amount),
-        description: item.description || '',
-        location: itineraryLocationMap[item.description] || null,
-      }));
+      // Level 2: scanner results — item name → scan destination
+      // Each scanner result has a destination (e.g., "Tokyo") and recommendations with names
+      const scannerNameToDestMap: Record<string, string> = {};
+      for (const sr of scannerResults) {
+        const dest = sr.destination;
+        if (!dest) continue;
+        const recs = sr.recommendations || [];
+        for (const rec of recs) {
+          if (rec.name) scannerNameToDestMap[rec.name] = dest;
+        }
+      }
+
+      const restoredBudget = items.map((item: any) => {
+        const desc = item.description || '';
+        // Try itinerary location first, then scanner destination, then nothing
+        const location = itineraryLocationMap[desc]
+          || scannerNameToDestMap[desc]
+          || null;
+        return {
+          category: coaCodeToLabel(item.coaCode),
+          amount: Number(item.amount),
+          description: desc,
+          location,
+        };
+      });
       setCommittedBudgetItems(restoredBudget);
     } catch (err) {
       console.error('Failed to load budget items:', err);
@@ -439,6 +472,17 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     if (!trip) return [];
     const items = trip.itinerary || [];
 
+    // Build scanner name→destination fallback for items without location
+    const scannerNameToDest: Record<string, string> = {};
+    for (const sr of scannerResults) {
+      if (!sr.destination) continue;
+      for (const rec of (sr.recommendations || [])) {
+        if (rec.name) scannerNameToDest[rec.name] = sr.destination;
+      }
+    }
+    const resolveLocation = (item: any): string | null =>
+      item.location || scannerNameToDest[item.vendor] || null;
+
     // For flights: each itinerary entry is its own event (don't group)
     // For other types: group by vendorOptionId for multi-day bookings
     const flightItems = items.filter((item: any) => (item.vendorOptionType || item.category) === 'flight');
@@ -463,7 +507,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         endDate: destDateStr !== dateStr ? destDateStr : null,
         startTime: item.homeTime || null,
         endTime: item.destTime || null,
-        location: item.location || null,
+        location: resolveLocation(item),
         budgetAmount: parseFloat(item.cost || 0),
         _vendorOptionId: item.vendorOptionId,
         _vendorOptionType: item.vendorOptionType,
@@ -471,7 +515,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         _note: item.note,
         _homeTime: item.homeTime,
         _destTime: item.destTime,
-        _location: item.location || null,
+        _location: resolveLocation(item),
         _category: 'flights',
       } as CalendarEvent & Record<string, any>;
     });
@@ -510,12 +554,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           endDate: lastDate,
           startTime: null,
           endTime: null,
-          location: first.location || null,
+          location: resolveLocation(first),
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
           _vendor: vendorName,
-          _location: first.location || null,
+          _location: resolveLocation(first),
           _category: source,
         } as any);
       } else {
@@ -531,7 +575,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             : null,
           startTime: first.homeTime || null,
           endTime: first.destTime || null,
-          location: first.location || null,
+          location: resolveLocation(first),
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
@@ -539,14 +583,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           _note: first.note,
           _homeTime: first.homeTime,
           _destTime: first.destTime,
-          _location: first.location || null,
+          _location: resolveLocation(first),
           _category: source,
         } as any);
       }
     }
 
     return [...flightEvents, ...otherEvents];
-  }, [trip, vendorOptions]);
+  }, [trip, vendorOptions, scannerResults]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -767,7 +811,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           return (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
-                              <td className="px-3 py-2 text-gray-400 text-[11px]">{item.location || trip.destination || '—'}</td>
+                              <td className="px-3 py-2 text-gray-400 text-[11px]">{item.location || '—'}</td>
                               <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
                               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
                               <td className="px-3 py-2 text-center">
