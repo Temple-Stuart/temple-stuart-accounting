@@ -11,7 +11,7 @@ import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { ADMIN_USER_ID } from '@/lib/tiers';
 import { coaCodeToLabel } from '@/lib/travelCOA';
-import { buildCalendarSourceConfig, getDiningCategoryKeys, getExcludeFromActivitiesKeys } from '@/lib/travelCategories';
+import { buildCalendarSourceConfig, getDiningCategoryKeys } from '@/lib/travelCategories';
 import 'leaflet/dist/leaflet.css';
 
 // Calendar source config derived from category registry
@@ -644,87 +644,94 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="space-y-4">
 
-            {/* ── Map + Committed Rows ── */}
+            {/* ── Map + Committed Rows (grouped by destination) ── */}
             {(() => {
               const itinerary = trip.itinerary || [];
               const DINING_CATEGORIES = getDiningCategoryKeys();
-              const EXCLUDE_FROM_ACTIVITIES = getExcludeFromActivitiesKeys();
 
-              const resolvedItems = itinerary.map((item: any) => {
-                const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
-                return { ...item, resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '', imageUrl: optInfo?.imageUrl || null };
-              });
+              // Build scanner name→destination map
+              const scannerNameToDest: Record<string, string> = {};
+              for (const sr of scannerResults) {
+                if (!sr.destination) continue;
+                for (const rec of (sr.recommendations || [])) {
+                  if (rec.name) scannerNameToDest[rec.name] = sr.destination;
+                }
+              }
 
-              const lodgingItems = resolvedItems.filter((item: any) => item.resolvedCategory === 'lodging' || item.vendorOptionType === 'lodging');
-              const diningItems = resolvedItems.filter((item: any) => DINING_CATEGORIES.has(item.resolvedCategory) || DINING_CATEGORIES.has(item.vendorOptionType) || DINING_CATEGORIES.has(item.category));
-              const activityItems = resolvedItems.filter((item: any) => !EXCLUDE_FROM_ACTIVITIES.has(item.resolvedCategory) && !EXCLUDE_FROM_ACTIVITIES.has(item.vendorOptionType || '') && !EXCLUDE_FROM_ACTIVITIES.has(item.category || '') && item.vendorOptionType !== 'flight' && item.vendorOptionType !== 'lodging');
+              const resolveDestination = (item: any): string =>
+                item.location || scannerNameToDest[item.vendor] || 'Other';
 
-              const uniqueLodging = Object.values(
-                lodgingItems.reduce((acc: Record<string, any>, item: any) => {
-                  const key = item.vendorOptionId || item.id;
-                  if (!acc[key]) {
-                    acc[key] = { ...item, nightCount: 1, _firstDate: item.homeDate, _lastDate: item.homeDate };
-                  } else {
-                    acc[key].nightCount++;
-                    if (item.homeDate && new Date(item.homeDate) > new Date(acc[key]._lastDate)) acc[key]._lastDate = item.homeDate;
-                    if (item.homeDate && new Date(item.homeDate) < new Date(acc[key]._firstDate)) acc[key]._firstDate = item.homeDate;
-                  }
-                  return acc;
-                }, {})
-              ).map((item: any) => {
-                // Recalculate nightCount from actual date range
+              const resolveCategoryLabel = (item: any): string => {
+                const cat = item.resolvedCategory || item.vendorOptionType || item.category || '';
+                if (cat === 'lodging' || cat === 'accommodation') return 'Lodging';
+                if (DINING_CATEGORIES.has(cat)) return 'Dining';
+                if (cat === 'flight') return 'Flight';
+                return 'Activity';
+              };
+
+              const CATEGORY_SORT_ORDER: Record<string, number> = { 'Lodging': 0, 'Dining': 1, 'Activity': 2, 'Flight': 3 };
+              const CATEGORY_BADGE_COLORS: Record<string, string> = {
+                'Lodging': 'bg-blue-100 text-blue-700',
+                'Dining': 'bg-amber-100 text-amber-700',
+                'Activity': 'bg-violet-100 text-violet-700',
+                'Flight': 'bg-purple-100 text-purple-700',
+              };
+
+              const resolvedItems = itinerary
+                .filter((item: any) => (item.vendorOptionType || item.category) !== 'flight')
+                .map((item: any) => {
+                  const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
+                  return {
+                    ...item,
+                    resolvedCategory: optInfo?.category || item.vendorOptionType || item.category || '',
+                    imageUrl: optInfo?.imageUrl || null,
+                    _destination: resolveDestination(item),
+                    _categoryLabel: '',
+                  };
+                });
+
+              // Set category labels
+              for (const item of resolvedItems) {
+                item._categoryLabel = resolveCategoryLabel(item);
+              }
+
+              // Deduplicate multi-day items (lodging etc.) by vendorOptionId
+              const deduped: Record<string, any> = {};
+              for (const item of resolvedItems) {
+                const key = item.vendorOptionId || item.id;
+                if (!deduped[key]) {
+                  deduped[key] = { ...item, nightCount: 1, _firstDate: item.homeDate, _lastDate: item.homeDate };
+                } else {
+                  deduped[key].nightCount++;
+                  if (item.homeDate && new Date(item.homeDate) > new Date(deduped[key]._lastDate)) deduped[key]._lastDate = item.homeDate;
+                  if (item.homeDate && new Date(item.homeDate) < new Date(deduped[key]._firstDate)) deduped[key]._firstDate = item.homeDate;
+                }
+              }
+              const allItems = Object.values(deduped).map((item: any) => {
                 if (item._firstDate && item._lastDate) {
                   const nights = Math.round((new Date(item._lastDate).getTime() - new Date(item._firstDate).getTime()) / (1000 * 60 * 60 * 24));
                   item.nightCount = Math.max(nights, 1);
                 }
                 return item;
-              }) as any[];
+              });
 
-              const renderScrollRow = (title: string, items: any[], emptyText: string, placeholderLabel: string, gradientFrom: string, gradientTo: string) => (
-                <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-                  <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">{title} <span className="font-normal opacity-70">({items.length})</span></div>
-                  {items.length > 0 ? (
-                    <div className="overflow-x-auto bg-white p-3" style={{ scrollSnapType: 'x mandatory' }}>
-                      <div className="flex gap-3">
-                        {items.map((item: any, idx: number) => (
-                          <div key={item.vendorOptionId || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
-                            ) : null}
-                            <div className={`w-full h-[120px] bg-gradient-to-br ${gradientFrom} ${gradientTo} flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
-                              <span className="text-sm font-medium text-gray-400">{placeholderLabel}</span>
-                            </div>
-                            <div className="p-3">
-                              <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
-                              <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                                {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
-                                {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
-                              </div>
-                              {item.homeDate && (
-                                <div className="text-[10px] text-gray-400 mt-1">
-                                  {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  {item.nightCount > 1 && ' onwards'}
-                                </div>
-                              )}
-                              <div className="mt-1.5 flex items-center gap-2">
-                                <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
-                                {item.vendorOptionId && (
-                                  <button onClick={() => handleUncommitItem(item.vendorOptionId, item.vendorOptionType || item.resolvedCategory || 'activity')}
-                                    className="text-[9px] text-red-400 hover:text-red-600">Uncommit</button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white text-center py-6 text-gray-400">
-                      <p className="text-xs">{emptyText}</p>
-                    </div>
-                  )}
-                </div>
-              );
+              // Group by destination
+              const byDestination: Record<string, any[]> = {};
+              for (const item of allItems) {
+                const dest = item._destination;
+                if (!byDestination[dest]) byDestination[dest] = [];
+                byDestination[dest].push(item);
+              }
+              // Sort items within each destination: lodging → dining → activities
+              for (const items of Object.values(byDestination)) {
+                items.sort((a: any, b: any) => (CATEGORY_SORT_ORDER[a._categoryLabel] ?? 9) - (CATEGORY_SORT_ORDER[b._categoryLabel] ?? 9));
+              }
+              // Sort destinations: named first (alphabetical), "Other" last
+              const destEntries = Object.entries(byDestination).sort(([a], [b]) => {
+                if (a === 'Other') return 1;
+                if (b === 'Other') return -1;
+                return a.localeCompare(b);
+              });
 
               return (
                 <>
@@ -766,9 +773,58 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     )}
                   </div>
 
-                  {renderScrollRow('Lodging', uniqueLodging, 'No lodging booked yet. Scan destinations to find hotels.', 'HOTEL', 'from-blue-50', 'to-indigo-100')}
-                  {renderScrollRow('Dining', diningItems, 'No restaurants booked yet. Scan destinations to find dining.', 'DINING', 'from-red-50', 'to-orange-100')}
-                  {renderScrollRow('Activities', activityItems, 'No activities booked yet. Scan destinations to find things to do.', 'ACTIVITY', 'from-green-50', 'to-emerald-100')}
+                  {/* ── Committed items by destination ── */}
+                  {destEntries.length > 0 ? destEntries.map(([dest, items]) => (
+                    <div key={dest} className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">{dest} <span className="font-normal opacity-70">({items.length})</span></div>
+                      <div className="overflow-x-auto bg-white p-3" style={{ scrollSnapType: 'x mandatory' }}>
+                        <div className="flex gap-3">
+                          {items.map((item: any, idx: number) => (
+                            <div key={item.vendorOptionId || idx} className="w-[240px] flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow" style={{ scrollSnapAlign: 'start' }}>
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.vendor || ''} className="w-full h-[120px] object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                              ) : null}
+                              <div className={`w-full h-[120px] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center ${item.imageUrl ? 'hidden' : ''}`}>
+                                <span className="text-sm font-medium text-gray-400">{item._categoryLabel.toUpperCase()}</span>
+                              </div>
+                              <div className="p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${CATEGORY_BADGE_COLORS[item._categoryLabel] || 'bg-gray-100 text-gray-600'}`}>
+                                    {item._categoryLabel}
+                                  </span>
+                                </div>
+                                <div className="font-medium text-xs text-gray-900 truncate">{item.vendor || 'Untitled'}</div>
+                                <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                  {item.cost && <span className="font-semibold text-emerald-700">${parseFloat(item.cost).toFixed(0)}</span>}
+                                  {item.nightCount > 1 && <span>{item.nightCount} nights</span>}
+                                </div>
+                                {item.homeDate && (
+                                  <div className="text-[10px] text-gray-400 mt-1">
+                                    {new Date(item.homeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {item.nightCount > 1 && ' onwards'}
+                                  </div>
+                                )}
+                                <div className="mt-1.5 flex items-center gap-2">
+                                  <span className="px-1.5 py-0.5 text-[9px] font-medium bg-emerald-100 text-emerald-700 rounded">Committed</span>
+                                  {item.vendorOptionId && (
+                                    <button onClick={() => handleUncommitItem(item.vendorOptionId, item.vendorOptionType || item.resolvedCategory || 'activity')}
+                                      className="text-[9px] text-red-400 hover:text-red-600">Uncommit</button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                      <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Committed Items</div>
+                      <div className="bg-white text-center py-6 text-gray-400">
+                        <p className="text-xs">No items committed yet. Scan destinations to find places.</p>
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             })()}
