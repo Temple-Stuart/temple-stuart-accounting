@@ -10,10 +10,11 @@ import TripPlannerAI from '@/components/trips/TripPlannerAI';
 import TripProfileCard from '@/components/trips/TripProfileCard';
 import CalendarGrid, { CalendarEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { ADMIN_USER_ID } from '@/lib/tiers';
-import { buildCalendarSourceConfig, coaCodeToLabel } from '@/lib/travelCOA';
+import { coaCodeToLabel } from '@/lib/travelCOA';
+import { buildCalendarSourceConfig, getDiningCategoryKeys, getExcludeFromActivitiesKeys } from '@/lib/travelCategories';
 import 'leaflet/dist/leaflet.css';
 
-// Calendar source config derived from unified TRAVEL_COA
+// Calendar source config derived from category registry
 const TRIP_SOURCE_CONFIG: Record<string, SourceConfig> = buildCalendarSourceConfig();
 
 interface Participant {
@@ -142,7 +143,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
   // TODO: onBudgetChange/tripBudget is legacy — budget now flows through vendor-commit only
   const [tripBudget, setTripBudget] = useState<{category: string; amount: number; description: string; splitType?: string}[]>([]);
-  const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string; vote?: 'up' | 'down' | null}[]>([]);
+  const [committedBudgetItems, setCommittedBudgetItems] = useState<{category: string; amount: number; description: string; location?: string | null; vote?: 'up' | 'down' | null}[]>([]);
   const [initialCosts, setInitialCosts] = useState<Record<string, Record<string, number>>>({});
 
   // Expense form
@@ -157,6 +158,17 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Calendar event popover
+  const [popoverEvent, setPopoverEvent] = useState<(CalendarEvent & Record<string, any>) | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+
+  const handleEventClick = (event: CalendarEvent) => {
+    // Position popover near mouse / center of viewport
+    const rect = document.querySelector('.space-y-4')?.getBoundingClientRect();
+    setPopoverPos({ top: (rect?.top || 100) + window.scrollY + 60, left: Math.min(window.innerWidth - 340, Math.max(16, (rect?.left || 0) + 40)) });
+    setPopoverEvent(event as any);
+  };
 
   // Inline date editing
   const [editingDates, setEditingDates] = useState(false);
@@ -264,10 +276,21 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       const data = await res.json();
       const items = data.items || [];
 
+      // Build location lookup from itinerary (vendor → location)
+      const itineraryLocationMap: Record<string, string> = {};
+      if (trip?.itinerary) {
+        for (const entry of trip.itinerary) {
+          if (entry.vendor && entry.location) {
+            itineraryLocationMap[entry.vendor] = entry.location;
+          }
+        }
+      }
+
       const restoredBudget = items.map((item: any) => ({
         category: coaCodeToLabel(item.coaCode),
         amount: Number(item.amount),
         description: item.description || '',
+        location: itineraryLocationMap[item.description] || null,
       }));
       setCommittedBudgetItems(restoredBudget);
     } catch (err) {
@@ -350,7 +373,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
       // Step 2: Commit to itinerary
       await fetch(`/api/trips/${id}/vendor-commit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ optionType: 'activity', optionId, startDate: viatorCommitDate, endDate: null, startTime: viatorCommitStartTime || null, endTime: viatorCommitEndTime || null }),
+        body: JSON.stringify({ optionType: 'activity', optionId, startDate: viatorCommitDate, endDate: null, startTime: viatorCommitStartTime || null, endTime: viatorCommitEndTime || null, location: rec.address || rec._scanDest || null }),
       });
 
       setViatorCommitKey(null);
@@ -421,24 +444,26 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
     const flightItems = items.filter((item: any) => (item.vendorOptionType || item.category) === 'flight');
     const otherItems = items.filter((item: any) => (item.vendorOptionType || item.category) !== 'flight');
 
+    // Resolve correct source key using vendorOptions category
+    const resolveSource = (item: any): string => {
+      const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
+      return optInfo?.category || item.vendorOptionType || item.category || 'activities';
+    };
+
     // Flight events — one per entry
     const flightEvents: CalendarEvent[] = flightItems.map((item: any) => {
-      const cfg = TRIP_SOURCE_CONFIG['flight'];
       const dateStr = item.homeDate ? new Date(item.homeDate).toISOString().split('T')[0] : '';
       const destDateStr = item.destDate ? new Date(item.destDate).toISOString().split('T')[0] : null;
-      let title = `${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
-      if (item.homeTime) {
-        title = `${formatTime12h(item.homeTime)} ${cfg?.icon || ''} ${item.vendor || 'Flight'}`;
-      }
       return {
         id: item.id,
-        source: 'flight',
-        title,
-        icon: cfg?.icon || null,
+        source: 'flights',
+        title: item.vendor || 'Flight',
+        icon: null,
         startDate: dateStr,
         endDate: destDateStr !== dateStr ? destDateStr : null,
         startTime: item.homeTime || null,
         endTime: item.destTime || null,
+        location: item.location || null,
         budgetAmount: parseFloat(item.cost || 0),
         _vendorOptionId: item.vendorOptionId,
         _vendorOptionType: item.vendorOptionType,
@@ -446,6 +471,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
         _note: item.note,
         _homeTime: item.homeTime,
         _destTime: item.destTime,
+        _location: item.location || null,
+        _category: 'flights',
       } as CalendarEvent & Record<string, any>;
     });
 
@@ -461,15 +488,12 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
 
     for (const [key, entries] of Object.entries(grouped)) {
       const first = entries[0];
-      const source = first.vendorOptionType || first.category || 'activities';
-      const cfg = TRIP_SOURCE_CONFIG[source];
+      const source = resolveSource(first);
       const totalCost = entries.reduce((s: number, e: any) => s + parseFloat(e.cost || 0), 0);
       const vendorName = first.vendor || 'Untitled';
-      const title = `${cfg?.icon || ''} ${vendorName}`;
-      const isLodging = source === 'lodging';
+      const isLodging = source === 'lodging' || source === 'accommodation';
 
       if (isLodging) {
-        // Lodging: single all-day event spanning check-in to check-out
         const sortedEntries = [...entries].sort((a, b) =>
           new Date(a.homeDate).getTime() - new Date(b.homeDate).getTime()
         );
@@ -481,30 +505,33 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           id: key,
           source,
           title: vendorName,
-          icon: cfg?.icon || null,
+          icon: null,
           startDate: firstDate,
           endDate: lastDate,
           startTime: null,
           endTime: null,
+          location: first.location || null,
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
           _vendor: vendorName,
+          _location: first.location || null,
+          _category: source,
         } as any);
       } else {
-        // Single-day events (or non-lodging multi-day): use time data if available
         const dateStr = first.homeDate ? new Date(first.homeDate).toISOString().split('T')[0] : '';
         otherEvents.push({
           id: key,
           source,
-          title,
-          icon: cfg?.icon || null,
+          title: vendorName,
+          icon: null,
           startDate: dateStr,
           endDate: entries.length > 1 && entries[entries.length - 1].homeDate
             ? new Date(entries[entries.length - 1].homeDate).toISOString().split('T')[0]
             : null,
           startTime: first.homeTime || null,
           endTime: first.destTime || null,
+          location: first.location || null,
           budgetAmount: totalCost,
           _vendorOptionId: first.vendorOptionId,
           _vendorOptionType: first.vendorOptionType,
@@ -512,12 +539,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
           _note: first.note,
           _homeTime: first.homeTime,
           _destTime: first.destTime,
+          _location: first.location || null,
+          _category: source,
         } as any);
       }
     }
 
     return [...flightEvents, ...otherEvents];
-  }, [trip]);
+  }, [trip, vendorOptions]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -574,8 +603,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             {/* ── Map + Committed Rows ── */}
             {(() => {
               const itinerary = trip.itinerary || [];
-              const DINING_CATEGORIES = new Set(['dinner', 'brunch_coffee', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals', 'coffee', 'restaurant', 'dining', 'cafe']);
-              const EXCLUDE_FROM_ACTIVITIES = new Set(['flight', 'lodging', 'dinner', 'brunch_coffee', 'brunchCoffee', 'meals', 'meals_dining', 'food', 'business_meals', 'coffee', 'restaurant', 'dining', 'cafe']);
+              const DINING_CATEGORIES = getDiningCategoryKeys();
+              const EXCLUDE_FROM_ACTIVITIES = getExcludeFromActivitiesKeys();
 
               const resolvedItems = itinerary.map((item: any) => {
                 const optInfo = item.vendorOptionId ? vendorOptions[item.vendorOptionId] : null;
@@ -665,6 +694,34 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     />
                   </div>
 
+                  {/* ── Itinerary Calendar (primary view — first after map) ── */}
+                  <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                    <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
+                      <h2 className="text-sm font-semibold">Itinerary</h2>
+                    </div>
+                    {calendarEvents.length > 0 || tripDates ? (
+                      <div className="p-4">
+                        <CalendarGrid
+                          events={calendarEvents}
+                          sourceConfig={TRIP_SOURCE_CONFIG}
+                          defaultView="week"
+                          anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                          highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
+                          highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
+                          onEventClick={handleEventClick}
+                          showBudgetTotals={true}
+                          showCategoryLegend={true}
+                          compact={true}
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-gray-400">
+                        <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
+                        <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
+                      </div>
+                    )}
+                  </div>
+
                   {renderScrollRow('Lodging', uniqueLodging, 'No lodging booked yet. Scan destinations to find hotels.', 'HOTEL', 'from-blue-50', 'to-indigo-100')}
                   {renderScrollRow('Dining', diningItems, 'No restaurants booked yet. Scan destinations to find dining.', 'DINING', 'from-red-50', 'to-orange-100')}
                   {renderScrollRow('Activities', activityItems, 'No activities booked yet. Scan destinations to find things to do.', 'ACTIVITY', 'from-green-50', 'to-emerald-100')}
@@ -710,7 +767,7 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                           return (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-3 py-2 text-gray-500">{showCategory ? item.category : ''}</td>
-                              <td className="px-3 py-2 text-gray-400 text-[11px]">{trip.destination || '—'}</td>
+                              <td className="px-3 py-2 text-gray-400 text-[11px]">{item.location || trip.destination || '—'}</td>
                               <td className="px-3 py-2 font-medium text-gray-900">{item.description || item.category}</td>
                               <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmt(item.amount)}</td>
                               <td className="px-3 py-2 text-center">
@@ -738,19 +795,14 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
               );
             })()}
 
-            {/* ── Itinerary Calendar (primary view) ── */}
-            <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-              <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
-                <h2 className="text-sm font-semibold">Itinerary</h2>
-                <button onClick={() => setShowExpenseForm(!showExpenseForm)}
-                  className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 text-white rounded font-medium">
-                  {showExpenseForm ? 'Cancel' : '+ Add Expense'}
-                </button>
-              </div>
-
-              {/* Inline Add Expense Form */}
-              {showExpenseForm && (
-                <form onSubmit={handleAddExpense} className="p-4 bg-gray-50 border-b border-gray-200">
+            {/* ── Add Expense (inline) ── */}
+            {showExpenseForm && (
+              <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Add Expense</h2>
+                  <button onClick={() => setShowExpenseForm(false)} className="px-3 py-1 text-xs bg-white/20 hover:bg-white/30 text-white rounded font-medium">Cancel</button>
+                </div>
+                <form onSubmit={handleAddExpense} className="p-4 bg-gray-50">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                     <select value={expenseForm.paidById} onChange={(e) => setExpenseForm({ ...expenseForm, paidById: e.target.value })}
                       className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs" required>
@@ -788,30 +840,8 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
                     {savingExpense ? '...' : 'Add'}
                   </button>
                 </form>
-              )}
-
-              {calendarEvents.length > 0 || tripDates ? (
-                <div className="p-4">
-                  <CalendarGrid
-                    events={calendarEvents}
-                    sourceConfig={TRIP_SOURCE_CONFIG}
-                    defaultView="week"
-                    anchorDate={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightStart={tripDates?.departure || trip.startDate?.split('T')[0] || undefined}
-                    highlightEnd={tripDates?.return || trip.endDate?.split('T')[0] || undefined}
-                    onEventClick={undefined}
-                    showBudgetTotals={true}
-                    showCategoryLegend={true}
-                    compact={true}
-                  />
-                </div>
-              ) : (
-                <div className="p-8 text-center text-gray-400">
-                  <p className="text-sm mb-2">Commit vendors to see itinerary calendar</p>
-                  <p className="text-xs">Select dates and destination first, then commit lodging, flights, etc.</p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* ── Crew & Profiles ── */}
             <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
@@ -1211,6 +1241,71 @@ export default function TripDetailPage({ params }: { params: Promise<{ id: strin
             )}
 
           </div>
+
+          {/* ── Event Detail Popover ── */}
+          {popoverEvent && (
+            <div className="fixed inset-0 z-50" onClick={() => setPopoverEvent(null)}>
+              <div
+                className="absolute bg-white rounded-lg shadow-xl border border-gray-200 w-[320px] p-4"
+                style={{ top: popoverPos?.top || 100, left: popoverPos?.left || 100 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button onClick={() => setPopoverEvent(null)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+                <div className="space-y-2">
+                  <div className="font-semibold text-sm text-gray-900 pr-6">{(popoverEvent as any)._vendor || popoverEvent.title}</div>
+                  {popoverEvent.startDate && (
+                    <div className="text-xs text-gray-500">
+                      {new Date(popoverEvent.startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
+                  {(popoverEvent.startTime || popoverEvent.endTime) && (
+                    <div className="text-xs text-gray-600">
+                      {popoverEvent.startTime ? formatTime12h(popoverEvent.startTime) : ''}
+                      {popoverEvent.startTime && popoverEvent.endTime ? ' — ' : ''}
+                      {popoverEvent.endTime ? formatTime12h(popoverEvent.endTime) : ''}
+                    </div>
+                  )}
+                  {(popoverEvent.location || (popoverEvent as any)._location) && (
+                    <div className="text-xs text-gray-500">{popoverEvent.location || (popoverEvent as any)._location}</div>
+                  )}
+                  {popoverEvent.budgetAmount != null && popoverEvent.budgetAmount > 0 && (
+                    <div className="text-xs font-semibold text-emerald-700">{fmt(popoverEvent.budgetAmount)}</div>
+                  )}
+                  {(popoverEvent as any)._category && (
+                    <div className="text-xs text-gray-400">Category: {(popoverEvent as any)._category}</div>
+                  )}
+                  {(popoverEvent as any)._note && (
+                    <div className="text-xs text-gray-400 line-clamp-2">{(popoverEvent as any)._note}</div>
+                  )}
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    {(popoverEvent as any)._vendorOptionId && (
+                      <button
+                        onClick={() => {
+                          const evt = popoverEvent as any;
+                          handleUncommitItem(evt._vendorOptionId, evt._vendorOptionType || 'activity');
+                          setPopoverEvent(null);
+                        }}
+                        className="px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 font-medium"
+                      >
+                        Uncommit
+                      </button>
+                    )}
+                    {(popoverEvent.location || (popoverEvent as any)._location) && (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((popoverEvent as any)._vendor || popoverEvent.title)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 text-xs text-brand-purple border border-brand-purple/30 rounded hover:bg-brand-purple/5 font-medium"
+                      >
+                        View on Map
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </AppLayout>

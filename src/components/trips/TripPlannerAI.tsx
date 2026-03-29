@@ -658,7 +658,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
         if (depRes.ok) { const dep = await depRes.json(); depOptionId = dep.option?.id; }
       }
 
-      // Step 2: Commit via vendor-commit endpoint (with times)
+      // Step 2: Commit via vendor-commit endpoint (with times and location)
       const times = cardTimes[cardKey];
       const commitRes = await fetch(`/api/trips/${tripId}/vendor-commit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -667,6 +667,7 @@ export default function TripPlannerAI({ tripId, city, country, activity, activit
           startDate: dates.start, endDate: dates.end || null,
           startTime: times?.startTime || null,
           endTime: times?.endTime || null,
+          location: rec.address || null,
         }),
       });
       if (!commitRes.ok) { const d = await commitRes.json(); throw new Error(d.error || 'Commit failed'); }
