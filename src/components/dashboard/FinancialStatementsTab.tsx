@@ -29,7 +29,26 @@ export default function FinancialStatementsTab() {
       const res = await fetch('/api/statements');
       if (res.ok) {
         const statements = await res.json();
-        setData(statements);
+        // The API returns { accounts, availableYears } — derive summary if needed
+        if (statements.incomeStatement && statements.balanceSheet) {
+          setData(statements);
+        } else if (statements.accounts) {
+          // Derive financial summary from ledger account rows
+          let revenue = 0, expenses = 0, assets = 0, liabilities = 0, equity = 0;
+          for (const acct of statements.accounts) {
+            const net = ((acct.debits || 0) - (acct.credits || 0)) / 100;
+            const type = acct.accountType?.toLowerCase();
+            if (type === 'revenue') revenue += Math.abs(net);
+            else if (type === 'expense') expenses += Math.abs(net);
+            else if (type === 'asset') assets += Math.abs(net);
+            else if (type === 'liability') liabilities += Math.abs(net);
+            else if (type === 'equity') equity += Math.abs(net);
+          }
+          setData({
+            incomeStatement: { revenue, expenses, netIncome: revenue - expenses },
+            balanceSheet: { assets, liabilities, equity },
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading statements:', error);
