@@ -6,11 +6,6 @@ export interface BookkeepingCockpitBarProps {
   totalLiabilities: number;
   totalEquity: number;
   isBalanced: boolean;
-  // Pipeline health
-  uncategorized: number;
-  uncommitted: number;
-  unreconciled: number;
-  trialBalanceStatus: 'balanced' | 'unbalanced' | 'unknown';
   // Status
   connectedAccounts: number;
   periodLabel: string;
@@ -29,10 +24,6 @@ export default function BookkeepingCockpitBar({
   totalLiabilities,
   totalEquity,
   isBalanced,
-  uncategorized,
-  uncommitted,
-  unreconciled,
-  trialBalanceStatus,
   connectedAccounts,
   periodLabel,
   periodStatus,
@@ -43,9 +34,9 @@ export default function BookkeepingCockpitBar({
   const imbalance = totalAssets - (totalLiabilities + totalEquity);
 
   return (
-    <div className="space-y-2">
-      {/* ROW 1 — Main bar (matches Travel bar: white, gold border, rounded-xl, shadow-md) */}
-      <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
+    <div className="-mx-4 lg:-mx-6 -mt-3 px-4 lg:px-6 py-4 bg-brand-purple/80 border-b border-white/[.06]">
+      {/* Main bar (matches Travel bar: white, gold border, rounded-xl, shadow-md) */}
+      <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row max-w-[1600px] mx-auto">
         {/* LEFT: Identity */}
         <div className="flex items-center gap-2 px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
           <div>
@@ -91,7 +82,7 @@ export default function BookkeepingCockpitBar({
           </div>
         </div>
 
-        {/* RIGHT: Period + Actions */}
+        {/* RIGHT: Period + Link Account */}
         <div className="flex items-center gap-3 px-4 py-3 lg:border-r border-b lg:border-b-0 border-gray-200 lg:flex-shrink-0">
           <div className="text-xs text-text-secondary">
             <span className="font-medium">{periodLabel}</span>
@@ -108,7 +99,7 @@ export default function BookkeepingCockpitBar({
           </button>
         </div>
 
-        {/* FAR RIGHT: Gold Sync button (matches Travel bar's gold CTA) */}
+        {/* FAR RIGHT: Gold Sync button */}
         <button
           onClick={onSync}
           disabled={syncing}
@@ -121,31 +112,6 @@ export default function BookkeepingCockpitBar({
             </>
           ) : 'Sync'}
         </button>
-      </div>
-
-      {/* ROW 2 — Pipeline health strip */}
-      <div className="rounded-lg bg-brand-purple/5 border border-brand-purple/10 px-4 py-1.5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-          <span className={uncategorized > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
-            {uncategorized.toLocaleString()} uncategorized
-          </span>
-          <span className="text-text-faint">{'\u00b7'}</span>
-          <span className={uncommitted > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
-            {uncommitted.toLocaleString()} uncommitted
-          </span>
-          <span className="text-text-faint">{'\u00b7'}</span>
-          <span className={unreconciled > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
-            {unreconciled.toLocaleString()} unreconciled
-          </span>
-          <span className="text-text-faint">{'\u00b7'}</span>
-          <span className={
-            trialBalanceStatus === 'balanced' ? 'text-emerald-600'
-            : trialBalanceStatus === 'unbalanced' ? 'text-red-600 font-medium'
-            : 'text-text-muted'
-          }>
-            TB {trialBalanceStatus === 'balanced' ? 'Balanced' : trialBalanceStatus === 'unbalanced' ? 'Unbalanced' : '\u2014'}
-          </span>
-        </div>
       </div>
     </div>
   );

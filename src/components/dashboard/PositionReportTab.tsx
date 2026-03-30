@@ -149,16 +149,8 @@ export default function PositionReportTab() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
-        <span className="text-terminal-lg font-semibold">Position &amp; P&amp;L Report</span>
-        <button onClick={loadData} className="text-terminal-sm bg-brand-purple-hover px-2 py-0.5 rounded hover:bg-brand-purple-hover">
-          Refresh
-        </button>
-      </div>
-
-      {/* Sub-tabs */}
-      <div className="flex border-b border-border">
+      {/* Sub-tabs + Refresh */}
+      <div className="flex items-center border-b border-border">
         {[
           { key: 'summary', label: 'P&L Summary' },
           { key: 'open', label: `Open (${summary.openPositions})` },
@@ -167,13 +159,18 @@ export default function PositionReportTab() {
           <button
             key={tab.key}
             onClick={() => setActiveView(tab.key as any)}
-            className={`px-3 py-1 text-terminal-sm font-medium ${
-              activeView === tab.key ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-muted'
+            className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+              activeView === tab.key
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-text-muted hover:text-text-secondary'
             }`}
           >
             {tab.label}
           </button>
         ))}
+        <button onClick={loadData} className="ml-auto mr-2 px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
+          Refresh
+        </button>
       </div>
 
       {/* P&L Summary View */}
@@ -236,7 +233,7 @@ export default function PositionReportTab() {
             <div className="border border-border rounded overflow-hidden">
               <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold">By Strategy</div>
               <table className="w-full text-terminal-base">
-                <thead className="bg-brand-purple text-white/70">
+                <thead className="bg-gray-50 text-text-secondary">
                   <tr>
                     <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Strategy</th>
                     <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Trades</th>
@@ -291,7 +288,7 @@ export default function PositionReportTab() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Type</th>
@@ -338,7 +335,7 @@ export default function PositionReportTab() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                       <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Shares</th>
@@ -386,7 +383,7 @@ export default function PositionReportTab() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Type</th>
@@ -445,7 +442,7 @@ export default function PositionReportTab() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                       <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Shares</th>

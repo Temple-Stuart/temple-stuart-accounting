@@ -122,7 +122,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
   };
 
   return (
-    <div className="bg-white rounded border overflow-hidden">
+    <div className="bg-white overflow-hidden">
       <div className="px-4 py-3 border-b bg-bg-row">
         <div className="flex items-center justify-between">
           <div>
@@ -138,7 +138,7 @@ export default function PeriodClose({ transactions, reconciliations, periodClose
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-bg-row">
+          <thead className="bg-gray-50 text-text-secondary">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Month</th>
               <th className="px-4 py-3 text-right font-semibold">Transactions</th>

@@ -252,25 +252,20 @@ export default function CPAExport({ transactions, coaOptions, selectedYear }: CP
   };
 
   return (
-    <div className="bg-white rounded border overflow-hidden">
-      <div className="px-4 py-3 border-b bg-bg-row">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold">CPA Export Package</h3>
-            <p className="text-xs text-text-muted">Export financial reports for your accountant</p>
-          </div>
-          <button
-            onClick={exportAll}
-            disabled={exporting !== null}
-            className="px-4 py-2 bg-brand-purple text-white rounded text-sm font-medium disabled:opacity-50"
-          >
-            {exporting === 'all' ? 'Exporting...' : '📦 Export All'}
-          </button>
-        </div>
+    <div className="bg-white overflow-hidden">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">Export financial reports for your accountant</span>
+        <button
+          onClick={exportAll}
+          disabled={exporting !== null}
+          className="px-4 py-2 text-sm bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+        >
+          {exporting === 'all' ? 'Exporting...' : 'Export All'}
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="px-4 py-3 border-b bg-brand-purple-wash flex items-center gap-6 text-sm">
+      <div className="px-4 py-2 border-b border-border bg-bg-row flex items-center gap-6 text-sm">
         <span className="text-text-secondary">Year: <strong>{selectedYear}</strong></span>
         <span className="text-text-secondary">Accounts: <strong>{stats.accounts}</strong></span>
         <span className="text-text-secondary">Transactions: <strong>{stats.transactions}</strong></span>

@@ -92,16 +92,13 @@ export default function CloseBooksTab({ entityId, selectedYear }: CloseBooksTabP
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-sm font-bold">Year-End Close</h2>
-          <p className="text-sm text-text-secondary mt-1">GAAP year-end closing entries for {selectedYear}</p>
-        </div>
+    <div className="p-4 space-y-6">
+      <div className="flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">GAAP year-end closing entries for {selectedYear}</span>
         <button
           onClick={loadStatus}
           disabled={checking}
-          className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
+          className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50"
         >
           Refresh
         </button>

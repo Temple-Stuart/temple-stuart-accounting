@@ -475,22 +475,21 @@ export default function TaxReportTab() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
-        <span className="text-terminal-lg font-semibold">Tax Reports</span>
-        <div className="flex items-center gap-2">
-          <select
-            value={year}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setYear(Number(e.target.value))}
-            className="bg-brand-purple-hover text-white border-0 text-terminal-sm px-2 py-1 rounded"
-          >
-            {availableYears.map((y: number) => <option key={y} value={y}>{y}</option>)}
-          </select>
+      {/* Actions bar */}
+      <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+        <select
+          value={year}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setYear(Number(e.target.value))}
+          className="h-7 px-2 text-terminal-sm font-mono border border-border rounded bg-white"
+        >
+          {availableYears.map((y: number) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <div className="ml-auto flex items-center gap-2">
           {(view === 'scheduleD' || view === 'form8949') && (
             <button
               onClick={exportCSV}
               disabled={exporting}
-              className="text-terminal-sm bg-emerald-600 px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50"
+              className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50"
             >
               {exporting ? 'Exporting...' : 'Export CSV'}
             </button>
@@ -498,19 +497,16 @@ export default function TaxReportTab() {
           <button
             onClick={() => downloadPDF('all')}
             disabled={downloadingPDF !== null}
-            className="text-terminal-sm bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="px-3 py-1 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
           >
             {downloadingPDF === 'all' ? 'Generating...' : 'Download All PDFs'}
           </button>
         </div>
       </div>
 
-      {/* ─── DISCLAIMER BANNER ─── */}
-      <div className="bg-amber-50 border-b-2 border-amber-300 px-3 py-1.5 text-terminal-base text-amber-900">
-        <span className="font-bold">TAX ESTIMATE ONLY</span> — This report organizes your ledger
-        data into IRS form structure for review purposes. It is NOT a tax filing. All figures must
-        be verified by a licensed CPA or tax professional before filing. Temple Stuart is not a tax
-        preparer and does not provide tax advice.
+      {/* Disclaimer */}
+      <div className="px-3 py-1.5 border-b border-border bg-bg-row text-terminal-sm text-text-muted">
+        <span className="font-semibold text-text-secondary">Tax estimate only</span> — Verify all figures with a licensed CPA before filing.
       </div>
 
       {/* Sub-tabs */}
@@ -519,8 +515,10 @@ export default function TaxReportTab() {
           <button
             key={tab.key}
             onClick={() => setView(tab.key)}
-            className={`px-3 py-1 text-terminal-sm font-medium ${
-              view === tab.key ? 'bg-brand-purple text-white' : 'bg-bg-row text-text-muted'
+            className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+              view === tab.key
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-text-muted hover:text-text-secondary'
             }`}
           >
             {tab.label}
@@ -536,7 +534,7 @@ export default function TaxReportTab() {
           {/* PDF download */}
           <div className="flex justify-end">
             <button onClick={() => downloadPDF('schedule-d')} disabled={downloadingPDF !== null}
-              className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+              className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50">
               {downloadingPDF === 'schedule-d' ? 'Generating...' : 'Download Schedule D PDF'}
             </button>
           </div>
@@ -613,11 +611,11 @@ export default function TaxReportTab() {
 
           {/* Part I: Short-Term */}
           <div className="border border-border rounded overflow-hidden">
-            <div className="bg-yellow-50 px-3 py-1.5 text-terminal-lg font-semibold text-yellow-800">
+            <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
               Part I — Short-Term Capital Gains and Losses (held 1 year or less)
             </div>
             <table className="w-full text-terminal-base">
-              <thead className="bg-brand-purple text-white/70">
+              <thead className="bg-gray-50 text-text-secondary">
                 <tr>
                   <th className="py-1 px-2 text-left w-[280px] text-terminal-xs uppercase tracking-widest font-mono">Line</th>
                   <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">(d) Proceeds</th>
@@ -645,11 +643,11 @@ export default function TaxReportTab() {
 
           {/* Part II: Long-Term */}
           <div className="border border-border rounded overflow-hidden">
-            <div className="bg-blue-50 px-3 py-1.5 text-terminal-lg font-semibold text-blue-800">
+            <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
               Part II — Long-Term Capital Gains and Losses (held more than 1 year)
             </div>
             <table className="w-full text-terminal-base">
-              <thead className="bg-brand-purple text-white/70">
+              <thead className="bg-gray-50 text-text-secondary">
                 <tr>
                   <th className="py-1 px-2 text-left w-[280px] text-terminal-xs uppercase tracking-widest font-mono">Line</th>
                   <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">(d) Proceeds</th>
@@ -702,18 +700,18 @@ export default function TaxReportTab() {
           {/* PDF download */}
           <div className="flex justify-end">
             <button onClick={() => downloadPDF('8949')} disabled={downloadingPDF !== null}
-              className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+              className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50">
               {downloadingPDF === '8949' ? 'Generating...' : 'Download Form 8949 PDF'}
             </button>
           </div>
           {data.form8949.shortTerm.length > 0 && (
             <div className="border border-border rounded overflow-hidden">
-              <div className="bg-yellow-50 px-3 py-1.5 text-terminal-lg font-semibold text-yellow-800">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Short-Term — Held 1 Year or Less ({data.form8949.shortTerm.length} dispositions)
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">(a) Description</th>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">(b) Acquired</th>
@@ -737,12 +735,12 @@ export default function TaxReportTab() {
 
           {data.form8949.longTerm.length > 0 && (
             <div className="border border-border rounded overflow-hidden">
-              <div className="bg-blue-50 px-3 py-1.5 text-terminal-lg font-semibold text-blue-800">
+              <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                 Long-Term — Held More Than 1 Year ({data.form8949.longTerm.length} dispositions)
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">(a) Description</th>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">(b) Acquired</th>
@@ -789,14 +787,14 @@ export default function TaxReportTab() {
                   Schedule C — Profit or Loss From Business: <span className="font-semibold text-text-secondary">{scheduleCData.scheduleC.businessName}</span>
                 </div>
                 <button onClick={() => downloadPDF('schedule-c')} disabled={downloadingPDF !== null}
-                  className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 shrink-0">
+                  className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50 shrink-0">
                   {downloadingPDF === 'schedule-c' ? 'Generating...' : 'Download Schedule C PDF'}
                 </button>
               </div>
 
               {/* Part I: Income */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-green-50 px-3 py-1.5 text-terminal-lg font-semibold text-green-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Part I — Income
                 </div>
                 <table className="w-full text-terminal-base">
@@ -827,7 +825,7 @@ export default function TaxReportTab() {
 
               {/* Part II: Expenses */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-red-50 px-3 py-1.5 text-terminal-lg font-semibold text-red-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Part II — Expenses
                 </div>
                 <table className="w-full text-terminal-base">
@@ -923,7 +921,7 @@ export default function TaxReportTab() {
 
               {/* Schedule SE summary */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-purple-50 px-3 py-1.5 text-terminal-lg font-semibold text-purple-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Schedule SE — Self-Employment Tax
                 </div>
                 <table className="w-full text-terminal-base">
@@ -977,14 +975,14 @@ export default function TaxReportTab() {
               {/* PDF download */}
               <div className="flex justify-end">
                 <button onClick={() => downloadPDF('1040')} disabled={downloadingPDF !== null}
-                  className="text-terminal-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50">
+                  className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors disabled:opacity-50">
                   {downloadingPDF === '1040' ? 'Generating...' : 'Download Form 1040 PDF'}
                 </button>
               </div>
 
               {/* INCOME */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-green-50 px-3 py-1.5 text-terminal-lg font-semibold text-green-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Income
                 </div>
                 <table className="w-full text-terminal-base">
@@ -1039,7 +1037,7 @@ export default function TaxReportTab() {
 
               {/* ADJUSTMENTS */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-blue-50 px-3 py-1.5 text-terminal-lg font-semibold text-blue-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Adjustments to Income
                 </div>
                 <table className="w-full text-terminal-base">
@@ -1069,7 +1067,7 @@ export default function TaxReportTab() {
 
               {/* DEDUCTIONS */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-indigo-50 px-3 py-1.5 text-terminal-lg font-semibold text-indigo-800 flex items-center justify-between">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary flex items-center justify-between">
                   <span>Deductions</span>
                   <select
                     value={overrides['filing_status'] || form1040Data.filingStatus}
@@ -1097,11 +1095,11 @@ export default function TaxReportTab() {
 
               {/* TAX COMPUTATION — Bracket Breakdown */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-orange-50 px-3 py-1.5 text-terminal-lg font-semibold text-orange-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Tax Computation — {year} Brackets
                 </div>
                 <table className="w-full text-terminal-base">
-                  <thead className="bg-brand-purple text-white/70">
+                  <thead className="bg-gray-50 text-text-secondary">
                     <tr>
                       <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Bracket</th>
                       <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Rate</th>
@@ -1168,7 +1166,7 @@ export default function TaxReportTab() {
 
               {/* ADDITIONAL TAXES */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-red-50 px-3 py-1.5 text-terminal-lg font-semibold text-red-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Additional Taxes
                 </div>
                 <table className="w-full text-terminal-base">
@@ -1193,7 +1191,7 @@ export default function TaxReportTab() {
 
               {/* PAYMENTS & CREDITS */}
               <div className="border border-border rounded overflow-hidden">
-                <div className="bg-teal-50 px-3 py-1.5 text-terminal-lg font-semibold text-teal-800">
+                <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold text-text-primary">
                   Payments &amp; Credits
                 </div>
                 <table className="w-full text-terminal-base">
