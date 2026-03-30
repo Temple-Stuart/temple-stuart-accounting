@@ -450,26 +450,24 @@ export default function Dashboard() {
   return (
     <>
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
-      <AppLayout onOpenTaxSettings={() => setShowTaxSettings(true)}>
+      <AppLayout
+        onOpenTaxSettings={() => setShowTaxSettings(true)}
+        bookkeepingBar={
+          <BookkeepingCockpitBar
+            totalAssets={trialBalance?.accounts?.filter((a: any) => a.accountType === 'asset').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+            totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+            totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+            isBalanced={trialBalance?.isBalanced ?? true}
+            connectedAccounts={accounts.length}
+            periodLabel={`${MONTHS[new Date().getMonth()]} ${selectedYear}`}
+            periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}
+            onSync={syncAccounts}
+            syncing={syncing}
+            onLinkAccount={handleAddAccount}
+          />
+        }
+      >
         <div className="min-h-screen bg-bg-terminal">
-          {/* Purple wash behind cockpit bar — matches Travel bar pattern */}
-          <div className="bg-brand-purple/95 backdrop-blur-sm border-b border-white/[.06] sticky top-0 z-40">
-            <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
-              <BookkeepingCockpitBar
-              totalAssets={trialBalance?.accounts?.filter((a: any) => a.accountType === 'asset').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
-              totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
-              totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
-              isBalanced={trialBalance?.isBalanced ?? true}
-              connectedAccounts={accounts.length}
-              periodLabel={`${MONTHS[new Date().getMonth()]} ${selectedYear}`}
-              periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}
-              onSync={syncAccounts}
-              syncing={syncing}
-              onLinkAccount={handleAddAccount}
-            />
-            </div>
-          </div>
-
           <div className="px-4 lg:px-6 pt-4 max-w-[1600px] mx-auto">
             <div className="space-y-3">
 
