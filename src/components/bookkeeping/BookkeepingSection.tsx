@@ -25,7 +25,7 @@ export default function BookkeepingSection({
   children,
 }: BookkeepingSectionProps) {
   return (
-    <div className="overflow-hidden border-x border-b border-gray-200/50">
+    <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
       <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[9px] uppercase text-white/60 font-mono tracking-wider">{pipelineKey}</span>
