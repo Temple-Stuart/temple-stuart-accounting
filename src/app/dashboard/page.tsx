@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [reconciliations, setReconciliations] = useState<any[]>([]);
   const [periodCloses, setPeriodCloses] = useState<any[]>([]);
   const [defaultEntityId, setDefaultEntityId] = useState<string | null>(null);
+  const [trialBalance, setTrialBalance] = useState<{ totalDebits: number; totalCredits: number; isBalanced: boolean; accounts: any[] } | null>(null);
 
   // Cookie is now HMAC-signed server-side (login/register/nextauth).
   // Client-side writes removed to prevent overwriting signed cookies.
@@ -159,6 +160,8 @@ export default function Dashboard() {
       if (jeRes.ok) { const jeData = await jeRes.json(); setJournalEntries(jeData.entries || []); }
       const soc2Res = await fetch('/api/soc2');
       if (soc2Res.ok) { const soc2Data = await soc2Res.json(); setSoc2Proofs(soc2Data.proofs || {}); }
+      const tbRes = await fetch('/api/trial-balance');
+      if (tbRes.ok) { const tbData = await tbRes.json(); setTrialBalance(tbData.totals ? { ...tbData.totals, accounts: tbData.accounts || [] } : null); }
       const linkRes = await fetch("/api/plaid/link-token", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entityId: 'personal' }) });
       if (linkRes.ok) { const linkData = await linkRes.json(); setLinkToken(linkData.link_token); }
       const meRes = await fetch('/api/auth/me');
@@ -452,12 +455,17 @@ export default function Dashboard() {
           <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
 
             <BookkeepingCockpitBar
-              connectedAccounts={accounts.length}
+              totalAssets={trialBalance?.accounts?.filter((a: any) => a.accountType === 'asset').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+              totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+              totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
+              isBalanced={trialBalance?.isBalanced ?? true}
               uncategorized={transactions.filter(t => !t.accountCode).length}
               uncommitted={uncommittedSpending.length + uncommittedInvestments.length}
-              journalEntryCount={journalEntries.length}
-              trialBalanceStatus="unknown"
-              periodStatus="open"
+              unreconciled={reconciliations.filter((r: any) => r.status !== 'completed').length}
+              trialBalanceStatus={trialBalance ? (trialBalance.isBalanced ? 'balanced' : 'unbalanced') : 'unknown'}
+              connectedAccounts={accounts.length}
+              periodLabel={`${MONTHS[new Date().getMonth()]} ${selectedYear}`}
+              periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}
               onSync={syncAccounts}
               syncing={syncing}
             />
@@ -467,7 +475,8 @@ export default function Dashboard() {
               {/* 1. SRC — Source Accounts */}
               <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
                 subtitle={`${accounts.length} connected`}
-                status={accounts.length > 0 ? 'complete' : 'pending'}>
+                status={accounts.length > 0 ? 'complete' : 'pending'}
+                collapsible defaultCollapsed={false}>
                 <div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
