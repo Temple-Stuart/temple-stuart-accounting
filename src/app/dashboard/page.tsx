@@ -468,6 +468,7 @@ export default function Dashboard() {
               periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}
               onSync={syncAccounts}
               syncing={syncing}
+              onLinkAccount={handleAddAccount}
             />
 
             <div className="space-y-3 mt-4">
