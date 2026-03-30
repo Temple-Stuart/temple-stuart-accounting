@@ -544,6 +544,7 @@ export default function TradingPage() {
       title: `${data.pl >= 0 ? '+' : ''}$${Math.abs(data.pl).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       startDate: dateKey,
       budgetAmount: data.pl,
+      details: data.trades.map(t => `${t.underlying} | ${t.strategy.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`),
     }));
   }, [plByDate]);
 

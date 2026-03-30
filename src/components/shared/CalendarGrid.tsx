@@ -18,6 +18,7 @@ export interface CalendarEvent {
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
+  details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor")
 }
 
 export interface SourceConfig {
@@ -466,29 +467,64 @@ export default function CalendarGrid({
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((day, idx) => {
-                  if (!day) return <div key={`empty-${idx}`} className="aspect-square" />;
+                  if (!day) return <div key={`empty-${idx}`} className="min-h-[90px]" />;
                   const date = new Date(selectedYear, selectedMonth, day);
                   const dayEvents = getEventsForDate(date);
                   const dayTotal = dayEvents.reduce((sum, e) => sum + (e.budgetAmount || 0), 0);
                   const isToday = day === now.getDate() && selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
                   const hl = isInHighlight(date);
+                  const hasTradeData = showBudgetTotals && dayEvents.length > 0 && dayTotal !== 0;
+                  const isWin = hasTradeData && dayTotal > 0;
+                  const isLoss = hasTradeData && dayTotal < 0;
+
+                  let cellClass: string;
+                  let cellStyle: React.CSSProperties = {};
+                  if (isWin) {
+                    cellClass = 'border-emerald-400/50 bg-emerald-50/60';
+                    cellStyle = { boxShadow: '0 0 12px rgba(22,163,74,0.2)' };
+                  } else if (isLoss) {
+                    cellClass = 'border-red-400/50 bg-red-50/60';
+                    cellStyle = { boxShadow: '0 0 12px rgba(220,38,38,0.2)' };
+                  } else if (hl) {
+                    cellClass = 'border-purple-300 bg-purple-50/30';
+                  } else {
+                    cellClass = 'border-border-light bg-bg-row/50';
+                  }
+
+                  if (isToday) {
+                    cellClass += ' ring-2 ring-brand-purple ring-offset-1';
+                  }
+
+                  // Collect detail lines from all events on this day
+                  const allDetails = dayEvents.flatMap(e => e.details || []);
+
                   return (
-                    <div key={day} className={`aspect-square p-1 rounded border overflow-hidden transition-all cursor-pointer hover:border-border ${
-                      isToday ? 'border-red-400 border-2 bg-red-50' : hl ? 'border-purple-300 bg-purple-50/30' : 'border-border-light bg-bg-row/50'
-                    }`}>
+                    <div key={day} className={`min-h-[90px] p-1.5 rounded-lg border overflow-hidden transition-all cursor-pointer hover:border-border ${cellClass}`} style={cellStyle}>
                       <div className="flex flex-col h-full">
-                        <div className={`text-xs font-semibold mb-1 ${isToday ? 'text-brand-red' : 'text-text-secondary'}`}>{day}</div>
+                        <div className={`text-xs font-semibold mb-0.5 ${isToday ? 'text-brand-purple' : 'text-text-secondary'}`}>{day}</div>
                         {dayEvents.length > 0 && (
-                          <div className="flex-1 flex flex-col justify-end">
-                            <div className="flex flex-wrap gap-0.5 mb-1">
-                              {dayEvents.slice(0, 4).map((e, i) => {
-                                const config = sourceConfig[e.source] || { dot: 'bg-gray-400' };
-                                return <div key={i} className={`w-2 h-2 rounded-full ${config.dot}`} title={e.title} />;
-                              })}
-                              {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
-                            </div>
-                            {showBudgetTotals && dayTotal > 0 && (
-                              <div className="text-[10px] font-bold text-text-secondary tabular-nums truncate">{formatCurrency(dayTotal)}</div>
+                          <div className="flex-1 flex flex-col">
+                            {hasTradeData && (
+                              <div className={`text-sm font-bold font-mono tabular-nums ${isWin ? 'text-brand-green' : isLoss ? 'text-brand-red' : 'text-text-secondary'}`}>
+                                {dayTotal > 0 ? '+' : ''}{formatCurrency(dayTotal)}
+                              </div>
+                            )}
+                            {allDetails.length > 0 && (
+                              <div className="mt-0.5 space-y-px">
+                                {allDetails.slice(0, 2).map((detail, i) => (
+                                  <div key={i} className="text-[10px] text-text-muted truncate leading-tight">{detail}</div>
+                                ))}
+                                {allDetails.length > 2 && <div className="text-[9px] text-text-faint">+{allDetails.length - 2} more</div>}
+                              </div>
+                            )}
+                            {!hasTradeData && (
+                              <div className="flex flex-wrap gap-0.5 mt-auto">
+                                {dayEvents.slice(0, 4).map((e, i) => {
+                                  const config = sourceConfig[e.source] || { dot: 'bg-gray-400' };
+                                  return <div key={i} className={`w-2 h-2 rounded-full ${config.dot}`} title={e.title} />;
+                                })}
+                                {dayEvents.length > 4 && <span className="text-[8px] text-text-faint">+{dayEvents.length - 4}</span>}
+                              </div>
                             )}
                           </div>
                         )}
