@@ -34,9 +34,7 @@ export default function BookkeepingCockpitBar({
   const imbalance = totalAssets - (totalLiabilities + totalEquity);
 
   return (
-    <div className="-mx-4 lg:-mx-6 -mt-3 px-4 lg:px-6 py-4 bg-brand-purple/80 border-b border-white/[.06]">
-      {/* Main bar (matches Travel bar: white, gold border, rounded-xl, shadow-md) */}
-      <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row max-w-[1600px] mx-auto">
+    <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
         {/* LEFT: Identity */}
         <div className="flex items-center gap-2 px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
           <div>
@@ -112,7 +110,6 @@ export default function BookkeepingCockpitBar({
             </>
           ) : 'Sync'}
         </button>
-      </div>
     </div>
   );
 }
