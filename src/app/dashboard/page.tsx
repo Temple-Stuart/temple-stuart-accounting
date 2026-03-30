@@ -453,7 +453,7 @@ export default function Dashboard() {
       <AppLayout onOpenTaxSettings={() => setShowTaxSettings(true)}>
         <div className="min-h-screen bg-bg-terminal">
           {/* Purple wash behind cockpit bar — matches Travel bar pattern */}
-          <div className="bg-brand-purple/80 border-b border-white/[.06]">
+          <div className="bg-brand-purple/95 backdrop-blur-sm border-b border-white/[.06] sticky top-0 z-40">
             <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
               <BookkeepingCockpitBar
               totalAssets={trialBalance?.accounts?.filter((a: any) => a.accountType === 'asset').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
