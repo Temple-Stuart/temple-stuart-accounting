@@ -1,41 +1,54 @@
 'use client';
 
 export interface BookkeepingCockpitBarProps {
-  connectedAccounts: number;
+  // Accounting equation
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  isBalanced: boolean;
+  // Pipeline health
   uncategorized: number;
   uncommitted: number;
-  journalEntryCount: number;
+  unreconciled: number;
   trialBalanceStatus: 'balanced' | 'unbalanced' | 'unknown';
+  // Status
+  connectedAccounts: number;
+  periodLabel: string;
   periodStatus: 'open' | 'closed';
+  // Actions
   onSync: () => void;
   syncing: boolean;
 }
 
+const fmtDollars = (cents: number) =>
+  '$' + (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
 export default function BookkeepingCockpitBar({
-  connectedAccounts,
+  totalAssets,
+  totalLiabilities,
+  totalEquity,
+  isBalanced,
   uncategorized,
   uncommitted,
-  journalEntryCount,
+  unreconciled,
   trialBalanceStatus,
+  connectedAccounts,
+  periodLabel,
   periodStatus,
   onSync,
   syncing,
 }: BookkeepingCockpitBarProps) {
-  const tbLabel = trialBalanceStatus === 'balanced' ? 'Balanced' : trialBalanceStatus === 'unbalanced' ? 'Unbalanced' : '—';
-  const tbColor = trialBalanceStatus === 'balanced' ? 'text-emerald-300' : trialBalanceStatus === 'unbalanced' ? 'text-red-300' : 'text-white';
-  const periodLabel = periodStatus === 'open' ? 'Open' : 'Closed';
-  const periodColor = periodStatus === 'open' ? 'text-emerald-300' : 'text-white';
+  const imbalance = totalAssets - (totalLiabilities + totalEquity);
 
   return (
-    <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/95 backdrop-blur-sm sticky top-0 z-40">
-      <div className="max-w-[1800px] mx-auto">
-
-        {/* ROW 1 — Identity + Sync */}
-        <div className="bg-white border-2 border-brand-gold/60 rounded-xl shadow-md flex flex-col lg:flex-row">
-          {/* Zone 1: Identity */}
-          <div className="px-4 py-3 lg:w-[160px] lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-gray-200">
+    <div className="space-y-2">
+      {/* ROW 1 — Main bar (trips aesthetic) */}
+      <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm bg-white">
+        <div className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3">
+          {/* LEFT: Identity */}
+          <div className="lg:w-[160px] lg:flex-shrink-0 lg:border-r lg:border-gray-200 lg:pr-4">
             <div className="text-sm font-bold text-text-primary">Bookkeeping</div>
-            <div className="flex items-center gap-1.5 mt-1">
+            <div className="flex items-center gap-1.5 mt-0.5">
               {connectedAccounts > 0 ? (
                 <><div className="w-2 h-2 bg-emerald-500 rounded-full" /><span className="text-xs text-emerald-600">{connectedAccounts} linked</span></>
               ) : (
@@ -44,79 +57,85 @@ export default function BookkeepingCockpitBar({
             </div>
           </div>
 
-          {/* Zone 2: Pipeline status summary */}
-          <div className="px-4 py-2.5 lg:flex-1 lg:border-r border-b lg:border-b-0 border-gray-200 min-w-0">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-              {uncategorized > 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  {uncategorized} uncategorized
-                </span>
-              )}
-              {uncommitted > 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-400" />
-                  {uncommitted} uncommitted
-                </span>
-              )}
-              {uncategorized === 0 && uncommitted === 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  All transactions processed
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Zone 3: Sync button */}
-          <button
-            onClick={onSync}
-            disabled={syncing}
-            className="flex items-center justify-center px-5 min-w-[80px] bg-brand-gold hover:bg-brand-gold-bright text-white font-bold text-base transition-colors whitespace-nowrap lg:rounded-r-xl shrink-0 disabled:opacity-50 py-3 lg:py-0"
-          >
-            {syncing ? (
-              <span className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Syncing
+          {/* CENTER: Accounting Equation */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
+              <span>
+                <span className="text-text-muted uppercase tracking-wider text-[10px] mr-1">Assets</span>
+                <span className="font-mono font-semibold text-text-primary">{fmtDollars(totalAssets)}</span>
               </span>
-            ) : (
-              'Sync'
-            )}
-          </button>
-        </div>
-
-        {/* ROW 2 — 6 Metrics Bar */}
-        <div className="bg-brand-purple/90 rounded-lg mt-2 px-3 py-2">
-          <div className="flex items-center">
-            <div className="flex-1 grid grid-cols-6 text-center min-w-0">
-              <div className="px-2 border-r border-white/10 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">Accts</div>
-                <div className="text-sm font-bold font-mono text-white truncate">{connectedAccounts}</div>
-              </div>
-              <div className="px-2 border-r border-white/10 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">Uncat</div>
-                <div className={`text-sm font-bold font-mono truncate ${uncategorized > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>{uncategorized}</div>
-              </div>
-              <div className="px-2 border-r border-white/10 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">Uncommit</div>
-                <div className={`text-sm font-bold font-mono truncate ${uncommitted > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>{uncommitted}</div>
-              </div>
-              <div className="px-2 border-r border-white/10 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">JE</div>
-                <div className="text-sm font-bold font-mono text-white truncate">{journalEntryCount}</div>
-              </div>
-              <div className="px-2 border-r border-white/10 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">TB</div>
-                <div className={`text-sm font-bold font-mono truncate ${tbColor}`}>{tbLabel}</div>
-              </div>
-              <div className="px-2 min-w-0">
-                <div className="text-[9px] text-white/60 uppercase">Period</div>
-                <div className={`text-sm font-bold font-mono truncate ${periodColor}`}>{periodLabel}</div>
-              </div>
+              <span className="text-text-faint">|</span>
+              <span>
+                <span className="text-text-muted uppercase tracking-wider text-[10px] mr-1">Liabilities</span>
+                <span className="font-mono font-semibold text-text-primary">{fmtDollars(totalLiabilities)}</span>
+              </span>
+              <span className="text-text-faint">|</span>
+              <span>
+                <span className="text-text-muted uppercase tracking-wider text-[10px] mr-1">Equity</span>
+                <span className="font-mono font-semibold text-text-primary">{fmtDollars(totalEquity)}</span>
+              </span>
+            </div>
+            <div className="mt-1">
+              {isBalanced ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  A = L + E {'\u2713'} Balanced
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                  {'\u2717'} Unbalanced by {fmtDollars(Math.abs(imbalance))}
+                </span>
+              )}
             </div>
           </div>
-        </div>
 
+          {/* RIGHT: Period + Sync */}
+          <div className="flex items-center gap-3 lg:flex-shrink-0">
+            <div className="text-xs text-text-secondary">
+              <span className="font-medium">{periodLabel}</span>
+              <span className="mx-1">{'\u00b7'}</span>
+              <span className={periodStatus === 'open' ? 'text-emerald-600 font-medium' : 'text-text-muted'}>
+                {periodStatus === 'open' ? 'Open' : 'Closed'}
+              </span>
+            </div>
+            <button
+              onClick={onSync}
+              disabled={syncing}
+              className="px-4 py-2 bg-brand-gold hover:bg-brand-gold-bright text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+            >
+              {syncing ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Syncing
+                </span>
+              ) : 'Sync'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 2 — Pipeline health strip */}
+      <div className="rounded-lg bg-brand-purple/5 border border-brand-purple/10 px-4 py-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          <span className={uncategorized > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
+            {uncategorized.toLocaleString()} uncategorized
+          </span>
+          <span className="text-text-faint">{'\u00b7'}</span>
+          <span className={uncommitted > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
+            {uncommitted.toLocaleString()} uncommitted
+          </span>
+          <span className="text-text-faint">{'\u00b7'}</span>
+          <span className={unreconciled > 0 ? 'text-amber-600 font-medium' : 'text-emerald-600'}>
+            {unreconciled.toLocaleString()} unreconciled
+          </span>
+          <span className="text-text-faint">{'\u00b7'}</span>
+          <span className={
+            trialBalanceStatus === 'balanced' ? 'text-emerald-600'
+            : trialBalanceStatus === 'unbalanced' ? 'text-red-600 font-medium'
+            : 'text-text-muted'
+          }>
+            TB {trialBalanceStatus === 'balanced' ? 'Balanced' : trialBalanceStatus === 'unbalanced' ? 'Unbalanced' : '\u2014'}
+          </span>
+        </div>
       </div>
     </div>
   );
