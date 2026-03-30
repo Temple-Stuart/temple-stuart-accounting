@@ -42,6 +42,7 @@ export interface AppLayoutProps {
   ledgerMetrics?: LedgerMetrics | null;
   engineMetrics?: EngineMetrics | null;
   onOpenTaxSettings?: () => void;
+  bookkeepingBar?: React.ReactNode;
 }
 
 interface CookieUser {
@@ -98,7 +99,7 @@ function fmtMom(n: number | undefined): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings }: AppLayoutProps) {
+export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOpenTaxSettings, bookkeepingBar }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -229,6 +230,15 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
           <div className="bg-brand-purple/80 border-t border-white/[.06]">
             <div className="max-w-[1800px] mx-auto px-6 py-4">
               <Suspense><TripCreationBar /></Suspense>
+            </div>
+          </div>
+        )}
+
+        {/* ROW 3 — Bookkeeping Cockpit Bar (same pattern as Travel) */}
+        {bookkeepingBar && (
+          <div className="bg-brand-purple/80 border-t border-white/[.06]">
+            <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
+              {bookkeepingBar}
             </div>
           </div>
         )}
