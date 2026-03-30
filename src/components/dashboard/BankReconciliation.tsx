@@ -160,24 +160,23 @@ export default function BankReconciliation({ accounts, transactions, reconciliat
   };
 
   return (
-    <div className="bg-white rounded border overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b bg-bg-row flex items-center justify-between">
-        <div className="text-sm text-text-secondary">
+    <div className="bg-white overflow-hidden">
+      {/* Actions */}
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">
           {reconciliations.filter(r => r.status === 'reconciled').length} reconciled periods
-        </div>
+        </span>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-brand-purple text-white rounded text-sm font-medium"
+          className="px-3 py-1 bg-brand-purple text-white rounded text-terminal-sm font-medium hover:bg-brand-purple-hover transition-colors"
         >
-          {showForm ? '✕ Cancel' : '+ New Reconciliation'}
+          {showForm ? '\u2715 Cancel' : '+ New Reconciliation'}
         </button>
       </div>
 
       {/* New Reconciliation Form */}
       {showForm && (
-        <div className="p-4 border-b bg-brand-purple-wash">
-          <h4 className="font-semibold mb-4">Bank Reconciliation</h4>
+        <div className="p-4 border-b bg-bg-row">
 
           {/* Account & Period Selection */}
           <div className="flex flex-wrap gap-3 mb-4">

@@ -561,18 +561,15 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white rounded border border-border overflow-hidden">
-      {/* Header */}
-      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
-        <div>
-          <h3 className="text-terminal-lg font-semibold">Journal Entries</h3>
-          <p className="text-terminal-xs text-text-faint font-mono">
-            {txns.length} journal entries ({reversalCount} reversals)
-          </p>
-        </div>
+    <div className="bg-white overflow-hidden">
+      {/* Actions */}
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">
+          {txns.length} journal entries ({reversalCount} reversals)
+        </span>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded text-terminal-sm font-medium transition-colors"
+          className="px-3 py-1 bg-brand-purple text-white rounded text-terminal-sm font-medium hover:bg-brand-purple-hover transition-colors"
         >
           {showForm ? '\u2715 Cancel' : '+ New Entry'}
         </button>
@@ -618,7 +615,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
 
           {/* Entry Lines */}
           <table className="w-full text-sm mb-3">
-            <thead className="bg-brand-purple text-white/70">
+            <thead className="bg-gray-50 text-text-secondary">
               <tr>
                 <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Account</th>
                 <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">Description</th>
@@ -773,7 +770,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
       {/* Virtualized Table */}
       <div ref={parentRef} className="overflow-auto border border-border border-t-0" style={{ maxHeight: '600px' }}>
         <table className="w-full text-terminal-base border-collapse min-w-[1000px]">
-          <thead className="bg-brand-purple text-white sticky top-0 z-10">
+          <thead className="bg-gray-50 text-text-secondary sticky top-0 z-10">
             <tr>
               <JournalFilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={handleSort}
                 filterType="dateRange" allTransactions={txns} columnFilter={columnFilters.date} onApplyColumnFilter={handleApplyColumnFilter} className="w-24" />
@@ -891,7 +888,7 @@ export default function JournalEntryEngine({ journalTransactions, coaOptions, on
                     {isExpanded && (
                       <div className="bg-bg-row px-6 py-3 border-t border-border-light">
                         <table className="w-full text-terminal-base">
-                          <thead className="bg-brand-purple text-white/70">
+                          <thead className="bg-gray-50 text-text-secondary">
                             <tr>
                               <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Code</th>
                               <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono font-medium">COA Name</th>
