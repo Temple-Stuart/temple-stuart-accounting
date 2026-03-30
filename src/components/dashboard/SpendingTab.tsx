@@ -329,7 +329,7 @@ function SortHeader({ label, field, currentField, currentDir, onSort, className 
   const isActive = currentField === field;
   return (
     <th
-      className={`px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest cursor-pointer select-none hover:bg-brand-purple-hover transition-colors ${className}`}
+      className={`px-2 py-1 text-terminal-xs font-semibold font-mono uppercase tracking-widest cursor-pointer select-none hover:bg-gray-100 transition-colors ${className}`}
       onClick={() => onSort(field)}
     >
       <span className="flex items-center gap-1">
@@ -826,9 +826,9 @@ function VirtualTable({
   return (
     <div ref={parentRef} className="overflow-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-bg-row [&::-webkit-scrollbar-thumb]:bg-brand-purple/30 [&::-webkit-scrollbar-thumb]:rounded" style={{ maxHeight: '600px' }}>
       <table className={`w-full text-xs border-collapse ${variant === 'committed' ? 'min-w-[1500px]' : 'min-w-[900px]'}`}>
-        <thead className="bg-brand-purple text-white/70 sticky top-0 z-10">
+        <thead className="bg-gray-50 text-text-secondary sticky top-0 z-10">
           <tr>
-            <th className="px-2 py-1 w-10 sticky left-0 bg-brand-purple z-20">
+            <th className="px-2 py-1 w-10 sticky left-0 bg-gray-50 z-20">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-3 h-3 rounded" />
             </th>
             <FilterableHeader label="Date" field="date" sortField={sortField} sortDir={sortDir} onSort={onSort} filterType="dateRange" allTransactions={allTransactions} columnFilter={columnFilters.date} onApplyColumnFilter={onApplyColumnFilter} coaLookup={coaLookup} className="w-24" />

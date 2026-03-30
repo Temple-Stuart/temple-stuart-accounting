@@ -69,17 +69,7 @@ export default function FinancialStatementsTab() {
   ) < 0.01;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-sm font-bold">Financial Statements</h2>
-        <button 
-          onClick={loadStatements}
-          className="px-4 py-2 bg-brand-purple text-white rounded text-sm"
-        >
-          Refresh
-        </button>
-      </div>
-
+    <div className="p-4 space-y-6">
       <div className="grid grid-cols-2 gap-6">
         {/* Income Statement */}
         <div className="bg-white border rounded p-6">

@@ -141,13 +141,8 @@ export default function AdjustingEntriesTab() {
   const balanced = isBalanced();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-sm font-bold">Adjusting Entries</h2>
-        <p className="text-sm text-text-secondary mt-1">Create manual journal entries for adjustments and corrections</p>
-      </div>
-
-      <div className="bg-white border rounded p-6">
+    <div className="p-4">
+      <div className="bg-white">
         <h3 className="text-terminal-lg font-semibold mb-4">New Adjusting Entry</h3>
 
         {/* Date and Description */}

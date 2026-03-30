@@ -320,20 +320,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   /* ================================================================ */
 
   return (
-    <div className="bg-white rounded border border-border overflow-hidden">
-      {/* ---- Header ---- */}
-      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
-        <h2 className="text-terminal-lg font-semibold tracking-wide">General Ledger</h2>
-        {selectedCode && (
-          <button
-            onClick={handleExportCSV}
-            className="px-2 py-0.5 text-terminal-sm border border-white/30 rounded hover:bg-white/10 transition"
-          >
-            Export CSV
-          </button>
-        )}
-      </div>
-
+    <div className="bg-white overflow-hidden">
       {/* ---- Controls bar ---- */}
       <div className="p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center">
         {/* Account selector */}
@@ -439,6 +426,15 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         >
           Reload
         </button>
+
+        {selectedCode && (
+          <button
+            onClick={handleExportCSV}
+            className="h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row ml-auto"
+          >
+            Export CSV
+          </button>
+        )}
       </div>
 
       {/* ---- Loading / Error ---- */}
@@ -459,7 +455,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         <div className="overflow-x-auto">
           <table className="w-full text-terminal-base min-w-[700px]">
             <thead>
-              <tr className="bg-brand-purple text-white">
+              <tr className="bg-gray-50 text-text-secondary">
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Code</th>
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Account Name</th>
                 <th className="text-terminal-xs uppercase tracking-widest font-mono py-1 px-2 text-left">Type</th>
@@ -553,30 +549,30 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
           <div className="overflow-x-auto border border-border">
             {/* Column headers */}
             <div className="min-w-[900px]">
-              <div className="bg-brand-purple text-white flex text-terminal-xs uppercase tracking-widest font-mono sticky top-0 z-10">
+              <div className="bg-gray-50 text-text-secondary flex text-terminal-xs uppercase tracking-widest font-mono sticky top-0 z-10">
                 <button
                   onClick={() => handleSort('date')}
-                  className="py-1 px-2 text-left w-[100px] hover:bg-white/10 shrink-0"
+                  className="py-1 px-2 text-left w-[100px] hover:bg-gray-100 shrink-0"
                 >
                   Date{sortArrow('date')}
                 </button>
                 <div className="py-1 px-2 text-left w-[90px] shrink-0">Entry #</div>
                 <button
                   onClick={() => handleSort('description')}
-                  className="py-1 px-2 text-left flex-1 hover:bg-white/10"
+                  className="py-1 px-2 text-left flex-1 hover:bg-gray-100"
                 >
                   Description{sortArrow('description')}
                 </button>
                 <button
                   onClick={() => handleSort('amount')}
-                  className="py-1 px-2 text-right w-[100px] hover:bg-white/10 shrink-0"
+                  className="py-1 px-2 text-right w-[100px] hover:bg-gray-100 shrink-0"
                 >
                   Debit{sortArrow('amount')}
                 </button>
                 <div className="py-1 px-2 text-right w-[100px] shrink-0">Credit</div>
                 <button
                   onClick={() => handleSort('balance')}
-                  className="py-1 px-2 text-right w-[110px] hover:bg-white/10 shrink-0"
+                  className="py-1 px-2 text-right w-[110px] hover:bg-gray-100 shrink-0"
                 >
                   Balance{sortArrow('balance')}
                 </button>
