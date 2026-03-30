@@ -452,9 +452,10 @@ export default function Dashboard() {
       <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" strategy="lazyOnload" />
       <AppLayout onOpenTaxSettings={() => setShowTaxSettings(true)}>
         <div className="min-h-screen bg-bg-terminal">
-          <div className="px-4 lg:px-6 pt-3 max-w-[1600px] mx-auto">
-
-            <BookkeepingCockpitBar
+          {/* Purple wash behind cockpit bar — matches Travel bar pattern */}
+          <div className="bg-brand-purple/80 border-b border-white/[.06]">
+            <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-4">
+              <BookkeepingCockpitBar
               totalAssets={trialBalance?.accounts?.filter((a: any) => a.accountType === 'asset').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
               totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
               totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
@@ -466,8 +467,11 @@ export default function Dashboard() {
               syncing={syncing}
               onLinkAccount={handleAddAccount}
             />
+            </div>
+          </div>
 
-            <div className="space-y-3 mt-4">
+          <div className="px-4 lg:px-6 pt-4 max-w-[1600px] mx-auto">
+            <div className="space-y-3">
 
               {/* 1. SRC — Source Accounts */}
               <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
