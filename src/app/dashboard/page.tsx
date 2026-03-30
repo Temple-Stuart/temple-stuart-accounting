@@ -459,10 +459,6 @@ export default function Dashboard() {
               totalLiabilities={trialBalance?.accounts?.filter((a: any) => a.accountType === 'liability').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
               totalEquity={trialBalance?.accounts?.filter((a: any) => a.accountType === 'equity').reduce((s: number, a: any) => s + Math.abs(a.normalBalance), 0) || 0}
               isBalanced={trialBalance?.isBalanced ?? true}
-              uncategorized={transactions.filter(t => !t.accountCode).length}
-              uncommitted={uncommittedSpending.length + uncommittedInvestments.length}
-              unreconciled={reconciliations.filter((r: any) => r.status !== 'completed').length}
-              trialBalanceStatus={trialBalance ? (trialBalance.isBalanced ? 'balanced' : 'unbalanced') : 'unknown'}
               connectedAccounts={accounts.length}
               periodLabel={`${MONTHS[new Date().getMonth()]} ${selectedYear}`}
               periodStatus={periodCloses.some((p: any) => p.year === selectedYear && p.month === new Date().getMonth() + 1 && p.status === 'closed') ? 'closed' : 'open'}
@@ -481,7 +477,7 @@ export default function Dashboard() {
                 <div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-brand-purple-hover text-white">
+                      <thead className="bg-gray-50 text-text-secondary">
                         <tr>
                           <th className="px-3 py-2 text-left font-medium">Institution</th>
                           <th className="px-3 py-2 text-left font-medium">Account</th>

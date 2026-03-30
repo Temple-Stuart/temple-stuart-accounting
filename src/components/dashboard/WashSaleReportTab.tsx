@@ -112,18 +112,18 @@ export default function WashSaleReportTab() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="bg-brand-purple text-white px-3 py-1.5 flex items-center justify-between">
-        <span className="text-terminal-lg font-semibold">Wash Sale Report (IRS Publication 550)</span>
+      {/* Actions */}
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-terminal-sm text-text-muted font-mono">IRS Publication 550</span>
         <div className="flex gap-2">
-          <button onClick={loadData} className="text-terminal-sm bg-brand-purple-hover px-2 py-0.5 rounded hover:bg-brand-purple-hover">
+          <button onClick={loadData} className="px-3 py-1 text-xs border border-border text-text-secondary rounded-lg hover:bg-bg-row transition-colors">
             Re-scan
           </button>
           {summary.totalViolations > 0 && (
             <button
               onClick={applyAdjustments}
               disabled={applying}
-              className="text-terminal-sm bg-amber-600 px-2 py-0.5 rounded hover:bg-amber-700 disabled:opacity-50"
+              className="px-3 py-1 text-xs bg-brand-gold hover:bg-brand-gold-bright text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
             >
               {applying ? 'Applying...' : 'Apply Adjustments'}
             </button>
@@ -144,7 +144,7 @@ export default function WashSaleReportTab() {
           <>
             {/* Top metrics */}
             <div className="grid grid-cols-4 gap-2">
-              <div className="border border-border rounded p-2 bg-red-50">
+              <div className="border border-border rounded p-2 bg-bg-row">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Disallowed Losses</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-red">
                   {fmt(summary.totalDisallowedLosses)}
@@ -158,7 +158,7 @@ export default function WashSaleReportTab() {
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Symbols Affected</div>
                 <div className="text-terminal-lg font-bold font-mono">{summary.symbolsAffected.length}</div>
               </div>
-              <div className="border border-border rounded p-2 bg-amber-50">
+              <div className="border border-border rounded p-2 bg-bg-row">
                 <div className="text-terminal-xs text-text-muted uppercase tracking-widest">Est. Tax Impact</div>
                 <div className="text-terminal-lg font-bold font-mono text-brand-amber">
                   {fmt(taxImpact.estimatedAdditionalTax)}
@@ -195,7 +195,7 @@ export default function WashSaleReportTab() {
             <div className="border border-border rounded overflow-hidden">
               <div className="bg-bg-row px-3 py-1.5 text-terminal-lg font-semibold">By Symbol</div>
               <table className="w-full text-terminal-base">
-                <thead className="bg-brand-purple text-white/70">
+                <thead className="bg-gray-50 text-text-secondary">
                   <tr>
                     <th className="py-1 px-2 text-left text-terminal-xs uppercase tracking-widest font-mono">Symbol</th>
                     <th className="py-1 px-2 text-right text-terminal-xs uppercase tracking-widest font-mono">Violations</th>
