@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
-    const requestId = randomUUID();
+    const batchId = randomUUID();
     const reversalIds: string[] = [];
 
     await prisma.$transaction(async (tx) => {
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
             status: 'posted',
             is_reversal: true,
             reverses_entry_id: original.id,
-            request_id: requestId,
+            request_id: `${batchId}-${original.id}`,
             created_by: userEmail,
           }
         });

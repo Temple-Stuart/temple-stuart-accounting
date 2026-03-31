@@ -15,7 +15,8 @@ export async function POST(request: Request) {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const { transactionIds, accountCode, subAccount, strategy, tradeNum } = await request.json();
+    const body = await request.json();
+    const { transactionIds } = body;
 
     console.log('Investment transaction IDs received:', transactionIds);
 
@@ -27,16 +28,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: not all transactions belong to user' }, { status: 403 });
     }
 
+    // Only update fields that were explicitly provided in the request body
+    const updateData: Record<string, string | null> = {};
+    if ('accountCode' in body) updateData.accountCode = body.accountCode || null;
+    if ('subAccount' in body) updateData.subAccount = body.subAccount || null;
+    if ('strategy' in body) updateData.strategy = body.strategy || null;
+    if ('tradeNum' in body) updateData.tradeNum = body.tradeNum || null;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
     await prisma.investment_transactions.updateMany({
       where: {
         id: { in: ownedTxns.map(t => t.id) }
       },
-      data: {
-        accountCode: accountCode || null,
-        subAccount: subAccount || null,
-        strategy: strategy || null,
-        tradeNum: tradeNum || null
-      }
+      data: updateData
     });
 
     console.log('✓ Updated investment_transactions table');
