@@ -38,9 +38,17 @@ interface LedgerAccount {
   accountName: string;
   accountType: string;
   balanceType: string;
+  entityId: string | null;
+  entityName: string;
   entries: LedgerEntry[];
   openingBalance: number;
   closingBalance: number;
+}
+
+interface Entity {
+  id: string;
+  name: string;
+  entity_type: string | null;
 }
 
 interface LedgerApiResponse {
@@ -88,6 +96,8 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   const [ledgers, setLedgers] = useState<LedgerAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [accountSearch, setAccountSearch] = useState('');
@@ -104,13 +114,15 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   /* ---- fetch helper ---- */
-  const fetchLedger = useCallback(async (accountCode?: string | null) => {
+  const fetchLedger = useCallback(async (accountCode?: string | null, entityId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const url = accountCode
-        ? `/api/ledger?accountCode=${encodeURIComponent(accountCode)}`
-        : '/api/ledger';
+      const params = new URLSearchParams();
+      if (accountCode) params.set('accountCode', accountCode);
+      if (entityId) params.set('entityId', entityId);
+      const qs = params.toString();
+      const url = qs ? `/api/ledger?${qs}` : '/api/ledger';
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: LedgerApiResponse = await res.json();
@@ -122,15 +134,23 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
     }
   }, []);
 
-  /* ---- initial load ---- */
+  /* ---- fetch entities ---- */
   useEffect(() => {
-    fetchLedger();
-  }, [fetchLedger]);
+    (async () => {
+      try {
+        const res = await fetch('/api/entities');
+        if (res.ok) {
+          const data = await res.json();
+          setEntities(data.entities || []);
+        }
+      } catch {}
+    })();
+  }, []);
 
-  /* ---- refetch when account changes ---- */
+  /* ---- initial load + refetch on filters ---- */
   useEffect(() => {
-    fetchLedger(selectedCode);
-  }, [selectedCode, fetchLedger]);
+    fetchLedger(selectedCode, selectedEntityId);
+  }, [selectedCode, selectedEntityId, fetchLedger]);
 
   /* ---- close dropdown on outside click ---- */
   useEffect(() => {
@@ -289,31 +309,56 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
   };
 
   /* ---- grouped summary for "no account selected" view ---- */
-  const accountsByType = useMemo(() => {
-    const groups: Record<string, LedgerAccount[]> = {};
-    const typeOrder = ['Revenue', 'Expense', 'Asset', 'Liability', 'Equity'];
+  const accountsByEntityAndType = useMemo(() => {
+    const typeOrder = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
 
+    if (selectedEntityId) {
+      // Single entity: group by type only
+      const groups: Record<string, LedgerAccount[]> = {};
+      ledgers.forEach((l) => {
+        const t = l.accountType || 'Other';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(l);
+      });
+      const ordered: [string, LedgerAccount[]][] = [];
+      typeOrder.forEach((t) => { if (groups[t]) { ordered.push([t, groups[t].sort((a, b) => a.accountCode.localeCompare(b.accountCode))]); delete groups[t]; } });
+      Object.entries(groups).forEach(([t, accts]) => ordered.push([t, accts.sort((a, b) => a.accountCode.localeCompare(b.accountCode))]));
+      return [{ entityName: null as string | null, sections: ordered }];
+    }
+
+    // All entities: group by entity, then by type within each entity
+    const entityMap: Record<string, { entityName: string; accounts: LedgerAccount[] }> = {};
     ledgers.forEach((l) => {
-      const t = l.accountType || 'Other';
-      if (!groups[t]) groups[t] = [];
-      groups[t].push(l);
+      const key = l.entityId || '__other__';
+      if (!entityMap[key]) entityMap[key] = { entityName: l.entityName || 'Other', accounts: [] };
+      entityMap[key].accounts.push(l);
     });
 
-    // Sort groups by predefined order
-    const ordered: [string, LedgerAccount[]][] = [];
-    typeOrder.forEach((t) => {
-      if (groups[t]) {
-        ordered.push([t, groups[t].sort((a, b) => a.accountCode.localeCompare(b.accountCode))]);
-        delete groups[t];
-      }
-    });
-    // Append remaining
-    Object.entries(groups).forEach(([t, accts]) => {
-      ordered.push([t, accts.sort((a, b) => a.accountCode.localeCompare(b.accountCode))]);
+    // Sort entities: match entity order from entities list, fallback alphabetical
+    const entityOrder = entities.map(e => e.id);
+    const sortedKeys = Object.keys(entityMap).sort((a, b) => {
+      const ai = entityOrder.indexOf(a);
+      const bi = entityOrder.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return entityMap[a].entityName.localeCompare(entityMap[b].entityName);
     });
 
-    return ordered;
-  }, [ledgers]);
+    return sortedKeys.map(key => {
+      const { entityName, accounts } = entityMap[key];
+      const groups: Record<string, LedgerAccount[]> = {};
+      accounts.forEach((l) => {
+        const t = l.accountType || 'Other';
+        if (!groups[t]) groups[t] = [];
+        groups[t].push(l);
+      });
+      const ordered: [string, LedgerAccount[]][] = [];
+      typeOrder.forEach((t) => { if (groups[t]) { ordered.push([t, groups[t].sort((a, b) => a.accountCode.localeCompare(b.accountCode))]); delete groups[t]; } });
+      Object.entries(groups).forEach(([t, accts]) => ordered.push([t, accts.sort((a, b) => a.accountCode.localeCompare(b.accountCode))]));
+      return { entityName, sections: ordered };
+    });
+  }, [ledgers, selectedEntityId, entities]);
 
   /* ================================================================ */
   /*  RENDER                                                           */
@@ -321,6 +366,33 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
 
   return (
     <div className="bg-white overflow-hidden">
+      {/* ---- Entity tabs ---- */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => { setSelectedEntityId(null); setSelectedCode(null); }}
+          className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+            selectedEntityId === null
+              ? 'border-brand-purple text-brand-purple'
+              : 'border-transparent text-text-muted hover:text-text-secondary'
+          }`}
+        >
+          All
+        </button>
+        {entities.map(entity => (
+          <button
+            key={entity.id}
+            onClick={() => { setSelectedEntityId(entity.id); setSelectedCode(null); }}
+            className={`px-3 py-1.5 text-terminal-base font-mono font-medium border-b-2 transition-colors ${
+              selectedEntityId === entity.id
+                ? 'border-brand-purple text-brand-purple'
+                : 'border-transparent text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            {entity.name}
+          </button>
+        ))}
+      </div>
+
       {/* ---- Controls bar ---- */}
       <div className="p-2 border-b bg-bg-row flex flex-wrap gap-2 items-center">
         {/* Account selector */}
@@ -420,7 +492,7 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
         <button
           onClick={() => {
             onReload();
-            fetchLedger(selectedCode);
+            fetchLedger(selectedCode, selectedEntityId);
           }}
           className="h-7 px-2 text-terminal-base font-mono border border-border rounded hover:bg-bg-row"
         >
@@ -463,35 +535,49 @@ export default function GeneralLedger({ coaOptions, onReload }: GeneralLedgerPro
               </tr>
             </thead>
             <tbody>
-              {accountsByType.map(([type, accounts]) => (
-                <Fragment key={type}>
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="py-1 px-2 text-terminal-xs font-bold text-text-muted bg-bg-row uppercase tracking-wider"
-                    >
-                      {type}
-                    </td>
-                  </tr>
-                  {accounts.map((acct, idx) => (
-                    <tr
-                      key={acct.accountCode}
-                      onClick={() => setSelectedCode(acct.accountCode)}
-                      className={`cursor-pointer hover:bg-brand-purple/[.07] ${
-                        idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'
-                      }`}
-                    >
-                      <td className="py-1 px-2 font-medium">{acct.accountCode}</td>
-                      <td className="py-1 px-2 text-text-secondary">{acct.accountName}</td>
-                      <td className="py-1 px-2 text-text-muted">{acct.accountType}</td>
-                      <td className="py-1 px-2 text-right font-mono tabular-nums">
-                        {fmtMoney(acct.closingBalance)}
+              {accountsByEntityAndType.map((group, gi) => (
+                <Fragment key={group.entityName || gi}>
+                  {group.entityName && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="py-2 px-2 text-xs uppercase text-text-muted font-semibold tracking-wider border-b border-border-light bg-bg-row"
+                      >
+                        {group.entityName}
                       </td>
                     </tr>
+                  )}
+                  {group.sections.map(([type, accounts]) => (
+                    <Fragment key={type}>
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="py-1 px-2 text-terminal-xs font-bold text-text-muted bg-bg-row/60 uppercase tracking-wider pl-4"
+                        >
+                          {type}
+                        </td>
+                      </tr>
+                      {accounts.map((acct, idx) => (
+                        <tr
+                          key={acct.accountCode}
+                          onClick={() => setSelectedCode(acct.accountCode)}
+                          className={`cursor-pointer hover:bg-brand-purple/[.07] ${
+                            idx % 2 === 0 ? 'bg-white' : 'bg-bg-row'
+                          }`}
+                        >
+                          <td className="py-1 px-2 font-medium">{acct.accountCode}</td>
+                          <td className="py-1 px-2 text-text-secondary">{acct.accountName}</td>
+                          <td className="py-1 px-2 text-text-muted">{acct.accountType}</td>
+                          <td className="py-1 px-2 text-right font-mono tabular-nums">
+                            {fmtMoney(acct.closingBalance)}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </Fragment>
               ))}
-              {accountsByType.length === 0 && (
+              {accountsByEntityAndType.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-3 py-8 text-center text-text-faint">
                     No ledger entries found. Post journal entries first.

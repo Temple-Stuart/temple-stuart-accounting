@@ -18,16 +18,18 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const accountCode = searchParams.get('accountCode');
+    const entityId = searchParams.get('entityId');
 
     const ledgerEntries = await prisma.ledger_entries.findMany({
       where: {
         account: {
           userId: user.id,
-          ...(accountCode ? { code: accountCode } : {})
+          ...(accountCode ? { code: accountCode } : {}),
+          ...(entityId ? { entity_id: entityId } : {}),
         }
       },
       include: {
-        account: true,
+        account: { include: { entity: { select: { id: true, name: true, entity_type: true } } } },
         journal_entry: true
       },
       orderBy: [
@@ -46,6 +48,8 @@ export async function GET(request: NextRequest) {
           accountName: entry.account.name,
           accountType: entry.account.account_type,
           balanceType: entry.account.balance_type,
+          entityId: entry.account.entity?.id || null,
+          entityName: entry.account.entity?.name || 'Other',
           entries: [],
           runningBalance: 0
         });
@@ -74,6 +78,8 @@ export async function GET(request: NextRequest) {
       accountName: account.accountName,
       accountType: account.accountType,
       balanceType: account.balanceType,
+      entityId: account.entityId,
+      entityName: account.entityName,
       entries: account.entries,
       openingBalance: 0,
       closingBalance: account.runningBalance / 100
