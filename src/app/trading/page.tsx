@@ -93,7 +93,12 @@ export default function TradingPage() {
   const [tradesData, setTradesData] = useState<TradesData | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // Trade-to-ledger commit state
+  const [committedTradeNums, setCommittedTradeNums] = useState<Set<string>>(new Set());
+  const [commitLoading, setCommitLoading] = useState(false);
+  const [commitResult, setCommitResult] = useState<{ committed: number; skipped: number; errors: string[] } | null>(null);
+
   // Date range filter
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
@@ -396,6 +401,22 @@ export default function TradingPage() {
 
   const fmtCurrency = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
+  // Fetch committed trade nums from journal entries
+  const loadCommittedTrades = useCallback(async () => {
+    try {
+      const res = await fetch('/api/journal-transactions?source_type=trading_position');
+      if (res.ok) {
+        const data = await res.json();
+        const nums = new Set<string>(
+          (data.entries || [])
+            .filter((e: any) => e.source_type === 'trading_position' && e.source_id)
+            .map((e: any) => e.source_id)
+        );
+        setCommittedTradeNums(nums);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     Promise.all([
       fetch('/api/trading/trades').then(res => res.json()),
@@ -409,7 +430,8 @@ export default function TradingPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+    loadCommittedTrades();
+  }, [loadCommittedTrades]);
 
   // Filtered trades based on date range
   const filteredTrades = useMemo(() => {
@@ -563,6 +585,43 @@ export default function TradingPage() {
       details: data.trades.map(t => `${t.underlying} | ${t.strategy.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`),
     }));
   }, [plByDate]);
+
+  // Uncommitted closed trades (for ledger commit)
+  const uncommittedTrades = useMemo(() => {
+    if (!tradesData?.trades) return [];
+    return tradesData.trades.filter(t =>
+      t.status === 'CLOSED' &&
+      t.tradeNum &&
+      Math.abs(t.realizedPL) >= 0.01 &&
+      !committedTradeNums.has(t.tradeNum)
+    );
+  }, [tradesData, committedTradeNums]);
+
+  const commitTradesToLedger = async () => {
+    if (uncommittedTrades.length === 0) return;
+    setCommitLoading(true);
+    setCommitResult(null);
+    try {
+      const tradeNums = [...new Set(uncommittedTrades.map(t => t.tradeNum!))];
+      const res = await fetch('/api/trading/commit-to-ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tradeNums }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setCommitResult(result);
+        await loadCommittedTrades();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCommitResult({ committed: 0, skipped: 0, errors: [data.error || 'Failed to commit'] });
+      }
+    } catch (err) {
+      setCommitResult({ committed: 0, skipped: 0, errors: ['Network error'] });
+    } finally {
+      setCommitLoading(false);
+    }
+  };
 
   const PL_SOURCE_CONFIG: Record<string, SourceConfig> = {
     win: { label: 'Win', icon: '', bg: 'bg-emerald-50', dot: 'bg-emerald-500', badge: 'bg-emerald-500' },
@@ -871,6 +930,39 @@ export default function TradingPage() {
                     entityName="Trading"
                     entityType="trading"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Commit Trades to Ledger */}
+            {uncommittedTrades.length > 0 && (
+              <div className="overflow-hidden border-x border-b border-gray-200/50">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Commit Trades to Ledger</div>
+                <div className="bg-white px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-text-primary font-medium">
+                      {uncommittedTrades.length} closed trade{uncommittedTrades.length !== 1 ? 's' : ''} not yet in ledger
+                    </span>
+                    <span className="text-xs text-text-muted ml-2">
+                      (Net P&L: {fmtCurrency(uncommittedTrades.reduce((s, t) => s + t.realizedPL, 0))})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {commitResult && (
+                      <span className={`text-xs ${commitResult.errors.length > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                        {commitResult.committed > 0 && `${commitResult.committed} committed`}
+                        {commitResult.skipped > 0 && ` · ${commitResult.skipped} skipped`}
+                        {commitResult.errors.length > 0 && ` · ${commitResult.errors.length} error${commitResult.errors.length !== 1 ? 's' : ''}`}
+                      </span>
+                    )}
+                    <button
+                      onClick={commitTradesToLedger}
+                      disabled={commitLoading}
+                      className="px-4 py-1.5 text-xs font-semibold bg-brand-gold text-white rounded hover:bg-brand-gold/90 disabled:opacity-50"
+                    >
+                      {commitLoading ? 'Committing...' : 'Commit to Ledger'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
