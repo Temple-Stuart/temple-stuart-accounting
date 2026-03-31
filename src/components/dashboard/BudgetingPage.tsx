@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout, Button, Badge } from '@/components/ui';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
+import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 
 interface Expense {
   id: string;
@@ -129,6 +130,24 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
   return (
     <AppLayout>
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
+        {/* Chart of Accounts Management */}
+        {entityId && (
+          <BookkeepingSection
+            title="Chart of Accounts"
+            pipelineKey="COA"
+            subtitle={category}
+            status="complete"
+          >
+            <div className="p-3">
+              <COAManagementTable
+                entityId={entityId}
+                entityName={category}
+                entityType={category.toLowerCase()}
+              />
+            </div>
+          </BookkeepingSection>
+        )}
+
         {/* Budget Section */}
         <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
           <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
@@ -275,25 +294,6 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
           </div>
         </div>
 
-        {/* Chart of Accounts Management */}
-        {entityId && (
-          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
-            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] uppercase text-white/60 font-mono tracking-wider">COA</span>
-                <span>Chart of Accounts</span>
-              </div>
-              <span className="text-xs text-white/70">{category}</span>
-            </div>
-            <div className="bg-white p-3">
-              <COAManagementTable
-                entityId={entityId}
-                entityName={category}
-                entityType={category.toLowerCase()}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </AppLayout>
   );
