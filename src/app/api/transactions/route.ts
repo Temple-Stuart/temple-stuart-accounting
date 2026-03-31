@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const accountCode = searchParams.get('accountCode');
+    const entityId = searchParams.get('entityId');
 
     // Get transactions for accounts owned by this user
     const transactions = await prisma.transactions.findMany({
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
           userId: user.id
         },
         ...(accountCode && { accountCode }),
+        ...(entityId && { entity_id: entityId }),
       },
       include: {
         accounts: {
