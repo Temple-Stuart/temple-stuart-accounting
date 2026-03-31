@@ -50,8 +50,11 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
       const res = await fetch('/api/entities');
       if (res.ok) {
         const data = await res.json();
-        const entityType = category.toLowerCase();
-        const entity = (data.entities || []).find((e: any) => e.entity_type === entityType);
+        const categoryLower = category.toLowerCase();
+        const matchTypes = categoryLower === 'business'
+          ? ['business', 'sole_prop']
+          : [categoryLower];
+        const entity = (data.entities || []).find((e: any) => matchTypes.includes(e.entity_type));
         if (entity) setEntityId(entity.id);
       }
     } catch (err) { console.error('Failed to load entity:', err); }
