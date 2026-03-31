@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { AppLayout, Button, Badge } from '@/components/ui';
+import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 
 interface Expense {
   id: string;
@@ -40,8 +41,21 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', coa_code: '', amount: '', cadence: 'monthly', target_date: new Date().toISOString().split('T')[0] });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [entityId, setEntityId] = useState<string | null>(null);
 
-  useEffect(() => { loadExpenses(); }, []);
+  useEffect(() => { loadExpenses(); loadEntity(); }, []);
+
+  const loadEntity = async () => {
+    try {
+      const res = await fetch('/api/entities');
+      if (res.ok) {
+        const data = await res.json();
+        const entityType = category.toLowerCase();
+        const entity = (data.entities || []).find((e: any) => e.entity_type === entityType);
+        if (entity) setEntityId(entity.id);
+      }
+    } catch (err) { console.error('Failed to load entity:', err); }
+  };
 
   const loadExpenses = async () => {
     try {
@@ -252,6 +266,15 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
             <p className="text-terminal-sm text-text-muted mt-1 font-mono">No {category.toLowerCase()} expenses yet</p>
             <p className="text-terminal-xs text-text-faint mt-0.5">Click "+ ADD" to create your first entry</p>
           </div>
+        )}
+
+        {/* Chart of Accounts Management */}
+        {entityId && (
+          <COAManagementTable
+            entityId={entityId}
+            entityName={category}
+            entityType={category.toLowerCase()}
+          />
         )}
       </div>
     </AppLayout>
