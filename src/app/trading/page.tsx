@@ -10,7 +10,6 @@ import DataObservatory from '@/components/data-observatory/DataObservatory';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
-import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
 
 
 interface TradeSummary {
@@ -685,26 +684,6 @@ export default function TradingPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
 
-          {/* Chart of Accounts Management */}
-          {tradingEntityId && (
-            <div className="mb-4">
-              <BookkeepingSection
-                title="Chart of Accounts"
-                pipelineKey="COA"
-                subtitle="Trading"
-                status="complete"
-              >
-                <div className="p-3">
-                  <COAManagementTable
-                    entityId={tradingEntityId}
-                    entityName="Trading"
-                    entityType="trading"
-                  />
-                </div>
-              </BookkeepingSection>
-            </div>
-          )}
-
           {/* ── Purple Background Zone ── */}
           <div className="-mx-4 lg:-mx-6 -mt-4 lg:-mt-6 px-3 lg:px-6 py-3 pb-5 bg-brand-purple/95 backdrop-blur-sm sticky top-0 z-40">
             <div className="max-w-[1800px] mx-auto">
@@ -882,6 +861,20 @@ export default function TradingPage() {
 
           {/* ── Page Content ── */}
           <div className="space-y-3 mt-4">
+            {/* Chart of Accounts */}
+            {tradingEntityId && (
+              <div className="overflow-hidden border-x border-b border-gray-200/50">
+                <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">Chart of Accounts</div>
+                <div className="bg-white p-3">
+                  <COAManagementTable
+                    entityId={tradingEntityId}
+                    entityName="Trading"
+                    entityType="trading"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* P&L Calendar */}
             <div className="overflow-hidden border-x border-b border-gray-200/50">
               <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold">P&L Calendar</div>
