@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { ensureBookkeepingInitialized } from '@/lib/ensure-bookkeeping';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const userEmail = await getVerifiedEmail();
-    
+
     if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -22,12 +22,16 @@ export async function GET() {
 
     await ensureBookkeepingInitialized(user);
 
+    const { searchParams } = new URL(request.url);
+    const accountCode = searchParams.get('accountCode');
+
     // Get transactions for accounts owned by this user
     const transactions = await prisma.transactions.findMany({
       where: {
         accounts: {
           userId: user.id
-        }
+        },
+        ...(accountCode && { accountCode }),
       },
       include: {
         accounts: {
