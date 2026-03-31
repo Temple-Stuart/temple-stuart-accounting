@@ -129,155 +129,170 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
   return (
     <AppLayout>
       <div className="max-w-6xl mx-auto px-4 py-3 space-y-3">
-        {/* Header + inline metrics */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-terminal-lg font-mono font-semibold text-text-primary">{emoji} {category.toUpperCase()}</span>
-            <span className="text-terminal-xs text-text-faint font-mono">
-              {draft.length} draft · {committed.length} committed · Total: {fmt(totalCommitted)}
-            </span>
-          </div>
-          <Button size="sm" onClick={() => setShowForm(!showForm)}>+ ADD</Button>
-        </div>
-
-        {/* Add Form */}
-        {showForm && (
-          <div className="border border-border rounded bg-white p-3">
-            <form onSubmit={handleSubmit} className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
-                  placeholder="Expense name"
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  required
-                />
-                <select
-                  className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
-                  value={form.coa_code}
-                  onChange={e => setForm({ ...form, coa_code: e.target.value })}
-                  required
-                >
-                  {coaAccounts.length === 0 && <option value="">No accounts found</option>}
-                  {coaAccounts.map(o => <option key={o.code} value={o.code}>{o.code} - {o.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
-                  type="number"
-                  step="0.01"
-                  placeholder="Amount $"
-                  value={form.amount}
-                  onChange={e => setForm({ ...form, amount: e.target.value })}
-                  required
-                />
-                <select
-                  className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
-                  value={form.cadence}
-                  onChange={e => setForm({ ...form, cadence: e.target.value })}
-                >
-                  {CADENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-                <input
-                  className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
-                  type="date"
-                  value={form.target_date}
-                  onChange={e => setForm({ ...form, target_date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
-                <Button type="submit" size="sm" disabled={!form.coa_code}>Save</Button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* No COA Warning */}
-        {coaAccounts.length === 0 && (
-          <div className="bg-amber-50 border border-brand-amber/30 rounded px-3 py-2 flex items-start gap-2">
-            <span className="text-terminal-base">⚠️</span>
-            <div>
-              <span className="text-terminal-sm font-semibold text-brand-amber">No {category} Accounts Found</span>
-              <p className="text-terminal-xs text-text-muted mt-0.5">
-                Create Chart of Accounts entries to track {category.toLowerCase()} expenses. Go to Chart of Accounts to add them.
-              </p>
+        {/* Budget Section */}
+        <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+          <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] uppercase text-white/60 font-mono tracking-wider">{category.slice(0, 4).toUpperCase()}</span>
+              <span>{emoji} {category}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-white/70">
+                {draft.length} draft · {committed.length} committed · Total: {fmt(totalCommitted)}
+              </span>
+              <Button size="sm" onClick={() => setShowForm(!showForm)}>+ ADD</Button>
             </div>
           </div>
-        )}
+          <div className="bg-white">
+            {/* Add Form */}
+            {showForm && (
+              <div className="border-b border-gray-200/50 p-3">
+                <form onSubmit={handleSubmit} className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
+                      placeholder="Expense name"
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                    <select
+                      className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
+                      value={form.coa_code}
+                      onChange={e => setForm({ ...form, coa_code: e.target.value })}
+                      required
+                    >
+                      {coaAccounts.length === 0 && <option value="">No accounts found</option>}
+                      {coaAccounts.map(o => <option key={o.code} value={o.code}>{o.code} - {o.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount $"
+                      value={form.amount}
+                      onChange={e => setForm({ ...form, amount: e.target.value })}
+                      required
+                    />
+                    <select
+                      className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
+                      value={form.cadence}
+                      onChange={e => setForm({ ...form, cadence: e.target.value })}
+                    >
+                      {CADENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <input
+                      className="border border-border rounded px-2 py-1 text-terminal-base font-mono bg-white focus:border-brand-purple outline-none"
+                      type="date"
+                      value={form.target_date}
+                      onChange={e => setForm({ ...form, target_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+                    <Button type="submit" size="sm" disabled={!form.coa_code}>Save</Button>
+                  </div>
+                </form>
+              </div>
+            )}
 
-        {/* Table */}
-        {expenses.length > 0 && (
-          <div className="border border-border rounded overflow-hidden">
-            <table className="w-full text-terminal-base border-collapse">
-              <thead className="bg-brand-purple text-white">
-                <tr>
-                  <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70">NAME</th>
-                  <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">COA</th>
-                  <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">CADENCE</th>
-                  <th className="px-2 py-1 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">DATE</th>
-                  <th className="px-2 py-1 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-24">AMOUNT</th>
-                  <th className="px-2 py-1 text-center text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-20">STATUS</th>
-                  <th className="px-2 py-1 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-white/70 w-28">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.map((e, i) => (
-                  <tr key={e.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-bg-row'} border-b border-border-light hover:bg-brand-purple-deep/[.05]`}>
-                    <td className="px-2 py-1 text-text-primary font-medium">{e.name}</td>
-                    <td className="px-2 py-1 text-text-muted font-mono">{e.coa_code}</td>
-                    <td className="px-2 py-1 text-text-secondary">{CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label || e.cadence}</td>
-                    <td className="px-2 py-1 text-text-muted font-mono">{fmtDate(e.target_date)}</td>
-                    <td className="px-2 py-1 text-right font-mono font-semibold">{fmt(e.amount)}</td>
-                    <td className="px-2 py-1 text-center"><Badge variant="warning" size="sm">Draft</Badge></td>
-                    <td className="px-2 py-1 text-right">
-                      <span className="flex items-center justify-end gap-1">
-                        <Button size="sm" onClick={() => handleAction(e.id, 'commit')} disabled={actionLoading === e.id}>
-                          {actionLoading === e.id ? '...' : 'Commit'}
+            {/* No COA Warning */}
+            {coaAccounts.length === 0 && (
+              <div className="bg-amber-50 border-b border-brand-amber/30 px-3 py-2 flex items-start gap-2">
+                <span className="text-terminal-base">⚠️</span>
+                <div>
+                  <span className="text-terminal-sm font-semibold text-brand-amber">No {category} Accounts Found</span>
+                  <p className="text-terminal-xs text-text-muted mt-0.5">
+                    Create Chart of Accounts entries to track {category.toLowerCase()} expenses. Go to Chart of Accounts to add them.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Budget Entries Table */}
+            {expenses.length > 0 && (
+              <table className="w-full text-terminal-base border-collapse">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary">NAME</th>
+                    <th className="px-2 py-1.5 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-20">COA</th>
+                    <th className="px-2 py-1.5 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-20">CADENCE</th>
+                    <th className="px-2 py-1.5 text-left text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-20">DATE</th>
+                    <th className="px-2 py-1.5 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-24">AMOUNT</th>
+                    <th className="px-2 py-1.5 text-center text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-20">STATUS</th>
+                    <th className="px-2 py-1.5 text-right text-terminal-xs font-semibold uppercase tracking-widest font-mono text-text-secondary w-28">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draft.map((e, i) => (
+                    <tr key={e.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-bg-row'} border-b border-border-light hover:bg-brand-purple-deep/[.05]`}>
+                      <td className="px-2 py-1 text-text-primary font-medium">{e.name}</td>
+                      <td className="px-2 py-1 text-text-muted font-mono">{e.coa_code}</td>
+                      <td className="px-2 py-1 text-text-secondary">{CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label || e.cadence}</td>
+                      <td className="px-2 py-1 text-text-muted font-mono">{fmtDate(e.target_date)}</td>
+                      <td className="px-2 py-1 text-right font-mono font-semibold">{fmt(e.amount)}</td>
+                      <td className="px-2 py-1 text-center"><Badge variant="warning" size="sm">Draft</Badge></td>
+                      <td className="px-2 py-1 text-right">
+                        <span className="flex items-center justify-end gap-1">
+                          <Button size="sm" onClick={() => handleAction(e.id, 'commit')} disabled={actionLoading === e.id}>
+                            {actionLoading === e.id ? '...' : 'Commit'}
+                          </Button>
+                          <button className="text-brand-red text-terminal-sm hover:text-brand-red px-1" onClick={() => handleDelete(e.id)}>×</button>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {committed.map((e, i) => (
+                    <tr key={e.id} className={`${(draft.length + i) % 2 === 0 ? 'bg-white' : 'bg-bg-row'} border-b border-border-light hover:bg-brand-purple-deep/[.05]`}>
+                      <td className="px-2 py-1 text-text-primary font-medium">{e.name}</td>
+                      <td className="px-2 py-1 text-text-muted font-mono">{e.coa_code}</td>
+                      <td className="px-2 py-1 text-text-secondary">{CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label || e.cadence}</td>
+                      <td className="px-2 py-1 text-text-muted font-mono">{fmtDate(e.target_date)}</td>
+                      <td className="px-2 py-1 text-right font-mono font-semibold text-brand-green">{fmt(e.amount)}</td>
+                      <td className="px-2 py-1 text-center"><Badge variant="success" size="sm">Active</Badge></td>
+                      <td className="px-2 py-1 text-right">
+                        <Button size="sm" variant="secondary" onClick={() => handleAction(e.id, 'uncommit')} disabled={actionLoading === e.id}>
+                          {actionLoading === e.id ? '...' : 'Undo'}
                         </Button>
-                        <button className="text-brand-red text-terminal-sm hover:text-brand-red px-1" onClick={() => handleDelete(e.id)}>×</button>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {committed.map((e, i) => (
-                  <tr key={e.id} className={`${(draft.length + i) % 2 === 0 ? 'bg-white' : 'bg-bg-row'} border-b border-border-light hover:bg-brand-purple-deep/[.05]`}>
-                    <td className="px-2 py-1 text-text-primary font-medium">{e.name}</td>
-                    <td className="px-2 py-1 text-text-muted font-mono">{e.coa_code}</td>
-                    <td className="px-2 py-1 text-text-secondary">{CADENCE_OPTIONS.find(c => c.value === e.cadence)?.label || e.cadence}</td>
-                    <td className="px-2 py-1 text-text-muted font-mono">{fmtDate(e.target_date)}</td>
-                    <td className="px-2 py-1 text-right font-mono font-semibold text-brand-green">{fmt(e.amount)}</td>
-                    <td className="px-2 py-1 text-center"><Badge variant="success" size="sm">Active</Badge></td>
-                    <td className="px-2 py-1 text-right">
-                      <Button size="sm" variant="secondary" onClick={() => handleAction(e.id, 'uncommit')} disabled={actionLoading === e.id}>
-                        {actionLoading === e.id ? '...' : 'Undo'}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
-        {/* Empty State */}
-        {expenses.length === 0 && coaAccounts.length > 0 && (
-          <div className="border border-border rounded bg-white px-4 py-6 text-center">
-            <span className="text-terminal-lg">{emoji}</span>
-            <p className="text-terminal-sm text-text-muted mt-1 font-mono">No {category.toLowerCase()} expenses yet</p>
-            <p className="text-terminal-xs text-text-faint mt-0.5">Click "+ ADD" to create your first entry</p>
+            {/* Empty State */}
+            {expenses.length === 0 && coaAccounts.length > 0 && (
+              <div className="px-4 py-6 text-center">
+                <span className="text-terminal-lg">{emoji}</span>
+                <p className="text-terminal-sm text-text-muted mt-1 font-mono">No {category.toLowerCase()} expenses yet</p>
+                <p className="text-terminal-xs text-text-faint mt-0.5">Click "+ ADD" to create your first entry</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Chart of Accounts Management */}
         {entityId && (
-          <COAManagementTable
-            entityId={entityId}
-            entityName={category}
-            entityType={category.toLowerCase()}
-          />
+          <div className="rounded-lg overflow-hidden border border-gray-200/50 shadow-sm">
+            <div className="bg-brand-purple/80 text-white px-4 py-2.5 text-sm font-semibold flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] uppercase text-white/60 font-mono tracking-wider">COA</span>
+                <span>Chart of Accounts</span>
+              </div>
+              <span className="text-xs text-white/70">{category}</span>
+            </div>
+            <div className="bg-white p-3">
+              <COAManagementTable
+                entityId={entityId}
+                entityName={category}
+                entityType={category.toLowerCase()}
+              />
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>
