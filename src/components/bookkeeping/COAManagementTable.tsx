@@ -190,7 +190,7 @@ export default function COAManagementTable({ entityId, entityName, entityType }:
     setExpandedCode(code);
     setDrilldownLoading(true);
     try {
-      const res = await fetch(`/api/transactions?accountCode=${encodeURIComponent(code)}`);
+      const res = await fetch(`/api/transactions?accountCode=${encodeURIComponent(code)}&entityId=${encodeURIComponent(entityId)}`);
       if (res.ok) {
         const data = await res.json();
         setDrilldownTxns(data.transactions || []);
