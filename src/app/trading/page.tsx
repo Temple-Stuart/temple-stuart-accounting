@@ -9,6 +9,7 @@ import TradeLabPanel from '@/components/trading/TradeLabPanel';
 import DataObservatory from '@/components/data-observatory/DataObservatory';
 import type { ScannerFilters } from '@/lib/convergence/filter-types';
 import { DEFAULT_FILTERS, AVAILABLE_STRATEGIES } from '@/lib/convergence/filter-types';
+import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 
 
 interface TradeSummary {
@@ -186,6 +187,21 @@ export default function TradingPage() {
   const [ttGreeksLoading, setTtGreeksLoading] = useState(false);
   const [ttGreeksFetched, setTtGreeksFetched] = useState<Set<number>>(new Set());
   const [ttShowAllStrikes, setTtShowAllStrikes] = useState(false);
+  const [tradingEntityId, setTradingEntityId] = useState<string | null>(null);
+
+  // Load trading entity for COA management
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/entities');
+        if (res.ok) {
+          const data = await res.json();
+          const entity = (data.entities || []).find((e: any) => e.entity_type === 'trading');
+          if (entity) setTradingEntityId(entity.id);
+        }
+      } catch (err) { console.error('Failed to load entity:', err); }
+    })();
+  }, []);
 
   // Check Tastytrade connection status on load
   useEffect(() => {
@@ -1132,6 +1148,17 @@ export default function TradingPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Chart of Accounts Management */}
+      {tradingEntityId && (
+        <div className="p-4 lg:p-6 max-w-[1800px] mx-auto">
+          <COAManagementTable
+            entityId={tradingEntityId}
+            entityName="Trading"
+            entityType="trading"
+          />
         </div>
       )}
 
