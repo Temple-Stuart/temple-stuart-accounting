@@ -6,15 +6,15 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 // Accounts that should exist in the trading entity COA
 // From prisma/seed-trading-coa.ts
 const REQUIRED_TRADING_ACCOUNTS = [
-  { code: '1010', name: 'Trading Cash Account', account_type: 'asset', balance_type: 'D' },
-  { code: '1100', name: 'Stock Positions - Long', account_type: 'asset', balance_type: 'D' },
-  { code: '1200', name: 'Options Positions - Long Calls', account_type: 'asset', balance_type: 'D' },
-  { code: '1210', name: 'Options Positions - Long Puts', account_type: 'asset', balance_type: 'D' },
-  { code: '2100', name: 'Options Positions - Short Calls', account_type: 'liability', balance_type: 'C' },
-  { code: '2110', name: 'Options Positions - Short Puts', account_type: 'liability', balance_type: 'C' },
-  { code: '4100', name: 'Options Income - Credit Spreads', account_type: 'revenue', balance_type: 'C' },
-  { code: '4300', name: 'Dividend Income - Trading', account_type: 'revenue', balance_type: 'C' },
-  { code: '5100', name: 'Options Losses - Debit Spreads', account_type: 'expense', balance_type: 'D' },
+  { code: 'T-1010', name: 'Trading Cash Account', account_type: 'asset', balance_type: 'D' },
+  { code: 'T-1100', name: 'Stock Positions - Long', account_type: 'asset', balance_type: 'D' },
+  { code: 'T-1200', name: 'Options Positions - Long Calls', account_type: 'asset', balance_type: 'D' },
+  { code: 'T-1210', name: 'Options Positions - Long Puts', account_type: 'asset', balance_type: 'D' },
+  { code: 'T-2100', name: 'Options Positions - Short Calls', account_type: 'liability', balance_type: 'C' },
+  { code: 'T-2110', name: 'Options Positions - Short Puts', account_type: 'liability', balance_type: 'C' },
+  { code: 'T-4100', name: 'Options Income - Credit Spreads', account_type: 'revenue', balance_type: 'C' },
+  { code: 'T-4300', name: 'Dividend Income - Trading', account_type: 'revenue', balance_type: 'C' },
+  { code: 'T-5100', name: 'Options Losses - Debit Spreads', account_type: 'expense', balance_type: 'D' },
 ];
 
 export async function POST() {

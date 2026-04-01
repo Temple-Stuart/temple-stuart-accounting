@@ -963,12 +963,12 @@ export async function processStockSells(
           }
 
           // Journal entry — same pattern as stock-lots/commit/route.ts:211-302
-          const TRADING_CASH = '1010';
-          const STOCK_POSITION = '1100';
+          const TRADING_CASH = 'T-1010';
+          const STOCK_POSITION = 'T-1100';
           const proceedsCents = Math.round(totalProceeds * 100);
           const costBasisCents = Math.round(totalCostBasis * 100);
           const plCents = proceedsCents - costBasisCents;
-          const PL_ACCOUNT = plCents >= 0 ? '4100' : '5100';
+          const PL_ACCOUNT = plCents >= 0 ? 'T-4100' : 'T-5100';
 
           const accounts = await tx.chart_of_accounts.findMany({
             where: { code: { in: [TRADING_CASH, STOCK_POSITION, PL_ACCOUNT] }, userId, entity_id: entityId },
@@ -1196,8 +1196,8 @@ export async function processDividends(
     }
   }
 
-  const TRADING_CASH = '1010';
-  const DIVIDEND_INCOME = '4300';
+  const TRADING_CASH = 'T-1010';
+  const DIVIDEND_INCOME = 'T-4300';
 
   for (const txn of dividendTxns) {
     const ticker = (txn.security?.ticker_symbol || 'DIV').toUpperCase();
@@ -1728,11 +1728,11 @@ export async function processCallSpreadAssignments(
 
               // Create journal entry to reverse the position
               const positionAccount = openPosition.position_type === 'LONG'
-                ? (optionType === 'CALL' ? '1200' : '1210')
-                : (optionType === 'CALL' ? '2100' : '2110');
+                ? (optionType === 'CALL' ? 'T-1200' : 'T-1210')
+                : (optionType === 'CALL' ? 'T-2100' : 'T-2110');
               const originalCostCents = Math.round(Math.abs(costBasis) * 100);
               const isGain = realizedPL > 0;
-              const plAccount = isGain ? '4100' : '5100';
+              const plAccount = isGain ? 'T-4100' : 'T-5100';
 
               const accounts = await tx.chart_of_accounts.findMany({
                 where: {

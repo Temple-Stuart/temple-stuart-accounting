@@ -56,20 +56,20 @@ export class AutoCategorizationService {
     // Fallback to category mapping
     if (categoryPrimary) {
       const categoryMap: Record<string, string> = {
-        'FOOD_AND_DRINK': '6100',
-        'TRANSPORTATION': '6400',
-        'RENT_AND_UTILITIES': '8100',
-        'GENERAL_MERCHANDISE': '8900',
-        'GENERAL_SERVICES': '8900',
-        'ENTERTAINMENT': '8170',
-        'PERSONAL_CARE': '8150',
-        'BANK_FEES': '6300',
-        'MEDICAL': '8130',
-        'TRAVEL': '6200',
-        'INCOME': '4200',
-        'LOAN_PAYMENTS': '2020',
-        'TRANSFER_IN': '3100',
-        'TRANSFER_OUT': '3100',
+        'FOOD_AND_DRINK': 'P-6100',
+        'TRANSPORTATION': 'P-6400',
+        'RENT_AND_UTILITIES': 'P-8100',
+        'GENERAL_MERCHANDISE': 'P-8900',
+        'GENERAL_SERVICES': 'P-8900',
+        'ENTERTAINMENT': 'P-8170',
+        'PERSONAL_CARE': 'P-8150',
+        'BANK_FEES': 'P-6300',
+        'MEDICAL': 'P-8130',
+        'TRAVEL': 'P-6200',
+        'INCOME': 'P-4200',
+        'LOAN_PAYMENTS': 'P-2020',
+        'TRANSFER_IN': 'P-3100',
+        'TRANSFER_OUT': 'P-3100',
       };
 
       const coaCode = categoryMap[categoryPrimary];

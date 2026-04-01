@@ -3,6 +3,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 
+const ENTITY_PREFIX: Record<string, string> = {
+  personal: 'P-', sole_prop: 'B-', business: 'B-', trading: 'T-',
+};
+
 // GAAP Year-End Close API
 //
 // Creates closing journal entries that zero out revenue and expense accounts
@@ -140,11 +144,13 @@ export async function POST(request: NextRequest) {
     const netIncome = totalRevenue - totalExpenses;
 
     // 6. Find or create Retained Earnings account (3900)
+    const rePrefix = ENTITY_PREFIX[entity.entity_type] || 'P-';
+    const reCode = `${rePrefix}3900`;
     let retainedEarnings = await prisma.chart_of_accounts.findFirst({
       where: {
         userId: user.id,
         entity_id: entityId,
-        code: '3900',
+        code: reCode,
         account_type: 'equity',
       },
     });
@@ -154,7 +160,7 @@ export async function POST(request: NextRequest) {
           id: crypto.randomUUID(),
           userId: user.id,
           entity_id: entityId,
-          code: '3900',
+          code: reCode,
           name: 'Retained Earnings',
           account_type: 'equity',
           balance_type: 'C',
@@ -381,7 +387,8 @@ export async function GET(request: NextRequest) {
       // Net income = sum of credits to RE minus debits to RE
       let netIncome = BigInt(0);
       for (const le of ledgerEntries) {
-        if (le.account.code === '3900' && le.account.account_type === 'equity') {
+        const gePrefix = ENTITY_PREFIX[entity.entity_type] || 'P-';
+        if (le.account.code === `${gePrefix}3900` && le.account.account_type === 'equity') {
           if (le.entry_type === 'C') {
             netIncome += le.amount;
           } else {

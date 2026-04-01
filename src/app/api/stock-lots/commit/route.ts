@@ -209,15 +209,15 @@ export async function POST(request: Request) {
       const tradeNum = `${symbol.toUpperCase()}-${String(maxNum + 1).padStart(4, '0')}`;
 
       // Create journal entry for the sale
-      const TRADING_CASH = '1010';
-      const STOCK_POSITION = '1100';
+      const TRADING_CASH = 'T-1010';
+      const STOCK_POSITION = 'T-1100';
 
       const proceedsCents = Math.round(totalProceeds * 100);
       const costBasisCents = Math.round(totalCostBasis * 100);
       // Derive P&L from already-rounded values to guarantee balance
       const plCents = proceedsCents - costBasisCents;
       const totalGainLoss = plCents / 100;
-      const PL_ACCOUNT = plCents >= 0 ? '4100' : '5100';
+      const PL_ACCOUNT = plCents >= 0 ? 'T-4100' : 'T-5100';
 
       // SECURITY: Fetch accounts scoped to user + entity
       const accounts = await tx.chart_of_accounts.findMany({

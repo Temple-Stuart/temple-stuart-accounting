@@ -138,7 +138,7 @@ export class PositionTrackerService {
     db: TransactionContext,
     createdBy?: string
   ) {
-    const TRADING_CASH = '1010';
+    const TRADING_CASH = 'T-1010';
     const multiplier = 100;
     let costBasis: number;
     if (leg.action === 'buy') {
@@ -149,9 +149,9 @@ export class PositionTrackerService {
     let positionAccount: string;
     const positionType = leg.action === 'buy' ? 'LONG' : 'SHORT';
     if (leg.action === 'buy') {
-      positionAccount = leg.contractType === 'call' ? '1200' : '1210';
+      positionAccount = leg.contractType === 'call' ? 'T-1200' : 'T-1210';
     } else {
-      positionAccount = leg.contractType === 'call' ? '2100' : '2110';
+      positionAccount = leg.contractType === 'call' ? 'T-2100' : 'T-2110';
     }
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (leg.action === 'buy') {
@@ -187,7 +187,7 @@ export class PositionTrackerService {
     db: TransactionContext,
     createdBy?: string
   ) {
-    const TRADING_CASH = '1010';
+    const TRADING_CASH = 'T-1010';
 
     // Use pre-matched position (for exercise/assignment) or lookup by option details
     let openPosition = leg.matchedPosition;
@@ -280,10 +280,10 @@ export class PositionTrackerService {
       }
     }
     const isGain = realizedPL > 0;
-    const plAccount = isGain ? '4100' : '5100';
+    const plAccount = isGain ? 'T-4100' : 'T-5100';
     const positionAccount = openPosition.position_type === 'LONG'
-      ? (openPosition.option_type === 'CALL' ? '1200' : '1210')
-      : (openPosition.option_type === 'CALL' ? '2100' : '2110');
+      ? (openPosition.option_type === 'CALL' ? 'T-1200' : 'T-1210')
+      : (openPosition.option_type === 'CALL' ? 'T-2100' : 'T-2110');
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (openPosition.position_type === 'LONG') {
       lines.push({ accountCode: TRADING_CASH, amount: proceeds, entryType: 'D' });
@@ -364,7 +364,7 @@ export class PositionTrackerService {
     db: TransactionContext,
     createdBy?: string
   ): Promise<{ results: any[]; skipped: any[] }> {
-    const TRADING_CASH = '1010';
+    const TRADING_CASH = 'T-1010';
     const results: any[] = [];
     const skipped: any[] = [];
 
@@ -411,8 +411,8 @@ export class PositionTrackerService {
         ((pos.remaining_quantity ?? pos.quantity) / pos.quantity) * pos.cost_basis * 100
       );
       const positionAccount = pos.position_type === 'LONG'
-        ? (pos.option_type === 'CALL' ? '1200' : '1210')
-        : (pos.option_type === 'CALL' ? '2100' : '2110');
+        ? (pos.option_type === 'CALL' ? 'T-1200' : 'T-1210')
+        : (pos.option_type === 'CALL' ? 'T-2100' : 'T-2110');
       positionAccountMap[pos.id] = positionAccount;
 
       if (pos.position_type === 'SHORT') {
@@ -455,14 +455,14 @@ export class PositionTrackerService {
     // imbalance < 0 → excess credits → LOSS (need debit to balance)
 
     if (imbalance > 0) {
-      lines.push({ accountCode: '4100', amount: imbalance, entryType: 'C' });
+      lines.push({ accountCode: 'T-4100', amount: imbalance, entryType: 'C' });
     } else if (imbalance < 0) {
-      lines.push({ accountCode: '5100', amount: Math.abs(imbalance), entryType: 'D' });
+      lines.push({ accountCode: 'T-5100', amount: Math.abs(imbalance), entryType: 'D' });
     }
 
     const realizedPLCents = imbalance; // positive = gain, negative = loss
     const isGain = realizedPLCents >= 0;
-    const plAccount = realizedPLCents > 0 ? '4100' : (realizedPLCents < 0 ? '5100' : null);
+    const plAccount = realizedPLCents > 0 ? 'T-4100' : (realizedPLCents < 0 ? 'T-5100' : null);
     const hasExpiration = closeLegs.some(l => (l.name || '').toLowerCase().includes('expiration'));
     const closeType = hasExpiration ? 'EXPIRATION' : 'EXERCISE/ASSIGNMENT';
     const symbol = openPositions[0].symbol;
@@ -655,10 +655,10 @@ export class PositionTrackerService {
     const originalCost = Math.round(openPosition.cost_basis * 100);
     const realizedPL = isExercise ? -originalCost : originalCost;
     const isGain = realizedPL > 0;
-    const plAccount = isGain ? '4100' : '5100';
+    const plAccount = isGain ? 'T-4100' : 'T-5100';
     const positionAccount = openPosition.position_type === 'LONG'
-      ? (openPosition.option_type === 'CALL' ? '1200' : '1210')
-      : (openPosition.option_type === 'CALL' ? '2100' : '2110');
+      ? (openPosition.option_type === 'CALL' ? 'T-1200' : 'T-1210')
+      : (openPosition.option_type === 'CALL' ? 'T-2100' : 'T-2110');
     const lines: Array<{ accountCode: string; amount: number; entryType: 'D' | 'C' }> = [];
     if (isExercise) {
       lines.push({ accountCode: positionAccount, amount: originalCost, entryType: 'C' });
@@ -682,7 +682,7 @@ export class PositionTrackerService {
       where: { id: exerciseTransfer.id }, data: { strategy, tradeNum, accountCode: plAccount }
     });
     await prisma.investment_transactions.update({
-      where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: '1100' }
+      where: { id: stockTransaction.id }, data: { strategy, tradeNum, accountCode: 'T-1100' }
     });
     return { type: isExercise ? 'EXERCISE' : 'ASSIGNMENT', symbol, strike, journalId: journalEntry.id, realizedPL };
   }
@@ -709,8 +709,8 @@ export class PositionTrackerService {
     const { legs, strategy, tradeNum, userId, entityId, tx, createdBy } = params;
     const db = tx || prisma;
     const results = [];
-    const TRADING_CASH = '1010';
-    const STOCK_POSITION = '1100';
+    const TRADING_CASH = 'T-1010';
+    const STOCK_POSITION = 'T-1100';
 
     for (const leg of legs) {
       // Calculate cost basis (no multiplier for stocks)

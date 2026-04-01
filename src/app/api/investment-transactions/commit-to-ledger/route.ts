@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     let resolvedEntityId = entityId;
     if (!resolvedEntityId) {
       const tradingAccount = await prisma.chart_of_accounts.findFirst({
-        where: { userId: user.id, code: '1200', entity: { entity_type: 'trading' } },
+        where: { userId: user.id, code: 'T-1200', entity: { entity_type: 'trading' } },
         select: { entity_id: true },
       });
       if (!tradingAccount?.entity_id) {

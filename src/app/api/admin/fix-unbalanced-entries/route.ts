@@ -100,10 +100,10 @@ export async function POST() {
         continue; // Already balanced
       }
 
-      // Identify the P&L leg (4100 or 5100) — that's the plug
+      // Identify the P&L leg (T-4100 or T-5100) — that's the plug
       const plEntry = entries.find(
-        e => e.account.code === '4100' ||
-             e.account.code === '5100'
+        e => e.account.code === 'T-4100' ||
+             e.account.code === 'T-5100'
       );
       if (!plEntry) {
         return NextResponse.json({
@@ -114,10 +114,10 @@ export async function POST() {
       // The cash leg (DR) and stock leg (CR) are the source of truth.
       // P&L must be adjusted to make debits === credits.
       const cashEntry = entries.find(
-        e => e.account.code === '1010' && e.entry_type === 'D'
+        e => e.account.code === 'T-1010' && e.entry_type === 'D'
       );
       const stockEntry = entries.find(
-        e => e.account.code === '1100' && e.entry_type === 'C'
+        e => e.account.code === 'T-1100' && e.entry_type === 'C'
       );
 
       if (!cashEntry || !stockEntry) {
