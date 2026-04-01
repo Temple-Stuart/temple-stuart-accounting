@@ -7,6 +7,13 @@ import { Button } from '@/components/ui';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+const ENTITY_LABELS: Record<string, string> = {
+  personal: 'Personal',
+  sole_prop: 'Business',
+  business: 'Business',
+  trading: 'Trading',
+};
+
 export interface CoaOption {
   id: string;
   code: string;
@@ -910,8 +917,8 @@ function VirtualTable({
                     >
                       <option value="">{txn.predicted_coa_code ? `${txn.predicted_coa_code} - ${coaLookup.get(txn.predicted_coa_code)?.name || 'Unknown'}` : 'Select...'}</option>
                       {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
-                        <optgroup key={entity} label={entity || 'General'}>
-                          {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
+                        <optgroup key={entity} label={ENTITY_LABELS[entity] || entity || 'General'}>
+                          {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name} ({ENTITY_LABELS[o.entity_type || ''] || o.entity_type || 'General'})</option>)}
                         </optgroup>
                       ))}
                       <option value="__NEW__">+ Add Category</option>
@@ -1039,6 +1046,47 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     });
     return g;
   }, [localCoaOptions]);
+
+  // Determine the dominant entity type for selected pending transactions
+  const selectedEntityType = useMemo(() => {
+    if (selectedPending.size === 0) return null;
+    const types = transactions
+      .filter(t => selectedPending.has(t.id))
+      .map(t => t.entityType)
+      .filter(Boolean);
+    if (types.length === 0) return null;
+    // Return the most common entity type among selected
+    const counts: Record<string, number> = {};
+    types.forEach(t => { counts[t!] = (counts[t!] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }, [transactions, selectedPending]);
+
+  // Check if batch COA is cross-entity
+  const batchCrossEntity = useMemo(() => {
+    if (!batchCoa || !selectedEntityType) return null;
+    const [, coaEntityId] = batchCoa.split('|');
+    if (!coaEntityId) return null;
+    const coaOpt = localCoaOptions.find(o => o.entity_id === coaEntityId);
+    if (!coaOpt || !coaOpt.entity_type) return null;
+    if (coaOpt.entity_type !== selectedEntityType) {
+      return {
+        txnEntity: ENTITY_LABELS[selectedEntityType] || selectedEntityType,
+        coaEntity: ENTITY_LABELS[coaOpt.entity_type] || coaOpt.entity_type,
+      };
+    }
+    return null;
+  }, [batchCoa, selectedEntityType, localCoaOptions]);
+
+  // Sort entity groups: matching entity first
+  const sortedCoaGroups = useMemo(() => {
+    const entries = Object.entries(coaGroupedByEntity);
+    if (!selectedEntityType) return entries;
+    return entries.sort(([a], [b]) => {
+      if (a === selectedEntityType) return -1;
+      if (b === selectedEntityType) return 1;
+      return 0;
+    });
+  }, [coaGroupedByEntity, selectedEntityType]);
 
   // Unique values for filters
   const pendingMerchants = useMemo(() => {
@@ -1399,13 +1447,18 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
               className="flex-1 min-w-[200px] bg-brand-purple-hover text-white border-0 text-terminal-base font-mono px-2 py-1 rounded"
             >
               <option value="">Select COA...</option>
-              {Object.entries(coaGroupedByEntity).map(([entity, opts]) => (
-                <optgroup key={entity} label={entity || 'General'}>
-                  {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name}</option>)}
+              {sortedCoaGroups.map(([entity, opts]) => (
+                <optgroup key={entity} label={ENTITY_LABELS[entity] || entity || 'General'}>
+                  {opts.map(o => <option key={o.id} value={`${o.code}|${o.entity_id || ''}`}>{o.code} - {o.name} ({ENTITY_LABELS[o.entity_type || ''] || o.entity_type || 'General'})</option>)}
                 </optgroup>
               ))}
               <option value="__NEW__">+ Add Category</option>
             </select>
+            {batchCrossEntity && (
+              <span className="text-[11px] text-amber-300 font-mono">
+                ⚠ Cross-entity: txn is {batchCrossEntity.txnEntity} but COA is {batchCrossEntity.coaEntity}
+              </span>
+            )}
             <input
               type="text"
               placeholder="Sub-account"
