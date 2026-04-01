@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const requestId = randomUUID();
+    const batchId = randomUUID();
     const results = [];
     const errors = [];
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
           userId: user.id,
           journalEntryId: originalEntry.id,
           transactionId: txn.transactionId,
-          requestId,
+          requestId: `${batchId}-${txn.transactionId}`,
           createdBy: userEmail,
         });
 
