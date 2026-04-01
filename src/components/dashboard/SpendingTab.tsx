@@ -7,6 +7,13 @@ import { Button } from '@/components/ui';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+const ENTITY_LABELS: Record<string, string> = {
+  personal: 'Personal',
+  sole_prop: 'Business',
+  business: 'Business',
+  trading: 'Trading',
+};
+
 export interface CoaOption {
   id: string;
   code: string;
@@ -1029,12 +1036,6 @@ export default function SpendingTab({ transactions, committedTransactions, coaOp
     localCoaOptions.forEach(o => map.set(o.code, o));
     return map;
   }, [localCoaOptions]);
-
-  const ENTITY_LABELS: Record<string, string> = {
-    personal: 'Personal',
-    sole_prop: 'Business',
-    trading: 'Trading',
-  };
 
   const coaGroupedByEntity = useMemo(() => {
     const g: Record<string, CoaOption[]> = {};
