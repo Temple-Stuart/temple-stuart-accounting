@@ -699,7 +699,7 @@ export default function Dashboard() {
               <BookkeepingSection title="CPA Export" pipelineKey="EXP"
                 status="pending">
                 <div className="p-4">
-                  <CPAExport transactions={transactions} coaOptions={coaOptions} selectedYear={selectedYear} />
+                  <CPAExport year={selectedYear} entityId={defaultEntityId} />
                 </div>
               </BookkeepingSection>
 
