@@ -19,6 +19,12 @@ export interface ScheduleCExpenseLine {
   accounts: { code: string; name: string; amount: number }[];
 }
 
+export interface ScheduleCDataQualityWarning {
+  account_code: string;
+  account_name: string;
+  warning: string;
+}
+
 export interface ScheduleC {
   taxYear: number;
   businessName: string;
@@ -38,6 +44,11 @@ export interface ScheduleC {
 
   // All revenue accounts found
   revenueAccounts: { code: string; name: string; amount: number }[];
+
+  // Accounts with no current-year ledger entries but non-zero lifetime settled balance.
+  // Their lifetime balances are excluded from the return; this surfaces them so the
+  // user can backfill missing journal entries rather than silently overstating the year.
+  data_quality_warnings: ScheduleCDataQualityWarning[];
 }
 
 export interface ScheduleSE {
@@ -68,13 +79,25 @@ const LINE_LABELS: Record<string, string> = {
 };
 
 // ─── Year-filtered account balance calculation ─────────────────
+//
+// Returns the account's net movement for the tax year only. If no ledger entries
+// exist for the year, returns { balance: 0 } and surfaces the lifetime
+// settled_balance (if non-zero) via excludedSettledBalance so callers can emit a
+// data-quality warning. Falling back to settled_balance would overstate the year
+// because settled_balance is a lifetime cumulative total.
+
+interface AccountYearBalance {
+  balance: number;
+  hadEntries: boolean;
+  excludedSettledBalance: number;
+}
 
 async function getAccountYearBalance(
   accountId: string,
   balanceType: string,
   yearStart: Date,
   yearEnd: Date
-): Promise<number> {
+): Promise<AccountYearBalance> {
   const entries = await prisma.ledger_entries.findMany({
     where: {
       account_id: accountId,
@@ -99,18 +122,24 @@ async function getAccountYearBalance(
 
   const yearBalance = Number(net) / 100;
 
-  // If no ledger entries exist for the year, fall back to settled_balance
+  // When the year has no entries, look up settled_balance only to emit a warning —
+  // do NOT use it as a tax-return value.
+  let excludedSettledBalance = 0;
   if (entries.length === 0) {
     const account = await prisma.chart_of_accounts.findUnique({
       where: { id: accountId },
       select: { settled_balance: true },
     });
     if (account && account.settled_balance !== BigInt(0)) {
-      return Number(account.settled_balance) / 100;
+      excludedSettledBalance = Number(account.settled_balance) / 100;
     }
   }
 
-  return yearBalance;
+  return {
+    balance: yearBalance,
+    hadEntries: entries.length > 0,
+    excludedSettledBalance,
+  };
 }
 
 // ─── Main Schedule C generator ─────────────────────────────────
@@ -135,6 +164,7 @@ export async function generateScheduleC(
       line1: 0, line2: 0, line7: 0,
       expenses: [], line28: 0, line31: 0,
       unmappedAccounts: [], revenueAccounts: [],
+      data_quality_warnings: [],
     };
   }
 
@@ -171,12 +201,22 @@ export async function generateScheduleC(
     });
   }
 
+  // Track data-quality warnings for accounts with excluded lifetime balances
+  const dataQualityWarnings: ScheduleCDataQualityWarning[] = [];
+
   // Calculate year balances for revenue accounts
   const revenueItems: { code: string; name: string; amount: number }[] = [];
   for (const acct of revenueAccounts) {
-    const balance = await getAccountYearBalance(acct.id, acct.balance_type, yearStart, yearEnd);
-    if (balance !== 0) {
-      revenueItems.push({ code: acct.code, name: acct.name, amount: round2(Math.abs(balance)) });
+    const result = await getAccountYearBalance(acct.id, acct.balance_type, yearStart, yearEnd);
+    if (!result.hadEntries && result.excludedSettledBalance !== 0) {
+      dataQualityWarnings.push({
+        account_code: acct.code,
+        account_name: acct.name,
+        warning: `No ${taxYear} ledger entries found. Lifetime balance of $${Math.abs(result.excludedSettledBalance).toFixed(2)} excluded.`,
+      });
+    }
+    if (result.balance !== 0) {
+      revenueItems.push({ code: acct.code, name: acct.name, amount: round2(Math.abs(result.balance)) });
     }
   }
 
@@ -195,10 +235,17 @@ export async function generateScheduleC(
   }
 
   for (const acct of expenseAccounts) {
-    const balance = await getAccountYearBalance(acct.id, acct.balance_type, yearStart, yearEnd);
-    if (balance === 0) continue;
+    const result = await getAccountYearBalance(acct.id, acct.balance_type, yearStart, yearEnd);
+    if (!result.hadEntries && result.excludedSettledBalance !== 0) {
+      dataQualityWarnings.push({
+        account_code: acct.code,
+        account_name: acct.name,
+        warning: `No ${taxYear} ledger entries found. Lifetime balance of $${Math.abs(result.excludedSettledBalance).toFixed(2)} excluded.`,
+      });
+    }
+    if (result.balance === 0) continue;
 
-    const rawAmount = round2(Math.abs(balance));
+    const rawAmount = round2(Math.abs(result.balance));
 
     // Use account_tax_mappings to determine Schedule C line
     // form_line values are stored as "line_8", "line_27a" etc. — strip the "line_" prefix
@@ -254,6 +301,7 @@ export async function generateScheduleC(
     line31,
     unmappedAccounts,
     revenueAccounts: revenueItems,
+    data_quality_warnings: dataQualityWarnings,
   };
 }
 

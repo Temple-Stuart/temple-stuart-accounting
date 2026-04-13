@@ -68,6 +68,7 @@ export interface Form1040 {
   // INCOME
   line1: number;   // W-2 wages
   line1Source: string;
+  wagesSource: 'override' | 'w2_document' | 'ledger_personal' | 'none';
   line5a: number;  // 403(b) gross distribution
   line5b: number;  // 403(b) taxable amount
   line7: number;   // Capital gain/loss (from Schedule D)
@@ -144,52 +145,59 @@ function overrideNum(overrides: Record<string, string>, key: string, fallback: n
   return { value: fallback, used: false };
 }
 
-// ─── W-2 wages from COA (across all user entities via account_tax_mappings) ──
+// ─── W-2 wages — structured intake from tax_documents (source of truth) ────────
+//
+// Priority order for Line 1 wages and W-2 withholding:
+//   1. tax_overrides   (manual user override — handled at call site)
+//   2. tax_documents   (W-2 forms entered by user)
+//   3. ledger          (code 4000 in user's default Personal entity ONLY)
+//
+// The ledger fallback is scoped to the Personal entity to prevent pulling a
+// business's Service Revenue (code 4000 in Sole Prop Standard) into W-2 wages.
 
-async function getW2Wages(userId: string, taxYear: number): Promise<number> {
+async function getW2FromDocuments(
+  userId: string,
+  taxYear: number
+): Promise<{ wages: number; withheld: number; hasDocs: boolean }> {
+  const w2Docs = await prisma.tax_documents.findMany({
+    where: { userId, tax_year: taxYear, doc_type: 'w2' },
+  });
+
+  let wages = 0;
+  let withheld = 0;
+  for (const doc of w2Docs) {
+    const data = doc.data as Record<string, unknown>;
+    wages += Number(data.wages) || 0;
+    withheld += Number(data.federal_tax_withheld) || 0;
+  }
+
+  return {
+    wages: round2(wages),
+    withheld: round2(withheld),
+    hasDocs: w2Docs.length > 0,
+  };
+}
+
+async function getW2WagesFromPersonalLedger(userId: string, taxYear: number): Promise<number> {
   const yearStart = new Date(`${taxYear}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${taxYear + 1}-01-01T00:00:00.000Z`);
 
-  // Find wage accounts via account_tax_mappings for form_1040 line 1
-  const taxMappedWages = await prisma.account_tax_mappings.findMany({
-    where: {
-      tax_form: 'form_1040',
-      form_line: '1',
-      tax_year: taxYear,
-      account: { userId, is_archived: false },
-    },
-    include: { account: true },
+  // SCOPE: look up the user's default Personal entity only. Code 4000 means
+  // different things in different templates (Personal: "Wages & Salary";
+  // Sole Prop: "Service Revenue"), so entity-scoping is required.
+  const personalEntity = await prisma.entities.findFirst({
+    where: { userId, entity_type: 'personal', is_default: true },
   });
+  if (!personalEntity) return 0;
 
-  if (taxMappedWages.length > 0) {
-    let totalWages = 0;
-    for (const tm of taxMappedWages) {
-      const acct = tm.account;
-      const entries = await prisma.ledger_entries.findMany({
-        where: {
-          account_id: acct.id,
-          journal_entry: {
-            date: { gte: yearStart, lt: yearEnd },
-            status: 'posted',
-          },
-        },
-        select: { amount: true, entry_type: true },
-      });
-
-      let net = BigInt(0);
-      for (const e of entries) {
-        net += e.entry_type === 'C' ? e.amount : -e.amount;
-      }
-      totalWages += Math.abs(Number(net) / 100) * tm.multiplier.toNumber();
-    }
-    if (totalWages > 0) return round2(totalWages);
-  }
-
-  // Fallback: find wage account by code 4000 across all user entities
   const wageAccount = await prisma.chart_of_accounts.findFirst({
-    where: { userId, code: '4000', is_archived: false },
+    where: {
+      userId,
+      entity_id: personalEntity.id,
+      code: '4000',
+      is_archived: false,
+    },
   });
-
   if (!wageAccount) return 0;
 
   const entries = await prisma.ledger_entries.findMany({
@@ -203,15 +211,13 @@ async function getW2Wages(userId: string, taxYear: number): Promise<number> {
     select: { amount: true, entry_type: true },
   });
 
-  if (entries.length > 0) {
-    let net = BigInt(0);
-    for (const e of entries) {
-      net += e.entry_type === 'C' ? e.amount : -e.amount;
-    }
-    return Math.abs(Number(net) / 100);
-  }
+  if (entries.length === 0) return 0;
 
-  return Math.abs(Number(wageAccount.settled_balance) / 100);
+  let net = BigInt(0);
+  for (const e of entries) {
+    net += e.entry_type === 'C' ? e.amount : -e.amount;
+  }
+  return round2(Math.abs(Number(net) / 100));
 }
 
 // ─── Compute ordinary income tax from brackets ──────────────────
@@ -348,12 +354,31 @@ export async function generateForm1040(
 
   // ── INCOME ──
 
-  // Line 1: W-2 wages
-  const coaWages = await getW2Wages(userId, taxYear);
-  const w2 = overrideNum(overrides, 'w2_gross_wages', coaWages);
+  // Line 1: W-2 wages — priority: override > tax_documents > Personal-entity ledger
+  const w2FromDocs = await getW2FromDocuments(userId, taxYear);
+  const w2FromLedger = await getW2WagesFromPersonalLedger(userId, taxYear);
+
+  // Choose the non-override source up front, then let overrideNum see it as fallback.
+  const wagesSecondary = w2FromDocs.hasDocs ? w2FromDocs.wages : w2FromLedger;
+  const w2 = overrideNum(overrides, 'w2_gross_wages', wagesSecondary);
   const line1 = w2.value;
-  const line1Source = w2.used ? 'manual override' : (coaWages > 0 ? 'COA 4000' : 'not set');
-  if (w2.used) overridesUsed.push('w2_gross_wages');
+
+  let line1Source: string;
+  let wagesSource: 'override' | 'w2_document' | 'ledger_personal' | 'none';
+  if (w2.used) {
+    line1Source = 'manual override';
+    wagesSource = 'override';
+    overridesUsed.push('w2_gross_wages');
+  } else if (w2FromDocs.hasDocs && w2FromDocs.wages > 0) {
+    line1Source = 'W-2 document(s)';
+    wagesSource = 'w2_document';
+  } else if (w2FromLedger > 0) {
+    line1Source = 'COA 4000 (Personal entity)';
+    wagesSource = 'ledger_personal';
+  } else {
+    line1Source = 'not set';
+    wagesSource = 'none';
+  }
 
   // Line 5a/5b: 403(b) distribution
   const ret5a = overrideNum(overrides, 'retirement_distribution_gross', 0);
@@ -484,7 +509,9 @@ export async function generateForm1040(
 
   // ── CREDITS & PAYMENTS ──
 
-  const w2With = overrideNum(overrides, 'w2_federal_withheld', 0);
+  // W-2 federal withholding — priority: override > tax_documents (W-2)
+  const withheldSecondary = w2FromDocs.hasDocs ? w2FromDocs.withheld : 0;
+  const w2With = overrideNum(overrides, 'w2_federal_withheld', withheldSecondary);
   const w2Withheld = w2With.value;
   if (w2With.used) overridesUsed.push('w2_federal_withheld');
 
@@ -511,6 +538,7 @@ export async function generateForm1040(
 
     line1,
     line1Source,
+    wagesSource,
     line5a,
     line5b,
     line7,
