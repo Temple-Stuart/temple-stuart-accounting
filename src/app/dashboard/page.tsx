@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import Script from 'next/script';
 import { AppLayout } from '@/components/ui';
 import { ADMIN_USER_ID } from '@/lib/tiers';
@@ -470,6 +471,31 @@ export default function Dashboard() {
         <div className="min-h-screen bg-bg-terminal">
           <div className="px-4 lg:px-6 pt-4 max-w-[1600px] mx-auto">
             <div className="space-y-3">
+
+              {/* Tax Filing CTA — primary tax-season action */}
+              <Link
+                href="/dashboard/tax-filing"
+                className="block rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-white px-5 py-4 hover:border-blue-300 hover:shadow-sm transition-all"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-md bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                      1040
+                    </div>
+                    <div>
+                      <div className="text-base font-semibold text-gray-900">
+                        File your taxes
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        Guided wizard — life events → documents → review → file.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-blue-700">
+                    Start →
+                  </div>
+                </div>
+              </Link>
 
               {/* 1. SRC — Source Accounts */}
               <BookkeepingSection title="Source Accounts" pipelineKey="SRC"
