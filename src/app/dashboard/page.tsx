@@ -13,7 +13,8 @@ import JournalEntryEngine from '@/components/dashboard/JournalEntryEngine';
 import CPAExport from '@/components/dashboard/CPAExport';
 import PositionReportTab from '@/components/dashboard/PositionReportTab';
 import WashSaleReportTab from '@/components/dashboard/WashSaleReportTab';
-import TaxReportTab from '@/components/dashboard/TaxReportTab';
+// DEPRECATED: TaxReportTab superseded by the tax filing wizard at
+// /dashboard/tax-filing. Import removed; file kept for reference only.
 import TaxSettings from '@/components/dashboard/TaxSettings';
 import type { TaxSettingsValues } from '@/components/dashboard/TaxSettings';
 import BankReconciliation from '@/components/dashboard/BankReconciliation';
@@ -715,10 +716,29 @@ export default function Dashboard() {
                 <PositionReportTab />
               </BookkeepingSection>
 
-              {/* 13. TAX — Tax Forms */}
+              {/* 13. TAX — Tax Forms (link to wizard) */}
               <BookkeepingSection title="Tax Forms" pipelineKey="TAX"
                 status="pending">
-                <TaxReportTab />
+                <div className="p-4">
+                  <Link
+                    href="/dashboard/tax-filing"
+                    className="block rounded-lg border border-gray-200 bg-white px-5 py-4 hover:border-blue-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          Tax filing
+                        </div>
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          File your {selectedYear} taxes step by step — 7 steps covering life events, documents, income, deductions, trading, review, and file.
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium text-blue-700 shrink-0">
+                        Open tax wizard →
+                      </div>
+                    </div>
+                  </Link>
+                </div>
               </BookkeepingSection>
 
               {/* 14. EXP — Export */}
