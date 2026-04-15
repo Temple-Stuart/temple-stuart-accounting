@@ -67,7 +67,9 @@ yarn-error.log*
 /npm
 /npx
 /sed
-scripts/
 audit-*.sh
 discover-schema.sh
 0
+
+# tax export outputs (contain financial data — do not commit)
+/exports
