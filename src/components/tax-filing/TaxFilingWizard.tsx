@@ -116,11 +116,34 @@ const DEFAULT_LIFE_EVENTS: LifeEvents = {
   hasRental: false,
 };
 
+// Default to the return the user is currently filing.
+// IRS deadline is April 15; automatic extension runs to October 15.
+// Before Oct 15, people are still filing the PRIOR calendar year.
+// On/after Oct 15, filing season is over — start planning the CURRENT year.
+function defaultTaxYear(): number {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const day = now.getUTCDate();
+  if (month < 10 || (month === 10 && day < 15)) {
+    return year - 1;
+  }
+  return year;
+}
+
+// Years offered in the selector: current, prior 2, and next. Users filing
+// early are usually in prior-year mode; offering next year supports
+// forward-planning scenarios.
+function availableTaxYears(): number[] {
+  const current = new Date().getUTCFullYear();
+  return [current + 1, current, current - 1, current - 2];
+}
+
 export default function TaxFilingWizard() {
   const [state, setState] = useState<WizardState>({
     currentStep: 0,
     completedSteps: new Set<number>(),
-    taxYear: new Date().getFullYear(),
+    taxYear: defaultTaxYear(),
     lifeEvents: DEFAULT_LIFE_EVENTS,
     autoDetected: {},
   });
@@ -271,12 +294,39 @@ export default function TaxFilingWizard() {
     <AppLayout>
       <div className="px-4 py-6 max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900">File your taxes</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Tax year {state.taxYear} · Step {state.currentStep + 1} of {STEPS.length} ·{' '}
-            {step.label}
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">File your taxes</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Tax year {state.taxYear} · Step {state.currentStep + 1} of {STEPS.length} ·{' '}
+              {step.label}
+            </p>
+          </div>
+          <div className="shrink-0">
+            <label
+              htmlFor="wizard-tax-year"
+              className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1 text-right"
+            >
+              Tax year
+            </label>
+            <select
+              id="wizard-tax-year"
+              value={state.taxYear}
+              onChange={(e) =>
+                setState((prev) => ({
+                  ...prev,
+                  taxYear: parseInt(e.target.value, 10),
+                }))
+              }
+              className="px-3 py-1.5 text-sm font-mono font-semibold border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            >
+              {availableTaxYears().map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Progress bar */}

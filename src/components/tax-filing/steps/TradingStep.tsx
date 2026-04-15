@@ -287,14 +287,19 @@ export default function TradingStep({
   const lossCount = allEntries.filter((e) => e.gainOrLoss < 0).length;
   const winRate =
     allEntries.length > 0 ? (winCount / allEntries.length) * 100 : 0;
-  const largestGain = allEntries.reduce(
-    (m, e) => (e.gainOrLoss > m ? e.gainOrLoss : m),
-    0
-  );
-  const largestLoss = allEntries.reduce(
-    (m, e) => (e.gainOrLoss < m ? e.gainOrLoss : m),
-    0
-  );
+  // Use filter + reduce so the result is only defined when real gains/losses
+  // exist. Previous version seeded the accumulator with 0, which masked the
+  // absence of any gains or losses as "$0.00" in the UI.
+  const gainEntries = allEntries.filter((e) => e.gainOrLoss > 0);
+  const lossEntries = allEntries.filter((e) => e.gainOrLoss < 0);
+  const largestGain =
+    gainEntries.length > 0
+      ? gainEntries.reduce((m, e) => Math.max(m, e.gainOrLoss), -Infinity)
+      : 0;
+  const largestLoss =
+    lossEntries.length > 0
+      ? lossEntries.reduce((m, e) => Math.min(m, e.gainOrLoss), Infinity)
+      : 0;
 
   const hasWashSaleWarning =
     (summary.washSalesApplied ?? 0) > 0 ||
@@ -709,13 +714,13 @@ export default function TradingStep({
             />
             <Metric
               label="Largest gain"
-              value={fmtMoney(largestGain)}
-              valueClass="text-emerald-700"
+              value={winCount > 0 ? fmtMoney(largestGain) : '—'}
+              valueClass={winCount > 0 ? 'text-emerald-700' : 'text-gray-400'}
             />
             <Metric
               label="Largest loss"
-              value={fmtMoney(largestLoss)}
-              valueClass="text-red-600"
+              value={lossCount > 0 ? fmtMoney(largestLoss) : '—'}
+              valueClass={lossCount > 0 ? 'text-red-600' : 'text-gray-400'}
             />
             <Metric
               label="Total proceeds"

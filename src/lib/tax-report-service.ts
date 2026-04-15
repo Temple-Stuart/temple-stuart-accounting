@@ -38,8 +38,21 @@ export interface Form8949Entry {
 }
 
 // Sources we trust to produce broker-reported basis (1099-B covered).
-// Anything else (manual entry, legacy imports) defaults to unreported.
-const BROKER_IMPORTED_SOURCES = new Set(['plaid', 'tastytrade', 'robinhood']);
+//
+// 'legacy' is included because every trading_positions row in this app was
+// either broker-imported (via Plaid/TastyTrade/Robinhood) or manually
+// entered with an explicit source tag. Rows with source='legacy' came from
+// the initial schema where source defaulted to 'legacy' — they are in
+// practice broker-imported (1099-B basis is reported). The preferred
+// disambiguation is via investment_transactions.accounts.source, which is
+// resolved per-position below; `legacy` acts as a safety net when that
+// lookup returns null.
+const BROKER_IMPORTED_SOURCES = new Set([
+  'plaid',
+  'tastytrade',
+  'robinhood',
+  'legacy',
+]);
 
 function determineBox(isLongTerm: boolean, source: string | null): Form8949Entry['box'] {
   const normalized = source ? source.toLowerCase() : null;
@@ -277,6 +290,26 @@ export async function generateForm8949WithMetadata(
         orderBy: { close_date: 'asc' }
       });
 
+      // Build the option-position source map: prefer the source on the
+      // opening investment_transaction's linked account (e.g., 'plaid')
+      // over trading_positions.source (which defaults to 'legacy' and
+      // therefore mis-classifies broker-imported trades as Box B). This is
+      // the root-cause fix for Bug 3 (32 TastyTrade/Plaid positions showing
+      // as Box B instead of Box A).
+      const openTxnIds = Array.from(
+        new Set(closedOptions.map((p) => p.open_investment_txn_id).filter(Boolean))
+      );
+      const openTxnRows = openTxnIds.length > 0
+        ? await prisma.investment_transactions.findMany({
+            where: { id: { in: openTxnIds } },
+            select: { id: true, accounts: { select: { source: true } } },
+          })
+        : [];
+      const openTxnSourceById = new Map<string, string | null>();
+      for (const t of openTxnRows) {
+        openTxnSourceById.set(t.id, t.accounts?.source ?? null);
+      }
+
       for (const pos of closedOptions) {
         const closeDate = pos.close_date!;
         const holdingDays = Math.floor(
@@ -308,8 +341,12 @@ export async function generateForm8949WithMetadata(
         // Build option description: "1 AAPL Jan 20 2025 $150 Call"
         const optDesc = buildOptionDescription(pos);
 
-        const box = determineBox(isLongTerm, pos.source);
-        const reasoning = boxReasoning(isLongTerm, pos.source);
+        // Prefer the opening account's source (authoritative) over the
+        // position's own source field (which commonly defaults to 'legacy').
+        const effectiveSource =
+          openTxnSourceById.get(pos.open_investment_txn_id) ?? pos.source;
+        const box = determineBox(isLongTerm, effectiveSource);
+        const reasoning = boxReasoning(isLongTerm, effectiveSource);
 
         entries.push({
           description: optDesc,
