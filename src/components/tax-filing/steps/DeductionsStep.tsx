@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
+import AccountTaxMappings from '../AccountTaxMappings';
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 3 — Deductions (Schedule C)
@@ -116,6 +117,7 @@ export default function DeductionsStep({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showMappings, setShowMappings] = useState(false);
 
   const loadCalc = useCallback(async () => {
     if (!lifeEvents.hasBusiness) {
@@ -504,17 +506,24 @@ export default function DeductionsStep({
       {/* ═══ Unmapped accounts warning ═══ */}
       {scheduleC.unmappedAccounts.length > 0 && (
         <div className="border border-amber-200 bg-amber-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center justify-between gap-3 mb-2">
             <span className="text-amber-700 font-semibold text-sm">
               {scheduleC.unmappedAccounts.length} account
               {scheduleC.unmappedAccounts.length === 1 ? '' : 's'} without a
               Schedule C line mapping
             </span>
+            <button
+              type="button"
+              onClick={() => setShowMappings((v) => !v)}
+              className="shrink-0 px-3 py-1 text-xs font-semibold text-white bg-amber-600 rounded hover:bg-amber-700"
+            >
+              {showMappings ? 'Hide mapper' : 'Map these accounts →'}
+            </button>
           </div>
           <p className="text-xs text-amber-800 mb-2">
             These accounts have expenses but no Schedule C line mapping — they
-            default to Line 27a (Other). You can map them to specific Schedule C
-            lines in the Chart of Accounts settings.
+            default to Line 27a (Other). Use the mapper below (or open from the
+            button above) to assign them to specific Schedule C lines.
           </p>
           <div className="space-y-0.5">
             {scheduleC.unmappedAccounts.map((a) => (
@@ -534,6 +543,36 @@ export default function DeductionsStep({
           </div>
         </div>
       )}
+
+      {/* ═══ Tax mappings manager (inline, toggle) ═══ */}
+      <div>
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowMappings((v) => !v)}
+            className="text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+          >
+            {showMappings
+              ? 'Hide Schedule C tax mappings'
+              : 'Manage Schedule C tax mappings →'}
+          </button>
+          {!showMappings && (
+            <span className="text-[11px] text-gray-500">
+              Assign each expense account to a specific Schedule C line.
+            </span>
+          )}
+        </div>
+        {showMappings && (
+          <div className="mt-3 border border-gray-200 rounded-lg bg-gray-50/50 p-4">
+            <AccountTaxMappings taxYear={taxYear} />
+            <p className="mt-3 text-[11px] text-gray-500 italic">
+              Changes here affect Schedule C on reload. Click Retry on the
+              Schedule C card above after adjusting mappings to see updated
+              line totals.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* ═══ Data quality warnings ═══ */}
       {scheduleC.data_quality_warnings &&
