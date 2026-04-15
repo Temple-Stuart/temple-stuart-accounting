@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { StepProps } from '../TaxFilingWizard';
+import WashSaleReport from '../WashSaleReport';
 
 // ═══════════════════════════════════════════════════════════════════
 // Step 4 — Trading (Schedule D + Form 8949)
@@ -167,6 +168,7 @@ export default function TradingStep({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showWashReport, setShowWashReport] = useState(false);
 
   const loadAll = useCallback(async () => {
     if (!lifeEvents.hasTrading) {
@@ -448,6 +450,25 @@ export default function TradingStep({
               </ul>
             </div>
           )}
+
+          <div className="px-4 py-2 border-t border-amber-200 bg-amber-100/50">
+            <button
+              type="button"
+              onClick={() => setShowWashReport((v) => !v)}
+              className="text-xs font-semibold text-amber-900 underline hover:no-underline"
+            >
+              {showWashReport
+                ? 'Hide detailed wash sale report'
+                : 'View detailed wash sale report →'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Detailed wash sale report (toggle) ═══ */}
+      {showWashReport && (
+        <div className="border border-gray-200 rounded-lg bg-gray-50/40 p-4">
+          <WashSaleReport taxYear={taxYear} />
         </div>
       )}
 
