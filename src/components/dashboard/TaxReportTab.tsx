@@ -1,5 +1,24 @@
 'use client';
 
+// ═══════════════════════════════════════════════════════════════════
+// DEPRECATED — This component has been replaced by the tax filing
+// wizard at /dashboard/tax-filing. It is no longer imported or
+// rendered anywhere in the app as of the tax-UI consolidation.
+//
+// Kept on disk (not deleted) for reference during the transition.
+// Do not re-import this. All new tax work flows through the wizard:
+//   src/app/dashboard/tax-filing/page.tsx
+//   src/components/tax-filing/TaxFilingWizard.tsx
+//
+// Features this component had that the wizard covers:
+//   • Year selector          → wizard uses current year (taxYear prop)
+//   • Inline override editing → wizard uses /api/tax/overrides in steps
+//   • Schedule C drill-down  → DeductionsStep 3-level drill-down
+//   • Form 8949 + wash sale  → TradingStep box-coded entries
+//   • Form 1040 bracket view → ReviewStep bracket breakdown
+//   • PDF export buttons     → ReviewStep + FileStep download sections
+// ═══════════════════════════════════════════════════════════════════
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ─── Existing interfaces (Schedule D + Form 8949) ──────────────
