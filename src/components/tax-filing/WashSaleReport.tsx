@@ -160,10 +160,10 @@ export default function WashSaleReport({ taxYear }: Props) {
   };
 
   const applyAdjustments = async () => {
-    if (!data || data.violations.length === 0) return;
+    if (!data || yearViolations.length === 0) return;
     const confirmed = confirm(
       'Apply wash sale adjustments?\n\n' +
-        `${data.summary.totalViolations} violation(s) totaling ${fmtMoney(data.summary.totalDisallowedLosses)} disallowed.\n\n` +
+        `${data.summary.totalViolations} all-time violation(s) totaling ${fmtMoney(data.summary.totalDisallowedLosses)} disallowed.\n\n` +
         'This is destructive and NOT idempotent: it will\n' +
         '  • mark each affected disposition as is_wash_sale=true\n' +
         '  • set wash_sale_loss on each disposition\n' +
@@ -224,7 +224,35 @@ export default function WashSaleReport({ taxYear }: Props) {
 
   if (!data) return null;
 
-  const noViolations = data.violations.length === 0;
+  // Year-scope the data: the wash-sales endpoint returns all-time violations.
+  // Filter to only show violations whose saleDate falls within taxYear.
+  const yearStr = String(taxYear);
+  const yearViolations = data.violations.filter((v) =>
+    v.saleDate.startsWith(yearStr)
+  );
+  const yearBySymMap = new Map<
+    string,
+    { symbol: string; violations: WashSaleViolation[]; totalDisallowed: number; count: number }
+  >();
+  for (const v of yearViolations) {
+    let entry = yearBySymMap.get(v.symbol);
+    if (!entry) {
+      entry = { symbol: v.symbol, violations: [], totalDisallowed: 0, count: 0 };
+      yearBySymMap.set(v.symbol, entry);
+    }
+    entry.violations.push(v);
+    entry.totalDisallowed += v.disallowedLoss;
+    entry.count += 1;
+  }
+  const yearBySymbol = Array.from(yearBySymMap.values()).sort(
+    (a, b) => b.totalDisallowed - a.totalDisallowed
+  );
+  const yearTotalDisallowed = yearViolations.reduce(
+    (s, v) => s + v.disallowedLoss,
+    0
+  );
+
+  const noViolations = yearViolations.length === 0;
   const hasPending = pendingCount > 0;
 
   return (
@@ -264,16 +292,16 @@ export default function WashSaleReport({ taxYear }: Props) {
         ) : (
           <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <Metric
-              label="Total violations"
-              value={data.summary.totalViolations.toLocaleString()}
+              label={`Violations (${taxYear})`}
+              value={yearViolations.length.toLocaleString()}
             />
             <Metric
               label="Total disallowed"
-              value={fmtMoney(data.summary.totalDisallowedLosses)}
+              value={fmtMoney(yearTotalDisallowed)}
             />
             <Metric
               label="Symbols affected"
-              value={data.summary.symbolsAffected.length.toString()}
+              value={yearBySymMap.size.toString()}
             />
             <Metric
               label="Est. additional tax"
@@ -381,7 +409,7 @@ export default function WashSaleReport({ taxYear }: Props) {
           <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             By symbol
           </h4>
-          {data.bySymbol.map((s) => {
+          {yearBySymbol.map((s) => {
             const symKey = `sym:${s.symbol}`;
             const isOpen = expanded.has(symKey);
             return (
