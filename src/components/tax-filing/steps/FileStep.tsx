@@ -19,6 +19,7 @@ interface ScheduleCExpenseLine {
   line: string;
   label: string;
   amount: number;
+  accounts?: Array<{ code: string; name: string; amount: number }>;
 }
 
 interface ScheduleCFull {
@@ -27,6 +28,7 @@ interface ScheduleCFull {
   line28: number;
   line31: number;
   expenses: ScheduleCExpenseLine[];
+  revenueAccounts?: Array<{ code: string; name: string; amount: number }>;
 }
 
 interface Form1040Full {
@@ -116,6 +118,42 @@ function fmtDate(d: Date): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+// ─── Client-side download helpers ──────────────────────────────────
+
+function csvEscape(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function downloadBlob(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function generateAndDownloadCSV(
+  filename: string,
+  headers: string[],
+  rows: unknown[][]
+) {
+  const lines = [
+    headers.map(csvEscape).join(','),
+    ...rows.map((r) => r.map(csvEscape).join(',')),
+  ];
+  downloadBlob(lines.join('\n'), filename, 'text/csv');
+}
+
+function generateAndDownloadTxt(filename: string, content: string) {
+  downloadBlob(content, filename, 'text/plain');
 }
 
 // ─── Component ─────────────────────────────────────────────────────
@@ -389,7 +427,9 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
         <h3 className="text-sm font-semibold text-gray-900 mb-2">
           Export your data
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+        {/* Row 1 — Tax-filing exports */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           {/* A. Form 8949 CSV */}
           <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
             <div className="text-sm font-semibold text-gray-900">
@@ -419,7 +459,75 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
             </a>
           </div>
 
-          {/* B. All Forms PDF */}
+          {/* B. Schedule C Export */}
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
+              Schedule C Export
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              Business income + expense reference for TaxAct entry.
+            </div>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
+              {f.scheduleC.expenses.length > 0 ? (
+                <>
+                  <div className="font-mono">
+                    {f.scheduleC.expenses.length} expense line
+                    {f.scheduleC.expenses.length === 1 ? '' : 's'}
+                  </div>
+                  <div className="text-gray-500 mt-1">
+                    Gross: {fmtMoney(f.scheduleC.line1)} · Net:{' '}
+                    {fmtMoney(f.scheduleC.line31)}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-400">No Schedule C data.</div>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => downloadScheduleCLines(f.scheduleC, taxYear)}
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+              >
+                Line Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadScheduleCDetail(f.scheduleC, taxYear)}
+                className="px-2 py-1.5 text-[10px] font-semibold text-center text-blue-700 border border-blue-200 rounded hover:bg-blue-50"
+              >
+                Account Detail
+              </button>
+            </div>
+          </div>
+
+          {/* C. Tax Filing Summary */}
+          <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
+            <div className="text-sm font-semibold text-gray-900">
+              Tax Filing Summary
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              Every number you need for TaxAct in one document.
+            </div>
+            <div className="mt-3 flex-1 text-[11px] text-gray-600">
+              W-2, 1099-R, Schedule C lines, Schedule D totals, Form 1040 key
+              lines, and warnings — all in plain text.
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                downloadTaxSummary(f, calc, w2Docs, r1099Docs, e1098Docs, t1098Docs, taxYear)
+              }
+              className="mt-3 inline-flex items-center justify-center px-3 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+            >
+              Download Summary
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2 — Reference exports */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* D. All Forms PDF */}
           <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
             <div className="text-sm font-semibold text-gray-900">
               All Forms PDF
@@ -439,7 +547,7 @@ export default function FileStep({ taxYear, onComplete, lifeEvents }: StepProps)
             </a>
           </div>
 
-          {/* C. CPA Export Package */}
+          {/* E. CPA Export Package */}
           <div className="border border-gray-200 rounded-lg bg-white p-4 flex flex-col">
             <div className="text-sm font-semibold text-gray-900">
               CPA Export Package
@@ -891,4 +999,186 @@ function Step({
       <div className="flex-1 text-sm text-gray-800">{children}</div>
     </li>
   );
+}
+
+// ─── Client-side CSV/TXT generators ────────────────────────────────
+//
+// Column formats match scripts/tax-export-2025.ts so the browser-generated
+// files are identical to the CLI-generated ones.
+
+function downloadScheduleCLines(sc: ScheduleCFull, year: number) {
+  const rows: unknown[][] = [];
+  if (sc.line1 !== 0) {
+    rows.push([
+      '1',
+      'Gross receipts',
+      sc.line1.toFixed(2),
+      String(sc.revenueAccounts?.length ?? 0),
+    ]);
+  }
+  for (const exp of sc.expenses) {
+    rows.push([
+      exp.line,
+      exp.label,
+      exp.amount.toFixed(2),
+      String(exp.accounts?.length ?? 0),
+    ]);
+  }
+  rows.push(['28', 'Total expenses', sc.line28.toFixed(2), '']);
+  rows.push(['31', 'Net profit or (loss)', sc.line31.toFixed(2), '']);
+  generateAndDownloadCSV(
+    `schedule-c-${year}-lines.csv`,
+    ['Schedule C Line', 'IRS Label', 'Total Amount', 'Account Count'],
+    rows
+  );
+}
+
+function downloadScheduleCDetail(sc: ScheduleCFull, year: number) {
+  const rows: unknown[][] = [];
+  // Revenue accounts (Line 1)
+  for (const a of sc.revenueAccounts ?? []) {
+    rows.push(['1', a.code, a.name, a.amount.toFixed(2), '']);
+  }
+  // Expense lines → accounts
+  for (const exp of sc.expenses) {
+    for (const a of exp.accounts ?? []) {
+      rows.push([exp.line, a.code, a.name, a.amount.toFixed(2), '']);
+    }
+  }
+  generateAndDownloadCSV(
+    `schedule-c-${year}-detail.csv`,
+    ['Schedule C Line', 'Account Code', 'Account Name', 'Amount', 'Entry Count'],
+    rows
+  );
+}
+
+function downloadTaxSummary(
+  f: Form1040Full,
+  calc: CalculateResponse,
+  w2s: TaxDocument[],
+  r1099s: TaxDocument[],
+  e1098s: TaxDocument[],
+  t1098s: TaxDocument[],
+  year: number
+) {
+  const m = (n: number) => `$${Math.abs(n).toFixed(2)}${n < 0 ? ' (loss)' : ''}`;
+  const lines: string[] = [
+    `=== Temple Stuart Tax Filing Summary — ${year} ===`,
+    `Generated: ${new Date().toISOString()}`,
+    `Filing status: ${f.filingStatus.replace(/_/g, ' ')}`,
+    '',
+  ];
+
+  // W-2
+  if (w2s.length > 0) {
+    lines.push('--- W-2 Wages ---');
+    for (const d of w2s) {
+      const data = d.data as Record<string, unknown>;
+      lines.push(`  ${(data.employer_name as string) || d.label || 'Employer'}`);
+      lines.push(`    EIN: ${(data.employer_ein as string) || '—'}`);
+      lines.push(`    Box 1  Wages:        ${m(Number(data.gross_wages) || 0)}`);
+      lines.push(`    Box 2  Fed withheld:  ${m(Number(data.federal_withheld) || 0)}`);
+      lines.push(`    Box 3  SS wages:      ${m(Number(data.social_security_wages) || 0)}`);
+      lines.push(`    Box 5  Medicare wages: ${m(Number(data.medicare_wages) || 0)}`);
+      lines.push(`    Box 16 State wages:   ${m(Number(data.state_wages) || 0)}`);
+      lines.push(`    Box 17 State WH:      ${m(Number(data.state_withheld) || 0)}`);
+    }
+    lines.push('');
+  }
+
+  // 1099-R
+  if (r1099s.length > 0) {
+    lines.push('--- 1099-R Retirement ---');
+    for (const d of r1099s) {
+      const data = d.data as Record<string, unknown>;
+      lines.push(`  ${(data.payer_name as string) || d.label || 'Payer'}`);
+      lines.push(`    Box 1  Gross:    ${m(Number(data.gross_distribution) || 0)}`);
+      lines.push(`    Box 2a Taxable:  ${m(Number(data.taxable_amount) || 0)}`);
+      lines.push(`    Box 4  Fed WH:   ${m(Number(data.federal_withheld) || 0)}`);
+      lines.push(`    Box 7  Code:     ${(data.distribution_code as string) || '—'}`);
+    }
+    lines.push('');
+  }
+
+  // 1098-T
+  if (t1098s.length > 0) {
+    lines.push('--- 1098-T Education ---');
+    for (const d of t1098s) {
+      const data = d.data as Record<string, unknown>;
+      lines.push(`  ${(data.school_name as string) || d.label || 'School'}`);
+      lines.push(`    Box 1  Tuition:      ${m(Number(data.amounts_billed) || 0)}`);
+      lines.push(`    Box 5  Scholarships: ${m(Number(data.scholarships) || 0)}`);
+    }
+    lines.push('');
+  }
+
+  // 1098-E
+  if (e1098s.length > 0) {
+    lines.push('--- 1098-E Student Loan ---');
+    for (const d of e1098s) {
+      const data = d.data as Record<string, unknown>;
+      lines.push(`  ${(data.lender_name as string) || d.label || 'Lender'}`);
+      lines.push(`    Box 1  Interest: ${m(Number(data.interest_paid) || 0)}`);
+    }
+    lines.push('');
+  }
+
+  // Schedule C
+  if (f.scheduleC.expenses.length > 0 || f.scheduleC.line1 !== 0) {
+    lines.push('--- Schedule C (Business) ---');
+    lines.push(`  Business: ${f.scheduleC.businessName}`);
+    lines.push(`  Line 1  Gross receipts:  ${m(f.scheduleC.line1)}`);
+    for (const exp of f.scheduleC.expenses.filter((e) => e.amount !== 0)) {
+      lines.push(`  Line ${exp.line.padEnd(4)} ${exp.label.padEnd(30)} ${m(exp.amount)}`);
+    }
+    lines.push(`  Line 28 Total expenses:  ${m(f.scheduleC.line28)}`);
+    lines.push(`  Line 31 Net profit/loss: ${m(f.scheduleC.line31)}`);
+    lines.push('');
+  }
+
+  // Schedule D
+  const disp = calc.form_8949.summary;
+  if (disp.total_dispositions > 0) {
+    lines.push('--- Schedule D / Form 8949 ---');
+    lines.push(`  Dispositions: ${disp.total_dispositions} (${disp.short_term_count} ST, ${disp.long_term_count} LT)`);
+    lines.push(`  Line 7 net ST:  ${m(f.line7 - (f as unknown as Record<string, number>).line7_ltcg || f.line7)}`);
+    lines.push(`  Line 15 net LT: ${m((f as unknown as Record<string, number>).line7_ltcg || 0)}`);
+    lines.push(`  Line 16 net:    ${m(f.line7)}`);
+    lines.push('');
+  }
+
+  // Form 1040
+  lines.push('--- Form 1040 Key Lines ---');
+  lines.push(`  Line 1   Wages:              ${m(f.line1)}`);
+  lines.push(`  Line 5b  Pensions taxable:   ${m(f.line5b)}`);
+  lines.push(`  Line 7   Capital gain/loss:  ${m(f.line7)}`);
+  lines.push(`  Line 8   Other income:       ${m(f.line8)}`);
+  lines.push(`  Line 11  AGI:                ${m(f.line11)}`);
+  lines.push(`  Line 15  Taxable income:     ${m(f.line15)}`);
+  lines.push(`  Line 16  Income tax:         ${m(f.incomeTax)}`);
+  if (f.selfEmploymentTax > 0) {
+    lines.push(`          SE tax:             ${m(f.selfEmploymentTax)}`);
+  }
+  lines.push(`  Line 24  Total tax:          ${m(f.totalTax)}`);
+  lines.push(`  Line 25a W-2 fed withheld:   ${m(f.w2Withheld)}`);
+  if (f.retirementWithheld > 0) {
+    lines.push(`  Line 25b 1099-R fed WH:     ${m(f.retirementWithheld)}`);
+  }
+  if (f.estimatedPayments > 0) {
+    lines.push(`  Line 26  Est. payments:     ${m(f.estimatedPayments)}`);
+  }
+  lines.push(`  Line 33  Total payments:     ${m(f.totalPayments)}`);
+  lines.push('');
+  lines.push(
+    f.isRefund
+      ? `  >>> ESTIMATED REFUND:    ${m(Math.abs(f.amountOwed))}`
+      : `  >>> ESTIMATED AMOUNT OWED: ${m(Math.abs(f.amountOwed))}`
+  );
+  lines.push('');
+  lines.push(calc.disclaimer);
+  lines.push('');
+  lines.push('This summary was generated from Temple Stuart. All figures must be');
+  lines.push('verified by a licensed CPA or tax professional before filing.');
+
+  generateAndDownloadTxt(`tax-filing-summary-${year}.txt`, lines.join('\n'));
 }
