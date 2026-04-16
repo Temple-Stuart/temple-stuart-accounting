@@ -108,6 +108,52 @@ interface WashSalesResponse {
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
+function filterWashSalesByYear(
+  data: WashSalesResponse | null,
+  year: number
+): WashSalesResponse | null {
+  if (!data) return null;
+  const yearStr = String(year);
+  const filtered = data.violations.filter((v) =>
+    v.saleDate.startsWith(yearStr)
+  );
+  const bySymMap = new Map<
+    string,
+    {
+      symbol: string;
+      violations: WashViolation[];
+      totalDisallowed: number;
+      count: number;
+    }
+  >();
+  for (const v of filtered) {
+    let entry = bySymMap.get(v.symbol);
+    if (!entry) {
+      entry = { symbol: v.symbol, violations: [], totalDisallowed: 0, count: 0 };
+      bySymMap.set(v.symbol, entry);
+    }
+    entry.violations.push(v);
+    entry.totalDisallowed += v.disallowedLoss;
+    entry.count += 1;
+  }
+  return {
+    ...data,
+    violations: filtered,
+    summary: {
+      ...data.summary,
+      totalViolations: filtered.length,
+      totalDisallowedLosses: filtered.reduce(
+        (s, v) => s + v.disallowedLoss,
+        0
+      ),
+      symbolsAffected: [...bySymMap.keys()],
+    },
+    bySymbol: Array.from(bySymMap.values()).sort(
+      (a, b) => b.totalDisallowed - a.totalDisallowed
+    ),
+  };
+}
+
 function fmtMoney(n: number | null | undefined): string {
   if (n == null) return '—';
   const abs = Math.abs(n);
@@ -281,6 +327,16 @@ export default function TradingStep({
 
   const { scheduleD, summary, warnings } = report;
 
+  // ── Year-scoped wash sale filtering ──────────────────────────────
+  //
+  // /api/tax/wash-sales returns ALL-TIME violations. The TradingStep is
+  // for a specific taxYear, so only show violations whose saleDate falls
+  // within that year. The report summary (washSaleCount, etc.) is already
+  // year-scoped since it derives from the 8949 entries.
+  const yearWashSales = filterWashSalesByYear(washSales, taxYear);
+  const hasYearWashSales =
+    summary.washSaleCount > 0 || (yearWashSales?.violations.length ?? 0) > 0;
+
   // ── Trade stats ──────────────────────────────────────────────────
 
   const winCount = allEntries.filter((e) => e.gainOrLoss > 0).length;
@@ -395,8 +451,8 @@ export default function TradingStep({
         </div>
       </div>
 
-      {/* ═══ Wash sale summary ═══ */}
-      {(summary.washSaleCount > 0 || (washSales?.violations.length ?? 0) > 0) && (
+      {/* ═══ Wash sale summary (year-scoped) ═══ */}
+      {hasYearWashSales && (
         <div className="border border-amber-200 bg-amber-50 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-amber-200">
             <div className="flex items-center justify-between">
@@ -431,10 +487,10 @@ export default function TradingStep({
             </div>
           )}
 
-          {washSales && washSales.bySymbol.length > 0 && (
+          {yearWashSales && yearWashSales.bySymbol.length > 0 && (
             <div className="px-4 py-2">
               <ul className="space-y-1 text-xs">
-                {washSales.bySymbol.map((s) => (
+                {yearWashSales.bySymbol.map((s) => (
                   <li
                     key={s.symbol}
                     className="flex items-center justify-between"
