@@ -173,7 +173,7 @@ export default function PersonalExpenseDashboard({ entityId }: Props) {
               />
               <Tooltip
                 formatter={(value: number | undefined) => [fmtMoney(value ?? 0), 'Spend']}
-                labelFormatter={(label: string) => label}
+                labelFormatter={(label) => label}
                 contentStyle={{ fontSize: 12, borderRadius: 6 }}
               />
               <Bar dataKey="totalOutflow" radius={[4, 4, 0, 0]} maxBarSize={48}>
