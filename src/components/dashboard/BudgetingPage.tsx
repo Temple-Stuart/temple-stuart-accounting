@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AppLayout, Button, Badge } from '@/components/ui';
 import COAManagementTable from '@/components/bookkeeping/COAManagementTable';
 import BookkeepingSection from '@/components/bookkeeping/BookkeepingSection';
+import PersonalExpenseDashboard from '@/components/dashboard/PersonalExpenseDashboard';
 
 interface Expense {
   id: string;
@@ -145,6 +146,18 @@ export default function BudgetingPage({ category, emoji, apiPath }: BudgetingPag
                 entityType={category.toLowerCase()}
               />
             </div>
+          </BookkeepingSection>
+        )}
+
+        {/* Expense Analytics — Personal only */}
+        {category === 'Personal' && entityId && (
+          <BookkeepingSection
+            title="Expense Analytics"
+            pipelineKey="SPEND"
+            subtitle="Last 6 months"
+            status="complete"
+          >
+            <PersonalExpenseDashboard entityId={entityId} />
           </BookkeepingSection>
         )}
 
