@@ -16,6 +16,8 @@ import TasksCard from './TasksCard';
 import ScheduleCard from './ScheduleCard';
 import BudgetCard from './BudgetCard';
 import HealthCard from './HealthCard';
+import MealsCard from './MealsCard';
+import EndOfDayCard from './EndOfDayCard';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -268,11 +270,7 @@ export default function DailyDashboard() {
 
   const sprintPct = Math.max(0, Math.min(100, (dayNumber / SPRINT_TOTAL_DAYS) * 100));
 
-  // Suppress unused warnings — consumed by card components in later prompts
   void isSprintDay;
-  void addMeal;
-  void updateMeal;
-  void removeMeal;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -395,14 +393,15 @@ export default function DailyDashboard() {
           </div>
 
           {/* ROW 3: Meals */}
-          <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-            Meals card &mdash; coming next
-          </div>
+          <MealsCard
+            meals={plan.meals}
+            onAdd={addMeal}
+            onUpdate={updateMeal}
+            onRemove={removeMeal}
+          />
 
           {/* ROW 4: End of Day */}
-          <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-            End of Day card &mdash; coming next
-          </div>
+          <EndOfDayCard plan={plan} onUpdate={updateField} />
         </>
       )}
 
