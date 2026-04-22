@@ -12,6 +12,8 @@ import {
   generateId,
 } from './types';
 import { useAutoSave } from './useAutoSave';
+import TasksCard from './TasksCard';
+import ScheduleCard from './ScheduleCard';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -264,15 +266,9 @@ export default function DailyDashboard() {
 
   const sprintPct = Math.max(0, Math.min(100, (dayNumber / SPRINT_TOTAL_DAYS) * 100));
 
-  // Keep eslint happy — these will be used when card components are wired in
+  // Suppress unused warnings — these will be consumed by card components in later prompts
   void isSprintDay;
   void previousDay;
-  void addTask;
-  void updateTask;
-  void removeTask;
-  void addScheduleBlock;
-  void updateScheduleBlock;
-  void removeScheduleBlock;
   void addMeal;
   void updateMeal;
   void removeMeal;
@@ -369,12 +365,18 @@ export default function DailyDashboard() {
         <>
           {/* ROW 1: Tasks + Schedule */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-              Tasks card &mdash; coming next
-            </div>
-            <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-              Schedule card &mdash; coming next
-            </div>
+            <TasksCard
+              tasks={plan.tasks}
+              onAdd={addTask}
+              onUpdate={updateTask}
+              onRemove={removeTask}
+            />
+            <ScheduleCard
+              schedule={plan.schedule}
+              onAdd={addScheduleBlock}
+              onUpdate={updateScheduleBlock}
+              onRemove={removeScheduleBlock}
+            />
           </div>
 
           {/* ROW 2: Budget + Health */}
