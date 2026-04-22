@@ -471,6 +471,7 @@ model users {
   closing_periods       closing_periods[]
   bank_reconciliations  bank_reconciliations[]
   scan_snapshots        scan_snapshots[]
+  dailyPlans            daily_plans[]
 }
 
 model budgets {
@@ -1731,4 +1732,61 @@ model trip_scanner_results {
   @@unique([tripId, destination, category])
   @@index([tripId])
   @@map("trip_scanner_results")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DAILY PLANS — Ops dashboard daily command center
+// ═══════════════════════════════════════════════════════════════════
+
+model daily_plans {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  date                DateTime @db.Date
+  dayNumber           Int      @map("day_number")
+  sprintStartDate     DateTime @map("sprint_start_date") @db.Date
+  sprintTotalDays     Int      @map("sprint_total_days") @default(75)
+
+  mission             String?
+  missionCompleted    Boolean  @default(false) @map("mission_completed")
+
+  tasks               Json     @default("[]")
+  schedule            Json     @default("[]")
+
+  budgetTarget        Float?   @map("budget_target")
+  budgetActual        Float?   @map("budget_actual")
+
+  weightMorning       Float?   @map("weight_morning")
+
+  workoutPlanned      Boolean  @default(false) @map("workout_planned")
+  workoutCompleted    Boolean  @default(false) @map("workout_completed")
+  workoutType         String?  @map("workout_type")
+  workoutDuration     Int?     @map("workout_duration_min")
+  workoutNotes        String?  @map("workout_notes")
+
+  hydrationTargetOz   Int?     @map("hydration_target_oz")
+  hydrationActualOz   Int?     @map("hydration_actual_oz")
+
+  calorieTarget       Int?     @map("calorie_target")
+  calorieActual       Int?     @map("calorie_actual")
+  proteinTargetG      Int?     @map("protein_target_g")
+  proteinActualG      Int?     @map("protein_actual_g")
+  meals               Json     @default("[]")
+
+  sleepHours          Float?   @map("sleep_hours")
+  sleepQuality        String?  @map("sleep_quality")
+
+  steps               Int?
+
+  dayScore            Float?   @map("day_score")
+  reflection          String?
+  wins                String?
+  blockers            String?
+
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user                users    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("daily_plans")
 }
