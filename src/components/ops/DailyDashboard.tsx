@@ -14,6 +14,8 @@ import {
 import { useAutoSave } from './useAutoSave';
 import TasksCard from './TasksCard';
 import ScheduleCard from './ScheduleCard';
+import BudgetCard from './BudgetCard';
+import HealthCard from './HealthCard';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -266,9 +268,8 @@ export default function DailyDashboard() {
 
   const sprintPct = Math.max(0, Math.min(100, (dayNumber / SPRINT_TOTAL_DAYS) * 100));
 
-  // Suppress unused warnings — these will be consumed by card components in later prompts
+  // Suppress unused warnings — consumed by card components in later prompts
   void isSprintDay;
-  void previousDay;
   void addMeal;
   void updateMeal;
   void removeMeal;
@@ -381,12 +382,16 @@ export default function DailyDashboard() {
 
           {/* ROW 2: Budget + Health */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-              Budget card &mdash; coming next
-            </div>
-            <div className="bg-white rounded border border-border shadow-sm p-4 text-center text-text-faint font-mono text-terminal-base">
-              Health card &mdash; coming next
-            </div>
+            <BudgetCard
+              budgetTarget={plan.budgetTarget}
+              budgetActual={plan.budgetActual}
+              onUpdate={updateField}
+            />
+            <HealthCard
+              plan={plan}
+              previousDay={previousDay}
+              onUpdate={updateField}
+            />
           </div>
 
           {/* ROW 3: Meals */}
