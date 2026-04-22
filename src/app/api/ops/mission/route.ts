@@ -60,6 +60,17 @@ export async function POST(request: Request) {
       healthGoals: rest.healthGoals ?? null,
       personalGoals: rest.personalGoals ?? null,
       mealStrategy: rest.mealStrategy ?? null,
+      priority1: rest.priority1 ?? null,
+      priority2: rest.priority2 ?? null,
+      priority3: rest.priority3 ?? null,
+      currentState: rest.currentState ?? null,
+      brokenBlockers: rest.brokenBlockers ?? null,
+      riskFactors: rest.riskFactors ?? null,
+      focusWindows: rest.focusWindows ?? null,
+      fixedCommitments: rest.fixedCommitments ?? null,
+      weekendSchedule: rest.weekendSchedule ?? null,
+      deepWorkHours: rest.deepWorkHours ?? null,
+      successMetrics: rest.successMetrics ?? [],
     };
 
     const existing = await prisma.missions.findFirst({

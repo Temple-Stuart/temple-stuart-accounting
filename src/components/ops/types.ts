@@ -76,21 +76,34 @@ export interface Milestone {
   completed: boolean;
 }
 
+export interface SuccessMetric {
+  id: string;
+  text: string;
+}
+
 export interface WeekPlan {
   weekNumber: number;
   startDate: string;
   endDate: string;
   theme: string;
   milestoneTarget: string | null;
-  dailyTasks: Array<{ text: string; priority: 'high' | 'medium' | 'low' }>;
+  priorityFocus?: string | null;
+  dailyTasks: Array<{ text: string; priority: 'high' | 'medium' | 'low'; priorityTag?: string }>;
   healthCadence: string | null;
   notes: string | null;
+}
+
+export interface MetricsCheck {
+  metric: string;
+  addressed: boolean;
+  addressedInWeek: number | null;
 }
 
 export interface Roadmap {
   weeks: WeekPlan[];
   summary?: string;
   warnings?: string[];
+  metricsCheck?: MetricsCheck[];
 }
 
 export interface Mission {
@@ -111,6 +124,17 @@ export interface Mission {
   mealStrategy: string | null;
   roadmap: Roadmap | null;
   status: string;
+  priority1: string | null;
+  priority2: string | null;
+  priority3: string | null;
+  currentState: string | null;
+  brokenBlockers: string | null;
+  riskFactors: string | null;
+  focusWindows: string | null;
+  fixedCommitments: string | null;
+  weekendSchedule: string | null;
+  deepWorkHours: number | null;
+  successMetrics: SuccessMetric[];
 }
 
 export const SPRINT_START = '2026-04-22';

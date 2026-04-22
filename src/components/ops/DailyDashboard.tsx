@@ -22,6 +22,7 @@ import MealsCard from './MealsCard';
 import EndOfDayCard from './EndOfDayCard';
 import RecordView from './RecordView';
 import MissionPlanning from './MissionPlanning';
+import BrainDump from './BrainDump';
 
 const PRIO_DOT: Record<string, string> = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-emerald-500' };
 
@@ -39,6 +40,10 @@ export default function DailyDashboard() {
   const [mission, setMission] = useState<Mission | null>(null);
   const [missionLoading, setMissionLoading] = useState(true);
   const [editingMission, setEditingMission] = useState(false);
+
+  // Brain dump → mission flow
+  const [brainDumpComplete, setBrainDumpComplete] = useState(false);
+  const [prefillData, setPrefillData] = useState<Record<string, unknown> | null>(null);
 
   // ── Fetch mission on mount ────────────────────────────────────────────────
 
@@ -311,12 +316,70 @@ export default function DailyDashboard() {
     );
   }
 
-  // ── STATE 1: No mission — show MissionPlanning ────────────────────────────
+  // ── STATE 1: No mission — brain dump first, then mission planning ────────
 
   if (!mission && !editingMission) {
+    if (!brainDumpComplete) {
+      return (
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <BrainDump
+            onComplete={(data) => {
+              setPrefillData(data);
+              setBrainDumpComplete(true);
+            }}
+          />
+        </div>
+      );
+    }
+
+    const prefilled: Mission = {
+      id: '',
+      name: String(prefillData?.projectName ?? ''),
+      goalDescription: String(prefillData?.goals ?? ''),
+      doneDefinition: String(prefillData?.doneDefinition ?? ''),
+      startDate: '',
+      endDate: '',
+      totalDays: 0,
+      milestones: Array.isArray(prefillData?.deliverables)
+        ? (prefillData!.deliverables as string[]).filter(Boolean).map((d) => ({
+            id: generateId(),
+            text: d,
+            targetDate: null,
+            completed: false,
+          }))
+        : [],
+      hoursPerDay: null,
+      offDays: null,
+      monthlyBudget: null,
+      blockers: null,
+      healthGoals: prefillData?.healthGoals != null ? String(prefillData.healthGoals) : null,
+      personalGoals: prefillData?.personalGoals != null ? String(prefillData.personalGoals) : null,
+      mealStrategy: prefillData?.mealStrategy != null ? String(prefillData.mealStrategy) : null,
+      roadmap: null,
+      status: 'active',
+      priority1: prefillData?.priority1 != null ? String(prefillData.priority1) : null,
+      priority2: prefillData?.priority2 != null ? String(prefillData.priority2) : null,
+      priority3: prefillData?.priority3 != null ? String(prefillData.priority3) : null,
+      currentState: prefillData?.currentState != null ? String(prefillData.currentState) : null,
+      brokenBlockers: prefillData?.brokenBlockers != null ? String(prefillData.brokenBlockers) : null,
+      riskFactors: prefillData?.riskFactors != null ? String(prefillData.riskFactors) : null,
+      focusWindows: null,
+      fixedCommitments: null,
+      weekendSchedule: null,
+      deepWorkHours: null,
+      successMetrics: [],
+    };
+
     return (
       <div className="max-w-6xl mx-auto px-4 py-3">
-        <MissionPlanning existingMission={null} onMissionReady={handleMissionReady} />
+        <MissionPlanning
+          existingMission={prefilled}
+          onMissionReady={handleMissionReady}
+          onCancel={() => {
+            setBrainDumpComplete(false);
+            setPrefillData(null);
+          }}
+        />
       </div>
     );
   }
