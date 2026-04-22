@@ -19,7 +19,7 @@ import HealthCard from './HealthCard';
 import MealsCard from './MealsCard';
 import EndOfDayCard from './EndOfDayCard';
 import RecordView from './RecordView';
-import AIPlannerPanel from './AIPlannerPanel';
+import GuidedPlanningFlow from './GuidedPlanningFlow';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -29,7 +29,7 @@ export default function DailyDashboard() {
   const [previousDay, setPreviousDay] = useState<PreviousDay | null>(null);
   const [loading, setLoading] = useState(true);
   const [recordMode, setRecordMode] = useState(false);
-  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [replanning, setReplanning] = useState(false);
   const { save, showSaved } = useAutoSave();
 
   // ── Fetch plan for selected date ──────────────────────────────────────────
@@ -199,52 +199,26 @@ export default function DailyDashboard() {
     [save],
   );
 
-  // ── Apply AI plan ─────────────────────────────────────────────────────────
+  // ── Handle guided plan completion ─────────────────────────────────────────
 
-  const applyAIPlan = useCallback(
-    (planData: Partial<DailyPlan>) => {
-      setPlan((prev) => {
-        if (!prev) return prev;
-        const updated = {
-          ...prev,
-          ...planData,
-          id: prev.id,
-          date: prev.date,
-          dayNumber: prev.dayNumber,
-          sprintStartDate: prev.sprintStartDate,
-          sprintTotalDays: prev.sprintTotalDays,
-        };
-        save(updated);
-        return updated;
-      });
-      setAiPanelOpen(false);
-    },
-    [save],
-  );
-
-  // ── Create new plan with defaults ─────────────────────────────────────────
-
-  const startPlanning = async () => {
-    try {
-      const res = await fetch('/api/ops/daily-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: selectedDate,
-          hydrationTargetOz: 128,
-          calorieTarget: 2200,
-          proteinTargetG: 180,
-          workoutPlanned: true,
-        }),
-      });
-      if (res.ok) {
-        await fetchPlan(selectedDate);
-        setAiPanelOpen(true);
+  const handlePlanComplete = useCallback(
+    async (planData: Partial<DailyPlan>) => {
+      try {
+        const res = await fetch('/api/ops/daily-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: selectedDate, ...planData }),
+        });
+        if (res.ok) {
+          setReplanning(false);
+          await fetchPlan(selectedDate);
+        }
+      } catch (err) {
+        console.error('Failed to save plan:', err);
       }
-    } catch (err) {
-      console.error('Failed to create plan:', err);
-    }
-  };
+    },
+    [selectedDate, fetchPlan],
+  );
 
   // ── Date navigation ───────────────────────────────────────────────────────
 
@@ -307,13 +281,27 @@ export default function DailyDashboard() {
     );
   }
 
+  // ── Guided planning flow (no plan yet, or replanning) ─────────────────────
+
+  if (!plan || replanning) {
+    return (
+      <GuidedPlanningFlow
+        selectedDate={selectedDate}
+        dayNumber={dayNumber}
+        sprintTotalDays={SPRINT_TOTAL_DAYS}
+        onPlanComplete={handlePlanComplete}
+        onCancel={replanning ? () => setReplanning(false) : undefined}
+      />
+    );
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const sprintPct = Math.max(0, Math.min(100, (dayNumber / SPRINT_TOTAL_DAYS) * 100));
 
   void isSprintDay;
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render dashboard ──────────────────────────────────────────────────────
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-3 space-y-4">
@@ -346,10 +334,10 @@ export default function DailyDashboard() {
               &#9654;
             </button>
             <button
-              onClick={() => setAiPanelOpen(true)}
+              onClick={() => setReplanning(true)}
               className="ml-3 px-3 py-1.5 text-terminal-base bg-brand-purple text-white rounded hover:bg-brand-purple-hover transition-colors font-mono"
             >
-              &#129504; Plan with AI
+              &#129504; Replan
             </button>
             <button
               onClick={() => setRecordMode(true)}
@@ -371,86 +359,65 @@ export default function DailyDashboard() {
           {formatDisplayDate(selectedDate)} &mdash; {sprintPct.toFixed(1)}% complete
         </p>
 
-        {/* Mission — only when plan exists */}
-        {plan && (
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={plan.missionCompleted}
-              onChange={(e) => updateField('missionCompleted', e.target.checked)}
-              className="w-4 h-4 rounded border-border accent-brand-purple"
-            />
-            <input
-              type="text"
-              value={plan.mission || ''}
-              onChange={(e) => updateField('mission', e.target.value)}
-              placeholder="What's today's mission?"
-              className="flex-1 text-sm font-medium text-text-primary bg-transparent border-b border-transparent hover:border-border focus:border-brand-purple outline-none px-2 py-1 transition-colors font-mono placeholder:text-text-faint"
-            />
-          </div>
-        )}
+        {/* Mission */}
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={plan.missionCompleted}
+            onChange={(e) => updateField('missionCompleted', e.target.checked)}
+            className="w-4 h-4 rounded border-border accent-brand-purple"
+          />
+          <input
+            type="text"
+            value={plan.mission || ''}
+            onChange={(e) => updateField('mission', e.target.value)}
+            placeholder="What's today's mission?"
+            className="flex-1 text-sm font-medium text-text-primary bg-transparent border-b border-transparent hover:border-border focus:border-brand-purple outline-none px-2 py-1 transition-colors font-mono placeholder:text-text-faint"
+          />
+        </div>
       </div>
 
-      {/* ── EMPTY STATE ──────────────────────────────────────────────────── */}
-      {!plan && (
-        <div className="bg-white rounded border border-border shadow-sm p-8 text-center">
-          <p className="text-text-muted font-mono text-terminal-base mb-4">
-            No plan yet for today.
-          </p>
-          <button
-            onClick={startPlanning}
-            className="px-5 py-2.5 bg-brand-purple text-white rounded hover:bg-brand-purple-hover transition-colors font-mono text-terminal-base font-medium"
-          >
-            &#128640; Start Planning
-          </button>
-        </div>
-      )}
+      {/* ── CARDS ────────────────────────────────────────────────────────── */}
+      {/* ROW 1: Tasks + Schedule */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TasksCard
+          tasks={plan.tasks}
+          onAdd={addTask}
+          onUpdate={updateTask}
+          onRemove={removeTask}
+        />
+        <ScheduleCard
+          schedule={plan.schedule}
+          onAdd={addScheduleBlock}
+          onUpdate={updateScheduleBlock}
+          onRemove={removeScheduleBlock}
+        />
+      </div>
 
-      {/* ── CARD SLOTS — filled by subsequent prompts ────────────────────── */}
-      {plan && (
-        <>
-          {/* ROW 1: Tasks + Schedule */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TasksCard
-              tasks={plan.tasks}
-              onAdd={addTask}
-              onUpdate={updateTask}
-              onRemove={removeTask}
-            />
-            <ScheduleCard
-              schedule={plan.schedule}
-              onAdd={addScheduleBlock}
-              onUpdate={updateScheduleBlock}
-              onRemove={removeScheduleBlock}
-            />
-          </div>
+      {/* ROW 2: Budget + Health */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <BudgetCard
+          budgetTarget={plan.budgetTarget}
+          budgetActual={plan.budgetActual}
+          onUpdate={updateField}
+        />
+        <HealthCard
+          plan={plan}
+          previousDay={previousDay}
+          onUpdate={updateField}
+        />
+      </div>
 
-          {/* ROW 2: Budget + Health */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <BudgetCard
-              budgetTarget={plan.budgetTarget}
-              budgetActual={plan.budgetActual}
-              onUpdate={updateField}
-            />
-            <HealthCard
-              plan={plan}
-              previousDay={previousDay}
-              onUpdate={updateField}
-            />
-          </div>
+      {/* ROW 3: Meals */}
+      <MealsCard
+        meals={plan.meals}
+        onAdd={addMeal}
+        onUpdate={updateMeal}
+        onRemove={removeMeal}
+      />
 
-          {/* ROW 3: Meals */}
-          <MealsCard
-            meals={plan.meals}
-            onAdd={addMeal}
-            onUpdate={updateMeal}
-            onRemove={removeMeal}
-          />
-
-          {/* ROW 4: End of Day */}
-          <EndOfDayCard plan={plan} onUpdate={updateField} />
-        </>
-      )}
+      {/* ROW 4: End of Day */}
+      <EndOfDayCard plan={plan} onUpdate={updateField} />
 
       {/* ── SAVED TOAST ──────────────────────────────────────────────────── */}
       <div
@@ -460,16 +427,6 @@ export default function DailyDashboard() {
       >
         &#10003; Saved
       </div>
-
-      {/* ── AI PLANNER PANEL ─────────────────────────────────────────────── */}
-      <AIPlannerPanel
-        isOpen={aiPanelOpen}
-        onClose={() => setAiPanelOpen(false)}
-        currentPlan={plan}
-        selectedDate={selectedDate}
-        dayNumber={dayNumber}
-        onApplyPlan={applyAIPlan}
-      />
     </div>
   );
 }
