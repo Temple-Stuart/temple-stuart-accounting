@@ -18,6 +18,7 @@ import BudgetCard from './BudgetCard';
 import HealthCard from './HealthCard';
 import MealsCard from './MealsCard';
 import EndOfDayCard from './EndOfDayCard';
+import RecordView from './RecordView';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -237,12 +238,24 @@ export default function DailyDashboard() {
     });
   };
 
-  // ── Record mode placeholder ───────────────────────────────────────────────
+  // ── Record mode ────────────────────────────────────────────────────────────
 
-  if (recordMode) {
+  if (recordMode && plan) {
+    return (
+      <RecordView
+        plan={plan}
+        dayNumber={dayNumber}
+        selectedDate={selectedDate}
+        previousDay={previousDay}
+        onExit={() => setRecordMode(false)}
+      />
+    );
+  }
+
+  if (recordMode && !plan) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <p className="text-text-muted font-mono text-terminal-base">Record mode coming soon</p>
+        <p className="text-text-muted font-mono text-terminal-base">No plan to record yet.</p>
         <button
           onClick={() => setRecordMode(false)}
           className="text-terminal-base text-brand-purple hover:underline font-mono"
