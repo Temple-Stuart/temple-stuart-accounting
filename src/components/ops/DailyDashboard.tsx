@@ -19,6 +19,7 @@ import HealthCard from './HealthCard';
 import MealsCard from './MealsCard';
 import EndOfDayCard from './EndOfDayCard';
 import RecordView from './RecordView';
+import AIPlannerPanel from './AIPlannerPanel';
 
 export default function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -28,6 +29,7 @@ export default function DailyDashboard() {
   const [previousDay, setPreviousDay] = useState<PreviousDay | null>(null);
   const [loading, setLoading] = useState(true);
   const [recordMode, setRecordMode] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const { save, showSaved } = useAutoSave();
 
   // ── Fetch plan for selected date ──────────────────────────────────────────
@@ -197,6 +199,29 @@ export default function DailyDashboard() {
     [save],
   );
 
+  // ── Apply AI plan ─────────────────────────────────────────────────────────
+
+  const applyAIPlan = useCallback(
+    (planData: Partial<DailyPlan>) => {
+      setPlan((prev) => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          ...planData,
+          id: prev.id,
+          date: prev.date,
+          dayNumber: prev.dayNumber,
+          sprintStartDate: prev.sprintStartDate,
+          sprintTotalDays: prev.sprintTotalDays,
+        };
+        save(updated);
+        return updated;
+      });
+      setAiPanelOpen(false);
+    },
+    [save],
+  );
+
   // ── Create new plan with defaults ─────────────────────────────────────────
 
   const startPlanning = async () => {
@@ -212,7 +237,10 @@ export default function DailyDashboard() {
           workoutPlanned: true,
         }),
       });
-      if (res.ok) fetchPlan(selectedDate);
+      if (res.ok) {
+        await fetchPlan(selectedDate);
+        setAiPanelOpen(true);
+      }
     } catch (err) {
       console.error('Failed to create plan:', err);
     }
@@ -318,8 +346,14 @@ export default function DailyDashboard() {
               &#9654;
             </button>
             <button
-              onClick={() => setRecordMode(true)}
+              onClick={() => setAiPanelOpen(true)}
               className="ml-3 px-3 py-1.5 text-terminal-base bg-brand-purple text-white rounded hover:bg-brand-purple-hover transition-colors font-mono"
+            >
+              &#129504; Plan with AI
+            </button>
+            <button
+              onClick={() => setRecordMode(true)}
+              className="px-3 py-1.5 text-terminal-base bg-brand-purple text-white rounded hover:bg-brand-purple-hover transition-colors font-mono"
             >
               &#127909; Record
             </button>
@@ -426,6 +460,16 @@ export default function DailyDashboard() {
       >
         &#10003; Saved
       </div>
+
+      {/* ── AI PLANNER PANEL ─────────────────────────────────────────────── */}
+      <AIPlannerPanel
+        isOpen={aiPanelOpen}
+        onClose={() => setAiPanelOpen(false)}
+        currentPlan={plan}
+        selectedDate={selectedDate}
+        dayNumber={dayNumber}
+        onApplyPlan={applyAIPlan}
+      />
     </div>
   );
 }
