@@ -472,6 +472,7 @@ model users {
   bank_reconciliations  bank_reconciliations[]
   scan_snapshots        scan_snapshots[]
   dailyPlans            daily_plans[]
+  missions              missions[]
 }
 
 model budgets {
@@ -1785,8 +1786,50 @@ model daily_plans {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
+  missionId           String?  @map("mission_id")
+
   user                users    @relation(fields: [userId], references: [id])
+  missionRef          missions? @relation(fields: [missionId], references: [id])
 
   @@unique([userId, date])
   @@map("daily_plans")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MISSIONS — Strategic planning layer above daily plans
+// ═══════════════════════════════════════════════════════════════════
+
+model missions {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+
+  name              String
+  goalDescription   String   @map("goal_description") @db.Text
+  doneDefinition    String   @map("done_definition") @db.Text
+  startDate         DateTime @map("start_date") @db.Date
+  endDate           DateTime @map("end_date") @db.Date
+  totalDays         Int      @map("total_days")
+
+  milestones        Json     @default("[]")
+
+  hoursPerDay       Float?   @map("hours_per_day")
+  offDays           String?  @map("off_days")
+  monthlyBudget     Float?   @map("monthly_budget")
+  blockers          String?  @db.Text
+
+  healthGoals       String?  @map("health_goals") @db.Text
+  personalGoals     String?  @map("personal_goals") @db.Text
+  mealStrategy      String?  @map("meal_strategy") @db.Text
+
+  roadmap           Json?
+
+  status            String   @default("active")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user              users    @relation(fields: [userId], references: [id])
+  dailyPlans        daily_plans[]
+
+  @@map("missions")
 }

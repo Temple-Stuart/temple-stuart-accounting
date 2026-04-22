@@ -69,6 +69,50 @@ export interface ApiResponse {
   previousDay: PreviousDay | null;
 }
 
+export interface Milestone {
+  id: string;
+  text: string;
+  targetDate: string | null;
+  completed: boolean;
+}
+
+export interface WeekPlan {
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  theme: string;
+  milestoneTarget: string | null;
+  dailyTasks: Array<{ text: string; priority: 'high' | 'medium' | 'low' }>;
+  healthCadence: string | null;
+  notes: string | null;
+}
+
+export interface Roadmap {
+  weeks: WeekPlan[];
+  summary?: string;
+  warnings?: string[];
+}
+
+export interface Mission {
+  id: string;
+  name: string;
+  goalDescription: string;
+  doneDefinition: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  milestones: Milestone[];
+  hoursPerDay: number | null;
+  offDays: string | null;
+  monthlyBudget: number | null;
+  blockers: string | null;
+  healthGoals: string | null;
+  personalGoals: string | null;
+  mealStrategy: string | null;
+  roadmap: Roadmap | null;
+  status: string;
+}
+
 export const SPRINT_START = '2026-04-22';
 export const SPRINT_TOTAL_DAYS = 75;
 
