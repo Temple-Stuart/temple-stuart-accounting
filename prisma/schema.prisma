@@ -77,16 +77,16 @@ model entities {
   created_by         String?
   updated_at         DateTime @updatedAt
 
-  user                  users                   @relation(fields: [userId], references: [id])
-  chart_of_accounts     chart_of_accounts[]
-  journal_entries       journal_entries[]
-  merchant_coa_mappings merchant_coa_mappings[]
-  transactions          transactions[]
+  user                    users                     @relation(fields: [userId], references: [id])
+  chart_of_accounts       chart_of_accounts[]
+  journal_entries         journal_entries[]
+  merchant_coa_mappings   merchant_coa_mappings[]
+  transactions            transactions[]
   investment_transactions investment_transactions[]
-  budgets               budgets[]
-  closing_periods       closing_periods[]
-  accounts              accounts[]
-  bank_reconciliations  bank_reconciliations[]
+  budgets                 budgets[]
+  closing_periods         closing_periods[]
+  accounts                accounts[]
+  bank_reconciliations    bank_reconciliations[]
 
   @@unique([userId, name])
   @@index([userId, is_default])
@@ -97,25 +97,25 @@ model entities {
 // ═══════════════════════════════════════════════════════════════════
 
 model coa_templates {
-  id          String   @id @default(uuid())
-  entity_type String   @db.VarChar(20)
-  name        String   @db.VarChar(100)
-  version     Int      @default(1)
-  is_active   Boolean  @default(true)
+  id          String                  @id @default(uuid())
+  entity_type String                  @db.VarChar(20)
+  name        String                  @db.VarChar(100)
+  version     Int                     @default(1)
+  is_active   Boolean                 @default(true)
   accounts    coa_template_accounts[]
 
   @@unique([entity_type, name])
 }
 
 model coa_template_accounts {
-  id            String @id @default(uuid())
+  id            String        @id @default(uuid())
   template_id   String
-  code          String @db.VarChar(10)
-  name          String @db.VarChar(100)
-  account_type  String @db.VarChar(20)
-  balance_type  String @db.Char(1)
-  sub_type      String? @db.VarChar(50)
-  tax_form_line String? @db.VarChar(50)
+  code          String        @db.VarChar(10)
+  name          String        @db.VarChar(100)
+  account_type  String        @db.VarChar(20)
+  balance_type  String        @db.Char(1)
+  sub_type      String?       @db.VarChar(50)
+  tax_form_line String?       @db.VarChar(50)
   template      coa_templates @relation(fields: [template_id], references: [id])
 
   @@unique([template_id, code])
@@ -126,15 +126,15 @@ model coa_template_accounts {
 // ═══════════════════════════════════════════════════════════════════
 
 model account_tax_mappings {
-  id          String   @id @default(uuid())
-  account_id  String   @db.Uuid
-  tax_form    String   @db.VarChar(50)
-  form_line   String   @db.VarChar(50)
-  tax_year    Int
-  multiplier  Decimal  @default(1.0) @db.Decimal(5, 4)
-  created_at  DateTime @default(now())
-  created_by  String?
-  account     chart_of_accounts @relation(fields: [account_id], references: [id])
+  id         String            @id @default(uuid())
+  account_id String            @db.Uuid
+  tax_form   String            @db.VarChar(50)
+  form_line  String            @db.VarChar(50)
+  tax_year   Int
+  multiplier Decimal           @default(1.0) @db.Decimal(5, 4)
+  created_at DateTime          @default(now())
+  created_by String?
+  account    chart_of_accounts @relation(fields: [account_id], references: [id])
 
   @@unique([account_id, tax_form, form_line, tax_year])
 }
@@ -145,27 +145,27 @@ model account_tax_mappings {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model chart_of_accounts {
-  id              String           @id @db.Uuid
-  userId          String?
-  entity_id       String
-  code            String           @db.VarChar(50)
-  name            String           @db.VarChar(255)
-  account_type    String           @db.VarChar(50)
-  balance_type    String           @db.Char(1)
-  sub_type        String?          @db.VarChar(50)
-  tax_form_line   String?          @db.VarChar(50)
-  settled_balance BigInt           @default(0)
-  pending_balance BigInt           @default(0)
-  version         Int              @default(0)
-  is_archived     Boolean          @default(false)
-  entity_type     String?          @db.VarChar(10)
-  module          String?          @db.VarChar(20)
-  created_at      DateTime         @default(now())
-  created_by      String?
-  updated_at      DateTime         @default(now())
-  user            users?           @relation(fields: [userId], references: [id])
-  entity          entities         @relation(fields: [entity_id], references: [id])
-  ledger_entries  ledger_entries[]
+  id                   String                 @id @db.Uuid
+  userId               String?
+  entity_id            String
+  code                 String                 @db.VarChar(50)
+  name                 String                 @db.VarChar(255)
+  account_type         String                 @db.VarChar(50)
+  balance_type         String                 @db.Char(1)
+  sub_type             String?                @db.VarChar(50)
+  tax_form_line        String?                @db.VarChar(50)
+  settled_balance      BigInt                 @default(0)
+  pending_balance      BigInt                 @default(0)
+  version              Int                    @default(0)
+  is_archived          Boolean                @default(false)
+  entity_type          String?                @db.VarChar(10)
+  module               String?                @db.VarChar(20)
+  created_at           DateTime               @default(now())
+  created_by           String?
+  updated_at           DateTime               @default(now())
+  user                 users?                 @relation(fields: [userId], references: [id])
+  entity               entities               @relation(fields: [entity_id], references: [id])
+  ledger_entries       ledger_entries[]
   account_tax_mappings account_tax_mappings[]
 
   @@unique([userId, entity_id, code])
@@ -178,27 +178,27 @@ model chart_of_accounts {
 // ═══════════════════════════════════════════════════════════════════
 
 model journal_entries {
-  id                    String   @id @default(uuid())
-  userId                String
-  entity_id             String
-  date                  DateTime @db.Date
-  description           String
-  source_type           String   @db.VarChar(20)
-  source_id             String?
-  status                String   @default("posted") @db.VarChar(20)
-  is_reversal           Boolean  @default(false)
-  reverses_entry_id     String?  @unique
-  reversed_by_entry_id  String?  @unique
-  metadata              Json?
-  request_id            String?
-  created_at            DateTime @default(now())
-  created_by            String?
+  id                   String   @id @default(uuid())
+  userId               String
+  entity_id            String
+  date                 DateTime @db.Date
+  description          String
+  source_type          String   @db.VarChar(20)
+  source_id            String?
+  status               String   @default("posted") @db.VarChar(20)
+  is_reversal          Boolean  @default(false)
+  reverses_entry_id    String?  @unique
+  reversed_by_entry_id String?  @unique
+  metadata             Json?
+  request_id           String?
+  created_at           DateTime @default(now())
+  created_by           String?
 
-  user                  users            @relation(fields: [userId], references: [id])
-  entity                entities         @relation(fields: [entity_id], references: [id])
-  reverses_entry        journal_entries? @relation("reversal", fields: [reverses_entry_id], references: [id])
-  reversed_by_entry     journal_entries? @relation("reversal")
-  ledger_entries        ledger_entries[]
+  user              users            @relation(fields: [userId], references: [id])
+  entity            entities         @relation(fields: [entity_id], references: [id])
+  reverses_entry    journal_entries? @relation("reversal", fields: [reverses_entry_id], references: [id])
+  reversed_by_entry journal_entries? @relation("reversal")
+  ledger_entries    ledger_entries[]
 
   @@index([userId, date])
   @@index([source_type, source_id])
@@ -210,16 +210,16 @@ model journal_entries {
 // ═══════════════════════════════════════════════════════════════════
 
 model ledger_entries {
-  id                String   @id @default(uuid())
-  journal_entry_id  String
-  account_id        String   @db.Uuid
-  entry_type        String   @db.Char(1)
-  amount            BigInt
-  created_at        DateTime @default(now())
-  created_by        String?
+  id               String   @id @default(uuid())
+  journal_entry_id String
+  account_id       String   @db.Uuid
+  entry_type       String   @db.Char(1)
+  amount           BigInt
+  created_at       DateTime @default(now())
+  created_by       String?
 
-  journal_entry     journal_entries   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
-  account           chart_of_accounts @relation(fields: [account_id], references: [id], onDelete: Restrict)
+  journal_entry journal_entries   @relation(fields: [journal_entry_id], references: [id], onDelete: Restrict)
+  account       chart_of_accounts @relation(fields: [account_id], references: [id], onDelete: Restrict)
 
   @@index([journal_entry_id])
   @@index([account_id, created_at])
@@ -230,20 +230,20 @@ model ledger_entries {
 // ═══════════════════════════════════════════════════════════════════
 
 model merchant_coa_mappings {
-  id                      String   @id @db.Uuid
+  id                      String    @id @db.Uuid
   userId                  String
   entity_id               String?
-  merchant_name           String   @db.VarChar(255)
-  plaid_category_primary  String?  @db.VarChar(100)
-  plaid_category_detailed String?  @db.VarChar(100)
-  coa_code                String   @db.VarChar(50)
-  sub_account             String?  @db.VarChar(100)
-  usage_count             Int      @default(1)
-  confidence_score        Decimal  @default(1.0) @db.Decimal(3, 2)
-  last_used_at            DateTime @default(now())
-  created_at              DateTime @default(now())
-  created_by              String?  @db.Uuid
-  user                    users    @relation(fields: [userId], references: [id])
+  merchant_name           String    @db.VarChar(255)
+  plaid_category_primary  String?   @db.VarChar(100)
+  plaid_category_detailed String?   @db.VarChar(100)
+  coa_code                String    @db.VarChar(50)
+  sub_account             String?   @db.VarChar(100)
+  usage_count             Int       @default(1)
+  confidence_score        Decimal   @default(1.0) @db.Decimal(3, 2)
+  last_used_at            DateTime  @default(now())
+  created_at              DateTime  @default(now())
+  created_by              String?   @db.Uuid
+  user                    users     @relation(fields: [userId], references: [id])
   entity                  entities? @relation(fields: [entity_id], references: [id])
 
   @@unique([userId, merchant_name, plaid_category_primary])
@@ -436,66 +436,66 @@ model investment_transactions {
 }
 
 model users {
-  id                       String                 @id
-  email                    String                 @unique
-  password                 String
-  name                     String
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime
-  accountCode              String?
-  subAccount               String?
-  tier                     String                 @default("free") @db.VarChar(20)
-  stripeCustomerId         String?
-  stripeSubscriptionId     String?
-  bookkeeping_initialized  Boolean                @default(false)
-  scanner_start_date       DateTime?
-  accounts                 accounts[]
-  plaid_items          plaid_items[]
-  budgets              budgets[]
-  journal_entries      journal_entries[]
-  entities             entities[]
-  trips                trips[]
-  chart_of_accounts    chart_of_accounts[]
-  budget_line_items    budget_line_items[]
-  stock_lots           stock_lots[]
-  tax_scenarios        tax_scenarios[]
-  calendar_events      calendar_events[]
-  home_expenses        home_expenses[]
-  corporate_actions    corporate_actions[]
-  trade_journal_entries trade_journal_entries[]
-  tastytrade_connections tastytrade_connections[]
-  merchant_coa_mappings merchant_coa_mappings[]
-  trade_cards           trade_cards[]
-  tax_overrides         tax_overrides[]
-  tax_documents         tax_documents[]
-  closing_periods       closing_periods[]
-  bank_reconciliations  bank_reconciliations[]
-  scan_snapshots        scan_snapshots[]
-  dailyPlans            daily_plans[]
-  missions              missions[]
+  id                      String                   @id
+  email                   String                   @unique
+  password                String
+  name                    String
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime
+  accountCode             String?
+  subAccount              String?
+  tier                    String                   @default("free") @db.VarChar(20)
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?
+  bookkeeping_initialized Boolean                  @default(false)
+  scanner_start_date      DateTime?
+  accounts                accounts[]
+  plaid_items             plaid_items[]
+  budgets                 budgets[]
+  journal_entries         journal_entries[]
+  entities                entities[]
+  trips                   trips[]
+  chart_of_accounts       chart_of_accounts[]
+  budget_line_items       budget_line_items[]
+  stock_lots              stock_lots[]
+  tax_scenarios           tax_scenarios[]
+  calendar_events         calendar_events[]
+  home_expenses           home_expenses[]
+  corporate_actions       corporate_actions[]
+  trade_journal_entries   trade_journal_entries[]
+  tastytrade_connections  tastytrade_connections[]
+  merchant_coa_mappings   merchant_coa_mappings[]
+  trade_cards             trade_cards[]
+  tax_overrides           tax_overrides[]
+  tax_documents           tax_documents[]
+  closing_periods         closing_periods[]
+  bank_reconciliations    bank_reconciliations[]
+  scan_snapshots          scan_snapshots[]
+  dailyPlans              daily_plans[]
+  missions                missions[]
 }
 
 model budgets {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   accountCode String
   year        Int
-  jan         Decimal? @db.Decimal(12, 2)
-  feb         Decimal? @db.Decimal(12, 2)
-  mar         Decimal? @db.Decimal(12, 2)
-  apr         Decimal? @db.Decimal(12, 2)
-  may         Decimal? @db.Decimal(12, 2)
-  jun         Decimal? @db.Decimal(12, 2)
-  jul         Decimal? @db.Decimal(12, 2)
-  aug         Decimal? @db.Decimal(12, 2)
-  sep         Decimal? @db.Decimal(12, 2)
-  oct         Decimal? @db.Decimal(12, 2)
-  nov         Decimal? @db.Decimal(12, 2)
-  dec         Decimal? @db.Decimal(12, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  jan         Decimal?  @db.Decimal(12, 2)
+  feb         Decimal?  @db.Decimal(12, 2)
+  mar         Decimal?  @db.Decimal(12, 2)
+  apr         Decimal?  @db.Decimal(12, 2)
+  may         Decimal?  @db.Decimal(12, 2)
+  jun         Decimal?  @db.Decimal(12, 2)
+  jul         Decimal?  @db.Decimal(12, 2)
+  aug         Decimal?  @db.Decimal(12, 2)
+  sep         Decimal?  @db.Decimal(12, 2)
+  oct         Decimal?  @db.Decimal(12, 2)
+  nov         Decimal?  @db.Decimal(12, 2)
+  dec         Decimal?  @db.Decimal(12, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   entity_id   String?
-  user        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
   entity      entities? @relation(fields: [entity_id], references: [id])
 
   @@unique([userId, accountCode, year])
@@ -506,44 +506,44 @@ model budgets {
 // ═══════════════════════════════════════════════════════════════════
 
 model trips {
-  id           String    @id @default(cuid())
-  userId       String
-  name         String    @db.VarChar(255)
-  destination  String?   @db.VarChar(255)
-  activity     String?   @db.VarChar(50)
-  activities   String[]
-  inviteToken  String?   @unique @db.VarChar(64)
-  month        Int
-  year         Int
-  daysTravel   Int
-  daysRiding   Int       @default(0)
-  rsvpDeadline DateTime?
-  ogImage      String?   @db.Text
+  id               String    @id @default(cuid())
+  userId           String
+  name             String    @db.VarChar(255)
+  destination      String?   @db.VarChar(255)
+  activity         String?   @db.VarChar(50)
+  activities       String[]
+  inviteToken      String?   @unique @db.VarChar(64)
+  month            Int
+  year             Int
+  daysTravel       Int
+  daysRiding       Int       @default(0)
+  rsvpDeadline     DateTime?
+  ogImage          String?   @db.Text
   destinationPhoto String?   @db.Text
-  status       String    @default("planning") @db.VarChar(20)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status           String    @default("planning") @db.VarChar(20)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Committed trip details (set when trip is finalized)
-  startDate    DateTime?
-  endDate      DateTime?
-  committedAt  DateTime?
-  latitude     Decimal?  @db.Decimal(10, 6)
-  longitude    Decimal?  @db.Decimal(10, 6)
+  startDate   DateTime?
+  endDate     DateTime?
+  committedAt DateTime?
+  latitude    Decimal?  @db.Decimal(10, 6)
+  longitude   Decimal?  @db.Decimal(10, 6)
 
-  tripType     TripType  @default(personal)
+  tripType TripType @default(personal)
 
-  owner        users               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  participants trip_participants[]
-  expenses     trip_expenses[]
-  itinerary    trip_itinerary[]
-  destinations trip_destinations[]
+  owner             users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participants      trip_participants[]
+  expenses          trip_expenses[]
+  itinerary         trip_itinerary[]
+  destinations      trip_destinations[]
   budget_line_items budget_line_items[]
-  lodging_options    trip_lodging_options[]
-  transfer_options   trip_transfer_options[]
-  vehicle_options    trip_vehicle_options[]
-  activity_expenses  trip_activity_expenses[]
-  scannerResults     trip_scanner_results[]
+  lodging_options   trip_lodging_options[]
+  transfer_options  trip_transfer_options[]
+  vehicle_options   trip_vehicle_options[]
+  activity_expenses trip_activity_expenses[]
+  scannerResults    trip_scanner_results[]
 
   @@index([userId])
   @@index([year, month])
@@ -571,13 +571,13 @@ model trip_participants {
   homeAddress     String?   @db.VarChar(500)
 
   // Traveler profile — persisted per participant
-  profileTripType   String?   @db.VarChar(50)
-  profileBudget     String?   @db.VarChar(50)
-  profilePriorities String[]  @default([])
-  profileVibe       String[]  @default([])
-  profilePace       String?   @db.VarChar(20)
-  profileGroupSize  Int?      @default(1)
-  profileActivities String[]  @default([])
+  profileTripType   String?  @db.VarChar(50)
+  profileBudget     String?  @db.VarChar(50)
+  profilePriorities String[] @default([])
+  profileVibe       String[] @default([])
+  profilePace       String?  @db.VarChar(20)
+  profileGroupSize  Int?     @default(1)
+  profileActivities String[] @default([])
 
   trip          trips            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   expenseSplits expense_splits[]
@@ -688,18 +688,18 @@ model ikon_resorts {
 }
 
 model trip_destinations {
-  id              String   @id @default(cuid())
-  tripId          String
-  resortId        String?
-  name            String?  @db.VarChar(255)
-  country         String?  @db.VarChar(100)
-  latitude        Decimal? @db.Decimal(10, 7)
-  longitude       Decimal? @db.Decimal(10, 7)
-  isSelected      Boolean  @default(true)
-  estimatedTotal  Decimal? @db.Decimal(12, 2)
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  tripId         String
+  resortId       String?
+  name           String?  @db.VarChar(255)
+  country        String?  @db.VarChar(100)
+  latitude       Decimal? @db.Decimal(10, 7)
+  longitude      Decimal? @db.Decimal(10, 7)
+  isSelected     Boolean  @default(true)
+  estimatedTotal Decimal? @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
 
-  trip            trips    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   @@unique([tripId, resortId])
   @@index([tripId])
@@ -714,175 +714,175 @@ model surf_spots {
   name            String   @db.VarChar(255)
   country         String   @db.VarChar(100)
   region          String?  @db.VarChar(100)
-  waveConsistency Int?     // 1-10 rating
+  waveConsistency Int? // 1-10 rating
   waveType        String?  @db.VarChar(50) // beach break, reef, point
-  waterTempLow    Int?     // Fahrenheit
+  waterTempLow    Int? // Fahrenheit
   waterTempHigh   Int?
   bestMonths      String?  @db.VarChar(100) // "May-Oct"
-  wifiSpeed       Int?     // Mbps avg
+  wifiSpeed       Int? // Mbps avg
   coworkingCount  Int?
-  monthlyRent     Int?     // USD avg 1BR
-  costIndex       Int?     // 1-10 (10=cheapest)
-  nomadScore      Int?     // 1-10 community rating
+  monthlyRent     Int? // USD avg 1BR
+  costIndex       Int? // 1-10 (10=cheapest)
+  nomadScore      Int? // 1-10 community rating
   nearestAirport  String?  @db.VarChar(10)
   visaEase        String?  @db.VarChar(50) // "visa-free", "VOA", "e-visa"
   notes           String?  @db.Text
-  latitude        Decimal?  @db.Decimal(10,6)
-  longitude       Decimal?  @db.Decimal(10,6)
+  latitude        Decimal? @db.Decimal(10, 6)
+  longitude       Decimal? @db.Decimal(10, 6)
   createdAt       DateTime @default(now())
 }
 
 model golf_courses {
-  id              String   @id @default(cuid())
-  name            String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  courseRating    Decimal? @db.Decimal(4,1)
-  slopeRating     Int?
-  greenFee        Int?     // USD typical
-  holeCount       Int?     @default(18)
-  sceneryRating   Int?     // 1-10
-  monthlyRent     Int?     // USD avg 1BR nearby
-  costIndex       Int?     // 1-10
-  nomadScore      Int?     // 1-10
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  courseRating   Decimal? @db.Decimal(4, 1)
+  slopeRating    Int?
+  greenFee       Int? // USD typical
+  holeCount      Int?     @default(18)
+  sceneryRating  Int? // 1-10
+  monthlyRent    Int? // USD avg 1BR nearby
+  costIndex      Int? // 1-10
+  nomadScore     Int? // 1-10
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model cycling_destinations {
-  id              String   @id @default(cuid())
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  routeVariety    Int?     // 1-10
-  terrainType     String?  @db.VarChar(100) // "flat", "hilly", "mountain"
-  roadQuality     Int?     // 1-10
-  bikeCulture     Int?     // 1-10
-  rentalAvail     Boolean? @default(true)
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  routeVariety   Int? // 1-10
+  terrainType    String?  @db.VarChar(100) // "flat", "hilly", "mountain"
+  roadQuality    Int? // 1-10
+  bikeCulture    Int? // 1-10
+  rentalAvail    Boolean? @default(true)
+  monthlyRent    Int?
+  costIndex      Int?
+  nomadScore     Int?
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model race_destinations {
-  id              String   @id @default(cuid())
-  raceName        String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  raceType        String   @db.VarChar(50) // "marathon", "half", "10k", "ultra"
-  typicalMonth    String?  @db.VarChar(20)
-  entryFee        Int?     // USD
-  fieldSize       Int?
-  courseType      String?  @db.VarChar(50) // "flat", "hilly", "trail"
-  sceneryRating   Int?     // 1-10
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  raceName       String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  raceType       String   @db.VarChar(50) // "marathon", "half", "10k", "ultra"
+  typicalMonth   String?  @db.VarChar(20)
+  entryFee       Int? // USD
+  fieldSize      Int?
+  courseType     String?  @db.VarChar(50) // "flat", "hilly", "trail"
+  sceneryRating  Int? // 1-10
+  monthlyRent    Int?
+  costIndex      Int?
+  nomadScore     Int?
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model triathlon_destinations {
-  id              String   @id @default(cuid())
-  eventName       String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  distance        String   @db.VarChar(20) // "olympic", "70.3", "140.6"
-  typicalMonth    String?  @db.VarChar(20)
-  entryFee        Int?
-  swimVenue       String?  @db.VarChar(100) // "ocean", "lake", "river"
-  courseRating    Int?     // 1-10
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  eventName      String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  distance       String   @db.VarChar(20) // "olympic", "70.3", "140.6"
+  typicalMonth   String?  @db.VarChar(20)
+  entryFee       Int?
+  swimVenue      String?  @db.VarChar(100) // "ocean", "lake", "river"
+  courseRating   Int? // 1-10
+  monthlyRent    Int?
+  costIndex      Int?
+  nomadScore     Int?
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model festival_destinations {
-  id              String   @id @default(cuid())
-  festivalName    String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  genre           String?  @db.VarChar(100) // "electronic", "rock", "multi-genre"
-  typicalMonth    String?  @db.VarChar(20)
-  durationDays    Int?
-  ticketCost      Int?     // USD GA
-  attendeeCount   Int?
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  festivalName   String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  genre          String?  @db.VarChar(100) // "electronic", "rock", "multi-genre"
+  typicalMonth   String?  @db.VarChar(20)
+  durationDays   Int?
+  ticketCost     Int? // USD GA
+  attendeeCount  Int?
+  monthlyRent    Int?
+  costIndex      Int?
+  nomadScore     Int?
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model skatepark_destinations {
-  id              String   @id @default(cuid())
-  parkName        String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  parkRating      Int?     // 1-10
-  parkSize        String?  @db.VarChar(50) // "small", "medium", "large", "mega"
-  features        String?  @db.VarChar(255) // "bowl, street, vert, flow"
-  streetSpots     Int?     // 1-10 nearby street skating
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  parkName       String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  parkRating     Int? // 1-10
+  parkSize       String?  @db.VarChar(50) // "small", "medium", "large", "mega"
+  features       String?  @db.VarChar(255) // "bowl, street, vert, flow"
+  streetSpots    Int? // 1-10 nearby street skating
+  monthlyRent    Int?
+  costIndex      Int?
+  nomadScore     Int?
+  nearestAirport String?  @db.VarChar(10)
+  visaEase       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model conference_destinations {
-  id              String   @id @default(cuid())
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  majorConferences String? @db.Text // JSON array of conference names
-  startupScene    Int?     // 1-10
-  fintechFocus    Int?     // 1-10
-  vcPresence      Int?     // 1-10
-  networkingScore Int?     // 1-10
-  coworkingCount  Int?
-  monthlyRent     Int?
-  costIndex       Int?
-  nomadScore      Int?
-  nearestAirport  String?  @db.VarChar(10)
-  visaEase        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  city             String   @db.VarChar(100)
+  country          String   @db.VarChar(100)
+  majorConferences String?  @db.Text // JSON array of conference names
+  startupScene     Int? // 1-10
+  fintechFocus     Int? // 1-10
+  vcPresence       Int? // 1-10
+  networkingScore  Int? // 1-10
+  coworkingCount   Int?
+  monthlyRent      Int?
+  costIndex        Int?
+  nomadScore       Int?
+  nearestAirport   String?  @db.VarChar(10)
+  visaEase         String?  @db.VarChar(50)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
 }
 
 model nomad_cities {
-  id              String   @id @default(cuid())
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  region          String?  @db.VarChar(100)
-  wifiSpeed       Int?     // Mbps avg
-  coworkingCount  Int?
-  monthlyRent     Int?     // USD 1BR
-  costIndex       Int?     // 1-10 (10=cheapest)
-  safetyRating    Int?     // 1-10
-  weatherRating   Int?     // 1-10
-  foodScene       Int?     // 1-10
-  nightlife       Int?     // 1-10
-  nomadCommunity  Int?     // 1-10
-  visaEase        String?  @db.VarChar(50)
-  nearestAirport  String?  @db.VarChar(10)
-  timezone        String?  @db.VarChar(50)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  region         String?  @db.VarChar(100)
+  wifiSpeed      Int? // Mbps avg
+  coworkingCount Int?
+  monthlyRent    Int? // USD 1BR
+  costIndex      Int? // 1-10 (10=cheapest)
+  safetyRating   Int? // 1-10
+  weatherRating  Int? // 1-10
+  foodScene      Int? // 1-10
+  nightlife      Int? // 1-10
+  nomadCommunity Int? // 1-10
+  visaEase       String?  @db.VarChar(50)
+  nearestAirport String?  @db.VarChar(10)
+  timezone       String?  @db.VarChar(50)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -939,72 +939,72 @@ model VerificationToken {
 // ═══════════════════════════════════════════════════════════════════
 
 model dining_destinations {
-  id              String   @id @default(cuid())
-  name            String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  cuisineType     String?  @db.VarChar(100)
-  priceLevel      Int?     // 1-4 ($-$$$$)
-  michelinStars   Int?     // 0-3
-  nomadScore      Int?     // 1-10
-  wifiSpeed       Int?
-  coworkingCount  Int?
-  latitude        Decimal? @db.Decimal(10,6)
-  longitude       Decimal? @db.Decimal(10,6)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  cuisineType    String?  @db.VarChar(100)
+  priceLevel     Int? // 1-4 ($-$$$$)
+  michelinStars  Int? // 0-3
+  nomadScore     Int? // 1-10
+  wifiSpeed      Int?
+  coworkingCount Int?
+  latitude       Decimal? @db.Decimal(10, 6)
+  longitude      Decimal? @db.Decimal(10, 6)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model museum_destinations {
-  id              String   @id @default(cuid())
-  name            String   @db.VarChar(255)
-  city            String   @db.VarChar(100)
-  country         String   @db.VarChar(100)
-  museumType      String?  @db.VarChar(100)  // contemporary, classical, mixed
-  collectionSize  String?  @db.VarChar(50)   // small, medium, large, world-class
-  nomadScore      Int?     // 1-10
-  monthlyRent     Int?
-  wifiSpeed       Int?
-  latitude        Decimal? @db.Decimal(10,6)
-  longitude       Decimal? @db.Decimal(10,6)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String   @db.VarChar(255)
+  city           String   @db.VarChar(100)
+  country        String   @db.VarChar(100)
+  museumType     String?  @db.VarChar(100) // contemporary, classical, mixed
+  collectionSize String?  @db.VarChar(50) // small, medium, large, world-class
+  nomadScore     Int? // 1-10
+  monthlyRent    Int?
+  wifiSpeed      Int?
+  latitude       Decimal? @db.Decimal(10, 6)
+  longitude      Decimal? @db.Decimal(10, 6)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
 }
 
 model swim_destinations {
-  id              String   @id @default(cuid())
-  name            String   @db.VarChar(255)
-  country         String   @db.VarChar(100)
-  region          String?  @db.VarChar(100)
-  cliffHeight     Int?     // meters
-  waterDepth      Int?     // meters
-  difficulty      String?  @db.VarChar(50)   // beginner, intermediate, expert
-  bestMonths      String?  @db.VarChar(100)
-  nomadScore      Int?     // 1-10
-  monthlyRent     Int?
-  wifiSpeed       Int?
-  latitude        Decimal? @db.Decimal(10,6)
-  longitude       Decimal? @db.Decimal(10,6)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(255)
+  country     String   @db.VarChar(100)
+  region      String?  @db.VarChar(100)
+  cliffHeight Int? // meters
+  waterDepth  Int? // meters
+  difficulty  String?  @db.VarChar(50) // beginner, intermediate, expert
+  bestMonths  String?  @db.VarChar(100)
+  nomadScore  Int? // 1-10
+  monthlyRent Int?
+  wifiSpeed   Int?
+  latitude    Decimal? @db.Decimal(10, 6)
+  longitude   Decimal? @db.Decimal(10, 6)
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
 }
 
 model rafting_destinations {
-  id              String   @id @default(cuid())
-  name            String   @db.VarChar(255)
-  river           String?  @db.VarChar(255)
-  country         String   @db.VarChar(100)
-  region          String?  @db.VarChar(100)
-  classRating     String?  @db.VarChar(20)   // I-VI
-  seasonMonths    String?  @db.VarChar(100)
-  tripLength      String?  @db.VarChar(50)   // half-day, full-day, multi-day
-  nomadScore      Int?     // 1-10
-  monthlyRent     Int?
-  wifiSpeed       Int?
-  latitude        Decimal? @db.Decimal(10,6)
-  longitude       Decimal? @db.Decimal(10,6)
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String   @db.VarChar(255)
+  river        String?  @db.VarChar(255)
+  country      String   @db.VarChar(100)
+  region       String?  @db.VarChar(100)
+  classRating  String?  @db.VarChar(20) // I-VI
+  seasonMonths String?  @db.VarChar(100)
+  tripLength   String?  @db.VarChar(50) // half-day, full-day, multi-day
+  nomadScore   Int? // 1-10
+  monthlyRent  Int?
+  wifiSpeed    Int?
+  latitude     Decimal? @db.Decimal(10, 6)
+  longitude    Decimal? @db.Decimal(10, 6)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1012,22 +1012,22 @@ model rafting_destinations {
 // ═══════════════════════════════════════════════════════════════════
 
 model budget_line_items {
-  id            String   @id @default(cuid())
-  userId        String
-  tripId        String?
-  itineraryId   String?
-  coaCode       String   @db.VarChar(20)
-  year          Int
-  month         Int
-  amount        Decimal  @db.Decimal(12, 2)
-  description   String?
-  photoUrl      String?
-  source        String   @db.VarChar(20)  // 'trip', 'manual', 'recurring'
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  tripId      String?
+  itineraryId String?
+  coaCode     String   @db.VarChar(20)
+  year        Int
+  month       Int
+  amount      Decimal  @db.Decimal(12, 2)
+  description String?
+  photoUrl    String?
+  source      String   @db.VarChar(20) // 'trip', 'manual', 'recurring'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  trip          trips?   @relation(fields: [tripId], references: [id], onDelete: SetNull)
-  user          users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip trips? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  user users  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, year, month])
   @@index([tripId])
@@ -1052,23 +1052,23 @@ model sail_destinations {
 
 // Google Places API cache to avoid repeated expensive calls
 model places_cache {
-  id              String   @id @default(cuid())
-  placeId         String   @unique
-  name            String
-  address         String
-  rating          Float?
-  reviewCount     Int?
-  priceLevel      Int?
-  website         String?
-  types           String?  // JSON array as string
-  photos          String?  @db.Text  // JSON array of photo references
-  city            String
-  country         String
-  category        String   // coworking, lodging, etc.
-  latitude        Float?
-  longitude       Float?
-  cachedAt        DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(cuid())
+  placeId     String   @unique
+  name        String
+  address     String
+  rating      Float?
+  reviewCount Int?
+  priceLevel  Int?
+  website     String?
+  types       String? // JSON array as string
+  photos      String?  @db.Text // JSON array of photo references
+  city        String
+  country     String
+  category    String // coworking, lodging, etc.
+  latitude    Float?
+  longitude   Float?
+  cachedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([city, country, category])
 }
@@ -1079,34 +1079,34 @@ model places_cache {
 
 // Each stock purchase creates a lot with its own cost basis
 model stock_lots {
-  id                    String    @id @default(uuid()) @db.Uuid
-  user_id               String
-  investment_txn_id     String    @db.VarChar(255)  // Link to original buy transaction
-  symbol                String    @db.VarChar(20)
+  id                String @id @default(uuid()) @db.Uuid
+  user_id           String
+  investment_txn_id String @db.VarChar(255) // Link to original buy transaction
+  symbol            String @db.VarChar(20)
 
   // Acquisition details
-  acquired_date         DateTime
-  original_quantity     Float                        // Shares purchased
-  remaining_quantity    Float                        // Shares still held (decreases with sales)
-  cost_per_share        Float                        // Price paid per share
-  total_cost_basis      Float                        // Total cost including fees
-  fees                  Float     @default(0)
+  acquired_date      DateTime
+  original_quantity  Float // Shares purchased
+  remaining_quantity Float // Shares still held (decreases with sales)
+  cost_per_share     Float // Price paid per share
+  total_cost_basis   Float // Total cost including fees
+  fees               Float    @default(0)
 
   // Status
-  status                String    @default("OPEN") @db.VarChar(20)  // OPEN, PARTIAL, CLOSED
+  status String @default("OPEN") @db.VarChar(20) // OPEN, PARTIAL, CLOSED
 
   // Wash sale tracking
-  wash_sale_disallowed  Float     @default(0)       // Disallowed loss amount
-  wash_sale_adjustment  Float     @default(0)       // Cost basis adjustment from wash sale
-  wash_sale_source_id   String?   @db.Uuid          // If this lot caused a wash sale, link to affected lot
+  wash_sale_disallowed Float   @default(0) // Disallowed loss amount
+  wash_sale_adjustment Float   @default(0) // Cost basis adjustment from wash sale
+  wash_sale_source_id  String? @db.Uuid // If this lot caused a wash sale, link to affected lot
 
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relations
-  user                  users     @relation(fields: [user_id], references: [id])
-  dispositions          lot_dispositions[]
-  adjustments           lot_adjustments[]
+  user         users              @relation(fields: [user_id], references: [id])
+  dispositions lot_dispositions[]
+  adjustments  lot_adjustments[]
 
   @@index([user_id])
   @@index([symbol])
@@ -1117,34 +1117,34 @@ model stock_lots {
 
 // Each sale creates disposition records linking to the lots being sold
 model lot_dispositions {
-  id                    String    @id @default(uuid()) @db.Uuid
-  lot_id                String    @db.Uuid
-  sale_txn_id           String    @db.VarChar(255)  // Link to sell transaction
+  id          String @id @default(uuid()) @db.Uuid
+  lot_id      String @db.Uuid
+  sale_txn_id String @db.VarChar(255) // Link to sell transaction
 
   // Disposition details
-  disposed_date         DateTime
-  quantity_disposed     Float                        // Shares sold from this lot
-  proceeds_per_share    Float                        // Sale price per share
-  total_proceeds        Float                        // Total proceeds for this portion
-  fees_allocated        Float     @default(0)       // Proportional fees
+  disposed_date      DateTime
+  quantity_disposed  Float // Shares sold from this lot
+  proceeds_per_share Float // Sale price per share
+  total_proceeds     Float // Total proceeds for this portion
+  fees_allocated     Float    @default(0) // Proportional fees
 
   // Calculated P&L
-  cost_basis_disposed   Float                        // Cost basis of shares sold
-  realized_gain_loss    Float                        // Proceeds - Cost Basis
+  cost_basis_disposed Float // Cost basis of shares sold
+  realized_gain_loss  Float // Proceeds - Cost Basis
 
   // Tax classification
-  holding_period_days   Int                          // Days held
-  is_long_term          Boolean                      // >= 365 days
-  is_wash_sale          Boolean   @default(false)   // Loss disallowed?
-  wash_sale_loss        Float     @default(0)       // Amount of loss disallowed
+  holding_period_days Int // Days held
+  is_long_term        Boolean // >= 365 days
+  is_wash_sale        Boolean @default(false) // Loss disallowed?
+  wash_sale_loss      Float   @default(0) // Amount of loss disallowed
 
   // Method used
-  matching_method       String    @db.VarChar(20)   // FIFO, LIFO, HIFO, SPECIFIC
+  matching_method String @db.VarChar(20) // FIFO, LIFO, HIFO, SPECIFIC
 
-  created_at            DateTime  @default(now())
+  created_at DateTime @default(now())
 
   // Relations
-  lot                   stock_lots @relation(fields: [lot_id], references: [id])
+  lot stock_lots @relation(fields: [lot_id], references: [id])
 
   @@index([lot_id])
   @@index([sale_txn_id])
@@ -1153,32 +1153,32 @@ model lot_dispositions {
 
 // Store tax scenario comparisons for a potential sale
 model tax_scenarios {
-  id                    String    @id @default(uuid()) @db.Uuid
-  user_id               String
-  sale_txn_id           String?   @db.VarChar(255)  // Null if just simulating
-  symbol                String    @db.VarChar(20)
+  id          String  @id @default(uuid()) @db.Uuid
+  user_id     String
+  sale_txn_id String? @db.VarChar(255) // Null if just simulating
+  symbol      String  @db.VarChar(20)
 
   // Sale details
-  sale_quantity         Float
-  sale_price            Float
-  sale_date             DateTime
+  sale_quantity Float
+  sale_price    Float
+  sale_date     DateTime
 
   // Scenario results (JSON for flexibility)
-  fifo_result           Json?                        // { stGain, ltGain, totalPL, estimatedTax, lots: [...] }
-  lifo_result           Json?
-  hifo_result           Json?                        // Highest In, First Out (tax loss harvesting)
-  lofo_result           Json?                        // Lowest In, First Out
-  specific_result       Json?                        // User-selected lots
+  fifo_result     Json? // { stGain, ltGain, totalPL, estimatedTax, lots: [...] }
+  lifo_result     Json?
+  hifo_result     Json? // Highest In, First Out (tax loss harvesting)
+  lofo_result     Json? // Lowest In, First Out
+  specific_result Json? // User-selected lots
 
   // Selected method (once committed)
-  selected_method       String?   @db.VarChar(20)
-  is_committed          Boolean   @default(false)
+  selected_method String? @db.VarChar(20)
+  is_committed    Boolean @default(false)
 
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Relations
-  user                  users     @relation(fields: [user_id], references: [id])
+  user users @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([symbol])
@@ -1255,21 +1255,21 @@ model module_expenses {
 
 // Corporate Actions - Track splits, dividends, mergers, spinoffs
 model corporate_actions {
-  id              String   @id @default(uuid())
-  user_id         String
-  symbol          String
-  action_type     String   // SPLIT, REVERSE_SPLIT, STOCK_DIVIDEND, MERGER, SPINOFF
-  effective_date  DateTime
-  ratio_from      Int      // e.g., 1 for 1:50 reverse split
-  ratio_to        Int      // e.g., 50 for 1:50 reverse split
-  pre_split_shares  Float?   // Shares before action
-  post_split_shares Float?   // Shares after action
-  notes           String?
-  source          String?  // SEC filing, broker statement, etc.
-  created_at      DateTime @default(now())
+  id                String   @id @default(uuid())
+  user_id           String
+  symbol            String
+  action_type       String // SPLIT, REVERSE_SPLIT, STOCK_DIVIDEND, MERGER, SPINOFF
+  effective_date    DateTime
+  ratio_from        Int // e.g., 1 for 1:50 reverse split
+  ratio_to          Int // e.g., 50 for 1:50 reverse split
+  pre_split_shares  Float? // Shares before action
+  post_split_shares Float? // Shares after action
+  notes             String?
+  source            String? // SEC filing, broker statement, etc.
+  created_at        DateTime @default(now())
 
   // Relations
-  user            users    @relation(fields: [user_id], references: [id])
+  user            users             @relation(fields: [user_id], references: [id])
   lot_adjustments lot_adjustments[]
 
   @@index([user_id, symbol])
@@ -1278,42 +1278,42 @@ model corporate_actions {
 
 // Lot Adjustments - Track how lots were modified by corporate actions
 model lot_adjustments {
-  id                  String   @id @default(uuid())
-  lot_id              String   @db.Uuid
-  corporate_action_id String
-  original_quantity   Float
-  adjusted_quantity   Float
+  id                      String   @id @default(uuid())
+  lot_id                  String   @db.Uuid
+  corporate_action_id     String
+  original_quantity       Float
+  adjusted_quantity       Float
   original_cost_per_share Float
   adjusted_cost_per_share Float
-  adjustment_date     DateTime @default(now())
+  adjustment_date         DateTime @default(now())
 
   // Relations
-  lot               stock_lots        @relation(fields: [lot_id], references: [id])
-  corporate_action  corporate_actions @relation(fields: [corporate_action_id], references: [id])
+  lot              stock_lots        @relation(fields: [lot_id], references: [id])
+  corporate_action corporate_actions @relation(fields: [corporate_action_id], references: [id])
 
   @@index([lot_id])
   @@index([corporate_action_id])
 }
 
 model trade_journal_entries {
-  id            String    @id @default(cuid())
-  userId        String
-  tradeNum      String    @db.VarChar(20)
-  entryDate     DateTime  @default(now())
-  entryType     String    @db.VarChar(20) // pre-trade, during, post-trade, review
-  thesis        String?   @db.Text
-  setup         String?   @db.VarChar(100) // technical setup name
-  emotion       String?   @db.VarChar(20) // confident, nervous, fomo, revenge, neutral
-  riskReward    String?   @db.VarChar(20) // planned R:R
-  mistakes      String?   @db.Text
-  lessons       String?   @db.Text
-  rating        Int?      // 1-5 self-assessment
-  aiAnalysis    String?   @db.Text
-  tags          String[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  tradeNum   String   @db.VarChar(20)
+  entryDate  DateTime @default(now())
+  entryType  String   @db.VarChar(20) // pre-trade, during, post-trade, review
+  thesis     String?  @db.Text
+  setup      String?  @db.VarChar(100) // technical setup name
+  emotion    String?  @db.VarChar(20) // confident, nervous, fomo, revenge, neutral
+  riskReward String?  @db.VarChar(20) // planned R:R
+  mistakes   String?  @db.Text
+  lessons    String?  @db.Text
+  rating     Int? // 1-5 self-assessment
+  aiAnalysis String?  @db.Text
+  tags       String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user          users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([tradeNum])
@@ -1325,20 +1325,20 @@ model trade_journal_entries {
 // ============================================
 
 model tastytrade_connections {
-  id              String    @id @default(cuid())
-  userId          String
-  ttUsername       String    @db.VarChar(255)
-  sessionToken    String    @db.Text
-  rememberToken   String?   @db.Text
-  accountNumbers  String[]
-  status          String    @default("active") @db.VarChar(20) // active, expired, disconnected
-  connectedAt     DateTime  @default(now())
-  expiresAt       DateTime?
-  lastUsedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  ttUsername     String    @db.VarChar(255)
+  sessionToken   String    @db.Text
+  rememberToken  String?   @db.Text
+  accountNumbers String[]
+  status         String    @default("active") @db.VarChar(20) // active, expired, disconnected
+  connectedAt    DateTime  @default(now())
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user            users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
   @@index([status])
@@ -1349,68 +1349,68 @@ model tastytrade_connections {
 // ============================================
 
 model trade_cards {
-  id                String    @id @default(uuid()) @db.Uuid
-  userId            String
-  symbol            String    @db.VarChar(20)
-  strategy_name     String    @db.Text
-  direction         String    @db.VarChar(50)
-  legs              Json                           // [{action, type, strike, price}]
-  entry_price       Decimal?  @db.Decimal(12, 2)
-  max_profit        Decimal?  @db.Decimal(12, 2)
-  max_loss          Decimal?  @db.Decimal(12, 2)
-  win_rate          Decimal?  @db.Decimal(5, 2)
-  risk_reward       Decimal?  @db.Decimal(8, 4)
-  thesis_points     Json?                          // ["point 1", "point 2", ...]
-  key_stats         Json?                          // {iv_rank, hv, pe, beta, spy_corr, ...}
-  macro_regime      String?   @db.Text
-  sentiment         String?   @db.Text
-  insider_activity  String?   @db.Text
-  headlines         Json?                          // [{title, source, sentiment}]
-  dte               Int?
-  expiration_date   DateTime? @db.Date
-  generated_at      DateTime  @default(now())
-  status            String    @default("queued") @db.VarChar(20)
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String
+  symbol           String    @db.VarChar(20)
+  strategy_name    String    @db.Text
+  direction        String    @db.VarChar(50)
+  legs             Json // [{action, type, strike, price}]
+  entry_price      Decimal?  @db.Decimal(12, 2)
+  max_profit       Decimal?  @db.Decimal(12, 2)
+  max_loss         Decimal?  @db.Decimal(12, 2)
+  win_rate         Decimal?  @db.Decimal(5, 2)
+  risk_reward      Decimal?  @db.Decimal(8, 4)
+  thesis_points    Json? // ["point 1", "point 2", ...]
+  key_stats        Json? // {iv_rank, hv, pe, beta, spy_corr, ...}
+  macro_regime     String?   @db.Text
+  sentiment        String?   @db.Text
+  insider_activity String?   @db.Text
+  headlines        Json? // [{title, source, sentiment}]
+  dte              Int?
+  expiration_date  DateTime? @db.Date
+  generated_at     DateTime  @default(now())
+  status           String    @default("queued") @db.VarChar(20)
 
   // Convergence scoring
-  composite_score   Decimal?  @db.Decimal(5, 2)
-  letter_grade      String?   @db.VarChar(10)
-  convergence_gate  String?   @db.Text
+  composite_score  Decimal? @db.Decimal(5, 2)
+  letter_grade     String?  @db.VarChar(10)
+  convergence_gate String?  @db.Text
 
   // Sub-scores
-  vol_edge_score    Decimal?  @db.Decimal(5, 2)
-  quality_score     Decimal?  @db.Decimal(5, 2)
-  regime_score      Decimal?  @db.Decimal(5, 2)
-  info_edge_score   Decimal?  @db.Decimal(5, 2)
+  vol_edge_score  Decimal? @db.Decimal(5, 2)
+  quality_score   Decimal? @db.Decimal(5, 2)
+  regime_score    Decimal? @db.Decimal(5, 2)
+  info_edge_score Decimal? @db.Decimal(5, 2)
 
   // Volatility detail
-  vol_sub_scores    Json?
-  vol_cone          Json?
-  forward_vol       Json?
+  vol_sub_scores Json?
+  vol_cone       Json?
+  forward_vol    Json?
 
   // Risk & signals
-  risk_flags        Json?
-  plain_signals     Json?
+  risk_flags    Json?
+  plain_signals Json?
 
   // Social sentiment
-  social_score      Decimal?  @db.Decimal(5, 4)
+  social_score      Decimal? @db.Decimal(5, 4)
   social_post_count Int?
   social_themes     Json?
   social_posts      Json?
 
   // Greeks
-  greeks_delta      Decimal?  @db.Decimal(8, 4)
-  greeks_gamma      Decimal?  @db.Decimal(8, 6)
-  greeks_theta      Decimal?  @db.Decimal(8, 4)
-  greeks_vega       Decimal?  @db.Decimal(8, 4)
+  greeks_delta Decimal? @db.Decimal(8, 4)
+  greeks_gamma Decimal? @db.Decimal(8, 6)
+  greeks_theta Decimal? @db.Decimal(8, 4)
+  greeks_vega  Decimal? @db.Decimal(8, 4)
 
   // Derived metrics
-  ev_per_risk       Decimal?  @db.Decimal(8, 4)
+  ev_per_risk Decimal? @db.Decimal(8, 4)
 
   // Full card snapshot — safety net so we never lose data
-  full_card_json    Json?
+  full_card_json Json?
 
-  user              users     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  link              trade_card_links?
+  user users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  link trade_card_links?
 
   @@index([userId])
   @@index([userId, status])
@@ -1418,18 +1418,18 @@ model trade_cards {
 }
 
 model trade_card_links {
-  id                 String    @id @default(uuid()) @db.Uuid
-  trade_card_id      String    @unique @db.Uuid
-  trade_num          String    @db.VarChar(50)
-  linked_at          DateTime  @default(now())
-  actual_entry_price Decimal?  @db.Decimal(12, 2)
-  actual_exit_price  Decimal?  @db.Decimal(12, 2)
-  actual_pl          Decimal?  @db.Decimal(12, 2)
-  grade              String?   @db.VarChar(2)
-  thesis_results     Json?                         // [true, false, true, ...] per thesis point
-  notes              String?   @db.Text
+  id                 String   @id @default(uuid()) @db.Uuid
+  trade_card_id      String   @unique @db.Uuid
+  trade_num          String   @db.VarChar(50)
+  linked_at          DateTime @default(now())
+  actual_entry_price Decimal? @db.Decimal(12, 2)
+  actual_exit_price  Decimal? @db.Decimal(12, 2)
+  actual_pl          Decimal? @db.Decimal(12, 2)
+  grade              String?  @db.VarChar(2)
+  thesis_results     Json? // [true, false, true, ...] per thesis point
+  notes              String?  @db.Text
 
-  trade_card         trade_cards @relation(fields: [trade_card_id], references: [id], onDelete: Cascade)
+  trade_card trade_cards @relation(fields: [trade_card_id], references: [id], onDelete: Cascade)
 
   @@index([trade_num])
 }
@@ -1446,7 +1446,7 @@ model tax_overrides {
   field_value String   @db.Text
   updated_at  DateTime @default(now()) @updatedAt
 
-  user        users    @relation(fields: [userId], references: [id])
+  user users @relation(fields: [userId], references: [id])
 
   @@unique([userId, tax_year, field_key])
   @@index([userId, tax_year])
@@ -1457,19 +1457,19 @@ model tax_overrides {
 // ═══════════════════════════════════════════════════════════════════
 
 model tax_documents {
-  id          String   @id @default(uuid())
-  userId      String
-  tax_year    Int
-  doc_type    String   @db.VarChar(20)   // w2, 1099r, 1098t, 1098e, 1099b, 1099int, 1099div
-  label       String?  @db.VarChar(100)  // "Wells Fargo W-2", "CSULA 1098-T", etc.
-  data        Json                       // structured data matching form fields
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  userId     String
+  tax_year   Int
+  doc_type   String   @db.VarChar(20) // w2, 1099r, 1098t, 1098e, 1099b, 1099int, 1099div
+  label      String?  @db.VarChar(100) // "Wells Fargo W-2", "CSULA 1098-T", etc.
+  data       Json // structured data matching form fields
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  user        users    @relation(fields: [userId], references: [id])
+  user users @relation(fields: [userId], references: [id])
 
-  @@index([userId, tax_year])
   @@unique([userId, tax_year, doc_type, label])
+  @@index([userId, tax_year])
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1535,54 +1535,54 @@ model bank_reconciliations {
 // ═══════════════════════════════════════════════════════════════════
 
 model scan_snapshots {
-  id              String   @id @default(cuid())
-  userId          String
-  ticker          String   @db.VarChar(20)
-  scanDate        DateTime @default(now())
+  id       String   @id @default(cuid())
+  userId   String
+  ticker   String   @db.VarChar(20)
+  scanDate DateTime @default(now())
 
   // Price context at scan time
-  spotPrice       Float?
-  iv30            Float?
-  hv30            Float?
-  ivPercentile    Float?
+  spotPrice    Float?
+  iv30         Float?
+  hv30         Float?
+  ivPercentile Float?
 
   // Gate scores (0-100)
-  volEdgeScore    Float
-  qualityScore    Float
-  regimeScore     Float
-  infoEdgeScore   Float
-  compositeScore  Float
+  volEdgeScore   Float
+  qualityScore   Float
+  regimeScore    Float
+  infoEdgeScore  Float
+  compositeScore Float
 
   // Position sizing
   gatesAbove50    Int
   positionSizePct Float
-  sizingMethod    String   @default("continuous_v1") @db.VarChar(30)
+  sizingMethod    String @default("continuous_v1") @db.VarChar(30)
 
   // Data confidence
-  dataConfidence  Float    // Overall confidence 0-1
-  imputedCount    Int      // Total imputed sub-scores
+  dataConfidence Float // Overall confidence 0-1
+  imputedCount   Int // Total imputed sub-scores
 
   // Regime context
-  regimeLabel     String?  @db.VarChar(30)  // "goldilocks", "stagflation", etc.
-  vixLevel        Float?
+  regimeLabel String? @db.VarChar(30) // "goldilocks", "stagflation", etc.
+  vixLevel    Float?
 
   // Strategy suggested
   suggestedStrategy String? @db.VarChar(100)
   suggestedDTE      Int?
 
   // Outcome tracking (filled in later by scheduled job after DTE expiry)
-  outcomeDate     DateTime?
-  outcomePnl      Float?       // Actual P&L if trade was taken
-  outcomeSpotPrice Float?      // Spot price at expiry/close
-  outcomeIV       Float?       // IV at expiry/close
-  ivCompressed    Boolean?     // Did IV mean-revert as predicted?
-  stayedInRange   Boolean?     // Did price stay within expected range?
+  outcomeDate      DateTime?
+  outcomePnl       Float? // Actual P&L if trade was taken
+  outcomeSpotPrice Float? // Spot price at expiry/close
+  outcomeIV        Float? // IV at expiry/close
+  ivCompressed     Boolean? // Did IV mean-revert as predicted?
+  stayedInRange    Boolean? // Did price stay within expected range?
 
   // Full trace (JSON blob for detailed analysis / replay)
-  fullTrace       Json?
+  fullTrace Json?
 
   // Relations
-  user            users    @relation(fields: [userId], references: [id])
+  user users @relation(fields: [userId], references: [id])
 
   @@index([userId, scanDate])
   @@index([ticker, scanDate])
@@ -1591,15 +1591,15 @@ model scan_snapshots {
 }
 
 model ObservatoryHealthLog {
-  id              Int      @id @default(autoincrement())
-  symbol          String
-  sourceId        Int
-  sourceName      String
-  dataSource      String
-  status          String
-  lastValue       String?
-  wasMarketHours  Boolean
-  checkedAt       DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  symbol         String
+  sourceId       Int
+  sourceName     String
+  dataSource     String
+  status         String
+  lastValue      String?
+  wasMarketHours Boolean
+  checkedAt      DateTime @default(now())
 
   @@index([symbol, sourceId])
   @@index([checkedAt])
@@ -1619,98 +1619,157 @@ enum VendorOptionStatus {
   committed
 }
 
+// ─── Mission Planner Enums ───────────────────────────────────
+
+enum MissionStatus {
+  draft
+  active
+  paused
+  completed
+  archived
+}
+
+enum StageType {
+  structure
+  goal_discovery
+  research_scoping
+  reality_audit
+  roadmap
+}
+
+enum StageStatus {
+  pending
+  processing
+  completed
+  approved
+  rejected
+}
+
+enum BrainDumpBucket {
+  business
+  technical
+  constraints
+  growth
+  life
+  open
+}
+
+enum EntrySource {
+  typed
+  voice
+}
+
+enum ConstraintType {
+  product
+  operational
+}
+
+enum WeekStatus {
+  upcoming
+  active
+  completed
+  skipped
+}
+
+enum MissionTaskStatus {
+  todo
+  in_progress
+  done
+  deferred
+}
+
 // ─── Vendor Option Tables (previously raw SQL) ────────────────
 
 model trip_lodging_options {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   trip_id         String
   url             String?
   title           String?
   image_url       String?
   location        String?
-  price_per_night Decimal?            @db.Decimal(12, 2)
-  total_price     Decimal?            @db.Decimal(12, 2)
-  taxes_estimate  Decimal?            @db.Decimal(12, 2)
-  per_person      Decimal?            @db.Decimal(12, 2)
+  price_per_night Decimal?           @db.Decimal(12, 2)
+  total_price     Decimal?           @db.Decimal(12, 2)
+  taxes_estimate  Decimal?           @db.Decimal(12, 2)
+  per_person      Decimal?           @db.Decimal(12, 2)
   notes           String?
-  votes_up        Int                 @default(0)
-  votes_down      Int                 @default(0)
-  is_selected     Boolean             @default(false)
-  status          VendorOptionStatus  @default(proposed)
-  created_at      DateTime            @default(now())
-  updated_at      DateTime            @default(now()) @updatedAt
+  votes_up        Int                @default(0)
+  votes_down      Int                @default(0)
+  is_selected     Boolean            @default(false)
+  status          VendorOptionStatus @default(proposed)
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @default(now()) @updatedAt
 
-  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [trip_id], references: [id], onDelete: Cascade)
 
   @@index([trip_id])
 }
 
 model trip_transfer_options {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  trip_id         String
-  url             String?
-  transfer_type   String
-  direction       String
-  title           String?
-  vendor          String?
-  price           Decimal?            @db.Decimal(12, 2)
-  per_person      Decimal?            @db.Decimal(12, 2)
-  notes           String?
-  votes_up        Int                 @default(0)
-  votes_down      Int                 @default(0)
-  is_selected     Boolean             @default(false)
-  status          VendorOptionStatus  @default(proposed)
-  created_at      DateTime            @default(now())
-  updated_at      DateTime            @default(now()) @updatedAt
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id       String
+  url           String?
+  transfer_type String
+  direction     String
+  title         String?
+  vendor        String?
+  price         Decimal?           @db.Decimal(12, 2)
+  per_person    Decimal?           @db.Decimal(12, 2)
+  notes         String?
+  votes_up      Int                @default(0)
+  votes_down    Int                @default(0)
+  is_selected   Boolean            @default(false)
+  status        VendorOptionStatus @default(proposed)
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @default(now()) @updatedAt
 
-  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [trip_id], references: [id], onDelete: Cascade)
 
   @@index([trip_id])
 }
 
 model trip_vehicle_options {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  trip_id         String
-  url             String?
-  vehicle_type    String
-  title           String?
-  vendor          String?
-  price_per_day   Decimal?            @db.Decimal(12, 2)
-  total_price     Decimal?            @db.Decimal(12, 2)
-  per_person      Decimal?            @db.Decimal(12, 2)
-  notes           String?
-  votes_up        Int                 @default(0)
-  votes_down      Int                 @default(0)
-  is_selected     Boolean             @default(false)
-  status          VendorOptionStatus  @default(proposed)
-  created_at      DateTime            @default(now())
-  updated_at      DateTime            @default(now()) @updatedAt
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id       String
+  url           String?
+  vehicle_type  String
+  title         String?
+  vendor        String?
+  price_per_day Decimal?           @db.Decimal(12, 2)
+  total_price   Decimal?           @db.Decimal(12, 2)
+  per_person    Decimal?           @db.Decimal(12, 2)
+  notes         String?
+  votes_up      Int                @default(0)
+  votes_down    Int                @default(0)
+  is_selected   Boolean            @default(false)
+  status        VendorOptionStatus @default(proposed)
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @default(now()) @updatedAt
 
-  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [trip_id], references: [id], onDelete: Cascade)
 
   @@index([trip_id])
 }
 
 model trip_activity_expenses {
-  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  trip_id         String
-  category        String
-  title           String?
-  vendor          String?
-  url             String?
-  image_url       String?             @db.Text
-  price           Decimal?            @db.Decimal(12, 2)
-  is_per_person   Boolean             @default(true)
-  per_person      Decimal?            @db.Decimal(12, 2)
-  notes           String?
-  votes_up        Int                 @default(0)
-  votes_down      Int                 @default(0)
-  is_selected     Boolean             @default(false)
-  status          VendorOptionStatus  @default(proposed)
-  created_at      DateTime            @default(now())
-  updated_at      DateTime            @default(now()) @updatedAt
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trip_id       String
+  category      String
+  title         String?
+  vendor        String?
+  url           String?
+  image_url     String?            @db.Text
+  price         Decimal?           @db.Decimal(12, 2)
+  is_per_person Boolean            @default(true)
+  per_person    Decimal?           @db.Decimal(12, 2)
+  notes         String?
+  votes_up      Int                @default(0)
+  votes_down    Int                @default(0)
+  is_selected   Boolean            @default(false)
+  status        VendorOptionStatus @default(proposed)
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @default(now()) @updatedAt
 
-  trip            trips               @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [trip_id], references: [id], onDelete: Cascade)
 
   @@index([trip_id])
 }
@@ -1728,7 +1787,7 @@ model trip_scanner_results {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  trip            trips    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  trip trips @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
   @@unique([tripId, destination, category])
   @@index([tripId])
@@ -1740,56 +1799,56 @@ model trip_scanner_results {
 // ═══════════════════════════════════════════════════════════════════
 
 model daily_plans {
-  id                  String   @id @default(cuid())
-  userId              String   @map("user_id")
-  date                DateTime @db.Date
-  dayNumber           Int      @map("day_number")
-  sprintStartDate     DateTime @map("sprint_start_date") @db.Date
-  sprintTotalDays     Int      @map("sprint_total_days") @default(75)
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  date            DateTime @db.Date
+  dayNumber       Int      @map("day_number")
+  sprintStartDate DateTime @map("sprint_start_date") @db.Date
+  sprintTotalDays Int      @default(75) @map("sprint_total_days")
 
-  mission             String?
-  missionCompleted    Boolean  @default(false) @map("mission_completed")
+  mission          String?
+  missionCompleted Boolean @default(false) @map("mission_completed")
 
-  tasks               Json     @default("[]")
-  schedule            Json     @default("[]")
+  tasks    Json @default("[]")
+  schedule Json @default("[]")
 
-  budgetTarget        Float?   @map("budget_target")
-  budgetActual        Float?   @map("budget_actual")
+  budgetTarget Float? @map("budget_target")
+  budgetActual Float? @map("budget_actual")
 
-  weightMorning       Float?   @map("weight_morning")
+  weightMorning Float? @map("weight_morning")
 
-  workoutPlanned      Boolean  @default(false) @map("workout_planned")
-  workoutCompleted    Boolean  @default(false) @map("workout_completed")
-  workoutType         String?  @map("workout_type")
-  workoutDuration     Int?     @map("workout_duration_min")
-  workoutNotes        String?  @map("workout_notes")
+  workoutPlanned   Boolean @default(false) @map("workout_planned")
+  workoutCompleted Boolean @default(false) @map("workout_completed")
+  workoutType      String? @map("workout_type")
+  workoutDuration  Int?    @map("workout_duration_min")
+  workoutNotes     String? @map("workout_notes")
 
-  hydrationTargetOz   Int?     @map("hydration_target_oz")
-  hydrationActualOz   Int?     @map("hydration_actual_oz")
+  hydrationTargetOz Int? @map("hydration_target_oz")
+  hydrationActualOz Int? @map("hydration_actual_oz")
 
-  calorieTarget       Int?     @map("calorie_target")
-  calorieActual       Int?     @map("calorie_actual")
-  proteinTargetG      Int?     @map("protein_target_g")
-  proteinActualG      Int?     @map("protein_actual_g")
-  meals               Json     @default("[]")
+  calorieTarget  Int? @map("calorie_target")
+  calorieActual  Int? @map("calorie_actual")
+  proteinTargetG Int? @map("protein_target_g")
+  proteinActualG Int? @map("protein_actual_g")
+  meals          Json @default("[]")
 
-  sleepHours          Float?   @map("sleep_hours")
-  sleepQuality        String?  @map("sleep_quality")
+  sleepHours   Float?  @map("sleep_hours")
+  sleepQuality String? @map("sleep_quality")
 
-  steps               Int?
+  steps Int?
 
-  dayScore            Float?   @map("day_score")
-  reflection          String?
-  wins                String?
-  blockers            String?
+  dayScore   Float?  @map("day_score")
+  reflection String?
+  wins       String?
+  blockers   String?
 
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  missionId           String?  @map("mission_id")
+  missionId String? @map("mission_id")
 
-  user                users    @relation(fields: [userId], references: [id])
-  missionRef          missions? @relation(fields: [missionId], references: [id])
+  user       users     @relation(fields: [userId], references: [id])
+  missionRef missions? @relation(fields: [missionId], references: [id])
 
   @@unique([userId, date])
   @@map("daily_plans")
@@ -1800,59 +1859,168 @@ model daily_plans {
 // ═══════════════════════════════════════════════════════════════════
 
 model missions {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
+  id     String @id @default(cuid())
+  userId String @map("user_id")
 
-  name              String
-  goalDescription   String   @map("goal_description") @db.Text
-  doneDefinition    String   @map("done_definition") @db.Text
-  startDate         DateTime @map("start_date") @db.Date
-  endDate           DateTime @map("end_date") @db.Date
-  totalDays         Int      @map("total_days")
+  name            String
+  goalDescription String   @map("goal_description") @db.Text
+  doneDefinition  String   @map("done_definition") @db.Text
+  startDate       DateTime @map("start_date") @db.Date
+  endDate         DateTime @map("end_date") @db.Date
+  totalDays       Int      @map("total_days")
 
-  milestones        Json     @default("[]")
+  milestones Json @default("[]")
 
-  hoursPerDay       Float?   @map("hours_per_day")
-  offDays           String?  @map("off_days")
-  monthlyBudget     Float?   @map("monthly_budget")
-  blockers          String?  @db.Text
+  hoursPerDay   Float?  @map("hours_per_day")
+  offDays       String? @map("off_days")
+  monthlyBudget Float?  @map("monthly_budget")
+  blockers      String? @db.Text
 
   // Blockers & Risk (upgraded)
-  brokenBlockers    String?  @map("broken_blockers") @db.Text
-  riskFactors       String?  @map("risk_factors") @db.Text
+  brokenBlockers String? @map("broken_blockers") @db.Text
+  riskFactors    String? @map("risk_factors") @db.Text
 
   // Top 3 Priorities
-  priority1         String?  @map("priority_1") @db.Text
-  priority2         String?  @map("priority_2") @db.Text
-  priority3         String?  @map("priority_3") @db.Text
+  priority1 String? @map("priority_1") @db.Text
+  priority2 String? @map("priority_2") @db.Text
+  priority3 String? @map("priority_3") @db.Text
 
   // Current State
-  currentState      String?  @map("current_state") @db.Text
+  currentState String? @map("current_state") @db.Text
 
   // Real Capacity
-  focusWindows      String?  @map("focus_windows")
-  fixedCommitments  String?  @map("fixed_commitments")
-  weekendSchedule   String?  @map("weekend_schedule")
-  deepWorkHours     Float?   @map("deep_work_hours")
+  focusWindows     String? @map("focus_windows")
+  fixedCommitments String? @map("fixed_commitments")
+  weekendSchedule  String? @map("weekend_schedule")
+  deepWorkHours    Float?  @map("deep_work_hours")
 
   // Success Metrics
-  successMetrics    Json     @default("[]") @map("success_metrics")
+  successMetrics Json @default("[]") @map("success_metrics")
 
-  healthGoals       String?  @map("health_goals") @db.Text
-  personalGoals     String?  @map("personal_goals") @db.Text
-  mealStrategy      String?  @map("meal_strategy") @db.Text
+  healthGoals   String? @map("health_goals") @db.Text
+  personalGoals String? @map("personal_goals") @db.Text
+  mealStrategy  String? @map("meal_strategy") @db.Text
 
-  roadmap           Json?
+  roadmap Json?
 
-  rawBrainDump      Json?    @map("raw_brain_dump")
+  rawBrainDump Json? @map("raw_brain_dump")
 
-  status            String   @default("active")
+  status String @default("active")
 
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  // Mission Planner fields
+  missionStatus MissionStatus @default(draft) @map("mission_status")
+  confirmedGoal String?       @map("confirmed_goal")
+  durationDays  Int?          @map("duration_days")
 
-  user              users    @relation(fields: [userId], references: [id])
-  dailyPlans        daily_plans[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user               users                 @relation(fields: [userId], references: [id])
+  dailyPlans         daily_plans[]
+  stages             mission_stages[]
+  brainDumpEntries   brain_dump_entries[]
+  realityConstraints reality_constraints[]
+  roadmapWeeks       roadmap_weeks[]
+  missionTasks       mission_tasks[]
 
   @@map("missions")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MISSION PLANNER — Pipeline stages, brain dump, constraints, roadmap, tasks
+// ═══════════════════════════════════════════════════════════════════
+
+model mission_stages {
+  id              String      @id @default(cuid())
+  missionId       String
+  stageType       StageType
+  stageOrder      Int
+  status          StageStatus @default(pending)
+  inputSnapshot   Json?
+  promptText      String?     @db.Text
+  rawResponse     String?     @db.Text
+  parsedOutput    Json?
+  attemptNumber   Int         @default(1)
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@index([missionId])
+  @@index([missionId, stageType])
+}
+
+model brain_dump_entries {
+  id        String          @id @default(cuid())
+  missionId String
+  category  String?
+  bucket    BrainDumpBucket @default(open)
+  content   String          @db.Text
+  source    EntrySource     @default(typed)
+  rawOrder  Int
+  createdAt DateTime        @default(now())
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@index([missionId])
+}
+
+model reality_constraints {
+  id              String         @id @default(cuid())
+  missionId       String
+  constraintType  ConstraintType
+  category        String
+  description     String         @db.Text
+  value           String?
+  source          String         @default("manual")
+  sourceTimestamp DateTime?
+  createdAt       DateTime       @default(now())
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@index([missionId])
+}
+
+model roadmap_weeks {
+  id         String     @id @default(cuid())
+  missionId  String
+  weekNumber Int
+  theme      String
+  startDate  DateTime
+  endDate    DateTime
+  milestones Json
+  weekStatus WeekStatus @default(upcoming)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  mission missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tasks   mission_tasks[]
+
+  @@unique([missionId, weekNumber])
+  @@index([missionId])
+}
+
+model mission_tasks {
+  id             String            @id @default(cuid())
+  missionId      String
+  weekId         String
+  title          String
+  description    String?           @db.Text
+  priority       Int               @default(3)
+  taskStatus     MissionTaskStatus @default(todo)
+  scheduledDate  DateTime
+  completedAt    DateTime?
+  deferredReason String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  mission missions      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  week    roadmap_weeks @relation(fields: [weekId], references: [id], onDelete: Cascade)
+
+  @@index([missionId])
+  @@index([weekId])
+  @@index([missionId, scheduledDate])
 }
