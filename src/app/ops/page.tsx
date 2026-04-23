@@ -1,12 +1,12 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import DailyDashboard from '@/components/ops/DailyDashboard';
+import OperationsPlanner from '@/components/ops/OperationsPlanner';
 
 export default function OpsPage() {
   return (
     <AppLayout>
-      <DailyDashboard />
+      <OperationsPlanner />
     </AppLayout>
   );
 }
