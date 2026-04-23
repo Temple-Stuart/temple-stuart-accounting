@@ -16,3 +16,8 @@ export {
 export { type GoalConfirmationInput, GOAL_CONFIRMATION_MODEL } from './goal-confirmation';
 export { type RealityAuditInput, REALITY_AUDIT_MODEL } from './reality-audit';
 export { type RoadmapInput, ROADMAP_MODEL } from './roadmap';
+export {
+  TRIGGER_QUESTION_GROUPS,
+  OPEN_DUMP_LABEL,
+  type TriggerQuestionGroup,
+} from '../trigger-questions';
