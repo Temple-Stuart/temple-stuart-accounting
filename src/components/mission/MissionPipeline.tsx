@@ -37,7 +37,11 @@ export default function MissionPipeline({ mission, onUpdate }: MissionPipelinePr
       </div>
 
       {/* 1. Brain Dump */}
-      <BrainDumpSection mission={mission} onUpdate={onUpdate} />
+      <BrainDumpSection
+        missionId={mission.id as string}
+        existingEntries={(mission.brainDumpEntries as Array<{ content: string; triggerQuestion?: string }>) || []}
+        onSaved={onUpdate}
+      />
 
       <PipelineConnector />
 
