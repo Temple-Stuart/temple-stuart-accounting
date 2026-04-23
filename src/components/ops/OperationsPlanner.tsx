@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import CreateMissionCard from '@/components/mission/CreateMissionCard';
+import BrainDumpSection from '@/components/mission/BrainDumpSection';
 import DailyDashboard from './DailyDashboard';
 
 export default function OperationsPlanner() {
@@ -37,14 +38,36 @@ export default function OperationsPlanner() {
     );
   }
 
+  // No mission yet — show create card only
+  if (!mission) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 pt-3">
+        <CreateMissionCard mission={null} onCreated={(m) => setMission(m)} />
+      </div>
+    );
+  }
+
+  // Mission exists — show completed card + brain dump + (later) more stages
+  const entries = (mission.brainDumpEntries as Array<{ content: string; triggerQuestion?: string }>) || [];
+
   return (
     <div>
-      <div className="max-w-6xl mx-auto px-4 pt-3 pb-1">
-        <CreateMissionCard
-          mission={mission}
-          onCreated={(m) => setMission(m)}
+      <div className="max-w-6xl mx-auto px-4 pt-3 space-y-1">
+        <CreateMissionCard mission={mission} onCreated={(m) => setMission(m)} />
+
+        {/* Connector */}
+        <div className="flex justify-center">
+          <div className="w-px h-6 bg-border" />
+        </div>
+
+        <BrainDumpSection
+          missionId={mission.id as string}
+          existingEntries={entries}
+          onSaved={fetchMission}
         />
       </div>
+
+      {/* Existing daily dashboard below */}
       <DailyDashboard />
     </div>
   );
