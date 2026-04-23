@@ -120,40 +120,76 @@ export default function OperationsPlanner() {
     setSaving(true);
 
     try {
+      // 1. Create mission (or use existing)
       let missionId = existingMission?.id as string | undefined;
 
       if (!missionId) {
+        console.log('[SaveProcess] Creating mission...');
         const createRes = await fetch('/api/mission/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: missionTitle.trim(), durationDays: effectiveDuration }),
         });
-        if (!createRes.ok) return;
+        if (!createRes.ok) {
+          const err = await createRes.json().catch(() => ({ error: 'Failed to create mission' }));
+          alert(`Mission creation failed: ${err.error || createRes.statusText}`);
+          setSaving(false);
+          return;
+        }
         const createData = await createRes.json();
-        missionId = createData.mission.id;
+        missionId = createData.mission.id as string;
+        console.log('[SaveProcess] Mission created:', missionId);
       }
 
+      // 2. Save brain dump entries
       const entries = collectEntries();
       if (entries.length > 0) {
-        await fetch(`/api/mission/${missionId}/brain-dump`, {
+        console.log('[SaveProcess] Saving', entries.length, 'entries...');
+        const dumpRes = await fetch(`/api/mission/${missionId}/brain-dump`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ entries }),
         });
+        if (!dumpRes.ok) {
+          const err = await dumpRes.json().catch(() => ({ error: 'Failed to save entries' }));
+          alert(`Brain dump save failed: ${err.error || dumpRes.statusText}`);
+          setSaving(false);
+          return;
+        }
+        console.log('[SaveProcess] Entries saved');
       }
 
+      // 3. Run structure stage
       setSaving(false);
       setProcessing(true);
+      console.log('[SaveProcess] Running structure stage...');
 
-      await fetch(`/api/mission/${missionId}/run-stage`, {
+      const stageRes = await fetch(`/api/mission/${missionId}/run-stage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stageType: 'structure' }),
       });
+      if (!stageRes.ok) {
+        const err = await stageRes.json().catch(() => ({ error: 'Stage failed' }));
+        console.error('[SaveProcess] Stage failed:', err);
+        alert(`Structure stage failed: ${err.error || stageRes.statusText}`);
+      } else {
+        console.log('[SaveProcess] Structure stage complete');
+      }
 
-      await fetchMission();
+      // 4. Fetch full mission by ID to get stage output
+      console.log('[SaveProcess] Fetching mission...');
+      const missionRes = await fetch(`/api/mission/${missionId}`);
+      if (missionRes.ok) {
+        const missionData = await missionRes.json();
+        setExistingMission(missionData.mission);
+        console.log('[SaveProcess] Mission loaded with', (missionData.mission?.stages || []).length, 'stages');
+      } else {
+        await fetchMission();
+      }
     } catch (err) {
-      console.error('Save failed:', err);
+      console.error('[SaveProcess] Unexpected error:', err);
+      alert(`Something went wrong: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
       setProcessing(false);
