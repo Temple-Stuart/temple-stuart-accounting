@@ -1817,11 +1817,34 @@ model missions {
   monthlyBudget     Float?   @map("monthly_budget")
   blockers          String?  @db.Text
 
+  // Blockers & Risk (upgraded)
+  brokenBlockers    String?  @map("broken_blockers") @db.Text
+  riskFactors       String?  @map("risk_factors") @db.Text
+
+  // Top 3 Priorities
+  priority1         String?  @map("priority_1") @db.Text
+  priority2         String?  @map("priority_2") @db.Text
+  priority3         String?  @map("priority_3") @db.Text
+
+  // Current State
+  currentState      String?  @map("current_state") @db.Text
+
+  // Real Capacity
+  focusWindows      String?  @map("focus_windows")
+  fixedCommitments  String?  @map("fixed_commitments")
+  weekendSchedule   String?  @map("weekend_schedule")
+  deepWorkHours     Float?   @map("deep_work_hours")
+
+  // Success Metrics
+  successMetrics    Json     @default("[]") @map("success_metrics")
+
   healthGoals       String?  @map("health_goals") @db.Text
   personalGoals     String?  @map("personal_goals") @db.Text
   mealStrategy      String?  @map("meal_strategy") @db.Text
 
   roadmap           Json?
+
+  rawBrainDump      Json?    @map("raw_brain_dump")
 
   status            String   @default("active")
 
