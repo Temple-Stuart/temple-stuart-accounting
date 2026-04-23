@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { BookOpen, User, Briefcase, Plane, TrendingUp, Rocket, LayoutGrid, Menu, X } from 'lucide-react';
+import { BookOpen, User, Briefcase, Plane, TrendingUp, Target, Rocket, LayoutGrid, Menu, X } from 'lucide-react';
 import TripCreationBar from '@/components/trips/TripCreationBar';
 
 export interface LedgerMetrics {
@@ -69,6 +69,8 @@ const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
 
 const TRADING_PREFIXES = ['/trading'];
 
+const MISSION_PREFIXES = ['/mission'];
+
 const OPS_PREFIXES = ['/ops'];
 
 // Primary nav tabs — order matters (left to right)
@@ -78,6 +80,7 @@ const NAV_TABS = [
   { name: 'Business', href: '/business', Icon: Briefcase, prefixes: BUSINESS_PREFIXES },
   { name: 'Travel', href: '/budgets/trips', Icon: Plane, prefixes: TRAVEL_PREFIXES },
   { name: 'Trading', href: '/trading', Icon: TrendingUp, prefixes: TRADING_PREFIXES },
+  { name: 'Mission', href: '/mission', Icon: Target, prefixes: MISSION_PREFIXES },
   { name: 'Ops', href: '/ops', Icon: Rocket, prefixes: OPS_PREFIXES },
 ];
 
