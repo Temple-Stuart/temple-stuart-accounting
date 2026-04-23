@@ -1937,9 +1937,12 @@ model mission_stages {
   stageOrder      Int
   status          StageStatus @default(pending)
   inputSnapshot   Json?
-  promptText      String?     @db.Text
+  systemPrompt    String?     @db.Text
+  userPrompt      String?     @db.Text
+  model           String?
   rawResponse     String?     @db.Text
   parsedOutput    Json?
+  editedOutput    Json?
   attemptNumber   Int         @default(1)
   approvedAt      DateTime?
   rejectedAt      DateTime?
