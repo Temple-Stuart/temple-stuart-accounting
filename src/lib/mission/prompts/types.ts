@@ -4,10 +4,10 @@
 
 export interface BrainDumpItem {
   id: string;
-  bucket: 'business' | 'technical' | 'constraints' | 'growth' | 'life' | 'open';
-  category: string | null;
   content: string;
   source: 'typed' | 'voice';
+  triggerQuestion: string | null;
+  triggerGroupId: string | null;
 }
 
 // ============================================
@@ -15,42 +15,56 @@ export interface BrainDumpItem {
 // ============================================
 
 export interface StructureOutput {
-  clusters: Array<{
-    clusterName: string;
-    summary: string;
-    items: Array<{
+  discoveredProjects: Array<{
+    projectName: string;
+    description: string;
+    relatedEntries: Array<{
       content: string;
       sourceEntryId: string;
-      missionRelevance: 'high' | 'medium' | 'low';
     }>;
+    estimatedScope: 'small' | 'medium' | 'large';
+    dependencies: string[];
+    blockers: string[];
   }>;
-  uncategorizedItems: Array<{
+
+  unassignedItems: Array<{
     content: string;
     sourceEntryId: string;
-    suggestedCluster: string;
+    possibleProject: string;
   }>;
+
   emergentThemes: Array<{
     theme: string;
     evidence: string[];
     confidence: 'high' | 'medium' | 'low';
     basis: 'explicit' | 'pattern_inference';
   }>;
+
   contradictions: Array<{
     itemA: { content: string; sourceEntryId: string };
     itemB: { content: string; sourceEntryId: string };
     nature: string;
     severity: 'high' | 'medium' | 'low';
   }>;
+
+  constraints: Array<{
+    constraint: string;
+    sourceEntryId: string;
+    impact: string;
+  }>;
+
   missingInputs: Array<{
     area: string;
     whyMissingMatters: string;
     suggestedQuestion: string;
   }>;
+
   latentDependencies: Array<{
     item: string;
     dependsOn: string[];
     why: string;
   }>;
+
   logicGaps: Array<{
     statement: string;
     gap: string;
@@ -80,21 +94,24 @@ export interface GoalDiscoveryOutput {
     };
     timelineFit: string;
     supportingEvidence: Array<{
-      type: 'cluster' | 'item' | 'theme' | 'contradiction';
+      type: 'project' | 'item' | 'theme' | 'contradiction';
       reference: string;
     }>;
   }>;
+
   openQuestions: Array<{
     question: string;
     affectsGoals: number[];
     whyItMatters: string;
   }>;
+
   assumptionsToValidate: Array<{
     assumption: string;
     type: 'product' | 'market' | 'personal_capacity' | 'technical' | 'timeline';
     whyItMatters: string;
     howToValidate: string;
   }>;
+
   itemsToIgnoreForNow: Array<{
     content: string;
     sourceEntryId?: string;
@@ -144,7 +161,11 @@ export interface RealityAuditOutput {
   gapAnalysis: {
     desiredState: string;
     currentState: string;
-    gapItems: Array<{ gap: string; effort: 'small' | 'medium' | 'large'; priority: 'critical' | 'important' | 'nice_to_have' }>;
+    gapItems: Array<{
+      gap: string;
+      effort: 'small' | 'medium' | 'large';
+      priority: 'critical' | 'important' | 'nice_to_have';
+    }>;
   };
   scopeCreepWarnings: string[];
   fastWins: string[];

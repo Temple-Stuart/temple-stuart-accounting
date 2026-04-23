@@ -1957,14 +1957,15 @@ model mission_stages {
 }
 
 model brain_dump_entries {
-  id        String          @id @default(cuid())
-  missionId String
-  category  String?
-  bucket    BrainDumpBucket @default(open)
-  content   String          @db.Text
-  source    EntrySource     @default(typed)
-  rawOrder  Int
-  createdAt DateTime        @default(now())
+  id              String          @id @default(cuid())
+  missionId       String
+  category        String?
+  bucket          BrainDumpBucket @default(open)
+  content         String          @db.Text
+  source          EntrySource     @default(typed)
+  triggerQuestion String?
+  rawOrder        Int
+  createdAt       DateTime        @default(now())
 
   mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
