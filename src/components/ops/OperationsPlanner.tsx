@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TRIGGER_QUESTION_GROUPS, OPEN_DUMP_LABEL } from '@/lib/mission/trigger-questions';
+import { STRUCTURE_SYSTEM_PROMPT, buildStructurePrompt } from '@/lib/mission/prompts';
+import { type BrainDumpItem } from '@/lib/mission/prompts/types';
 
 const DURATION_PRESETS = [30, 75, 90];
 
@@ -279,6 +281,15 @@ export default function OperationsPlanner() {
               onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = Math.max(el.scrollHeight, 192) + 'px'; }} />
           </div>
         </div>
+
+        {/* ── PROMPT PREVIEW ─────────────────────────────────────────────── */}
+        <PromptPreview
+          answers={answers}
+          openDump={openDump}
+          missionTitle={missionTitle}
+          durationDays={effectiveDuration}
+        />
+
         <div className="px-4 py-3 border-t border-border">
           {processing ? (
             <div className="flex items-center justify-center gap-2 py-1">
@@ -296,6 +307,90 @@ export default function OperationsPlanner() {
 
       {/* ── STAGE OUTPUT: STRUCTURE ───────────────────────────────────────── */}
       {structureStage && <StructureStageOutput stage={structureStage} onApprove={handleApprove} onReject={handleReject} />}
+    </div>
+  );
+}
+
+// ── Collapsible ─────────────────────────────────────────────────────────────
+
+// ── Prompt Preview ──────────────────────────────────────────────────────────
+
+function PromptPreview({ answers, openDump, missionTitle, durationDays }: {
+  answers: Record<string, string>;
+  openDump: string;
+  missionTitle: string;
+  durationDays: number;
+}) {
+  const [showSystem, setShowSystem] = useState(true);
+
+  const items: BrainDumpItem[] = [];
+  let idx = 0;
+  for (const group of TRIGGER_QUESTION_GROUPS) {
+    for (const q of group.questions) {
+      const text = answers[q.text]?.trim();
+      if (text) {
+        for (const line of text.split('\n').filter(Boolean)) {
+          items.push({ id: q.id + '_' + idx++, content: line, source: 'typed', triggerQuestion: q.text, triggerGroupId: group.id });
+        }
+      }
+    }
+  }
+  for (const line of openDump.split('\n').filter((l) => l.trim())) {
+    items.push({ id: `open_${idx++}`, content: line.trim(), source: 'typed', triggerQuestion: null, triggerGroupId: null });
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="px-4 py-3 border-t border-border-light">
+        <p className="text-terminal-sm text-text-faint font-mono text-center py-2">
+          Start answering questions above to see the prompt that will be sent to the AI.
+        </p>
+      </div>
+    );
+  }
+
+  const userPrompt = buildStructurePrompt({
+    brainDumpEntries: items,
+    missionTitle: missionTitle || 'Untitled Mission',
+    missionDuration: durationDays,
+  });
+
+  return (
+    <div className="border-t border-border-light">
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <span className="text-terminal-sm font-semibold text-text-primary font-mono">Prompt Preview</span>
+            <span className="text-terminal-sm text-text-faint font-mono ml-2">Exactly what the AI will receive</span>
+          </div>
+        </div>
+
+        {/* System prompt — collapsible */}
+        <div className="border border-border-light rounded mb-2">
+          <button onClick={() => setShowSystem(!showSystem)}
+            className="w-full px-3 py-1.5 flex items-center justify-between text-left hover:bg-bg-row/50 transition-colors">
+            <span className="text-terminal-sm text-text-muted font-mono">System Prompt</span>
+            <span className="text-text-faint text-terminal-sm">{showSystem ? '▲' : '▼'}</span>
+          </button>
+          {showSystem && (
+            <div className="border-t border-border-light">
+              <pre className="px-3 py-2 bg-gray-50 text-terminal-sm font-mono text-text-secondary whitespace-pre-wrap max-h-64 overflow-y-auto">
+                {STRUCTURE_SYSTEM_PROMPT}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        {/* User prompt — always visible */}
+        <div className="border border-border-light rounded">
+          <div className="px-3 py-1.5 border-b border-border-light">
+            <span className="text-terminal-sm text-text-muted font-mono">User Prompt (live)</span>
+          </div>
+          <pre className="px-3 py-2 bg-gray-50 text-terminal-sm font-mono text-text-secondary whitespace-pre-wrap max-h-96 overflow-y-auto overflow-x-auto">
+            {userPrompt}
+          </pre>
+        </div>
+      </div>
     </div>
   );
 }
