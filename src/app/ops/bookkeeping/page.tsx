@@ -43,6 +43,8 @@ export default function BookkeepingQuestionnairePage() {
   const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [savingQuestions, setSavingQuestions] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const [analyses, setAnalyses] = useState<Record<string, { analysis: Record<string, unknown>; isStale: boolean }>>({});
+  const [analyzingWs, setAnalyzingWs] = useState<string | null>(null);
   const counts = stageCounts();
 
   // Fetch active mission
@@ -79,6 +81,44 @@ export default function BookkeepingQuestionnairePage() {
         setLoadingAnswers(false);
       }
     })();
+  }, [missionId]);
+
+  // Load existing analyses
+  useEffect(() => {
+    if (!missionId) return;
+    (async () => {
+      for (const ws of BOOKKEEPING_OPS_MODULE.workstreams) {
+        try {
+          const res = await fetch(`/api/ops/workstream-analysis?missionId=${missionId}&moduleId=${MODULE_ID}&workstreamId=${ws.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.analysis) {
+              setAnalyses((prev) => ({ ...prev, [ws.id]: { analysis: data.analysis, isStale: data.isStale } }));
+            }
+          }
+        } catch { /* skip failed loads */ }
+      }
+    })();
+  }, [missionId]);
+
+  const runAnalysis = useCallback(async (workstreamId: string) => {
+    if (!missionId) return;
+    setAnalyzingWs(workstreamId);
+    try {
+      const res = await fetch('/api/ops/workstream-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionId, moduleId: MODULE_ID, workstreamId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyses((prev) => ({ ...prev, [workstreamId]: { analysis: data.analysis, isStale: false } }));
+      }
+    } catch (err) {
+      console.error('Analysis failed:', err);
+    } finally {
+      setAnalyzingWs(null);
+    }
   }, [missionId]);
 
   const persistAnswer = useCallback(
@@ -278,6 +318,29 @@ export default function BookkeepingQuestionnairePage() {
                       </div>
                     );
                   })}
+
+                  {/* Analyze button */}
+                  <div className="px-4 py-3 border-t border-border-light">
+                    {analyzingWs === ws.id ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+                        <span className="text-terminal-sm text-text-muted font-mono">Analyzing workstream...</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => runAnalysis(ws.id)}
+                        disabled={answered === 0}
+                        className="px-4 py-1.5 bg-brand-purple text-white rounded text-terminal-sm font-mono hover:bg-brand-purple-hover transition-colors disabled:opacity-40"
+                      >
+                        {analyses[ws.id] ? 'Re-analyze' : 'Analyze Workstream'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Analysis results */}
+                  {analyses[ws.id] && (
+                    <AnalysisResults wsId={ws.id} data={analyses[ws.id]} />
+                  )}
                 </div>
               )}
             </div>
@@ -285,5 +348,113 @@ export default function BookkeepingQuestionnairePage() {
         })}
       </div>
     </AppLayout>
+  );
+}
+
+// ── Analysis Results Component ──────────────────────────────────────────────
+
+const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  decided: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Decided' },
+  undecided: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Undecided' },
+  blocked: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Blocked' },
+  at_risk: { bg: 'bg-red-50', text: 'text-red-700', label: 'At Risk' },
+  not_applicable: { bg: 'bg-gray-50', text: 'text-gray-400', label: 'N/A' },
+};
+
+interface Decision {
+  questionId: string;
+  questionText: string;
+  answer: string | null;
+  status: string;
+  statusReason: string;
+  regulatoryExposure: { statute: string; penaltyRange: string; enforcementLikelihood: string; notes: string };
+  requiredAction: { action: string | null; deadline: string | null; effort: string; blockedBy: string[] };
+}
+
+function AnalysisResults({ wsId, data }: { wsId: string; data: { analysis: Record<string, unknown>; isStale: boolean } }) {
+  const { analysis, isStale } = data;
+  const decisions = (analysis.decisions as Decision[]) || [];
+  const summary = analysis.workstreamSummary as Record<string, unknown> | undefined;
+  const criticalActions = (summary?.criticalActions as string[]) || [];
+  const crossDeps = (summary?.crossWorkstreamDependencies as Array<{ dependsOnWorkstream: string; reason: string }>) || [];
+
+  void wsId;
+
+  return (
+    <div className="border-t border-border bg-bg-row/30">
+      {isStale && (
+        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
+          <span className="text-terminal-sm font-mono text-amber-700">Answers changed since last analysis. Re-analyze to update.</span>
+        </div>
+      )}
+
+      <div className="px-4 py-3 space-y-3">
+        <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono">Decision Register</p>
+
+        {/* Summary */}
+        {summary && (
+          <div className="flex flex-wrap gap-2 text-terminal-sm font-mono">
+            <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Decided: {String(summary.decided || 0)}</span>
+            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded">Undecided: {String(summary.undecided || 0)}</span>
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Blocked: {String(summary.blocked || 0)}</span>
+            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded">At Risk: {String(summary.atRisk || 0)}</span>
+            {summary.totalExposure != null && <span className="text-red-600 font-medium">Exposure: {String(summary.totalExposure)}</span>}
+          </div>
+        )}
+
+        {/* Decisions */}
+        <div className="space-y-2">
+          {decisions.map((d) => {
+            const style = STATUS_STYLE[d.status] || STATUS_STYLE.undecided;
+            const showDetail = d.status === 'undecided' || d.status === 'at_risk' || d.status === 'blocked';
+            return (
+              <div key={d.questionId} className="border border-border-light rounded p-2.5">
+                <div className="flex items-start gap-2">
+                  <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded flex-shrink-0 ${style.bg} ${style.text}`}>{style.label}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-terminal-sm text-text-faint font-mono">{d.questionId}</span>
+                    <p className="text-terminal-sm text-text-secondary font-mono">{d.statusReason}</p>
+                    {showDetail && d.regulatoryExposure.statute !== 'N/A' && (
+                      <p className="text-terminal-sm font-mono text-red-600 mt-1">
+                        {d.regulatoryExposure.statute}: {d.regulatoryExposure.penaltyRange}
+                      </p>
+                    )}
+                    {showDetail && d.requiredAction.action && (
+                      <p className="text-terminal-sm font-mono text-text-primary mt-1">
+                        Action: {d.requiredAction.action}
+                        {d.requiredAction.deadline && <span className="text-text-muted"> — by {d.requiredAction.deadline}</span>}
+                        {d.requiredAction.effort && <span className="text-text-faint"> ({d.requiredAction.effort})</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Critical actions */}
+        {criticalActions.length > 0 && (
+          <div>
+            <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Critical Actions</p>
+            {criticalActions.map((a, i) => (
+              <p key={i} className="text-terminal-sm font-mono text-red-600">! {a}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Cross-workstream deps */}
+        {crossDeps.length > 0 && (
+          <div>
+            <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Cross-Workstream Dependencies</p>
+            {crossDeps.map((d, i) => (
+              <p key={i} className="text-terminal-sm font-mono text-text-secondary">
+                Depends on <span className="text-brand-purple font-medium">{d.dependsOnWorkstream}</span>: {d.reason}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
