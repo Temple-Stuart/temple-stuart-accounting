@@ -14,7 +14,7 @@ export interface StructureInput {
 // MODEL
 // ============================================
 
-export const STRUCTURE_MODEL = 'claude-haiku-4-5-20241022';
+export const STRUCTURE_MODEL = 'claude-haiku-4-5-20251001';
 
 // ============================================
 // SYSTEM PROMPT
