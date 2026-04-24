@@ -10,10 +10,10 @@ import type { OpsWorkstream, OpsQuestion, LaunchStage } from '@/lib/ops/bookkeep
 const MODULE_ID = 'bookkeeping';
 
 const STAGE_COLORS: Record<LaunchStage, { bg: string; text: string; label: string }> = {
-  required_now: { bg: 'bg-red-50', text: 'text-red-700', label: 'Required Now' },
-  required_before_charging: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Before Charging' },
-  required_at_scale: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'At Scale' },
-  best_practice: { bg: 'bg-gray-50', text: 'text-gray-600', label: 'Best Practice' },
+  required_now: { bg: 'bg-red-100', text: 'text-red-800', label: 'Required Now' },
+  required_before_charging: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Before Charging' },
+  required_at_scale: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'At Scale' },
+  best_practice: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Best Practice' },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -271,7 +271,7 @@ export default function BookkeepingQuestionnairePage() {
   return (
     <AppLayout>
       <OpsSubNav />
-      <div className="max-w-6xl mx-auto px-4 pt-4 pb-8 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 pt-4 pb-8 space-y-5">
         {/* Module Header */}
         <div className="bg-white rounded border border-border shadow-sm p-5">
           <h1 className="text-xl font-bold text-text-primary font-mono">{BOOKKEEPING_OPS_MODULE.title}</h1>
@@ -336,15 +336,15 @@ export default function BookkeepingQuestionnairePage() {
                     const depsOk = hasDepsAnswered(q);
                     const saveState = savingQuestions[q.id];
                     return (
-                      <div key={q.id} className={`px-4 py-3 border-b border-border-light last:border-b-0 ${!depsOk ? 'opacity-50' : ''}`}>
+                      <div key={q.id} className={`px-4 py-4 border-b border-border last:border-b-0 ${!depsOk ? 'opacity-50' : ''}`}>
                         <div className="flex items-start gap-2">
                           <span className="text-terminal-sm text-text-faint font-mono flex-shrink-0 mt-0.5 w-16">{q.id}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-terminal-base text-text-primary font-mono">{q.text}</p>
                             {q.helpText && <p className="text-terminal-sm text-text-faint font-mono mt-1">{q.helpText}</p>}
                             <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{TYPE_LABELS[q.type] || q.type}</span>
-                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-brand-purple-wash text-brand-purple">{q.regulatoryTag.replace(/_/g, ' ')}</span>
+                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-medium">{TYPE_LABELS[q.type] || q.type}</span>
+                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-brand-purple/10 text-brand-purple font-medium">{q.regulatoryTag.replace(/_/g, ' ')}</span>
                               <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${stageStyle.bg} ${stageStyle.text}`}>{stageStyle.label}</span>
                               {!depsOk && q.dependsOn && (
                                 <span className="text-terminal-sm font-mono text-amber-600">Answer {q.dependsOn.join(', ')} first</span>
@@ -401,11 +401,11 @@ export default function BookkeepingQuestionnairePage() {
 // ── Analysis Results Component ──────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  decided: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Decided' },
-  undecided: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Undecided' },
-  blocked: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Blocked' },
-  at_risk: { bg: 'bg-red-50', text: 'text-red-700', label: 'At Risk' },
-  not_applicable: { bg: 'bg-gray-50', text: 'text-gray-400', label: 'N/A' },
+  decided: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Decided' },
+  undecided: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Undecided' },
+  blocked: { bg: 'bg-gray-200', text: 'text-gray-700', label: 'Blocked' },
+  at_risk: { bg: 'bg-red-100', text: 'text-red-800', label: 'At Risk' },
+  not_applicable: { bg: 'bg-gray-100', text: 'text-gray-500', label: 'N/A' },
 };
 
 interface Decision {
@@ -428,7 +428,10 @@ function AnalysisResults({ wsId, data }: { wsId: string; data: { analysis: Recor
   void wsId;
 
   return (
-    <div className="border-t border-border bg-bg-row/30">
+    <div className="border-t-2 border-border bg-bg-row/40">
+      <div className="px-4 py-2 bg-gray-50 border-b border-border">
+        <span className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono font-medium">AI Decision Register</span>
+      </div>
       {isStale && (
         <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
           <span className="text-terminal-sm font-mono text-amber-700">Answers changed since last analysis. Re-analyze to update.</span>
@@ -436,15 +439,13 @@ function AnalysisResults({ wsId, data }: { wsId: string; data: { analysis: Recor
       )}
 
       <div className="px-4 py-3 space-y-3">
-        <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono">Decision Register</p>
-
         {/* Summary */}
         {summary && (
           <div className="flex flex-wrap gap-2 text-terminal-sm font-mono">
-            <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">Decided: {String(summary.decided || 0)}</span>
-            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded">Undecided: {String(summary.undecided || 0)}</span>
-            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Blocked: {String(summary.blocked || 0)}</span>
-            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded">At Risk: {String(summary.atRisk || 0)}</span>
+            <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Decided: {String(summary.decided || 0)}</span>
+            <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-medium">Undecided: {String(summary.undecided || 0)}</span>
+            <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-medium">Blocked: {String(summary.blocked || 0)}</span>
+            <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium">At Risk: {String(summary.atRisk || 0)}</span>
             {summary.totalExposure != null && <span className="text-red-600 font-medium">Exposure: {String(summary.totalExposure)}</span>}
           </div>
         )}
