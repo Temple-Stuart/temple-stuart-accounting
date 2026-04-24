@@ -325,16 +325,193 @@ export const workstreamF: TradingWorkstream = {
   ],
 };
 
-// --- Workstreams G through R will be added in subsequent prompts ---
-// G: Books & Records / Defensive Preservation (3 questions)
-// H: Competitive / Structural (3 questions)
-// I: Codebase — API Routes (3 questions)
-// J: Codebase — External Data Feeds (6 questions)
-// K: Codebase — AI Synthesis (3 questions)
-// L: Codebase — Composite Scoring (3 questions)
-// M: Codebase — Trade Cards (3 questions)
-// N: Codebase — Trade Journal (4 questions)
-// O: Codebase — Scanner Filters (3 questions)
-// P: Codebase — Backtest Infrastructure (3 questions)
-// Q: Codebase — Deployment Hygiene (5 questions)
-// R: Strategic (4 questions)
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM G — Books & Records / Defensive Preservation
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamG: TradingWorkstream = {
+  id: 'tr-g', letter: 'G', title: 'Books & Records / Defensive Preservation',
+  description: 'Content retention, user activity logging, and books-and-records readiness.',
+  questions: [
+    { id: 'tr-g-01', text: 'Do I retain for at least 5 years every piece of user-facing content: scanner outputs, trade cards, AI market briefs, AI strategy analyses, with version timestamps and source-data snapshots?', type: 'boolean', regulatoryTag: 'Books_Records', launchStage: 'required_now', helpText: 'Books-and-records retention is essential whether you claim publisher status or register. 5 years minimum, 7 ideal. Must be indexed for instant retrieval on regulator demand.', sourceSection: '§7.1 Content Retention' },
+    { id: 'tr-g-02', text: 'Do I retain every user filter selection, subscription event log, and support communication?', type: 'boolean', regulatoryTag: 'Books_Records', launchStage: 'required_now', helpText: "If a regulator asks 'what did subscriber X see on date Y,' you must be able to answer. Filter selections determine output personalization level — critical for publisher's exclusion defense.", sourceSection: '§7.2 User Activity Logging' },
+    { id: 'tr-g-03', text: 'If I register as an adviser, am I prepared for SEC Rule 204-2 books-and-records requirements plus Reg S-P deadlines (June 3, 2026 for smaller firms)?', type: 'boolean', regulatoryTag: 'Books_Records', launchStage: 'required_at_scale', helpText: 'Rule 204-2 requires retention of policies, procedures, Form ADV updates, communication archives, and marketing materials. Reg S-P adds privacy safeguard deadlines.', sourceSection: '§7.3 Adviser Records' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM H — Competitive / Structural
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamH: TradingWorkstream = {
+  id: 'tr-h', letter: 'H', title: 'Competitive / Structural',
+  description: 'Competitive regulatory positioning, moat building, and acquisition readiness.',
+  questions: [
+    { id: 'tr-h-01', text: 'Which competitor regulatory model best fits Temple Stuart: OptionStrat (bars professionals from real-time), Trade Ideas (self-identifies as publisher), Unusual Whales (separate registered entity for ETFs), or SpotGamma (research-only disclaimer)?', type: 'text', regulatoryTag: 'Competitive', launchStage: 'required_before_charging', helpText: 'Each has made specific structural choices to stay on the right side of regulation. Your feature set is closest to Trade Ideas + SpotGamma hybrid.', sourceSection: '§8.1 Competitive Models' },
+    { id: 'tr-h-02', text: 'Am I treating OPRA Vendor Agreement, exchange relationships, and broker-agnostic data-vendor contracts as a real moat worth building?', type: 'boolean', regulatoryTag: 'Regulatory_Moat', launchStage: 'required_at_scale', helpText: 'The $1,500/month OPRA fee, professional/nonprofessional classification burden, and exchange data agreements create a real barrier to entry.', sourceSection: '§8.2 Regulatory Moat' },
+    { id: 'tr-h-03', text: 'If acquired by a broker-dealer or RIA, every piece of content becomes their Rule 2210 / Marketing Rule liability — have I structured content for clean acquisition due diligence?', type: 'boolean', regulatoryTag: 'Acquisition_Path', launchStage: 'required_at_scale', helpText: 'Acquirers will audit every trade card, AI output, and marketing claim against their compliance framework. Structure content today so it does not blow up a deal.', sourceSection: '§8.3 Acquisition Readiness' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM I — Codebase: API Routes
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamI: TradingWorkstream = {
+  id: 'tr-i', letter: 'I', title: 'Codebase: API Routes',
+  description: 'Rate limiting, request logging, and route classification for the 22 trading API endpoints.',
+  questions: [
+    { id: 'tr-i-01', text: 'Are all 22 trading routes rate-limited per-user so a subscriber cannot scrape and redistribute OPRA/Finnhub data downstream (which would breach Vendor agreements)?', type: 'boolean', regulatoryTag: 'Codebase_Auth', launchStage: 'required_now', helpText: 'A single subscriber scraping your API and redistributing data makes YOU liable for their redistribution under your OPRA Vendor agreement. Per-user rate limiting is essential.', sourceSection: '§9.1 Rate Limiting' },
+    { id: 'tr-i-02', text: 'Do authenticated routes log user ID, timestamp, IP, and query parameters for every scanner run, trade-card view, and AI-synthesis call?', type: 'boolean', regulatoryTag: 'Codebase_Logging', launchStage: 'required_now', helpText: 'Sufficient to defend an SEC or FINRA inquiry about who saw what when. Minimum 5-year retention.', sourceSection: '§9.2 Request Logging' },
+    { id: 'tr-i-03', text: 'Have I classified each of the 22 routes by type and applied appropriate retention/PII policies?', type: 'checklist', regulatoryTag: 'Codebase_Classification', launchStage: 'required_now', options: ['Read-only scanner output routes classified', 'AI generation routes classified', 'User-private trade journal routes classified', 'Admin/operational routes classified', 'PII-handling policy applied per classification'], helpText: 'Different route types have different data sensitivity and retention requirements.', sourceSection: '§9.3 Route Classification' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM J — Codebase: External Data Feeds
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamJ: TradingWorkstream = {
+  id: 'tr-j', letter: 'J', title: 'Codebase: External Data Feeds',
+  description: 'Audit each of the 5 external data integrations for licensing, caching, attribution, and commercial compliance.',
+  questions: [
+    { id: 'tr-j-01', text: 'Is TastyTrade integration per-user (each subscriber authenticates own token) or single-master-token (you authenticate once and broadcast)?', type: 'select', regulatoryTag: 'Codebase_TastyTrade', launchStage: 'required_now', options: ['Per-user authentication', 'Single master token', 'Hybrid (master for scanner / per-user for positions)', 'Unknown — need to audit'], helpText: "Single-master-token violates TastyTrade's no-token-sharing terms. Per-user is compliant but more complex.", sourceSection: '§10.1 TastyTrade Integration' },
+    { id: 'tr-j-02', text: 'Am I caching Finnhub responses longer than my commercial-tier license permits, or serving Finnhub data to unauthenticated users?', type: 'boolean', regulatoryTag: 'Codebase_Finnhub', launchStage: 'required_now', helpText: 'Common license violations. Verify cache TTL against contract terms. Ensure all Finnhub-sourced data is behind authentication.', sourceSection: '§10.2 Finnhub Caching' },
+    { id: 'tr-j-03', text: "Does my UI display 'Source: [Original Source] via FRED' on every graph or data display using FRED data?", type: 'boolean', regulatoryTag: 'Codebase_FRED', launchStage: 'required_now', helpText: "FRED terms require source attribution. Must show the original data source (e.g., BLS, Treasury) not just 'FRED.'", sourceSection: '§10.3 FRED Attribution' },
+    { id: 'tr-j-04', text: "Does my UI cite 'Source: SEC EDGAR' on every Form 4 and 8-K display?", type: 'boolean', regulatoryTag: 'Codebase_EDGAR', launchStage: 'required_now', helpText: 'Trivial to satisfy. SEC requires citation when redistributing EDGAR data.', sourceSection: '§10.4 EDGAR Citation' },
+    { id: 'tr-j-05', text: "Am I re-exposing raw tweets/X content verbatim (likely violating X's developer terms), or synthesizing sentiment scores (safer)?", type: 'select', regulatoryTag: 'Codebase_Grok', launchStage: 'required_now', options: ['Raw tweets displayed', 'Synthesized sentiment scores only', 'Both raw and synthesized', 'Not applicable — Grok not user-facing'], helpText: 'X developer terms since 2023-2024 restrict verbatim tweet redistribution. Synthesized sentiment scores are much safer commercially.', sourceSection: '§10.5 Grok/X Terms' },
+    { id: 'tr-j-06', text: "Is Claude's output stored per-session only, or persisted in a database with books-and-records logging?", type: 'select', regulatoryTag: 'Codebase_Claude', launchStage: 'required_now', options: ['Per-session only (lost on refresh)', 'Persisted with full logging (timestamp / prompt / output / model)', 'Persisted without logging', 'Unknown — need to audit'], helpText: 'If persisted, must be indexed for instant retrieval. You are the legal author of all output. 5-year minimum retention.', sourceSection: '§10.6 Claude Persistence' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM K — Codebase: AI Synthesis
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamK: TradingWorkstream = {
+  id: 'tr-k', letter: 'K', title: 'Codebase: AI Synthesis',
+  description: 'System prompt compliance, output validation, and graceful degradation for Claude-generated content.',
+  questions: [
+    { id: 'tr-k-01', text: "Does the system prompt explicitly instruct Claude to: not personalize to user's portfolio, not make buy/sell directives, note hypothetical nature of probabilities, not claim SEC/FINRA endorsement?", type: 'boolean', regulatoryTag: 'Codebase_AI_Prompt', launchStage: 'required_now', helpText: 'The system prompt is your first line of compliance defense. It must affirmatively constrain Claude from generating content that crosses the advice line.', sourceSection: '§11.1 System Prompt' },
+    { id: 'tr-k-02', text: "Do I post-process Claude output to strip or flag: hallucinated numbers, unauthorized tickers, personalized pronouns ('you should'), unsupported superlatives?", type: 'boolean', regulatoryTag: 'Codebase_AI_Validation', launchStage: 'required_now', helpText: 'Claude can hallucinate strikes, expiries, tickers, and win rates. Post-processing validation against the actual data layer is non-negotiable.', sourceSection: '§11.2 Output Validation' },
+    { id: 'tr-k-03', text: "If Claude's API is down, does the platform degrade gracefully ('AI analysis temporarily unavailable') rather than surface stale cached text?", type: 'boolean', regulatoryTag: 'Codebase_AI_Fallback', launchStage: 'required_now', helpText: 'Stale AI analysis could contain outdated prices, expired options, or obsolete market conditions. Must show unavailability rather than misleading content.', sourceSection: '§11.3 Graceful Degradation' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM L — Codebase: Composite Scoring
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamL: TradingWorkstream = {
+  id: 'tr-l', letter: 'L', title: 'Codebase: Composite Scoring',
+  description: 'Scoring determinism, grade-boundary versioning, and methodology disclosure.',
+  questions: [
+    { id: 'tr-l-01', text: 'Is the 0-100 composite score deterministic and reproducible from the same inputs?', type: 'boolean', regulatoryTag: 'Codebase_Scoring', launchStage: 'required_now', helpText: "If a regulator asks how you arrived at an 'A' grade for a specific trade, you must reproduce the exact calculation. Non-deterministic scoring is indefensible.", sourceSection: '§12.1 Scoring Determinism' },
+    { id: 'tr-l-02', text: 'Is the letter-grade mapping documented, version-controlled, and unchanged within a subscription period?', type: 'boolean', regulatoryTag: 'Codebase_Scoring_Version', launchStage: 'required_now', helpText: 'Silently changing grade boundaries mid-period could be construed as manipulative. Document and version-control all scoring parameters.', sourceSection: '§12.2 Grade Versioning' },
+    { id: 'tr-l-03', text: 'Is the scoring methodology disclosed to subscribers at a criteria-and-assumptions level in a public doc?', type: 'boolean', regulatoryTag: 'Codebase_Scoring_Disclosure', launchStage: 'required_before_charging', helpText: 'FINRA Rule 2214 requires disclosure of criteria, assumptions, and limitations for investment analysis tools. Even as a non-member, this is best practice.', sourceSection: '§12.3 Methodology Disclosure' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM M — Codebase: Trade Cards
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamM: TradingWorkstream = {
+  id: 'tr-m', letter: 'M', title: 'Codebase: Trade Cards',
+  description: 'Strike/expiry validation, per-card disclaimers, and trade card archival.',
+  questions: [
+    { id: 'tr-m-01', text: 'Is every strike/expiry in every trade card validated against the current options chain at display time, with a visible timestamp showing data age?', type: 'boolean', regulatoryTag: 'Codebase_Trade_Card_Validation', launchStage: 'required_now', helpText: 'Displaying stale strikes or expired options is misleading. Users must know data age to make informed decisions.', sourceSection: '§13.1 Chain Validation' },
+    { id: 'tr-m-02', text: 'Does each trade card embed (not just reference) disclaimers: hypothetical, not investment advice, options involve risk, multi-leg commissions not reflected?', type: 'boolean', regulatoryTag: 'Codebase_Trade_Card_Disclaimer', launchStage: 'required_before_charging', helpText: 'Per-card embedded disclaimers are stronger than a single site-wide disclaimer. Each trade card is the most recommendation-like artifact your platform produces.', sourceSection: '§13.2 Card Disclaimers' },
+    { id: 'tr-m-03', text: 'Am I archiving every trade card ever generated with exact numbers and AI narrative, provable per specific date?', type: 'boolean', regulatoryTag: 'Codebase_Trade_Card_Archive', launchStage: 'required_now', helpText: 'If a subscriber claims they relied on a specific trade card, you must be able to produce exactly what they saw. Archive with full data snapshot.', sourceSection: '§13.3 Card Archival' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM N — Codebase: Trade Journal
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamN: TradingWorkstream = {
+  id: 'tr-n', letter: 'N', title: 'Codebase: Trade Journal',
+  description: 'Known bugs, uncommit logic, encryption, and aggregation controls.',
+  questions: [
+    { id: 'tr-n-01', text: "The strategy_name='unknown' bug — is this display-layer or structural? Does it indicate a broken linkage between trade card generation and position tracking?", type: 'text', regulatoryTag: 'Codebase_Journal_Bug', launchStage: 'required_now', helpText: "If users rely on the journal to remember what they traded, 'unknown' is a user-protection problem. Structural break could mean orphaned data affecting aggregation.", sourceSection: '§14.1 Strategy Name Bug' },
+    { id: 'tr-n-02', text: 'The uncommit logic not cleaning up — does this mean orphaned records persist? Could orphaned records give misleading performance picture or leak another user data?', type: 'text', regulatoryTag: 'Codebase_Journal_Uncommit', launchStage: 'required_now', helpText: 'Orphaned journal entries or trade card links could inflate or deflate performance metrics. Any cross-user data leakage is a security violation.', sourceSection: '§14.2 Uncommit Logic' },
+    { id: 'tr-n-03', text: 'Is journal data (actual positions, entry/exit prices, P&L) classified as sensitive PII and encrypted at rest with column-level encryption?', type: 'boolean', regulatoryTag: 'Codebase_Journal_Encryption', launchStage: 'required_now', helpText: 'Journal contains real brokerage position data. Should be treated with same sensitivity as bank account data.', sourceSection: '§14.3 Journal Encryption' },
+    { id: 'tr-n-04', text: 'Does any aggregation of journal data surface to other users, marketing content, or public landing page?', type: 'boolean', regulatoryTag: 'Codebase_Journal_Aggregation', launchStage: 'required_now', helpText: 'If yes, this crosses into Marketing Rule / performance-advertising territory. Journal data must remain strictly per-user.', sourceSection: '§14.4 Journal Aggregation' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM O — Codebase: Scanner Filters
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamO: TradingWorkstream = {
+  id: 'tr-o', letter: 'O', title: 'Codebase: Scanner Filters',
+  description: 'Filter storage location, default values, and transparency for publisher exclusion defense.',
+  questions: [
+    { id: 'tr-o-01', text: 'Are user-saved filters stored server-side (producing different outputs per user) or purely client-side?', type: 'select', regulatoryTag: 'Codebase_Filter_Storage', launchStage: 'required_now', options: ['Server-side (personalized output)', 'Client-side only (cosmetic)', 'Both (server persists but output is from same universe)', 'Unknown'], helpText: "Server-side personalization strengthens the argument that the platform provides personalized advice. Client-side is friendlier for publisher's exclusion.", sourceSection: '§15.1 Filter Storage' },
+    { id: 'tr-o-02', text: 'Are default filter values identical for every new user (publisher-friendly)?', type: 'boolean', regulatoryTag: 'Codebase_Filter_Defaults', launchStage: 'required_now', helpText: 'If you auto-tune defaults based on user behavior or ML, that looks like personalized advisory. Identical defaults for all new users is publisher-friendly.', sourceSection: '§15.2 Default Values' },
+    { id: 'tr-o-03', text: 'Do I expose to users exactly what each filter does (IV rank range, market-cap thresholds, sector toggles) so output is auditable?', type: 'boolean', regulatoryTag: 'Codebase_Filter_Transparency', launchStage: 'required_now', helpText: "Black-box filters are harder to defend. Transparent, user-visible filter criteria support the 'impersonal tool the user operates' argument.", sourceSection: '§15.3 Filter Transparency' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM P — Codebase: Backtest Infrastructure
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamP: TradingWorkstream = {
+  id: 'tr-p', letter: 'P', title: 'Codebase: Backtest Infrastructure',
+  description: 'Backtest exposure status, result honesty, and feature-flag protection.',
+  questions: [
+    { id: 'tr-p-01', text: 'Is the backtest infrastructure user-facing today?', type: 'boolean', regulatoryTag: 'Codebase_Backtest_Exposure', launchStage: 'required_now', helpText: 'If user-facing, every display needs the full hypothetical-performance disclosure stack. SEC Marketing Rule standard even without registration.', sourceSection: '§16.1 Backtest Exposure' },
+    { id: 'tr-p-02', text: 'Does the backtest engine include realistic commissions, slippage, bid-ask crossing costs, early-assignment modeling, and survivorship-bias controls?', type: 'boolean', regulatoryTag: 'Codebase_Backtest_Honesty', launchStage: 'required_now', dependsOn: ['tr-p-01'], helpText: 'Publishing backtest results without these controls is anti-fraud risk. Misleading hypothetical performance is actionable under §10(b).', sourceSection: '§16.2 Backtest Honesty' },
+    { id: 'tr-p-03', text: 'If backtest should NOT be user-facing at launch, is it behind a feature flag that is OFF in production?', type: 'boolean', regulatoryTag: 'Codebase_Backtest_Lock', launchStage: 'required_now', dependsOn: ['tr-p-01'], helpText: 'An accidentally deployed backtest UI without proper disclosures is a compliance incident. Feature flags prevent accidental exposure.', sourceSection: '§16.3 Feature Flag' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM Q — Codebase: Deployment Hygiene
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamQ: TradingWorkstream = {
+  id: 'tr-q', letter: 'Q', title: 'Codebase: Deployment Hygiene',
+  description: 'Retention policies, content versioning, disclaimer enforcement, incident response, and AI badges.',
+  questions: [
+    { id: 'tr-q-01', text: 'How long do I keep scanner outputs, AI narratives, trade cards, and journal entries? Do backups actually preserve them for 5+ years?', type: 'text', regulatoryTag: 'Codebase_Retention', launchStage: 'required_now', helpText: '5-year minimum for defensive purposes. Verify backup retention policies actually match this requirement.', sourceSection: '§17.1 Retention Policy' },
+    { id: 'tr-q-02', text: 'Is every AI-generated piece of content versioned with model version, system-prompt version, and data-snapshot timestamp?', type: 'boolean', regulatoryTag: 'Codebase_Content_Versioning', launchStage: 'required_now', helpText: 'Must reproduce exactly what a user saw on a specific date on regulator or litigation demand.', sourceSection: '§17.2 Content Versioning' },
+    { id: 'tr-q-03', text: 'Is every disclaimer rendered server-side (not bypassable by client-side manipulation) and logged as displayed per session?', type: 'boolean', regulatoryTag: 'Codebase_Disclaimer_Enforcement', launchStage: 'required_before_charging', helpText: 'Client-side-only disclaimers can be stripped by browser extensions. Server-side rendering with display logging proves the disclaimer was shown.', sourceSection: '§17.3 Disclaimer Enforcement' },
+    { id: 'tr-q-04', text: 'If the scanner surfaces a materially incorrect trade card (stale borrow rate, wrong strike), what is my 24-hour user-notification plan?', type: 'text', regulatoryTag: 'Codebase_Incident_Response', launchStage: 'required_before_charging', helpText: 'Securities anti-fraud provisions require you to not leave misleading information in circulation. Rapid correction and notification are essential.', sourceSection: '§17.4 Incident Response' },
+    { id: 'tr-q-05', text: "Does every AI-rendered sentence have a visible 'AI-Generated' badge adjacent to it, or only a single site-footer disclosure?", type: 'boolean', regulatoryTag: 'Codebase_AI_Badge', launchStage: 'required_before_charging', helpText: 'Best practice per SEC AI-washing direction is adjacent, per-paragraph badges. A single site-footer is weaker defense.', sourceSection: '§17.5 AI Badge' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM R — Strategic
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamR: TradingWorkstream = {
+  id: 'tr-r', letter: 'R', title: 'Strategic',
+  description: 'Registration willingness, restructuring options, scaling triggers, and legal counsel.',
+  questions: [
+    { id: 'tr-r-01', text: "If I cannot claim the publisher's exclusion, am I willing to register as a state or SEC investment adviser, bear ADV/Marketing Rule/books-and-records burden, and pass Series 65?", type: 'text', regulatoryTag: 'Strategic', launchStage: 'required_before_charging', helpText: 'Registration is not catastrophic — many platforms operate as registered advisers. But it adds significant compliance overhead and cost.', sourceSection: '§18.1 Registration Path' },
+    { id: 'tr-r-02', text: 'If unwilling to register, am I willing to restructure: remove trade journal linkage to real positions, force identical scanner output for all subscribers, replace specific-leg recommendations with generic examples?', type: 'text', regulatoryTag: 'Strategic', launchStage: 'required_before_charging', helpText: 'These structural changes would more clearly place Temple Stuart on the publisher side of the line. The tradeoff is reduced product value.', sourceSection: '§18.2 Restructuring' },
+    { id: 'tr-r-03', text: 'At what subscriber count or revenue level do I revisit this structural decision?', type: 'text', regulatoryTag: 'Strategic', launchStage: 'required_at_scale', helpText: 'Seeking Alpha reached millions without registration. Unusual Whales spun out a registered entity for ETFs while keeping analytics unregistered.', sourceSection: '§18.3 Scale Trigger' },
+    { id: 'tr-r-04', text: 'Do I have a securities lawyer with fintech experience on retainer to review every public-facing claim, marketing page, new feature, and disclaimer before it ships?', type: 'boolean', regulatoryTag: 'Strategic', launchStage: 'required_before_charging', helpText: "This is the single most important pre-launch item for the trading module. The Investment Advisers Act exposure is personal liability — no corporate shield for control-person fraud.", sourceSection: '§18.4 Legal Counsel' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// FINAL MODULE EXPORT
+// ═══════════════════════════════════════════════════════════════════
+
+export const TRADING_OPS_MODULE: TradingModule = {
+  id: 'trading',
+  title: 'Trading Analytics',
+  description: 'Regulatory compliance, data licensing, disclaimers, AI controls, and codebase audit for launching an options-focused trading analytics SaaS platform.',
+  workstreams: [
+    workstreamA, workstreamB, workstreamC, workstreamD, workstreamE, workstreamF,
+    workstreamG, workstreamH, workstreamI, workstreamJ, workstreamK, workstreamL,
+    workstreamM, workstreamN, workstreamO, workstreamP, workstreamQ, workstreamR,
+  ],
+  totalQuestions: 88,
+};
