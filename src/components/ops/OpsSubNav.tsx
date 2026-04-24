@@ -6,7 +6,7 @@ import Link from 'next/link';
 const OPS_TABS = [
   { name: 'Overview', href: '/ops', exact: true },
   { name: 'Bookkeeping', href: '/ops/bookkeeping', exact: false },
-  { name: 'Trading', href: '', disabled: true },
+  { name: 'Trading', href: '/ops/trading', exact: false },
   { name: 'Travel', href: '', disabled: true },
   { name: 'Operations', href: '', disabled: true },
 ];
