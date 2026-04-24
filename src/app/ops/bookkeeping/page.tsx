@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import OpsSubNav from '@/components/ops/OpsSubNav';
 import QuestionInput from '@/components/ops/QuestionInput';
 import { BOOKKEEPING_OPS_MODULE } from '@/lib/ops/bookkeepingQuestions';
 import type { OpsWorkstream, OpsQuestion, LaunchStage } from '@/lib/ops/bookkeepingQuestions';
+
+const MODULE_ID = 'bookkeeping';
 
 const STAGE_COLORS: Record<LaunchStage, { bg: string; text: string; label: string }> = {
   required_now: { bg: 'bg-red-50', text: 'text-red-700', label: 'Required Now' },
@@ -15,51 +17,120 @@ const STAGE_COLORS: Record<LaunchStage, { bg: string; text: string; label: strin
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  text: 'Text',
-  boolean: 'Yes/No',
-  select: 'Select',
-  multiselect: 'Multi',
-  checklist: 'Checklist',
-  date: 'Date',
+  text: 'Text', boolean: 'Yes/No', select: 'Select',
+  multiselect: 'Multi', checklist: 'Checklist', date: 'Date',
 };
 
 function stageCounts() {
   const counts: Record<LaunchStage, number> = {
-    required_now: 0,
-    required_before_charging: 0,
-    required_at_scale: 0,
-    best_practice: 0,
+    required_now: 0, required_before_charging: 0, required_at_scale: 0, best_practice: 0,
   };
   for (const ws of BOOKKEEPING_OPS_MODULE.workstreams) {
-    for (const q of ws.questions) {
-      counts[q.launchStage]++;
-    }
+    for (const q of ws.questions) counts[q.launchStage]++;
   }
   return counts;
 }
 
 function isAnswered(value: string | undefined): boolean {
-  if (!value || value.trim() === '') return false;
-  if (value === '[]') return false;
-  return true;
+  return !!value && value.trim() !== '' && value !== '[]';
 }
 
 export default function BookkeepingQuestionnairePage() {
   const [expandedWorkstream, setExpandedWorkstream] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [missionId, setMissionId] = useState<string | null>(null);
+  const [loadingMission, setLoadingMission] = useState(true);
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
+  const [savingQuestions, setSavingQuestions] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+  const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const counts = stageCounts();
 
-  const setAnswer = (questionId: string, value: string) => {
-    setAnswers((prev) => {
-      const next = { ...prev };
-      if (value === '' || value === '[]') {
-        delete next[questionId];
-      } else {
-        next[questionId] = value;
+  // Fetch active mission
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/mission/active');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.mission?.id) setMissionId(data.mission.id as string);
+        }
+      } catch (err) {
+        console.error('Failed to fetch mission:', err);
+      } finally {
+        setLoadingMission(false);
       }
-      return next;
-    });
-  };
+    })();
+  }, []);
+
+  // Load answers when missionId is available
+  useEffect(() => {
+    if (!missionId) return;
+    setLoadingAnswers(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/ops/questionnaire-answers?missionId=${missionId}&moduleId=${MODULE_ID}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAnswers(data.answers || {});
+        }
+      } catch (err) {
+        console.error('Failed to load answers:', err);
+      } finally {
+        setLoadingAnswers(false);
+      }
+    })();
+  }, [missionId]);
+
+  const persistAnswer = useCallback(
+    async (question: OpsQuestion, value: string) => {
+      if (!missionId) return;
+      const wsId = BOOKKEEPING_OPS_MODULE.workstreams.find((ws) =>
+        ws.questions.some((q) => q.id === question.id),
+      )?.id || '';
+
+      setSavingQuestions((prev) => ({ ...prev, [question.id]: 'saving' }));
+      try {
+        const res = await fetch('/api/ops/questionnaire-answers', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            missionId,
+            moduleId: MODULE_ID,
+            workstreamId: wsId,
+            questionId: question.id,
+            questionType: question.type,
+            answerValue: value,
+          }),
+        });
+        setSavingQuestions((prev) => ({ ...prev, [question.id]: res.ok ? 'saved' : 'error' }));
+        if (res.ok) {
+          setTimeout(() => setSavingQuestions((prev) => { const n = { ...prev }; delete n[question.id]; return n; }), 1500);
+        }
+      } catch {
+        setSavingQuestions((prev) => ({ ...prev, [question.id]: 'error' }));
+      }
+    },
+    [missionId],
+  );
+
+  const handleAnswerChange = useCallback(
+    (question: OpsQuestion, value: string) => {
+      setAnswers((prev) => {
+        const next = { ...prev };
+        if (value === '' || value === '[]') delete next[question.id];
+        else next[question.id] = value;
+        return next;
+      });
+
+      if (question.type === 'text') {
+        if (debounceTimers.current[question.id]) clearTimeout(debounceTimers.current[question.id]);
+        debounceTimers.current[question.id] = setTimeout(() => persistAnswer(question, value), 600);
+      } else {
+        persistAnswer(question, value);
+      }
+    },
+    [persistAnswer],
+  );
 
   const totalAnswered = Object.keys(answers).length;
   const totalQuestions = BOOKKEEPING_OPS_MODULE.totalQuestions;
@@ -73,6 +144,51 @@ export default function BookkeepingQuestionnairePage() {
     return q.dependsOn.every((depId) => isAnswered(answers[depId]));
   };
 
+  // Loading states
+  if (loadingMission) {
+    return (
+      <AppLayout>
+        <OpsSubNav />
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+            <span className="text-text-muted font-mono text-terminal-base">Loading...</span>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!missionId) {
+    return (
+      <AppLayout>
+        <OpsSubNav />
+        <div className="max-w-6xl mx-auto px-4 pt-8 text-center">
+          <p className="text-text-muted font-mono text-sm">No mission found.</p>
+          <p className="text-text-faint font-mono text-terminal-sm mt-1">
+            Create a mission on the{' '}
+            <a href="/ops" className="text-brand-purple hover:underline">Overview tab</a>{' '}
+            first.
+          </p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (loadingAnswers) {
+    return (
+      <AppLayout>
+        <OpsSubNav />
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+            <span className="text-text-muted font-mono text-terminal-base">Loading answers...</span>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <OpsSubNav />
@@ -81,22 +197,15 @@ export default function BookkeepingQuestionnairePage() {
         <div className="bg-white rounded border border-border shadow-sm p-5">
           <h1 className="text-xl font-bold text-text-primary font-mono">{BOOKKEEPING_OPS_MODULE.title}</h1>
           <p className="text-terminal-sm text-text-muted font-mono mt-1">{BOOKKEEPING_OPS_MODULE.description}</p>
-
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-terminal-sm text-text-muted font-mono">
-                {totalAnswered} / {totalQuestions} questions answered
-              </span>
+              <span className="text-terminal-sm text-text-muted font-mono">{totalAnswered} / {totalQuestions} questions answered</span>
               <span className="text-terminal-sm text-text-faint font-mono">{progressPct}%</span>
             </div>
             <div className="h-2 bg-bg-row rounded-full">
-              <div
-                className="h-2 rounded-full bg-brand-purple transition-all"
-                style={{ width: `${progressPct}%` }}
-              />
+              <div className="h-2 rounded-full bg-brand-purple transition-all" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
-
           <div className="flex flex-wrap gap-3 mt-3">
             {(Object.entries(counts) as Array<[LaunchStage, number]>).map(([stage, count]) => {
               const style = STAGE_COLORS[stage];
@@ -133,47 +242,35 @@ export default function BookkeepingQuestionnairePage() {
                   <span className="text-text-faint text-terminal-sm">{isExpanded ? '▼' : '▶'}</span>
                 </div>
               </button>
-
               {isExpanded && (
                 <div className="border-t border-border">
                   {ws.questions.map((q: OpsQuestion) => {
                     const stageStyle = STAGE_COLORS[q.launchStage];
                     const depsOk = hasDepsAnswered(q);
+                    const saveState = savingQuestions[q.id];
                     return (
-                      <div
-                        key={q.id}
-                        className={`px-4 py-3 border-b border-border-light last:border-b-0 ${
-                          !depsOk ? 'opacity-50' : ''
-                        }`}
-                      >
+                      <div key={q.id} className={`px-4 py-3 border-b border-border-light last:border-b-0 ${!depsOk ? 'opacity-50' : ''}`}>
                         <div className="flex items-start gap-2">
                           <span className="text-terminal-sm text-text-faint font-mono flex-shrink-0 mt-0.5 w-16">{q.id}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-terminal-base text-text-primary font-mono">{q.text}</p>
-                            {q.helpText && (
-                              <p className="text-terminal-sm text-text-faint font-mono mt-1">{q.helpText}</p>
-                            )}
+                            {q.helpText && <p className="text-terminal-sm text-text-faint font-mono mt-1">{q.helpText}</p>}
                             <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                                {TYPE_LABELS[q.type] || q.type}
-                              </span>
-                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-brand-purple-wash text-brand-purple">
-                                {q.regulatoryTag.replace(/_/g, ' ')}
-                              </span>
-                              <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${stageStyle.bg} ${stageStyle.text}`}>
-                                {stageStyle.label}
-                              </span>
+                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{TYPE_LABELS[q.type] || q.type}</span>
+                              <span className="text-terminal-sm font-mono px-1.5 py-0.5 rounded bg-brand-purple-wash text-brand-purple">{q.regulatoryTag.replace(/_/g, ' ')}</span>
+                              <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${stageStyle.bg} ${stageStyle.text}`}>{stageStyle.label}</span>
                               {!depsOk && q.dependsOn && (
-                                <span className="text-terminal-sm font-mono text-amber-600">
-                                  Answer {q.dependsOn.join(', ')} first
-                                </span>
+                                <span className="text-terminal-sm font-mono text-amber-600">Answer {q.dependsOn.join(', ')} first</span>
                               )}
+                              {saveState === 'saving' && <span className="text-terminal-sm font-mono text-text-faint animate-pulse">Saving...</span>}
+                              {saveState === 'saved' && <span className="text-terminal-sm font-mono text-emerald-600">Saved</span>}
+                              {saveState === 'error' && <span className="text-terminal-sm font-mono text-red-500">Failed to save</span>}
                             </div>
                             <div className="mt-3">
                               <QuestionInput
                                 question={q}
                                 value={answers[q.id] || ''}
-                                onChange={(v) => setAnswer(q.id, v)}
+                                onChange={(v) => handleAnswerChange(q, v)}
                               />
                             </div>
                           </div>
