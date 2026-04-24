@@ -475,6 +475,7 @@ model users {
   missions                missions[]
   questionnaireAnswers    ops_questionnaire_answers[]
   workstreamAnalyses      ops_workstream_analysis[]
+  synthesisReports        ops_synthesis_report[]
 }
 
 model budgets {
@@ -1926,6 +1927,7 @@ model missions {
   missionTasks         mission_tasks[]
   questionnaireAnswers ops_questionnaire_answers[]
   workstreamAnalyses   ops_workstream_analysis[]
+  synthesisReports     ops_synthesis_report[]
 
   @@map("missions")
 }
@@ -2083,4 +2085,29 @@ model ops_workstream_analysis {
   @@index([userId])
   @@index([missionId, moduleId])
   @@map("ops_workstream_analysis")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPS SYNTHESIS REPORT — Cross-workstream launch readiness assessment
+// ═══════════════════════════════════════════════════════════════════
+
+model ops_synthesis_report {
+  id                 String   @id @default(cuid())
+  missionId          String   @map("mission_id")
+  userId             String   @map("user_id")
+  moduleId           String   @map("module_id")
+  synthesisOutput    String   @map("synthesis_output") @db.Text
+  modelUsed          String   @map("model_used")
+  promptVersion      String   @map("prompt_version")
+  inputHash          String   @map("input_hash")
+  workstreamsCovered String   @map("workstreams_covered") @db.Text
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users    @relation(fields: [userId], references: [id])
+
+  @@unique([missionId, moduleId])
+  @@index([userId])
+  @@map("ops_synthesis_report")
 }
