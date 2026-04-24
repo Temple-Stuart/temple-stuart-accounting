@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import OpsSubNav from '@/components/ops/OpsSubNav';
+import QuestionInput from '@/components/ops/QuestionInput';
 import { BOOKKEEPING_OPS_MODULE } from '@/lib/ops/bookkeepingQuestions';
 import type { OpsWorkstream, OpsQuestion, LaunchStage } from '@/lib/ops/bookkeepingQuestions';
 
@@ -37,9 +38,40 @@ function stageCounts() {
   return counts;
 }
 
+function isAnswered(value: string | undefined): boolean {
+  if (!value || value.trim() === '') return false;
+  if (value === '[]') return false;
+  return true;
+}
+
 export default function BookkeepingQuestionnairePage() {
   const [expandedWorkstream, setExpandedWorkstream] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const counts = stageCounts();
+
+  const setAnswer = (questionId: string, value: string) => {
+    setAnswers((prev) => {
+      const next = { ...prev };
+      if (value === '' || value === '[]') {
+        delete next[questionId];
+      } else {
+        next[questionId] = value;
+      }
+      return next;
+    });
+  };
+
+  const totalAnswered = Object.keys(answers).length;
+  const totalQuestions = BOOKKEEPING_OPS_MODULE.totalQuestions;
+  const progressPct = totalQuestions > 0 ? Math.round((totalAnswered / totalQuestions) * 100) : 0;
+
+  const wsAnsweredCount = (ws: OpsWorkstream) =>
+    ws.questions.filter((q) => isAnswered(answers[q.id])).length;
+
+  const hasDepsAnswered = (q: OpsQuestion) => {
+    if (!q.dependsOn || q.dependsOn.length === 0) return true;
+    return q.dependsOn.every((depId) => isAnswered(answers[depId]));
+  };
 
   return (
     <AppLayout>
@@ -50,18 +82,21 @@ export default function BookkeepingQuestionnairePage() {
           <h1 className="text-xl font-bold text-text-primary font-mono">{BOOKKEEPING_OPS_MODULE.title}</h1>
           <p className="text-terminal-sm text-text-muted font-mono mt-1">{BOOKKEEPING_OPS_MODULE.description}</p>
 
-          {/* Progress */}
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-terminal-sm text-text-muted font-mono">0 / {BOOKKEEPING_OPS_MODULE.totalQuestions} questions answered</span>
-              <span className="text-terminal-sm text-text-faint font-mono">0%</span>
+              <span className="text-terminal-sm text-text-muted font-mono">
+                {totalAnswered} / {totalQuestions} questions answered
+              </span>
+              <span className="text-terminal-sm text-text-faint font-mono">{progressPct}%</span>
             </div>
             <div className="h-2 bg-bg-row rounded-full">
-              <div className="h-2 rounded-full bg-brand-purple transition-all" style={{ width: '0%' }} />
+              <div
+                className="h-2 rounded-full bg-brand-purple transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
           </div>
 
-          {/* Stage breakdown */}
           <div className="flex flex-wrap gap-3 mt-3">
             {(Object.entries(counts) as Array<[LaunchStage, number]>).map(([stage, count]) => {
               const style = STAGE_COLORS[stage];
@@ -77,6 +112,7 @@ export default function BookkeepingQuestionnairePage() {
         {/* Workstream Accordion */}
         {BOOKKEEPING_OPS_MODULE.workstreams.map((ws: OpsWorkstream) => {
           const isExpanded = expandedWorkstream === ws.id;
+          const answered = wsAnsweredCount(ws);
           return (
             <div key={ws.id} className="bg-white rounded border border-border shadow-sm overflow-hidden">
               <button
@@ -91,7 +127,9 @@ export default function BookkeepingQuestionnairePage() {
                   <p className="text-terminal-sm text-text-faint font-mono mt-0.5">{ws.description}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                  <span className="text-terminal-sm text-text-muted font-mono">0/{ws.questions.length}</span>
+                  <span className={`text-terminal-sm font-mono ${answered === ws.questions.length && answered > 0 ? 'text-emerald-600' : 'text-text-muted'}`}>
+                    {answered}/{ws.questions.length}
+                  </span>
                   <span className="text-text-faint text-terminal-sm">{isExpanded ? '▼' : '▶'}</span>
                 </div>
               </button>
@@ -100,8 +138,14 @@ export default function BookkeepingQuestionnairePage() {
                 <div className="border-t border-border">
                   {ws.questions.map((q: OpsQuestion) => {
                     const stageStyle = STAGE_COLORS[q.launchStage];
+                    const depsOk = hasDepsAnswered(q);
                     return (
-                      <div key={q.id} className="px-4 py-3 border-b border-border-light last:border-b-0">
+                      <div
+                        key={q.id}
+                        className={`px-4 py-3 border-b border-border-light last:border-b-0 ${
+                          !depsOk ? 'opacity-50' : ''
+                        }`}
+                      >
                         <div className="flex items-start gap-2">
                           <span className="text-terminal-sm text-text-faint font-mono flex-shrink-0 mt-0.5 w-16">{q.id}</span>
                           <div className="flex-1 min-w-0">
@@ -119,11 +163,18 @@ export default function BookkeepingQuestionnairePage() {
                               <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${stageStyle.bg} ${stageStyle.text}`}>
                                 {stageStyle.label}
                               </span>
-                              {q.dependsOn && q.dependsOn.length > 0 && (
-                                <span className="text-terminal-sm font-mono text-text-faint">
-                                  depends: {q.dependsOn.join(', ')}
+                              {!depsOk && q.dependsOn && (
+                                <span className="text-terminal-sm font-mono text-amber-600">
+                                  Answer {q.dependsOn.join(', ')} first
                                 </span>
                               )}
+                            </div>
+                            <div className="mt-3">
+                              <QuestionInput
+                                question={q}
+                                value={answers[q.id] || ''}
+                                onChange={(v) => setAnswer(q.id, v)}
+                              />
                             </div>
                           </div>
                         </div>
