@@ -453,13 +453,13 @@ function StructureStageOutput({ stage, onApprove, onReject }: { stage: StageData
   const [rejectReason, setRejectReason] = useState('');
   const output = stage.parsedOutput;
 
-  const projects = (output?.discoveredProjects as Array<{ projectName: string; description: string; estimatedScope: string; relatedEntries: Array<{ content: string }>; dependencies: string[]; blockers: string[] }>) || [];
-  const themes = (output?.emergentThemes as Array<{ theme: string; confidence: string; basis: string }>) || [];
+  const projects = (output?.discoveredProjects as Array<{ projectName: string; description: string; estimatedScope: string; relatedEntries: Array<{ content: string; sourceEntryId: string }>; dependencies: string[]; blockers: string[] }>) || [];
+  const themes = (output?.emergentThemes as Array<{ theme: string; confidence: string; basis: string; evidence: string[] }>) || [];
   const contradictions = (output?.contradictions as Array<{ itemA: { content: string }; itemB: { content: string }; nature: string; severity: string }>) || [];
-  const constraints = (output?.constraints as Array<{ constraint: string; impact: string }>) || [];
-  const missingInputs = (output?.missingInputs as Array<{ area: string; suggestedQuestion: string }>) || [];
-  const deps = (output?.latentDependencies as Array<{ item: string; dependsOn: string[] }>) || [];
-  const gaps = (output?.logicGaps as Array<{ statement: string; gap: string }>) || [];
+  const constraints = (output?.constraints as Array<{ constraint: string; sourceEntryId: string; impact: string }>) || [];
+  const missingInputs = (output?.missingInputs as Array<{ area: string; whyMissingMatters: string; suggestedQuestion: string }>) || [];
+  const deps = (output?.latentDependencies as Array<{ item: string; dependsOn: string[]; why: string }>) || [];
+  const gaps = (output?.logicGaps as Array<{ statement: string; gap: string; whyItMatters: string }>) || [];
 
   return (
     <div className="bg-white rounded border border-border shadow-sm overflow-hidden">
@@ -482,75 +482,195 @@ function StructureStageOutput({ stage, onApprove, onReject }: { stage: StageData
           <pre className="text-terminal-sm font-mono text-text-secondary whitespace-pre-wrap">{stage.userPrompt || '(none)'}</pre>
         </Collapsible>
 
-        {/* Output */}
+        {/* Output — formatted */}
         {output && (
-          <Collapsible title="Output" defaultOpen>
-            <div className="space-y-4 pt-2">
-              {projects.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Discovered Projects ({projects.length})</p>
-                  <div className="space-y-2">
-                    {projects.map((p, i) => (
-                      <div key={i} className="border border-border-light rounded p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-text-primary font-mono">{p.projectName}</span>
-                          <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded ${SCOPE_BADGE[p.estimatedScope] || ''}`}>{p.estimatedScope}</span>
-                        </div>
-                        <p className="text-terminal-base text-text-secondary font-mono">{p.description}</p>
-                        {p.relatedEntries.length > 0 && (
-                          <div className="mt-1">{p.relatedEntries.map((e, j) => <p key={j} className="text-terminal-sm text-text-faint font-mono">• {e.content}</p>)}</div>
-                        )}
-                        {p.dependencies.length > 0 && <p className="text-terminal-sm text-text-muted font-mono mt-1">Depends on: {p.dependencies.join(', ')}</p>}
-                        {p.blockers.length > 0 && <p className="text-terminal-sm text-red-500 font-mono mt-1">Blockers: {p.blockers.join(', ')}</p>}
+          <div className="space-y-4">
+            {/* Discovered Projects */}
+            {projects.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">
+                  Discovered Projects ({projects.length})
+                </p>
+                <div className="space-y-3">
+                  {projects.map((p, i) => (
+                    <div key={i} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-bold text-text-primary font-mono">{p.projectName}</span>
+                        <span className={`text-terminal-sm font-mono px-2 py-0.5 rounded-full ${SCOPE_BADGE[p.estimatedScope] || 'bg-gray-100 text-gray-600'}`}>
+                          {p.estimatedScope}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-terminal-base text-text-secondary font-mono mb-2">{p.description}</p>
+                      {p.dependencies.length > 0 && (
+                        <div className="mb-1.5">
+                          <span className="text-terminal-sm text-text-muted font-mono">Depends on: </span>
+                          {p.dependencies.map((d, j) => (
+                            <span key={j} className="inline-block text-terminal-sm font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded mr-1 mb-0.5">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {p.blockers.length > 0 && (
+                        <div className="mb-1.5">
+                          {p.blockers.map((b, j) => (
+                            <div key={j} className="flex items-start gap-1.5 text-terminal-sm font-mono text-red-600">
+                              <span className="mt-0.5">!</span>
+                              <span>{b}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {p.relatedEntries.length > 0 && (
+                        <Collapsible title={`Source entries (${p.relatedEntries.length})`}>
+                          <div className="space-y-1 pt-1">
+                            {p.relatedEntries.map((e, j) => (
+                              <p key={j} className="text-terminal-sm text-text-faint font-mono">
+                                <span className="text-text-muted">[{e.sourceEntryId?.slice(0, 8) || '?'}]</span> {e.content}
+                              </p>
+                            ))}
+                          </div>
+                        </Collapsible>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {themes.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Emergent Themes</p>
-                  {themes.map((t, i) => <p key={i} className="text-terminal-base font-mono text-text-secondary"><span className="font-medium">{t.theme}</span> <span className="text-text-faint">({t.confidence}, {t.basis})</span></p>)}
+            {/* Emergent Themes */}
+            {themes.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Emergent Themes</p>
+                <div className="space-y-2">
+                  {themes.map((t, i) => (
+                    <div key={i} className="border border-border-light rounded p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-text-primary font-mono">{t.theme}</span>
+                        <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${
+                          t.confidence === 'high' ? 'bg-emerald-50 text-emerald-700'
+                          : t.confidence === 'medium' ? 'bg-amber-50 text-amber-700'
+                          : 'bg-gray-100 text-gray-600'
+                        }`}>{t.confidence}</span>
+                        <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${
+                          t.basis === 'explicit' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                        }`}>{t.basis === 'pattern_inference' ? 'inferred' : t.basis}</span>
+                      </div>
+                      {t.evidence && t.evidence.length > 0 && (
+                        <p className="text-terminal-sm text-text-faint font-mono mt-1">
+                          Evidence: {t.evidence.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {contradictions.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Contradictions</p>
-                  {contradictions.map((c, i) => <div key={i} className={`text-terminal-base font-mono ${SEV_COLOR[c.severity]}`}>&ldquo;{c.itemA.content}&rdquo; vs &ldquo;{c.itemB.content}&rdquo; — {c.nature}</div>)}
+            {/* Contradictions */}
+            {contradictions.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Contradictions</p>
+                <div className="space-y-2">
+                  {contradictions.map((c, i) => (
+                    <div key={i} className="border border-border-light rounded p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded-full ${
+                          c.severity === 'high' ? 'bg-red-50 text-red-700'
+                          : c.severity === 'medium' ? 'bg-amber-50 text-amber-700'
+                          : 'bg-gray-100 text-gray-600'
+                        }`}>{c.severity}</span>
+                        <span className="text-terminal-sm text-text-muted font-mono">{c.nature}</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-1">
+                        <div className="bg-gray-50 rounded p-2">
+                          <p className="text-terminal-sm font-mono text-text-secondary">&ldquo;{c.itemA.content}&rdquo;</p>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2">
+                          <p className="text-terminal-sm font-mono text-text-secondary">&ldquo;{c.itemB.content}&rdquo;</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {constraints.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Constraints</p>
-                  {constraints.map((c, i) => <p key={i} className="text-terminal-base font-mono text-text-secondary">{c.constraint} — <span className="text-text-faint">{c.impact}</span></p>)}
+            {/* Constraints */}
+            {constraints.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Constraints Detected</p>
+                <div className="space-y-1.5">
+                  {constraints.map((c, i) => (
+                    <div key={i} className="flex items-start gap-2 text-terminal-base font-mono">
+                      <span className="text-amber-500 mt-0.5 flex-shrink-0">&#9632;</span>
+                      <div>
+                        <span className="text-text-primary">{c.constraint}</span>
+                        <span className="text-text-faint ml-1">— {c.impact}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {missingInputs.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Missing Inputs</p>
-                  {missingInputs.map((m, i) => <p key={i} className="text-terminal-base font-mono text-amber-700">{m.area}: {m.suggestedQuestion}</p>)}
+            {/* Missing Inputs */}
+            {missingInputs.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Missing Inputs</p>
+                <div className="space-y-2">
+                  {missingInputs.map((m, i) => (
+                    <div key={i} className="border-l-2 border-l-amber-400 pl-3 py-1">
+                      <p className="text-terminal-base font-mono font-medium text-text-primary">{m.area}</p>
+                      {m.whyMissingMatters && (
+                        <p className="text-terminal-sm font-mono text-text-muted">{m.whyMissingMatters}</p>
+                      )}
+                      <p className="text-terminal-sm font-mono text-amber-700 mt-0.5 italic">
+                        &ldquo;{m.suggestedQuestion}&rdquo;
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {deps.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Latent Dependencies</p>
-                  {deps.map((d, i) => <p key={i} className="text-terminal-base font-mono text-text-secondary">{d.item} → needs: {d.dependsOn.join(', ')}</p>)}
+            {/* Latent Dependencies */}
+            {deps.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Latent Dependencies</p>
+                <div className="space-y-1.5">
+                  {deps.map((d, i) => (
+                    <div key={i} className="text-terminal-base font-mono">
+                      <span className="text-text-primary">{d.item}</span>
+                      <span className="text-text-faint"> → needs </span>
+                      {d.dependsOn.map((dep, j) => (
+                        <span key={j} className="inline-block bg-blue-50 text-blue-700 text-terminal-sm px-1.5 py-0.5 rounded mr-1">{dep}</span>
+                      ))}
+                      {d.why && <p className="text-terminal-sm text-text-muted ml-4 mt-0.5">{d.why}</p>}
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {gaps.length > 0 && (
-                <div>
-                  <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-1">Logic Gaps</p>
-                  {gaps.map((g, i) => <p key={i} className="text-terminal-base font-mono text-text-secondary">&ldquo;{g.statement}&rdquo; → Gap: {g.gap}</p>)}
+            {/* Logic Gaps */}
+            {gaps.length > 0 && (
+              <div>
+                <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Logic Gaps</p>
+                <div className="space-y-2">
+                  {gaps.map((g, i) => (
+                    <div key={i} className="border-l-2 border-l-red-300 pl-3 py-1">
+                      <p className="text-terminal-base font-mono text-text-primary">&ldquo;{g.statement}&rdquo;</p>
+                      <p className="text-terminal-sm font-mono text-red-600 mt-0.5">Gap: {g.gap}</p>
+                      {g.whyItMatters && (
+                        <p className="text-terminal-sm font-mono text-text-muted mt-0.5">{g.whyItMatters}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-          </Collapsible>
+              </div>
+            )}
+          </div>
         )}
 
         <Collapsible title="Raw API Response">
