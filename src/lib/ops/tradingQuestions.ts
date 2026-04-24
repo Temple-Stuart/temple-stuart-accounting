@@ -3,6 +3,7 @@
 // Pattern follows bookkeepingQuestions.ts — single source of truth
 
 import type { QuestionType, LaunchStage, OpsModule } from './bookkeepingQuestions';
+export type { LaunchStage } from './bookkeepingQuestions';
 
 export interface TradingQuestion {
   id: string;
