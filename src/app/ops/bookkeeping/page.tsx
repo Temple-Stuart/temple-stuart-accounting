@@ -45,6 +45,8 @@ export default function BookkeepingQuestionnairePage() {
   const debounceTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const [analyses, setAnalyses] = useState<Record<string, { analysis: Record<string, unknown>; isStale: boolean }>>({});
   const [analyzingWs, setAnalyzingWs] = useState<string | null>(null);
+  const [synthesis, setSynthesis] = useState<{ synthesis: Record<string, unknown>; isStale: boolean; workstreamsCovered: string[] } | null>(null);
+  const [runningSynthesis, setRunningSynthesis] = useState(false);
   const counts = stageCounts();
 
   // Fetch active mission
@@ -99,6 +101,43 @@ export default function BookkeepingQuestionnairePage() {
         } catch { /* skip failed loads */ }
       }
     })();
+  }, [missionId]);
+
+  // Load existing synthesis
+  useEffect(() => {
+    if (!missionId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/ops/synthesis-report?missionId=${missionId}&moduleId=${MODULE_ID}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.synthesis) setSynthesis({ synthesis: data.synthesis, isStale: data.isStale, workstreamsCovered: data.workstreamsCovered || [] });
+        }
+      } catch { /* skip */ }
+    })();
+  }, [missionId]);
+
+  const runSynthesis = useCallback(async () => {
+    if (!missionId) return;
+    setRunningSynthesis(true);
+    try {
+      const res = await fetch('/api/ops/synthesis-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionId, moduleId: MODULE_ID }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSynthesis({ synthesis: data.synthesis, isStale: false, workstreamsCovered: data.workstreamsCovered || [] });
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Synthesis failed' }));
+        alert(err.error || 'Synthesis failed');
+      }
+    } catch (err) {
+      console.error('Synthesis failed:', err);
+    } finally {
+      setRunningSynthesis(false);
+    }
   }, [missionId]);
 
   const runAnalysis = useCallback(async (workstreamId: string) => {
@@ -257,6 +296,14 @@ export default function BookkeepingQuestionnairePage() {
             })}
           </div>
         </div>
+
+        {/* Synthesis */}
+        <SynthesisSection
+          analysisCount={Object.keys(analyses).length}
+          synthesis={synthesis}
+          runningSynthesis={runningSynthesis}
+          onRun={runSynthesis}
+        />
 
         {/* Workstream Accordion */}
         {BOOKKEEPING_OPS_MODULE.workstreams.map((ws: OpsWorkstream) => {
@@ -455,6 +502,186 @@ function AnalysisResults({ wsId, data }: { wsId: string; data: { analysis: Recor
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Synthesis Section ───────────────────────────────────────────────────────
+
+interface Blocker { questionId: string; workstreamId: string; reason: string; statute: string; penaltyIfIgnored: string; resolution: string; estimatedEffort: string }
+interface SeqAction { order: number; questionId: string; action: string; deadline: string; effort: string; workstreamId: string }
+
+function SynthesisSection({ analysisCount, synthesis, runningSynthesis, onRun }: {
+  analysisCount: number;
+  synthesis: { synthesis: Record<string, unknown>; isStale: boolean; workstreamsCovered: string[] } | null;
+  runningSynthesis: boolean;
+  onRun: () => void;
+}) {
+  const canRun = analysisCount >= 2;
+
+  return (
+    <div className="space-y-4">
+      {/* Run button */}
+      <div className="bg-white rounded border border-border shadow-sm p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-terminal-sm text-text-muted font-mono">
+              {analysisCount} of 18 workstreams analyzed
+            </span>
+          </div>
+          {runningSynthesis ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-brand-purple border-t-transparent rounded-full animate-spin" />
+              <span className="text-terminal-sm text-text-muted font-mono">Running synthesis...</span>
+            </div>
+          ) : (
+            <button onClick={onRun} disabled={!canRun}
+              className="px-4 py-1.5 bg-brand-purple text-white rounded text-terminal-sm font-mono hover:bg-brand-purple-hover transition-colors disabled:opacity-40">
+              {synthesis ? 'Re-run Synthesis' : 'Run Full Synthesis'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Results */}
+      {synthesis && <SynthesisResults data={synthesis} />}
+    </div>
+  );
+}
+
+function SynthesisResults({ data }: { data: { synthesis: Record<string, unknown>; isStale: boolean; workstreamsCovered: string[] } }) {
+  const { synthesis: s, isStale, workstreamsCovered } = data;
+  const lr = s.launchReadiness as { canLaunch: boolean; blockers: Blocker[]; conditionalItems?: Array<{ questionId: string; condition: string }> } | undefined;
+  const exposure = s.totalRegulatoryExposure as { totalMinPenalty: string; totalMaxPenalty: string; breakdownByStatute?: Array<{ statute: string; exposure: string; status: string }> } | undefined;
+  const cp = s.criticalPath as { launchDate: string; longestPole?: { item: string; reason: string; estimatedDuration: string }; sequencedActions?: SeqAction[] } | undefined;
+  const contradictions = (s.contradictions as Array<{ questionId1: string; answer1: string; questionId2: string; answer2: string; contradiction: string; resolution: string }>) || [];
+  const deps = (s.crossWorkstreamDependencies as Array<{ fromWorkstream: string; toWorkstream: string; dependency: string; impact: string }>) || [];
+  const execSummary = s.executiveSummary as string | undefined;
+  const notAnalyzed = (s.workstreamsNotAnalyzed as string[]) || [];
+
+  return (
+    <div className="space-y-4">
+      {isStale && (
+        <div className="bg-amber-50 border border-amber-200 rounded p-3">
+          <span className="text-terminal-sm font-mono text-amber-700">Workstream analyses updated since this synthesis. Re-run to update.</span>
+        </div>
+      )}
+
+      {/* Launch Readiness Banner */}
+      {lr && (
+        <div className={`rounded border p-5 ${lr.canLaunch ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`text-lg font-bold font-mono ${lr.canLaunch ? 'text-emerald-700' : 'text-red-700'}`}>
+            {lr.canLaunch ? 'LAUNCH READY — all compliance gates passed' : `NOT READY TO LAUNCH — ${lr.blockers?.length || 0} blockers`}
+          </p>
+          {lr.blockers && lr.blockers.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {lr.blockers.map((b, i) => (
+                <div key={i} className="border border-red-200 rounded p-2.5 bg-white">
+                  <div className="flex items-start gap-2">
+                    <span className="text-terminal-sm font-mono text-text-faint">{b.questionId}</span>
+                    <div className="flex-1">
+                      <p className="text-terminal-sm font-mono text-text-primary">{b.reason}</p>
+                      <p className="text-terminal-sm font-mono text-red-600 mt-0.5">{b.statute}: {b.penaltyIfIgnored}</p>
+                      <p className="text-terminal-sm font-mono text-text-secondary mt-0.5">Resolution: {b.resolution} ({b.estimatedEffort})</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Executive Summary */}
+      {execSummary && (
+        <div className="bg-white rounded border border-border shadow-sm p-4">
+          <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Executive Summary</p>
+          <p className="text-terminal-base font-mono text-text-primary">{execSummary}</p>
+        </div>
+      )}
+
+      {/* Exposure */}
+      {exposure && (
+        <div className="bg-white rounded border border-border shadow-sm p-4">
+          <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Total Regulatory Exposure</p>
+          <p className="text-sm font-bold font-mono text-red-600">{exposure.totalMinPenalty} — {exposure.totalMaxPenalty}</p>
+          {exposure.breakdownByStatute && exposure.breakdownByStatute.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {exposure.breakdownByStatute.map((s, i) => (
+                <div key={i} className="flex items-center gap-2 text-terminal-sm font-mono">
+                  <span className={`px-1.5 py-0.5 rounded ${s.status === 'resolved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{s.status}</span>
+                  <span className="text-text-primary">{s.statute}</span>
+                  <span className="text-text-faint">{s.exposure}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Critical Path */}
+      {cp && (
+        <div className="bg-white rounded border border-border shadow-sm p-4">
+          <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Critical Path</p>
+          <p className="text-terminal-base font-mono text-text-primary mb-2">Earliest launch: {cp.launchDate}</p>
+          {cp.longestPole && (
+            <div className="bg-amber-50 border border-amber-100 rounded p-2.5 mb-3">
+              <p className="text-terminal-sm font-mono text-amber-700 font-medium">Longest pole: {cp.longestPole.item}</p>
+              <p className="text-terminal-sm font-mono text-text-muted">{cp.longestPole.reason} ({cp.longestPole.estimatedDuration})</p>
+            </div>
+          )}
+          {cp.sequencedActions && cp.sequencedActions.length > 0 && (
+            <div className="space-y-1.5">
+              {cp.sequencedActions.map((a) => (
+                <div key={a.order} className="flex items-start gap-2 text-terminal-sm font-mono">
+                  <span className="w-6 text-brand-purple font-bold flex-shrink-0">{a.order}.</span>
+                  <div className="flex-1">
+                    <span className="text-text-primary">{a.action}</span>
+                    <span className="text-text-faint"> — {a.deadline} ({a.effort})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Contradictions */}
+      {contradictions.length > 0 && (
+        <div className="bg-white rounded border border-border shadow-sm p-4">
+          <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Contradictions Found</p>
+          {contradictions.map((c, i) => (
+            <div key={i} className="border-l-2 border-l-red-300 pl-3 py-1.5 mb-2">
+              <p className="text-terminal-sm font-mono text-red-600">{c.contradiction}</p>
+              <p className="text-terminal-sm font-mono text-text-faint">{c.questionId1}: &ldquo;{c.answer1}&rdquo; vs {c.questionId2}: &ldquo;{c.answer2}&rdquo;</p>
+              <p className="text-terminal-sm font-mono text-text-secondary mt-0.5">Resolution: {c.resolution}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dependencies */}
+      {deps.length > 0 && (
+        <div className="bg-white rounded border border-border shadow-sm p-4">
+          <p className="text-terminal-sm uppercase tracking-widest text-text-muted font-mono mb-2">Cross-Workstream Dependencies</p>
+          {deps.map((d, i) => (
+            <p key={i} className="text-terminal-sm font-mono text-text-secondary mb-1">
+              <span className="text-brand-purple">{d.fromWorkstream}</span> → <span className="text-brand-purple">{d.toWorkstream}</span>: {d.dependency}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Not analyzed warning */}
+      {notAnalyzed.length > 0 && (
+        <div className="bg-amber-50 border border-amber-100 rounded p-3">
+          <p className="text-terminal-sm font-mono text-amber-700 font-medium">{notAnalyzed.length} workstreams not included in this assessment:</p>
+          <p className="text-terminal-sm font-mono text-amber-600 mt-1">{notAnalyzed.join(', ')}</p>
+        </div>
+      )}
+
+      {/* Covered */}
+      <p className="text-terminal-sm text-text-faint font-mono">Synthesis covers: {workstreamsCovered.join(', ')}</p>
     </div>
   );
 }
