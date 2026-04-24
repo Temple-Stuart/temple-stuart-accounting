@@ -813,10 +813,348 @@ export const workstreamL: OpsWorkstream = {
   ],
 };
 
-// --- Workstreams M through R will be added in subsequent prompts ---
-// M: Insurance & Risk Transfer (4 questions)
-// N: SOC 2 & Security Attestations (3 questions)
-// O: Terms of Service & User-Facing Legal (6 questions)
-// P: Operational Runbook (6 questions)
-// Q: Growth / At-Scale Triggers (5 questions)
-// R: Go/No-Go Gates (2 questions)
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM M — Insurance & Risk Transfer
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamM: OpsWorkstream = {
+  id: 'bk-m',
+  letter: 'M',
+  title: 'Insurance & Risk Transfer',
+  description: 'E&O, cyber liability, D&O, and state-required surety bonds.',
+  questions: [
+    {
+      id: 'bk-m-01',
+      text: 'Before onboarding any paying user, will you bind a $1M/$1M E&O policy (solo-practitioner market range $800-$2,500/year) with a retroactive date matched to earliest work?',
+      type: 'boolean',
+      regulatoryTag: 'EO_Insurance',
+      launchStage: 'required_before_charging',
+      helpText: 'Not statutorily required for unlicensed bookkeeping/software companies in most states, but industry norm for solo practitioners is $1M per-claim / $1M aggregate. Becomes required in many states upon CPA licensure.',
+      sourceSection: '§10.2 Insurance',
+    },
+    {
+      id: 'bk-m-02',
+      text: 'Have you obtained a cyber-liability policy that explicitly covers breach-response costs, notification mailings, credit-monitoring, forensic investigation, regulatory fines where insurable, and FTC Safeguards reporting obligations?',
+      type: 'boolean',
+      regulatoryTag: 'Cyber_Insurance',
+      launchStage: 'required_before_charging',
+      helpText: 'Cyber liability covers breach-notification costs which can exceed $150/record. Many carriers bundle with E&O. CAMICO offers cyber by endorsement. Expect 10-25% lower premiums once SOC 2 Type II achieved.',
+      sourceSection: '§10.2 Insurance',
+    },
+    {
+      id: 'bk-m-03',
+      text: 'If you plan to raise venture capital, is D&O insurance in the pre-Series A stack?',
+      type: 'boolean',
+      regulatoryTag: 'DO_Insurance',
+      launchStage: 'best_practice',
+      helpText: 'D&O protects founders and board members from personal liability in shareholder suits, regulatory actions, and employment claims. Standard requirement before institutional investment.',
+      sourceSection: '§10.2 Insurance',
+    },
+    {
+      id: 'bk-m-04',
+      text: 'Have required state bonds been bound?',
+      type: 'checklist',
+      regulatoryTag: 'Fidelity_Bond',
+      launchStage: 'required_before_charging',
+      dependsOn: ['bk-f-01', 'bk-f-03'],
+      options: ['California CTEC $5,000 tax-preparer bond', 'Nevada $50,000 document-preparer bond', 'Not applicable — no regulated-state operations'],
+      helpText: 'California requires $5,000 surety bond for CTEC registration. Nevada requires $50,000 document-preparer bond with Secretary of State. Both required before operating in those states as a non-exempt preparer.',
+      sourceSection: '§10.3 Bonds',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM N — SOC 2 & Security Attestations
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamN: OpsWorkstream = {
+  id: 'bk-n',
+  letter: 'N',
+  title: 'SOC 2 & Security Attestations',
+  description: 'Compliance automation, SOC 2 Type I/II timeline, and penetration testing cadence.',
+  questions: [
+    {
+      id: 'bk-n-01',
+      text: 'Do you engage a compliance-automation vendor (Vanta, Drata, Secureframe) before writing customer-facing security promises?',
+      type: 'boolean',
+      regulatoryTag: 'SOC2',
+      launchStage: 'best_practice',
+      helpText: 'Compliance automation platforms automate evidence collection and control monitoring for SOC 2. Starting with one before making security claims prevents overpromising. Typical cost $5k-15k/year.',
+      sourceSection: '§10.4 SOC 2',
+    },
+    {
+      id: 'bk-n-02',
+      text: 'Is SOC 2 Type I targeted within 6 months of launch, with Type II observation beginning immediately thereafter?',
+      type: 'boolean',
+      regulatoryTag: 'SOC2',
+      launchStage: 'required_before_charging',
+      helpText: 'Type I is point-in-time control design (~$15-25k, 2-6 months). Type II is operational effectiveness over 3-12 months (~$20-35k). Type II is non-negotiable for fintech enterprise sales per Bessemer Venture Partners.',
+      sourceSection: '§10.4 SOC 2',
+    },
+    {
+      id: 'bk-n-03',
+      text: 'Have you scheduled annual third-party pen testing, and biannual vulnerability scans, even before the 5,000-record threshold forces it?',
+      type: 'boolean',
+      regulatoryTag: 'Penetration_Testing',
+      launchStage: 'best_practice',
+      helpText: 'Full testing cadence is legally required at 5,000+ consumer records under FTC Safeguards. Starting early establishes baseline and catches issues before they become breaches. Budget $5k-15k per annual pen test.',
+      sourceSection: '§10.4 SOC 2',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM O — Terms of Service & User-Facing Legal
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamO: OpsWorkstream = {
+  id: 'bk-o',
+  letter: 'O',
+  title: 'Terms of Service & User-Facing Legal',
+  description: 'TOS disclaimers, arbitration clauses, accuracy guarantees, accessibility, and marketing compliance.',
+  questions: [
+    {
+      id: 'bk-o-01',
+      text: "Does your Terms of Service mirror industry-standard disclaimers ('not tax, legal, accounting, or financial advice'; 'not a CPA firm'; 'no representation before tax authorities') without overclaiming CCPA-waivable rights?",
+      type: 'boolean',
+      regulatoryTag: 'TOS',
+      launchStage: 'required_now',
+      helpText: 'Model on TurboTax/Intuit TOS structure. Must disclaim advice, representation, and professional services. Cannot waive CCPA §1798.150 private right of action for data breaches.',
+      sourceSection: '§10.6 Terms of Service',
+    },
+    {
+      id: 'bk-o-02',
+      text: 'Is the arbitration clause paired with express preservation of CCPA §1798.150 private right of action and applicable state data-breach statutory remedies?',
+      type: 'boolean',
+      regulatoryTag: 'TOS',
+      launchStage: 'required_now',
+      helpText: 'CCPA expressly preserves private rights of action for data breaches — your arbitration clause cannot waive this. California Song-Beverly Act, UCL §17200, and FTC Act §5 add additional consumer-fraud exposure.',
+      sourceSection: '§10.6 Terms of Service',
+    },
+    {
+      id: 'bk-o-03',
+      text: "If you advertise 'maximum refund' or 'accuracy' guarantees, have the exact contractual remedies been drafted and reserved on the balance sheet as a loss contingency?",
+      type: 'boolean',
+      regulatoryTag: 'Guarantees',
+      launchStage: 'required_before_charging',
+      helpText: "Accuracy and maximum-refund guarantees are marketing promises that become enforceable contract terms once made. TurboTax's $141M 2022 settlement with state AGs over 'free' advertising is the cautionary tale.",
+      sourceSection: '§10.7 Guarantees',
+    },
+    {
+      id: 'bk-o-04',
+      text: 'Is WCAG 2.1 Level AA verified by third-party audit, and is a public accessibility statement posted?',
+      type: 'boolean',
+      regulatoryTag: 'Accessibility',
+      launchStage: 'best_practice',
+      helpText: 'ADA Title III litigation has reached SaaS products regularly. WCAG 2.1 Level AA is the minimum defensible standard. Third-party audit provides stronger legal defense than self-assessment.',
+      sourceSection: '§10.8 Accessibility',
+    },
+    {
+      id: 'bk-o-05',
+      text: 'Are all claims about accuracy, refund size, time-to-file substantiated by documented methodology?',
+      type: 'boolean',
+      regulatoryTag: 'Marketing_FTC',
+      launchStage: 'required_before_charging',
+      helpText: 'FTC Endorsement and Testimonial Guides (16 CFR Part 255) apply to performance claims. All claims must be substantiated. Deceptive representations violate FTC Act §5.',
+      sourceSection: '§10.9 Marketing Compliance',
+    },
+    {
+      id: 'bk-o-06',
+      text: 'Does the Plaid authorization screen also comply with CFPB §1033 authorized-third-party disclosure rules as they finalize?',
+      type: 'boolean',
+      regulatoryTag: 'Section_1033',
+      launchStage: 'required_at_scale',
+      dependsOn: ['bk-i-02'],
+      helpText: '§1033 rule is currently stayed but when finalized will require specific authorization disclosures for third parties accessing consumer financial data. Build compliant screens proactively.',
+      sourceSection: '§6.3 CFPB §1033',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM P — Operational Runbook
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamP: OpsWorkstream = {
+  id: 'bk-p',
+  letter: 'P',
+  title: 'Operational Runbook',
+  description: 'Annual reporting, training logs, vendor reviews, incident response testing, change management, and backup procedures.',
+  questions: [
+    {
+      id: 'bk-p-01',
+      text: 'Who receives the annual written Information Security Program report (even as a solo founder, it must be dated, signed, and filed)?',
+      type: 'boolean',
+      regulatoryTag: 'Safeguards',
+      launchStage: 'required_now',
+      helpText: 'FTC Safeguards requires annual written report to board or senior officer. Solo founders report to themselves but must date, sign, and retain the document. Required even under small-firm exemption.',
+      sourceSection: '§4.5 Annual Reporting',
+    },
+    {
+      id: 'bk-p-02',
+      text: 'Is a records-of-completion log maintained for any employee or contractor given access to customer information?',
+      type: 'boolean',
+      regulatoryTag: 'Training',
+      launchStage: 'required_now',
+      helpText: 'Training records must document who was trained, when, on what topics, and completion status. Required for FTC Safeguards compliance and SOC 2 audit evidence.',
+      sourceSection: '§4.6 Training',
+    },
+    {
+      id: 'bk-p-03',
+      text: 'Is there an annual review cycle for every sub-processor (Plaid, Azure, Vercel, Prisma Cloud, email, analytics, SEO, support, AI vendor)?',
+      type: 'boolean',
+      regulatoryTag: 'Vendor_Review',
+      launchStage: 'required_now',
+      helpText: 'FTC Safeguards requires service-provider oversight with periodic evaluation. Annual review should confirm each vendor security posture, DPA compliance, and sub-processor controls.',
+      sourceSection: '§4.3 Vendor Management',
+    },
+    {
+      id: 'bk-p-04',
+      text: 'Has your IR plan been tested via a tabletop exercise in the last 12 months?',
+      type: 'boolean',
+      regulatoryTag: 'Incident_Response',
+      launchStage: 'required_now',
+      helpText: 'Incident Response Plan must be tested regularly to be effective. Tabletop exercises simulate breach scenarios and identify gaps in notification procedures, escalation paths, and communication templates.',
+      sourceSection: '§4.2 Incident Response',
+    },
+    {
+      id: 'bk-p-05',
+      text: 'Are production-database migrations logged in an immutable record accessible to auditors?',
+      type: 'boolean',
+      regulatoryTag: 'Change_Management',
+      launchStage: 'required_now',
+      helpText: 'SOC 2 change management controls require documented, reviewable records of all production changes. Enforced via the Claude Code to PR to merge workflow.',
+      sourceSection: '§10.4 SOC 2',
+    },
+    {
+      id: 'bk-p-06',
+      text: 'Are Azure PostgreSQL backups encrypted, geographically redundant, periodically restored for test, and retained consistent with §6107 3-year minimum?',
+      type: 'boolean',
+      regulatoryTag: 'Backup_Recovery',
+      launchStage: 'required_now',
+      helpText: 'Backup retention must meet §6107(b) 3-year minimum for tax return data. Periodic restore tests verify recoverability. Geographic redundancy protects against regional outages.',
+      sourceSection: '§4.7 Backup & Recovery',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM Q — Growth / At-Scale Triggers
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamQ: OpsWorkstream = {
+  id: 'bk-q',
+  letter: 'Q',
+  title: 'Growth / At-Scale Triggers',
+  description: 'Threshold monitoring for FTC Safeguards, sales tax nexus, SOC 2 upgrades, compliance hiring, and certifications.',
+  questions: [
+    {
+      id: 'bk-q-01',
+      text: 'Who is tasked with monitoring the 5,000-consumer threshold that triggers full FTC Safeguards obligations?',
+      type: 'text',
+      regulatoryTag: 'Scale',
+      launchStage: 'required_at_scale',
+      helpText: 'At 5,000 consumer records, the small-firm exemption ends — written risk assessment, continuous monitoring, penetration testing, incident response plan, and board reporting all become mandatory.',
+      sourceSection: '§4.1 GLBA Safeguards Rule',
+    },
+    {
+      id: 'bk-q-02',
+      text: "Who monitors each state's economic-nexus threshold for sales-tax registration?",
+      type: 'text',
+      regulatoryTag: 'Scale',
+      launchStage: 'required_at_scale',
+      helpText: "Each state has its own threshold ($100k or $500k). Revenue from all states counts toward each state's threshold individually. Must monitor continuously as revenue grows.",
+      sourceSection: '§8.3 SaaS Sales Tax',
+    },
+    {
+      id: 'bk-q-03',
+      text: 'At what ARR or customer count do you transition from Type I to Type II SOC 2?',
+      type: 'text',
+      regulatoryTag: 'Scale',
+      launchStage: 'required_at_scale',
+      helpText: 'Type I is sufficient for early-stage. Enterprise customers and banking partners require Type II. Typical trigger: first enterprise deal or $500k+ ARR.',
+      sourceSection: '§10.4 SOC 2',
+    },
+    {
+      id: 'bk-q-04',
+      text: 'When do you hire a dedicated Privacy/Compliance Officer, and what is the budget line?',
+      type: 'text',
+      regulatoryTag: 'Scale',
+      launchStage: 'required_at_scale',
+      helpText: 'Regulatory surface area grows with customer count and state coverage. Dedicated compliance hire typically justified at 50-100 employees or when operating in 10+ regulated states.',
+      sourceSection: '§Q Growth Triggers',
+    },
+    {
+      id: 'bk-q-05',
+      text: 'When do you evaluate ISO 27001 or FedRAMP Moderate for larger B2B customers?',
+      type: 'text',
+      regulatoryTag: 'Scale',
+      launchStage: 'required_at_scale',
+      helpText: 'ISO 27001 is the international security standard, increasingly requested by global enterprises. FedRAMP Moderate is required for federal agency contracts. Both represent significant investment ($50k-200k+).',
+      sourceSection: '§Q Growth Triggers',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// WORKSTREAM R — Go/No-Go Gates
+// ═══════════════════════════════════════════════════════════════════
+
+export const workstreamR: OpsWorkstream = {
+  id: 'bk-r',
+  letter: 'R',
+  title: 'Go/No-Go Gates',
+  description: 'Final pre-launch compliance checklist and legal opinion requirement.',
+  questions: [
+    {
+      id: 'bk-r-01',
+      text: 'Pre-launch compliance checklist — do you have all of these?',
+      type: 'checklist',
+      regulatoryTag: 'Go_No_Go',
+      launchStage: 'required_before_charging',
+      options: [
+        'Entity formed and registered',
+        'PTIN obtained',
+        'WISP completed',
+        'FTC Safeguards program drafted',
+        'Plaid production approval',
+        'Privacy policy published',
+        'Terms of Service published',
+        'IRC §7216 consent forms drafted',
+        'E&O insurance bound',
+        'Cyber insurance bound',
+        'State preparer registrations filed',
+        'Sales-tax engine active',
+        'Form 8879 retention plan documented',
+      ],
+      helpText: 'This is the go/no-go gate. Every item must be completed or explicitly documented as not-applicable before the first paying user touches the platform.',
+      sourceSection: '§R Go/No-Go',
+    },
+    {
+      id: 'bk-r-02',
+      text: 'Have you obtained a written legal opinion from a licensed attorney (fintech + tax) confirming that your specific product/service model does not cross into unauthorized practice of law, tax advisory, or unauthorized CPA work in your target states?',
+      type: 'boolean',
+      regulatoryTag: 'Go_No_Go',
+      launchStage: 'required_before_charging',
+      helpText: 'This is the single most important pre-launch item. No amount of self-research substitutes for an attorney-written legal opinion specific to your product model. Budget for it.',
+      sourceSection: '§R Go/No-Go',
+    },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// FINAL MODULE EXPORT
+// ═══════════════════════════════════════════════════════════════════
+
+export const BOOKKEEPING_OPS_MODULE: OpsModule = {
+  id: 'bookkeeping',
+  title: 'Bookkeeping & Tax',
+  description: 'Regulatory compliance, business decisions, and operational requirements for launching a bookkeeping and tax preparation SaaS platform.',
+  workstreams: [
+    workstreamA, workstreamB, workstreamC, workstreamD, workstreamE, workstreamF,
+    workstreamG, workstreamH, workstreamI, workstreamJ, workstreamK, workstreamL,
+    workstreamM, workstreamN, workstreamO, workstreamP, workstreamQ, workstreamR,
+  ],
+  totalQuestions: 90,
+};
