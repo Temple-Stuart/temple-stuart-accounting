@@ -474,6 +474,7 @@ model users {
   dailyPlans              daily_plans[]
   missions                missions[]
   questionnaireAnswers    ops_questionnaire_answers[]
+  workstreamAnalyses      ops_workstream_analysis[]
 }
 
 model budgets {
@@ -1924,6 +1925,7 @@ model missions {
   roadmapWeeks         roadmap_weeks[]
   missionTasks         mission_tasks[]
   questionnaireAnswers ops_questionnaire_answers[]
+  workstreamAnalyses   ops_workstream_analysis[]
 
   @@map("missions")
 }
@@ -2055,4 +2057,30 @@ model ops_questionnaire_answers {
   @@index([missionId, moduleId])
   @@index([missionId, moduleId, workstreamId])
   @@map("ops_questionnaire_answers")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPS WORKSTREAM ANALYSIS — AI decision register per workstream
+// ═══════════════════════════════════════════════════════════════════
+
+model ops_workstream_analysis {
+  id             String   @id @default(cuid())
+  missionId      String   @map("mission_id")
+  userId         String   @map("user_id")
+  moduleId       String   @map("module_id")
+  workstreamId   String   @map("workstream_id")
+  analysisOutput String   @map("analysis_output") @db.Text
+  modelUsed      String   @map("model_used")
+  promptVersion  String   @map("prompt_version")
+  inputHash      String   @map("input_hash")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users    @relation(fields: [userId], references: [id])
+
+  @@unique([missionId, moduleId, workstreamId])
+  @@index([userId])
+  @@index([missionId, moduleId])
+  @@map("ops_workstream_analysis")
 }
