@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
+import OpsSubNav from '@/components/ops/OpsSubNav';
 import { BOOKKEEPING_OPS_MODULE } from '@/lib/ops/bookkeepingQuestions';
 import type { OpsWorkstream, OpsQuestion, LaunchStage } from '@/lib/ops/bookkeepingQuestions';
 
@@ -42,6 +43,7 @@ export default function BookkeepingQuestionnairePage() {
 
   return (
     <AppLayout>
+      <OpsSubNav />
       <div className="max-w-6xl mx-auto px-4 pt-4 pb-8 space-y-4">
         {/* Module Header */}
         <div className="bg-white rounded border border-border shadow-sm p-5">
