@@ -436,18 +436,18 @@ model investment_transactions {
 }
 
 model users {
-  id                      String                   @id
-  email                   String                   @unique
+  id                      String                      @id
+  email                   String                      @unique
   password                String
   name                    String
-  createdAt               DateTime                 @default(now())
+  createdAt               DateTime                    @default(now())
   updatedAt               DateTime
   accountCode             String?
   subAccount              String?
-  tier                    String                   @default("free") @db.VarChar(20)
+  tier                    String                      @default("free") @db.VarChar(20)
   stripeCustomerId        String?
   stripeSubscriptionId    String?
-  bookkeeping_initialized Boolean                  @default(false)
+  bookkeeping_initialized Boolean                     @default(false)
   scanner_start_date      DateTime?
   accounts                accounts[]
   plaid_items             plaid_items[]
@@ -473,6 +473,7 @@ model users {
   scan_snapshots          scan_snapshots[]
   dailyPlans              daily_plans[]
   missions                missions[]
+  questionnaireAnswers    ops_questionnaire_answers[]
 }
 
 model budgets {
@@ -1915,13 +1916,14 @@ model missions {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user               users                 @relation(fields: [userId], references: [id])
-  dailyPlans         daily_plans[]
-  stages             mission_stages[]
-  brainDumpEntries   brain_dump_entries[]
-  realityConstraints reality_constraints[]
-  roadmapWeeks       roadmap_weeks[]
-  missionTasks       mission_tasks[]
+  user                 users                       @relation(fields: [userId], references: [id])
+  dailyPlans           daily_plans[]
+  stages               mission_stages[]
+  brainDumpEntries     brain_dump_entries[]
+  realityConstraints   reality_constraints[]
+  roadmapWeeks         roadmap_weeks[]
+  missionTasks         mission_tasks[]
+  questionnaireAnswers ops_questionnaire_answers[]
 
   @@map("missions")
 }
@@ -2027,4 +2029,30 @@ model mission_tasks {
   @@index([missionId])
   @@index([weekId])
   @@index([missionId, scheduledDate])
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPS QUESTIONNAIRE — Stores answers for Operations Planner questions
+// ═══════════════════════════════════════════════════════════════════
+
+model ops_questionnaire_answers {
+  id           String   @id @default(cuid())
+  missionId    String   @map("mission_id")
+  userId       String   @map("user_id")
+  moduleId     String   @map("module_id")
+  workstreamId String   @map("workstream_id")
+  questionId   String   @map("question_id")
+  answerValue  String   @map("answer_value") @db.Text
+  questionType String   @map("question_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users    @relation(fields: [userId], references: [id])
+
+  @@unique([missionId, moduleId, questionId])
+  @@index([userId])
+  @@index([missionId, moduleId])
+  @@index([missionId, moduleId, workstreamId])
+  @@map("ops_questionnaire_answers")
 }
