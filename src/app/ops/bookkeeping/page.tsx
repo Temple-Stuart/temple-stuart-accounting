@@ -47,6 +47,8 @@ export default function BookkeepingQuestionnairePage() {
   const [analyzingWs, setAnalyzingWs] = useState<string | null>(null);
   const [synthesis, setSynthesis] = useState<{ synthesis: Record<string, unknown>; isStale: boolean; workstreamsCovered: string[] } | null>(null);
   const [runningSynthesis, setRunningSynthesis] = useState(false);
+  const [tasks, setTasks] = useState<Array<{ id: string; questionId: string; workstreamId: string; title: string; status: string; priority: string; deadline: string | null }>>([]);
+  const [generatingTasks, setGeneratingTasks] = useState<string | null>(null);
   const counts = stageCounts();
 
   // Fetch active mission
@@ -116,6 +118,62 @@ export default function BookkeepingQuestionnairePage() {
       } catch { /* skip */ }
     })();
   }, [missionId]);
+
+  // Load existing tasks
+  useEffect(() => {
+    if (!missionId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/ops/compliance-tasks?missionId=${missionId}&moduleId=${MODULE_ID}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTasks(data.tasks || []);
+        }
+      } catch { /* skip */ }
+    })();
+  }, [missionId]);
+
+  const generateTasks = useCallback(async (workstreamId: string) => {
+    if (!missionId) return;
+    setGeneratingTasks(workstreamId);
+    try {
+      const res = await fetch('/api/ops/compliance-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionId, moduleId: MODULE_ID, workstreamId, mode: 'from_analysis' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTasks((prev) => {
+          const updated = [...prev];
+          for (const t of data.tasks) {
+            const idx = updated.findIndex((e) => e.id === t.id);
+            if (idx >= 0) updated[idx] = t;
+            else updated.push(t);
+          }
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Task generation failed:', err);
+    } finally {
+      setGeneratingTasks(null);
+    }
+  }, [missionId]);
+
+  const acceptTask = useCallback(async (taskId: string) => {
+    await fetch('/api/ops/compliance-tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId, status: 'not_started' }),
+    });
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: 'not_started' } : t));
+  }, []);
+
+  const dismissTask = useCallback(async (taskId: string) => {
+    await fetch(`/api/ops/compliance-tasks?taskId=${taskId}`, { method: 'DELETE' });
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }, []);
 
   const runSynthesis = useCallback(async () => {
     if (!missionId) return;
@@ -387,6 +445,21 @@ export default function BookkeepingQuestionnairePage() {
                   {/* Analysis results */}
                   {analyses[ws.id] && (
                     <AnalysisResults wsId={ws.id} data={analyses[ws.id]} />
+                  )}
+
+                  {/* Task generation + list */}
+                  {analyses[ws.id] && (
+                    <div className="px-4 py-3 border-t border-border bg-white">
+                      {generatingTasks === ws.id ? (
+                        <span className="text-terminal-sm text-text-muted font-mono animate-pulse">Generating tasks...</span>
+                      ) : (
+                        <button onClick={() => generateTasks(ws.id)}
+                          className="px-4 py-1.5 border border-brand-purple text-brand-purple rounded text-terminal-sm font-mono hover:bg-brand-purple hover:text-white transition-colors">
+                          {tasks.some((t) => t.workstreamId === ws.id) ? 'Regenerate Tasks' : 'Generate Tasks from Analysis'}
+                        </button>
+                      )}
+                      <TaskList tasks={tasks.filter((t) => t.workstreamId === ws.id)} onAccept={acceptTask} onDismiss={dismissTask} />
+                    </div>
                   )}
                 </div>
               )}
@@ -683,6 +756,62 @@ function SynthesisResults({ data }: { data: { synthesis: Record<string, unknown>
 
       {/* Covered */}
       <p className="text-terminal-sm text-text-faint font-mono">Synthesis covers: {workstreamsCovered.join(', ')}</p>
+    </div>
+  );
+}
+
+// ── Task List ───────────────────────────────────────────────────────────────
+
+const TASK_STATUS_STYLE: Record<string, string> = {
+  suggested: 'bg-blue-100 text-blue-800',
+  not_started: 'bg-gray-200 text-gray-700',
+  in_progress: 'bg-amber-100 text-amber-800',
+  blocked: 'bg-red-100 text-red-800',
+  complete: 'bg-emerald-100 text-emerald-800',
+  verified: 'bg-emerald-200 text-emerald-900',
+  expired: 'bg-gray-100 text-gray-500',
+};
+
+const TASK_PRIORITY_STYLE: Record<string, string> = {
+  critical: 'bg-red-100 text-red-800',
+  high: 'bg-amber-100 text-amber-800',
+  medium: 'bg-blue-100 text-blue-800',
+  low: 'bg-gray-100 text-gray-600',
+};
+
+function TaskList({ tasks, onAccept, onDismiss }: {
+  tasks: Array<{ id: string; title: string; status: string; priority: string; deadline: string | null }>;
+  onAccept: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  if (tasks.length === 0) return null;
+
+  const suggested = tasks.filter((t) => t.status === 'suggested').length;
+  const active = tasks.filter((t) => ['not_started', 'in_progress'].includes(t.status)).length;
+  const done = tasks.filter((t) => ['complete', 'verified'].includes(t.status)).length;
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex gap-2 text-terminal-sm font-mono">
+        {suggested > 0 && <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{suggested} suggested</span>}
+        {active > 0 && <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded">{active} active</span>}
+        {done > 0 && <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">{done} done</span>}
+      </div>
+      {tasks.map((t) => (
+        <div key={t.id} className="border border-border-light rounded p-2.5 flex items-start gap-2">
+          <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
+            <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded ${TASK_STATUS_STYLE[t.status] || ''}`}>{t.status.replace('_', ' ')}</span>
+            <span className={`text-terminal-sm font-mono px-1.5 py-0.5 rounded ${TASK_PRIORITY_STYLE[t.priority] || ''}`}>{t.priority}</span>
+          </div>
+          <span className="text-terminal-sm font-mono text-text-primary flex-1">{t.title}</span>
+          {t.status === 'suggested' && (
+            <div className="flex gap-1 flex-shrink-0">
+              <button onClick={() => onAccept(t.id)} className="text-terminal-sm font-mono text-emerald-700 hover:underline">Accept</button>
+              <button onClick={() => onDismiss(t.id)} className="text-terminal-sm font-mono text-red-600 hover:underline">Dismiss</button>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
