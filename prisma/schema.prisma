@@ -476,6 +476,8 @@ model users {
   questionnaireAnswers    ops_questionnaire_answers[]
   workstreamAnalyses      ops_workstream_analysis[]
   synthesisReports        ops_synthesis_report[]
+  complianceTasks         compliance_tasks[]
+  taskEvidence            task_evidence[]
 }
 
 model budgets {
@@ -1928,6 +1930,7 @@ model missions {
   questionnaireAnswers ops_questionnaire_answers[]
   workstreamAnalyses   ops_workstream_analysis[]
   synthesisReports     ops_synthesis_report[]
+  complianceTasks      compliance_tasks[]
 
   @@map("missions")
 }
@@ -2110,4 +2113,127 @@ model ops_synthesis_report {
   @@unique([missionId, moduleId])
   @@index([userId])
   @@map("ops_synthesis_report")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPLIANCE TASK ENGINE — Tasks, evidence, documents, code refs, URLs
+// ═══════════════════════════════════════════════════════════════════
+
+model compliance_tasks {
+  id               String    @id @default(cuid())
+  missionId        String    @map("mission_id")
+  userId           String    @map("user_id")
+  moduleId         String    @map("module_id")
+  workstreamId     String    @map("workstream_id")
+  questionId       String    @map("question_id")
+  title            String
+  description      String    @db.Text
+  actionSteps      String    @map("action_steps") @db.Text
+  researchLinks    String?   @map("research_links") @db.Text
+  estimatedCostMin Float?    @map("estimated_cost_min")
+  estimatedCostMax Float?    @map("estimated_cost_max")
+  estimatedEffort  String?   @map("estimated_effort")
+  effortQuantity   Int?      @map("effort_quantity")
+  deadline         DateTime?
+  deadlineLabel    String?   @map("deadline_label")
+  calendarEventId  String?   @map("calendar_event_id")
+  calendarStart    DateTime? @map("calendar_start")
+  calendarEnd      DateTime? @map("calendar_end")
+  status           String    @default("suggested")
+  priority         String    @default("medium")
+  blockedByTasks   String?   @map("blocked_by_tasks") @db.Text
+  statute          String?
+  penaltyRange     String?   @map("penalty_range")
+  sourceAnalysisId String?   @map("source_analysis_id")
+  verifiedAt       DateTime? @map("verified_at")
+  verifiedBy       String?   @map("verified_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  mission  missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user     users           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  evidence task_evidence[]
+
+  @@unique([missionId, moduleId, questionId])
+  @@index([userId])
+  @@index([missionId, moduleId])
+  @@index([missionId, moduleId, workstreamId])
+  @@index([status])
+  @@index([deadline])
+  @@index([calendarStart, calendarEnd])
+  @@map("compliance_tasks")
+}
+
+model task_evidence {
+  id           String   @id @default(cuid())
+  taskId       String   @map("task_id")
+  userId       String   @map("user_id")
+  evidenceType String   @map("evidence_type")
+  title        String
+  description  String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  task          compliance_tasks         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user          users                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  document      task_evidence_documents?
+  codeReference task_evidence_code?
+  urlReference  task_evidence_urls?
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_evidence")
+}
+
+model task_evidence_documents {
+  id                  String    @id @default(cuid())
+  evidenceId          String    @unique @map("evidence_id")
+  fileName            String    @map("file_name")
+  fileType            String    @map("file_type")
+  fileSize            Int       @map("file_size")
+  storagePath         String    @map("storage_path")
+  storageUrl          String    @map("storage_url")
+  expirationDate      DateTime? @map("expiration_date")
+  expirationAlertSent Boolean   @default(false) @map("expiration_alert_sent")
+  uploadedAt          DateTime  @default(now()) @map("uploaded_at")
+
+  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@index([expirationDate])
+  @@map("task_evidence_documents")
+}
+
+model task_evidence_code {
+  id              String    @id @default(cuid())
+  evidenceId      String    @unique @map("evidence_id")
+  filePath        String    @map("file_path")
+  startLine       Int       @map("start_line")
+  endLine         Int       @map("end_line")
+  functionName    String?   @map("function_name")
+  description     String    @db.Text
+  codeSnapshot    String    @map("code_snapshot") @db.Text
+  codeHash        String    @map("code_hash")
+  commitHash      String    @map("commit_hash")
+  isStale         Boolean   @default(false) @map("is_stale")
+  staleDetectedAt DateTime? @map("stale_detected_at")
+  lastVerifiedAt  DateTime  @default(now()) @map("last_verified_at")
+
+  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@index([isStale])
+  @@index([filePath])
+  @@map("task_evidence_code")
+}
+
+model task_evidence_urls {
+  id              String   @id @default(cuid())
+  evidenceId      String   @unique @map("evidence_id")
+  url             String
+  archivedContent String?  @map("archived_content") @db.Text
+  lastCheckedAt   DateTime @default(now()) @map("last_checked_at")
+  isAccessible    Boolean  @default(true) @map("is_accessible")
+
+  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@map("task_evidence_urls")
 }
