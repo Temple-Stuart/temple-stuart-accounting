@@ -8,6 +8,7 @@ const OPS_TABS = [
   { name: 'Registry', href: '/ops/registry', exact: false },
   { name: 'Citations', href: '/ops/citations', exact: false },
   { name: 'Audit Log', href: '/ops/audit-log', exact: false },
+  { name: 'Missions', href: '/ops/missions', exact: false },
   { name: 'Bookkeeping', href: '', disabled: true },
   { name: 'Trading', href: '', disabled: true },
   { name: 'Travel', href: '', disabled: true },

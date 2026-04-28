@@ -472,6 +472,8 @@ model users {
   bank_reconciliations    bank_reconciliations[]
   scan_snapshots          scan_snapshots[]
   dailyPlans              daily_plans[]
+  missions                missions[]
+  accountable_tasks       compliance_tasks[]       @relation("task_accountable")
 }
 
 model budgets {
@@ -1960,6 +1962,8 @@ model citations {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  task_citations task_citations[]
+
   @@index([regulatory_source_id])
   @@index([document_type, status])
   @@index([status])
@@ -2061,4 +2065,238 @@ model audit_log {
   @@index([target_table, target_id])
   @@index([created_at])
   @@map("audit_log")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MISSIONS / PROJECTS / WORKSTREAMS / COMPLIANCE TASKS
+// Institutional schema — RACI, FAIR risk, lifecycle clocks, citation FKs
+// ═══════════════════════════════════════════════════════════════════
+
+enum MissionStatus {
+  draft
+  active
+  paused
+  blocked
+  completed
+  cancelled
+  archived
+}
+
+enum ProjectStatus {
+  not_started
+  in_progress
+  blocked
+  completed
+  cancelled
+  archived
+}
+
+enum WorkstreamStatus {
+  not_started
+  in_progress
+  blocked
+  completed
+  not_applicable
+}
+
+enum TaskStatus {
+  proposed
+  scoped
+  scheduled
+  in_progress
+  blocked
+  awaiting_evidence
+  awaiting_attestation
+  completed
+  superseded
+  cancelled
+}
+
+enum TaskPriorityTier {
+  required_now
+  before_charging_users
+  at_scale
+  best_practice
+}
+
+enum DueDateBasis {
+  regulatory_deadline
+  internal_target
+  risk_based
+  vendor_sla
+  not_applicable
+}
+
+enum MonitoringFrequency {
+  continuous
+  daily
+  weekly
+  monthly
+  quarterly
+  annual
+  event_driven
+  not_applicable
+}
+
+enum AttestationFrequency {
+  per_change
+  monthly
+  quarterly
+  semi_annual
+  annual
+  biennial
+  not_applicable
+}
+
+enum ResidualRiskLevel {
+  very_low
+  low
+  moderate
+  high
+  very_high
+}
+
+enum AttestationStatus {
+  not_required
+  pending
+  attested
+  expired
+  revoked
+}
+
+model missions {
+  id                 String        @id @default(uuid()) @db.Uuid
+  user_id            String
+  user               users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  entity_id          String?
+  title              String        @db.VarChar(500)
+  description        String?       @db.Text
+  status             MissionStatus @default(draft)
+  target_completion  DateTime?
+  actual_completion  DateTime?
+  framework_mappings String[]      @default([])
+  is_active          Boolean       @default(true)
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  projects projects[]
+
+  @@index([user_id, status])
+  @@index([entity_id])
+  @@index([is_active])
+  @@map("missions")
+}
+
+model projects {
+  id                String        @id @default(uuid()) @db.Uuid
+  mission_id        String        @db.Uuid
+  mission           missions      @relation(fields: [mission_id], references: [id], onDelete: Cascade)
+  title             String        @db.VarChar(500)
+  description       String?       @db.Text
+  domain_label      String        @db.VarChar(255)
+  status            ProjectStatus @default(not_started)
+  target_completion DateTime?
+  display_order     Int           @default(0)
+  is_active         Boolean       @default(true)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+
+  workstreams workstreams[]
+
+  @@index([mission_id, status])
+  @@index([is_active])
+  @@map("projects")
+}
+
+model workstreams {
+  id            String           @id @default(uuid()) @db.Uuid
+  project_id    String           @db.Uuid
+  project       projects         @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  title         String           @db.VarChar(500)
+  description   String?          @db.Text
+  status        WorkstreamStatus @default(not_started)
+  display_order Int              @default(0)
+  is_active     Boolean          @default(true)
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+
+  tasks compliance_tasks[]
+
+  @@index([project_id, status])
+  @@index([is_active])
+  @@map("workstreams")
+}
+
+model compliance_tasks {
+  id                         String               @id @default(uuid()) @db.Uuid
+  workstream_id              String               @db.Uuid
+  workstream                 workstreams          @relation(fields: [workstream_id], references: [id], onDelete: Cascade)
+  title                      String               @db.VarChar(500)
+  description                String               @db.Text
+  status                     TaskStatus           @default(proposed)
+  priority_tier              TaskPriorityTier
+  priority_rationale         String?              @db.Text
+  inherent_likelihood        ResidualRiskLevel
+  inherent_impact            ResidualRiskLevel
+  residual_likelihood        ResidualRiskLevel?
+  residual_impact            ResidualRiskLevel?
+  penalty_min_amount         Decimal?             @db.Decimal(15, 2)
+  penalty_max_amount         Decimal?             @db.Decimal(15, 2)
+  penalty_currency           String               @default("USD") @db.VarChar(3)
+  penalty_description        String?              @db.Text
+  penalty_weight             Int                  @default(0)
+  estimated_effort_hours_min Decimal?             @db.Decimal(6, 2)
+  estimated_effort_hours_max Decimal?             @db.Decimal(6, 2)
+  estimated_cost_min         Decimal?             @db.Decimal(15, 2)
+  estimated_cost_max         Decimal?             @db.Decimal(15, 2)
+  due_date                   DateTime?
+  due_date_basis             DueDateBasis         @default(not_applicable)
+  due_date_rationale         String?              @db.Text
+  monitoring_frequency       MonitoringFrequency  @default(not_applicable)
+  attestation_frequency      AttestationFrequency @default(not_applicable)
+  evidence_freshness_days    Int?
+  next_regulatory_review_at  DateTime?
+  accountable_user_id        String?
+  accountable                users?               @relation("task_accountable", fields: [accountable_user_id], references: [id])
+  responsible_user_ids       String[]             @default([])
+  consulted_user_ids         String[]             @default([])
+  informed_user_ids          String[]             @default([])
+  attestation_status         AttestationStatus    @default(not_required)
+  last_attested_at           DateTime?
+  last_attested_by           String?              @db.VarChar(255)
+  attestation_expires_at     DateTime?
+  action_steps               String[]             @default([])
+  display_order              Int                  @default(0)
+  module_relevance           String[]             @default([])
+  framework_mappings         String[]             @default([])
+  calendar_event_id          String?              @db.VarChar(255)
+  scheduled_start            DateTime?
+  scheduled_end              DateTime?
+  is_active                  Boolean              @default(true)
+  created_at                 DateTime             @default(now())
+  updated_at                 DateTime             @updatedAt
+
+  citations task_citations[]
+
+  @@index([workstream_id, status])
+  @@index([priority_tier, status])
+  @@index([due_date])
+  @@index([accountable_user_id])
+  @@index([is_active])
+  @@map("compliance_tasks")
+}
+
+model task_citations {
+  id             String           @id @default(uuid()) @db.Uuid
+  task_id        String           @db.Uuid
+  task           compliance_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  citation_id    String           @db.Uuid
+  citation       citations        @relation(fields: [citation_id], references: [id], onDelete: Restrict)
+  relevance_note String?          @db.Text
+  created_at     DateTime         @default(now())
+
+  @@unique([task_id, citation_id])
+  @@index([task_id])
+  @@index([citation_id])
+  @@map("task_citations")
 }
