@@ -4,9 +4,9 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 const OPS_TABS = [
-  { name: 'Overview', href: '/ops', exact: true },
-  { name: 'Bookkeeping', href: '/ops/bookkeeping', exact: false },
-  { name: 'Trading', href: '/ops/trading', exact: false },
+  { name: 'Daily Plan', href: '/ops', exact: true },
+  { name: 'Bookkeeping', href: '', disabled: true, label: 'Under reconstruction' },
+  { name: 'Trading', href: '', disabled: true, label: 'Under reconstruction' },
   { name: 'Travel', href: '', disabled: true },
   { name: 'Operations', href: '', disabled: true },
 ];
@@ -28,10 +28,7 @@ export default function OpsSubNav() {
             const active = isActive(tab);
             if (tab.disabled) {
               return (
-                <span
-                  key={tab.name}
-                  className="px-3 py-2 text-terminal-sm font-mono text-text-faint cursor-default"
-                >
+                <span key={tab.name} className="px-3 py-2 text-terminal-sm font-mono text-text-faint cursor-default">
                   {tab.name}
                 </span>
               );

@@ -2,13 +2,13 @@
 
 import AppLayout from '@/components/ui/AppLayout';
 import OpsSubNav from '@/components/ops/OpsSubNav';
-import OperationsPlanner from '@/components/ops/OperationsPlanner';
+import DailyDashboard from '@/components/ops/DailyDashboard';
 
 export default function OpsPage() {
   return (
     <AppLayout>
       <OpsSubNav />
-      <OperationsPlanner />
+      <DailyDashboard />
     </AppLayout>
   );
 }

@@ -472,7 +472,7 @@ model users {
   bank_reconciliations    bank_reconciliations[]
   scan_snapshots          scan_snapshots[]
   dailyPlans              daily_plans[]
-  missions                missions[]
+  missions                legacy_missions[]
   questionnaireAnswers    ops_questionnaire_answers[]
   workstreamAnalyses      ops_workstream_analysis[]
   synthesisReports        ops_synthesis_report[]
@@ -1852,8 +1852,8 @@ model daily_plans {
 
   missionId String? @map("mission_id")
 
-  user       users     @relation(fields: [userId], references: [id])
-  missionRef missions? @relation(fields: [missionId], references: [id])
+  user       users            @relation(fields: [userId], references: [id])
+  missionRef legacy_missions? @relation(fields: [missionId], references: [id])
 
   @@unique([userId, date])
   @@map("daily_plans")
@@ -1863,7 +1863,7 @@ model daily_plans {
 // MISSIONS — Strategic planning layer above daily plans
 // ═══════════════════════════════════════════════════════════════════
 
-model missions {
+model legacy_missions {
   id     String @id @default(cuid())
   userId String @map("user_id")
 
@@ -1920,26 +1920,26 @@ model missions {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user                 users                       @relation(fields: [userId], references: [id])
+  user                 users                        @relation(fields: [userId], references: [id])
   dailyPlans           daily_plans[]
-  stages               mission_stages[]
-  brainDumpEntries     brain_dump_entries[]
-  realityConstraints   reality_constraints[]
-  roadmapWeeks         roadmap_weeks[]
-  missionTasks         mission_tasks[]
+  stages               legacy_mission_stages[]
+  brainDumpEntries     legacy_brain_dump_entries[]
+  realityConstraints   legacy_reality_constraints[]
+  roadmapWeeks         legacy_roadmap_weeks[]
+  missionTasks         legacy_mission_tasks[]
   questionnaireAnswers ops_questionnaire_answers[]
   workstreamAnalyses   ops_workstream_analysis[]
   synthesisReports     ops_synthesis_report[]
   complianceTasks      compliance_tasks[]
 
-  @@map("missions")
+  @@map("legacy_missions")
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // MISSION PLANNER — Pipeline stages, brain dump, constraints, roadmap, tasks
 // ═══════════════════════════════════════════════════════════════════
 
-model mission_stages {
+model legacy_mission_stages {
   id              String      @id @default(cuid())
   missionId       String
   stageType       StageType
@@ -1959,13 +1959,13 @@ model mission_stages {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   @@index([missionId])
   @@index([missionId, stageType])
 }
 
-model brain_dump_entries {
+model legacy_brain_dump_entries {
   id              String          @id @default(cuid())
   missionId       String
   category        String?
@@ -1976,12 +1976,12 @@ model brain_dump_entries {
   rawOrder        Int
   createdAt       DateTime        @default(now())
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   @@index([missionId])
 }
 
-model reality_constraints {
+model legacy_reality_constraints {
   id              String         @id @default(cuid())
   missionId       String
   constraintType  ConstraintType
@@ -1992,12 +1992,12 @@ model reality_constraints {
   sourceTimestamp DateTime?
   createdAt       DateTime       @default(now())
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
   @@index([missionId])
 }
 
-model roadmap_weeks {
+model legacy_roadmap_weeks {
   id         String     @id @default(cuid())
   missionId  String
   weekNumber Int
@@ -2009,14 +2009,14 @@ model roadmap_weeks {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  mission missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  tasks   mission_tasks[]
+  mission legacy_missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  tasks   legacy_mission_tasks[]
 
   @@unique([missionId, weekNumber])
   @@index([missionId])
 }
 
-model mission_tasks {
+model legacy_mission_tasks {
   id             String            @id @default(cuid())
   missionId      String
   weekId         String
@@ -2030,8 +2030,8 @@ model mission_tasks {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  mission missions      @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  week    roadmap_weeks @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  mission legacy_missions      @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  week    legacy_roadmap_weeks @relation(fields: [weekId], references: [id], onDelete: Cascade)
 
   @@index([missionId])
   @@index([weekId])
@@ -2054,8 +2054,8 @@ model ops_questionnaire_answers {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users    @relation(fields: [userId], references: [id])
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users           @relation(fields: [userId], references: [id])
 
   @@unique([missionId, moduleId, questionId])
   @@index([userId])
@@ -2081,8 +2081,8 @@ model ops_workstream_analysis {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users    @relation(fields: [userId], references: [id])
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users           @relation(fields: [userId], references: [id])
 
   @@unique([missionId, moduleId, workstreamId])
   @@index([userId])
@@ -2107,8 +2107,8 @@ model ops_synthesis_report {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  mission missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users    @relation(fields: [userId], references: [id])
+  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    users           @relation(fields: [userId], references: [id])
 
   @@unique([missionId, moduleId])
   @@index([userId])
@@ -2150,7 +2150,7 @@ model compliance_tasks {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  mission  missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  mission  legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
   user     users           @relation(fields: [userId], references: [id], onDelete: Restrict)
   evidence task_evidence[]
 
