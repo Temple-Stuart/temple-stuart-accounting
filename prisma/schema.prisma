@@ -474,6 +474,8 @@ model users {
   dailyPlans              daily_plans[]
   missions                missions[]
   accountable_tasks       compliance_tasks[]       @relation("task_accountable")
+  user_profile            user_profiles?
+  discovery_runs          discovery_runs[]
 }
 
 model budgets {
@@ -2299,4 +2301,135 @@ model task_citations {
   @@index([task_id])
   @@index([citation_id])
   @@map("task_citations")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DISCOVERY ENGINE — AI-powered compliance scoping
+// ═══════════════════════════════════════════════════════════════════
+
+enum RevenueStage {
+  pre_revenue
+  pre_charging
+  charging_under_50k
+  charging_50k_500k
+  charging_500k_5m
+  charging_over_5m
+}
+
+enum DiscoveryRunStatus {
+  initiated
+  profile_validation
+  source_selection
+  web_search_running
+  synthesis_running
+  citation_verification
+  completed
+  failed
+  cancelled
+}
+
+enum ProposalStatus {
+  proposed
+  accepted
+  rejected
+  modified_then_accepted
+  superseded
+}
+
+enum ProposalType {
+  mission
+  project
+  workstream
+  task
+}
+
+model user_profiles {
+  id                      String       @id @default(uuid()) @db.Uuid
+  user_id                 String       @unique
+  user                    users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  business_description    String       @db.Text
+  primary_entity_id       String?      @db.Uuid
+  operating_jurisdictions String[]     @default([])
+  customer_jurisdictions  String[]     @default([])
+  products_services       String[]     @default([])
+  ai_use_in_product       Boolean      @default(false)
+  ai_use_description      String?      @db.Text
+  handles_personal_data   Boolean      @default(false)
+  handles_financial_data  Boolean      @default(false)
+  handles_health_data     Boolean      @default(false)
+  revenue_stage           RevenueStage
+  employee_count          Int          @default(1)
+  planned_actions_24mo    String[]     @default([])
+  known_completed_filings String[]     @default([])
+  notes                   String?      @db.Text
+  is_active               Boolean      @default(true)
+  created_at              DateTime     @default(now())
+  updated_at              DateTime     @updatedAt
+
+  discovery_runs discovery_runs[]
+
+  @@index([user_id])
+  @@map("user_profiles")
+}
+
+model discovery_runs {
+  id                          String             @id @default(uuid()) @db.Uuid
+  user_id                     String
+  user                        users              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_profile_id             String             @db.Uuid
+  user_profile                user_profiles      @relation(fields: [user_profile_id], references: [id], onDelete: Restrict)
+  user_profile_snapshot       Json
+  status                      DiscoveryRunStatus @default(initiated)
+  status_message              String?            @db.Text
+  started_at                  DateTime           @default(now())
+  completed_at                DateTime?
+  failed_at                   DateTime?
+  failure_reason              String?            @db.Text
+  anthropic_input_tokens      Int                @default(0)
+  anthropic_output_tokens     Int                @default(0)
+  anthropic_cache_read_tokens Int                @default(0)
+  web_searches_run            Int                @default(0)
+  estimated_cost_usd          Decimal            @default(0) @db.Decimal(10, 4)
+  sources_queried_ids         String[]           @default([])
+  model_used                  String             @db.VarChar(100)
+  prompt_version              String             @db.VarChar(20)
+  proposals_generated_count   Int                @default(0)
+  citations_generated_count   Int                @default(0)
+
+  proposals discovery_proposals[]
+
+  @@index([user_id, started_at])
+  @@index([status])
+  @@map("discovery_runs")
+}
+
+model discovery_proposals {
+  id                         String                @id @default(uuid()) @db.Uuid
+  discovery_run_id           String                @db.Uuid
+  discovery_run              discovery_runs        @relation(fields: [discovery_run_id], references: [id], onDelete: Cascade)
+  proposal_type              ProposalType
+  parent_proposal_id         String?               @db.Uuid
+  parent                     discovery_proposals?  @relation("proposal_hierarchy", fields: [parent_proposal_id], references: [id])
+  children                   discovery_proposals[] @relation("proposal_hierarchy")
+  proposed_payload           Json
+  proposed_citation_payloads Json[]                @default([])
+  ai_rationale               String                @db.Text
+  ai_priority_score          Decimal?              @db.Decimal(5, 2)
+  ai_confidence              Decimal?              @db.Decimal(5, 2)
+  status                     ProposalStatus        @default(proposed)
+  reviewed_at                DateTime?
+  reviewed_by                String?               @db.VarChar(255)
+  review_notes               String?               @db.Text
+  user_modifications         Json?
+  materialized_to_table      String?               @db.VarChar(100)
+  materialized_to_id         String?               @db.VarChar(255)
+  materialized_at            DateTime?
+  display_order              Int                   @default(0)
+  created_at                 DateTime              @default(now())
+  updated_at                 DateTime              @updatedAt
+
+  @@index([discovery_run_id, status])
+  @@index([proposal_type, status])
+  @@index([parent_proposal_id])
+  @@map("discovery_proposals")
 }

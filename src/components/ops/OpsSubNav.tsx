@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 const OPS_TABS = [
   { name: 'Daily Plan', href: '/ops', exact: true },
+  { name: 'Profile', href: '/ops/profile', exact: true },
+  { name: 'Discovery', href: '/ops/discovery', exact: false },
   { name: 'Registry', href: '/ops/registry', exact: false },
   { name: 'Citations', href: '/ops/citations', exact: false },
   { name: 'Audit Log', href: '/ops/audit-log', exact: false },
