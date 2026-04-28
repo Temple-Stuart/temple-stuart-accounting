@@ -436,18 +436,18 @@ model investment_transactions {
 }
 
 model users {
-  id                      String                      @id
-  email                   String                      @unique
+  id                      String                   @id
+  email                   String                   @unique
   password                String
   name                    String
-  createdAt               DateTime                    @default(now())
+  createdAt               DateTime                 @default(now())
   updatedAt               DateTime
   accountCode             String?
   subAccount              String?
-  tier                    String                      @default("free") @db.VarChar(20)
+  tier                    String                   @default("free") @db.VarChar(20)
   stripeCustomerId        String?
   stripeSubscriptionId    String?
-  bookkeeping_initialized Boolean                     @default(false)
+  bookkeeping_initialized Boolean                  @default(false)
   scanner_start_date      DateTime?
   accounts                accounts[]
   plaid_items             plaid_items[]
@@ -472,12 +472,6 @@ model users {
   bank_reconciliations    bank_reconciliations[]
   scan_snapshots          scan_snapshots[]
   dailyPlans              daily_plans[]
-  missions                legacy_missions[]
-  questionnaireAnswers    ops_questionnaire_answers[]
-  workstreamAnalyses      ops_workstream_analysis[]
-  synthesisReports        ops_synthesis_report[]
-  complianceTasks         compliance_tasks[]
-  taskEvidence            task_evidence[]
 }
 
 model budgets {
@@ -1624,67 +1618,6 @@ enum VendorOptionStatus {
   committed
 }
 
-// ─── Mission Planner Enums ───────────────────────────────────
-
-enum MissionStatus {
-  draft
-  active
-  paused
-  completed
-  archived
-}
-
-enum StageType {
-  structure
-  goal_discovery
-  research_scoping
-  reality_audit
-  roadmap
-}
-
-enum StageStatus {
-  pending
-  processing
-  completed
-  approved
-  rejected
-}
-
-enum BrainDumpBucket {
-  business
-  technical
-  constraints
-  growth
-  life
-  open
-}
-
-enum EntrySource {
-  typed
-  voice
-}
-
-enum ConstraintType {
-  product
-  operational
-}
-
-enum WeekStatus {
-  upcoming
-  active
-  completed
-  skipped
-}
-
-enum MissionTaskStatus {
-  todo
-  in_progress
-  done
-  deferred
-}
-
-// ─── Vendor Option Tables (previously raw SQL) ────────────────
-
 model trip_lodging_options {
   id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   trip_id         String
@@ -1852,388 +1785,88 @@ model daily_plans {
 
   missionId String? @map("mission_id")
 
-  user       users            @relation(fields: [userId], references: [id])
-  missionRef legacy_missions? @relation(fields: [missionId], references: [id])
+  user users @relation(fields: [userId], references: [id])
 
   @@unique([userId, date])
   @@map("daily_plans")
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MISSIONS — Strategic planning layer above daily plans
+// REGULATORY SOURCE REGISTRY — Foundation for verification-first compliance
 // ═══════════════════════════════════════════════════════════════════
 
-model legacy_missions {
-  id     String @id @default(cuid())
-  userId String @map("user_id")
-
-  name            String
-  goalDescription String   @map("goal_description") @db.Text
-  doneDefinition  String   @map("done_definition") @db.Text
-  startDate       DateTime @map("start_date") @db.Date
-  endDate         DateTime @map("end_date") @db.Date
-  totalDays       Int      @map("total_days")
-
-  milestones Json @default("[]")
-
-  hoursPerDay   Float?  @map("hours_per_day")
-  offDays       String? @map("off_days")
-  monthlyBudget Float?  @map("monthly_budget")
-  blockers      String? @db.Text
-
-  // Blockers & Risk (upgraded)
-  brokenBlockers String? @map("broken_blockers") @db.Text
-  riskFactors    String? @map("risk_factors") @db.Text
-
-  // Top 3 Priorities
-  priority1 String? @map("priority_1") @db.Text
-  priority2 String? @map("priority_2") @db.Text
-  priority3 String? @map("priority_3") @db.Text
-
-  // Current State
-  currentState String? @map("current_state") @db.Text
-
-  // Real Capacity
-  focusWindows     String? @map("focus_windows")
-  fixedCommitments String? @map("fixed_commitments")
-  weekendSchedule  String? @map("weekend_schedule")
-  deepWorkHours    Float?  @map("deep_work_hours")
-
-  // Success Metrics
-  successMetrics Json @default("[]") @map("success_metrics")
-
-  healthGoals   String? @map("health_goals") @db.Text
-  personalGoals String? @map("personal_goals") @db.Text
-  mealStrategy  String? @map("meal_strategy") @db.Text
-
-  roadmap Json?
-
-  rawBrainDump Json? @map("raw_brain_dump")
-
-  status String @default("active")
-
-  // Mission Planner fields
-  missionStatus MissionStatus @default(draft) @map("mission_status")
-  confirmedGoal String?       @map("confirmed_goal")
-  durationDays  Int?          @map("duration_days")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user                 users                        @relation(fields: [userId], references: [id])
-  dailyPlans           daily_plans[]
-  stages               legacy_mission_stages[]
-  brainDumpEntries     legacy_brain_dump_entries[]
-  realityConstraints   legacy_reality_constraints[]
-  roadmapWeeks         legacy_roadmap_weeks[]
-  missionTasks         legacy_mission_tasks[]
-  questionnaireAnswers ops_questionnaire_answers[]
-  workstreamAnalyses   ops_workstream_analysis[]
-  synthesisReports     ops_synthesis_report[]
-  complianceTasks      compliance_tasks[]
-
-  @@map("legacy_missions")
+enum SourceTier {
+  primary_law
+  subregulatory_guidance
+  agency_enforcement
+  secondary_authoritative
+  secondary_practitioner
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// MISSION PLANNER — Pipeline stages, brain dump, constraints, roadmap, tasks
-// ═══════════════════════════════════════════════════════════════════
-
-model legacy_mission_stages {
-  id              String      @id @default(cuid())
-  missionId       String
-  stageType       StageType
-  stageOrder      Int
-  status          StageStatus @default(pending)
-  inputSnapshot   Json?
-  systemPrompt    String?     @db.Text
-  userPrompt      String?     @db.Text
-  model           String?
-  rawResponse     String?     @db.Text
-  parsedOutput    Json?
-  editedOutput    Json?
-  attemptNumber   Int         @default(1)
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-
-  @@index([missionId])
-  @@index([missionId, stageType])
+enum RefreshCadence {
+  daily
+  weekly
+  monthly
+  quarterly
+  annual
+  event_driven
 }
 
-model legacy_brain_dump_entries {
-  id              String          @id @default(cuid())
-  missionId       String
-  category        String?
-  bucket          BrainDumpBucket @default(open)
-  content         String          @db.Text
-  source          EntrySource     @default(typed)
-  triggerQuestion String?
-  rawOrder        Int
-  createdAt       DateTime        @default(now())
-
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-
-  @@index([missionId])
+enum PracticeArea {
+  tax_federal
+  tax_state
+  bookkeeping_accounting
+  financial_reporting
+  data_privacy_us_federal
+  data_privacy_us_state
+  data_privacy_eu
+  data_security
+  financial_data_glba
+  tax_preparer_regulation
+  investment_adviser
+  broker_dealer
+  securities_disclosure
+  options_market_data
+  ai_governance_eu
+  ai_governance_us
+  consumer_protection_ftc
+  consumer_protection_state
+  travel_consumer_protection
+  aviation_dot
+  accessibility_ada
+  payment_processing
+  sales_tax_nexus
+  corporate_governance
+  employment_solo
+  intellectual_property
+  terms_of_service_law
+  cybersecurity_breach_notification
+  anti_money_laundering
+  international_trade_sanctions
 }
 
-model legacy_reality_constraints {
-  id              String         @id @default(cuid())
-  missionId       String
-  constraintType  ConstraintType
-  category        String
-  description     String         @db.Text
-  value           String?
-  source          String         @default("manual")
-  sourceTimestamp DateTime?
-  createdAt       DateTime       @default(now())
+model regulatory_sources {
+  id                           String         @id @default(uuid()) @db.Uuid
+  domain                       String         @unique @db.VarChar(255)
+  source_name                  String         @db.VarChar(255)
+  source_tier                  SourceTier
+  authority_rank               Int            @db.SmallInt
+  jurisdictions                String[]
+  regulators                   String[]
+  practice_areas               PracticeArea[]
+  module_relevance             String[]
+  primary_content_types        String[]
+  refresh_cadence              RefreshCadence
+  currency_verification_method String?        @db.Text
+  api_or_bulk_data             String?        @db.Text
+  notes                        String?        @db.Text
+  last_verified                DateTime       @default(now())
+  last_verified_by             String         @db.VarChar(100)
+  is_active                    Boolean        @default(true)
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime       @updatedAt
 
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-
-  @@index([missionId])
-}
-
-model legacy_roadmap_weeks {
-  id         String     @id @default(cuid())
-  missionId  String
-  weekNumber Int
-  theme      String
-  startDate  DateTime
-  endDate    DateTime
-  milestones Json
-  weekStatus WeekStatus @default(upcoming)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  mission legacy_missions        @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  tasks   legacy_mission_tasks[]
-
-  @@unique([missionId, weekNumber])
-  @@index([missionId])
-}
-
-model legacy_mission_tasks {
-  id             String            @id @default(cuid())
-  missionId      String
-  weekId         String
-  title          String
-  description    String?           @db.Text
-  priority       Int               @default(3)
-  taskStatus     MissionTaskStatus @default(todo)
-  scheduledDate  DateTime
-  completedAt    DateTime?
-  deferredReason String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  mission legacy_missions      @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  week    legacy_roadmap_weeks @relation(fields: [weekId], references: [id], onDelete: Cascade)
-
-  @@index([missionId])
-  @@index([weekId])
-  @@index([missionId, scheduledDate])
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// OPS QUESTIONNAIRE — Stores answers for Operations Planner questions
-// ═══════════════════════════════════════════════════════════════════
-
-model ops_questionnaire_answers {
-  id           String   @id @default(cuid())
-  missionId    String   @map("mission_id")
-  userId       String   @map("user_id")
-  moduleId     String   @map("module_id")
-  workstreamId String   @map("workstream_id")
-  questionId   String   @map("question_id")
-  answerValue  String   @map("answer_value") @db.Text
-  questionType String   @map("question_type")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users           @relation(fields: [userId], references: [id])
-
-  @@unique([missionId, moduleId, questionId])
-  @@index([userId])
-  @@index([missionId, moduleId])
-  @@index([missionId, moduleId, workstreamId])
-  @@map("ops_questionnaire_answers")
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// OPS WORKSTREAM ANALYSIS — AI decision register per workstream
-// ═══════════════════════════════════════════════════════════════════
-
-model ops_workstream_analysis {
-  id             String   @id @default(cuid())
-  missionId      String   @map("mission_id")
-  userId         String   @map("user_id")
-  moduleId       String   @map("module_id")
-  workstreamId   String   @map("workstream_id")
-  analysisOutput String   @map("analysis_output") @db.Text
-  modelUsed      String   @map("model_used")
-  promptVersion  String   @map("prompt_version")
-  inputHash      String   @map("input_hash")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users           @relation(fields: [userId], references: [id])
-
-  @@unique([missionId, moduleId, workstreamId])
-  @@index([userId])
-  @@index([missionId, moduleId])
-  @@map("ops_workstream_analysis")
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// OPS SYNTHESIS REPORT — Cross-workstream launch readiness assessment
-// ═══════════════════════════════════════════════════════════════════
-
-model ops_synthesis_report {
-  id                 String   @id @default(cuid())
-  missionId          String   @map("mission_id")
-  userId             String   @map("user_id")
-  moduleId           String   @map("module_id")
-  synthesisOutput    String   @map("synthesis_output") @db.Text
-  modelUsed          String   @map("model_used")
-  promptVersion      String   @map("prompt_version")
-  inputHash          String   @map("input_hash")
-  workstreamsCovered String   @map("workstreams_covered") @db.Text
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
-
-  mission legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user    users           @relation(fields: [userId], references: [id])
-
-  @@unique([missionId, moduleId])
-  @@index([userId])
-  @@map("ops_synthesis_report")
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// COMPLIANCE TASK ENGINE — Tasks, evidence, documents, code refs, URLs
-// ═══════════════════════════════════════════════════════════════════
-
-model compliance_tasks {
-  id               String    @id @default(cuid())
-  missionId        String    @map("mission_id")
-  userId           String    @map("user_id")
-  moduleId         String    @map("module_id")
-  workstreamId     String    @map("workstream_id")
-  questionId       String    @map("question_id")
-  title            String
-  description      String    @db.Text
-  actionSteps      String    @map("action_steps") @db.Text
-  researchLinks    String?   @map("research_links") @db.Text
-  estimatedCostMin Float?    @map("estimated_cost_min")
-  estimatedCostMax Float?    @map("estimated_cost_max")
-  estimatedEffort  String?   @map("estimated_effort")
-  effortQuantity   Int?      @map("effort_quantity")
-  deadline         DateTime?
-  deadlineLabel    String?   @map("deadline_label")
-  calendarEventId  String?   @map("calendar_event_id")
-  calendarStart    DateTime? @map("calendar_start")
-  calendarEnd      DateTime? @map("calendar_end")
-  status           String    @default("suggested")
-  priority         String    @default("medium")
-  blockedByTasks   String?   @map("blocked_by_tasks") @db.Text
-  statute          String?
-  penaltyRange     String?   @map("penalty_range")
-  sourceAnalysisId String?   @map("source_analysis_id")
-  verifiedAt       DateTime? @map("verified_at")
-  verifiedBy       String?   @map("verified_by")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-
-  mission  legacy_missions @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  user     users           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  evidence task_evidence[]
-
-  @@unique([missionId, moduleId, questionId])
-  @@index([userId])
-  @@index([missionId, moduleId])
-  @@index([missionId, moduleId, workstreamId])
-  @@index([status])
-  @@index([deadline])
-  @@index([calendarStart, calendarEnd])
-  @@map("compliance_tasks")
-}
-
-model task_evidence {
-  id           String   @id @default(cuid())
-  taskId       String   @map("task_id")
-  userId       String   @map("user_id")
-  evidenceType String   @map("evidence_type")
-  title        String
-  description  String?  @db.Text
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  task          compliance_tasks         @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user          users                    @relation(fields: [userId], references: [id], onDelete: Restrict)
-  document      task_evidence_documents?
-  codeReference task_evidence_code?
-  urlReference  task_evidence_urls?
-
-  @@index([taskId])
-  @@index([userId])
-  @@map("task_evidence")
-}
-
-model task_evidence_documents {
-  id                  String    @id @default(cuid())
-  evidenceId          String    @unique @map("evidence_id")
-  fileName            String    @map("file_name")
-  fileType            String    @map("file_type")
-  fileSize            Int       @map("file_size")
-  storagePath         String    @map("storage_path")
-  storageUrl          String    @map("storage_url")
-  expirationDate      DateTime? @map("expiration_date")
-  expirationAlertSent Boolean   @default(false) @map("expiration_alert_sent")
-  uploadedAt          DateTime  @default(now()) @map("uploaded_at")
-
-  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-
-  @@index([expirationDate])
-  @@map("task_evidence_documents")
-}
-
-model task_evidence_code {
-  id              String    @id @default(cuid())
-  evidenceId      String    @unique @map("evidence_id")
-  filePath        String    @map("file_path")
-  startLine       Int       @map("start_line")
-  endLine         Int       @map("end_line")
-  functionName    String?   @map("function_name")
-  description     String    @db.Text
-  codeSnapshot    String    @map("code_snapshot") @db.Text
-  codeHash        String    @map("code_hash")
-  commitHash      String    @map("commit_hash")
-  isStale         Boolean   @default(false) @map("is_stale")
-  staleDetectedAt DateTime? @map("stale_detected_at")
-  lastVerifiedAt  DateTime  @default(now()) @map("last_verified_at")
-
-  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-
-  @@index([isStale])
-  @@index([filePath])
-  @@map("task_evidence_code")
-}
-
-model task_evidence_urls {
-  id              String   @id @default(cuid())
-  evidenceId      String   @unique @map("evidence_id")
-  url             String
-  archivedContent String?  @map("archived_content") @db.Text
-  lastCheckedAt   DateTime @default(now()) @map("last_checked_at")
-  isAccessible    Boolean  @default(true) @map("is_accessible")
-
-  evidence task_evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
-
-  @@map("task_evidence_urls")
+  @@index([source_tier, authority_rank])
+  @@index([is_active])
+  @@map("regulatory_sources")
 }

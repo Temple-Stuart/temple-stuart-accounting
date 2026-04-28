@@ -5,8 +5,9 @@ import Link from 'next/link';
 
 const OPS_TABS = [
   { name: 'Daily Plan', href: '/ops', exact: true },
-  { name: 'Bookkeeping', href: '', disabled: true, label: 'Under reconstruction' },
-  { name: 'Trading', href: '', disabled: true, label: 'Under reconstruction' },
+  { name: 'Registry', href: '/ops/registry', exact: false },
+  { name: 'Bookkeeping', href: '', disabled: true },
+  { name: 'Trading', href: '', disabled: true },
   { name: 'Travel', href: '', disabled: true },
   { name: 'Operations', href: '', disabled: true },
 ];

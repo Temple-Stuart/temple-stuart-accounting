@@ -1,0 +1,5532 @@
+[
+  {
+    "domain": "govinfo.gov",
+    "source_name": "U.S. Government Publishing Office \u2014 govinfo",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "GPO",
+      "Office of the Federal Register"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "consumer_protection_ftc",
+      "aviation_dot",
+      "data_security"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "statutes",
+      "regulations",
+      "authenticated_pdfs"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://api.govinfo.gov/ (api.data.gov key required)",
+    "notes": "Gold standard for authenticated CFR and Federal Register PDFs",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ecfr.gov",
+    "source_name": "Electronic Code of Federal Regulations",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Office of the Federal Register"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "broker_dealer",
+      "investment_adviser",
+      "consumer_protection_ftc",
+      "aviation_dot",
+      "accessibility_ada",
+      "data_security",
+      "financial_data_glba"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://www.ecfr.gov/api/versioner/v1/",
+    "notes": "Working CFR. OFR states verify against official CFR for legal research.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "federalregister.gov",
+    "source_name": "Federal Register",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Office of the Federal Register"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "broker_dealer",
+      "investment_adviser",
+      "consumer_protection_ftc",
+      "aviation_dot",
+      "ai_governance_us",
+      "data_security"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "rulemakings",
+      "executive_orders",
+      "agency_notices"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://www.federalregister.gov/api/v1/",
+    "notes": "106109 pages and 3248 final rules in 2024.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "congress.gov",
+    "source_name": "Congress.gov \u2014 Library of Congress",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "U.S. Congress"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "consumer_protection_ftc",
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "statutes",
+      "legislation",
+      "public_laws"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://api.congress.gov/v3/ (api.data.gov key, 5000/hr)",
+    "notes": "Authoritative source for legislation and Public Laws.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "uscode.house.gov",
+    "source_name": "Office of Law Revision Counsel \u2014 U.S. Code",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "U.S. House of Representatives"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "investment_adviser",
+      "broker_dealer",
+      "consumer_protection_ftc"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "statutes",
+      "uslm_xml"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "https://uscode.house.gov/download/download.shtml",
+    "notes": "Positive-law titles are the law; non-positive evidence of Statutes at Large.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "supremecourt.gov",
+    "source_name": "Supreme Court of the United States",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "SCOTUS"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "investment_adviser",
+      "consumer_protection_ftc"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "case_law",
+      "opinions"
+    ],
+    "refresh_cadence": "event_driven",
+    "api_or_bulk_data": null,
+    "notes": "Includes Lowe v. SEC, South Dakota v. Wayfair.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "courtlistener.com",
+    "source_name": "CourtListener \u2014 Free Law Project",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "(none)"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "case_law",
+      "court_documents"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://www.courtlistener.com/api/rest/v4/ (Token required)",
+    "notes": "Federal courts. Verify case existence against primary opinions.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "pacer.gov",
+    "source_name": "PACER \u2014 Public Access to Court Electronic Records",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Administrative Office of the U.S. Courts"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "securities_disclosure",
+      "investment_adviser"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "case_law",
+      "court_documents",
+      "filings"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "manual (paywall, $0.10/page)",
+    "notes": "Authoritative federal court documents.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "irs.gov",
+    "source_name": "Internal Revenue Service",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "IRS"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "tax_preparer_regulation",
+      "financial_data_glba",
+      "data_security",
+      "bookkeeping_accounting"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "guidance",
+      "publications",
+      "forms",
+      "notices",
+      "revenue_rulings",
+      "revenue_procedures"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Pub 17, 334, 535, 550, 5708 WISP, Circular 230 (rewrite pending 89 FR 105432), PTIN/EFIN/MeF.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "home.treasury.gov",
+    "source_name": "U.S. Department of the Treasury",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Treasury"
+    ],
+    "practice_areas": [
+      "tax_federal",
+      "anti_money_laundering",
+      "international_trade_sanctions"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Treasury regulations including 31 CFR (FinCEN, OFAC).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ustaxcourt.gov",
+    "source_name": "United States Tax Court",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "U.S. Tax Court"
+    ],
+    "practice_areas": [
+      "tax_federal"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "case_law",
+      "opinions"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "manual via DAWSON",
+    "notes": "Authoritative source for U.S. Tax Court opinions.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ftc.gov",
+    "source_name": "Federal Trade Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FTC"
+    ],
+    "practice_areas": [
+      "consumer_protection_ftc",
+      "data_security",
+      "financial_data_glba"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "rules",
+      "enforcement_orders",
+      "guides"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "FTC Act \u00a75; Safeguards Rule (16 CFR 314); 16 CFR 255 Endorsement Guides; 16 CFR 465 Reviews Rule (eff Oct 2024).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "fincen.gov",
+    "source_name": "Financial Crimes Enforcement Network",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FinCEN",
+      "Treasury"
+    ],
+    "practice_areas": [
+      "anti_money_laundering"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "advisories"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "BOI status unstable: Mar 21-26 2025 IFR exempts US domestic reporting companies.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "fasb.org",
+    "source_name": "Financial Accounting Standards Board",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FASB"
+    ],
+    "practice_areas": [
+      "bookkeeping_accounting",
+      "financial_reporting"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "accounting_standards",
+      "asc_codification"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "manual via asc.fasb.org",
+    "notes": "Authoritative US GAAP via ASC. Free basic view; professional view paywalled.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "aicpa-cima.com",
+    "source_name": "AICPA & CIMA",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "AICPA"
+    ],
+    "practice_areas": [
+      "bookkeeping_accounting",
+      "financial_reporting",
+      "tax_federal",
+      "data_security"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "professional_standards",
+      "code_of_conduct",
+      "trust_services_criteria"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Code of Professional Conduct, Trust Services Criteria for SOC 2.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ifrs.org",
+    "source_name": "International Accounting Standards Board",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "IASB"
+    ],
+    "practice_areas": [
+      "bookkeeping_accounting",
+      "financial_reporting"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "accounting_standards",
+      "ifrs"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "International Financial Reporting Standards. Subscription required.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nasba.org",
+    "source_name": "National Association of State Boards of Accountancy",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NASBA"
+    ],
+    "practice_areas": [
+      "bookkeeping_accounting",
+      "tax_preparer_regulation"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "state_board_directory",
+      "cpa_licensure"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "manual directory",
+    "notes": "55-jurisdiction directory of state CPA boards.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ctec.org",
+    "source_name": "California Tax Education Council",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CTEC"
+    ],
+    "practice_areas": [
+      "tax_preparer_regulation"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "registration",
+      "ce_requirements"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": null,
+    "notes": "60-hour qualifying ed, $5K bond, $33 annual fee, 20hr CE. R&TC \u00a719167(d) $2500/failure penalty.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ftb.ca.gov",
+    "source_name": "California Franchise Tax Board",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "FTB"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "tax_preparer_regulation",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "California state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.ny.gov",
+    "source_name": "New York State Department of Taxation and Finance",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NY"
+    ],
+    "regulators": [
+      "NY DTF"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "tax_preparer_regulation",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "NYTPRIN annual reg; 16hr CPE for >10 NY returns.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "oregon.gov",
+    "source_name": "Oregon Board of Tax Practitioners",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-OR"
+    ],
+    "regulators": [
+      "Oregon BTP"
+    ],
+    "practice_areas": [
+      "tax_preparer_regulation"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "licensure",
+      "regulations"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": null,
+    "notes": "Only US state to fully license preparers. 80-hour course + state exam.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "labor.maryland.gov",
+    "source_name": "Maryland Department of Labor \u2014 Tax Preparers Board",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MD"
+    ],
+    "regulators": [
+      "MD DOL"
+    ],
+    "practice_areas": [
+      "tax_preparer_regulation"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax"
+    ],
+    "primary_content_types": [
+      "registration",
+      "regulations"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": null,
+    "notes": "Maryland tax preparer registration.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "portal.ct.gov",
+    "source_name": "Connecticut Department of Revenue Services",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CT"
+    ],
+    "regulators": [
+      "CT DRS"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "tax_preparer_regulation",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Triggers when preparing >10 CT or federal returns for CT clients.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.illinois.gov",
+    "source_name": "Illinois Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-IL"
+    ],
+    "regulators": [
+      "IL DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "tax_preparer_regulation",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "PTIN-only preparer regime; 200-txn nexus removed eff Jan 1 2026.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.state.mn.us",
+    "source_name": "Minnesota Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MN"
+    ],
+    "regulators": [
+      "MN DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "tax_preparer_regulation",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "PTIN-only preparer regime.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.virginia.gov",
+    "source_name": "Virginia Department of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-VA"
+    ],
+    "regulators": [
+      "VA DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Virginia state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.ohio.gov",
+    "source_name": "Ohio Department of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-OH"
+    ],
+    "regulators": [
+      "OH DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Ohio state tax authority. SaaS taxable.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "comptroller.texas.gov",
+    "source_name": "Texas Comptroller of Public Accounts",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-TX"
+    ],
+    "regulators": [
+      "TX Comptroller"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus",
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "$500K nexus; SaaS taxable; franchise tax/PIR May 15.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "floridarevenue.com",
+    "source_name": "Florida Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-FL"
+    ],
+    "regulators": [
+      "FL DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Florida state tax authority. $100K nexus.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.pa.gov",
+    "source_name": "Pennsylvania Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-PA"
+    ],
+    "regulators": [
+      "PA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Pennsylvania state tax authority. SaaS taxable.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "azdor.gov",
+    "source_name": "Arizona Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-AZ"
+    ],
+    "regulators": [
+      "AZ DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Arizona state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.wa.gov",
+    "source_name": "Washington Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-WA"
+    ],
+    "regulators": [
+      "WA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "SaaS taxable; Sellers of Travel registration via WA DOL/DOR.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.iowa.gov",
+    "source_name": "Iowa Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-IA"
+    ],
+    "regulators": [
+      "IA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Iowa state tax authority. SaaS taxable.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "mass.gov",
+    "source_name": "Massachusetts Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MA"
+    ],
+    "regulators": [
+      "MA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Massachusetts state tax authority. SaaS taxable.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.nv.gov",
+    "source_name": "Nevada Department of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NV"
+    ],
+    "regulators": [
+      "NV DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Nevada state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.alabama.gov",
+    "source_name": "Alabama Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-AL"
+    ],
+    "regulators": [
+      "AL DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "$250K nexus threshold.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.mo.gov",
+    "source_name": "Missouri Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MO"
+    ],
+    "regulators": [
+      "MO DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Missouri state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.state.co.us",
+    "source_name": "Colorado Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CO"
+    ],
+    "regulators": [
+      "CO DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Colorado state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.state.nc.us",
+    "source_name": "North Carolina Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NC"
+    ],
+    "regulators": [
+      "NC DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "North Carolina state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.ga.gov",
+    "source_name": "Georgia Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-GA"
+    ],
+    "regulators": [
+      "GA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Georgia state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.in.gov",
+    "source_name": "Indiana Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-IN"
+    ],
+    "regulators": [
+      "IN DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Indiana state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.wi.gov",
+    "source_name": "Wisconsin Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-WI"
+    ],
+    "regulators": [
+      "WI DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Wisconsin state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.utah.gov",
+    "source_name": "Utah State Tax Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-UT"
+    ],
+    "regulators": [
+      "UT STC"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Utah state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.ks.gov",
+    "source_name": "Kansas Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-KS"
+    ],
+    "regulators": [
+      "KS DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Kansas state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.ok.gov",
+    "source_name": "Oklahoma Tax Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-OK"
+    ],
+    "regulators": [
+      "OK TC"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Oklahoma state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.nebraska.gov",
+    "source_name": "Nebraska Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NE"
+    ],
+    "regulators": [
+      "NE DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Nebraska state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.idaho.gov",
+    "source_name": "Idaho State Tax Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-ID"
+    ],
+    "regulators": [
+      "ID STC"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Idaho state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.state.nm.us",
+    "source_name": "New Mexico Taxation and Revenue Department",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NM"
+    ],
+    "regulators": [
+      "NM TRD"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "New Mexico state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.hawaii.gov",
+    "source_name": "Hawaii Department of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-HI"
+    ],
+    "regulators": [
+      "HI DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Hawaii state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.sc.gov",
+    "source_name": "South Carolina Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-SC"
+    ],
+    "regulators": [
+      "SC DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "South Carolina state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tn.gov",
+    "source_name": "Tennessee Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-TN"
+    ],
+    "regulators": [
+      "TN DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Tennessee state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.ms.gov",
+    "source_name": "Mississippi Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MS"
+    ],
+    "regulators": [
+      "MS DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Mississippi $250K nexus.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.louisiana.gov",
+    "source_name": "Louisiana Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-LA"
+    ],
+    "regulators": [
+      "LA DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Louisiana state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.ar.gov",
+    "source_name": "Arkansas Department of Finance and Administration",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-AR"
+    ],
+    "regulators": [
+      "AR DFA"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Arkansas state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.wv.gov",
+    "source_name": "West Virginia Tax Division",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-WV"
+    ],
+    "regulators": [
+      "WV TD"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "West Virginia state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.vermont.gov",
+    "source_name": "Vermont Department of Taxes",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-VT"
+    ],
+    "regulators": [
+      "VT DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Vermont state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.nh.gov",
+    "source_name": "New Hampshire Department of Revenue Administration",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NH"
+    ],
+    "regulators": [
+      "NH DRA"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "NH state tax authority (no general sales tax).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.maine.gov",
+    "source_name": "Maine Revenue Services",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-ME"
+    ],
+    "regulators": [
+      "ME MRS"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Maine state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tax.ri.gov",
+    "source_name": "Rhode Island Division of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-RI"
+    ],
+    "regulators": [
+      "RI DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Rhode Island state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "revenue.delaware.gov",
+    "source_name": "Delaware Division of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-DE"
+    ],
+    "regulators": [
+      "DE DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Delaware state tax authority (no general sales tax).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "state.nj.us",
+    "source_name": "New Jersey Division of Taxation",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NJ"
+    ],
+    "regulators": [
+      "NJ DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "New Jersey state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.michigan.gov",
+    "source_name": "Michigan Department of Treasury",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-MI"
+    ],
+    "regulators": [
+      "MI DOT"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Michigan state tax authority.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dor.kentucky.gov",
+    "source_name": "Kentucky Department of Revenue",
+    "source_tier": "primary_law",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-KY"
+    ],
+    "regulators": [
+      "KY DOR"
+    ],
+    "practice_areas": [
+      "tax_state",
+      "sales_tax_nexus"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance",
+      "forms"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "KY 200-txn threshold removed eff Jan 1 2027.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ag.ny.gov",
+    "source_name": "New York Attorney General",
+    "source_tier": "agency_enforcement",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NY"
+    ],
+    "regulators": [
+      "NY AG"
+    ],
+    "practice_areas": [
+      "data_privacy_us_state",
+      "consumer_protection_state",
+      "investment_adviser",
+      "cybersecurity_breach_notification"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "enforcement_orders",
+      "guidance"
+    ],
+    "refresh_cadence": "monthly",
+    "api_or_bulk_data": null,
+    "notes": "NY SHIELD Act enforcement; Investor Protection Bureau; consumer protection.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cppa.ca.gov",
+    "source_name": "California Privacy Protection Agency",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CPPA",
+      "CA AG"
+    ],
+    "practice_areas": [
+      "data_privacy_us_state",
+      "ai_governance_us",
+      "data_security"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "rulemaking_dockets"
+    ],
+    "refresh_cadence": "monthly",
+    "api_or_bulk_data": null,
+    "notes": "ADMT/Risk Assessment/Cybersecurity Audit regs eff Jan 1 2026; ADMT compliance Jan 1 2027.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "oag.ca.gov",
+    "source_name": "California Attorney General",
+    "source_tier": "agency_enforcement",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CA AG"
+    ],
+    "practice_areas": [
+      "data_privacy_us_state",
+      "consumer_protection_state"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "enforcement_orders",
+      "guidance"
+    ],
+    "refresh_cadence": "monthly",
+    "api_or_bulk_data": null,
+    "notes": "CCPA/CPRA enforcement; consumer protection.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "atg.wa.gov",
+    "source_name": "Washington Attorney General",
+    "source_tier": "agency_enforcement",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-WA"
+    ],
+    "regulators": [
+      "WA AG"
+    ],
+    "practice_areas": [
+      "data_privacy_us_state",
+      "consumer_protection_state"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "enforcement_orders",
+      "guidance"
+    ],
+    "refresh_cadence": "monthly",
+    "api_or_bulk_data": null,
+    "notes": "My Health My Data Act; private right of action.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sec.gov",
+    "source_name": "U.S. Securities and Exchange Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "SEC"
+    ],
+    "practice_areas": [
+      "securities_disclosure",
+      "investment_adviser",
+      "broker_dealer",
+      "ai_governance_us",
+      "cybersecurity_breach_notification",
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "enforcement_orders",
+      "no_action_letters",
+      "examination_priorities"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Form ADV, Reg BI, IAA \u00a7206, Cyber Disclosure Rule (Item 1.05 eff Dec 18 2023).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "data.sec.gov",
+    "source_name": "SEC EDGAR API",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "SEC"
+    ],
+    "practice_areas": [
+      "securities_disclosure",
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "filings"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "https://data.sec.gov/ (no key, 10 req/s)",
+    "notes": "EDGAR public filings API.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "finra.org",
+    "source_name": "Financial Industry Regulatory Authority",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FINRA"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "notices",
+      "enforcement"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "FINRA rules; Notice 24-09 on AI; AI Topic Hub; BrokerCheck.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "msrb.org",
+    "source_name": "Municipal Securities Rulemaking Board",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "MSRB"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "securities_disclosure"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "notices"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Municipal securities; limited Temple Stuart relevance.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cftc.gov",
+    "source_name": "Commodity Futures Trading Commission",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "CFTC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "guidance"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "LabCFTC AI Primer (2019) + Dec 5 2024 Staff Advisory.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "theocc.com",
+    "source_name": "Options Clearing Corporation",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "OCC",
+      "SEC",
+      "CFTC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "daily_volume",
+      "oic_education"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "Free CSV/XLSX",
+    "notes": "Sole US listed-options clearer.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sec.gov/iard",
+    "source_name": "SEC IARD gateway",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "SEC"
+    ],
+    "practice_areas": [
+      "investment_adviser"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "guidance",
+      "form_adv_instructions"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Form ADV instructions, FAQ.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "iard.com",
+    "source_name": "Investment Adviser Registration Depository",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FINRA",
+      "SEC",
+      "NASAA"
+    ],
+    "practice_areas": [
+      "investment_adviser"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "filings",
+      "registrations"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "IAPD public search",
+    "notes": "Operated by FINRA on behalf of SEC + states.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nasaa.org",
+    "source_name": "North American Securities Administrators Association",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NASAA"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "model_rules",
+      "filings",
+      "iar_ce"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "EFD",
+    "notes": "Coordinating body, not a regulator. Includes contact-your-regulator directory.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cboe.com",
+    "source_name": "Cboe Global Markets",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Cboe Options",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Cboe DataShop (paid)",
+    "notes": "Market data commercially licensed.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nyse.com",
+    "source_name": "NYSE Arca / American Options",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NYSE Arca",
+      "NYSE American",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks",
+      "trader_updates"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "NYSE Market Data (paid)",
+    "notes": "Market data commercially licensed.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nasdaq.com",
+    "source_name": "Nasdaq Options (ISE/PHLX/GEMX/MRX/BX)",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "Nasdaq SROs",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Nasdaq Data Link (paid)",
+    "notes": "6 SROs operate options markets.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "miaxglobal.com",
+    "source_name": "MIAX Exchange Group",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "MIAX SROs",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "MIAX feeds (paid)",
+    "notes": "4 separate rulebooks.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "boxoptions.com",
+    "source_name": "BOX Options Exchange",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "BOX",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks",
+      "regulatory_circulars"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "BOX HSVF (paid)",
+    "notes": "Market data commercially licensed.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "memxtrading.com",
+    "source_name": "MEMX Options Exchange",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "MEMX",
+      "SEC"
+    ],
+    "practice_areas": [
+      "broker_dealer",
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "rulebooks"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "MEMOIR feed (paid)",
+    "notes": "Canonical rulebook at info.memxtrading.com.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "opraplan.com",
+    "source_name": "OPRA \u2014 Options Price Reporting Authority",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "OPRA LLC",
+      "SEC",
+      "SIAC"
+    ],
+    "practice_areas": [
+      "options_market_data"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "nms_plan",
+      "fee_schedule",
+      "vendor_list"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "SIP feed via vendor (heavily licensed)",
+    "notes": "Canonical opraplan.com (NOT opradata.com); 16 participant exchanges.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dfpi.ca.gov",
+    "source_name": "California Department of Financial Protection and Innovation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "DFPI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "California state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ssb.texas.gov",
+    "source_name": "Texas State Securities Board",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-TX"
+    ],
+    "regulators": [
+      "TX SSB"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Texas state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sec.state.ma.us",
+    "source_name": "Massachusetts Securities Division",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MA"
+    ],
+    "regulators": [
+      "MA SD"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Massachusetts state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dobs.pa.gov",
+    "source_name": "Pennsylvania Department of Banking and Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-PA"
+    ],
+    "regulators": [
+      "PA DOBS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Pennsylvania state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "flofr.gov",
+    "source_name": "Florida Office of Financial Regulation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-FL"
+    ],
+    "regulators": [
+      "FL OFR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Florida state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "idfpr.illinois.gov",
+    "source_name": "Illinois Department of Financial and Professional Regulation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-IL"
+    ],
+    "regulators": [
+      "IL DFPR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Illinois state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "com.ohio.gov",
+    "source_name": "Ohio Division of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-OH"
+    ],
+    "regulators": [
+      "OH DOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Ohio state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dfi.wa.gov",
+    "source_name": "Washington Department of Financial Institutions",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-WA"
+    ],
+    "regulators": [
+      "WA DFI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Washington state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "scc.virginia.gov",
+    "source_name": "Virginia State Corporation Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-VA"
+    ],
+    "regulators": [
+      "VA SCC"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Virginia state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "asc.alabama.gov",
+    "source_name": "Alabama Securities Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-AL"
+    ],
+    "regulators": [
+      "AL ASC"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Alabama state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "commerce.alaska.gov",
+    "source_name": "Alaska Division of Banking and Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-AK"
+    ],
+    "regulators": [
+      "AK DBS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Alaska state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "azcc.gov",
+    "source_name": "Arizona Corporation Commission",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-AZ"
+    ],
+    "regulators": [
+      "AZ CC"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Arizona state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "securities.arkansas.gov",
+    "source_name": "Arkansas Securities Department",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-AR"
+    ],
+    "regulators": [
+      "AR SD"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Arkansas state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dora.colorado.gov",
+    "source_name": "Colorado Division of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-CO"
+    ],
+    "regulators": [
+      "CO DOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Colorado state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "portal.ct.gov/dob",
+    "source_name": "Connecticut Department of Banking",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-CT"
+    ],
+    "regulators": [
+      "CT DOB"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Connecticut state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "attorneygeneral.delaware.gov",
+    "source_name": "Delaware Investor Protection Unit",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-DE"
+    ],
+    "regulators": [
+      "DE DOJ"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Delaware state securities under DOJ.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "disb.dc.gov",
+    "source_name": "DC Department of Insurance, Securities and Banking",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-DC"
+    ],
+    "regulators": [
+      "DC DISB"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "District of Columbia.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.ga.gov",
+    "source_name": "Georgia Secretary of State Securities Division",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-GA"
+    ],
+    "regulators": [
+      "GA SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Georgia state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cca.hawaii.gov",
+    "source_name": "Hawaii Department of Commerce and Consumer Affairs Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-HI"
+    ],
+    "regulators": [
+      "HI DCCA"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "trading",
+      "travel"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Hawaii state securities; also DCCA Travel Agency registration.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "finance.idaho.gov",
+    "source_name": "Idaho Department of Finance",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-ID"
+    ],
+    "regulators": [
+      "ID DOF"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Idaho state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "in.gov",
+    "source_name": "Indiana Securities Division",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-IN"
+    ],
+    "regulators": [
+      "IN SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Indiana state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "iid.iowa.gov",
+    "source_name": "Iowa Insurance Division Securities Bureau",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-IA"
+    ],
+    "regulators": [
+      "IA IID"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Iowa state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "kid.ks.gov",
+    "source_name": "Kansas Insurance Department Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-KS"
+    ],
+    "regulators": [
+      "KS KID"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Kansas state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "kfi.ky.gov",
+    "source_name": "Kentucky Department of Financial Institutions",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-KY"
+    ],
+    "regulators": [
+      "KY DFI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Kentucky state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ofi.la.gov",
+    "source_name": "Louisiana Office of Financial Institutions",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-LA"
+    ],
+    "regulators": [
+      "LA OFI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Louisiana state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "maine.gov",
+    "source_name": "Maine Office of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-ME"
+    ],
+    "regulators": [
+      "ME OS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Maine state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "marylandattorneygeneral.gov",
+    "source_name": "Maryland Securities Division",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MD"
+    ],
+    "regulators": [
+      "MD AG"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Maryland state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "michigan.gov",
+    "source_name": "Michigan Corporations, Securities & Commercial Licensing",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MI"
+    ],
+    "regulators": [
+      "MI LARA"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Michigan state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "mn.gov",
+    "source_name": "Minnesota Department of Commerce",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MN"
+    ],
+    "regulators": [
+      "MN DOC"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Minnesota state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.ms.gov",
+    "source_name": "Mississippi Secretary of State Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MS"
+    ],
+    "regulators": [
+      "MS SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Mississippi state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.mo.gov",
+    "source_name": "Missouri Secretary of State Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MO"
+    ],
+    "regulators": [
+      "MO SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Missouri state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "csimt.gov",
+    "source_name": "Montana Commissioner of Securities and Insurance",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-MT"
+    ],
+    "regulators": [
+      "MT CSI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Montana state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ndbf.nebraska.gov",
+    "source_name": "Nebraska Department of Banking and Finance",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NE"
+    ],
+    "regulators": [
+      "NE NDBF"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Nebraska state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nvsos.gov",
+    "source_name": "Nevada Secretary of State Securities Administration",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NV"
+    ],
+    "regulators": [
+      "NV SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer",
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Nevada state securities; $500/$200 annual business license.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nh.gov",
+    "source_name": "New Hampshire Bureau of Securities Regulation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NH"
+    ],
+    "regulators": [
+      "NH SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "New Hampshire state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "njsecurities.gov",
+    "source_name": "New Jersey Bureau of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NJ"
+    ],
+    "regulators": [
+      "NJ BOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "New Jersey state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "rld.nm.gov",
+    "source_name": "New Mexico Securities Division",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NM"
+    ],
+    "regulators": [
+      "NM RLD"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "New Mexico state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sosnc.gov",
+    "source_name": "North Carolina Secretary of State Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-NC"
+    ],
+    "regulators": [
+      "NC SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "North Carolina state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sec.nd.gov",
+    "source_name": "North Dakota Securities Department",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-ND"
+    ],
+    "regulators": [
+      "ND SD"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "North Dakota state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "oklahoma.gov",
+    "source_name": "Oklahoma Department of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-OK"
+    ],
+    "regulators": [
+      "OK DOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Oklahoma state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dfr.oregon.gov",
+    "source_name": "Oregon Division of Financial Regulation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-OR"
+    ],
+    "regulators": [
+      "OR DFR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Oregon state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dbr.ri.gov",
+    "source_name": "Rhode Island Department of Business Regulation Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-RI"
+    ],
+    "regulators": [
+      "RI DBR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Rhode Island state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.sc.gov",
+    "source_name": "South Carolina Secretary of State Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-SC"
+    ],
+    "regulators": [
+      "SC SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "South Carolina state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dlr.sd.gov",
+    "source_name": "South Dakota Division of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-SD"
+    ],
+    "regulators": [
+      "SD DLR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "South Dakota state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "securities.utah.gov",
+    "source_name": "Utah Division of Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-UT"
+    ],
+    "regulators": [
+      "UT DOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Utah state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dfr.vermont.gov",
+    "source_name": "Vermont Department of Financial Regulation",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-VT"
+    ],
+    "regulators": [
+      "VT DFR"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Vermont state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "wvsao.gov",
+    "source_name": "West Virginia State Auditor's Office Securities",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-WV"
+    ],
+    "regulators": [
+      "WV SAO"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "West Virginia state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dfi.wisconsin.gov",
+    "source_name": "Wisconsin Department of Financial Institutions",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-WI"
+    ],
+    "regulators": [
+      "WI DFI"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer"
+    ],
+    "module_relevance": [
+      "trading"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Wisconsin state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "wyosos.gov",
+    "source_name": "Wyoming Secretary of State Compliance",
+    "source_tier": "primary_law",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-WY"
+    ],
+    "regulators": [
+      "WY SOS"
+    ],
+    "practice_areas": [
+      "investment_adviser",
+      "broker_dealer",
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "trading",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "licensure"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Wyoming state securities.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "eur-lex.europa.eu",
+    "source_name": "EU Official Journal \u2014 EUR-Lex",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "EU"
+    ],
+    "regulators": [
+      "EU Commission",
+      "AI Office",
+      "MSAs",
+      "EDPS"
+    ],
+    "practice_areas": [
+      "ai_governance_eu",
+      "data_privacy_eu",
+      "travel_consumer_protection",
+      "aviation_dot",
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "trading",
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "regulations",
+      "treaty_text"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "EUR-Lex SPARQL/CELLAR",
+    "notes": "EU AI Act Reg 2024/1689; Reg 261/2004; Reg 2027/97; GDPR; etc.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "transportation.gov",
+    "source_name": "U.S. Department of Transportation",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DOT"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "travel_consumer_protection",
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "press_releases",
+      "rulemakings",
+      "enforcement_orders"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "Parent agency. OACP at transportation.gov/airconsumer is canonical hub.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "faa.gov",
+    "source_name": "Federal Aviation Administration",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "FAA"
+    ],
+    "practice_areas": [
+      "aviation_dot"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "airworthiness",
+      "advisories"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "NOTAM/airport data APIs",
+    "notes": "Less consumer-facing.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "tsa.gov",
+    "source_name": "Transportation Security Administration",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DHS/TSA"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "screening_rules",
+      "real_id",
+      "prohibited_items"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "REAL ID enforcement May 2025.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cbp.gov",
+    "source_name": "U.S. Customs and Border Protection",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DHS/CBP"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "international_trade_sanctions",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "entry_requirements",
+      "esta",
+      "global_entry"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": null,
+    "notes": "International arrivals/departures.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "travel.state.gov",
+    "source_name": "DOS Bureau of Consular Affairs",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DOS"
+    ],
+    "practice_areas": [
+      "international_trade_sanctions",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "travel_advisories",
+      "visas",
+      "passports"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "Travel Advisories RSS/JSON; STEP",
+    "notes": "Authoritative country risk levels (1-4).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ada.gov",
+    "source_name": "DOJ Americans with Disabilities Act",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DOJ Civil Rights"
+    ],
+    "practice_areas": [
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "ada_regs",
+      "technical_assistance"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Title II web/mobile rule April 2024; commercial websites still case-law-driven.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "w3.org",
+    "source_name": "W3C WCAG 2.1/2.2",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "W3C"
+    ],
+    "practice_areas": [
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "travel",
+      "operations"
+    ],
+    "primary_content_types": [
+      "technical_standard"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Published HTML/JSON",
+    "notes": "WCAG 2.2 (Oct 2023); WCAG 3.0 in draft.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "transport.ec.europa.eu",
+    "source_name": "EC DG MOVE \u2014 Air Passenger Rights",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "EU"
+    ],
+    "regulators": [
+      "EC"
+    ],
+    "practice_areas": [
+      "travel_consumer_protection",
+      "aviation_dot",
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "guidance",
+      "neb_list",
+      "complaint_forms"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Open data portal",
+    "notes": "EU air passenger rights guidance.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "caa.co.uk",
+    "source_name": "UK Civil Aviation Authority",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "UK"
+    ],
+    "regulators": [
+      "CAA"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "travel_consumer_protection",
+      "accessibility_ada"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "uk261_enforcement",
+      "atol"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "ATOL register search",
+    "notes": "Post-Brexit national regulator.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "icao.int",
+    "source_name": "ICAO + Montreal Convention 1999",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "National courts; ICAO depository"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "treaty",
+      "liability_limit_revisions"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Document repository",
+    "notes": "Limits revised 28 Dec 2024 (128821 SDR death/injury, 1519 SDR baggage).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "iata.org",
+    "source_name": "IATA",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "IATA"
+    ],
+    "practice_areas": [
+      "aviation_dot",
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "resolutions",
+      "bsp_rules",
+      "accreditation"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Members-only APIs",
+    "notes": "Industry secondary source, not a regulator.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "oag.ca.gov/travel",
+    "source_name": "CA Seller of Travel Program",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CA AG"
+    ],
+    "practice_areas": [
+      "travel_consumer_protection",
+      "data_privacy_us_state"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "registration",
+      "tcrf"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Seller Search",
+    "notes": "Required for sellers based in CA OR selling to CA residents; air/sea + land/water >$300 trigger.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "fdacs.gov",
+    "source_name": "FL Sellers of Travel",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-FL"
+    ],
+    "regulators": [
+      "FL DACS"
+    ],
+    "practice_areas": [
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "registration",
+      "bond"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Registration search",
+    "notes": "$300 annual reg, bond up to $25K.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dol.wa.gov",
+    "source_name": "WA Sellers of Travel",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-WA"
+    ],
+    "regulators": [
+      "WA DOL/DOR"
+    ],
+    "practice_areas": [
+      "travel_consumer_protection"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "registration",
+      "surety_bond"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "DOR Business Licensing search",
+    "notes": "RCW 19.138 surety bond OR trust account.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "duffel.com",
+    "source_name": "Duffel \u2014 ToS / API Terms",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law",
+      "aviation_dot"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "api_terms",
+      "content_licensing"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "REST API (duffel.com/docs); IATA-accredited",
+    "notes": "Surfaces airline conditions_of_carriage_url per offer.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "viator.com",
+    "source_name": "Viator (Tripadvisor) Affiliate Program",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law",
+      "consumer_protection_ftc"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "affiliate_tou",
+      "awin_program_rules"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Affiliate API + widgets",
+    "notes": "8% standard commission; requires GDPR/CCPA + FTC-style disclosure.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "partner.booking.com",
+    "source_name": "Booking.com Affiliate Partner Program",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law",
+      "data_privacy_eu"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "affiliate_tou",
+      "demand_api"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Demand API; connectivity registrations PAUSED",
+    "notes": "Session-based commission; bans voucher claims.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "developers.expediagroup.com",
+    "source_name": "Expedia Partner Solutions (EPS Rapid API)",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "api_terms",
+      "sha512_signature"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Rapid Lodging/Car APIs",
+    "notes": "Site review required pre-production.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "partners.skyscanner.net",
+    "source_name": "Skyscanner Partners",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "affiliate_program_rules",
+      "travel_api"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "impact.com affiliate; Travel API by application",
+    "notes": "No caching/reselling/redistribution.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "developers.amadeus.com",
+    "source_name": "Amadeus for Developers",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "portal_tou",
+      "per_api_addenda"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "REST APIs (flights, hotels, cars)",
+    "notes": "Production access requires separate addendum.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "developer.sabre.com",
+    "source_name": "Sabre Dev Studio",
+    "source_tier": "secondary_practitioner",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "(vendor)"
+    ],
+    "practice_areas": [
+      "terms_of_service_law"
+    ],
+    "module_relevance": [
+      "travel"
+    ],
+    "primary_content_types": [
+      "api_terms",
+      "rest_soap_catalog"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "REST/SOAP APIs incl. Mosaic, MCP server",
+    "notes": "Developer Partner authorization required.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "corp.delaware.gov",
+    "source_name": "Delaware Division of Corporations",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-DE"
+    ],
+    "regulators": [
+      "DE SoS"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "entity_search"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "icis.corp.delaware.gov entity search",
+    "notes": "Most common US formation state; franchise tax due Mar 1.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.ca.gov",
+    "source_name": "CA Secretary of State (bizfile)",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CA SoS"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "entity_search",
+      "filings"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "bizfileonline.sos.ca.gov",
+    "notes": "$800 minimum franchise tax; SI within 90 days.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.wyo.gov",
+    "source_name": "WY Secretary of State",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-WY"
+    ],
+    "regulators": [
+      "WY SoS"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "entity_search",
+      "filings"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "wyobiz.wyo.gov",
+    "notes": "Privacy/asset protection alternative.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dos.ny.gov",
+    "source_name": "NY Department of State",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-NY"
+    ],
+    "regulators": [
+      "NY DoS"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "entity_search",
+      "filings"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "apps.dos.ny.gov",
+    "notes": "LLC publication requirement.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "sos.state.tx.us",
+    "source_name": "TX Secretary of State",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-TX"
+    ],
+    "regulators": [
+      "TX SoS",
+      "TX Comptroller"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "entity_search",
+      "filings"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "SOSDirect",
+    "notes": "Annual franchise tax/PIR May 15.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nass.org",
+    "source_name": "NASS \u2014 Business Services Directory",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NASS"
+    ],
+    "practice_areas": [
+      "corporate_governance"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "state_directory"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Manual link directory",
+    "notes": "Cross-state formation index.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "uspto.gov",
+    "source_name": "USPTO",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "USPTO"
+    ],
+    "practice_areas": [
+      "intellectual_property"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "trademarks",
+      "patents"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "TSDR API, PatentsView API",
+    "notes": "Federal trademark/patent; renewals 5-6yr and 10-yr.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "copyright.gov",
+    "source_name": "U.S. Copyright Office",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "LoC/Copyright Office"
+    ],
+    "practice_areas": [
+      "intellectual_property"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "registrations",
+      "dmca"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "eCO portal; limited public records API",
+    "notes": "Software/UI registration; DMCA agent registration.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "wipo.int",
+    "source_name": "WIPO",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "WIPO"
+    ],
+    "practice_areas": [
+      "intellectual_property"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "pct",
+      "madrid",
+      "hague"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "PATENTSCOPE, Global Brand DB, Madrid Monitor APIs",
+    "notes": "International IP.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "euipo.europa.eu",
+    "source_name": "EUIPO",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "EU"
+    ],
+    "regulators": [
+      "EUIPO"
+    ],
+    "practice_areas": [
+      "intellectual_property"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "trademarks",
+      "community_design"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "Open Data + APIs (TMview, DesignView)",
+    "notes": "EU trademark and Community design.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nist.gov",
+    "source_name": "NIST AI RMF + CAISI",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NIST"
+    ],
+    "practice_areas": [
+      "ai_governance_us",
+      "data_security"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "ai_rmf",
+      "cybersecurity_framework"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "airc.nist.gov resource center",
+    "notes": "Cited as safe harbor in TRAIGA and CO AI Act.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "whitehouse.gov",
+    "source_name": "OMB AI memos (M-25-21, M-25-22)",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "OMB"
+    ],
+    "practice_areas": [
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "omb_memos"
+    ],
+    "refresh_cadence": "event_driven",
+    "api_or_bulk_data": null,
+    "notes": "M-25-21 Federal AI Use; M-25-22 Federal AI Procurement (April 3 2025).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "coag.gov",
+    "source_name": "Colorado AI Act SB24-205",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-CO"
+    ],
+    "regulators": [
+      "CO AG (exclusive)"
+    ],
+    "practice_areas": [
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "statute",
+      "rulemaking_dockets"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Effective June 30 2026; NIST AI RMF as safe harbor.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "leginfo.legislature.ca.gov",
+    "source_name": "California AI Statutes (SB 53, AB 2013, etc.)",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-CA"
+    ],
+    "regulators": [
+      "CA AG",
+      "CPPA",
+      "CA OES"
+    ],
+    "practice_areas": [
+      "ai_governance_us",
+      "intellectual_property"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "statutes"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "SB 53 Frontier AI Act; AB 2013 GenAI Training Data Transparency; eff Jan 1 2026.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nyc.gov",
+    "source_name": "NYC Local Law 144 \u2014 AEDT",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-NYC"
+    ],
+    "regulators": [
+      "NYC DCWP"
+    ],
+    "practice_areas": [
+      "ai_governance_us",
+      "employment_solo"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "local_law",
+      "bias_audit"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "rules.cityofnewyork.us",
+    "notes": "Enforcement since Jul 5 2023; $500-$1500/violation.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ilga.gov",
+    "source_name": "Illinois AI Statutes",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-IL"
+    ],
+    "regulators": [
+      "IL DCEO",
+      "IL DHR"
+    ],
+    "practice_areas": [
+      "ai_governance_us",
+      "employment_solo"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "statutes"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "AI Video Interview Act eff 2020; HB 3773 Human Rights Act AI eff Jan 1 2026.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "le.utah.gov",
+    "source_name": "Utah AI Policy Act (UAIPA)",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-UT"
+    ],
+    "regulators": [
+      "UT DCP",
+      "OAIP"
+    ],
+    "practice_areas": [
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "statute"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Effective May 1 2024; SB 226 (2025) added safe harbor.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "capitol.texas.gov",
+    "source_name": "TX TRAIGA (HB 149)",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-TX"
+    ],
+    "regulators": [
+      "TX AG (exclusive)"
+    ],
+    "practice_areas": [
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "statute"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Signed Jun 22 2025; eff Jan 1 2026; NIST AI RMF safe harbor; $10K-$200K penalties.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ncsl.org",
+    "source_name": "NCSL AI Legislation Database",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NCSL"
+    ],
+    "practice_areas": [
+      "ai_governance_us"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "legislation_tracker"
+    ],
+    "refresh_cadence": "monthly",
+    "api_or_bulk_data": "Manual; updated monthly",
+    "notes": "Primary verification source for state AI bill status.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "iso.org",
+    "source_name": "ISO/IEC Standards",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "ISO"
+    ],
+    "practice_areas": [
+      "data_security",
+      "ai_governance_us",
+      "ai_governance_eu"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "iso_standards"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "Paid PDF",
+    "notes": "ISO 27001:2022 ISMS; 27701:2019 Privacy; 42001:2023 AI Management.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cloudsecurityalliance.org",
+    "source_name": "CSA \u2014 Cloud Controls Matrix v4",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "CSA"
+    ],
+    "practice_areas": [
+      "data_security"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "ccm",
+      "star_registry"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "CCM XLSX/CSV; STAR registry public",
+    "notes": "Complements SOC 2.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "pcisecuritystandards.org",
+    "source_name": "PCI SSC \u2014 PCI DSS v4.0.1",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 3,
+    "jurisdictions": [
+      "International"
+    ],
+    "regulators": [
+      "PCI SSC; card brands enforce contractually"
+    ],
+    "practice_areas": [
+      "payment_processing",
+      "data_security"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "pci_dss"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": null,
+    "notes": "Full v4 enforcement Mar 31 2025; contractually mandatory.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "cisa.gov",
+    "source_name": "CISA",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "CISA/DHS"
+    ],
+    "practice_areas": [
+      "cybersecurity_breach_notification",
+      "data_security"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "kev_catalog",
+      "csaf_advisories"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "KEV CSV/JSON; CSAF advisories",
+    "notes": "CIRCIA covered-entity reporting rule still in rulemaking.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "naic.org",
+    "source_name": "NAIC",
+    "source_tier": "secondary_authoritative",
+    "authority_rank": 4,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "NAIC member depts"
+    ],
+    "practice_areas": [
+      "data_security"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "model_laws",
+      "guidance"
+    ],
+    "refresh_cadence": "annual",
+    "api_or_bulk_data": "NAIC publications",
+    "notes": "Insurance Data Security Model Law #668; Model AI Bulletin.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "nmlsconsumeraccess.org",
+    "source_name": "NMLS Consumer Access + CSBS",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "CSBS + state regulators"
+    ],
+    "practice_areas": [
+      "payment_processing"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "nmls_search",
+      "sds"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "NMLS search; SES",
+    "notes": "27+ states adopted CSBS MTMA.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ofac.treasury.gov",
+    "source_name": "OFAC \u2014 Office of Foreign Assets Control",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "OFAC/Treasury"
+    ],
+    "practice_areas": [
+      "international_trade_sanctions"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "sanctions_list",
+      "sdn_delta"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "Sanctions List Service API; SDN delta files",
+    "notes": "Canonical: ofac.treasury.gov (legacy treasury.gov path redirects).",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "bis.doc.gov",
+    "source_name": "BIS \u2014 Bureau of Industry & Security",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "BIS/Commerce"
+    ],
+    "practice_areas": [
+      "international_trade_sanctions"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "export_controls",
+      "csl"
+    ],
+    "refresh_cadence": "daily",
+    "api_or_bulk_data": "Consolidated Screening List API (trade.gov); SNAP-R",
+    "notes": "Export controls on dual-use tech, AI compute, chips.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "pmddtc.state.gov",
+    "source_name": "DDTC \u2014 Defense Trade Controls",
+    "source_tier": "primary_law",
+    "authority_rank": 1,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "State Dept/DDTC"
+    ],
+    "practice_areas": [
+      "international_trade_sanctions"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "itar",
+      "deccs"
+    ],
+    "refresh_cadence": "weekly",
+    "api_or_bulk_data": "DECCS portal; Consolidated Screening List",
+    "notes": "Defense articles/services.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "dol.gov",
+    "source_name": "U.S. Department of Labor",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "DOL (W&H",
+      "OSHA",
+      "EBSA)"
+    ],
+    "practice_areas": [
+      "employment_solo"
+    ],
+    "module_relevance": [
+      "operations"
+    ],
+    "primary_content_types": [
+      "wage_hour",
+      "osha",
+      "ebsa"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": "enforcedata.dol.gov",
+    "notes": "Minimal applicability for solo founder; revisit at first hire.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  },
+  {
+    "domain": "ssa.gov",
+    "source_name": "Social Security Administration",
+    "source_tier": "subregulatory_guidance",
+    "authority_rank": 2,
+    "jurisdictions": [
+      "US-federal"
+    ],
+    "regulators": [
+      "SSA"
+    ],
+    "practice_areas": [
+      "employment_solo"
+    ],
+    "module_relevance": [
+      "bookkeeping_tax",
+      "operations"
+    ],
+    "primary_content_types": [
+      "self_employment_tax",
+      "benefits"
+    ],
+    "refresh_cadence": "quarterly",
+    "api_or_bulk_data": null,
+    "notes": "Self-employment tax administration.",
+    "last_verified": "2026-04-28T00:00:00.000Z",
+    "last_verified_by": "registry_research_pr_a",
+    "is_active": true
+  }
+]
