@@ -1866,7 +1866,103 @@ model regulatory_sources {
   created_at                   DateTime       @default(now())
   updated_at                   DateTime       @updatedAt
 
+  citations citations[]
+
   @@index([source_tier, authority_rank])
   @@index([is_active])
   @@map("regulatory_sources")
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CITATIONS — Verification-first regulatory citation tracking
+// ═══════════════════════════════════════════════════════════════════
+
+enum DocumentType {
+  statute
+  regulation
+  case_opinion
+  agency_guidance
+  agency_enforcement_order
+  treaty
+  professional_standard
+  technical_standard
+  legislative_history
+  state_attorney_general_opinion
+  no_action_letter
+  comment_letter
+  other
+}
+
+enum CitationStatus {
+  verified
+  unverified
+  superseded
+  withdrawn
+  unreachable
+  pending_review
+}
+
+enum VerificationCheckResult {
+  passed
+  failed
+  not_applicable
+  error
+}
+
+model citations {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Source linkage
+  regulatory_source_id String             @db.Uuid
+  regulatory_source    regulatory_sources @relation(fields: [regulatory_source_id], references: [id], onDelete: Restrict)
+
+  // Citation identity
+  document_type   DocumentType
+  citation_string String       @db.VarChar(500)
+  pinpoint        String?      @db.Text
+
+  // Stable retrieval
+  stable_uri             String   @unique @db.VarChar(1000)
+  retrieved_url          String   @db.VarChar(1000)
+  retrieved_at           DateTime
+  retrieved_content_hash String   @db.VarChar(64)
+  retrieval_method       String   @db.VarChar(50)
+
+  // Version locking
+  version_label             String      @db.VarChar(255)
+  effective_date            DateTime?
+  superseded_by_citation_id String?     @db.Uuid
+  superseded_by             citations?  @relation("citation_supersession", fields: [superseded_by_citation_id], references: [id])
+  superseded                citations[] @relation("citation_supersession")
+
+  // Hierarchical references
+  parent_citation_id String?     @db.Uuid
+  parent             citations?  @relation("citation_hierarchy", fields: [parent_citation_id], references: [id])
+  children           citations[] @relation("citation_hierarchy")
+
+  // Verification state
+  status             CitationStatus @default(unverified)
+  last_verified_at   DateTime?
+  last_verified_by   String?        @db.VarChar(100)
+  verification_notes String?        @db.Text
+
+  // 8-step integrity check results
+  existence_check              VerificationCheckResult @default(not_applicable)
+  currency_check               VerificationCheckResult @default(not_applicable)
+  groundedness_check           VerificationCheckResult @default(not_applicable)
+  pinpoint_check               VerificationCheckResult @default(not_applicable)
+  supersession_check           VerificationCheckResult @default(not_applicable)
+  jurisdiction_match_check     VerificationCheckResult @default(not_applicable)
+  source_authority_match_check VerificationCheckResult @default(not_applicable)
+  content_hash_check           VerificationCheckResult @default(not_applicable)
+
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([regulatory_source_id])
+  @@index([document_type, status])
+  @@index([status])
+  @@index([is_active])
+  @@map("citations")
 }
