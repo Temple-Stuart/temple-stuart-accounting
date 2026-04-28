@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "tax:export:2025": "tsx scripts/tax-export-2025.ts"
+    "tax:export:2025": "tsx scripts/tax-export-2025.ts",
+    "seed:regulatory": "tsx src/lib/regulatory/seedRegulatorySources.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
