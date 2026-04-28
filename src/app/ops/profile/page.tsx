@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppLayout from '@/components/ui/AppLayout';
 import OpsSubNav from '@/components/ops/OpsSubNav';
+import ChipMultiSelect from '@/components/profile/ChipMultiSelect';
+import ListBuilder from '@/components/profile/ListBuilder';
+import ProductsPicker from '@/components/profile/ProductsPicker';
+import { JURISDICTIONS } from '@/lib/constants/jurisdictions';
+
+interface Entity {
+  id: string;
+  name: string;
+  entity_type: string;
+  is_default?: boolean;
+}
 
 interface ProfileForm {
   business_description: string;
   primary_entity_id: string;
-  operating_jurisdictions: string;
-  customer_jurisdictions: string;
-  products_services: string;
+  operating_jurisdictions: string[];
+  customer_jurisdictions: string[];
+  products_services: string[];
   handles_personal_data: boolean;
   handles_financial_data: boolean;
   handles_health_data: boolean;
@@ -18,26 +29,26 @@ interface ProfileForm {
   ai_use_description: string;
   revenue_stage: string;
   employee_count: number | '';
-  planned_actions_24mo: string;
-  known_completed_filings: string;
+  planned_actions_24mo: string[];
+  known_completed_filings: string[];
   notes: string;
 }
 
 const REVENUE_STAGES = [
   { value: 'pre_revenue', label: 'Pre-revenue' },
   { value: 'pre_charging', label: 'Pre-charging' },
-  { value: 'charging_under_50k', label: 'Charging under $50k' },
-  { value: 'charging_50k_500k', label: 'Charging $50k–$500k' },
-  { value: 'charging_500k_5m', label: 'Charging $500k–$5M' },
+  { value: 'charging_under_50k', label: 'Charging under $50K' },
+  { value: 'charging_50k_500k', label: 'Charging $50K–$500K' },
+  { value: 'charging_500k_5m', label: 'Charging $500K–$5M' },
   { value: 'charging_over_5m', label: 'Charging over $5M' },
 ];
 
 const defaultForm: ProfileForm = {
   business_description: '',
   primary_entity_id: '',
-  operating_jurisdictions: '',
-  customer_jurisdictions: '',
-  products_services: '',
+  operating_jurisdictions: [],
+  customer_jurisdictions: [],
+  products_services: [],
   handles_personal_data: false,
   handles_financial_data: false,
   handles_health_data: false,
@@ -45,20 +56,10 @@ const defaultForm: ProfileForm = {
   ai_use_description: '',
   revenue_stage: 'pre_revenue',
   employee_count: '',
-  planned_actions_24mo: '',
-  known_completed_filings: '',
+  planned_actions_24mo: [],
+  known_completed_filings: [],
   notes: '',
 };
-
-function toCommaString(arr: string[] | undefined): string {
-  if (!arr || arr.length === 0) return '';
-  return arr.join(', ');
-}
-
-function toLineString(arr: string[] | undefined): string {
-  if (!arr || arr.length === 0) return '';
-  return arr.join('\n');
-}
 
 export default function ProfilePage() {
   const [form, setForm] = useState<ProfileForm>(defaultForm);
@@ -67,6 +68,10 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [fieldError, setFieldError] = useState<string>('');
+
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [entitiesLoading, setEntitiesLoading] = useState(true);
+  const [entitiesError, setEntitiesError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -79,9 +84,9 @@ export default function ProfilePage() {
             setForm({
               business_description: p.business_description || '',
               primary_entity_id: p.primary_entity_id || '',
-              operating_jurisdictions: toCommaString(p.operating_jurisdictions),
-              customer_jurisdictions: toCommaString(p.customer_jurisdictions),
-              products_services: toCommaString(p.products_services),
+              operating_jurisdictions: Array.isArray(p.operating_jurisdictions) ? p.operating_jurisdictions : [],
+              customer_jurisdictions: Array.isArray(p.customer_jurisdictions) ? p.customer_jurisdictions : [],
+              products_services: Array.isArray(p.products_services) ? p.products_services : [],
               handles_personal_data: p.handles_personal_data || false,
               handles_financial_data: p.handles_financial_data || false,
               handles_health_data: p.handles_health_data || false,
@@ -89,8 +94,8 @@ export default function ProfilePage() {
               ai_use_description: p.ai_use_description || '',
               revenue_stage: p.revenue_stage || 'pre_revenue',
               employee_count: p.employee_count ?? '',
-              planned_actions_24mo: toLineString(p.planned_actions_24mo),
-              known_completed_filings: toLineString(p.known_completed_filings),
+              planned_actions_24mo: Array.isArray(p.planned_actions_24mo) ? p.planned_actions_24mo : [],
+              known_completed_filings: Array.isArray(p.known_completed_filings) ? p.known_completed_filings : [],
               notes: p.notes || '',
             });
           }
@@ -103,6 +108,44 @@ export default function ProfilePage() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/entities');
+        if (res.ok) {
+          const data = await res.json();
+          setEntities(Array.isArray(data.entities) ? data.entities : []);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          setEntitiesError(data.error || `Failed to load entities (HTTP ${res.status})`);
+        }
+      } catch (err) {
+        setEntitiesError(err instanceof Error ? err.message : 'Failed to load entities');
+      } finally {
+        setEntitiesLoading(false);
+      }
+    })();
+  }, []);
+
+  // Auto-clear the success badge after 3 seconds.
+  useEffect(() => {
+    if (!successMessage) return;
+    const t = setTimeout(() => setSuccessMessage(''), 3000);
+    return () => clearTimeout(t);
+  }, [successMessage]);
+
+  const updateField = <K extends keyof ProfileForm>(field: K, value: ProfileForm[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAiToggle = (checked: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      ai_use_in_product: checked,
+      ai_use_description: checked ? prev.ai_use_description : '',
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -114,18 +157,9 @@ export default function ProfilePage() {
       const payload = {
         business_description: form.business_description,
         primary_entity_id: form.primary_entity_id || null,
-        operating_jurisdictions: form.operating_jurisdictions
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        customer_jurisdictions: form.customer_jurisdictions
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        products_services: form.products_services
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        operating_jurisdictions: form.operating_jurisdictions,
+        customer_jurisdictions: form.customer_jurisdictions,
+        products_services: form.products_services,
         handles_personal_data: form.handles_personal_data,
         handles_financial_data: form.handles_financial_data,
         handles_health_data: form.handles_health_data,
@@ -133,14 +167,8 @@ export default function ProfilePage() {
         ai_use_description: form.ai_use_in_product ? form.ai_use_description : '',
         revenue_stage: form.revenue_stage,
         employee_count: form.employee_count === '' ? null : Number(form.employee_count),
-        planned_actions_24mo: form.planned_actions_24mo
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        known_completed_filings: form.known_completed_filings
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        planned_actions_24mo: form.planned_actions_24mo,
+        known_completed_filings: form.known_completed_filings,
         notes: form.notes,
       };
 
@@ -151,7 +179,7 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
-        setSuccessMessage('Profile saved');
+        setSuccessMessage('Profile saved ✓');
       } else {
         const data = await res.json().catch(() => ({}));
         const msg =
@@ -171,9 +199,14 @@ export default function ProfilePage() {
     }
   };
 
-  const updateField = (field: keyof ProfileForm, value: string | boolean | number) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  const entityOptions = useMemo(
+    () =>
+      entities.map((e) => ({
+        value: e.id,
+        label: `${e.name} (${e.entity_type})`,
+      })),
+    [entities],
+  );
 
   if (loading) {
     return (
@@ -193,6 +226,7 @@ export default function ProfilePage() {
     'font-mono text-sm bg-transparent border border-border rounded-md px-3 py-1.5 w-full focus:border-brand-purple outline-none transition-colors placeholder:text-text-faint';
   const labelClass = 'block text-terminal-sm font-mono font-semibold text-text-secondary mb-1';
   const hintClass = 'text-terminal-sm text-text-faint font-mono mt-0.5';
+  const sectionHelpClass = 'text-terminal-sm text-text-muted font-mono';
 
   return (
     <AppLayout>
@@ -214,7 +248,12 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Business Overview */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Business Overview</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Business Overview</h2>
+              <p className={sectionHelpClass}>
+                What your business does, and which entity is the primary subject of this profile.
+              </p>
+            </div>
             <div>
               <label className={labelClass}>Business Description</label>
               <textarea
@@ -230,16 +269,27 @@ export default function ProfilePage() {
               )}
             </div>
             <div>
-              <label className={labelClass}>Primary Entity ID</label>
-              <input
-                type="text"
-                value={form.primary_entity_id}
-                onChange={(e) => updateField('primary_entity_id', e.target.value)}
-                className={inputClass}
-                placeholder="UUID of your primary legal entity (optional)"
-              />
+              <label className={labelClass}>Primary Entity</label>
+              {entitiesLoading ? (
+                <div className="font-mono text-terminal-sm text-text-faint">Loading entities…</div>
+              ) : entitiesError ? (
+                <div className="font-mono text-terminal-sm text-red-600">{entitiesError}</div>
+              ) : (
+                <select
+                  value={form.primary_entity_id}
+                  onChange={(e) => updateField('primary_entity_id', e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">— None / Cross-entity —</option>
+                  {entityOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className={hintClass}>
-                Optional. Must be a valid UUID (e.g. 550e8400-e29b-41d4-a716-446655440000) or left blank.
+                The legal entity this profile primarily applies to. Choose &quot;None&quot; for cross-entity profiles.
               </p>
               {fieldError === 'primary_entity_id' && (
                 <p className="font-mono text-terminal-sm text-red-600 mt-1">{error}</p>
@@ -249,50 +299,60 @@ export default function ProfilePage() {
 
           {/* Jurisdictions */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Jurisdictions</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Jurisdictions</h2>
+              <p className={sectionHelpClass}>
+                Where you operate (offices, employees, infrastructure) and where your customers are located.
+              </p>
+            </div>
             <div>
               <label className={labelClass}>Operating Jurisdictions</label>
-              <input
-                type="text"
+              <ChipMultiSelect
+                options={JURISDICTIONS}
                 value={form.operating_jurisdictions}
-                onChange={(e) => updateField('operating_jurisdictions', e.target.value)}
-                className={inputClass}
-                placeholder="US-CA, US-NY, US-DE"
+                onChange={(next) => updateField('operating_jurisdictions', next)}
+                placeholder="Add operating jurisdiction…"
+                ariaLabel="Add operating jurisdiction"
               />
-              <p className={hintClass}>Comma-separated jurisdiction codes (e.g. US-CA, US-NY, US-DE)</p>
+              <p className={hintClass}>
+                Where your business has offices, employees, or operational presence.
+              </p>
             </div>
             <div>
               <label className={labelClass}>Customer Jurisdictions</label>
-              <input
-                type="text"
+              <ChipMultiSelect
+                options={JURISDICTIONS}
                 value={form.customer_jurisdictions}
-                onChange={(e) => updateField('customer_jurisdictions', e.target.value)}
-                className={inputClass}
-                placeholder="US-CA, US-NY, US-DE"
+                onChange={(next) => updateField('customer_jurisdictions', next)}
+                placeholder="Add customer jurisdiction…"
+                ariaLabel="Add customer jurisdiction"
               />
-              <p className={hintClass}>Comma-separated jurisdiction codes (e.g. US-CA, US-NY, US-DE)</p>
+              <p className={hintClass}>Where your paying customers are located.</p>
             </div>
           </div>
 
           {/* Products & Services */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Products & Services</h2>
             <div>
-              <label className={labelClass}>Products / Services</label>
-              <input
-                type="text"
-                value={form.products_services}
-                onChange={(e) => updateField('products_services', e.target.value)}
-                className={inputClass}
-                placeholder="SaaS platform, API service, mobile app"
-              />
-              <p className={hintClass}>Comma-separated list of your products and services</p>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Products &amp; Services</h2>
+              <p className={sectionHelpClass}>
+                What you sell. Check the categories that apply, and add anything custom below.
+              </p>
             </div>
+            <ProductsPicker
+              value={form.products_services}
+              onChange={(next) => updateField('products_services', next)}
+            />
           </div>
 
           {/* Data Handling */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Data Handling</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Data Handling</h2>
+              <p className={sectionHelpClass}>
+                What categories of sensitive data your product touches. Drives privacy/compliance scope.
+              </p>
+            </div>
             <div className="space-y-2">
               <label className="flex items-center gap-2 font-mono text-terminal-sm text-text-primary cursor-pointer">
                 <input
@@ -327,7 +387,7 @@ export default function ProfilePage() {
                 <input
                   type="checkbox"
                   checked={form.ai_use_in_product}
-                  onChange={(e) => updateField('ai_use_in_product', e.target.checked)}
+                  onChange={(e) => handleAiToggle(e.target.checked)}
                   className="rounded border-border"
                 />
                 AI used in product
@@ -349,7 +409,12 @@ export default function ProfilePage() {
 
           {/* Stage & Size */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Stage & Size</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Stage &amp; Size</h2>
+              <p className={sectionHelpClass}>
+                Revenue stage and headcount. Determines which compliance regimes apply.
+              </p>
+            </div>
             <div>
               <label className={labelClass}>Revenue Stage</label>
               <select
@@ -382,34 +447,38 @@ export default function ProfilePage() {
 
           {/* Plans & History */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Plans & History</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Plans &amp; History</h2>
+              <p className={sectionHelpClass}>
+                Forward-looking plans (24 months) and filings already completed.
+              </p>
+            </div>
             <div>
               <label className={labelClass}>Planned Actions (next 24 months)</label>
-              <textarea
+              <ListBuilder
                 value={form.planned_actions_24mo}
-                onChange={(e) => updateField('planned_actions_24mo', e.target.value)}
-                rows={4}
-                className={inputClass}
-                placeholder="One planned action per line..."
+                onChange={(next) => updateField('planned_actions_24mo', next)}
+                placeholder="e.g. Hire engineers in NY"
+                ariaLabel="Add planned action"
               />
-              <p className={hintClass}>One item per line</p>
             </div>
             <div>
               <label className={labelClass}>Known Completed Filings</label>
-              <textarea
+              <ListBuilder
                 value={form.known_completed_filings}
-                onChange={(e) => updateField('known_completed_filings', e.target.value)}
-                rows={4}
-                className={inputClass}
-                placeholder="One filing per line..."
+                onChange={(next) => updateField('known_completed_filings', next)}
+                placeholder="e.g. Delaware Annual Franchise Tax 2024"
+                ariaLabel="Add completed filing"
               />
-              <p className={hintClass}>One item per line</p>
             </div>
           </div>
 
           {/* Notes */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
-            <h2 className="text-terminal-base font-bold text-text-primary font-mono">Notes</h2>
+            <div>
+              <h2 className="text-terminal-base font-bold text-text-primary font-mono">Notes</h2>
+              <p className={sectionHelpClass}>Anything else worth flagging for the discovery engine.</p>
+            </div>
             <div>
               <textarea
                 value={form.notes}
