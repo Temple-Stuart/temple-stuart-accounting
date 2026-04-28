@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { verifyCitation } from '@/lib/citations/verifyCitation';
+import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 
 export async function POST(
   request: NextRequest,
@@ -24,10 +25,12 @@ export async function POST(
       partial: 'pending_review',
     } as const;
 
+    const updatedStatus = statusMap[result.overall_status];
+
     await prisma.citations.update({
       where: { id },
       data: {
-        status: statusMap[result.overall_status],
+        status: updatedStatus,
         last_verified_at: result.ran_at,
         last_verified_by: userEmail,
         verification_notes: result.notes.join('\n'),
@@ -40,6 +43,38 @@ export async function POST(
         source_authority_match_check: result.checks.source_authority_match,
         content_hash_check: result.checks.content_hash,
       },
+    });
+
+    await writeAuditLog({
+      actor: {
+        email: userEmail,
+        type: 'human_user',
+      },
+      action: {
+        type: 'citation_verified',
+        description: `Ran 8-step verification protocol on citation ${citation.citation_string}`,
+      },
+      target: {
+        table: 'citations',
+        id: citation.id,
+      },
+      payload: {
+        before: {
+          status: citation.status,
+          last_verified_at: citation.last_verified_at,
+        },
+        after: {
+          status: updatedStatus,
+          last_verified_at: result.ran_at,
+          checks: result.checks,
+        },
+        metadata: {
+          overall_status: result.overall_status,
+          notes: result.notes,
+        },
+      },
+      request_id: request.headers.get('x-request-id') ?? undefined,
+      user_agent: request.headers.get('user-agent') ?? undefined,
     });
 
     return NextResponse.json(result);

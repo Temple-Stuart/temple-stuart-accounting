@@ -1966,3 +1966,99 @@ model citations {
   @@index([is_active])
   @@map("citations")
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// AUDIT LOG — Hash-chained, append-only, SOC 2 immutability
+// ═══════════════════════════════════════════════════════════════════
+
+enum AuditActorType {
+  human_user
+  ai_agent
+  system_automation
+  external_integration
+}
+
+enum AuditActionType {
+  citation_created
+  citation_updated
+  citation_verified
+  citation_status_changed
+  citation_superseded
+  citation_deleted
+  task_created
+  task_updated
+  task_status_changed
+  task_assigned
+  task_completed
+  task_evidence_attached
+  task_attested
+  task_deleted
+  mission_created
+  mission_updated
+  mission_status_changed
+  mission_deleted
+  project_created
+  project_updated
+  project_deleted
+  workstream_created
+  workstream_updated
+  workstream_deleted
+  ai_generation_started
+  ai_generation_completed
+  ai_generation_failed
+  ai_verification_passed
+  ai_verification_failed
+  regulatory_source_added
+  regulatory_source_updated
+  regulatory_source_deactivated
+  user_login
+  user_logout
+  permission_granted
+  permission_revoked
+  data_export_initiated
+  data_export_completed
+  system_other
+}
+
+model audit_log {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Hash chain
+  sequence_number BigInt @unique @default(autoincrement())
+  prev_hash       String @db.VarChar(64)
+  content_hash    String @unique @db.VarChar(64)
+
+  // Actor
+  actor_user_id    String?        @db.VarChar(255)
+  actor_email      String?        @db.VarChar(255)
+  actor_type       AuditActorType
+  actor_session_id String?        @db.VarChar(255)
+  actor_ip         String?        @db.VarChar(45)
+
+  // Action
+  action_type        AuditActionType
+  action_description String          @db.Text
+
+  // Target
+  target_table String  @db.VarChar(100)
+  target_id    String? @db.VarChar(255)
+
+  // Payload
+  payload_before   Json?
+  payload_after    Json?
+  payload_metadata Json?
+
+  // Provenance
+  request_id String? @db.VarChar(255)
+  user_agent String? @db.Text
+
+  // Time
+  created_at DateTime @default(now())
+
+  @@index([sequence_number])
+  @@index([actor_user_id, created_at])
+  @@index([action_type, created_at])
+  @@index([target_table, target_id])
+  @@index([created_at])
+  @@map("audit_log")
+}
