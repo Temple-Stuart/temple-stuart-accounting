@@ -19,6 +19,17 @@ export async function GET(_request: NextRequest) {
   }
 }
 
+const REVENUE_STAGES = [
+  'pre_revenue',
+  'pre_charging',
+  'charging_under_50k',
+  'charging_50k_500k',
+  'charging_500k_5m',
+  'charging_over_5m',
+] as const;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
@@ -46,6 +57,45 @@ export async function POST(request: NextRequest) {
       primary_entity_id,
     } = body;
 
+    // Validation — return 400 with structured field errors so the UI can show them inline.
+    if (typeof business_description !== 'string' || business_description.trim().length < 10) {
+      return NextResponse.json(
+        {
+          error: 'Business description must be at least 10 characters.',
+          field: 'business_description',
+          message: 'Business description must be at least 10 characters.',
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!revenue_stage || !REVENUE_STAGES.includes(revenue_stage as (typeof REVENUE_STAGES)[number])) {
+      return NextResponse.json(
+        {
+          error: `Revenue stage is required and must be one of: ${REVENUE_STAGES.join(', ')}.`,
+          field: 'revenue_stage',
+          message: 'Please select a revenue stage.',
+        },
+        { status: 400 },
+      );
+    }
+
+    const normalizedPrimaryEntityId =
+      typeof primary_entity_id === 'string' && primary_entity_id.trim() !== ''
+        ? primary_entity_id.trim()
+        : null;
+
+    if (normalizedPrimaryEntityId !== null && !UUID_RE.test(normalizedPrimaryEntityId)) {
+      return NextResponse.json(
+        {
+          error: 'Primary entity ID must be a valid UUID, or left blank.',
+          field: 'primary_entity_id',
+          message: 'Primary entity ID must be a valid UUID (e.g. 550e8400-e29b-41d4-a716-446655440000), or left blank.',
+        },
+        { status: 400 },
+      );
+    }
+
     const existing = await prisma.user_profiles.findUnique({ where: { user_id: user.id } });
     const isCreate = !existing;
 
@@ -64,7 +114,7 @@ export async function POST(request: NextRequest) {
       planned_actions_24mo: planned_actions_24mo ?? [],
       known_completed_filings: known_completed_filings ?? [],
       notes: notes ?? null,
-      primary_entity_id: primary_entity_id ?? null,
+      primary_entity_id: normalizedPrimaryEntityId,
     };
 
     const profile = await prisma.user_profiles.upsert({
@@ -91,6 +141,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ profile }, { status: isCreate ? 201 : 200 });
   } catch (error) {
     console.error('[Discovery Profile POST]', error);
-    return NextResponse.json({ error: 'Failed to save profile' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to save profile';
+    return NextResponse.json({ error: message, message }, { status: 500 });
   }
 }

@@ -66,6 +66,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [fieldError, setFieldError] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -107,6 +108,7 @@ export default function ProfilePage() {
     setSaving(true);
     setSuccessMessage('');
     setError('');
+    setFieldError('');
 
     try {
       const payload = {
@@ -152,11 +154,18 @@ export default function ProfilePage() {
         setSuccessMessage('Profile saved');
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Failed to save profile');
+        const msg =
+          data.message ||
+          data.error ||
+          `Save failed (HTTP ${res.status}). No error details returned.`;
+        setError(msg);
+        if (typeof data.field === 'string') {
+          setFieldError(data.field);
+        }
       }
     } catch (err) {
       console.error('Failed to save profile:', err);
-      setError('Failed to save profile');
+      setError(err instanceof Error ? err.message : 'Failed to save profile');
     } finally {
       setSaving(false);
     }
@@ -196,6 +205,12 @@ export default function ProfilePage() {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-300 rounded p-3 font-mono text-terminal-sm text-red-800 whitespace-pre-wrap">
+            <span className="font-semibold">Save failed:</span> {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Business Overview */}
           <div className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
@@ -209,6 +224,10 @@ export default function ProfilePage() {
                 className={inputClass}
                 placeholder="Describe your business, what it does, and how it operates..."
               />
+              <p className={hintClass}>Required, minimum 10 characters.</p>
+              {fieldError === 'business_description' && (
+                <p className="font-mono text-terminal-sm text-red-600 mt-1">{error}</p>
+              )}
             </div>
             <div>
               <label className={labelClass}>Primary Entity ID</label>
@@ -217,8 +236,14 @@ export default function ProfilePage() {
                 value={form.primary_entity_id}
                 onChange={(e) => updateField('primary_entity_id', e.target.value)}
                 className={inputClass}
-                placeholder="UUID of your primary legal entity"
+                placeholder="UUID of your primary legal entity (optional)"
               />
+              <p className={hintClass}>
+                Optional. Must be a valid UUID (e.g. 550e8400-e29b-41d4-a716-446655440000) or left blank.
+              </p>
+              {fieldError === 'primary_entity_id' && (
+                <p className="font-mono text-terminal-sm text-red-600 mt-1">{error}</p>
+              )}
             </div>
           </div>
 
@@ -338,6 +363,9 @@ export default function ProfilePage() {
                   </option>
                 ))}
               </select>
+              {fieldError === 'revenue_stage' && (
+                <p className="font-mono text-terminal-sm text-red-600 mt-1">{error}</p>
+              )}
             </div>
             <div>
               <label className={labelClass}>Employee Count</label>
@@ -411,7 +439,6 @@ export default function ProfilePage() {
                 </Link>
               </span>
             )}
-            {error && <span className="font-mono text-terminal-sm text-red-600">{error}</span>}
           </div>
         </form>
       </div>
