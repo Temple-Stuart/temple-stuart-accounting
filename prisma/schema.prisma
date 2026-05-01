@@ -2023,6 +2023,9 @@ enum AuditActionType {
   permission_revoked
   data_export_initiated
   data_export_completed
+  regulatory_document_ingested
+  regulatory_document_superseded
+  regulatory_ingest_run_completed
   system_other
 }
 
