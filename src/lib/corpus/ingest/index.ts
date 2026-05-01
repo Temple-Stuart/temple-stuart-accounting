@@ -21,6 +21,20 @@ export { USCODE_TITLES, xmlUrlForTitle, downloadIndexUrl } from './uscode-titles
 export type { UscodeTitle } from './uscode-titles';
 export type { UscodeTitleHeaders, ReleasePoint } from './uscode-fetch';
 
+export {
+  fetchDocumentList,
+  fetchDocumentDetail,
+  fetchDocumentRawText,
+} from './fedreg-fetch';
+export { parseFedregDocument, mapFedregTypeToDocType } from './fedreg-parse';
+export { persistFedregDocument } from './fedreg-persist';
+export type {
+  FedregListEntry,
+  FedregListResponse,
+  FedregDocumentDetail,
+} from './fedreg-fetch';
+export type { FedregPersistResult } from './fedreg-persist';
+
 export type {
   EcfrTitleListEntry,
   ParsedDocument,
