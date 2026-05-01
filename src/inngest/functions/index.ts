@@ -11,9 +11,11 @@
  */
 
 import { healthCheck } from './health-check';
+import { ecfrIngest } from './ecfr-ingest';
 
 export const functions = [
   healthCheck,
+  ecfrIngest,
 ];
 
-export { healthCheck };
+export { healthCheck, ecfrIngest };

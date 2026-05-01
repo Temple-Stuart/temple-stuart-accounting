@@ -44,6 +44,7 @@ export interface InsertDocumentInput {
   content_hash: Buffer;
   raw_hash: Buffer;
   raw_storage_uri: string;
+  raw_xml?: Buffer;
   metadata?: Record<string, unknown>;
 }
 
@@ -56,7 +57,7 @@ export interface InsertChunkInput {
   text: string;
   text_hash: Buffer;
   token_count: number;
-  embedding: number[];
+  embedding?: number[];
   embedding_model: string;
 }
 
@@ -90,7 +91,7 @@ export async function insertDocument(
     INSERT INTO regulatory_documents (
       source_id, doc_type, jurisdiction, citation_key, title, version,
       effective_date, published_date, retrieved_at, canonical_url,
-      stable_uri, content_hash, raw_hash, raw_storage_uri, metadata
+      stable_uri, content_hash, raw_hash, raw_storage_uri, raw_xml, metadata
     ) VALUES (
       ${input.source_id}::uuid,
       ${input.doc_type},
@@ -106,6 +107,7 @@ export async function insertDocument(
       ${input.content_hash},
       ${input.raw_hash},
       ${input.raw_storage_uri},
+      ${input.raw_xml ?? null},
       ${JSON.stringify(input.metadata ?? {})}::jsonb
     )
     RETURNING id
@@ -127,7 +129,9 @@ export async function insertDocument(
 export async function insertChunk(
   input: InsertChunkInput
 ): Promise<{ id: string }> {
-  const embeddingLiteral = `[${input.embedding.join(',')}]`;
+  const embeddingLiteral = input.embedding && input.embedding.length > 0
+    ? `[${input.embedding.join(',')}]`
+    : null;
 
   const result = await prisma.$queryRaw<Array<{ id: string }>>`
     INSERT INTO regulatory_document_chunks (
@@ -142,7 +146,7 @@ export async function insertChunk(
       ${input.text},
       ${input.text_hash},
       ${input.token_count},
-      ${embeddingLiteral}::vector,
+      ${embeddingLiteral === null ? null : Prisma.sql`${embeddingLiteral}::vector`},
       ${input.embedding_model}
     )
     RETURNING id
