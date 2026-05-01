@@ -13,11 +13,13 @@
 import { healthCheck } from './health-check';
 import { ecfrIngest } from './ecfr-ingest';
 import { uscodeIngest } from './uscode-ingest';
+import { fedregIngest } from './fedreg-ingest';
 
 export const functions = [
   healthCheck,
   ecfrIngest,
   uscodeIngest,
+  fedregIngest,
 ];
 
-export { healthCheck, ecfrIngest, uscodeIngest };
+export { healthCheck, ecfrIngest, uscodeIngest, fedregIngest };
