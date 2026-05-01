@@ -12,10 +12,12 @@
 
 import { healthCheck } from './health-check';
 import { ecfrIngest } from './ecfr-ingest';
+import { uscodeIngest } from './uscode-ingest';
 
 export const functions = [
   healthCheck,
   ecfrIngest,
+  uscodeIngest,
 ];
 
-export { healthCheck, ecfrIngest };
+export { healthCheck, ecfrIngest, uscodeIngest };
