@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
@@ -20,6 +21,7 @@
     "@tastytrade/api": "^6.0.1",
     "@types/pdfkit": "^0.17.5",
     "bcryptjs": "^2.4.3",
+    "inngest": "^4.2.6",
     "jsonwebtoken": "^9.0.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.544.0",
