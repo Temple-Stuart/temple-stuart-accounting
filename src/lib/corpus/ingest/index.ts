@@ -35,6 +35,17 @@ export type {
 } from './fedreg-fetch';
 export type { FedregPersistResult } from './fedreg-persist';
 
+export {
+  fetchIrbIndex,
+  fetchIssueHtml,
+  fetchIssueHeaders,
+  extractIrbIndex,
+} from './irb-fetch';
+export { parseIrbIssue, mapCitationToDocType } from './irb-parse';
+export { persistIrbDocuments } from './irb-persist';
+export type { IrbIndexEntry, IrbIssueHeaders } from './irb-fetch';
+export type { IrbPersistResult } from './irb-persist';
+
 export type {
   EcfrTitleListEntry,
   ParsedDocument,
