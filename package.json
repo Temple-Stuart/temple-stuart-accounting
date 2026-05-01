@@ -22,6 +22,7 @@
     "@types/pdfkit": "^0.17.5",
     "adm-zip": "^0.5.17",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.7.2",
     "inngest": "^4.2.6",
     "jsonwebtoken": "^9.0.2",
@@ -46,6 +47,7 @@
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cheerio": "^0.22.35",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
