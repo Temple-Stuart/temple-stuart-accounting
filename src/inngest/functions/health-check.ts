@@ -19,8 +19,8 @@ export const healthCheck = inngest.createFunction(
   {
     id: 'inngest-health-check',
     name: 'Inngest health check',
+    triggers: [{ event: 'inngest/health.check' }],
   },
-  { event: 'inngest/health.check' },
   async ({ event, step }) => {
     const startedAt = new Date().toISOString();
 
