@@ -15,6 +15,7 @@ import { ecfrIngest } from './ecfr-ingest';
 import { uscodeIngest } from './uscode-ingest';
 import { fedregIngest } from './fedreg-ingest';
 import { irbIngest } from './irb-ingest';
+import { embedPending } from './embed-pending';
 
 export const functions = [
   healthCheck,
@@ -22,6 +23,7 @@ export const functions = [
   uscodeIngest,
   fedregIngest,
   irbIngest,
+  embedPending,
 ];
 
-export { healthCheck, ecfrIngest, uscodeIngest, fedregIngest, irbIngest };
+export { healthCheck, ecfrIngest, uscodeIngest, fedregIngest, irbIngest, embedPending };
