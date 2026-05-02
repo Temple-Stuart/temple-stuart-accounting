@@ -2026,6 +2026,9 @@ enum AuditActionType {
   regulatory_document_ingested
   regulatory_document_superseded
   regulatory_ingest_run_completed
+  regulatory_chunks_embedded
+  embedding_run_completed
+  embedding_run_cost_capped
   system_other
 }
 
@@ -2435,4 +2438,23 @@ model discovery_proposals {
   @@index([proposal_type, status])
   @@index([parent_proposal_id])
   @@map("discovery_proposals")
+}
+
+model embedding_runs {
+  id              String   @id @default(uuid()) @db.Uuid
+  started_at      DateTime @db.Timestamptz(6)
+  completed_at    DateTime? @db.Timestamptz(6)
+  model_name      String
+  chunks_embedded Int      @default(0)
+  tokens_total    Int      @default(0)
+  cost_usd        Decimal  @default(0) @db.Decimal(10, 4)
+  cost_cap_usd    Decimal  @db.Decimal(10, 4)
+  outcome         String
+  error_message   String?
+  metadata        Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([started_at(sort: Desc)])
+  @@index([outcome])
+  @@map("embedding_runs")
 }
