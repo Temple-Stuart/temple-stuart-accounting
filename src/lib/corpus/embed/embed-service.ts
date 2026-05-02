@@ -22,7 +22,6 @@
  * Reference: docs/architecture/discovery-engine-institutional-grade.md § 4.4
  */
 
-import crypto from 'crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import {
   embedBatch,
