@@ -16,8 +16,9 @@
  * Reference: docs/architecture/discovery-engine-institutional-grade.md § 1.2
  */
 
-import type { ParsedDocument, ParsedChunk } from './types';
+import type { ParsedDocument } from './types';
 import type { FedregDocumentDetail } from './fedreg-fetch';
+import { chunkText } from './chunker';
 
 /**
  * Map FR API's `type` field to our doc_type free-text values.
@@ -40,10 +41,6 @@ export function mapFedregTypeToDocType(frType: string): string {
       // new type, this branch logs it via the actual string in metadata.
       return 'agency_notice';
   }
-}
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
 }
 
 /**
@@ -74,20 +71,12 @@ export function parseFedregDocument(
   // publication_date (notices and immediately-effective documents).
   const effectiveDate = detail.effective_on ?? publicationDate;
 
-  const chunk: ParsedChunk = {
-    ordinal: 0,
-    structural_path: structuralPath,
-    pinpoint,
-    text: rawText.trim(),
-    token_count: estimateTokens(rawText),
-  };
-
   return {
     citation_key: citationKey,
     title: detail.title,
     effective_date: effectiveDate,
     structural_path: structuralPath,
-    chunks: [chunk],
+    chunks: chunkText(rawText.trim(), { structuralPath, pinpoint }),
     metadata: {
       fr_type: detail.type,
       fr_document_number: documentNumber,

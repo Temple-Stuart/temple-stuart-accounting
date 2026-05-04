@@ -28,7 +28,8 @@
  */
 
 import { XMLParser } from 'fast-xml-parser';
-import type { ParsedDocument, ParsedChunk } from './types';
+import type { ParsedDocument } from './types';
+import { chunkText } from './chunker';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -88,13 +89,6 @@ function extractText(node: unknown): string {
     }
   }
   return parts.join(' ').replace(/\s+/g, ' ').trim();
-}
-
-/**
- * Approximate token count for chunk size estimation.
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
 }
 
 /**
@@ -159,14 +153,6 @@ export function parseUscTitleToDocuments(
     const structuralPath = `USC/${titleNumber}/${sectionId}`;
     const pinpoint = num || `§ ${sectionId}`;
 
-    const chunk: ParsedChunk = {
-      ordinal: 0,
-      structural_path: structuralPath,
-      pinpoint,
-      text: bodyText,
-      token_count: estimateTokens(bodyText),
-    };
-
     const title = heading
       ? `${pinpoint} ${heading}`
       : `USC Title ${titleNumber} ${pinpoint}`;
@@ -176,7 +162,7 @@ export function parseUscTitleToDocuments(
       title,
       effective_date: effectiveDate,
       structural_path: structuralPath,
-      chunks: [chunk],
+      chunks: chunkText(bodyText, { structuralPath, pinpoint }),
       metadata: {
         section_id: sectionId,
         title_number: titleNumber,

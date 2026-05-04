@@ -28,7 +28,8 @@
  */
 
 import * as cheerio from 'cheerio';
-import type { ParsedDocument, ParsedChunk } from './types';
+import type { ParsedDocument } from './types';
+import { chunkText } from './chunker';
 
 /**
  * Map a citation-key prefix to our free-text doc_type values.
@@ -56,10 +57,6 @@ export function mapCitationToDocType(citationKey: string): string {
  */
 function normalizeCitation(anchor: string): string {
   return anchor.replace(/[._]/g, '-').toUpperCase();
-}
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
 }
 
 /**
@@ -151,14 +148,6 @@ export function parseIrbIssue(
     const docType = mapCitationToDocType(citationKey);
     const structuralPath = `IRB/${issueId}/${citationKey}`;
 
-    const chunk: ParsedChunk = {
-      ordinal: 0,
-      structural_path: structuralPath,
-      pinpoint: citationKey,
-      text: bodyText,
-      token_count: estimateTokens(bodyText),
-    };
-
     const title = headingText || `${citationKey} (IRB ${issueId})`;
 
     documents.push({
@@ -166,7 +155,10 @@ export function parseIrbIssue(
       title,
       effective_date: publicationDate,
       structural_path: structuralPath,
-      chunks: [chunk],
+      chunks: chunkText(bodyText, {
+        structuralPath,
+        pinpoint: citationKey,
+      }),
       metadata: {
         irb_issue_id: issueId,
         irb_publication_date: publicationDate,
