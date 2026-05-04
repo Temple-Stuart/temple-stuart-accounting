@@ -20,7 +20,8 @@
  */
 
 import { XMLParser } from 'fast-xml-parser';
-import type { ParsedDocument, ParsedChunk } from './types';
+import type { ParsedDocument } from './types';
+import { chunkText } from './chunker';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -84,15 +85,6 @@ function extractText(node: unknown): string {
 }
 
 /**
- * Approximate token count: ~4 characters per token for English prose.
- * A more precise tokenizer (tiktoken) would be used in PR-J for embedding
- * cost calculation; here we just need an order-of-magnitude estimate.
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-/**
  * Parse one title's XML payload into ParsedDocument[] (one per DIV5).
  *
  * @param xmlBuffer raw XML bytes from fetchTitleXml
@@ -130,20 +122,12 @@ export function parseTitleToDocuments(
     const structuralPath = `CFR/${titleNumber}/${sectionNumber}`;
     const pinpoint = `§ ${sectionNumber}`;
 
-    const chunk: ParsedChunk = {
-      ordinal: 0,
-      structural_path: structuralPath,
-      pinpoint,
-      text: bodyText,
-      token_count: estimateTokens(bodyText),
-    };
-
     documents.push({
       citation_key: citationKey,
       title: head || `CFR Title ${titleNumber} § ${sectionNumber}`,
       effective_date: effectiveDate,
       structural_path: structuralPath,
-      chunks: [chunk],
+      chunks: chunkText(bodyText, { structuralPath, pinpoint }),
       metadata: {
         section_type: sectionType,
         section_number: sectionNumber,
