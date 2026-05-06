@@ -75,10 +75,8 @@ const OPERATIONS_PREFIXES = ['/operations'];
 // Primary nav tabs — order matters (left to right)
 const NAV_TABS = [
   { name: 'Bookkeeping', href: '/dashboard', Icon: BookOpen, prefixes: BOOKKEEPING_PREFIXES },
-  { name: 'Personal', href: '/personal', Icon: User, prefixes: PERSONAL_PREFIXES },
-  { name: 'Business', href: '/business', Icon: Briefcase, prefixes: BUSINESS_PREFIXES },
-  { name: 'Travel', href: '/budgets/trips', Icon: Plane, prefixes: TRAVEL_PREFIXES },
   { name: 'Trading', href: '/trading', Icon: TrendingUp, prefixes: TRADING_PREFIXES },
+  { name: 'Travel', href: '/budgets/trips', Icon: Plane, prefixes: TRAVEL_PREFIXES },
   { name: 'Compliance', href: '/compliance', Icon: Rocket, prefixes: COMPLIANCE_PREFIXES },
   { name: 'Operations', href: '/operations', Icon: Activity, prefixes: OPERATIONS_PREFIXES },
 ];
