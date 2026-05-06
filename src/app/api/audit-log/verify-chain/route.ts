@@ -31,12 +31,30 @@ export async function POST() {
       },
     });
 
+    // Response contract emits BOTH the researcher-flavored fields used by
+    // diagnostic tooling (is_valid, total_rows, break_points, notes) AND the
+    // UI-flavored fields consumed by section components (ok, rows_checked,
+    // message). Single source of truth so consumers don't drift from the
+    // producer. SectionK_AuditTail and the future-fixed SectionI_AuditTail
+    // both read the UI-flavored fields.
+    const ui_message = result.is_valid
+      ? undefined
+      : result.notes[0] ?? (
+          result.break_points.length > 0
+            ? `${result.break_points.length} break point(s) — see /api/audit-log/verify-chain for details`
+            : 'chain invalid (no diagnostic notes available)'
+        );
+
     const serialized = {
       ...result,
       break_points: result.break_points.map((bp) => ({
         ...bp,
         sequence_number: bp.sequence_number.toString(),
       })),
+      // UI-flavored contract:
+      ok: result.is_valid,
+      rows_checked: result.total_rows,
+      message: ui_message,
     };
 
     return NextResponse.json(serialized);
