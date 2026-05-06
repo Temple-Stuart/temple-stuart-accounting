@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const actorUserId = searchParams.get('actor_user_id');
     const actionType = searchParams.get('action_type');
+    const prefix = searchParams.get('prefix');
     const targetTable = searchParams.get('target_table');
     const targetId = searchParams.get('target_id');
     const after = searchParams.get('after');
@@ -20,7 +21,12 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
     if (actorUserId) where.actor_user_id = actorUserId;
-    if (actionType) where.action_type = actionType;
+    // action_type exact match wins over prefix; only one applies.
+    if (actionType) {
+      where.action_type = actionType;
+    } else if (prefix) {
+      where.action_type = { startsWith: prefix };
+    }
     if (targetTable) where.target_table = targetTable;
     if (targetId) where.target_id = targetId;
     if (after || before) {
