@@ -475,6 +475,7 @@ model users {
   missions                missions[]
   accountable_tasks       compliance_tasks[]       @relation("task_accountable")
   user_profile            user_profiles?
+  operations_north_star   operations_north_star?
   discovery_runs          discovery_runs[]
 }
 
@@ -2056,6 +2057,9 @@ enum AuditActionType {
   operations_vendor_deactivated
   operations_vendor_deleted
   operations_priority_recomputed
+  operations_north_star_created
+  operations_north_star_updated
+  operations_north_star_reviewed
   system_other
 }
 
@@ -2718,4 +2722,37 @@ model operations_vendor_directory {
   @@index([next_due_date])
   @@index([chart_account_id])
   @@map("operations_vendor_directory")
+}
+
+// =============================================================================
+// PR-Ops-1.5: Operations North Star
+// =============================================================================
+// Per-user mission anchor. One row per user (UNIQUE on user_id). Bound to
+// users(id) with Cascade delete -- matches user_profiles precedent for
+// personal-data tables. Mutations hash-chain into the shared audit_log via
+// operations_north_star_{created,updated,reviewed} action types.
+// =============================================================================
+
+model operations_north_star {
+  id                       String     @id @default(uuid()) @db.Uuid
+  user_id                  String     @unique
+  mission_statement        String?    @db.Text
+  life_stage               String?    @db.VarChar(50)
+  core_values              String[]   @default([])
+  guiding_principles       String?    @db.Text
+  one_year_target          String?    @db.Text
+  three_year_target        String?    @db.Text
+  current_location_label   String?    @db.VarChar(200)
+  current_timezone         String     @default("America/Los_Angeles") @db.VarChar(64)
+  review_cadence_days      Int        @default(90)
+  last_reviewed_at         DateTime?  @db.Timestamptz(6)
+  next_review_at           DateTime?  @db.Timestamptz(6)
+  created_at               DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime   @updatedAt @db.Timestamptz(6)
+  created_by               String?
+
+  user                     users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([next_review_at])
+  @@map("operations_north_star")
 }
