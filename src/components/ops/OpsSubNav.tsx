@@ -4,13 +4,13 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 const OPS_TABS = [
-  { name: 'Daily Plan', href: '/ops', exact: true },
-  { name: 'Profile', href: '/ops/profile', exact: true },
-  { name: 'Discovery', href: '/ops/discovery', exact: false },
-  { name: 'Registry', href: '/ops/registry', exact: false },
-  { name: 'Citations', href: '/ops/citations', exact: false },
-  { name: 'Audit Log', href: '/ops/audit-log', exact: false },
-  { name: 'Missions', href: '/ops/missions', exact: false },
+  { name: 'Daily Plan', href: '/compliance', exact: true },
+  { name: 'Profile', href: '/compliance/profile', exact: true },
+  { name: 'Discovery', href: '/compliance/discovery', exact: false },
+  { name: 'Registry', href: '/compliance/registry', exact: false },
+  { name: 'Citations', href: '/compliance/citations', exact: false },
+  { name: 'Audit Log', href: '/compliance/audit-log', exact: false },
+  { name: 'Missions', href: '/compliance/missions', exact: false },
   { name: 'Bookkeeping', href: '', disabled: true },
   { name: 'Trading', href: '', disabled: true },
   { name: 'Travel', href: '', disabled: true },

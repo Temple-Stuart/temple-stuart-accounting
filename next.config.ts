@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: '/ops', destination: '/compliance', permanent: true },
+      { source: '/ops/:path*', destination: '/compliance/:path*', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
