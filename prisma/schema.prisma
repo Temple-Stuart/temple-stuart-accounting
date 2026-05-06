@@ -2029,6 +2029,33 @@ enum AuditActionType {
   regulatory_chunks_embedded
   embedding_run_completed
   embedding_run_cost_capped
+  operations_project_created
+  operations_project_updated
+  operations_project_status_changed
+  operations_project_deleted
+  operations_project_task_created
+  operations_project_task_updated
+  operations_project_task_status_changed
+  operations_project_task_completed
+  operations_project_task_deleted
+  operations_project_dependency_added
+  operations_project_dependency_removed
+  operations_routine_created
+  operations_routine_updated
+  operations_routine_deactivated
+  operations_routine_deleted
+  operations_routine_completed
+  operations_routine_missed
+  operations_issue_logged
+  operations_issue_updated
+  operations_issue_status_changed
+  operations_issue_resolved
+  operations_issue_deleted
+  operations_vendor_added
+  operations_vendor_updated
+  operations_vendor_deactivated
+  operations_vendor_deleted
+  operations_priority_recomputed
   system_other
 }
 
@@ -2457,4 +2484,238 @@ model embedding_runs {
   @@index([started_at(sort: Desc)])
   @@index([outcome])
   @@map("embedding_runs")
+}
+
+// =============================================================================
+// PR-Ops-1: Operations schema foundation
+// =============================================================================
+// Models and enums for the Operations tab. Cross-domain FKs (to users,
+// entities, chart_of_accounts) are declared as bare String columns without
+// @relation back-edges, matching the existing convention used by missions
+// and other newer tables.
+// =============================================================================
+
+enum OperationsTaskStatus {
+  open
+  in_progress
+  blocked
+  completed
+  cancelled
+}
+
+enum ProjectDependencyType {
+  blocks
+  informs
+  derived_from
+}
+
+enum IssueSeverity {
+  minor
+  moderate
+  severe
+  critical
+}
+
+enum IssueStatus {
+  open
+  investigating
+  root_caused
+  resolved
+  accepted_no_action
+  superseded_by_redesign
+}
+
+model operations_projects {
+  id                       String                            @id @default(uuid()) @db.Uuid
+  user_id                  String
+  entity_id                String
+  title                    String                            @db.VarChar(500)
+  goal                     String                            @db.Text
+  problem                  String                            @db.Text
+  diagnosis                String                            @db.Text
+  design                   String                            @db.Text
+  status                   ProjectStatus                     @default(not_started)
+  target_completion_date   DateTime?                         @db.Timestamptz(6)
+  estimated_total_minutes  Int?
+  estimated_total_cost_usd Decimal?                          @db.Decimal(15, 2)
+  priority_score           Decimal?                          @db.Decimal(10, 4)
+  priority_inputs_hash     String?                           @db.VarChar(64)
+  priority_computed_at     DateTime?                         @db.Timestamptz(6)
+  priority_rationale       String?                           @db.Text
+  created_at               DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                          @updatedAt @db.Timestamptz(6)
+  created_by               String?
+
+  tasks                    operations_project_tasks[]
+  outgoing_dependencies    operations_project_dependencies[] @relation("project_dependency_source")
+  incoming_dependencies    operations_project_dependencies[] @relation("project_dependency_target")
+  linked_issues            operations_issue_log_entries[]
+
+  @@unique([user_id, title])
+  @@index([user_id, entity_id, status])
+  @@index([user_id, status])
+  @@index([priority_score])
+  @@index([target_completion_date])
+  @@map("operations_projects")
+}
+
+model operations_project_tasks {
+  id                     String                @id @default(uuid()) @db.Uuid
+  project_id             String                @db.Uuid
+  user_id                String
+  entity_id              String
+  title                  String                @db.VarChar(500)
+  description            String?               @db.Text
+  status                 OperationsTaskStatus  @default(open)
+  estimated_minutes      Int?
+  estimated_cost_usd     Decimal?              @db.Decimal(15, 2)
+  deadline               DateTime?             @db.Timestamptz(6)
+  priority_score         Decimal?              @db.Decimal(10, 4)
+  priority_inputs_hash   String?               @db.VarChar(64)
+  priority_computed_at   DateTime?             @db.Timestamptz(6)
+  priority_rationale     String?               @db.Text
+  unblocks_label         String?               @db.Text
+  display_order          Int                   @default(0)
+  completed_at           DateTime?             @db.Timestamptz(6)
+  created_at             DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime              @updatedAt @db.Timestamptz(6)
+  created_by             String?
+
+  project                operations_projects   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, status, display_order])
+  @@index([user_id, status, priority_score])
+  @@index([deadline])
+  @@index([entity_id])
+  @@map("operations_project_tasks")
+}
+
+model operations_project_dependencies {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  project_id               String                  @db.Uuid
+  depends_on_project_id    String                  @db.Uuid
+  dependency_type          ProjectDependencyType
+  rationale                String?                 @db.Text
+  created_at               DateTime                @default(now()) @db.Timestamptz(6)
+  created_by               String?
+
+  project                  operations_projects     @relation("project_dependency_source", fields: [project_id], references: [id], onDelete: Cascade)
+  depends_on_project       operations_projects     @relation("project_dependency_target", fields: [depends_on_project_id], references: [id], onDelete: Cascade)
+
+  @@unique([project_id, depends_on_project_id, dependency_type])
+  @@index([project_id])
+  @@index([depends_on_project_id])
+  @@index([dependency_type])
+  @@map("operations_project_dependencies")
+}
+
+model operations_routines {
+  id                              String                            @id @default(uuid()) @db.Uuid
+  user_id                         String
+  entity_id                       String
+  name                            String                            @db.VarChar(200)
+  description                     String?                           @db.Text
+  schedule_rrule                  String                            @db.Text
+  timezone                        String                            @default("America/Los_Angeles") @db.VarChar(64)
+  next_due_at                     DateTime?                         @db.Timestamptz(6)
+  last_evaluated_at               DateTime?                         @db.Timestamptz(6)
+  last_completed_at               DateTime?                         @db.Timestamptz(6)
+  consecutive_completion_streak   Int                               @default(0)
+  consecutive_miss_streak         Int                               @default(0)
+  ideal_time_label                String?                           @db.VarChar(50)
+  fail_threshold_minutes          Int                               @default(0)
+  is_active                       Boolean                           @default(true)
+  created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime                          @updatedAt @db.Timestamptz(6)
+  created_by                      String?
+
+  completions                     operations_routine_completions[]
+
+  @@unique([user_id, name])
+  @@index([user_id, is_active, next_due_at])
+  @@index([user_id, entity_id])
+  @@index([next_due_at])
+  @@map("operations_routines")
+}
+
+model operations_routine_completions {
+  id              String              @id @default(uuid()) @db.Uuid
+  routine_id      String              @db.Uuid
+  user_id         String
+  expected_at     DateTime            @db.Timestamptz(6)
+  completed_at    DateTime            @default(now()) @db.Timestamptz(6)
+  delta_minutes   Int
+  notes           String?             @db.Text
+  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+
+  routine         operations_routines @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+
+  @@unique([routine_id, expected_at])
+  @@index([routine_id, expected_at])
+  @@index([user_id, completed_at])
+  @@map("operations_routine_completions")
+}
+
+model operations_issue_log_entries {
+  id                       String                            @id @default(uuid()) @db.Uuid
+  user_id                  String
+  entity_id                String
+  title                    String                            @db.VarChar(500)
+  description              String                            @db.Text
+  severity                 IssueSeverity
+  status                   IssueStatus                       @default(open)
+  root_cause_proximate     String?                           @db.Text
+  root_cause_systemic      String?                           @db.Text
+  resolution               String?                           @db.Text
+  resolution_category      String?                           @db.VarChar(50)
+  recurrence_count         Int                               @default(0)
+  linked_issue_id          String?                           @db.Uuid
+  linked_project_id        String?                           @db.Uuid
+  occurred_at              DateTime                          @db.Timestamptz(6)
+  discovered_at            DateTime                          @default(now()) @db.Timestamptz(6)
+  resolved_at              DateTime?                         @db.Timestamptz(6)
+  created_at               DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                          @updatedAt @db.Timestamptz(6)
+  created_by               String?
+
+  linked_issue             operations_issue_log_entries?     @relation("operations_issue_chain", fields: [linked_issue_id], references: [id], onDelete: SetNull)
+  recurrences              operations_issue_log_entries[]    @relation("operations_issue_chain")
+  linked_project           operations_projects?              @relation(fields: [linked_project_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, status])
+  @@index([user_id, severity, status])
+  @@index([occurred_at])
+  @@index([entity_id])
+  @@index([linked_project_id])
+  @@index([linked_issue_id])
+  @@map("operations_issue_log_entries")
+}
+
+model operations_vendor_directory {
+  id                       String      @id @default(uuid()) @db.Uuid
+  user_id                  String
+  entity_id                String
+  chart_account_id         String?     @db.Uuid
+  vendor_name              String      @db.VarChar(200)
+  category                 String?     @db.VarChar(100)
+  amount_usd               Decimal?    @db.Decimal(15, 2)
+  billing_rrule            String?     @db.Text
+  next_due_date            DateTime?   @db.Date
+  last_paid_date           DateTime?   @db.Date
+  last_paid_amount_usd     Decimal?    @db.Decimal(15, 2)
+  contact_email            String?     @db.VarChar(255)
+  contact_url              String?     @db.VarChar(500)
+  account_number_last4     String?     @db.VarChar(4)
+  notes                    String?     @db.Text
+  is_active                Boolean     @default(true)
+  created_at               DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime    @updatedAt @db.Timestamptz(6)
+  created_by               String?
+
+  @@unique([user_id, entity_id, vendor_name])
+  @@index([user_id, is_active])
+  @@index([user_id, entity_id])
+  @@index([next_due_date])
+  @@index([chart_account_id])
+  @@map("operations_vendor_directory")
 }
