@@ -108,7 +108,7 @@ export function SectionI_AuditTail() {
         >
           {verifyResult.ok
             ? `chain valid · ${verifyResult.rows_checked} rows checked`
-            : `chain INVALID · ${verifyResult.message ?? 'see /ops/audit-log'}`}
+            : `chain INVALID · ${verifyResult.message ?? 'see /compliance/audit-log'}`}
         </div>
       )}
 

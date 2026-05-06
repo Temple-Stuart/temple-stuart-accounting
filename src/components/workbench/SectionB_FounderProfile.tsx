@@ -3,7 +3,7 @@
  *
  * Compact summary of the founder profile (entities, jurisdictions,
  * income types, key dates). Read-only here; full editing lives at
- * /ops/profile.
+ * /compliance/profile.
  */
 
 'use client';
@@ -49,7 +49,7 @@ export function SectionB_FounderProfile() {
           B · FOUNDER PROFILE
         </h2>
         <Link
-          href="/ops/profile"
+          href="/compliance/profile"
           className="text-xs font-mono text-brand-purple hover:underline"
         >
           edit →

@@ -3,7 +3,7 @@
  *
  * Compact roadmap summary: missions/projects/workstreams/compliance_tasks
  * count per status, list of recent missions. Full editing lives at
- * /ops/missions.
+ * /compliance/missions.
  */
 
 'use client';
@@ -70,7 +70,7 @@ export function SectionF_Roadmap() {
           F · ROADMAP
         </h2>
         <Link
-          href="/ops/missions"
+          href="/compliance/missions"
           className="text-xs font-mono text-brand-purple hover:underline"
         >
           full view →
@@ -87,7 +87,7 @@ export function SectionF_Roadmap() {
           {data.missions.map((m) => (
             <Link
               key={m.id}
-              href={`/ops/missions/${m.id}`}
+              href={`/compliance/missions/${m.id}`}
               className="flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-bg-row"
             >
               <span className="text-text-primary truncate">{m.title}</span>
@@ -103,8 +103,8 @@ export function SectionF_Roadmap() {
           ensemble, discovery runs will populate this section automatically
           from the founder profile + corpus retrieval. Until then, missions
           can be created manually at{' '}
-          <Link href="/ops/missions" className="text-brand-purple hover:underline">
-            /ops/missions
+          <Link href="/compliance/missions" className="text-brand-purple hover:underline">
+            /compliance/missions
           </Link>
           .
         </div>
