@@ -10,11 +10,12 @@
  */
 
 import PlaceholderCard from '@/components/workbench/operations/PlaceholderCard';
+import SectionB_NorthStar from '@/components/workbench/operations/SectionB_NorthStar';
 
 export default function OperationsDailyPlanPage() {
   return (
     <>
-      <PlaceholderCard letter="B" title="NORTH STAR" unbuiltLabel="UNBUILT · PR-Ops-2b" />
+      <SectionB_NorthStar />
       <PlaceholderCard letter="C" title="TODAY'S DECISION" unbuiltLabel="UNBUILT · PR-Ops-4" />
     </>
   );
