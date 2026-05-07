@@ -1,5 +1,13 @@
-import PlaceholderCard from '@/components/workbench/operations/PlaceholderCard';
+/**
+ * src/app/operations/projects/page.tsx
+ *
+ * Section D · Project Backlog — Bridgewater 5-step scoping list. Wired
+ * to <SectionD_ProjectBacklog/> in PR-Ops-3a. Tasks (step 5) ship in
+ * PR-Ops-3b; dependency graph in PR-Ops-3c.
+ */
+
+import SectionD_ProjectBacklog from '@/components/workbench/operations/SectionD_ProjectBacklog';
 
 export default function OperationsProjectsPage() {
-  return <PlaceholderCard letter="D" title="PROJECTS" unbuiltLabel="UNBUILT · PR-Ops-3" />;
+  return <SectionD_ProjectBacklog />;
 }
