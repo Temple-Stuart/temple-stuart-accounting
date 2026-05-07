@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma, AuditActionType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+
+/**
+ * Subsystem prefix → enum value list. Maintained explicitly because Prisma's
+ * `startsWith` filter does not work on enum columns (Postgres enums are not
+ * text-pattern-comparable). When new operations_* AuditActionType values are
+ * added in future PRs, append them here.
+ *
+ * The map is keyed by the prefix string the caller passes (?prefix=operations_).
+ * To extend to other subsystems, add entries — e.g., regulatory_, embedding_.
+ */
+const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
+  operations_: [
+    // PR-Ops-1
+    'operations_project_created',
+    'operations_project_updated',
+    'operations_project_status_changed',
+    'operations_project_deleted',
+    'operations_project_task_created',
+    'operations_project_task_updated',
+    'operations_project_task_status_changed',
+    'operations_project_task_completed',
+    'operations_project_task_deleted',
+    'operations_project_dependency_added',
+    'operations_project_dependency_removed',
+    'operations_routine_created',
+    'operations_routine_updated',
+    'operations_routine_deactivated',
+    'operations_routine_deleted',
+    'operations_routine_completed',
+    'operations_routine_missed',
+    'operations_issue_logged',
+    'operations_issue_updated',
+    'operations_issue_status_changed',
+    'operations_issue_resolved',
+    'operations_issue_deleted',
+    'operations_vendor_added',
+    'operations_vendor_updated',
+    'operations_vendor_deactivated',
+    'operations_vendor_deleted',
+    'operations_priority_recomputed',
+    // PR-Ops-1.5
+    'operations_north_star_created',
+    'operations_north_star_updated',
+    'operations_north_star_reviewed',
+  ],
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,20 +66,34 @@ export async function GET(request: NextRequest) {
 
     const limit = Math.min(Math.max(parseInt(limitParam || '100', 10) || 100, 1), 500);
 
-    const where: Record<string, unknown> = {};
+    // Strongly typed where clause prevents the class of bug PR-Ops-2a-fix2 fixes:
+    // the previous Record<string, unknown> typing accepted a startsWith filter on
+    // an enum column at compile time, which Prisma rejected at runtime once
+    // operations_* rows existed and the filter was actually evaluated.
+    const where: Prisma.audit_logWhereInput = {};
+
     if (actorUserId) where.actor_user_id = actorUserId;
-    // action_type exact match wins over prefix; only one applies.
+
+    // action_type exact match wins over prefix; only one filter applies.
+    // Prefix lookups resolve to a static `in` list of enum values — see
+    // SUBSYSTEM_ACTION_TYPES above. Prefix values not in the map return
+    // an empty result set (rather than 400) for forward-compat.
     if (actionType) {
-      where.action_type = actionType;
+      where.action_type = actionType as AuditActionType;
     } else if (prefix) {
-      where.action_type = { startsWith: prefix };
+      const list = SUBSYSTEM_ACTION_TYPES[prefix];
+      if (!list || list.length === 0) {
+        return NextResponse.json({ count: 0, rows: [] });
+      }
+      where.action_type = { in: list };
     }
+
     if (targetTable) where.target_table = targetTable;
     if (targetId) where.target_id = targetId;
     if (after || before) {
       where.created_at = {};
-      if (after) (where.created_at as Record<string, unknown>).gte = new Date(after);
-      if (before) (where.created_at as Record<string, unknown>).lte = new Date(before);
+      if (after) where.created_at.gte = new Date(after);
+      if (before) where.created_at.lte = new Date(before);
     }
 
     const rows = await prisma.audit_log.findMany({
