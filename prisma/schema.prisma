@@ -2070,6 +2070,7 @@ model audit_log {
   sequence_number BigInt @unique @default(autoincrement())
   prev_hash       String @db.VarChar(64)
   content_hash    String @unique @db.VarChar(64)
+  hash_input      String @default("") @db.Text
 
   // Actor
   actor_user_id    String?        @db.VarChar(255)

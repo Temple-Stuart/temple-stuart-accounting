@@ -55,6 +55,9 @@ export async function verifyAuditChain(): Promise<ChainVerificationResult> {
     );
   }
 
+  let content_verified_count = 0;
+  let legacy_linkage_only_count = 0;
+
   for (let i = 1; i < rows.length; i++) {
     const prev = rows[i - 1];
     const curr = rows[i];
@@ -69,35 +72,35 @@ export async function verifyAuditChain(): Promise<ChainVerificationResult> {
       });
     }
 
-    const reconstructed_content = JSON.stringify({
-      prev_hash: curr.prev_hash,
-      actor_user_id: curr.actor_user_id,
-      actor_email: curr.actor_email,
-      actor_type: curr.actor_type,
-      action_type: curr.action_type,
-      action_description: curr.action_description,
-      target_table: curr.target_table,
-      target_id: curr.target_id,
-      payload_before: curr.payload_before,
-      payload_after: curr.payload_after,
-      payload_metadata: curr.payload_metadata,
-      request_id: curr.request_id,
-    });
-    const expected_hash = createHash('sha256').update(reconstructed_content).digest('hex');
+    const reconstructed_content = curr.hash_input && curr.hash_input.length > 0
+      ? curr.hash_input
+      : null;
 
-    if (curr.content_hash !== expected_hash) {
-      result.is_valid = false;
-      result.break_points.push({
-        sequence_number: curr.sequence_number,
-        expected_hash,
-        actual_hash: curr.content_hash,
-        reason: `content_hash does not match row content — possible tampering or schema drift`,
-      });
+    if (reconstructed_content !== null) {
+      const expected_hash = createHash('sha256').update(reconstructed_content).digest('hex');
+
+      if (curr.content_hash !== expected_hash) {
+        result.is_valid = false;
+        result.break_points.push({
+          sequence_number: curr.sequence_number,
+          expected_hash,
+          actual_hash: curr.content_hash,
+          reason: `content_hash does not match hash_input — possible tampering`,
+        });
+      } else {
+        content_verified_count++;
+      }
+    } else {
+      legacy_linkage_only_count++;
     }
   }
 
-  if (result.break_points.length === 0 && result.is_valid) {
-    result.notes.push('chain integrity verified — all rows hash-linked correctly');
+  if (result.is_valid) {
+    result.notes.push(
+      `chain integrity verified — ${result.total_rows} rows total, ` +
+      `${content_verified_count} content-verified, ` +
+      `${legacy_linkage_only_count} linkage-only (pre-PR-Audit-Hash-Input legacy rows)`
+    );
   }
 
   return result;

@@ -102,6 +102,7 @@ export async function writeAuditLog(input: WriteAuditLogInput): Promise<audit_lo
             data: {
               prev_hash: prev.content_hash,
               content_hash,
+              hash_input: content,
               actor_user_id: input.actor.user_id ?? null,
               actor_email: input.actor.email ?? null,
               actor_type: input.actor.type,
