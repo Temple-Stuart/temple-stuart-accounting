@@ -94,3 +94,84 @@ export const STATUS_PILL_CLASSES: Record<ProjectStatus, string> = {
   cancelled: 'bg-gray-50 text-gray-500 border-gray-200',
   archived: 'bg-gray-50 text-gray-400 border-gray-200',
 };
+
+/**
+ * ============================================================================
+ * Tasks (PR-Ops-3b) — Step 5 of Bridgewater scoping. Atomic execution units
+ * inside a project. Each task lives in operations_project_tasks with FK CASCADE
+ * to its parent project. entity_id is server-inherited from the parent project
+ * (denormalized for index speed; never independently chosen).
+ * ============================================================================
+ */
+
+export type TaskStatus =
+  | 'open'
+  | 'in_progress'
+  | 'blocked'
+  | 'completed'
+  | 'cancelled';
+
+export interface Task {
+  id: string;
+  project_id: string;
+  user_id: string;
+  entity_id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  estimated_minutes: number | null;
+  estimated_cost_usd: string | null;
+  deadline: string | null;
+  priority_score: string | null;
+  priority_inputs_hash: string | null;
+  priority_computed_at: string | null;
+  priority_rationale: string | null;
+  unblocks_label: string | null;
+  display_order: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+/**
+ * Form-side shape for task editing. Excludes server-managed fields
+ * (id, project_id, user_id, entity_id, timestamps, priority_*, completed_at,
+ * created_by, display_order). entity_id is inherited server-side from the
+ * parent project; the client never sets it.
+ */
+export interface TaskForm {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  estimated_minutes: string;        // string for input binding
+  estimated_cost_usd: string;       // string for decimal fidelity
+  deadline: string;                 // ISO date (yyyy-mm-dd) or empty
+  unblocks_label: string;
+}
+
+export const DEFAULT_TASK_FORM: TaskForm = {
+  title: '',
+  description: '',
+  status: 'open',
+  estimated_minutes: '',
+  estimated_cost_usd: '',
+  deadline: '',
+  unblocks_label: '',
+};
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  open: 'open',
+  in_progress: 'in progress',
+  blocked: 'blocked',
+  completed: 'completed',
+  cancelled: 'cancelled',
+};
+
+export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
+  open: 'bg-gray-100 text-gray-700 border-gray-300',
+  in_progress: 'bg-blue-50 text-blue-800 border-blue-300',
+  blocked: 'bg-amber-50 text-amber-800 border-amber-300',
+  completed: 'bg-green-50 text-green-800 border-green-300',
+  cancelled: 'bg-gray-50 text-gray-500 border-gray-200',
+};

@@ -19,6 +19,7 @@
 import { useState } from 'react';
 import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
+import TaskList from './TaskList';
 
 interface Entity {
   id: string;
@@ -169,6 +170,10 @@ export default function ProjectRow({ project, entities, onUpdate, onDelete }: Pr
           <div>
             <div className={labelClass}>4 · design</div>
             <div className="text-text-primary whitespace-pre-wrap">{project.design}</div>
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className={labelClass}>5 · execute (tasks)</div>
+            <TaskList projectId={project.id} />
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-light">
             <div>
