@@ -175,3 +175,72 @@ export const TASK_STATUS_PILL_CLASSES: Record<TaskStatus, string> = {
   completed: 'bg-green-50 text-green-800 border-green-300',
   cancelled: 'bg-gray-50 text-gray-500 border-gray-200',
 };
+
+/**
+ * ============================================================================
+ * Dependencies (PR-Ops-3c) — Project-to-project edges. Three types:
+ *   - blocks: source can't complete until target completes (acyclic constraint;
+ *     cycle detection enforced server-side via DFS over blocks-only graph)
+ *   - informs: source should reference target (advisory; mutual cycles allowed)
+ *   - derived_from: source's design originated from target (advisory; cycles
+ *     describe mislabeling, not a logic bug)
+ * ============================================================================
+ */
+
+export type DependencyType = 'blocks' | 'informs' | 'derived_from';
+
+export interface Dependency {
+  id: string;
+  project_id: string;
+  depends_on_project_id: string;
+  dependency_type: DependencyType;
+  rationale: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+/**
+ * Hydrated dependency for UI rendering — joins the target project's
+ * title for display ("blocked by: Trading Pipeline and MVP").
+ * Returned by GET endpoint, never written by client.
+ */
+export interface HydratedDependency extends Dependency {
+  depends_on_project_title: string;
+  depends_on_project_status: string;
+}
+
+/**
+ * Inverse direction: when a project is the TARGET of someone else's
+ * dependency edge, the UI shows it as "this project blocks: X".
+ */
+export interface InverseDependency extends Dependency {
+  project_title: string;
+  project_status: string;
+}
+
+/**
+ * Form-side shape for creating a dependency.
+ */
+export interface DependencyForm {
+  depends_on_project_id: string;
+  dependency_type: DependencyType;
+  rationale: string;
+}
+
+export const DEFAULT_DEPENDENCY_FORM: DependencyForm = {
+  depends_on_project_id: '',
+  dependency_type: 'blocks',
+  rationale: '',
+};
+
+export const DEPENDENCY_TYPE_LABELS: Record<DependencyType, string> = {
+  blocks: 'blocks',
+  informs: 'informs',
+  derived_from: 'derived from',
+};
+
+export const DEPENDENCY_TYPE_DESCRIPTIONS: Record<DependencyType, string> = {
+  blocks: 'this project cannot complete until the target completes (hard ordering)',
+  informs: 'this project should reference the target (advisory, mutual cycles allowed)',
+  derived_from: "this project's design originated from the target (lineage)",
+};

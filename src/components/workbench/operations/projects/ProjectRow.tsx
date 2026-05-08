@@ -16,10 +16,11 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import TaskList from './TaskList';
+import DependencyList from './DependencyList';
 
 interface Entity {
   id: string;
@@ -29,8 +30,15 @@ interface Entity {
 interface Props {
   project: Project;
   entities: Entity[];
+  allProjects: Project[];
   onUpdate: () => void;
   onDelete: () => void;
+  /** When true, the row scrolls into view and auto-expands. */
+  isJumpTarget: boolean;
+  /** Called by SectionD to clear targetProjectId after the jump animates. */
+  onClearTarget: () => void;
+  /** Called when the user clicks a dependency link inside this row. */
+  onJumpTo: (projectId: string) => void;
 }
 
 const STATUS_OPTIONS: ProjectStatus[] = [
@@ -69,13 +77,34 @@ function entityName(entities: Entity[], entityId: string): string {
   return entities.find((e) => e.id === entityId)?.name ?? entityId;
 }
 
-export default function ProjectRow({ project, entities, onUpdate, onDelete }: Props) {
+export default function ProjectRow({ project, entities, allProjects, onUpdate, onDelete, isJumpTarget, onClearTarget, onJumpTo }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProjectForm>(() => projectToForm(project));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // When SectionD sets isJumpTarget=true on this row, scroll into view,
+  // auto-expand, flash highlight for ~1.5s, then clear the target so the
+  // same dependency click can re-trigger.
+  useEffect(() => {
+    if (!isJumpTarget) return;
+    rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setExpanded(true);
+    setFlash(true);
+    const t1 = setTimeout(() => setFlash(false), 1500);
+    const t2 = setTimeout(() => onClearTarget(), 1600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // onClearTarget is intentionally omitted — it's a stable ref from SectionD;
+    // including it would re-trigger the effect on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isJumpTarget]);
 
   const enterEdit = () => {
     setForm(projectToForm(project));
@@ -137,7 +166,13 @@ export default function ProjectRow({ project, entities, onUpdate, onDelete }: Pr
   const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${STATUS_PILL_CLASSES[project.status]}`;
 
   return (
-    <div className="border border-border rounded bg-white">
+    <div
+      ref={rowRef}
+      className={
+        'border rounded bg-white transition-colors ' +
+        (flash ? 'border-brand-purple shadow-md' : 'border-border')
+      }
+    >
       <div
         className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-bg-row text-xs font-mono"
         onClick={() => !editing && setExpanded((x) => !x)}
@@ -174,6 +209,14 @@ export default function ProjectRow({ project, entities, onUpdate, onDelete }: Pr
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
             <TaskList projectId={project.id} />
+          </div>
+          <div className="pt-2 border-t border-border-light">
+            <div className={labelClass}>6 · dependencies</div>
+            <DependencyList
+              projectId={project.id}
+              allProjects={allProjects}
+              onJumpTo={onJumpTo}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border-light">
             <div>

@@ -40,6 +40,11 @@ export default function SectionD_ProjectBacklog() {
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Lifted target state for cross-row navigation. When a dependency in
+  // ProjectRow A is clicked, this is set to the target project's id;
+  // ProjectRow B's useEffect on isJumpTarget triggers scroll + expand.
+  const [targetProjectId, setTargetProjectId] = useState<string | null>(null);
+
   const fetchProjects = async () => {
     setLoading(true);
     setError(null);
@@ -285,8 +290,12 @@ export default function SectionD_ProjectBacklog() {
               key={p.id}
               project={p}
               entities={entities}
+              allProjects={projects}
               onUpdate={fetchProjects}
               onDelete={fetchProjects}
+              isJumpTarget={targetProjectId === p.id}
+              onClearTarget={() => setTargetProjectId(null)}
+              onJumpTo={setTargetProjectId}
             />
           ))}
         </div>
