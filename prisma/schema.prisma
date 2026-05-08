@@ -2664,19 +2664,22 @@ model operations_routine_completions {
 }
 
 model operations_ai_usage {
-  id             String   @id @default(uuid()) @db.Uuid
-  user_id        String
-  model          String   @db.VarChar(100)
-  purpose        String   @db.VarChar(100)
-  target_table   String?  @db.VarChar(100)
-  target_id      String?  @db.Uuid
-  input_tokens   Int
-  output_tokens  Int
-  cost_usd       Decimal  @db.Decimal(10, 6)
-  inputs_summary String?  @db.Text
-  output_summary String?  @db.Text
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
-  created_by     String?
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String
+  model              String   @db.VarChar(100)
+  purpose            String   @db.VarChar(100)
+  target_table       String?  @db.VarChar(100)
+  target_id          String?  @db.Uuid
+  input_tokens       Int
+  output_tokens      Int
+  cost_usd           Decimal  @db.Decimal(10, 6)
+  inputs_summary     String?  @db.Text
+  output_summary     String?  @db.Text
+  full_system_prompt String?  @db.Text
+  full_user_message  String?  @db.Text
+  full_response      String?  @db.Text
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  created_by         String?
 
   user users @relation(fields: [user_id], references: [id])
 

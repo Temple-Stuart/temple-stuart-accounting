@@ -63,6 +63,7 @@ export async function POST(
       input_tokens: result.inputTokens,
       output_tokens: result.outputTokens,
       cost_usd: result.costUsd,
+      inspection: result.inspection,
     });
   } catch (error) {
     console.error('[Generate Design POST]', error);

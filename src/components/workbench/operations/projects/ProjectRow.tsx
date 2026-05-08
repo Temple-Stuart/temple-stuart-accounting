@@ -21,6 +21,7 @@ import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import TaskList from './TaskList';
 import DependencyList from './DependencyList';
+import InspectionDrawer from '../ai/InspectionDrawer';
 
 interface Entity {
   id: string;
@@ -90,6 +91,15 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [generationCost, setGenerationCost] = useState<
     { cost_usd: string; input_tokens: number; output_tokens: number } | null
   >(null);
+  const [generationInspection, setGenerationInspection] = useState<{
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    systemPrompt: string;
+    userMessage: string;
+    rawResponse: string;
+    usageId: string;
+  } | null>(null);
   const [flash, setFlash] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -152,6 +162,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     setGenerationError(null);
     setGeneratedDesignPreview(null);
     setGenerationCost(null);
+    setGenerationInspection(null);
     try {
       const res = await fetch(`/api/operations/projects/${project.id}/generate-design`, {
         method: 'POST',
@@ -167,6 +178,17 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         input_tokens: body.input_tokens,
         output_tokens: body.output_tokens,
       });
+      if (body.inspection) {
+        setGenerationInspection({
+          model: body.inspection.model,
+          temperature: body.inspection.temperature,
+          maxTokens: body.inspection.maxTokens,
+          systemPrompt: body.inspection.systemPrompt,
+          userMessage: body.inspection.userMessage,
+          rawResponse: body.inspection.rawResponse,
+          usageId: body.usage_id,
+        });
+      }
     } catch (e) {
       setGenerationError(e instanceof Error ? e.message : 'failed to generate design');
     } finally {
@@ -394,6 +416,22 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
                 <div className="text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded">
                   {generatedDesignPreview}
                 </div>
+                {generationInspection && (
+                  <InspectionDrawer
+                    data={{
+                      model: generationInspection.model,
+                      temperature: generationInspection.temperature,
+                      maxTokens: generationInspection.maxTokens,
+                      systemPrompt: generationInspection.systemPrompt,
+                      userMessage: generationInspection.userMessage,
+                      rawResponse: generationInspection.rawResponse,
+                      inputTokens: generationCost?.input_tokens ?? 0,
+                      outputTokens: generationCost?.output_tokens ?? 0,
+                      costUsd: generationCost?.cost_usd ?? '0',
+                      usageId: generationInspection.usageId,
+                    }}
+                  />
+                )}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -401,6 +439,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
                       setForm({ ...form, design: generatedDesignPreview });
                       setGeneratedDesignPreview(null);
                       setGenerationCost(null);
+                      setGenerationInspection(null);
                     }}
                     className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90"
                   >
@@ -411,6 +450,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
                     onClick={() => {
                       setGeneratedDesignPreview(null);
                       setGenerationCost(null);
+                      setGenerationInspection(null);
                     }}
                     className="px-3 py-1 border border-border rounded hover:bg-bg-row"
                   >

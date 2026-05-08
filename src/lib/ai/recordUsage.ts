@@ -52,6 +52,24 @@ interface RecordUsageOutput {
   inputTokens: number;
   outputTokens: number;
   costUsd: string;
+  /**
+   * Inspection block — the full context of this AI call.
+   * Returned to callers so endpoints can include it in their response
+   * for real-time transparency (the user sees exactly what went in
+   * and what came out before deciding to accept the AI's output).
+   *
+   * Persisted to operations_ai_usage.full_* columns for audit-tail
+   * row expansion (Section K) and post-hoc inspection by regulators,
+   * CPAs, or future weight-tuning analysis.
+   */
+  inspection: {
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    systemPrompt: string;
+    userMessage: string;
+    rawResponse: string;
+  };
 }
 
 export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageOutput> {
@@ -89,6 +107,9 @@ export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageO
       cost_usd: costUsd,
       inputs_summary: input.inputsSummary,
       output_summary: outputSummary,
+      full_system_prompt: input.systemPrompt,
+      full_user_message: input.userMessage,
+      full_response: text,
       created_by: input.userEmail,
     },
   });
@@ -125,5 +146,13 @@ export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageO
     inputTokens,
     outputTokens,
     costUsd,
+    inspection: {
+      model: input.model,
+      temperature: input.temperature,
+      maxTokens: input.maxTokens,
+      systemPrompt: input.systemPrompt,
+      userMessage: input.userMessage,
+      rawResponse: text,
+    },
   };
 }
