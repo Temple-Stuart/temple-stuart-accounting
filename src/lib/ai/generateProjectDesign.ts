@@ -31,6 +31,14 @@ interface GenerateOutput {
   inputTokens: number;
   outputTokens: number;
   costUsd: string;
+  inspection: {
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    systemPrompt: string;
+    userMessage: string;
+    rawResponse: string;
+  };
 }
 
 const SYSTEM_PROMPT = `You are a project scoping consultant trained on the institutional rigor of Bridgewater Associates' Principles, Citadel's risk discipline, and Renaissance Technologies' empirical method.
@@ -95,6 +103,13 @@ DESIGN field: [you produce this — match the exemplar's depth and structure]`;
     `goal_len=${input.goal.length}; problem_len=${input.problem.length}; ` +
     `diagnosis_len=${input.diagnosis.length}`;
 
+  // Stateless mode: when projectId is empty, the call originates from the
+  // create form before a project exists. Pass null targets so recordUsage
+  // routes the audit row to the operations_ai_usage row itself via the
+  // PR-Ops-3.5 fallback. Use a discriminating purpose so cost analytics
+  // can distinguish create-form generations from per-project ones.
+  const isStateless = !input.projectId;
+
   const result = await recordUsage({
     userId: input.userId,
     userEmail: input.userEmail,
@@ -103,11 +118,15 @@ DESIGN field: [you produce this — match the exemplar's depth and structure]`;
     userMessage,
     maxTokens: 2000,
     temperature: 0.3,
-    purpose: 'project_design_generation',
-    targetTable: 'operations_projects',
-    targetId: input.projectId,
+    purpose: isStateless
+      ? 'project_design_generation_create_form'
+      : 'project_design_generation',
+    targetTable: isStateless ? null : 'operations_projects',
+    targetId: isStateless ? null : input.projectId,
     inputsSummary,
-    auditDescription: `Generated design field for project "${input.projectTitle}"`,
+    auditDescription: isStateless
+      ? `Generated design field for new project "${input.projectTitle}" (create form, no project_id yet)`
+      : `Generated design field for project "${input.projectTitle}"`,
   });
 
   return {
@@ -116,5 +135,6 @@ DESIGN field: [you produce this — match the exemplar's depth and structure]`;
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
     costUsd: result.costUsd,
+    inspection: result.inspection,
   };
 }

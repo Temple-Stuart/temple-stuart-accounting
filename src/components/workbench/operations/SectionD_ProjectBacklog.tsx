@@ -21,6 +21,7 @@ import { useOperationsEntity } from './EntitySelector';
 import ProjectRow from './projects/ProjectRow';
 import type { Project, ProjectForm } from './projects/types';
 import { DEFAULT_PROJECT_FORM } from './projects/types';
+import InspectionDrawer from './ai/InspectionDrawer';
 
 interface Entity {
   id: string;
@@ -44,6 +45,72 @@ export default function SectionD_ProjectBacklog() {
   // ProjectRow A is clicked, this is set to the target project's id;
   // ProjectRow B's useEffect on isJumpTarget triggers scroll + expand.
   const [targetProjectId, setTargetProjectId] = useState<string | null>(null);
+
+  const [generatingCreateDesign, setGeneratingCreateDesign] = useState(false);
+  const [createDesignPreview, setCreateDesignPreview] = useState<string | null>(null);
+  const [createDesignError, setCreateDesignError] = useState<string | null>(null);
+  const [createDesignCost, setCreateDesignCost] = useState<
+    { cost_usd: string; input_tokens: number; output_tokens: number } | null
+  >(null);
+  const [createDesignInspection, setCreateDesignInspection] = useState<{
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    systemPrompt: string;
+    userMessage: string;
+    rawResponse: string;
+    usageId: string;
+  } | null>(null);
+
+  const handleGenerateCreateDesign = async () => {
+    const title = createForm.title?.trim() ?? '';
+    const goal = createForm.goal?.trim() ?? '';
+    const problem = createForm.problem?.trim() ?? '';
+    const diagnosis = createForm.diagnosis?.trim() ?? '';
+    if (!title || !goal || !problem || !diagnosis) {
+      setCreateDesignError('Fill in title, goal, problem, and diagnosis before generating a plan.');
+      return;
+    }
+
+    setGeneratingCreateDesign(true);
+    setCreateDesignError(null);
+    setCreateDesignPreview(null);
+    setCreateDesignCost(null);
+    setCreateDesignInspection(null);
+    try {
+      const res = await fetch('/api/operations/ai/generate-design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, goal, problem, diagnosis }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setCreateDesignError(body?.message ?? body?.error ?? 'failed to generate design');
+        return;
+      }
+      setCreateDesignPreview(body.generated_design);
+      setCreateDesignCost({
+        cost_usd: body.cost_usd,
+        input_tokens: body.input_tokens,
+        output_tokens: body.output_tokens,
+      });
+      if (body.inspection) {
+        setCreateDesignInspection({
+          model: body.inspection.model,
+          temperature: body.inspection.temperature,
+          maxTokens: body.inspection.maxTokens,
+          systemPrompt: body.inspection.systemPrompt,
+          userMessage: body.inspection.userMessage,
+          rawResponse: body.inspection.rawResponse,
+          usageId: body.usage_id,
+        });
+      }
+    } catch (e) {
+      setCreateDesignError(e instanceof Error ? e.message : 'failed to generate design');
+    } finally {
+      setGeneratingCreateDesign(false);
+    }
+  };
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -197,7 +264,7 @@ export default function SectionD_ProjectBacklog() {
               onChange={(e) => setCreateForm({ ...createForm, goal: e.target.value })}
               rows={2}
               className={inputClass}
-              placeholder="the specific outcome that means this project is done"
+              placeholder="I WANT to..."
             />
           </div>
           <div>
@@ -207,7 +274,7 @@ export default function SectionD_ProjectBacklog() {
               onChange={(e) => setCreateForm({ ...createForm, problem: e.target.value })}
               rows={2}
               className={inputClass}
-              placeholder="what's missing or broken right now"
+              placeholder="I DID NOT... / I HAVE NOT..."
             />
           </div>
           <div>
@@ -217,18 +284,90 @@ export default function SectionD_ProjectBacklog() {
               onChange={(e) => setCreateForm({ ...createForm, diagnosis: e.target.value })}
               rows={3}
               className={inputClass}
-              placeholder="why the gap exists — go deeper than symptoms"
+              placeholder="I NEED to..."
             />
           </div>
           <div>
-            <div className={labelClass}>4 · design — the plan</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>4 · design — the plan</div>
+              <button
+                type="button"
+                onClick={handleGenerateCreateDesign}
+                disabled={generatingCreateDesign}
+                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+                title="Generate institutional-rigor design field from goal/problem/diagnosis"
+              >
+                {generatingCreateDesign ? 'generating…' : '↑ generate plan'}
+              </button>
+            </div>
             <textarea
               value={createForm.design}
               onChange={(e) => setCreateForm({ ...createForm, design: e.target.value })}
               rows={3}
               className={inputClass}
-              placeholder="the approach. tasks (step 5) come after this is locked."
+              placeholder="click ↑ generate plan to synthesize from goal/problem/diagnosis, or write the plan yourself"
             />
+            {createDesignError && (
+              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+                {createDesignError}
+              </div>
+            )}
+            {createDesignPreview && (
+              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
+                <div className="font-bold text-text-primary flex items-center justify-between">
+                  <span>AI-generated design (review before saving)</span>
+                  {createDesignCost && (
+                    <span className="text-text-muted text-xs font-normal">
+                      ${createDesignCost.cost_usd} · {createDesignCost.input_tokens} in · {createDesignCost.output_tokens} out
+                    </span>
+                  )}
+                </div>
+                <div className="text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded">
+                  {createDesignPreview}
+                </div>
+                {createDesignInspection && (
+                  <InspectionDrawer
+                    data={{
+                      model: createDesignInspection.model,
+                      temperature: createDesignInspection.temperature,
+                      maxTokens: createDesignInspection.maxTokens,
+                      systemPrompt: createDesignInspection.systemPrompt,
+                      userMessage: createDesignInspection.userMessage,
+                      rawResponse: createDesignInspection.rawResponse,
+                      inputTokens: createDesignCost?.input_tokens ?? 0,
+                      outputTokens: createDesignCost?.output_tokens ?? 0,
+                      costUsd: createDesignCost?.cost_usd ?? '0',
+                      usageId: createDesignInspection.usageId,
+                    }}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateForm({ ...createForm, design: createDesignPreview });
+                      setCreateDesignPreview(null);
+                      setCreateDesignCost(null);
+                      setCreateDesignInspection(null);
+                    }}
+                    className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90"
+                  >
+                    use this
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateDesignPreview(null);
+                      setCreateDesignCost(null);
+                      setCreateDesignInspection(null);
+                    }}
+                    className="px-3 py-1 border border-border rounded hover:bg-bg-row"
+                  >
+                    discard
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

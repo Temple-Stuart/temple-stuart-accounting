@@ -5,11 +5,18 @@
  *  - fetches with ?prefix=operations_ to scope to the Operations subsystem
  *  - calls verify-chain via POST (matches the endpoint contract)
  *  - reads body.rows only (current API response shape)
+ *
+ * PR-Ops-3.6: rows are click-to-expand. Click on the action cell toggles
+ * an expanded view that shows pretty-printed payload JSON for any row
+ * type, plus — for action_type='operations_ai_inference' — a lazy fetch
+ * to /api/operations/ai-usage/[id] that surfaces full prompt/response
+ * via InspectionDrawer. Cache is session-scoped.
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import InspectionDrawer from './ai/InspectionDrawer';
 
 interface AuditRow {
   id: string;
@@ -21,12 +28,25 @@ interface AuditRow {
   target_id: string | null;
   prev_hash: string;
   content_hash: string;
+  payload?: unknown;
 }
 
 interface VerifyResult {
   ok: boolean;
   rows_checked: number;
   message?: string;
+}
+
+interface AiUsageRow {
+  id: string;
+  model: string;
+  purpose: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  full_system_prompt: string | null;
+  full_user_message: string | null;
+  full_response: string | null;
 }
 
 function shortHash(h: string | null): string {
@@ -42,11 +62,24 @@ function relTime(iso: string): string {
   return `${Math.floor(ms / 86_400_000)}d ago`;
 }
 
+function readUsageId(payload: unknown): string | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const meta = (payload as { metadata?: unknown }).metadata;
+  if (typeof meta !== 'object' || meta === null) return null;
+  const id = (meta as { usage_id?: unknown }).usage_id;
+  return typeof id === 'string' ? id : null;
+}
+
 export default function SectionK_AuditTail() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [aiUsageCache, setAiUsageCache] = useState<Map<string, AiUsageRow>>(new Map());
+  const [aiUsageLoading, setAiUsageLoading] = useState<Set<string>>(new Set());
+  const [aiUsageError, setAiUsageError] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +115,113 @@ export default function SectionK_AuditTail() {
     } finally {
       setVerifying(false);
     }
+  };
+
+  const toggleRow = async (rowId: string, actionType: string, payload: unknown) => {
+    const isCurrentlyExpanded = expandedRows.has(rowId);
+    const next = new Set(expandedRows);
+    if (isCurrentlyExpanded) {
+      next.delete(rowId);
+      setExpandedRows(next);
+      return;
+    }
+    next.add(rowId);
+    setExpandedRows(next);
+
+    if (actionType !== 'operations_ai_inference') return;
+    const usageId = readUsageId(payload);
+    if (!usageId) return;
+    if (aiUsageCache.has(usageId) || aiUsageLoading.has(usageId)) return;
+
+    setAiUsageLoading((s) => {
+      const n = new Set(s);
+      n.add(usageId);
+      return n;
+    });
+    try {
+      const res = await fetch(`/api/operations/ai-usage/${usageId}`);
+      const body = await res.json();
+      if (!res.ok) {
+        setAiUsageError((m) => {
+          const n = new Map(m);
+          n.set(usageId, body?.message ?? body?.error ?? 'failed to load AI usage row');
+          return n;
+        });
+      } else {
+        setAiUsageCache((c) => {
+          const n = new Map(c);
+          n.set(usageId, body as AiUsageRow);
+          return n;
+        });
+      }
+    } catch (e) {
+      setAiUsageError((m) => {
+        const n = new Map(m);
+        n.set(usageId, e instanceof Error ? e.message : 'fetch failed');
+        return n;
+      });
+    } finally {
+      setAiUsageLoading((s) => {
+        const n = new Set(s);
+        n.delete(usageId);
+        return n;
+      });
+    }
+  };
+
+  const renderAiInspection = (payload: unknown) => {
+    const usageId = readUsageId(payload);
+    if (!usageId) {
+      return (
+        <div className="text-amber-800 text-xs font-mono">
+          (AI inference row missing usage_id in metadata)
+        </div>
+      );
+    }
+    if (aiUsageLoading.has(usageId)) {
+      return <div className="text-text-muted text-xs font-mono">loading AI inference details…</div>;
+    }
+    const err = aiUsageError.get(usageId);
+    if (err) {
+      return (
+        <div className="text-red-800 text-xs font-mono px-3 py-2 rounded border bg-red-50 border-red-200">
+          {err}
+        </div>
+      );
+    }
+    const usage = aiUsageCache.get(usageId);
+    if (!usage) return null;
+
+    const hasFullPrompts =
+      usage.full_system_prompt !== null &&
+      usage.full_user_message !== null &&
+      usage.full_response !== null;
+
+    if (!hasFullPrompts) {
+      return (
+        <InspectionDrawer
+          data={null}
+          legacyReason="(prompts not captured for this row — predates PR-Ops-3.6)"
+        />
+      );
+    }
+
+    return (
+      <InspectionDrawer
+        data={{
+          model: usage.model,
+          temperature: 0,
+          maxTokens: 0,
+          systemPrompt: usage.full_system_prompt!,
+          userMessage: usage.full_user_message!,
+          rawResponse: usage.full_response!,
+          inputTokens: usage.input_tokens,
+          outputTokens: usage.output_tokens,
+          costUsd: usage.cost_usd,
+          usageId,
+        }}
+      />
+    );
   };
 
   return (
@@ -131,22 +271,49 @@ export default function SectionK_AuditTail() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-border-light">
-                  <td className="py-1 text-text-muted">{relTime(r.created_at)}</td>
-                  <td className="py-1 text-text-primary">
-                    <div className="font-bold">{r.action_type}</div>
-                    <div className="text-text-muted truncate max-w-md">
-                      {r.action_description}
-                    </div>
-                  </td>
-                  <td className="py-1 text-text-muted truncate">
-                    {r.target_table ?? '—'}
-                  </td>
-                  <td className="py-1 text-text-faint">{shortHash(r.prev_hash)}</td>
-                  <td className="py-1 text-text-faint">{shortHash(r.content_hash)}</td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const isExpanded = expandedRows.has(r.id);
+                return (
+                  <Fragment key={r.id}>
+                    <tr className="border-t border-border-light">
+                      <td className="py-1 text-text-muted">{relTime(r.created_at)}</td>
+                      <td
+                        className="py-1 text-text-primary cursor-pointer hover:bg-bg-row"
+                        onClick={() => toggleRow(r.id, r.action_type, r.payload)}
+                        title="Click to inspect this audit row"
+                      >
+                        <div className="font-bold flex items-center gap-1">
+                          <span className="text-text-faint">{isExpanded ? '▾' : '▸'}</span>
+                          <span>{r.action_type}</span>
+                        </div>
+                        <div className="text-text-muted truncate max-w-md">
+                          {r.action_description}
+                        </div>
+                      </td>
+                      <td className="py-1 text-text-muted truncate">
+                        {r.target_table ?? '—'}
+                      </td>
+                      <td className="py-1 text-text-faint">{shortHash(r.prev_hash)}</td>
+                      <td className="py-1 text-text-faint">{shortHash(r.content_hash)}</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={5} className="bg-bg-row px-4 py-3 border-t border-border-light">
+                          <div className="text-xs font-mono space-y-3">
+                            <div>
+                              <div className="text-text-faint uppercase tracking-wide mb-1">payload</div>
+                              <pre className="whitespace-pre-wrap p-2 bg-white border border-border-light rounded max-h-64 overflow-y-auto text-xs">
+                                {JSON.stringify(r.payload, null, 2)}
+                              </pre>
+                            </div>
+                            {r.action_type === 'operations_ai_inference' && renderAiInspection(r.payload)}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
