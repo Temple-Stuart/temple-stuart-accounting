@@ -84,6 +84,12 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatingDesign, setGeneratingDesign] = useState(false);
+  const [generatedDesignPreview, setGeneratedDesignPreview] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generationCost, setGenerationCost] = useState<
+    { cost_usd: string; input_tokens: number; output_tokens: number } | null
+  >(null);
   const [flash, setFlash] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -138,6 +144,33 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       setError(e instanceof Error ? e.message : 'failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateDesign = async () => {
+    setGeneratingDesign(true);
+    setGenerationError(null);
+    setGeneratedDesignPreview(null);
+    setGenerationCost(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}/generate-design`, {
+        method: 'POST',
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setGenerationError(body?.message ?? body?.error ?? 'failed to generate design');
+        return;
+      }
+      setGeneratedDesignPreview(body.generated_design);
+      setGenerationCost({
+        cost_usd: body.cost_usd,
+        input_tokens: body.input_tokens,
+        output_tokens: body.output_tokens,
+      });
+    } catch (e) {
+      setGenerationError(e instanceof Error ? e.message : 'failed to generate design');
+    } finally {
+      setGeneratingDesign(false);
     }
   };
 
@@ -325,13 +358,67 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             />
           </div>
           <div>
-            <div className={labelClass}>4 · design — the plan</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>4 · design — the plan</div>
+              <button
+                type="button"
+                onClick={handleGenerateDesign}
+                disabled={generatingDesign}
+                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+                title="Generate institutional-rigor design field from your goal/problem/diagnosis"
+              >
+                {generatingDesign ? 'generating…' : '↑ generate plan'}
+              </button>
+            </div>
             <textarea
               value={form.design}
               onChange={(e) => setForm({ ...form, design: e.target.value })}
               rows={3}
               className={inputClass}
             />
+            {generationError && (
+              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+                {generationError}
+              </div>
+            )}
+            {generatedDesignPreview && (
+              <div className="mt-2 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
+                <div className="font-bold text-text-primary flex items-center justify-between">
+                  <span>AI-generated design (review before saving)</span>
+                  {generationCost && (
+                    <span className="text-text-muted text-xs font-normal">
+                      ${generationCost.cost_usd} · {generationCost.input_tokens} in · {generationCost.output_tokens} out
+                    </span>
+                  )}
+                </div>
+                <div className="text-text-primary whitespace-pre-wrap p-2 bg-white border border-border-light rounded">
+                  {generatedDesignPreview}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm({ ...form, design: generatedDesignPreview });
+                      setGeneratedDesignPreview(null);
+                      setGenerationCost(null);
+                    }}
+                    className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90"
+                  >
+                    use this
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeneratedDesignPreview(null);
+                      setGenerationCost(null);
+                    }}
+                    className="px-3 py-1 border border-border rounded hover:bg-bg-row"
+                  >
+                    discard
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3">

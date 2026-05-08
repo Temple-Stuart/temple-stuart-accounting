@@ -476,6 +476,7 @@ model users {
   accountable_tasks       compliance_tasks[]       @relation("task_accountable")
   user_profile            user_profiles?
   operations_north_star   operations_north_star?
+  operations_ai_usage     operations_ai_usage[]
   discovery_runs          discovery_runs[]
 }
 
@@ -2030,6 +2031,7 @@ enum AuditActionType {
   regulatory_chunks_embedded
   embedding_run_completed
   embedding_run_cost_capped
+  operations_ai_inference
   operations_project_created
   operations_project_updated
   operations_project_status_changed
@@ -2473,18 +2475,18 @@ model discovery_proposals {
 }
 
 model embedding_runs {
-  id              String   @id @default(uuid()) @db.Uuid
-  started_at      DateTime @db.Timestamptz(6)
+  id              String    @id @default(uuid()) @db.Uuid
+  started_at      DateTime  @db.Timestamptz(6)
   completed_at    DateTime? @db.Timestamptz(6)
   model_name      String
-  chunks_embedded Int      @default(0)
-  tokens_total    Int      @default(0)
-  cost_usd        Decimal  @default(0) @db.Decimal(10, 4)
-  cost_cap_usd    Decimal  @db.Decimal(10, 4)
+  chunks_embedded Int       @default(0)
+  tokens_total    Int       @default(0)
+  cost_usd        Decimal   @default(0) @db.Decimal(10, 4)
+  cost_cap_usd    Decimal   @db.Decimal(10, 4)
   outcome         String
   error_message   String?
-  metadata        Json     @default("{}")
-  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  metadata        Json      @default("{}")
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([started_at(sort: Desc)])
   @@index([outcome])
@@ -2531,30 +2533,30 @@ enum IssueStatus {
 }
 
 model operations_projects {
-  id                       String                            @id @default(uuid()) @db.Uuid
+  id                       String        @id @default(uuid()) @db.Uuid
   user_id                  String
   entity_id                String
-  title                    String                            @db.VarChar(500)
-  goal                     String                            @db.Text
-  problem                  String                            @db.Text
-  diagnosis                String                            @db.Text
-  design                   String                            @db.Text
-  status                   ProjectStatus                     @default(not_started)
-  target_completion_date   DateTime?                         @db.Timestamptz(6)
+  title                    String        @db.VarChar(500)
+  goal                     String        @db.Text
+  problem                  String        @db.Text
+  diagnosis                String        @db.Text
+  design                   String        @db.Text
+  status                   ProjectStatus @default(not_started)
+  target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?
-  estimated_total_cost_usd Decimal?                          @db.Decimal(15, 2)
-  priority_score           Decimal?                          @db.Decimal(10, 4)
-  priority_inputs_hash     String?                           @db.VarChar(64)
-  priority_computed_at     DateTime?                         @db.Timestamptz(6)
-  priority_rationale       String?                           @db.Text
-  created_at               DateTime                          @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime                          @updatedAt @db.Timestamptz(6)
+  estimated_total_cost_usd Decimal?      @db.Decimal(15, 2)
+  priority_score           Decimal?      @db.Decimal(10, 4)
+  priority_inputs_hash     String?       @db.VarChar(64)
+  priority_computed_at     DateTime?     @db.Timestamptz(6)
+  priority_rationale       String?       @db.Text
+  created_at               DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime      @updatedAt @db.Timestamptz(6)
   created_by               String?
 
-  tasks                    operations_project_tasks[]
-  outgoing_dependencies    operations_project_dependencies[] @relation("project_dependency_source")
-  incoming_dependencies    operations_project_dependencies[] @relation("project_dependency_target")
-  linked_issues            operations_issue_log_entries[]
+  tasks                 operations_project_tasks[]
+  outgoing_dependencies operations_project_dependencies[] @relation("project_dependency_source")
+  incoming_dependencies operations_project_dependencies[] @relation("project_dependency_target")
+  linked_issues         operations_issue_log_entries[]
 
   @@unique([user_id, title])
   @@index([user_id, entity_id, status])
@@ -2565,28 +2567,28 @@ model operations_projects {
 }
 
 model operations_project_tasks {
-  id                     String                @id @default(uuid()) @db.Uuid
-  project_id             String                @db.Uuid
-  user_id                String
-  entity_id              String
-  title                  String                @db.VarChar(500)
-  description            String?               @db.Text
-  status                 OperationsTaskStatus  @default(open)
-  estimated_minutes      Int?
-  estimated_cost_usd     Decimal?              @db.Decimal(15, 2)
-  deadline               DateTime?             @db.Timestamptz(6)
-  priority_score         Decimal?              @db.Decimal(10, 4)
-  priority_inputs_hash   String?               @db.VarChar(64)
-  priority_computed_at   DateTime?             @db.Timestamptz(6)
-  priority_rationale     String?               @db.Text
-  unblocks_label         String?               @db.Text
-  display_order          Int                   @default(0)
-  completed_at           DateTime?             @db.Timestamptz(6)
-  created_at             DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at             DateTime              @updatedAt @db.Timestamptz(6)
-  created_by             String?
+  id                   String               @id @default(uuid()) @db.Uuid
+  project_id           String               @db.Uuid
+  user_id              String
+  entity_id            String
+  title                String               @db.VarChar(500)
+  description          String?              @db.Text
+  status               OperationsTaskStatus @default(open)
+  estimated_minutes    Int?
+  estimated_cost_usd   Decimal?             @db.Decimal(15, 2)
+  deadline             DateTime?            @db.Timestamptz(6)
+  priority_score       Decimal?             @db.Decimal(10, 4)
+  priority_inputs_hash String?              @db.VarChar(64)
+  priority_computed_at DateTime?            @db.Timestamptz(6)
+  priority_rationale   String?              @db.Text
+  unblocks_label       String?              @db.Text
+  display_order        Int                  @default(0)
+  completed_at         DateTime?            @db.Timestamptz(6)
+  created_at           DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime             @updatedAt @db.Timestamptz(6)
+  created_by           String?
 
-  project                operations_projects   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  project operations_projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@index([project_id, status, display_order])
   @@index([user_id, status, priority_score])
@@ -2596,16 +2598,16 @@ model operations_project_tasks {
 }
 
 model operations_project_dependencies {
-  id                       String                  @id @default(uuid()) @db.Uuid
-  project_id               String                  @db.Uuid
-  depends_on_project_id    String                  @db.Uuid
-  dependency_type          ProjectDependencyType
-  rationale                String?                 @db.Text
-  created_at               DateTime                @default(now()) @db.Timestamptz(6)
-  created_by               String?
+  id                    String                @id @default(uuid()) @db.Uuid
+  project_id            String                @db.Uuid
+  depends_on_project_id String                @db.Uuid
+  dependency_type       ProjectDependencyType
+  rationale             String?               @db.Text
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  created_by            String?
 
-  project                  operations_projects     @relation("project_dependency_source", fields: [project_id], references: [id], onDelete: Cascade)
-  depends_on_project       operations_projects     @relation("project_dependency_target", fields: [depends_on_project_id], references: [id], onDelete: Cascade)
+  project            operations_projects @relation("project_dependency_source", fields: [project_id], references: [id], onDelete: Cascade)
+  depends_on_project operations_projects @relation("project_dependency_target", fields: [depends_on_project_id], references: [id], onDelete: Cascade)
 
   @@unique([project_id, depends_on_project_id, dependency_type])
   @@index([project_id])
@@ -2615,26 +2617,26 @@ model operations_project_dependencies {
 }
 
 model operations_routines {
-  id                              String                            @id @default(uuid()) @db.Uuid
-  user_id                         String
-  entity_id                       String
-  name                            String                            @db.VarChar(200)
-  description                     String?                           @db.Text
-  schedule_rrule                  String                            @db.Text
-  timezone                        String                            @default("America/Los_Angeles") @db.VarChar(64)
-  next_due_at                     DateTime?                         @db.Timestamptz(6)
-  last_evaluated_at               DateTime?                         @db.Timestamptz(6)
-  last_completed_at               DateTime?                         @db.Timestamptz(6)
-  consecutive_completion_streak   Int                               @default(0)
-  consecutive_miss_streak         Int                               @default(0)
-  ideal_time_label                String?                           @db.VarChar(50)
-  fail_threshold_minutes          Int                               @default(0)
-  is_active                       Boolean                           @default(true)
-  created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
-  updated_at                      DateTime                          @updatedAt @db.Timestamptz(6)
-  created_by                      String?
+  id                            String    @id @default(uuid()) @db.Uuid
+  user_id                       String
+  entity_id                     String
+  name                          String    @db.VarChar(200)
+  description                   String?   @db.Text
+  schedule_rrule                String    @db.Text
+  timezone                      String    @default("America/Los_Angeles") @db.VarChar(64)
+  next_due_at                   DateTime? @db.Timestamptz(6)
+  last_evaluated_at             DateTime? @db.Timestamptz(6)
+  last_completed_at             DateTime? @db.Timestamptz(6)
+  consecutive_completion_streak Int       @default(0)
+  consecutive_miss_streak       Int       @default(0)
+  ideal_time_label              String?   @db.VarChar(50)
+  fail_threshold_minutes        Int       @default(0)
+  is_active                     Boolean   @default(true)
+  created_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
+  created_by                    String?
 
-  completions                     operations_routine_completions[]
+  completions operations_routine_completions[]
 
   @@unique([user_id, name])
   @@index([user_id, is_active, next_due_at])
@@ -2644,16 +2646,16 @@ model operations_routines {
 }
 
 model operations_routine_completions {
-  id              String              @id @default(uuid()) @db.Uuid
-  routine_id      String              @db.Uuid
-  user_id         String
-  expected_at     DateTime            @db.Timestamptz(6)
-  completed_at    DateTime            @default(now()) @db.Timestamptz(6)
-  delta_minutes   Int
-  notes           String?             @db.Text
-  created_at      DateTime            @default(now()) @db.Timestamptz(6)
+  id            String   @id @default(uuid()) @db.Uuid
+  routine_id    String   @db.Uuid
+  user_id       String
+  expected_at   DateTime @db.Timestamptz(6)
+  completed_at  DateTime @default(now()) @db.Timestamptz(6)
+  delta_minutes Int
+  notes         String?  @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
 
-  routine         operations_routines @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  routine operations_routines @relation(fields: [routine_id], references: [id], onDelete: Cascade)
 
   @@unique([routine_id, expected_at])
   @@index([routine_id, expected_at])
@@ -2661,31 +2663,54 @@ model operations_routine_completions {
   @@map("operations_routine_completions")
 }
 
-model operations_issue_log_entries {
-  id                       String                            @id @default(uuid()) @db.Uuid
-  user_id                  String
-  entity_id                String
-  title                    String                            @db.VarChar(500)
-  description              String                            @db.Text
-  severity                 IssueSeverity
-  status                   IssueStatus                       @default(open)
-  root_cause_proximate     String?                           @db.Text
-  root_cause_systemic      String?                           @db.Text
-  resolution               String?                           @db.Text
-  resolution_category      String?                           @db.VarChar(50)
-  recurrence_count         Int                               @default(0)
-  linked_issue_id          String?                           @db.Uuid
-  linked_project_id        String?                           @db.Uuid
-  occurred_at              DateTime                          @db.Timestamptz(6)
-  discovered_at            DateTime                          @default(now()) @db.Timestamptz(6)
-  resolved_at              DateTime?                         @db.Timestamptz(6)
-  created_at               DateTime                          @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime                          @updatedAt @db.Timestamptz(6)
-  created_by               String?
+model operations_ai_usage {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String
+  model          String   @db.VarChar(100)
+  purpose        String   @db.VarChar(100)
+  target_table   String?  @db.VarChar(100)
+  target_id      String?  @db.Uuid
+  input_tokens   Int
+  output_tokens  Int
+  cost_usd       Decimal  @db.Decimal(10, 6)
+  inputs_summary String?  @db.Text
+  output_summary String?  @db.Text
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  created_by     String?
 
-  linked_issue             operations_issue_log_entries?     @relation("operations_issue_chain", fields: [linked_issue_id], references: [id], onDelete: SetNull)
-  recurrences              operations_issue_log_entries[]    @relation("operations_issue_chain")
-  linked_project           operations_projects?              @relation(fields: [linked_project_id], references: [id], onDelete: SetNull)
+  user users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, created_at(sort: Desc)])
+  @@index([target_table, target_id])
+  @@index([purpose, created_at(sort: Desc)])
+  @@map("operations_ai_usage")
+}
+
+model operations_issue_log_entries {
+  id                   String        @id @default(uuid()) @db.Uuid
+  user_id              String
+  entity_id            String
+  title                String        @db.VarChar(500)
+  description          String        @db.Text
+  severity             IssueSeverity
+  status               IssueStatus   @default(open)
+  root_cause_proximate String?       @db.Text
+  root_cause_systemic  String?       @db.Text
+  resolution           String?       @db.Text
+  resolution_category  String?       @db.VarChar(50)
+  recurrence_count     Int           @default(0)
+  linked_issue_id      String?       @db.Uuid
+  linked_project_id    String?       @db.Uuid
+  occurred_at          DateTime      @db.Timestamptz(6)
+  discovered_at        DateTime      @default(now()) @db.Timestamptz(6)
+  resolved_at          DateTime?     @db.Timestamptz(6)
+  created_at           DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime      @updatedAt @db.Timestamptz(6)
+  created_by           String?
+
+  linked_issue   operations_issue_log_entries?  @relation("operations_issue_chain", fields: [linked_issue_id], references: [id], onDelete: SetNull)
+  recurrences    operations_issue_log_entries[] @relation("operations_issue_chain")
+  linked_project operations_projects?           @relation(fields: [linked_project_id], references: [id], onDelete: SetNull)
 
   @@index([user_id, status])
   @@index([user_id, severity, status])
@@ -2697,25 +2722,25 @@ model operations_issue_log_entries {
 }
 
 model operations_vendor_directory {
-  id                       String      @id @default(uuid()) @db.Uuid
-  user_id                  String
-  entity_id                String
-  chart_account_id         String?     @db.Uuid
-  vendor_name              String      @db.VarChar(200)
-  category                 String?     @db.VarChar(100)
-  amount_usd               Decimal?    @db.Decimal(15, 2)
-  billing_rrule            String?     @db.Text
-  next_due_date            DateTime?   @db.Date
-  last_paid_date           DateTime?   @db.Date
-  last_paid_amount_usd     Decimal?    @db.Decimal(15, 2)
-  contact_email            String?     @db.VarChar(255)
-  contact_url              String?     @db.VarChar(500)
-  account_number_last4     String?     @db.VarChar(4)
-  notes                    String?     @db.Text
-  is_active                Boolean     @default(true)
-  created_at               DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime    @updatedAt @db.Timestamptz(6)
-  created_by               String?
+  id                   String    @id @default(uuid()) @db.Uuid
+  user_id              String
+  entity_id            String
+  chart_account_id     String?   @db.Uuid
+  vendor_name          String    @db.VarChar(200)
+  category             String?   @db.VarChar(100)
+  amount_usd           Decimal?  @db.Decimal(15, 2)
+  billing_rrule        String?   @db.Text
+  next_due_date        DateTime? @db.Date
+  last_paid_date       DateTime? @db.Date
+  last_paid_amount_usd Decimal?  @db.Decimal(15, 2)
+  contact_email        String?   @db.VarChar(255)
+  contact_url          String?   @db.VarChar(500)
+  account_number_last4 String?   @db.VarChar(4)
+  notes                String?   @db.Text
+  is_active            Boolean   @default(true)
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @updatedAt @db.Timestamptz(6)
+  created_by           String?
 
   @@unique([user_id, entity_id, vendor_name])
   @@index([user_id, is_active])
@@ -2735,24 +2760,24 @@ model operations_vendor_directory {
 // =============================================================================
 
 model operations_north_star {
-  id                       String     @id @default(uuid()) @db.Uuid
-  user_id                  String     @unique
-  mission_statement        String?    @db.Text
-  life_stage               String?    @db.VarChar(50)
-  core_values              String[]   @default([])
-  guiding_principles       String?    @db.Text
-  one_year_target          String?    @db.Text
-  three_year_target        String?    @db.Text
-  current_location_label   String?    @db.VarChar(200)
-  current_timezone         String     @default("America/Los_Angeles") @db.VarChar(64)
-  review_cadence_days      Int        @default(90)
-  last_reviewed_at         DateTime?  @db.Timestamptz(6)
-  next_review_at           DateTime?  @db.Timestamptz(6)
-  created_at               DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at               DateTime   @updatedAt @db.Timestamptz(6)
-  created_by               String?
+  id                     String    @id @default(uuid()) @db.Uuid
+  user_id                String    @unique
+  mission_statement      String?   @db.Text
+  life_stage             String?   @db.VarChar(50)
+  core_values            String[]  @default([])
+  guiding_principles     String?   @db.Text
+  one_year_target        String?   @db.Text
+  three_year_target      String?   @db.Text
+  current_location_label String?   @db.VarChar(200)
+  current_timezone       String    @default("America/Los_Angeles") @db.VarChar(64)
+  review_cadence_days    Int       @default(90)
+  last_reviewed_at       DateTime? @db.Timestamptz(6)
+  next_review_at         DateTime? @db.Timestamptz(6)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @updatedAt @db.Timestamptz(6)
+  created_by             String?
 
-  user                     users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([next_review_at])
   @@map("operations_north_star")
