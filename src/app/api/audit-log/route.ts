@@ -14,6 +14,8 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
  */
 const SUBSYSTEM_ACTION_TYPES: Record<string, AuditActionType[]> = {
   operations_: [
+    // PR-Ops-3.5
+    'operations_ai_inference',
     // PR-Ops-1
     'operations_project_created',
     'operations_project_updated',
