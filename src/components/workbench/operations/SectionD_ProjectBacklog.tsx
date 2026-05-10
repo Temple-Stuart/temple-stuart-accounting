@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import ProjectRow from './projects/ProjectRow';
+import ListManager from './projects/ListManager';
 import type { Project, ProjectForm } from './projects/types';
 import { DEFAULT_PROJECT_FORM } from './projects/types';
 import InspectionDrawer from './ai/InspectionDrawer';
@@ -64,11 +65,13 @@ export default function SectionD_ProjectBacklog() {
 
   const handleGenerateCreateDesign = async () => {
     const title = createForm.title?.trim() ?? '';
-    const goal = createForm.goal?.trim() ?? '';
-    const problem = createForm.problem?.trim() ?? '';
-    const diagnosis = createForm.diagnosis?.trim() ?? '';
-    if (!title || !goal || !problem || !diagnosis) {
-      setCreateDesignError('Fill in title, goal, problem, and diagnosis before generating a plan.');
+    if (
+      title.length === 0 ||
+      createForm.goalItems.length === 0 ||
+      createForm.problemItems.length === 0 ||
+      createForm.diagnosisItems.length === 0
+    ) {
+      setCreateDesignError('Title, goal, problem, and diagnosis are all required (with at least one item each).');
       return;
     }
 
@@ -81,7 +84,12 @@ export default function SectionD_ProjectBacklog() {
       const res = await fetch('/api/operations/ai/generate-design', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, goal, problem, diagnosis }),
+        body: JSON.stringify({
+          title,
+          goalItems: createForm.goalItems,
+          problemItems: createForm.problemItems,
+          diagnosisItems: createForm.diagnosisItems,
+        }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -259,54 +267,57 @@ export default function SectionD_ProjectBacklog() {
 
           <div>
             <div className={labelClass}>1 · goal — what success looks like</div>
-            <textarea
-              value={createForm.goal}
-              onChange={(e) => setCreateForm({ ...createForm, goal: e.target.value })}
-              rows={2}
-              className={inputClass}
-              placeholder="I WANT to..."
+            <ListManager
+              items={createForm.goalItems}
+              onChange={(next) => setCreateForm({ ...createForm, goalItems: next })}
+              verbPrefix="I WANT to "
+              placeholder="get loans approved"
+              disabled={createSaving}
             />
           </div>
           <div>
             <div className={labelClass}>2 · problem — gap between current and goal</div>
-            <textarea
-              value={createForm.problem}
-              onChange={(e) => setCreateForm({ ...createForm, problem: e.target.value })}
-              rows={2}
-              className={inputClass}
-              placeholder="I DID NOT... / I HAVE NOT..."
+            <ListManager
+              items={createForm.problemItems}
+              onChange={(next) => setCreateForm({ ...createForm, problemItems: next })}
+              verbPrefix="I DID NOT "
+              altVerbPrefix="I HAVE NOT "
+              placeholder="create an FSA ID yet"
+              disabled={createSaving}
             />
           </div>
           <div>
             <div className={labelClass}>3 · diagnosis — root cause</div>
-            <textarea
-              value={createForm.diagnosis}
-              onChange={(e) => setCreateForm({ ...createForm, diagnosis: e.target.value })}
-              rows={3}
-              className={inputClass}
-              placeholder="I NEED to..."
+            <ListManager
+              items={createForm.diagnosisItems}
+              onChange={(next) => setCreateForm({ ...createForm, diagnosisItems: next })}
+              verbPrefix="I NEED TO "
+              placeholder="complete personal tax return first"
+              disabled={createSaving}
             />
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design — the plan</div>
+              <div className={labelClass}>4 · design — the plan (AI-generated)</div>
               <button
                 type="button"
                 onClick={handleGenerateCreateDesign}
                 disabled={generatingCreateDesign}
                 className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
-                title="Generate institutional-rigor design field from goal/problem/diagnosis"
+                title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
               >
                 {generatingCreateDesign ? 'generating…' : '↑ generate plan'}
               </button>
             </div>
-            <textarea
-              value={createForm.design}
-              onChange={(e) => setCreateForm({ ...createForm, design: e.target.value })}
-              rows={3}
-              className={inputClass}
-              placeholder="click ↑ generate plan to synthesize from goal/problem/diagnosis, or write the plan yourself"
-            />
+            {createForm.design.trim().length > 0 ? (
+              <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+                {createForm.design}
+              </div>
+            ) : (
+              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+                (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
+              </div>
+            )}
             {createDesignError && (
               <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
                 {createDesignError}

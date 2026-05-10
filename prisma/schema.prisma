@@ -2537,10 +2537,13 @@ model operations_projects {
   user_id                  String
   entity_id                String
   title                    String        @db.VarChar(500)
-  goal                     String        @db.Text
-  problem                  String        @db.Text
-  diagnosis                String        @db.Text
-  design                   String        @db.Text
+  goal                     String?       @db.Text
+  problem                  String?       @db.Text
+  diagnosis                String?       @db.Text
+  design                   String?       @db.Text
+  goal_items               Json          @default("[]") @db.JsonB
+  problem_items            Json          @default("[]") @db.JsonB
+  diagnosis_items          Json          @default("[]") @db.JsonB
   status                   ProjectStatus @default(not_started)
   target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?

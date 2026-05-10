@@ -110,16 +110,61 @@ export async function PATCH(
       data.title = t;
     }
 
+    // Legacy paragraph fields (goal/problem/diagnosis/design) are now nullable
+    // post-PR-Ops-3.7. Source of truth for goal/problem/diagnosis is the
+    // *_items JSONB arrays; legacy paragraphs persist for backwards-compat
+    // until a future cleanup PR drops them. Design field continues to be
+    // populated by the AI generate-design endpoint via "use this" acceptance.
     for (const field of ['goal', 'problem', 'diagnosis', 'design'] as const) {
       if (body[field] !== undefined) {
         const t = trimNonEmpty(body[field]);
-        if (t === null) {
+        data[field] = t;
+      }
+    }
+
+    // PR-Ops-3.7: structured-list fields. Each is an array of strings,
+    // each item ≤ 500 chars, ≤ 20 items per array.
+    const validateItems = (
+      value: unknown,
+      fieldName: string
+    ): { ok: true; items: string[] } | { ok: false; message: string } => {
+      if (!Array.isArray(value)) {
+        return { ok: false, message: `${fieldName} must be an array` };
+      }
+      if (value.length > 20) {
+        return { ok: false, message: `${fieldName} cannot have more than 20 items` };
+      }
+      const items: string[] = [];
+      for (let i = 0; i < value.length; i++) {
+        const raw = value[i];
+        if (typeof raw !== 'string') {
+          return { ok: false, message: `${fieldName}[${i}] must be a string` };
+        }
+        const trimmed = raw.trim();
+        if (trimmed.length === 0) continue; // silently drop empty items
+        if (trimmed.length > 500) {
+          return { ok: false, message: `${fieldName}[${i}] exceeds 500 characters` };
+        }
+        items.push(trimmed);
+      }
+      return { ok: true, items };
+    };
+
+    const itemFieldMap = [
+      { body: 'goalItems', column: 'goal_items' as const },
+      { body: 'problemItems', column: 'problem_items' as const },
+      { body: 'diagnosisItems', column: 'diagnosis_items' as const },
+    ];
+    for (const { body: bodyKey, column } of itemFieldMap) {
+      if (body[bodyKey] !== undefined) {
+        const result = validateItems(body[bodyKey], bodyKey);
+        if (!result.ok) {
           return NextResponse.json(
-            { error: 'Validation', field, message: `${field} cannot be empty` },
+            { error: 'Validation', field: bodyKey, message: result.message },
             { status: 400 }
           );
         }
-        data[field] = t;
+        data[column] = result.items;
       }
     }
 

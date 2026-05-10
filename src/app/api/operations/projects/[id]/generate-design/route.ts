@@ -4,19 +4,37 @@
  * POST — generate an institutional-rigor design field for the project,
  *        using its current goal/problem/diagnosis as input.
  *
- *        Does NOT save to the project. Returns the generated text in
- *        the response; user must explicitly accept and PATCH the project
- *        with the new design field separately.
+ * PR-Ops-3.7 update: reads structured array fields (goal_items,
+ * problem_items, diagnosis_items) when populated; falls back to
+ * legacy paragraph fields wrapped as single-element arrays for
+ * backwards compatibility during the migration window. After all
+ * projects are converted to structured lists, the legacy fallback
+ * branch can be removed in a cleanup PR.
  *
- *        Validates that the project has non-empty goal/problem/diagnosis
- *        before calling the AI — those are the inputs the generator
- *        depends on.
+ * Truth-first: does NOT save to the project. Returns the generated
+ * text in the response; user must explicitly accept and PATCH the
+ * project with the new design field separately.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
+
+/**
+ * Resolve a field's items: prefer the JSONB array, fall back to wrapping
+ * the legacy paragraph as a single-element array. Returns null if neither
+ * has content (caller rejects).
+ */
+function resolveItems(itemsJson: unknown, legacyText: string | null): string[] | null {
+  if (Array.isArray(itemsJson)) {
+    const arr = itemsJson.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+    if (arr.length > 0) return arr;
+  }
+  const legacy = (legacyText ?? '').trim();
+  if (legacy.length > 0) return [legacy];
+  return null;
+}
 
 export async function POST(
   _request: NextRequest,
@@ -37,11 +55,15 @@ export async function POST(
     });
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
 
-    if (!project.goal.trim() || !project.problem.trim() || !project.diagnosis.trim()) {
+    const goalItems = resolveItems(project.goal_items, project.goal);
+    const problemItems = resolveItems(project.problem_items, project.problem);
+    const diagnosisItems = resolveItems(project.diagnosis_items, project.diagnosis);
+
+    if (!goalItems || !problemItems || !diagnosisItems) {
       return NextResponse.json(
         {
           error: 'Validation',
-          message: 'project must have goal, problem, and diagnosis fields filled before generating design',
+          message: 'project must have goal, problem, and diagnosis content (as items or legacy text) before generating design',
         },
         { status: 400 }
       );
@@ -52,9 +74,9 @@ export async function POST(
       userEmail,
       projectId,
       projectTitle: project.title,
-      goal: project.goal,
-      problem: project.problem,
-      diagnosis: project.diagnosis,
+      goalItems,
+      problemItems,
+      diagnosisItems,
     });
 
     return NextResponse.json({
