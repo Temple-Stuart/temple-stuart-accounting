@@ -1,14 +1,16 @@
 /**
- * generateProjectDesign — produces an institutional-rigor design field
- * for a project, given its goal/problem/diagnosis fields as input.
+ * generateProjectDesign — produces an institutional-rigor STEP-based plan
+ * for a project, given its structured GOAL / PROBLEM / DIAGNOSIS items.
  *
- * Uses Claude Sonnet 4 with the Student Loan project as few-shot exemplar.
- * Returns the generated text + cost metadata; does NOT auto-save to the
- * project (caller must explicitly write back via PATCH after user accepts).
+ * Uses Claude Sonnet 4 with the Student Loan project as few-shot exemplar
+ * (post-PR-Ops-3.7 reformat to structured arrays + STEP labels).
  *
- * Truth-first principle: the user must consciously accept the AI's output
- * before it overwrites their field. The endpoint that calls this returns
- * the generated text in a preview pane; user reviews and decides.
+ * Returns the generated text + cost metadata + inspection block; does NOT
+ * auto-save to the project. Caller must explicitly write back via PATCH
+ * after user accepts the AI's output.
+ *
+ * Truth-first: user owns INPUTS (goal/problem/diagnosis items), AI owns
+ * SYNTHESIS (design field). Explicit acceptance gate between them.
  */
 
 import { recordUsage } from './recordUsage';
@@ -20,9 +22,9 @@ interface GenerateInput {
   userEmail: string;
   projectId: string;
   projectTitle: string;
-  goal: string;
-  problem: string;
-  diagnosis: string;
+  goalItems: string[];
+  problemItems: string[];
+  diagnosisItems: string[];
 }
 
 interface GenerateOutput {
@@ -41,26 +43,34 @@ interface GenerateOutput {
   };
 }
 
-const SYSTEM_PROMPT = `You are a project scoping consultant trained on the institutional rigor of Bridgewater Associates' Principles, Citadel's risk discipline, and Renaissance Technologies' empirical method.
+function bulletList(items: string[]): string {
+  if (items.length === 0) return '(none provided)';
+  return items.map((item) => `- ${item}`).join('\n');
+}
 
-Your job: generate the DESIGN field of a project — a phased plan with decision points — given the user's GOAL, PROBLEM, and DIAGNOSIS fields.
+const SYSTEM_PROMPT = `You are a project scoping expert trained on the institutional rigor of Bridgewater Associates' Principles, Citadel's risk discipline, and Renaissance Technologies' empirical method.
+
+Your job: generate the DESIGN of a project — a numbered step-by-step plan with decision points — given the user's GOAL items, PROBLEM items, and DIAGNOSIS items.
 
 The user's natural-voice grammar maps to Bridgewater's 5-step scoping:
-  - GOAL field: "I WANT" lines (desires / target end states)
-  - PROBLEM field: "I DID NOT" lines (current gaps)
-  - DIAGNOSIS field: "I NEED" lines (root requirements)
-  - DESIGN field: "I WILL" lines, but synthesized into PHASES with timelines and decision points
+  - GOAL items: "I WANT" lines (desires / target end states)
+  - PROBLEM items: "I DID NOT" / "I HAVE NOT" lines (current gaps)
+  - DIAGNOSIS items: "I NEED TO" lines (root requirements)
+  - DESIGN field: numbered STEPS with timelines and decision points (you produce this)
 
 The DESIGN you produce must:
 1. Match the depth and structure of the EXEMPLAR below
-2. Have explicit phases (Phase 1, Phase 2, etc.) with rough timelines
-3. Each phase has a clear OUTCOME stated
+2. Have explicit numbered STEPS (STEP 1, STEP 2, STEP 3, ...) with rough timelines where applicable
+3. Each STEP states a clear OUTCOME at its end
 4. Include a "Decision points" section at the end listing scenarios that would re-trigger scoping (e.g., "if X happens, push timeline" / "if Y, reset entire project")
-5. Reference specific blockers/upstream-dependencies surfaced in the user's PROBLEM and DIAGNOSIS fields
-6. Be written in declarative voice (the system, not "I will" — the design is the project's plan, not the operator's first-person commitment)
-7. Match the prose length of the exemplar's DESIGN field (~2000 chars)
+5. Reference specific blockers/upstream-dependencies surfaced in the user's PROBLEM and DIAGNOSIS items
+6. Be written in declarative voice — the project's plan, NOT the operator's first-person commitment. Do NOT echo the "I WANT / I DID NOT / I NEED TO" grammar in your output. The steps speak as the system's plan.
+7. Match the prose length of the exemplar's design field (~2000 chars)
 
-Return ONLY the design field text. No preamble. No "Here is your design field:". No surrounding markdown code blocks. Just the raw text that would go in the form's design textarea.
+CRITICAL — do research with your domain knowledge:
+Before drafting steps, draw on your training-data knowledge of the topic. For projects involving regulated processes (FAFSA, tax filing, business formation, SEC compliance, immigration paperwork, accreditation, etc.), reference specific real-world deadlines, agencies, standard practices, and downstream dependencies. The user has supplied their personal context as item lists; your job is to combine that context with institutional knowledge to produce a plan that is correct in the world, not just internally consistent with what the user typed.
+
+Return ONLY the design field text. No preamble. No "Here is your design field:". No surrounding markdown code blocks. Just the raw text that would go in the form's design field.
 
 ═══════════════════════════════════════════════════════════════════════════════
 EXEMPLAR — institutional gold standard for project scoping rigor
@@ -68,40 +78,41 @@ EXEMPLAR — institutional gold standard for project scoping rigor
 
 Project title: "${PROJECT_DESIGN_EXEMPLAR.title}"
 
-GOAL field:
-${PROJECT_DESIGN_EXEMPLAR.goal}
+GOAL items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.goal_items as unknown as string[])}
 
-PROBLEM field:
-${PROJECT_DESIGN_EXEMPLAR.problem}
+PROBLEM items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.problem_items as unknown as string[])}
 
-DIAGNOSIS field:
-${PROJECT_DESIGN_EXEMPLAR.diagnosis}
+DIAGNOSIS items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.diagnosis_items as unknown as string[])}
 
 DESIGN field (← THIS is what you produce):
 ${PROJECT_DESIGN_EXEMPLAR.design}
 
 ═══════════════════════════════════════════════════════════════════════════════
 
-Now produce a DESIGN field at this exact rigor for the user's project below.`;
+Now produce a DESIGN field at this exact rigor for the user's project below. Remember: declarative voice, STEP-based output, decision points section, research the topic with your domain knowledge.`;
 
 export async function generateProjectDesign(input: GenerateInput): Promise<GenerateOutput> {
   const userMessage = `Project title: "${input.projectTitle}"
 
-GOAL field:
-${input.goal}
+GOAL items:
+${bulletList(input.goalItems)}
 
-PROBLEM field:
-${input.problem}
+PROBLEM items:
+${bulletList(input.problemItems)}
 
-DIAGNOSIS field:
-${input.diagnosis}
+DIAGNOSIS items:
+${bulletList(input.diagnosisItems)}
 
 DESIGN field: [you produce this — match the exemplar's depth and structure]`;
 
   const inputsSummary =
     `project_id=${input.projectId}; ` +
-    `goal_len=${input.goal.length}; problem_len=${input.problem.length}; ` +
-    `diagnosis_len=${input.diagnosis.length}`;
+    `goal_items_count=${input.goalItems.length}; ` +
+    `problem_items_count=${input.problemItems.length}; ` +
+    `diagnosis_items_count=${input.diagnosisItems.length}`;
 
   // Stateless mode: when projectId is empty, the call originates from the
   // create form before a project exists. Pass null targets so recordUsage

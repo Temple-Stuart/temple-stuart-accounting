@@ -130,14 +130,99 @@ export async function POST(request: NextRequest) {
     if (entity_id_raw instanceof NextResponse) return entity_id_raw;
     const title = requireString(body.title, 'title', 500);
     if (title instanceof NextResponse) return title;
-    const goal = requireString(body.goal, 'goal');
-    if (goal instanceof NextResponse) return goal;
-    const problem = requireString(body.problem, 'problem');
-    if (problem instanceof NextResponse) return problem;
-    const diagnosis = requireString(body.diagnosis, 'diagnosis');
-    if (diagnosis instanceof NextResponse) return diagnosis;
-    const design = requireString(body.design, 'design');
-    if (design instanceof NextResponse) return design;
+
+    // PR-Ops-3.7: structured-list fields are the source of truth. Each
+    // is required, non-empty array of trimmed strings ≤ 500 chars,
+    // ≤ 20 items per array.
+    const validateItems = (
+      value: unknown,
+      fieldName: string
+    ): { ok: true; items: string[] } | { ok: false; response: NextResponse } => {
+      if (!Array.isArray(value)) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: 'Validation', field: fieldName, message: `${fieldName} must be an array` },
+            { status: 400 }
+          ),
+        };
+      }
+      if (value.length === 0) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: 'Validation', field: fieldName, message: `${fieldName} must contain at least one item` },
+            { status: 400 }
+          ),
+        };
+      }
+      if (value.length > 20) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: 'Validation', field: fieldName, message: `${fieldName} cannot have more than 20 items` },
+            { status: 400 }
+          ),
+        };
+      }
+      const items: string[] = [];
+      for (let i = 0; i < value.length; i++) {
+        const raw = value[i];
+        if (typeof raw !== 'string') {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: 'Validation', field: fieldName, message: `${fieldName}[${i}] must be a string` },
+              { status: 400 }
+            ),
+          };
+        }
+        const trimmed = raw.trim();
+        if (trimmed.length === 0) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: 'Validation', field: fieldName, message: `${fieldName}[${i}] cannot be empty` },
+              { status: 400 }
+            ),
+          };
+        }
+        if (trimmed.length > 500) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: 'Validation', field: fieldName, message: `${fieldName}[${i}] exceeds 500 characters` },
+              { status: 400 }
+            ),
+          };
+        }
+        items.push(trimmed);
+      }
+      return { ok: true, items };
+    };
+
+    const goalItemsResult = validateItems(body.goalItems, 'goalItems');
+    if (!goalItemsResult.ok) return goalItemsResult.response;
+    const problemItemsResult = validateItems(body.problemItems, 'problemItems');
+    if (!problemItemsResult.ok) return problemItemsResult.response;
+    const diagnosisItemsResult = validateItems(body.diagnosisItems, 'diagnosisItems');
+    if (!diagnosisItemsResult.ok) return diagnosisItemsResult.response;
+
+    // Legacy paragraph fields are optional/nullable post-PR-Ops-3.7. The
+    // *_items arrays above are the source of truth; legacy text is stored
+    // verbatim if the client sends it (transition-period dual-write).
+    const trimNullable = (v: unknown): string | null => {
+      if (typeof v !== 'string') return null;
+      const t = v.trim();
+      return t.length > 0 ? t : null;
+    };
+    const goal = trimNullable(body.goal);
+    const problem = trimNullable(body.problem);
+    const diagnosis = trimNullable(body.diagnosis);
+
+    // Design is AI-populated post-PR-Ops-3.7 via "use this" acceptance.
+    // Optional at create time; client may send it pre-populated.
+    const design = trimNullable(body.design);
 
     // Verify entity ownership.
     const entity = await prisma.entities.findFirst({
@@ -201,6 +286,9 @@ export async function POST(request: NextRequest) {
         problem,
         diagnosis,
         design,
+        goal_items: goalItemsResult.items,
+        problem_items: problemItemsResult.items,
+        diagnosis_items: diagnosisItemsResult.items,
         target_completion_date,
         estimated_total_minutes,
         estimated_total_cost_usd,

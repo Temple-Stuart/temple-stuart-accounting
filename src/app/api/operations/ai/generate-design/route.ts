@@ -1,21 +1,22 @@
 /**
  * POST /api/operations/ai/generate-design
  *
- * Stateless variant of the per-project endpoint. Accepts the user's
- * goal/problem/diagnosis directly in the request body — used by the
- * project CREATE form before a project_id exists.
+ * Stateless variant of the per-project endpoint (PR-Ops-3.6 introduced).
+ * PR-Ops-3.7 updates: accepts structured array inputs (goalItems,
+ * problemItems, diagnosisItems) instead of paragraph strings. The AI
+ * system prompt was rewritten to STEP-based output with research
+ * instruction; user message format is bulleted lists.
  *
- * The audit row's target falls back to the operations_ai_usage row
- * itself (target_table='operations_ai_usage', target_id=usage.id) via
- * the existing recordUsage fallback engineered in PR-Ops-3.5.
- * metadata.purpose discriminates from edit-mode calls.
- *
- * Same response shape as the per-project endpoint including the
- * inspection block. UI renders the same preview pane + drawer.
+ * Validation:
+ *   - title: non-empty trimmed string
+ *   - goalItems: non-empty array, each item ≤ 500 chars trimmed,
+ *                array ≤ 20 items
+ *   - problemItems: same
+ *   - diagnosisItems: same
  *
  * Truth-first: does NOT auto-save anything. Returns the generated text
  * for user review. User must explicitly click "use this" to populate
- * the create form's design textarea, then "create project" to save.
+ * the create form's design field, then "create project" to save.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,9 +26,40 @@ import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
 
 interface RequestBody {
   title?: string;
-  goal?: string;
-  problem?: string;
-  diagnosis?: string;
+  goalItems?: unknown;
+  problemItems?: unknown;
+  diagnosisItems?: unknown;
+}
+
+const MAX_ITEMS_PER_ARRAY = 20;
+const MAX_CHARS_PER_ITEM = 500;
+
+function validateItems(value: unknown, fieldName: string): { ok: true; items: string[] } | { ok: false; message: string } {
+  if (!Array.isArray(value)) {
+    return { ok: false, message: `${fieldName} must be an array` };
+  }
+  if (value.length === 0) {
+    return { ok: false, message: `${fieldName} must contain at least one item` };
+  }
+  if (value.length > MAX_ITEMS_PER_ARRAY) {
+    return { ok: false, message: `${fieldName} cannot have more than ${MAX_ITEMS_PER_ARRAY} items` };
+  }
+  const items: string[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const raw = value[i];
+    if (typeof raw !== 'string') {
+      return { ok: false, message: `${fieldName}[${i}] must be a string` };
+    }
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return { ok: false, message: `${fieldName}[${i}] cannot be empty` };
+    }
+    if (trimmed.length > MAX_CHARS_PER_ITEM) {
+      return { ok: false, message: `${fieldName}[${i}] exceeds ${MAX_CHARS_PER_ITEM} characters` };
+    }
+    items.push(trimmed);
+  }
+  return { ok: true, items };
 }
 
 export async function POST(request: NextRequest) {
@@ -41,32 +73,31 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const body = (await request.json()) as RequestBody;
-    const title = (body.title ?? '').trim();
-    const goal = (body.goal ?? '').trim();
-    const problem = (body.problem ?? '').trim();
-    const diagnosis = (body.diagnosis ?? '').trim();
-
-    if (!title || !goal || !problem || !diagnosis) {
+    const title = (typeof body.title === 'string' ? body.title : '').trim();
+    if (!title) {
       return NextResponse.json(
-        {
-          error: 'Validation',
-          message: 'title, goal, problem, and diagnosis are all required to generate a design',
-        },
+        { error: 'Validation', message: 'title is required' },
         { status: 400 }
       );
     }
 
-    // generateProjectDesign accepts an empty projectId as the sentinel
-    // for stateless mode; it routes the audit row to the usage row via
-    // the recordUsage fallback and discriminates the purpose label.
+    const goalResult = validateItems(body.goalItems, 'goalItems');
+    if (!goalResult.ok) return NextResponse.json({ error: 'Validation', message: goalResult.message }, { status: 400 });
+
+    const problemResult = validateItems(body.problemItems, 'problemItems');
+    if (!problemResult.ok) return NextResponse.json({ error: 'Validation', message: problemResult.message }, { status: 400 });
+
+    const diagnosisResult = validateItems(body.diagnosisItems, 'diagnosisItems');
+    if (!diagnosisResult.ok) return NextResponse.json({ error: 'Validation', message: diagnosisResult.message }, { status: 400 });
+
     const result = await generateProjectDesign({
       userId: user.id,
       userEmail,
       projectId: '',
       projectTitle: title,
-      goal,
-      problem,
-      diagnosis,
+      goalItems: goalResult.items,
+      problemItems: problemResult.items,
+      diagnosisItems: diagnosisResult.items,
     });
 
     return NextResponse.json({

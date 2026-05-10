@@ -21,6 +21,7 @@ import type { Project, ProjectForm, ProjectStatus } from './types';
 import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import TaskList from './TaskList';
 import DependencyList from './DependencyList';
+import ListManager from './ListManager';
 import InspectionDrawer from '../ai/InspectionDrawer';
 
 interface Entity {
@@ -55,10 +56,10 @@ function projectToForm(p: Project): ProjectForm {
   return {
     entity_id: p.entity_id,
     title: p.title,
-    goal: p.goal,
-    problem: p.problem,
-    diagnosis: p.diagnosis,
-    design: p.design,
+    design: p.design ?? '',
+    goalItems: Array.isArray(p.goal_items) ? p.goal_items.filter((x): x is string => typeof x === 'string') : [],
+    problemItems: Array.isArray(p.problem_items) ? p.problem_items.filter((x): x is string => typeof x === 'string') : [],
+    diagnosisItems: Array.isArray(p.diagnosis_items) ? p.diagnosis_items.filter((x): x is string => typeof x === 'string') : [],
     status: p.status,
     target_completion_date: p.target_completion_date
       ? p.target_completion_date.slice(0, 10)
@@ -220,6 +221,50 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
   const pillClass = `inline-block px-2 py-0.5 border rounded text-xs font-mono ${STATUS_PILL_CLASSES[project.status]}`;
 
+  // Derive structured-list arrays from the project. JsonB columns may
+  // come back as JsonValue at runtime; filter to strings defensively.
+  const goalItems = Array.isArray(project.goal_items)
+    ? project.goal_items.filter((x): x is string => typeof x === 'string')
+    : [];
+  const problemItems = Array.isArray(project.problem_items)
+    ? project.problem_items.filter((x): x is string => typeof x === 'string')
+    : [];
+  const diagnosisItems = Array.isArray(project.diagnosis_items)
+    ? project.diagnosis_items.filter((x): x is string => typeof x === 'string')
+    : [];
+
+  /**
+   * Render a structured field that may be either:
+   *   - new structured array (project.goal_items / problem_items / diagnosis_items)
+   *   - legacy paragraph (project.goal / problem / diagnosis as string|null)
+   *
+   * Prefers structured items; falls back to legacy paragraph when items
+   * array is empty. Both states render readably in the row.
+   */
+  const renderStructuredField = (
+    items: string[],
+    legacyText: string | null
+  ) => {
+    if (items.length > 0) {
+      return (
+        <ul className="list-disc list-inside text-text-primary text-xs font-mono space-y-0.5 ml-2">
+          {items.map((it, i) => (
+            <li key={i} className="break-words">{it}</li>
+          ))}
+        </ul>
+      );
+    }
+    if (legacyText && legacyText.trim().length > 0) {
+      return (
+        <div className="text-text-primary text-xs font-mono whitespace-pre-wrap">
+          {legacyText}
+          <span className="text-text-faint italic ml-2">(legacy paragraph format)</span>
+        </div>
+      );
+    }
+    return <div className="text-text-muted text-xs font-mono italic">(no content)</div>;
+  };
+
   return (
     <div
       ref={rowRef}
@@ -247,19 +292,19 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
         <div className="px-4 py-3 border-t border-border-light text-xs font-mono space-y-3">
           <div>
             <div className={labelClass}>1 · goal</div>
-            <div className="text-text-primary whitespace-pre-wrap">{project.goal}</div>
+            {renderStructuredField(goalItems, project.goal)}
           </div>
           <div>
             <div className={labelClass}>2 · problem</div>
-            <div className="text-text-primary whitespace-pre-wrap">{project.problem}</div>
+            {renderStructuredField(problemItems, project.problem)}
           </div>
           <div>
             <div className={labelClass}>3 · diagnosis</div>
-            <div className="text-text-primary whitespace-pre-wrap">{project.diagnosis}</div>
+            {renderStructuredField(diagnosisItems, project.diagnosis)}
           </div>
           <div>
             <div className={labelClass}>4 · design</div>
-            <div className="text-text-primary whitespace-pre-wrap">{project.design}</div>
+            <div className="text-text-primary whitespace-pre-wrap">{project.design ?? ''}</div>
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
@@ -354,50 +399,57 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
 
           <div>
             <div className={labelClass}>1 · goal — what success looks like</div>
-            <textarea
-              value={form.goal}
-              onChange={(e) => setForm({ ...form, goal: e.target.value })}
-              rows={2}
-              className={inputClass}
+            <ListManager
+              items={form.goalItems}
+              onChange={(next) => setForm({ ...form, goalItems: next })}
+              verbPrefix="I WANT to "
+              placeholder="get loans approved"
+              disabled={saving}
             />
           </div>
           <div>
             <div className={labelClass}>2 · problem — gap between current and goal</div>
-            <textarea
-              value={form.problem}
-              onChange={(e) => setForm({ ...form, problem: e.target.value })}
-              rows={2}
-              className={inputClass}
+            <ListManager
+              items={form.problemItems}
+              onChange={(next) => setForm({ ...form, problemItems: next })}
+              verbPrefix="I DID NOT "
+              altVerbPrefix="I HAVE NOT "
+              placeholder="create an FSA ID yet"
+              disabled={saving}
             />
           </div>
           <div>
             <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
-            <textarea
-              value={form.diagnosis}
-              onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
-              rows={3}
-              className={inputClass}
+            <ListManager
+              items={form.diagnosisItems}
+              onChange={(next) => setForm({ ...form, diagnosisItems: next })}
+              verbPrefix="I NEED TO "
+              placeholder="complete personal tax return first"
+              disabled={saving}
             />
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <div className={labelClass}>4 · design — the plan</div>
+              <div className={labelClass}>4 · design — the plan (AI-generated)</div>
               <button
                 type="button"
                 onClick={handleGenerateDesign}
                 disabled={generatingDesign}
                 className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
-                title="Generate institutional-rigor design field from your goal/problem/diagnosis"
+                title="Generate institutional-rigor design field from your goal/problem/diagnosis items"
               >
                 {generatingDesign ? 'generating…' : '↑ generate plan'}
               </button>
             </div>
-            <textarea
-              value={form.design}
-              onChange={(e) => setForm({ ...form, design: e.target.value })}
-              rows={3}
-              className={inputClass}
-            />
+            {form.design.trim().length > 0 ? (
+              <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+                {form.design}
+              </div>
+            ) : (
+              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+                (no design yet — fill in goal/problem/diagnosis items above, then click "↑ generate plan")
+              </div>
+            )}
             {generationError && (
               <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
                 {generationError}

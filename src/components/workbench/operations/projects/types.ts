@@ -23,10 +23,13 @@ export interface Project {
   user_id: string;
   entity_id: string;
   title: string;
-  goal: string;
-  problem: string;
-  diagnosis: string;
-  design: string;
+  goal: string | null;
+  problem: string | null;
+  diagnosis: string | null;
+  design: string | null;
+  goal_items: string[];
+  problem_items: string[];
+  diagnosis_items: string[];
   status: ProjectStatus;
   target_completion_date: string | null;
   estimated_total_minutes: number | null;
@@ -51,10 +54,10 @@ export interface Project {
 export interface ProjectForm {
   entity_id: string;
   title: string;
-  goal: string;
-  problem: string;
-  diagnosis: string;
   design: string;
+  goalItems: string[];
+  problemItems: string[];
+  diagnosisItems: string[];
   status: ProjectStatus;
   target_completion_date: string;          // ISO date (yyyy-mm-dd) or empty
   estimated_total_minutes: string;         // string for input binding; coerced server-side
@@ -64,10 +67,10 @@ export interface ProjectForm {
 export const DEFAULT_PROJECT_FORM: ProjectForm = {
   entity_id: '',
   title: '',
-  goal: '',
-  problem: '',
-  diagnosis: '',
   design: '',
+  goalItems: [],
+  problemItems: [],
+  diagnosisItems: [],
   status: 'not_started',
   target_completion_date: '',
   estimated_total_minutes: '',
