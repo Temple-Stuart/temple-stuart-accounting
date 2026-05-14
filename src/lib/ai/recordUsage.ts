@@ -19,6 +19,14 @@
  * scoped), NOT the usage row itself. This means filtering audit_log by
  * target_table='operations_projects' AND target_id=X surfaces every
  * event affecting the project including AI generations.
+ *
+ * PR-Ops-3.8: optional `tools` + `toolChoice` enable structured-output
+ * synthesis. When the caller passes a forced custom tool_choice plus
+ * the web_search_20250305 server tool, Claude can do web research and
+ * return structured JSON in one shot. Custom tool_use blocks are
+ * extracted into `toolUses` for the caller; server-side blocks
+ * (server_tool_use, web_search_tool_result) stay inline in
+ * full_response for audit-tail inspection only.
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -44,6 +52,16 @@ interface RecordUsageInput {
   targetId: string | null;    // e.g., the project's UUID
   inputsSummary: string | null;  // human-readable digest
   auditDescription: string;   // e.g., 'Generated design for "Project X"'
+
+  /**
+   * Optional tool-use parameters (PR-Ops-3.8). Passing `tools` enables
+   * web_search server tools or custom tools; passing `toolChoice` (e.g.,
+   * `{ type: 'tool', name: 'return_project_tasks' }`) forces structured
+   * JSON output via a custom tool. Both omitted = existing single-shot
+   * text behavior.
+   */
+  tools?: Anthropic.ToolUnion[];
+  toolChoice?: Anthropic.ToolChoice;
 }
 
 interface RecordUsageOutput {
@@ -70,27 +88,62 @@ interface RecordUsageOutput {
     userMessage: string;
     rawResponse: string;
   };
+  /**
+   * Custom tool invocations extracted from response.content. Only
+   * client-defined tools (e.g., return_project_tasks) appear here.
+   * Server-side tools (web_search_20250305) stay in full_response
+   * (via JSON.stringify of the raw content array) but are excluded
+   * here so callers don't accidentally treat web search inputs as
+   * structured outputs.
+   */
+  toolUses?: Array<{ id: string; name: string; input: unknown }>;
 }
 
 export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageOutput> {
   const client = getAnthropicClient();
 
-  const response = await client.messages.create({
+  const createParams: Anthropic.MessageCreateParamsNonStreaming = {
     model: input.model,
     max_tokens: input.maxTokens,
     temperature: input.temperature,
     system: input.systemPrompt,
     messages: [{ role: 'user', content: input.userMessage }],
-  });
+  };
+  if (input.tools && input.tools.length > 0) {
+    createParams.tools = input.tools;
+  }
+  if (input.toolChoice) {
+    createParams.tool_choice = input.toolChoice;
+  }
+
+  const response = await client.messages.create(createParams);
 
   const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('');
 
+  // Custom tool_use blocks (client-defined tools only). server_tool_use
+  // and web_search_tool_result blocks are excluded — they live in
+  // full_response (raw JSON) for inspection but aren't structured
+  // outputs the caller should parse.
+  const toolUses = response.content
+    .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+    .map((b) => ({ id: b.id, name: b.name, input: b.input }));
+
   const inputTokens = response.usage.input_tokens;
   const outputTokens = response.usage.output_tokens;
   const costUsd = computeCostUsd(input.model, inputTokens, outputTokens);
+
+  // full_response captures the entire content array (text + tool_use +
+  // server_tool_use + web_search_tool_result) when tools are in play,
+  // or the plain text when not. JSON.stringify of the array preserves
+  // every block for forensic replay; plain text preserves the legacy
+  // shape for non-tool callers.
+  const fullResponseForPersistence =
+    input.tools && input.tools.length > 0
+      ? JSON.stringify(response.content)
+      : text;
 
   const outputSummary =
     text.length > 200 ? `${text.length} chars; preview: ${text.slice(0, 180)}…` : text;
@@ -109,7 +162,7 @@ export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageO
       output_summary: outputSummary,
       full_system_prompt: input.systemPrompt,
       full_user_message: input.userMessage,
-      full_response: text,
+      full_response: fullResponseForPersistence,
       created_by: input.userEmail,
     },
   });
@@ -152,7 +205,8 @@ export async function recordUsage(input: RecordUsageInput): Promise<RecordUsageO
       maxTokens: input.maxTokens,
       systemPrompt: input.systemPrompt,
       userMessage: input.userMessage,
-      rawResponse: text,
+      rawResponse: fullResponseForPersistence,
     },
+    toolUses: toolUses.length > 0 ? toolUses : undefined,
   };
 }
