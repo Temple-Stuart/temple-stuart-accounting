@@ -13,7 +13,7 @@
     "seed:regulatory": "tsx src/lib/regulatory/seedRegulatorySources.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
+    "@anthropic-ai/sdk": "^0.96.0",
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^5.22.0",
     "@stripe/stripe-js": "^8.7.0",
