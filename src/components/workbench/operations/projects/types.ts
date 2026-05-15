@@ -130,6 +130,8 @@ export interface Task {
   priority_computed_at: string | null;
   priority_rationale: string | null;
   unblocks_label: string | null;
+  link_url: string | null;
+  notes: string | null;
   display_order: number;
   completed_at: string | null;
   created_at: string;
