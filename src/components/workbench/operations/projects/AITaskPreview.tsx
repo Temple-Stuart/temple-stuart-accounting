@@ -44,6 +44,17 @@ interface Props {
   onAccepted: (createdTasks: unknown[]) => void;
   onDiscarded: () => void;
   inspection?: InspectionData;
+  /**
+   * When provided, the accept button bypasses the bulk-create POST and
+   * delegates persistence entirely to the caller. Used by SectionD's
+   * preview-before-create flow, where the project row does not yet
+   * exist and the caller must create the project first, then bulk-
+   * create tasks against the returned id.
+   */
+  onAcceptStateless?: (
+    tasks: AIGeneratedTask[],
+    sourceAiUsageId: string
+  ) => Promise<void>;
 }
 
 interface EditableTask {
@@ -71,6 +82,7 @@ export default function AITaskPreview({
   onAccepted,
   onDiscarded,
   inspection,
+  onAcceptStateless,
 }: Props) {
   const [editable, setEditable] = useState<EditableTask[]>(() =>
     tasks.map(toEditable).sort((a, b) => a.suggested_order - b.suggested_order)
@@ -86,13 +98,26 @@ export default function AITaskPreview({
     setSubmitting(true);
     setError(null);
     try {
+      const editedTasks: AIGeneratedTask[] = editable.map((t) => ({
+        title: t.title.trim(),
+        description: t.description.trim(),
+        link_url: t.link_url.trim() || null,
+        notes: t.notes.trim() || null,
+        suggested_order: t.suggested_order,
+      }));
+
+      if (onAcceptStateless) {
+        await onAcceptStateless(editedTasks, sourceAiUsageId);
+        return;
+      }
+
       const payload = {
         source_ai_usage_id: sourceAiUsageId,
-        tasks: editable.map((t) => ({
-          title: t.title.trim(),
-          description: t.description.trim() || null,
-          link_url: t.link_url.trim() || null,
-          notes: t.notes.trim() || null,
+        tasks: editedTasks.map((t) => ({
+          title: t.title,
+          description: t.description || null,
+          link_url: t.link_url,
+          notes: t.notes,
           suggested_order: t.suggested_order,
         })),
       };
