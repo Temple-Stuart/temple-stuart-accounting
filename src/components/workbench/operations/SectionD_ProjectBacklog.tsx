@@ -20,9 +20,10 @@ import { useEffect, useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import ProjectRow from './projects/ProjectRow';
 import ListManager from './projects/ListManager';
+import AITaskPreview, { type AIGeneratedTask } from './projects/AITaskPreview';
 import type { Project, ProjectForm } from './projects/types';
 import { DEFAULT_PROJECT_FORM } from './projects/types';
-import InspectionDrawer from './ai/InspectionDrawer';
+import InspectionDrawer, { type InspectionData } from './ai/InspectionDrawer';
 
 interface Entity {
   id: string;
@@ -61,6 +62,14 @@ export default function SectionD_ProjectBacklog() {
     userMessage: string;
     rawResponse: string;
     usageId: string;
+  } | null>(null);
+
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
+  const [tasksPreview, setTasksPreview] = useState<{
+    tasks: AIGeneratedTask[];
+    sourceAiUsageId: string;
+    inspection?: InspectionData;
   } | null>(null);
 
   const handleGenerateCreateDesign = async () => {
@@ -118,6 +127,119 @@ export default function SectionD_ProjectBacklog() {
     } finally {
       setGeneratingCreateDesign(false);
     }
+  };
+
+  const isFormValidForAI = () => {
+    const title = createForm.title?.trim() ?? '';
+    return (
+      title.length > 0 &&
+      createForm.goalItems.length > 0 &&
+      createForm.problemItems.length > 0 &&
+      createForm.diagnosisItems.length > 0
+    );
+  };
+
+  const handleGenerateTasksPreview = async () => {
+    if (!isFormValidForAI()) {
+      setTasksError(
+        'Title, goal, problem, and diagnosis are all required (with at least one item each).'
+      );
+      return;
+    }
+
+    setTasksError(null);
+    setTasksPreview(null);
+    setTasksLoading(true);
+    try {
+      const res = await fetch('/api/operations/ai/generate-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectTitle: createForm.title.trim(),
+          goalItems: createForm.goalItems,
+          problemItems: createForm.problemItems,
+          diagnosisItems: createForm.diagnosisItems,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setTasksError(body?.error ?? 'Failed to generate tasks');
+        return;
+      }
+      const inspection: InspectionData | undefined = body.inspection
+        ? {
+            model: body.inspection.model,
+            temperature: body.inspection.temperature,
+            maxTokens: body.inspection.maxTokens,
+            systemPrompt: body.inspection.systemPrompt,
+            userMessage: body.inspection.userMessage,
+            rawResponse: body.inspection.rawResponse,
+            inputTokens: body.inputTokens,
+            outputTokens: body.outputTokens,
+            costUsd: body.costUsd,
+            usageId: body.usageId,
+          }
+        : undefined;
+      setTasksPreview({
+        tasks: body.tasks,
+        sourceAiUsageId: body.usageId,
+        inspection,
+      });
+    } catch (e) {
+      setTasksError(e instanceof Error ? e.message : 'Failed to generate tasks');
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  const handleAcceptStatelessTasks = async (
+    acceptedTasks: AIGeneratedTask[],
+    sourceAiUsageId: string
+  ) => {
+    const projectRes = await fetch('/api/operations/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createForm),
+    });
+    const projectBody = await projectRes.json();
+    if (!projectRes.ok) {
+      throw new Error(
+        projectBody?.message ?? projectBody?.error ?? 'failed to create project'
+      );
+    }
+    const newProjectId = projectBody?.project?.id;
+    if (!newProjectId) {
+      throw new Error('project create response missing project.id');
+    }
+
+    const bulkRes = await fetch(
+      `/api/operations/projects/${newProjectId}/tasks/bulk-create`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_ai_usage_id: sourceAiUsageId,
+          tasks: acceptedTasks.map((t) => ({
+            title: t.title,
+            description: t.description || null,
+            link_url: t.link_url,
+            notes: t.notes,
+            suggested_order: t.suggested_order,
+          })),
+        }),
+      }
+    );
+    const bulkBody = await bulkRes.json();
+    if (!bulkRes.ok) {
+      throw new Error(
+        bulkBody?.message ?? bulkBody?.error ?? 'failed to bulk-create tasks'
+      );
+    }
+
+    setTasksPreview(null);
+    setTasksError(null);
+    cancelCreate();
+    fetchProjects();
   };
 
   const fetchProjects = async () => {
@@ -415,6 +537,15 @@ export default function SectionD_ProjectBacklog() {
             </button>
             <button
               type="button"
+              onClick={handleGenerateTasksPreview}
+              disabled={tasksLoading || createSaving || !isFormValidForAI()}
+              className="px-3 py-1 border border-brand-purple text-brand-purple rounded hover:bg-purple-50 disabled:opacity-50"
+              title="Generate AI task array now; review and edit before committing the project + tasks together"
+            >
+              {tasksLoading ? 'generating…' : '↑ preview tasks'}
+            </button>
+            <button
+              type="button"
               onClick={cancelCreate}
               disabled={createSaving}
               className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
@@ -422,6 +553,27 @@ export default function SectionD_ProjectBacklog() {
               cancel
             </button>
           </div>
+
+          {tasksError && (
+            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+              {tasksError}
+            </div>
+          )}
+
+          {tasksPreview && (
+            <AITaskPreview
+              tasks={tasksPreview.tasks}
+              sourceAiUsageId={tasksPreview.sourceAiUsageId}
+              projectId=""
+              onAccepted={() => {}}
+              onDiscarded={() => {
+                setTasksPreview(null);
+                setTasksError(null);
+              }}
+              inspection={tasksPreview.inspection}
+              onAcceptStateless={handleAcceptStatelessTasks}
+            />
+          )}
         </div>
       )}
 

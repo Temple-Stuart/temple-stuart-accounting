@@ -22,7 +22,8 @@ import { STATUS_LABELS, STATUS_PILL_CLASSES } from './types';
 import TaskList from './TaskList';
 import DependencyList from './DependencyList';
 import ListManager from './ListManager';
-import InspectionDrawer from '../ai/InspectionDrawer';
+import InspectionDrawer, { type InspectionData } from '../ai/InspectionDrawer';
+import AITaskPreview, { type AIGeneratedTask } from './AITaskPreview';
 
 interface Entity {
   id: string;
@@ -100,6 +101,14 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     userMessage: string;
     rawResponse: string;
     usageId: string;
+  } | null>(null);
+  const [generatingTasks, setGeneratingTasks] = useState(false);
+  const [tasksGenError, setTasksGenError] = useState<string | null>(null);
+  const [tasksPreview, setTasksPreview] = useState<{
+    tasks: AIGeneratedTask[];
+    sourceAiUsageId: string;
+    inspection?: InspectionData;
+    costSummary?: { cost_usd: string; input_tokens: number; output_tokens: number };
   } | null>(null);
   const [flash, setFlash] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -194,6 +203,50 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       setGenerationError(e instanceof Error ? e.message : 'failed to generate design');
     } finally {
       setGeneratingDesign(false);
+    }
+  };
+
+  const handleGenerateTasks = async () => {
+    setGeneratingTasks(true);
+    setTasksGenError(null);
+    setTasksPreview(null);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}/generate-tasks`, {
+        method: 'POST',
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setTasksGenError(body?.message ?? body?.error ?? 'failed to generate tasks');
+        return;
+      }
+      const insp: InspectionData | undefined = body.inspection
+        ? {
+            model: body.inspection.model,
+            temperature: body.inspection.temperature,
+            maxTokens: body.inspection.maxTokens,
+            systemPrompt: body.inspection.systemPrompt,
+            userMessage: body.inspection.userMessage,
+            rawResponse: body.inspection.rawResponse,
+            inputTokens: body.input_tokens,
+            outputTokens: body.output_tokens,
+            costUsd: body.cost_usd,
+            usageId: body.usage_id,
+          }
+        : undefined;
+      setTasksPreview({
+        tasks: body.tasks as AIGeneratedTask[],
+        sourceAiUsageId: body.usage_id,
+        inspection: insp,
+        costSummary: {
+          cost_usd: body.cost_usd,
+          input_tokens: body.input_tokens,
+          output_tokens: body.output_tokens,
+        },
+      });
+    } catch (e) {
+      setTasksGenError(e instanceof Error ? e.message : 'failed to generate tasks');
+    } finally {
+      setGeneratingTasks(false);
     }
   };
 
@@ -510,6 +563,54 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>5 · execute (tasks) — AI-generated</div>
+              <button
+                type="button"
+                onClick={handleGenerateTasks}
+                disabled={generatingTasks}
+                className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded text-xs font-mono hover:bg-purple-50 disabled:opacity-50"
+                title="Generate institutional-rigor task array (web-search verified URLs) from your goal/problem/diagnosis items"
+              >
+                {generatingTasks ? 'generating…' : '↑ generate tasks'}
+              </button>
+            </div>
+            {!tasksPreview && (
+              <div className="text-text-muted text-xs font-mono italic p-3 bg-bg-row border border-border-light rounded">
+                (tasks are saved directly to this project on accept — click "↑ generate tasks" to synthesize an atomic task array from the goal/problem/diagnosis items above)
+              </div>
+            )}
+            {tasksGenError && (
+              <div className="mt-2 px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+                {tasksGenError}
+              </div>
+            )}
+            {tasksPreview && (
+              <>
+                {tasksPreview.costSummary && (
+                  <div className="text-text-muted text-xs font-mono text-right mb-1">
+                    ${tasksPreview.costSummary.cost_usd} · {tasksPreview.costSummary.input_tokens} in · {tasksPreview.costSummary.output_tokens} out
+                  </div>
+                )}
+                <AITaskPreview
+                  tasks={tasksPreview.tasks}
+                  sourceAiUsageId={tasksPreview.sourceAiUsageId}
+                  projectId={project.id}
+                  inspection={tasksPreview.inspection}
+                  onAccepted={() => {
+                    setTasksPreview(null);
+                    setTasksGenError(null);
+                  }}
+                  onDiscarded={() => {
+                    setTasksPreview(null);
+                    setTasksGenError(null);
+                  }}
+                />
+              </>
             )}
           </div>
 

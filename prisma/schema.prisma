@@ -2585,6 +2585,8 @@ model operations_project_tasks {
   priority_computed_at DateTime?            @db.Timestamptz(6)
   priority_rationale   String?              @db.Text
   unblocks_label       String?              @db.Text
+  link_url             String?              @db.Text
+  notes                String?              @db.Text
   display_order        Int                  @default(0)
   completed_at         DateTime?            @db.Timestamptz(6)
   created_at           DateTime             @default(now()) @db.Timestamptz(6)

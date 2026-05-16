@@ -130,6 +130,8 @@ export interface Task {
   priority_computed_at: string | null;
   priority_rationale: string | null;
   unblocks_label: string | null;
+  link_url: string | null;
+  notes: string | null;
   display_order: number;
   completed_at: string | null;
   created_at: string;
@@ -151,6 +153,8 @@ export interface TaskForm {
   estimated_cost_usd: string;       // string for decimal fidelity
   deadline: string;                 // ISO date (yyyy-mm-dd) or empty
   unblocks_label: string;
+  link_url?: string;
+  notes?: string;
 }
 
 export const DEFAULT_TASK_FORM: TaskForm = {
@@ -164,10 +168,10 @@ export const DEFAULT_TASK_FORM: TaskForm = {
 };
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  open: 'open',
-  in_progress: 'in progress',
+  open: 'new',
+  in_progress: 'in process',
   blocked: 'blocked',
-  completed: 'completed',
+  completed: 'done',
   cancelled: 'cancelled',
 };
 

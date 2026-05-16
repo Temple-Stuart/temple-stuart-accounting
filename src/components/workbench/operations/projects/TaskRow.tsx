@@ -14,6 +14,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import type { Task, TaskForm, TaskStatus } from './types';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
 
@@ -42,6 +43,8 @@ function taskToForm(t: Task): TaskForm {
     estimated_cost_usd: t.estimated_cost_usd ?? '',
     deadline: t.deadline ? t.deadline.slice(0, 10) : '',
     unblocks_label: t.unblocks_label ?? '',
+    link_url: t.link_url ?? '',
+    notes: t.notes ?? '',
   };
 }
 
@@ -52,6 +55,7 @@ function formatDate(iso: string | null): string {
 
 export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<TaskForm>(() => taskToForm(task));
   const [saving, setSaving] = useState(false);
@@ -169,6 +173,18 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
           >
             {task.title}
           </span>
+          {task.link_url && (
+            <a
+              href={task.link_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title={task.link_url}
+              className="shrink-0 text-brand-purple hover:opacity-80"
+            >
+              <ExternalLink className="w-3.5 h-3.5" strokeWidth={2} />
+            </a>
+          )}
           <span className={pillClass}>{TASK_STATUS_LABELS[task.status]}</span>
           {task.deadline && (
             <span className="text-text-muted">due {formatDate(task.deadline)}</span>
@@ -209,6 +225,37 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
             <div>
               <div className={labelClass}>unblocks</div>
               <div className="text-text-primary whitespace-pre-wrap">{task.unblocks_label}</div>
+            </div>
+          )}
+
+          {task.link_url && (
+            <div>
+              <div className={labelClass}>link</div>
+              <a
+                href={task.link_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-brand-purple hover:underline break-all"
+              >
+                <ExternalLink className="w-3 h-3" strokeWidth={2} />
+                <span>{task.link_url}</span>
+              </a>
+            </div>
+          )}
+
+          {task.notes && (
+            <div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setNotesOpen((x) => !x); }}
+                className="flex items-center gap-1 text-text-faint uppercase tracking-wide text-xs font-mono hover:text-text-primary"
+              >
+                <span>{notesOpen ? '▾' : '▸'}</span>
+                <span>notes ({task.notes.length} chars)</span>
+              </button>
+              {notesOpen && (
+                <div className="mt-1 text-text-primary whitespace-pre-wrap">{task.notes}</div>
+              )}
             </div>
           )}
 
@@ -334,6 +381,30 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
                 placeholder="0.00"
               />
             </div>
+          </div>
+
+          <div>
+            <div className={labelClass}>link url (vendor / portal)</div>
+            <input
+              type="url"
+              value={form.link_url ?? ''}
+              onChange={(e) => setForm({ ...form, link_url: e.target.value })}
+              className={inputClass}
+              maxLength={500}
+              placeholder="https://..."
+            />
+          </div>
+
+          <div>
+            <div className={labelClass}>notes (institutional context)</div>
+            <textarea
+              value={form.notes ?? ''}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              rows={6}
+              className={inputClass}
+              maxLength={1500}
+              placeholder="dependencies, timing anchors, decision points, gotchas..."
+            />
           </div>
 
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">

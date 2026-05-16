@@ -1,0 +1,253 @@
+/**
+ * generateProjectTasks — produces an institutional-rigor structured
+ * array of operational tasks for a project, given its GOAL / PROBLEM /
+ * DIAGNOSIS items.
+ *
+ * Uses Claude Sonnet 4 with:
+ *   - web_search_20250305 server tool (max 8 searches) for verifying
+ *     vendor URLs and current process names
+ *   - return_project_tasks custom tool (forced via tool_choice) for
+ *     structured JSON output
+ *
+ * Returns the parsed tasks array + cost metadata + inspection block;
+ * does NOT auto-save to the database. Caller (bulk-create endpoint)
+ * explicitly inserts tasks after user acceptance.
+ *
+ * Truth-first: user owns INPUTS (item arrays), AI owns SYNTHESIS
+ * (tasks array), explicit acceptance gate (use-this button in
+ * AITaskPreview) between them.
+ */
+
+import { recordUsage } from './recordUsage';
+import { MODEL_SONNET_4 } from './client';
+import { PROJECT_DESIGN_EXEMPLAR } from './exemplars/projectDesign';
+
+interface GenerateInput {
+  userId: string;
+  userEmail: string;
+  projectId: string;            // empty string for stateless mode
+  projectTitle: string;
+  goalItems: string[];
+  problemItems: string[];
+  diagnosisItems: string[];
+}
+
+interface GeneratedTask {
+  title: string;
+  description: string;
+  link_url: string | null;
+  notes: string | null;
+  suggested_order: number;
+}
+
+interface GenerateOutput {
+  tasks: GeneratedTask[];
+  usageId: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: string;
+  inspection: {
+    model: string;
+    temperature: number;
+    maxTokens: number;
+    systemPrompt: string;
+    userMessage: string;
+    rawResponse: string;
+  };
+}
+
+function bulletList(items: string[]): string {
+  if (items.length === 0) return '(none provided)';
+  return items.map((item) => `- ${item}`).join('\n');
+}
+
+const TASK_SCHEMA = {
+  type: 'object',
+  properties: {
+    tasks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', maxLength: 200, description: 'Declarative action title' },
+          description: { type: 'string', maxLength: 1000, description: 'Operational detail of what to do' },
+          link_url: { type: 'string', description: 'Verified vendor URL relevant to the task' },
+          notes: { type: 'string', maxLength: 1500, description: 'Institutional context: dependencies, timing, decision points, gotchas' },
+          suggested_order: { type: 'integer', minimum: 0, description: '0-indexed recommended sequence' },
+        },
+        required: ['title', 'description', 'suggested_order'],
+      },
+      minItems: 1,
+      maxItems: 30,
+    },
+  },
+  required: ['tasks'],
+} as const;
+
+const SYSTEM_PROMPT = `You are a project scoping expert trained on the institutional rigor of Bridgewater Associates' Principles, Citadel's risk discipline, and Renaissance Technologies' empirical method.
+
+Your job: produce a structured array of atomic operational tasks that, when completed in order, will accomplish the user's GOAL.
+
+INPUTS (from the user, in natural-voice item arrays):
+  - GOAL items: "I WANT ..." (target end states)
+  - PROBLEM items: "I DID NOT ... / I HAVE NOT ..." (current gaps)
+  - DIAGNOSIS items: "I NEED TO ..." (root requirements)
+
+OUTPUTS (you produce, via the return_project_tasks tool):
+  An array of 5–30 atomic operational tasks. Each task carries:
+    - title: ≤200 char declarative action ("File FAFSA 2026-2027")
+    - description: ≤1000 char operational detail (what to do exactly)
+    - link_url: VERIFIED URL for the relevant vendor/portal/agency form
+    - notes: ≤1500 char institutional context — dependencies, timing,
+             gotchas, decision points, blockers. This is where the
+             reasoning that previously lived in prose plans now lives.
+    - suggested_order: 0-indexed integer for recommended sequence
+
+WEB SEARCH BUDGET — UP TO 8 SEARCHES:
+  Before producing tasks, use the web_search tool to verify current
+  vendor URLs, form names, portal navigation paths, and process steps.
+  Prefer .gov / official vendor domains. Don't waste searches on
+  general explanations; use them to anchor SPECIFIC URLs and CURRENT
+  process names. If you cannot verify a URL within the search budget,
+  set link_url to null rather than fabricating.
+
+INSTITUTIONAL NOTES INSTRUCTION:
+  Each task's notes field should answer: WHY this task matters and
+  WHAT it depends on. Reference the user's specific diagnosis when
+  relevant. Surface real-world dependencies the user may not know
+  about (e.g., "FAFSA pulls IRS data via Data Retrieval Tool, which
+  needs tax return filed first"). The notes are the operator's
+  briefing material for executing the task. Include:
+    - Upstream/downstream dependencies on OTHER tasks
+    - Specific timing anchors (real deadlines, not "~2 weeks")
+    - Decision points: "if X happens during this task, do Y"
+    - Cost/time estimates when possible
+    - Vendor-specific gotchas you discovered via web search
+
+DECLARATIVE VOICE:
+  Do NOT echo the I WANT / I DID NOT / I NEED TO grammar. Tasks
+  speak as the system's plan ("File FAFSA 2026-2027"), not the
+  operator's first-person commitment.
+
+ORDERING:
+  suggested_order starts at 0 and increments. Tasks that block
+  other tasks should have lower suggested_order. Independent tasks
+  can share the same order (parallelizable). The operator may
+  re-order after acceptance.
+
+═══════════════════════════════════════════════════════════════════════════════
+EXEMPLAR — INSTITUTIONAL GOLD STANDARD
+═══════════════════════════════════════════════════════════════════════════════
+
+Project title: "${PROJECT_DESIGN_EXEMPLAR.title}"
+
+GOAL items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.goal_items as unknown as string[])}
+
+PROBLEM items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.problem_items as unknown as string[])}
+
+DIAGNOSIS items:
+${bulletList(PROJECT_DESIGN_EXEMPLAR.diagnosis_items as unknown as string[])}
+
+tasks_exemplar (THIS is the shape of what you produce):
+\`\`\`json
+${JSON.stringify(PROJECT_DESIGN_EXEMPLAR.tasks_exemplar, null, 2)}
+\`\`\`
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Now produce tasks for the user's project below at this exact rigor. Verify URLs via web_search. Then call return_project_tasks with the structured array.`;
+
+export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
+  const userMessage = `Project title: "${input.projectTitle}"
+
+GOAL items:
+${bulletList(input.goalItems)}
+
+PROBLEM items:
+${bulletList(input.problemItems)}
+
+DIAGNOSIS items:
+${bulletList(input.diagnosisItems)}
+
+Web-search to verify vendor URLs (max 8 searches). Then call return_project_tasks with the structured task array.`;
+
+  const inputsSummary =
+    `project_id=${input.projectId}; ` +
+    `goal_items_count=${input.goalItems.length}; ` +
+    `problem_items_count=${input.problemItems.length}; ` +
+    `diagnosis_items_count=${input.diagnosisItems.length}`;
+
+  const isStateless = !input.projectId;
+
+  const result = await recordUsage({
+    userId: input.userId,
+    userEmail: input.userEmail,
+    model: MODEL_SONNET_4,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
+    maxTokens: 4000,
+    temperature: 0.3,
+    purpose: isStateless
+      ? 'project_tasks_generation_create_form'
+      : 'project_tasks_generation',
+    targetTable: isStateless ? null : 'operations_projects',
+    targetId: isStateless ? null : input.projectId,
+    inputsSummary,
+    auditDescription: isStateless
+      ? `Generated tasks for new project "${input.projectTitle}" (create form, no project_id yet)`
+      : `Generated tasks for project "${input.projectTitle}"`,
+    tools: [
+      {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 8,
+      },
+      {
+        name: 'return_project_tasks',
+        description: 'Return the structured task array as the final output.',
+        input_schema: TASK_SCHEMA,
+      },
+    ] as any,
+    toolChoice: { type: 'tool', name: 'return_project_tasks' } as any,
+  });
+
+  // Extract the structured task array from the return_project_tasks tool use.
+  const taskToolUse = (result.toolUses ?? []).find((t) => t.name === 'return_project_tasks');
+  if (!taskToolUse) {
+    throw new Error('AI did not invoke return_project_tasks tool — synthesis failed');
+  }
+
+  const toolInput = taskToolUse.input as { tasks?: unknown };
+  if (!toolInput || !Array.isArray(toolInput.tasks)) {
+    throw new Error('return_project_tasks tool input did not contain a tasks array');
+  }
+
+  const tasks: GeneratedTask[] = toolInput.tasks
+    .filter((t): t is Record<string, unknown> => typeof t === 'object' && t !== null)
+    .map((t, i) => ({
+      title: typeof t.title === 'string' ? t.title.trim().slice(0, 200) : `Task ${i + 1}`,
+      description: typeof t.description === 'string' ? t.description.trim().slice(0, 1000) : '',
+      link_url: typeof t.link_url === 'string' && t.link_url.trim().length > 0
+        ? t.link_url.trim()
+        : null,
+      notes: typeof t.notes === 'string' && t.notes.trim().length > 0
+        ? t.notes.trim().slice(0, 1500)
+        : null,
+      suggested_order: typeof t.suggested_order === 'number' ? t.suggested_order : i,
+    }));
+
+  if (tasks.length === 0) {
+    throw new Error('AI returned empty tasks array');
+  }
+
+  return {
+    tasks,
+    usageId: result.usageId,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    costUsd: result.costUsd,
+    inspection: result.inspection,
+  };
+}

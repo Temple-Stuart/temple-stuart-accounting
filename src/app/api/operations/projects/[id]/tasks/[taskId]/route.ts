@@ -117,6 +117,28 @@ export async function PATCH(
       data.unblocks_label = trimNonEmpty(body.unblocks_label);
     }
 
+    if (body.link_url !== undefined) {
+      const u = trimNonEmpty(body.link_url);
+      if (u !== null && u.length > 500) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'link_url', message: 'max 500 chars' },
+          { status: 400 }
+        );
+      }
+      data.link_url = u;
+    }
+
+    if (body.notes !== undefined) {
+      const n = trimNonEmpty(body.notes);
+      if (n !== null && n.length > 1500) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'notes', message: 'max 1500 chars' },
+          { status: 400 }
+        );
+      }
+      data.notes = n;
+    }
+
     if (body.deadline !== undefined) {
       data.deadline =
         typeof body.deadline === 'string' && body.deadline.length > 0
