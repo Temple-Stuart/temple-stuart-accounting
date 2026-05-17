@@ -2510,6 +2510,14 @@ enum OperationsTaskStatus {
   cancelled
 }
 
+enum CalendarBlockStatus {
+  scheduled
+  in_progress
+  completed
+  missed
+  cancelled
+}
+
 enum ProjectDependencyType {
   blocks
   informs
@@ -2587,19 +2595,87 @@ model operations_project_tasks {
   unblocks_label       String?              @db.Text
   link_url             String?              @db.Text
   notes                String?              @db.Text
+  coa_code             String?              @db.VarChar(50)
+  actual_cost_usd      Decimal?             @db.Decimal(15, 2)
+  actual_minutes       Int?
   display_order        Int                  @default(0)
   completed_at         DateTime?            @db.Timestamptz(6)
   created_at           DateTime             @default(now()) @db.Timestamptz(6)
   updated_at           DateTime             @updatedAt @db.Timestamptz(6)
   created_by           String?
 
-  project operations_projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  project          operations_projects              @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  daily_plan_items operations_daily_plan_items[]
+  status_history   operations_task_status_history[]
 
   @@index([project_id, status, display_order])
   @@index([user_id, status, priority_score])
   @@index([deadline])
   @@index([entity_id])
+  @@index([coa_code])
   @@map("operations_project_tasks")
+}
+
+model operations_daily_plan_items {
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String
+  entity_id          String
+  plan_date          DateTime @db.Date
+  task_id            String?  @db.Uuid
+  ad_hoc_title       String?  @db.VarChar(500)
+  ad_hoc_description String?  @db.Text
+  display_order      Int      @default(0)
+  notes              String?  @db.Text
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @updatedAt @db.Timestamptz(6)
+  created_by         String?
+
+  task            operations_project_tasks?   @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  calendar_blocks operations_calendar_blocks[]
+
+  @@index([user_id, plan_date])
+  @@index([task_id])
+  @@index([entity_id])
+  @@map("operations_daily_plan_items")
+}
+
+model operations_calendar_blocks {
+  id                 String              @id @default(uuid()) @db.Uuid
+  user_id            String
+  entity_id          String
+  daily_plan_item_id String              @db.Uuid
+  scheduled_start    DateTime            @db.Timestamptz(6)
+  scheduled_end      DateTime            @db.Timestamptz(6)
+  actual_start       DateTime?           @db.Timestamptz(6)
+  actual_end         DateTime?           @db.Timestamptz(6)
+  status             CalendarBlockStatus @default(scheduled)
+  notes              String?             @db.Text
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime            @updatedAt @db.Timestamptz(6)
+  created_by         String?
+
+  daily_plan_item operations_daily_plan_items @relation(fields: [daily_plan_item_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, scheduled_start, scheduled_end])
+  @@index([daily_plan_item_id])
+  @@map("operations_calendar_blocks")
+}
+
+model operations_task_status_history {
+  id              String                @id @default(uuid()) @db.Uuid
+  task_id         String                @db.Uuid
+  user_id         String
+  previous_status OperationsTaskStatus?
+  new_status      OperationsTaskStatus
+  changed_at      DateTime              @default(now()) @db.Timestamptz(6)
+  changed_by      String?
+  reason          String?               @db.Text
+
+  task operations_project_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@index([task_id, changed_at(sort: Desc)])
+  @@index([user_id, changed_at(sort: Desc)])
+  @@map("operations_task_status_history")
 }
 
 model operations_project_dependencies {
