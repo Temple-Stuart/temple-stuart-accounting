@@ -20,6 +20,7 @@ import { Prisma, OperationsTaskStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
   'open',
@@ -221,9 +222,37 @@ export async function PATCH(
           : null;
     }
 
-    const task = await prisma.operations_project_tasks.update({
-      where: { id: taskId },
-      data,
+    const reason =
+      typeof body.reason === 'string' && body.reason.trim().length > 0
+        ? body.reason.trim().slice(0, 1500)
+        : null;
+
+    // Task update + status-history insert commit atomically: a status
+    // change can never land without its operations_task_status_history row.
+    const task = await prisma.$transaction(async (tx) => {
+      const current = await tx.operations_project_tasks.findUnique({
+        where: { id: taskId },
+      });
+      if (!current) {
+        throw new Error('Task disappeared mid-transaction');
+      }
+
+      if (statusTransition) {
+        await recordTaskStatusChange(
+          tx,
+          taskId,
+          user.id,
+          current.status,
+          statusTransition.to,
+          userEmail,
+          reason
+        );
+      }
+
+      return tx.operations_project_tasks.update({
+        where: { id: taskId },
+        data,
+      });
     });
 
     let actionType: 'operations_project_task_completed' | 'operations_project_task_status_changed' | 'operations_project_task_updated';
