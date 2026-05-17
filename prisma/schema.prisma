@@ -2048,6 +2048,12 @@ enum AuditActionType {
   operations_routine_updated
   operations_routine_deactivated
   operations_routine_deleted
+  operations_daily_plan_item_created
+  operations_daily_plan_item_updated
+  operations_daily_plan_item_deleted
+  operations_calendar_block_created
+  operations_calendar_block_updated
+  operations_calendar_block_deleted
   operations_routine_completed
   operations_routine_missed
   operations_issue_logged
