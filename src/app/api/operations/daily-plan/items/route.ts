@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -152,6 +153,12 @@ export async function POST(request: NextRequest) {
     let finalAdHocDescription: string | null = null;
 
     if (taskIdRaw) {
+      if (!isValidUuid(taskIdRaw)) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'task_id', message: 'Invalid UUID format' },
+          { status: 400 }
+        );
+      }
       // Task-linked: defensive 404 on cross-user, entity_id derived from task.
       const task = await prisma.operations_project_tasks.findFirst({
         where: { id: taskIdRaw, user_id: user.id },

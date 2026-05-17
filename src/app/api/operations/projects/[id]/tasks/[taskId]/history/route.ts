@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 export async function GET(
   _request: NextRequest,
@@ -24,6 +25,12 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { id: projectId, taskId } = await params;
+    if (!isValidUuid(projectId)) {
+      return NextResponse.json({ error: 'Validation', field: 'id', message: 'Invalid UUID format' }, { status: 400 });
+    }
+    if (!isValidUuid(taskId)) {
+      return NextResponse.json({ error: 'Validation', field: 'taskId', message: 'Invalid UUID format' }, { status: 400 });
+    }
 
     const task = await prisma.operations_project_tasks.findFirst({
       where: { id: taskId, project_id: projectId },

@@ -17,6 +17,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { loadAuthorizedDailyPlanItem } from '@/lib/operations/loadAuthorizedDailyPlanItem';
 import { detectBlockConflicts } from '@/lib/operations/detectBlockConflicts';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 const VALID_STATUSES: CalendarBlockStatus[] = [
   'scheduled',
@@ -46,6 +47,9 @@ export async function POST(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { itemId } = await params;
+    if (!isValidUuid(itemId)) {
+      return NextResponse.json({ error: 'Validation', field: 'itemId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const item = await loadAuthorizedDailyPlanItem(itemId, user.id);
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

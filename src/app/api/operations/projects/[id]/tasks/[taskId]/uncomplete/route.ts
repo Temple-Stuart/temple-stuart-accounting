@@ -18,6 +18,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 async function loadAuthorizedTask(taskId: string, projectId: string, userId: string) {
   return prisma.operations_project_tasks.findFirst({
@@ -45,6 +46,12 @@ export async function POST(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { id: projectId, taskId } = await params;
+    if (!isValidUuid(projectId)) {
+      return NextResponse.json({ error: 'Validation', field: 'id', message: 'Invalid UUID format' }, { status: 400 });
+    }
+    if (!isValidUuid(taskId)) {
+      return NextResponse.json({ error: 'Validation', field: 'taskId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedTask(taskId, projectId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
