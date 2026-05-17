@@ -2040,6 +2040,7 @@ enum AuditActionType {
   operations_project_task_updated
   operations_project_task_status_changed
   operations_project_task_completed
+  operations_project_task_uncompleted
   operations_project_task_deleted
   operations_project_dependency_added
   operations_project_dependency_removed

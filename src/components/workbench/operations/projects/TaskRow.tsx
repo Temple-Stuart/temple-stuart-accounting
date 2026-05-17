@@ -26,6 +26,15 @@ interface Props {
   onDelete: () => void;
 }
 
+type TaskStatusHistoryRow = {
+  id: string;
+  previous_status: string | null;
+  new_status: string;
+  changed_at: string;
+  changed_by: string | null;
+  reason: string | null;
+};
+
 const STATUS_OPTIONS: TaskStatus[] = [
   'open',
   'in_progress',
@@ -62,6 +71,10 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<TaskStatusHistoryRow[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const enterEdit = () => {
     setForm(taskToForm(task));
@@ -124,6 +137,52 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
       setError(e instanceof Error ? e.message : 'failed to complete');
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleToggleHistory = async () => {
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
+    setShowHistory(true);
+    if (history !== null) return; // already loaded
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const res = await fetch(
+        `/api/operations/projects/${projectId}/tasks/${task.id}/history`
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      setHistory(body.history ?? []);
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : 'Failed to load history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleUncomplete = async () => {
+    const reason = window.prompt('Reason for uncompleting? (optional)') ?? undefined;
+    try {
+      const res = await fetch(
+        `/api/operations/projects/${projectId}/tasks/${task.id}/uncomplete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason || undefined }),
+        }
+      );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error ?? `HTTP ${res.status}`);
+      }
+      onUpdate();
+      // Invalidate cached history so the new row shows on next open.
+      setHistory(null);
+    } catch (e) {
+      alert(`Uncomplete failed: ${e instanceof Error ? e.message : 'unknown error'}`);
     }
   };
 
@@ -202,8 +261,61 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
               {completing ? '…' : '✓ complete'}
             </button>
           )}
+          {task.status === 'completed' && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleUncomplete(); }}
+              className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono"
+              title="Revert this task to open"
+            >
+              ↩ uncomplete
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleToggleHistory(); }}
+            className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row text-xs font-mono"
+            title="Show status change history"
+          >
+            history
+          </button>
         </div>
       </div>
+
+      {showHistory && (
+        <div className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs font-mono">
+          {historyLoading && <div className="text-text-muted">loading history…</div>}
+          {historyError && <div className="text-red-700">{historyError}</div>}
+          {!historyLoading && !historyError && history !== null && history.length === 0 && (
+            <div className="text-text-muted italic">no status changes recorded yet</div>
+          )}
+          {!historyLoading && !historyError && history !== null && history.length > 0 && (
+            <ul className="space-y-1">
+              {history.map((h) => (
+                <li key={h.id} className="flex flex-col">
+                  <div>
+                    <span className="text-text-muted">
+                      {new Date(h.changed_at).toLocaleString()}
+                    </span>
+                    {' · '}
+                    <span className="text-text-primary">
+                      {h.previous_status ?? '—'} → {h.new_status}
+                    </span>
+                    {h.changed_by && (
+                      <span className="text-text-muted"> · {h.changed_by}</span>
+                    )}
+                  </div>
+                  {h.reason && (
+                    <div className="text-text-muted pl-2 italic">
+                      &ldquo;{h.reason}&rdquo;
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {expanded && !editing && (
         <div className="px-4 py-2 border-t border-border-light text-xs font-mono space-y-2">
