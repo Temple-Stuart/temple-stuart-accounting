@@ -111,6 +111,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
     costSummary?: { cost_usd: string; input_tokens: number; output_tokens: number };
   } | null>(null);
   const [flash, setFlash] = useState(false);
+  const [showDesignReasoning, setShowDesignReasoning] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
@@ -356,8 +357,27 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             {renderStructuredField(diagnosisItems, project.diagnosis)}
           </div>
           <div>
-            <div className={labelClass}>4 · design</div>
-            <div className="text-text-primary whitespace-pre-wrap">{project.design ?? ''}</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className={labelClass}>4 · design</div>
+              {(project.design ?? '').trim().length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowDesignReasoning((x) => !x)}
+                  className="px-2 py-0.5 border border-border rounded text-xs font-mono text-text-muted hover:bg-bg-row"
+                >
+                  {showDesignReasoning ? 'hide AI design reasoning' : 'view AI design reasoning'}
+                </button>
+              )}
+            </div>
+            {(project.design ?? '').trim().length > 0 ? (
+              showDesignReasoning && (
+                <div className="text-text-primary text-xs font-mono whitespace-pre-wrap p-3 bg-white border border-border-light rounded">
+                  {project.design}
+                </div>
+              )
+            ) : (
+              <div className="text-text-muted text-xs font-mono italic">(no design)</div>
+            )}
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
