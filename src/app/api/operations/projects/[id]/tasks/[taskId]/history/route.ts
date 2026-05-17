@@ -30,7 +30,7 @@ export async function GET(
     });
     if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (task.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const history = await prisma.operations_task_status_history.findMany({
