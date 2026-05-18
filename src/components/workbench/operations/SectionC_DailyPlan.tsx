@@ -16,7 +16,9 @@
 import { useEffect, useState } from 'react';
 import { useOperationsEntity } from './EntitySelector';
 import DailyPlanItemRow from './dailyplan/DailyPlanItemRow';
+import { DailyPlanRoutineRow } from './dailyplan/DailyPlanRoutineRow';
 import type { DailyPlanItem } from './dailyplan/types';
+import type { TodayRoutineEntry } from './routines/types';
 
 const inputClass =
   'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
@@ -50,6 +52,10 @@ export default function SectionC_DailyPlan() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [routines, setRoutines] = useState<TodayRoutineEntry[]>([]);
+  const [routinesLoading, setRoutinesLoading] = useState(false);
+  const [routinesError, setRoutinesError] = useState<string | null>(null);
+
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_FORM);
   const [creating, setCreating] = useState(false);
@@ -77,8 +83,32 @@ export default function SectionC_DailyPlan() {
     }
   };
 
+  const fetchRoutines = async () => {
+    setRoutinesLoading(true);
+    setRoutinesError(null);
+    try {
+      const res = await fetch('/api/operations/routines/today');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      const entries: TodayRoutineEntry[] = body.entries ?? [];
+      entries.sort((a, b) => a.expected_at.localeCompare(b.expected_at));
+      setRoutines(entries);
+    } catch (e) {
+      setRoutinesError(e instanceof Error ? e.message : 'Failed to load routines');
+    } finally {
+      setRoutinesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchItems();
+    const isToday = currentDate === todayIso();
+    if (isToday) {
+      Promise.all([fetchItems(), fetchRoutines()]);
+    } else {
+      setRoutines([]);
+      setRoutinesError(null);
+      fetchItems();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
 
@@ -247,29 +277,82 @@ export default function SectionC_DailyPlan() {
         </div>
       )}
 
-      {loading ? (
-        <div className="text-text-muted font-mono text-sm">loading daily plan…</div>
-      ) : error ? (
-        <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
-          {error}
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-text-muted font-mono text-sm">
-          nothing scheduled for {currentDate} — use &apos;+ add item&apos; or schedule a task from
-          Projects.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <DailyPlanItemRow
-              key={item.id}
-              item={item}
-              onUpdate={fetchItems}
-              onDelete={fetchItems}
-            />
-          ))}
-        </div>
-      )}
+      {(() => {
+        const isToday = currentDate === todayIso();
+        const hasRoutines = isToday && routines.length > 0;
+        const hasItems = items.length > 0;
+        const showEmpty = !hasRoutines && !hasItems && !loading && !error;
+
+        if (loading) {
+          return <div className="text-text-muted font-mono text-sm">loading daily plan…</div>;
+        }
+        if (error) {
+          return (
+            <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+              {error}
+            </div>
+          );
+        }
+        if (showEmpty) {
+          return (
+            <div className="text-text-muted font-mono text-sm">
+              nothing scheduled for {currentDate} — use &apos;+ add item&apos; or schedule a task from
+              Projects.
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-2">
+            {isToday && (
+              <>
+                {routinesLoading && (
+                  <div className="text-xs font-mono text-text-muted">loading routines…</div>
+                )}
+                {routinesError && (
+                  <div className="px-3 py-2 rounded border bg-red-50 border-red-200 text-red-800 text-xs font-mono">
+                    routines unavailable: {routinesError}
+                  </div>
+                )}
+                {hasRoutines && (
+                  <>
+                    <div className="text-xs font-mono text-text-faint uppercase tracking-wide mt-1">
+                      routines
+                    </div>
+                    {routines.map((entry) => (
+                      <DailyPlanRoutineRow key={entry.routine.id} entry={entry} />
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+
+            {!isToday && (
+              <div className="text-xs font-mono text-text-faint italic">
+                routines shown for today only
+              </div>
+            )}
+
+            {hasItems && (
+              <>
+                {isToday && hasRoutines && (
+                  <div className="text-xs font-mono text-text-faint uppercase tracking-wide mt-3">
+                    items
+                  </div>
+                )}
+                {items.map((item) => (
+                  <DailyPlanItemRow
+                    key={item.id}
+                    item={item}
+                    onUpdate={fetchItems}
+                    onDelete={fetchItems}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })()}
     </section>
   );
 }
