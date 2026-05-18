@@ -96,6 +96,8 @@ export default function RoutineList({ entities, onCommitted }: Props) {
           ...createForm,
           start_date: createForm.start_date || null,
           end_date: createForm.end_date || null,
+          start_time: createForm.start_time || null,
+          end_time: createForm.end_time || null,
         }),
       });
       const body = await res.json();
@@ -243,6 +245,27 @@ export default function RoutineList({ entities, onCommitted }: Props) {
                 type="date"
                 value={createForm.end_date}
                 onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>start time (optional)</div>
+              <input
+                type="time"
+                value={createForm.start_time}
+                onChange={(e) => setCreateForm({ ...createForm, start_time: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <div className={labelClass}>end time (optional)</div>
+              <input
+                type="time"
+                value={createForm.end_time}
+                onChange={(e) => setCreateForm({ ...createForm, end_time: e.target.value })}
                 className={inputClass}
               />
             </div>

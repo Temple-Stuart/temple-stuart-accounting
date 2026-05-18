@@ -61,6 +61,52 @@ function parseDateOrNull(
   return { value: d, error: null };
 }
 
+/**
+ * Parse an HH:MM time string into a JS Date with a 1970-01-01 anchor
+ * (Prisma @db.Time round-trip expects a Date; the date part is ignored).
+ * Returns { value: null, error: null } for null/empty input.
+ * Returns { value: null, error: 400-response } for invalid format.
+ */
+function parseTimeOrNull(
+  v: unknown,
+  field: string
+): { value: Date | null; error: NextResponse | null } {
+  if (v === null || v === undefined || v === '') return { value: null, error: null };
+  if (typeof v !== 'string') {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must be string HH:MM or null' },
+        { status: 400 }
+      ),
+    };
+  }
+  const match = /^(\d{2}):(\d{2})$/.exec(v);
+  if (!match) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must match HH:MM' },
+        { status: 400 }
+      ),
+    };
+  }
+  const hh = Number(match[1]);
+  const mm = Number(match[2]);
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'hour 00-23, minute 00-59' },
+        { status: 400 }
+      ),
+    };
+  }
+  // Prisma @db.Time accepts a Date — 1970-01-01 anchor; Postgres discards the date part.
+  const d = new Date(Date.UTC(1970, 0, 1, hh, mm, 0, 0));
+  return { value: d, error: null };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
@@ -170,6 +216,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const startTimeResult = parseTimeOrNull(body.start_time, 'start_time');
+    if (startTimeResult.error) return startTimeResult.error;
+    const endTimeResult = parseTimeOrNull(body.end_time, 'end_time');
+    if (endTimeResult.error) return endTimeResult.error;
+
+    if (
+      startTimeResult.value &&
+      endTimeResult.value &&
+      startTimeResult.value >= endTimeResult.value
+    ) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
+        { status: 400 }
+      );
+    }
+
     let schedule_rrule: string;
     try {
       schedule_rrule = compileFormToRRule(body as RoutineForm);
@@ -231,6 +293,8 @@ export async function POST(request: NextRequest) {
         fail_threshold_minutes: failThreshold,
         start_date: startResult.value,
         end_date: endResult.value,
+        start_time: startTimeResult.value,
+        end_time: endTimeResult.value,
         is_active: body.is_active !== false,
         next_due_at: nextDueAt,
         created_by: userEmail,

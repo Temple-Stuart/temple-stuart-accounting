@@ -57,6 +57,22 @@ export function DailyPlanRoutineRow({ entry }: Props) {
 
           <div className="text-xs font-mono text-text-muted mt-1 flex items-center gap-3 flex-wrap">
             <span>expected: {formatTime(entry.expected_at, entry.routine.timezone)}</span>
+            {(entry.routine.start_time || entry.routine.end_time) && (
+              <span title="intent time window">
+                {(() => {
+                  const startStr = entry.routine.start_time
+                    ? entry.routine.start_time.slice(11, 16)
+                    : null;
+                  const endStr = entry.routine.end_time
+                    ? entry.routine.end_time.slice(11, 16)
+                    : null;
+                  if (startStr && endStr) return `window: ${startStr}–${endStr}`;
+                  if (startStr) return `from ${startStr}`;
+                  if (endStr) return `until ${endStr}`;
+                  return '';
+                })()}
+              </span>
+            )}
             <span>
               🔥 {entry.routine.consecutive_completion_streak} ✓ / {entry.routine.consecutive_miss_streak} ✗
             </span>

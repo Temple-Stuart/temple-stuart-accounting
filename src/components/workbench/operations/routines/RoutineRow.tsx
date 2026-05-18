@@ -46,6 +46,8 @@ function routineToForm(r: Routine): RoutineForm {
     fail_threshold_minutes: String(r.fail_threshold_minutes),
     start_date: r.start_date ? r.start_date.slice(0, 10) : '',
     end_date: r.end_date ? r.end_date.slice(0, 10) : '',
+    start_time: r.start_time ? r.start_time.slice(11, 16) : '',
+    end_time: r.end_time ? r.end_time.slice(11, 16) : '',
     is_active: r.is_active,
     cadence_mode: 'custom',
     custom_rrule: r.schedule_rrule,
@@ -97,6 +99,8 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
           ...form,
           start_date: form.start_date || null,
           end_date: form.end_date || null,
+          start_time: form.start_time || null,
+          end_time: form.end_time || null,
         }),
       });
       const body = await res.json();
@@ -195,6 +199,18 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
                 if (startStr && endStr) return `active ${startStr}–${endStr}`;
                 if (startStr) return `active from ${startStr}`;
                 if (endStr) return `active until ${endStr}`;
+                return '';
+              })()}
+            </span>
+          )}
+          {(routine.start_time || routine.end_time) && (
+            <span className="text-xs font-mono text-text-muted" title="intent time window">
+              {(() => {
+                const startStr = routine.start_time ? routine.start_time.slice(11, 16) : null;
+                const endStr = routine.end_time ? routine.end_time.slice(11, 16) : null;
+                if (startStr && endStr) return `${startStr}–${endStr}`;
+                if (startStr) return `from ${startStr}`;
+                if (endStr) return `until ${endStr}`;
                 return '';
               })()}
             </span>
@@ -340,6 +356,27 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
                 type="date"
                 value={form.end_date}
                 onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>start time (optional)</div>
+              <input
+                type="time"
+                value={form.start_time}
+                onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <div className={labelClass}>end time (optional)</div>
+              <input
+                type="time"
+                value={form.end_time}
+                onChange={(e) => setForm({ ...form, end_time: e.target.value })}
                 className={inputClass}
               />
             </div>

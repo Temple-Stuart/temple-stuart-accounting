@@ -39,6 +39,18 @@ export interface Routine {
   fail_threshold_minutes: number;
   start_date: string | null;
   end_date: string | null;
+  /**
+   * Intent-window start (HH:MM, interpreted in routine.timezone).
+   * Prisma maps @db.Time to a JS Date; this field arrives JSON-serialized as
+   * '1970-01-01THH:MM:SS.000Z'. Frontend MUST extract HH:MM via .slice(11, 16)
+   * before display or binding to <input type="time">.
+   */
+  start_time: string | null;
+  /**
+   * Intent-window end (HH:MM, interpreted in routine.timezone).
+   * Same ISO-serialization gotcha as start_time — extract HH:MM via .slice(11, 16).
+   */
+  end_time: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -102,6 +114,8 @@ export interface RoutineForm {
   fail_threshold_minutes: string;     // grace period in minutes before "miss"
   start_date: string;                 // YYYY-MM-DD window start; '' = unset (active from creation)
   end_date: string;                   // YYYY-MM-DD window end; '' = unset (never expires)
+  start_time: string;                 // HH:MM intent-window start; '' = unset
+  end_time: string;                   // HH:MM intent-window end; '' = unset
   is_active: boolean;
 }
 
@@ -122,6 +136,8 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   fail_threshold_minutes: '30',
   start_date: '',
   end_date: '',
+  start_time: '',
+  end_time: '',
   is_active: true,
 };
 
