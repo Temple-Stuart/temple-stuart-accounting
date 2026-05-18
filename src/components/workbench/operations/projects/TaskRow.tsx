@@ -75,6 +75,12 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
   const [history, setHistory] = useState<TaskStatusHistoryRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleMenuOpen, setScheduleMenuOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
 
   const enterEdit = () => {
     setForm(taskToForm(task));
@@ -186,6 +192,40 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
     }
   };
 
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const tomorrowIso = () => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const handleSchedule = async (targetDate: string) => {
+    setScheduling(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/operations/daily-plan/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan_date: targetDate,
+          task_id: task.id,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? body.error ?? `HTTP ${res.status}`);
+      }
+      setScheduleSuccess(`scheduled for ${targetDate}`);
+      setScheduleMenuOpen(false);
+      // Auto-clear success message after 4 seconds.
+      setTimeout(() => setScheduleSuccess(null), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to schedule task');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm(`Delete task "${task.title}"?`)) return;
@@ -279,8 +319,72 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
           >
             history
           </button>
+          {task.status !== 'completed' && task.status !== 'cancelled' && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setScheduleMenuOpen((x) => !x); }}
+              disabled={scheduling}
+              className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
+              title="Schedule this task on a daily plan"
+            >
+              {scheduling ? '↗ scheduling…' : '↗ schedule'}
+            </button>
+          )}
+          {scheduleSuccess && (
+            <span className="text-xs font-mono text-green-700">{scheduleSuccess}</span>
+          )}
         </div>
       </div>
+
+      {scheduleMenuOpen && (
+        <div
+          className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs font-mono"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-text-muted">schedule for:</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleSchedule(todayIso()); }}
+              disabled={scheduling}
+              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
+            >
+              today
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleSchedule(tomorrowIso()); }}
+              disabled={scheduling}
+              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
+            >
+              tomorrow
+            </button>
+            <span className="text-text-muted">or</span>
+            <input
+              type="date"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              className="px-2 py-0.5 border border-border rounded text-text-primary"
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleSchedule(scheduleDate); }}
+              disabled={scheduling || !scheduleDate}
+              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
+            >
+              schedule
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setScheduleMenuOpen(false); }}
+              className="px-2 py-0.5 text-text-muted hover:bg-bg-row rounded"
+            >
+              cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showHistory && (
         <div className="mx-6 mt-2 mb-2 p-2 border border-border-light rounded bg-bg-row text-xs font-mono">
