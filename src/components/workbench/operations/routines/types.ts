@@ -55,6 +55,33 @@ export interface Routine {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  steps: RoutineStep[];
+}
+
+/**
+ * One ordered sub-step of a routine. Matches operations_routine_steps row 1:1.
+ */
+export interface RoutineStep {
+  id: string;
+  routine_id: string;
+  user_id: string;
+  entity_id: string;
+  step_order: number;
+  /**
+   * Time-of-day (HH:MM, interpreted in parent routine.timezone).
+   * Prisma maps @db.Time to a JS Date; this field arrives JSON-serialized as
+   * '1970-01-01THH:MM:SS.000Z'. Frontend MUST extract HH:MM via .slice(11, 16)
+   * before display or binding to <input type="time">.
+   */
+  time_of_day: string | null;
+  activity: string;
+  sub_activity: string | null;
+  location: string | null;
+  duration_minutes: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
 }
 
 export interface RoutineCompletion {

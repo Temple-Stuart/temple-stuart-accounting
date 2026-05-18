@@ -101,6 +101,9 @@ export async function GET(_request: NextRequest) {
     const routines = await prisma.operations_routines.findMany({
       where: { user_id: user.id, is_active: true },
       orderBy: { name: 'asc' },
+      include: {
+        steps: { orderBy: { step_order: 'asc' } },
+      },
     });
 
     const entries: Array<{

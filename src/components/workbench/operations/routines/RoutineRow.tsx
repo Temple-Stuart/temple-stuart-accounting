@@ -18,6 +18,7 @@ import { useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
+import { RoutineStepList } from './RoutineStepList';
 
 interface Entity {
   id: string;
@@ -263,6 +264,8 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
               <div className="text-text-primary">{routine.ideal_time_label ?? '—'}</div>
             </div>
           </div>
+
+          <RoutineStepList routine={routine} onUpdate={onUpdate} />
 
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
