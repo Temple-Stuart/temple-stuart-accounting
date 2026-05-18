@@ -14,6 +14,23 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { expandForward } from '@/lib/operations/rruleHelpers';
 
+/**
+ * Format a Date as YYYY-MM-DD in a specific timezone. Used to compare an
+ * expanded occurrence's local date against the routine's DATE-typed bounds.
+ */
+function formatLocalDate(d: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,10 +66,24 @@ export async function GET(
       );
     }
 
+    // Drop occurrences outside the routine's date bounds (when set).
+    const filtered = upcoming.filter((d) => {
+      const occDateStr = formatLocalDate(d, routine.timezone);
+      if (routine.start_date) {
+        const startStr = formatLocalDate(routine.start_date, 'UTC');
+        if (occDateStr < startStr) return false;
+      }
+      if (routine.end_date) {
+        const endStr = formatLocalDate(routine.end_date, 'UTC');
+        if (occDateStr > endStr) return false;
+      }
+      return true;
+    });
+
     return NextResponse.json({
       routine_id: routine.id,
       timezone: routine.timezone,
-      occurrences: upcoming.map((d) => d.toISOString()),
+      occurrences: filtered.map((d) => d.toISOString()),
     });
   } catch (error) {
     console.error('[Upcoming GET]', error);

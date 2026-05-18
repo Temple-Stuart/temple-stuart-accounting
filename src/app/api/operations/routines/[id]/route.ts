@@ -21,6 +21,46 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 
+/**
+ * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
+ * (unset). Returns a 400 NextResponse in `error` on malformed input.
+ */
+function parseDateOrNull(
+  v: unknown,
+  field: string
+): { value: Date | null; error: NextResponse | null } {
+  if (v === null || v === undefined || v === '') return { value: null, error: null };
+  if (typeof v !== 'string') {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must be string YYYY-MM-DD or null' },
+        { status: 400 }
+      ),
+    };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must match YYYY-MM-DD' },
+        { status: 400 }
+      ),
+    };
+  }
+  const d = new Date(`${v}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'invalid date' },
+        { status: 400 }
+      ),
+    };
+  }
+  return { value: d, error: null };
+}
+
 async function loadAuthorizedRoutine(routineId: string, userId: string) {
   return prisma.operations_routines.findFirst({
     where: { id: routineId, user_id: userId },
@@ -168,6 +208,29 @@ export async function PATCH(
         activationToggle = incoming ? 'reactivated' : 'deactivated';
       }
       data.is_active = incoming;
+    }
+
+    // Date bounds: validate against the effective (post-patch) values so a
+    // single-sided patch is checked against the stored counterpart.
+    let effectiveStart = existing.start_date;
+    let effectiveEnd = existing.end_date;
+    if ('start_date' in body) {
+      const r = parseDateOrNull(body.start_date, 'start_date');
+      if (r.error) return r.error;
+      effectiveStart = r.value;
+      data.start_date = r.value;
+    }
+    if ('end_date' in body) {
+      const r = parseDateOrNull(body.end_date, 'end_date');
+      if (r.error) return r.error;
+      effectiveEnd = r.value;
+      data.end_date = r.value;
+    }
+    if (effectiveStart && effectiveEnd && effectiveStart > effectiveEnd) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'end_date', message: 'end_date must be on or after start_date' },
+        { status: 400 }
+      );
     }
 
     // If cadence/timezone changed, recompute next_due_at.
