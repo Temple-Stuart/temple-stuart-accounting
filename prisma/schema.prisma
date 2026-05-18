@@ -2056,6 +2056,9 @@ enum AuditActionType {
   operations_calendar_block_deleted
   operations_routine_completed
   operations_routine_missed
+  operations_routine_step_created
+  operations_routine_step_updated
+  operations_routine_step_deleted
   operations_issue_logged
   operations_issue_updated
   operations_issue_status_changed
