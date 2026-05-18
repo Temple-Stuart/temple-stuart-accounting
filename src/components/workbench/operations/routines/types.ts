@@ -37,6 +37,8 @@ export interface Routine {
   consecutive_miss_streak: number;
   ideal_time_label: string | null;
   fail_threshold_minutes: number;
+  start_date: string | null;
+  end_date: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -98,6 +100,8 @@ export interface RoutineForm {
   timezone: string;                   // default 'America/Los_Angeles'
   ideal_time_label: string;           // free-text "morning", "before lunch"
   fail_threshold_minutes: string;     // grace period in minutes before "miss"
+  start_date: string;                 // YYYY-MM-DD window start; '' = unset (active from creation)
+  end_date: string;                   // YYYY-MM-DD window end; '' = unset (never expires)
   is_active: boolean;
 }
 
@@ -116,6 +120,8 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   timezone: 'America/Los_Angeles',
   ideal_time_label: '',
   fail_threshold_minutes: '30',
+  start_date: '',
+  end_date: '',
   is_active: true,
 };
 

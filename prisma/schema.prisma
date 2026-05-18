@@ -2719,6 +2719,8 @@ model operations_routines {
   consecutive_miss_streak       Int       @default(0)
   ideal_time_label              String?   @db.VarChar(50)
   fail_threshold_minutes        Int       @default(0)
+  start_date                    DateTime? @db.Date
+  end_date                      DateTime? @db.Date
   is_active                     Boolean   @default(true)
   created_at                    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime  @updatedAt @db.Timestamptz(6)
