@@ -89,7 +89,10 @@ export async function GET(request: NextRequest) {
 
     const items = await prisma.operations_daily_plan_items.findMany({
       where: { user_id: user.id, plan_date: { gte: from, lte: to } },
-      include: { calendar_blocks: { orderBy: { scheduled_start: 'asc' } } },
+      include: {
+        calendar_blocks: { orderBy: { scheduled_start: 'asc' } },
+        task: { select: { id: true, title: true, status: true } },
+      },
       orderBy: [{ plan_date: 'asc' }, { display_order: 'asc' }],
     });
 
