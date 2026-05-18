@@ -132,6 +132,9 @@ export async function GET(request: NextRequest) {
         { next_due_at: { sort: 'asc', nulls: 'last' } },
         { name: 'asc' },
       ],
+      include: {
+        steps: { orderBy: { step_order: 'asc' } },
+      },
     });
 
     return NextResponse.json({ routines });
