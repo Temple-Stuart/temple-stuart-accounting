@@ -44,6 +44,8 @@ function routineToForm(r: Routine): RoutineForm {
     timezone: r.timezone,
     ideal_time_label: r.ideal_time_label ?? '',
     fail_threshold_minutes: String(r.fail_threshold_minutes),
+    start_date: r.start_date ? r.start_date.slice(0, 10) : '',
+    end_date: r.end_date ? r.end_date.slice(0, 10) : '',
     is_active: r.is_active,
     cadence_mode: 'custom',
     custom_rrule: r.schedule_rrule,
@@ -91,7 +93,11 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
       const res = await fetch(`/api/operations/routines/${routine.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+        }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -181,6 +187,18 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
           <span title="next scheduled occurrence">
             next: {formatDateTime(routine.next_due_at, routine.timezone)}
           </span>
+          {(routine.start_date || routine.end_date) && (
+            <span className="text-xs font-mono text-text-muted" title="active date window">
+              {(() => {
+                const startStr = routine.start_date ? routine.start_date.slice(0, 10) : null;
+                const endStr = routine.end_date ? routine.end_date.slice(0, 10) : null;
+                if (startStr && endStr) return `active ${startStr}–${endStr}`;
+                if (startStr) return `active from ${startStr}`;
+                if (endStr) return `active until ${endStr}`;
+                return '';
+              })()}
+            </span>
+          )}
         </div>
       </div>
 
@@ -305,6 +323,27 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
           </div>
 
           <RRULEBuilder form={form} setForm={setForm} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>start date (optional)</div>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <div className={labelClass}>end date (optional)</div>
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button

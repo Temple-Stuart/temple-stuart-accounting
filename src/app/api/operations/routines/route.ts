@@ -21,6 +21,46 @@ import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers';
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 
+/**
+ * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
+ * (unset). Returns a 400 NextResponse in `error` on malformed input.
+ */
+function parseDateOrNull(
+  v: unknown,
+  field: string
+): { value: Date | null; error: NextResponse | null } {
+  if (v === null || v === undefined || v === '') return { value: null, error: null };
+  if (typeof v !== 'string') {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must be string YYYY-MM-DD or null' },
+        { status: 400 }
+      ),
+    };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'must match YYYY-MM-DD' },
+        { status: 400 }
+      ),
+    };
+  }
+  const d = new Date(`${v}T00:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) {
+    return {
+      value: null,
+      error: NextResponse.json(
+        { error: 'Validation', field, message: 'invalid date' },
+        { status: 400 }
+      ),
+    };
+  }
+  return { value: d, error: null };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await getVerifiedEmail();
@@ -118,6 +158,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const startResult = parseDateOrNull(body.start_date, 'start_date');
+    if (startResult.error) return startResult.error;
+    const endResult = parseDateOrNull(body.end_date, 'end_date');
+    if (endResult.error) return endResult.error;
+
+    if (startResult.value && endResult.value && startResult.value > endResult.value) {
+      return NextResponse.json(
+        { error: 'Validation', field: 'end_date', message: 'end_date must be on or after start_date' },
+        { status: 400 }
+      );
+    }
+
     let schedule_rrule: string;
     try {
       schedule_rrule = compileFormToRRule(body as RoutineForm);
@@ -177,6 +229,8 @@ export async function POST(request: NextRequest) {
         timezone: body.timezone,
         ideal_time_label: idealTimeLabel,
         fail_threshold_minutes: failThreshold,
+        start_date: startResult.value,
+        end_date: endResult.value,
         is_active: body.is_active !== false,
         next_due_at: nextDueAt,
         created_by: userEmail,

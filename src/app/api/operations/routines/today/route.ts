@@ -29,6 +29,24 @@ import { expandBetween } from '@/lib/operations/rruleHelpers';
 import type { TodayStatus } from '@/components/workbench/operations/routines/types';
 
 /**
+ * Format a Date as YYYY-MM-DD in a specific timezone (the routine's timezone).
+ * Used for comparing the routine's local calendar date against its DATE-typed bounds.
+ */
+function formatLocalDate(d: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch {
+    // Fallback for invalid timezone — use UTC.
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
  * Compute today's start and end in the given timezone, returned as UTC Date.
  * Today's start is "00:00 in tz today"; today's end is "00:00 in tz tomorrow".
  */
@@ -94,6 +112,23 @@ export async function GET(_request: NextRequest) {
 
     for (const r of routines) {
       const { start, end } = todayBounds(r.timezone, now);
+
+      // Bounds check: routine is in scope today iff within [start_date, end_date].
+      // Compute the routine's local calendar date for accurate comparison against
+      // the timezone-naive @db.Date bounds columns.
+      const localToday = formatLocalDate(now, r.timezone);
+      if (r.start_date) {
+        const startDateStr = formatLocalDate(r.start_date, 'UTC'); // @db.Date stored as midnight UTC
+        if (startDateStr > localToday) {
+          continue; // Routine hasn't started yet in its own timezone.
+        }
+      }
+      if (r.end_date) {
+        const endDateStr = formatLocalDate(r.end_date, 'UTC');
+        if (endDateStr < localToday) {
+          continue; // Routine has expired in its own timezone.
+        }
+      }
 
       let occurrences: Date[] = [];
       try {

@@ -92,7 +92,11 @@ export default function RoutineList({ entities, onCommitted }: Props) {
       const res = await fetch('/api/operations/routines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify({
+          ...createForm,
+          start_date: createForm.start_date || null,
+          end_date: createForm.end_date || null,
+        }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -222,6 +226,27 @@ export default function RoutineList({ entities, onCommitted }: Props) {
           </div>
 
           <RRULEBuilder form={createForm} setForm={setCreateForm} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>start date (optional)</div>
+              <input
+                type="date"
+                value={createForm.start_date}
+                onChange={(e) => setCreateForm({ ...createForm, start_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <div className={labelClass}>end date (optional)</div>
+              <input
+                type="date"
+                value={createForm.end_date}
+                onChange={(e) => setCreateForm({ ...createForm, end_date: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
             <button
