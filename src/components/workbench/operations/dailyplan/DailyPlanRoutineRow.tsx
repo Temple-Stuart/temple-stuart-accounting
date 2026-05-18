@@ -9,6 +9,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import type { TodayRoutineEntry, TodayStatus } from '../routines/types';
 
 function formatTime(iso: string, tz?: string): string {
@@ -45,6 +46,10 @@ interface Props {
 }
 
 export function DailyPlanRoutineRow({ entry }: Props) {
+  const [showSteps, setShowSteps] = useState(false);
+  const steps = entry.routine.steps ?? [];
+  const hasSteps = steps.length > 0;
+
   return (
     <div className="bg-white border border-border rounded p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -76,7 +81,45 @@ export function DailyPlanRoutineRow({ entry }: Props) {
             <span>
               🔥 {entry.routine.consecutive_completion_streak} ✓ / {entry.routine.consecutive_miss_streak} ✗
             </span>
+            {hasSteps && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSteps((x) => !x);
+                }}
+                className="text-text-muted hover:text-text-primary"
+                title={showSteps ? 'hide steps' : 'show steps'}
+              >
+                {showSteps ? '▾' : '▸'} {steps.length} {steps.length === 1 ? 'step' : 'steps'}
+              </button>
+            )}
           </div>
+
+          {showSteps && hasSteps && (
+            <div className="mt-2 pl-2 border-l-2 border-border-light space-y-1">
+              {steps.map((step) => (
+                <div key={step.id} className="text-xs font-mono text-text-muted">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    {step.time_of_day && (
+                      <span className="text-text-primary shrink-0">
+                        {step.time_of_day.slice(11, 16)}
+                      </span>
+                    )}
+                    <span className="text-text-primary truncate">{step.activity}</span>
+                    {step.sub_activity && <span>· {step.sub_activity}</span>}
+                    {step.location && <span className="shrink-0">@ {step.location}</span>}
+                    {step.duration_minutes !== null && (
+                      <span className="shrink-0">{step.duration_minutes} min</span>
+                    )}
+                  </div>
+                  {step.notes && (
+                    <div className="text-text-muted italic pl-2 mt-0.5">{step.notes}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {entry.routine.description && (
             <div className="text-xs font-mono text-text-muted mt-1 italic whitespace-pre-wrap">
