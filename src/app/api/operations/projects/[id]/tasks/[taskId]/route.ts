@@ -21,6 +21,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { recordTaskStatusChange } from '@/lib/operations/recordTaskStatusChange';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 const VALID_STATUSES: OperationsTaskStatus[] = [
   'open',
@@ -56,6 +57,12 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { id: projectId, taskId } = await params;
+    if (!isValidUuid(projectId)) {
+      return NextResponse.json({ error: 'Validation', field: 'id', message: 'Invalid UUID format' }, { status: 400 });
+    }
+    if (!isValidUuid(taskId)) {
+      return NextResponse.json({ error: 'Validation', field: 'taskId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const task = await loadAuthorizedTask(taskId, projectId, user.id);
     if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -83,6 +90,12 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { id: projectId, taskId } = await params;
+    if (!isValidUuid(projectId)) {
+      return NextResponse.json({ error: 'Validation', field: 'id', message: 'Invalid UUID format' }, { status: 400 });
+    }
+    if (!isValidUuid(taskId)) {
+      return NextResponse.json({ error: 'Validation', field: 'taskId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedTask(taskId, projectId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -318,6 +331,12 @@ export async function DELETE(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { id: projectId, taskId } = await params;
+    if (!isValidUuid(projectId)) {
+      return NextResponse.json({ error: 'Validation', field: 'id', message: 'Invalid UUID format' }, { status: 400 });
+    }
+    if (!isValidUuid(taskId)) {
+      return NextResponse.json({ error: 'Validation', field: 'taskId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedTask(taskId, projectId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

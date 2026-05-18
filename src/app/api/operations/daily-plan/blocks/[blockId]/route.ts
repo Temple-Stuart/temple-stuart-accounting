@@ -19,6 +19,7 @@ import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { loadAuthorizedCalendarBlock } from '@/lib/operations/loadAuthorizedCalendarBlock';
 import { detectBlockConflicts } from '@/lib/operations/detectBlockConflicts';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 const VALID_STATUSES: CalendarBlockStatus[] = [
   'scheduled',
@@ -48,6 +49,9 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { blockId } = await params;
+    if (!isValidUuid(blockId)) {
+      return NextResponse.json({ error: 'Validation', field: 'blockId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedCalendarBlock(blockId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -198,6 +202,9 @@ export async function DELETE(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { blockId } = await params;
+    if (!isValidUuid(blockId)) {
+      return NextResponse.json({ error: 'Validation', field: 'blockId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedCalendarBlock(blockId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

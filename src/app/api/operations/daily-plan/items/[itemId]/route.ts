@@ -20,6 +20,7 @@ import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { writeAuditLog } from '@/lib/audit/writeAuditLog';
 import { loadAuthorizedDailyPlanItem } from '@/lib/operations/loadAuthorizedDailyPlanItem';
+import { isValidUuid } from '@/lib/operations/parseUuid';
 
 function trimNullable(v: unknown): string | null {
   if (typeof v !== 'string') return null;
@@ -41,6 +42,9 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { itemId } = await params;
+    if (!isValidUuid(itemId)) {
+      return NextResponse.json({ error: 'Validation', field: 'itemId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const item = await loadAuthorizedDailyPlanItem(itemId, user.id);
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -68,6 +72,9 @@ export async function PATCH(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { itemId } = await params;
+    if (!isValidUuid(itemId)) {
+      return NextResponse.json({ error: 'Validation', field: 'itemId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await prisma.operations_daily_plan_items.findFirst({
       where: { id: itemId, user_id: user.id },
     });
@@ -176,6 +183,9 @@ export async function DELETE(
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const { itemId } = await params;
+    if (!isValidUuid(itemId)) {
+      return NextResponse.json({ error: 'Validation', field: 'itemId', message: 'Invalid UUID format' }, { status: 400 });
+    }
     const existing = await loadAuthorizedDailyPlanItem(itemId, user.id);
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
