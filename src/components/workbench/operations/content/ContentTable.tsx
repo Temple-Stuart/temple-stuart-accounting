@@ -130,6 +130,7 @@ export default function ContentTable({
   routines,
   onSceneUpdate,
   onTakeUpdate,
+  onScriptClick,
 }: {
   scenes: Scene[];
   takes: Take[];
@@ -144,6 +145,7 @@ export default function ContentTable({
     field: string,
     value: string | number | null
   ) => Promise<void>;
+  onScriptClick: (scene: Scene) => void;
 }) {
   const routinesById = new Map(routines.map((r) => [r.id, r]));
   const takesByStepId = new Map(takes.map((t) => [t.routine_step_id, t]));
@@ -181,6 +183,7 @@ export default function ContentTable({
                   scene={scene}
                   routine={routine}
                   onSceneUpdate={onSceneUpdate}
+                  onScriptClick={onScriptClick}
                 />
                 {steps.map((step) => (
                   <TakeRow

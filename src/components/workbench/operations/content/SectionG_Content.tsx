@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import ContentTable, { type Scene, type Take, type Routine } from './ContentTable';
 import AvailableRoutinesList from './AvailableRoutinesList';
+import ScriptDrawer from './ScriptDrawer';
 
 export default function SectionG_Content() {
   const [scenes, setScenes] = useState<Scene[] | null>(null);
@@ -26,6 +27,7 @@ export default function SectionG_Content() {
   const [routines, setRoutines] = useState<Routine[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scriptDrawerScene, setScriptDrawerScene] = useState<Scene | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,6 +158,24 @@ export default function SectionG_Content() {
     }
   };
 
+  // Script drawer plumbing (PR-Ops-4.9.3f). Open by clicking the
+  // truncated script cell on SceneHeaderRow; reuses handleSceneUpdate
+  // for the PATCH so the optimistic + rollback behavior matches the
+  // other scene fields.
+  const handleScriptClick = (scene: Scene) => {
+    setScriptDrawerScene(scene);
+  };
+
+  const handleScriptCancel = () => {
+    setScriptDrawerScene(null);
+  };
+
+  const handleScriptSave = async (newScript: string | null) => {
+    if (!scriptDrawerScene) return;
+    await handleSceneUpdate(scriptDrawerScene.id, 'script', newScript);
+    setScriptDrawerScene(null);
+  };
+
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
@@ -178,6 +198,16 @@ export default function SectionG_Content() {
           onScenify={handleScenify}
           onSceneUpdate={handleSceneUpdate}
           onTakeUpdate={handleTakeUpdate}
+          onScriptClick={handleScriptClick}
+        />
+      )}
+
+      {scriptDrawerScene && (
+        <ScriptDrawer
+          scene={scriptDrawerScene}
+          open
+          onSave={handleScriptSave}
+          onCancel={handleScriptCancel}
         />
       )}
     </section>
@@ -191,6 +221,7 @@ function ContentSummary({
   onScenify,
   onSceneUpdate,
   onTakeUpdate,
+  onScriptClick,
 }: {
   scenes: Scene[];
   takes: Take[];
@@ -206,6 +237,7 @@ function ContentSummary({
     field: string,
     value: string | number | null
   ) => Promise<void>;
+  onScriptClick: (scene: Scene) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -228,6 +260,7 @@ function ContentSummary({
             routines={routines}
             onSceneUpdate={onSceneUpdate}
             onTakeUpdate={onTakeUpdate}
+            onScriptClick={onScriptClick}
           />
           <AvailableRoutinesList routines={routines} onScenify={onScenify} />
         </>
