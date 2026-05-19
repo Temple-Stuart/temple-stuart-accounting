@@ -85,6 +85,77 @@ export default function SectionG_Content() {
     );
   };
 
+  // Inline cell edit handlers (PR-Ops-4.9.3e). Each captures the previous
+  // row, updates state optimistically, fires PATCH, and rolls back +
+  // throws on failure so EditableCell can surface the message inline.
+  const handleSceneUpdate = async (
+    sceneId: string,
+    field: string,
+    value: string | number | null
+  ) => {
+    const previous = scenes?.find((s) => s.id === sceneId);
+    if (!previous) throw new Error('scene not found in local state');
+
+    setScenes((prev) =>
+      prev ? prev.map((s) => (s.id === sceneId ? { ...s, [field]: value } : s)) : prev
+    );
+
+    const res = await fetch(`/api/operations/content/scenes/${sceneId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+
+    if (!res.ok) {
+      setScenes((prev) =>
+        prev ? prev.map((s) => (s.id === sceneId ? previous : s)) : prev
+      );
+      let msg = `${res.status} ${res.statusText}`;
+      try {
+        const body = await res.json();
+        msg = body.message || body.error || msg;
+      } catch {
+        // non-JSON response — fall through to status-based message
+      }
+      throw new Error(msg);
+    }
+  };
+
+  const handleTakeUpdate = async (
+    takeId: string,
+    field: string,
+    value: string | number | null
+  ) => {
+    const previous = takes?.find((t) => t.id === takeId);
+    if (!previous) throw new Error('take not found in local state');
+
+    setTakes((prev) =>
+      prev ? prev.map((t) => (t.id === takeId ? { ...t, [field]: value } : t)) : prev
+    );
+
+    const res = await fetch(`/api/operations/content/takes/${takeId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+
+    if (!res.ok) {
+      setTakes((prev) =>
+        prev ? prev.map((t) => (t.id === takeId ? previous : t)) : prev
+      );
+      let msg = `${res.status} ${res.statusText}`;
+      try {
+        const body = await res.json();
+        msg = body.message || body.error || msg;
+      } catch {
+        // non-JSON response — fall through to status-based message
+      }
+      throw new Error(msg);
+    }
+  };
+
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
@@ -105,6 +176,8 @@ export default function SectionG_Content() {
           takes={takes}
           routines={routines}
           onScenify={handleScenify}
+          onSceneUpdate={handleSceneUpdate}
+          onTakeUpdate={handleTakeUpdate}
         />
       )}
     </section>
@@ -116,11 +189,23 @@ function ContentSummary({
   takes,
   routines,
   onScenify,
+  onSceneUpdate,
+  onTakeUpdate,
 }: {
   scenes: Scene[];
   takes: Take[];
   routines: Routine[];
   onScenify: (newScene: Scene) => void;
+  onSceneUpdate: (
+    sceneId: string,
+    field: string,
+    value: string | number | null
+  ) => Promise<void>;
+  onTakeUpdate: (
+    takeId: string,
+    field: string,
+    value: string | number | null
+  ) => Promise<void>;
 }) {
   return (
     <div className="space-y-3">
@@ -137,7 +222,13 @@ function ContentSummary({
         </>
       ) : (
         <>
-          <ContentTable scenes={scenes} takes={takes} routines={routines} />
+          <ContentTable
+            scenes={scenes}
+            takes={takes}
+            routines={routines}
+            onSceneUpdate={onSceneUpdate}
+            onTakeUpdate={onTakeUpdate}
+          />
           <AvailableRoutinesList routines={routines} onScenify={onScenify} />
         </>
       )}
