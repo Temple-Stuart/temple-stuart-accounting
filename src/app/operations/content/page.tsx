@@ -1,5 +1,13 @@
-import PlaceholderCard from '@/components/workbench/operations/PlaceholderCard';
+/**
+ * /operations/content
+ *
+ * Section G · Content page. The OperationsEntityProvider is wired in the
+ * parent /operations/layout.tsx, so this page just mounts SectionG_Content
+ * directly — same shape as routines/page.tsx.
+ */
+
+import SectionG_Content from '@/components/workbench/operations/content/SectionG_Content';
 
 export default function OperationsContentPage() {
-  return <PlaceholderCard letter="G" title="CONTENT PRODUCTION" unbuiltLabel="UNBUILT · PR-Ops-8" />;
+  return <SectionG_Content />;
 }
