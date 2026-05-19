@@ -88,6 +88,13 @@ export interface RoutineStep {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  /**
+   * The content take this step has been take-ified into, if any.
+   * Populated by GET /api/operations/routines (and /[id]) via the
+   * nested steps→content_take include; absent on endpoints that
+   * don't include it.
+   */
+  content_take?: { id: string } | null;
 }
 
 export interface RoutineCompletion {

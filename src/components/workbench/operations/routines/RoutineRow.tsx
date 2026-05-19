@@ -20,7 +20,7 @@ import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import { RoutineStepList } from './RoutineStepList';
 import ScenifyButton from '../content/ScenifyButton';
-import type { Scene } from '../content/ContentTable';
+import type { Scene, Take } from '../content/ContentTable';
 
 interface Entity {
   id: string;
@@ -33,6 +33,7 @@ interface Props {
   onUpdate: () => void;
   onDelete: () => void;
   onScenify: (newScene: Scene) => void;
+  onTakeify: (newTake: Take) => void;
 }
 
 function routineToForm(r: Routine): RoutineForm {
@@ -71,7 +72,7 @@ function formatDateTime(iso: string | null, tz: string): string {
   });
 }
 
-export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify }: Props) {
+export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify, onTakeify }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
@@ -268,7 +269,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </div>
           </div>
 
-          <RoutineStepList routine={routine} onUpdate={onUpdate} />
+          <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
             <button

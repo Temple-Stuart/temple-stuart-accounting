@@ -18,7 +18,7 @@ import RoutineRow from './RoutineRow';
 import RRULEBuilder from './RRULEBuilder';
 import type { CadenceGroup, Routine, RoutineForm } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, DEFAULT_ROUTINE_FORM } from './types';
-import type { Scene } from '../content/ContentTable';
+import type { Scene, Take } from '../content/ContentTable';
 
 interface Entity {
   id: string;
@@ -82,6 +82,21 @@ export default function RoutineList({ entities, onCommitted }: Props) {
           ? { ...r, content_scene: { id: newScene.id } }
           : r
       )
+    );
+  };
+
+  // Optimistic update — a successful take-ify POST adds the content_take
+  // relation to the matching step so its 🎬 badge appears without a refetch.
+  const handleTakeify = (newTake: Take) => {
+    setRoutines((prev) =>
+      prev.map((r) => ({
+        ...r,
+        steps: r.steps.map((s) =>
+          s.id === newTake.routine_step_id
+            ? { ...s, content_take: { id: newTake.id } }
+            : s
+        ),
+      }))
     );
   };
 
@@ -330,6 +345,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
                       onUpdate={refresh}
                       onDelete={refresh}
                       onScenify={handleScenify}
+                      onTakeify={handleTakeify}
                     />
                   ))}
                 </div>

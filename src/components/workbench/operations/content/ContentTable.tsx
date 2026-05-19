@@ -30,6 +30,8 @@ export type Step = {
   sub_activity: string | null;
   time_of_day: string | null;
   step_order: number;
+  /** Present when the step has been take-ified; null/absent otherwise. */
+  content_take?: { id: string } | null;
 };
 
 export type Routine = {

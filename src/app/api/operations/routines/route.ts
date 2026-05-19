@@ -88,7 +88,10 @@ export async function GET(request: NextRequest) {
         { name: 'asc' },
       ],
       include: {
-        steps: { orderBy: { step_order: 'asc' } },
+        steps: {
+          orderBy: { step_order: 'asc' },
+          include: { content_take: true },
+        },
         content_scene: true,
       },
     });
