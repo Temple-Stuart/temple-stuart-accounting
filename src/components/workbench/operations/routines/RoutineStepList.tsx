@@ -14,6 +14,8 @@
 
 import { useState } from 'react';
 import type { Routine, RoutineStep } from './types';
+import type { Take } from '../content/ContentTable';
+import TakeifyButton from '../content/TakeifyButton';
 
 const STEP_DEFAULT_INTERVAL_MINUTES = 15;
 
@@ -81,9 +83,10 @@ function getAutoFillTime(routine: Routine, currentSteps: RoutineStep[]): string 
 interface Props {
   routine: Routine;
   onUpdate: () => void;
+  onTakeify: (newTake: Take) => void;
 }
 
-export function RoutineStepList({ routine, onUpdate }: Props) {
+export function RoutineStepList({ routine, onUpdate, onTakeify }: Props) {
   const steps = [...routine.steps].sort((a, b) => a.step_order - b.step_order);
 
   const [error, setError] = useState<string | null>(null);
@@ -392,6 +395,7 @@ export function RoutineStepList({ routine, onUpdate }: Props) {
                   >
                     delete
                   </button>
+                  <TakeifyButton step={step} onTakeify={onTakeify} />
                 </div>
               </div>
               {step.notes && (

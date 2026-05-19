@@ -66,7 +66,10 @@ async function loadAuthorizedRoutine(routineId: string, userId: string) {
   return prisma.operations_routines.findFirst({
     where: { id: routineId, user_id: userId },
     include: {
-      steps: { orderBy: { step_order: 'asc' } },
+      steps: {
+        orderBy: { step_order: 'asc' },
+        include: { content_take: true },
+      },
       content_scene: true,
     },
   });
