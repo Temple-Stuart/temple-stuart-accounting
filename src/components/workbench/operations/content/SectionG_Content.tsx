@@ -18,6 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import ContentTable, { type Scene, type Take, type Routine } from './ContentTable';
+import AvailableRoutinesList from './AvailableRoutinesList';
 
 export default function SectionG_Content() {
   const [scenes, setScenes] = useState<Scene[] | null>(null);
@@ -69,6 +70,21 @@ export default function SectionG_Content() {
     };
   }, []);
 
+  // Optimistic update — a successful scenify POST adds the new scene to
+  // the table and marks its routine scenified, without a refetch.
+  const handleScenify = (newScene: Scene) => {
+    setScenes((prev) => [...(prev ?? []), newScene]);
+    setRoutines((prev) =>
+      prev
+        ? prev.map((r) =>
+            r.id === newScene.routine_id
+              ? { ...r, content_scene: { id: newScene.id } }
+              : r
+          )
+        : prev
+    );
+  };
+
   return (
     <section className="bg-white rounded border border-border shadow-sm p-5 space-y-4">
       <h2 className="font-mono text-sm font-bold tracking-wide text-text-primary">
@@ -84,7 +100,12 @@ export default function SectionG_Content() {
       ) : !scenes || !routines || !takes ? (
         <p className="text-sm font-mono text-text-faint">Data missing.</p>
       ) : (
-        <ContentSummary scenes={scenes} takes={takes} routines={routines} />
+        <ContentSummary
+          scenes={scenes}
+          takes={takes}
+          routines={routines}
+          onScenify={handleScenify}
+        />
       )}
     </section>
   );
@@ -94,13 +115,13 @@ function ContentSummary({
   scenes,
   takes,
   routines,
+  onScenify,
 }: {
   scenes: Scene[];
   takes: Take[];
   routines: Routine[];
+  onScenify: (newScene: Scene) => void;
 }) {
-  const scenifiedRoutineIds = new Set(scenes.map((s) => s.routine_id));
-
   return (
     <div className="space-y-3">
       <p className="text-sm text-text-secondary">
@@ -112,28 +133,12 @@ function ContentSummary({
           <p className="text-sm text-text-secondary">
             No scenes yet. Pick a routine to start filming.
           </p>
-          <h3 className="text-xs font-mono text-text-faint uppercase tracking-wide">
-            Available Routines
-          </h3>
-          <ul className="text-sm text-text-secondary list-disc pl-5">
-            {routines.map((r) => (
-              <li key={r.id}>{r.name} (not scenified)</li>
-            ))}
-          </ul>
+          <AvailableRoutinesList routines={routines} onScenify={onScenify} />
         </>
       ) : (
         <>
           <ContentTable scenes={scenes} takes={takes} routines={routines} />
-          <h3 className="text-xs font-mono text-text-faint uppercase tracking-wide">
-            Available Routines
-          </h3>
-          <ul className="text-sm text-text-secondary list-disc pl-5">
-            {routines
-              .filter((r) => !scenifiedRoutineIds.has(r.id))
-              .map((r) => (
-                <li key={r.id}>{r.name}</li>
-              ))}
-          </ul>
+          <AvailableRoutinesList routines={routines} onScenify={onScenify} />
         </>
       )}
     </div>

@@ -56,6 +56,12 @@ export interface Routine {
   updated_at: string;
   created_by: string | null;
   steps: RoutineStep[];
+  /**
+   * The content scene this routine has been scenified into, if any.
+   * Populated by GET /api/operations/routines (and /[id]) via the
+   * content_scene include; absent on endpoints that don't include it.
+   */
+  content_scene?: { id: string } | null;
 }
 
 /**
