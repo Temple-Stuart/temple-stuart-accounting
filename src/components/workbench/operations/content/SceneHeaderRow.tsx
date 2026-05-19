@@ -19,6 +19,7 @@ export default function SceneHeaderRow({
   scene,
   routine,
   onSceneUpdate,
+  onScriptClick,
 }: {
   scene: Scene;
   routine: Routine;
@@ -27,6 +28,7 @@ export default function SceneHeaderRow({
     field: string,
     value: string | number | null
   ) => Promise<void>;
+  onScriptClick: (scene: Scene) => void;
 }) {
   const cellClass = 'py-1 px-2';
   return (
@@ -72,7 +74,16 @@ export default function SceneHeaderRow({
       <td className={cellClass} />
       <td className={cellClass} />
       <td className={cellClass} />
-      <td className={cellClass}>{truncateScript(scene.script)}</td>
+      <td className={cellClass}>
+        <button
+          type="button"
+          onClick={() => onScriptClick(scene)}
+          className="block w-full text-left cursor-pointer hover:text-brand-purple"
+          title="click to edit script"
+        >
+          {truncateScript(scene.script)}
+        </button>
+      </td>
     </tr>
   );
 }
