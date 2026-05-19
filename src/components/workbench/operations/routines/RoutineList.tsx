@@ -18,6 +18,7 @@ import RoutineRow from './RoutineRow';
 import RRULEBuilder from './RRULEBuilder';
 import type { CadenceGroup, Routine, RoutineForm } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, DEFAULT_ROUTINE_FORM } from './types';
+import type { Scene } from '../content/ContentTable';
 
 interface Entity {
   id: string;
@@ -70,6 +71,18 @@ export default function RoutineList({ entities, onCommitted }: Props) {
   const refresh = () => {
     fetchRoutines();
     onCommitted?.();
+  };
+
+  // Optimistic update — a successful scenify POST adds the content_scene
+  // relation to the routine so the 🎬 badge appears without a refetch.
+  const handleScenify = (newScene: Scene) => {
+    setRoutines((prev) =>
+      prev.map((r) =>
+        r.id === newScene.routine_id
+          ? { ...r, content_scene: { id: newScene.id } }
+          : r
+      )
+    );
   };
 
   const startCreate = () => {
@@ -316,6 +329,7 @@ export default function RoutineList({ entities, onCommitted }: Props) {
                       entities={entities}
                       onUpdate={refresh}
                       onDelete={refresh}
+                      onScenify={handleScenify}
                     />
                   ))}
                 </div>

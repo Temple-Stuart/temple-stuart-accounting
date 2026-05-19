@@ -37,6 +37,8 @@ export type Routine = {
   name: string;
   schedule_rrule: string | null;
   steps: Step[];
+  /** Present when the routine has been scenified; null/absent otherwise. */
+  content_scene?: { id: string } | null;
 };
 
 export type Scene = {

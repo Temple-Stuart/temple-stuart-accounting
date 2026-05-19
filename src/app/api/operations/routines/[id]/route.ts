@@ -67,6 +67,7 @@ async function loadAuthorizedRoutine(routineId: string, userId: string) {
     where: { id: routineId, user_id: userId },
     include: {
       steps: { orderBy: { step_order: 'asc' } },
+      content_scene: true,
     },
   });
 }

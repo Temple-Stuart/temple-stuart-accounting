@@ -19,6 +19,8 @@ import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import { RoutineStepList } from './RoutineStepList';
+import ScenifyButton from '../content/ScenifyButton';
+import type { Scene } from '../content/ContentTable';
 
 interface Entity {
   id: string;
@@ -30,6 +32,7 @@ interface Props {
   entities: Entity[];
   onUpdate: () => void;
   onDelete: () => void;
+  onScenify: (newScene: Scene) => void;
 }
 
 function routineToForm(r: Routine): RoutineForm {
@@ -68,7 +71,7 @@ function formatDateTime(iso: string | null, tz: string): string {
   });
 }
 
-export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Props) {
+export default function RoutineRow({ routine, entities, onUpdate, onDelete, onScenify }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<RoutineForm>(() => routineToForm(routine));
@@ -267,7 +270,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
 
           <RoutineStepList routine={routine} onUpdate={onUpdate} />
 
-          <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); enterEdit(); }}
@@ -291,6 +294,7 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete }: Pr
             >
               {deleting ? 'deleting…' : 'delete'}
             </button>
+            <ScenifyButton routine={routine} onScenify={onScenify} />
           </div>
         </div>
       )}
