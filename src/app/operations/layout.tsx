@@ -9,10 +9,7 @@ const OPERATIONS_TABS: SubNavTab[] = [
   { label: 'Daily Plan', href: '/operations', exact: true },
   { label: 'Projects', href: '/operations/projects' },
   { label: 'Routines', href: '/operations/routines' },
-  { label: 'Roadmap', href: '/operations/roadmap' },
   { label: 'Content', href: '/operations/content' },
-  { label: 'Travel', href: '/operations/travel' },
-  { label: 'Money', href: '/operations/money' },
   { label: 'Issue Log', href: '/operations/issues' },
   { label: 'Audit Tail', href: '/operations/audit-log' },
 ];
