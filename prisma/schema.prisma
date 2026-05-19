@@ -2758,7 +2758,8 @@ model operations_routine_steps {
   updated_at       DateTime  @updatedAt @db.Timestamptz(6)
   created_by       String?
 
-  routine operations_routines @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  routine      operations_routines       @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  content_take operations_content_takes?
 
   @@index([routine_id, step_order])
   @@index([routine_id])
@@ -2805,6 +2806,26 @@ model operations_content_scenes {
   @@index([entity_id])
   @@index([routine_id])
   @@map("operations_content_scenes")
+}
+
+model operations_content_takes {
+  id                        String   @id @default(uuid()) @db.Uuid
+  user_id                   String
+  entity_id                 String
+  routine_step_id           String   @unique @db.Uuid
+  filming_location_specific String?  @db.VarChar(200)
+  camera_needed             String?  @db.VarChar(200)
+  filming_angle             String?  @db.VarChar(200)
+  notes                     String?  @db.Text
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @updatedAt @db.Timestamptz(6)
+
+  routine_step operations_routine_steps @relation(fields: [routine_step_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([entity_id])
+  @@index([routine_step_id])
+  @@map("operations_content_takes")
 }
 
 model operations_ai_usage {
