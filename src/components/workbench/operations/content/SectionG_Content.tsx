@@ -5,9 +5,9 @@
  * pipelines the tab is built on — scenes, takes, routines — and
  * renders loading / error / empty / populated states.
  *
- * Render here is intentionally minimal: plain counts + a routine
- * name list with scenified status. The spreadsheet-style table
- * (ContentTable, SceneHeaderRow, TakeRow) lands in PR-Ops-4.9.3b.
+ * Populated state renders the spreadsheet-style ContentTable plus an
+ * Available Routines list (routines not yet scenified). Loading,
+ * error and empty states stay as plain text.
  *
  * "Scenified" status is derived client-side: GET /api/operations/
  * routines does not include the content_scene relation, so we join
@@ -17,23 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-
-type Scene = {
-  id: string;
-  routine_id: string;
-  scene_number: number;
-  scene_title: string;
-};
-
-type Take = {
-  id: string;
-  routine_step_id: string;
-};
-
-type Routine = {
-  id: string;
-  name: string;
-};
+import ContentTable, { type Scene, type Take, type Routine } from './ContentTable';
 
 export default function SectionG_Content() {
   const [scenes, setScenes] = useState<Scene[] | null>(null);
@@ -139,15 +123,16 @@ function ContentSummary({
         </>
       ) : (
         <>
+          <ContentTable scenes={scenes} takes={takes} routines={routines} />
           <h3 className="text-xs font-mono text-text-faint uppercase tracking-wide">
-            Scenified Routines
+            Available Routines
           </h3>
           <ul className="text-sm text-text-secondary list-disc pl-5">
-            {routines.map((r) => (
-              <li key={r.id}>
-                {r.name} ({scenifiedRoutineIds.has(r.id) ? 'scenified' : 'not scenified'})
-              </li>
-            ))}
+            {routines
+              .filter((r) => !scenifiedRoutineIds.has(r.id))
+              .map((r) => (
+                <li key={r.id}>{r.name}</li>
+              ))}
           </ul>
         </>
       )}
