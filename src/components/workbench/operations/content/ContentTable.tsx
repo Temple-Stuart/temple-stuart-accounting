@@ -37,6 +37,7 @@ export type Step = {
 export type Routine = {
   id: string;
   name: string;
+  entity_id: string;
   schedule_rrule: string | null;
   steps: Step[];
   /** Present when the routine has been scenified; null/absent otherwise. */
@@ -46,6 +47,7 @@ export type Routine = {
 export type Scene = {
   id: string;
   routine_id: string;
+  entity_id: string;
   scene_number: number;
   scene_title: string;
   focus_category: string | null;
@@ -57,6 +59,7 @@ export type Scene = {
 export type Take = {
   id: string;
   routine_step_id: string;
+  entity_id: string;
   filming_location_specific: string | null;
   camera_needed: string | null;
   filming_angle: string | null;
