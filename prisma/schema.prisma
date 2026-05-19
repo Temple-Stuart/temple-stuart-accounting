@@ -2062,6 +2062,9 @@ enum AuditActionType {
   operations_content_scene_created
   operations_content_scene_updated
   operations_content_scene_deleted
+  operations_content_take_created
+  operations_content_take_updated
+  operations_content_take_deleted
   operations_issue_logged
   operations_issue_updated
   operations_issue_status_changed
