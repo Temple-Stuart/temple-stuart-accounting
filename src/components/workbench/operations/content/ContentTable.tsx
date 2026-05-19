@@ -128,10 +128,22 @@ export default function ContentTable({
   scenes,
   takes,
   routines,
+  onSceneUpdate,
+  onTakeUpdate,
 }: {
   scenes: Scene[];
   takes: Take[];
   routines: Routine[];
+  onSceneUpdate: (
+    sceneId: string,
+    field: string,
+    value: string | number | null
+  ) => Promise<void>;
+  onTakeUpdate: (
+    takeId: string,
+    field: string,
+    value: string | number | null
+  ) => Promise<void>;
 }) {
   const routinesById = new Map(routines.map((r) => [r.id, r]));
   const takesByStepId = new Map(takes.map((t) => [t.routine_step_id, t]));
@@ -165,12 +177,17 @@ export default function ContentTable({
             );
             return (
               <Fragment key={scene.id}>
-                <SceneHeaderRow scene={scene} routine={routine} />
+                <SceneHeaderRow
+                  scene={scene}
+                  routine={routine}
+                  onSceneUpdate={onSceneUpdate}
+                />
                 {steps.map((step) => (
                   <TakeRow
                     key={step.id}
                     step={step}
                     take={takesByStepId.get(step.id)}
+                    onTakeUpdate={onTakeUpdate}
                   />
                 ))}
               </Fragment>
