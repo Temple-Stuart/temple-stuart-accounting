@@ -132,6 +132,9 @@ export interface Task {
   unblocks_label: string | null;
   link_url: string | null;
   notes: string | null;
+  coa_code: string | null;
+  actual_cost_usd: string | null;
+  actual_minutes: number | null;
   display_order: number;
   completed_at: string | null;
   created_at: string;
@@ -155,6 +158,9 @@ export interface TaskForm {
   unblocks_label: string;
   link_url?: string;
   notes?: string;
+  coa_code: string;                 // '' represents null
+  actual_minutes: string;           // '' represents null; string for input binding
+  actual_cost_usd: string;          // '' represents null; string for decimal fidelity
 }
 
 export const DEFAULT_TASK_FORM: TaskForm = {
@@ -165,7 +171,22 @@ export const DEFAULT_TASK_FORM: TaskForm = {
   estimated_cost_usd: '',
   deadline: '',
   unblocks_label: '',
+  coa_code: '',
+  actual_minutes: '',
+  actual_cost_usd: '',
 };
+
+/**
+ * Minimal COA-account shape used by the task UI's category dropdown.
+ * Sourced from GET /api/chart-of-accounts?entity_id=<eid>. The /api endpoint
+ * filters out archived rows server-side, so consumers can trust the list.
+ */
+export interface CoaAccountSummary {
+  code: string;
+  name: string;
+  account_type: string;
+  entity_id: string;
+}
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   open: 'new',

@@ -15,13 +15,14 @@
 
 import { useState } from 'react';
 import { ExternalLink } from 'lucide-react';
-import type { Task, TaskForm, TaskStatus } from './types';
+import type { Task, TaskForm, TaskStatus, CoaAccountSummary } from './types';
 import { TASK_STATUS_LABELS, TASK_STATUS_PILL_CLASSES } from './types';
 
 interface Props {
   task: Task;
   projectId: string;
   index: number; // 1-based display index
+  coaAccounts: CoaAccountSummary[];
   onUpdate: () => void;
   onDelete: () => void;
 }
@@ -54,6 +55,9 @@ function taskToForm(t: Task): TaskForm {
     unblocks_label: t.unblocks_label ?? '',
     link_url: t.link_url ?? '',
     notes: t.notes ?? '',
+    coa_code: t.coa_code ?? '',
+    actual_minutes: t.actual_minutes !== null ? String(t.actual_minutes) : '',
+    actual_cost_usd: t.actual_cost_usd ?? '',
   };
 }
 
@@ -62,7 +66,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: Props) {
+export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -485,6 +489,40 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
               <div className="text-text-primary">{task.estimated_cost_usd ?? '—'}</div>
             </div>
             <div>
+              <div className={labelClass}>category</div>
+              {(() => {
+                if (task.coa_code === null) {
+                  return <div className="text-text-muted">—</div>;
+                }
+                const match = coaAccounts.find((a) => a.code === task.coa_code);
+                if (match) {
+                  return (
+                    <div className="text-text-primary">
+                      <span className="font-mono">{match.code}</span>
+                      <span className="text-text-muted"> · {match.name}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    className="text-amber-700 italic"
+                    title="Code not found in current chart of accounts"
+                  >
+                    <span className="font-mono">{task.coa_code}</span>
+                    <span className="ml-1">⚠</span>
+                  </div>
+                );
+              })()}
+            </div>
+            <div>
+              <div className={labelClass}>actual minutes</div>
+              <div className="text-text-primary">{task.actual_minutes ?? '—'}</div>
+            </div>
+            <div>
+              <div className={labelClass}>actual cost (usd)</div>
+              <div className="text-text-primary">{task.actual_cost_usd ?? '—'}</div>
+            </div>
+            <div>
               <div className={labelClass}>completed at</div>
               <div className="text-text-primary">{formatDate(task.completed_at)}</div>
             </div>
@@ -518,8 +556,8 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-3">
               <div className={labelClass}>title</div>
               <input
                 type="text"
@@ -551,6 +589,27 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
                 onChange={(e) => setForm({ ...form, deadline: e.target.value })}
                 className={inputClass}
               />
+            </div>
+            <div>
+              <div className={labelClass}>category</div>
+              <select
+                value={form.coa_code}
+                onChange={(e) => setForm({ ...form, coa_code: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">— None —</option>
+                {/* If the task's current code isn't in the dropdown options
+                    (e.g., archived or out-of-entity), still surface it so the
+                    user isn't silently re-categorized when they save. */}
+                {form.coa_code !== '' && !coaAccounts.some((a) => a.code === form.coa_code) && (
+                  <option value={form.coa_code}>{form.coa_code} ⚠ (not in current COA)</option>
+                )}
+                {coaAccounts.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -588,6 +647,18 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
               />
             </div>
             <div>
+              <div className={labelClass}>actual minutes</div>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={form.actual_minutes}
+                onChange={(e) => setForm({ ...form, actual_minutes: e.target.value })}
+                className={inputClass}
+                placeholder="(empty)"
+              />
+            </div>
+            <div>
               <div className={labelClass}>est. cost (usd)</div>
               <input
                 type="text"
@@ -595,6 +666,18 @@ export default function TaskRow({ task, projectId, index, onUpdate, onDelete }: 
                 onChange={(e) => setForm({ ...form, estimated_cost_usd: e.target.value })}
                 className={inputClass}
                 placeholder="0.00"
+              />
+            </div>
+            <div>
+              <div className={labelClass}>actual cost (usd)</div>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.actual_cost_usd}
+                onChange={(e) => setForm({ ...form, actual_cost_usd: e.target.value })}
+                className={inputClass}
+                placeholder="(empty)"
               />
             </div>
           </div>
