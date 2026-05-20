@@ -15,7 +15,7 @@
 
 import { useEffect, useState } from 'react';
 import TaskRow from './TaskRow';
-import type { Task, TaskForm } from './types';
+import type { Task, TaskForm, CoaAccountSummary } from './types';
 import { DEFAULT_TASK_FORM } from './types';
 
 interface Props {
@@ -31,6 +31,13 @@ export default function TaskList({ projectId }: Props) {
   const [createForm, setCreateForm] = useState<TaskForm>(DEFAULT_TASK_FORM);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // COA accounts for the category dropdown — fetched once per (projectId, entity_id).
+  // entity_id is derived from the first loaded task (tasks share the project's
+  // entity_id, denormalized server-side). For empty projects we skip the fetch
+  // entirely — there are no rows to edit so the dropdown isn't needed.
+  const [coaAccounts, setCoaAccounts] = useState<CoaAccountSummary[]>([]);
+  const [coaFetchedForEntityId, setCoaFetchedForEntityId] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -55,6 +62,49 @@ export default function TaskList({ projectId }: Props) {
     fetchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  // Lazy COA fetch — runs once per entity_id discovered in this project's tasks.
+  // Failure logs to console and leaves coaAccounts empty; TaskRow handles the
+  // empty-list case gracefully (dropdown shows only "— None —"; expanded body
+  // falls back to displaying the raw code).
+  useEffect(() => {
+    const entityId = tasks[0]?.entity_id;
+    if (!entityId || coaFetchedForEntityId === entityId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/chart-of-accounts?entity_id=${encodeURIComponent(entityId)}`);
+        if (!res.ok) {
+          console.error('[TaskList] COA fetch failed:', res.status);
+          if (!cancelled) {
+            setCoaAccounts([]);
+            setCoaFetchedForEntityId(entityId);
+          }
+          return;
+        }
+        const body = await res.json();
+        if (cancelled) return;
+        type CoaResponseRow = { code: string; name: string; accountType: string; entity_id: string };
+        const list: CoaAccountSummary[] = (body.accounts ?? []).map((a: CoaResponseRow) => ({
+          code: a.code,
+          name: a.name,
+          account_type: a.accountType,
+          entity_id: a.entity_id,
+        }));
+        setCoaAccounts(list);
+        setCoaFetchedForEntityId(entityId);
+      } catch (e) {
+        console.error('[TaskList] COA fetch error:', e);
+        if (!cancelled) {
+          setCoaAccounts([]);
+          setCoaFetchedForEntityId(entityId);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks, coaFetchedForEntityId]);
 
   const startCreate = () => {
     setCreateForm(DEFAULT_TASK_FORM);
@@ -223,6 +273,7 @@ export default function TaskList({ projectId }: Props) {
               task={t}
               projectId={projectId}
               index={i + 1}
+              coaAccounts={coaAccounts}
               onUpdate={fetchTasks}
               onDelete={fetchTasks}
             />

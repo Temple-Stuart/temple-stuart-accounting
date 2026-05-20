@@ -187,6 +187,88 @@ export async function PATCH(
       }
     }
 
+    if (body.actual_minutes !== undefined) {
+      const v = body.actual_minutes;
+      if (v === null || v === '') {
+        data.actual_minutes = null;
+      } else {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'actual_minutes', message: 'must be a non-negative integer' },
+            { status: 400 }
+          );
+        }
+        data.actual_minutes = n;
+      }
+    }
+
+    if (body.actual_cost_usd !== undefined) {
+      const v = body.actual_cost_usd;
+      if (v === null || v === '') {
+        data.actual_cost_usd = null;
+      } else if (typeof v === 'string' && v.trim().length > 0) {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'actual_cost_usd', message: 'must be a non-negative number' },
+            { status: 400 }
+          );
+        }
+        data.actual_cost_usd = new Prisma.Decimal(v.trim());
+      } else if (typeof v === 'number') {
+        if (!Number.isFinite(v) || v < 0) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'actual_cost_usd', message: 'must be a non-negative number' },
+            { status: 400 }
+          );
+        }
+        data.actual_cost_usd = new Prisma.Decimal(v);
+      }
+    }
+
+    if (body.coa_code !== undefined) {
+      const c = trimNonEmpty(body.coa_code);
+      if (c === null) {
+        data.coa_code = null;
+      } else {
+        if (c.length > 50) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
+            { status: 400 }
+          );
+        }
+        // Strict existence check against the user's chart_of_accounts for the
+        // task's entity. Uses the @@unique([userId, entity_id, code]) composite
+        // (precedent: src/app/api/trading/commit-to-ledger/route.ts:45).
+        const account = await prisma.chart_of_accounts.findUnique({
+          where: {
+            userId_entity_id_code: {
+              userId: user.id,
+              entity_id: existing.entity_id,
+              code: c,
+            },
+          },
+        });
+        if (!account || account.is_archived) {
+          const available = await prisma.chart_of_accounts.findMany({
+            where: { userId: user.id, entity_id: existing.entity_id, is_archived: false },
+            select: { code: true },
+            orderBy: { code: 'asc' },
+          });
+          return NextResponse.json(
+            {
+              error: 'Validation',
+              field: 'coa_code',
+              message: `Unknown coa_code "${c}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
+            },
+            { status: 400 }
+          );
+        }
+        data.coa_code = c;
+      }
+    }
+
     if (body.display_order !== undefined) {
       const n = Number(body.display_order);
       if (!Number.isFinite(n)) {

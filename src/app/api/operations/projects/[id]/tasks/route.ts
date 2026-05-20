@@ -152,6 +152,44 @@ export async function POST(
       estimated_cost_usd = new Prisma.Decimal(body.estimated_cost_usd);
     }
 
+    // coa_code is optional at create; if supplied, must reference an
+    // existing non-archived chart_of_accounts row owned by this user for
+    // the project's entity. Strict-existence mirror of the PATCH check in
+    // src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts.
+    let coa_code: string | null = trimNullable(body.coa_code);
+    if (coa_code !== null) {
+      if (coa_code.length > 50) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
+          { status: 400 }
+        );
+      }
+      const account = await prisma.chart_of_accounts.findUnique({
+        where: {
+          userId_entity_id_code: {
+            userId: user.id,
+            entity_id: project.entity_id,
+            code: coa_code,
+          },
+        },
+      });
+      if (!account || account.is_archived) {
+        const available = await prisma.chart_of_accounts.findMany({
+          where: { userId: user.id, entity_id: project.entity_id, is_archived: false },
+          select: { code: true },
+          orderBy: { code: 'asc' },
+        });
+        return NextResponse.json(
+          {
+            error: 'Validation',
+            field: 'coa_code',
+            message: `Unknown coa_code "${coa_code}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // α-1: server-computed display_order = max(existing) + 1.
     // Race-acceptance asterisk: two simultaneous POSTs against the same
     // project can read the same max and collide. Acceptable for single-
@@ -176,6 +214,7 @@ export async function POST(
         deadline,
         estimated_minutes,
         estimated_cost_usd,
+        coa_code,
         display_order,
         created_by: userEmail,
       },
