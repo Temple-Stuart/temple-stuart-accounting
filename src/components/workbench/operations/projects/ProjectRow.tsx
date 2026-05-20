@@ -381,7 +381,7 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>5 · execute (tasks)</div>
-            <TaskList projectId={project.id} />
+            <TaskList projectId={project.id} entity_id={project.entity_id} />
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>6 · dependencies</div>
