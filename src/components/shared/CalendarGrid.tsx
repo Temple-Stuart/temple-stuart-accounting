@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -18,7 +19,14 @@ export interface CalendarEvent {
   isRecurring?: boolean;
   location?: string | null;
   budgetAmount?: number;
-  details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor")
+  details?: string[];        // compact detail lines (e.g. "PYPL | Iron Condor", "B-6210 · $250")
+  /**
+   * Internal navigation target. When set, clicking the event routes to
+   * this path via the Next router (client-side). Takes precedence over
+   * onEventClick so per-event click targets work without requiring every
+   * caller to thread a callback. PR-Ops-5.3.
+   */
+  href?: string;
 }
 
 export interface SourceConfig {
@@ -139,9 +147,24 @@ export default function CalendarGrid({
   showCategoryLegend = false,
   compact = false,
 }: CalendarGridProps) {
+  const router = useRouter();
   const now = new Date();
   const anchor = anchorDate ? parseDate(anchorDate) : now;
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Tile-click dispatch: per-event `href` (PR-Ops-5.3) takes precedence
+   * over the legacy onEventClick callback so per-source click targets
+   * (e.g., Operations blocks → /workbench/operations) work without
+   * every caller threading a handler.
+   */
+  const handleTileClick = (event: CalendarEvent, nativeEvent: MouseEvent) => {
+    if (event.href) {
+      router.push(event.href);
+      return;
+    }
+    onEventClick?.(event, nativeEvent);
+  };
 
   const [calendarView, setCalendarView] = useState<'week' | 'month'>(defaultView);
   const [selectedYear, setSelectedYear] = useState(anchor.getFullYear());
@@ -341,8 +364,8 @@ export default function CalendarGrid({
                             const config = sourceConfig[event.source] || { badge: 'bg-gray-400', dot: 'bg-gray-400' };
                             return (
                               <div key={event.id || i}
-                                onClick={(e) => onEventClick?.(event, e.nativeEvent)}
-                                className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''}`}
+                                onClick={(e) => handleTileClick(event, e.nativeEvent)}
+                                className={`${config.badge || config.dot} text-white text-[10px] px-1.5 py-0.5 rounded truncate mb-0.5 ${(event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''}`}
                                 title={event.title}>
                                 {event.title}
                               </div>
@@ -414,8 +437,8 @@ export default function CalendarGrid({
                           return (
                             <div
                               key={`${block.event.id}-${blockIdx}`}
-                              onClick={(e) => onEventClick?.(block.event, e.nativeEvent)}
-                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${onEventClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              onClick={(e) => handleTileClick(block.event, e.nativeEvent)}
+                              className={`absolute left-0.5 right-0.5 ${badgeColor} text-white ${roundClass} overflow-hidden z-10 ${(block.event.href || onEventClick) ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               style={{ top: `${top}px`, height: `${height}px` }}
                               title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}
                             >
@@ -429,6 +452,9 @@ export default function CalendarGrid({
                                 )}
                                 {block.event.location && (
                                   <div className="text-[10px] opacity-70 leading-tight mt-0.5 truncate">{block.event.location}</div>
+                                )}
+                                {block.event.details && block.event.details[0] && (
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5 truncate">{block.event.details[0]}</div>
                                 )}
                                 {!block.event.startTime && block.event.budgetAmount && block.event.budgetAmount > 0 && (
                                   <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(block.event.budgetAmount)}</div>

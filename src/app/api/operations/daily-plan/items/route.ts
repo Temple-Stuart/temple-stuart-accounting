@@ -91,7 +91,16 @@ export async function GET(request: NextRequest) {
       where: { user_id: user.id, plan_date: { gte: from, lte: to } },
       include: {
         calendar_blocks: { orderBy: { scheduled_start: 'asc' } },
-        task: { select: { id: true, title: true, status: true } },
+        task: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            coa_code: true,
+            estimated_cost_usd: true,
+            actual_cost_usd: true,
+          },
+        },
       },
       orderBy: [{ plan_date: 'asc' }, { display_order: 'asc' }],
     });
