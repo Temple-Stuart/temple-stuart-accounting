@@ -3,8 +3,8 @@
  *
  * Self-fetches via GET /api/operations/projects/[projectId]/tasks on mount
  * and on any onUpdate/onDelete callback from a TaskRow. Self-contained:
- * the parent ProjectRow just renders <TaskList projectId={...} /> and never
- * needs to know about task state.
+ * the parent ProjectRow just renders <TaskList projectId={...} entity_id={...} />
+ * and never needs to know about task state.
  *
  * "+ add task" affordance toggles an inline create form ABOVE the task list.
  * Bridgewater step-5 framing: this is the execute layer; the project's
@@ -20,9 +20,10 @@ import { DEFAULT_TASK_FORM } from './types';
 
 interface Props {
   projectId: string;
+  entity_id: string;
 }
 
-export default function TaskList({ projectId }: Props) {
+export default function TaskList({ projectId, entity_id }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +33,10 @@ export default function TaskList({ projectId }: Props) {
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // COA accounts for the category dropdown — fetched once per (projectId, entity_id).
-  // entity_id is derived from the first loaded task (tasks share the project's
-  // entity_id, denormalized server-side). For empty projects we skip the fetch
-  // entirely — there are no rows to edit so the dropdown isn't needed.
+  // COA accounts for the category dropdown — fetched once per entity_id.
+  // entity_id is sourced from the project (via prop), not derived from the
+  // first existing task, so brand-new projects with zero tasks can still
+  // populate the dropdown on the very first task's create form.
   const [coaAccounts, setCoaAccounts] = useState<CoaAccountSummary[]>([]);
   const [coaFetchedForEntityId, setCoaFetchedForEntityId] = useState<string | null>(null);
 
@@ -63,22 +64,30 @@ export default function TaskList({ projectId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  // Lazy COA fetch — runs once per entity_id discovered in this project's tasks.
-  // Failure logs to console and leaves coaAccounts empty; TaskRow handles the
-  // empty-list case gracefully (dropdown shows only "— None —"; expanded body
-  // falls back to displaying the raw code).
+  // Eager COA fetch — fires on mount as soon as entity_id is known, so
+  // even brand-new projects with zero tasks have the dropdown populated
+  // when the user opens the create form. Failure logs to console and
+  // leaves coaAccounts empty; TaskRow/create-form both handle the empty
+  // list gracefully (dropdown shows only "— None —"; expanded body falls
+  // back to displaying the raw code).
   useEffect(() => {
-    const entityId = tasks[0]?.entity_id;
-    if (!entityId || coaFetchedForEntityId === entityId) return;
+    if (!entity_id) {
+      // Defensive: should never happen — every project has an entity_id —
+      // but if it does, skip the fetch rather than crash. Dropdown falls
+      // back to "— None —" only, preserving the prior empty-list behavior.
+      console.warn('[TaskList] missing entity_id prop; skipping COA fetch');
+      return;
+    }
+    if (coaFetchedForEntityId === entity_id) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/chart-of-accounts?entity_id=${encodeURIComponent(entityId)}`);
+        const res = await fetch(`/api/chart-of-accounts?entity_id=${encodeURIComponent(entity_id)}`);
         if (!res.ok) {
           console.error('[TaskList] COA fetch failed:', res.status);
           if (!cancelled) {
             setCoaAccounts([]);
-            setCoaFetchedForEntityId(entityId);
+            setCoaFetchedForEntityId(entity_id);
           }
           return;
         }
@@ -92,19 +101,19 @@ export default function TaskList({ projectId }: Props) {
           entity_id: a.entity_id,
         }));
         setCoaAccounts(list);
-        setCoaFetchedForEntityId(entityId);
+        setCoaFetchedForEntityId(entity_id);
       } catch (e) {
         console.error('[TaskList] COA fetch error:', e);
         if (!cancelled) {
           setCoaAccounts([]);
-          setCoaFetchedForEntityId(entityId);
+          setCoaFetchedForEntityId(entity_id);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [tasks, coaFetchedForEntityId]);
+  }, [entity_id, coaFetchedForEntityId]);
 
   const startCreate = () => {
     setCreateForm(DEFAULT_TASK_FORM);
