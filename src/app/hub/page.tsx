@@ -6,6 +6,8 @@ import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
+import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
+import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 
 import dynamic from 'next/dynamic';
 
@@ -52,6 +54,9 @@ const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: stri
   health: { icon: '💪', color: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-500', calendarColor: 'bg-emerald-400' },
   growth: { icon: '📚', color: 'text-brand-purple', bgColor: 'bg-brand-purple-wash', dotColor: 'bg-brand-purple-wash0', calendarColor: 'bg-blue-400' },
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
+  // Operations (PR-Ops-5.3) — task time-blocks scheduled via the workbench.
+  // Indigo distinguishes from health (emerald), growth (brand-purple/blue), and trip (cyan).
+  operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
 };
 
 // CalendarGrid-compatible config derived from SOURCE_CONFIG
@@ -117,13 +122,19 @@ export default function HubPage() {
     actualGrandTotal: number;
   }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
 
-  const [businessBudget, setBusinessBudget] = useState<{ 
-    budgetData: Record<string, Record<number, number>>; 
+  const [businessBudget, setBusinessBudget] = useState<{
+    budgetData: Record<string, Record<number, number>>;
     actualData: Record<string, Record<number, number>>;
-    coaNames: Record<string, string>; 
+    coaNames: Record<string, string>;
     budgetGrandTotal: number;
     actualGrandTotal: number;
   }>({ budgetData: {}, actualData: {}, coaNames: {}, budgetGrandTotal: 0, actualGrandTotal: 0 });
+
+  // Operations daily-plan items for the visible month — items carry their
+  // calendar_blocks nested via the GET include (PR-Ops-5.3). Stored raw so
+  // the gridEvents memo below can map them to CalendarGrid events alongside
+  // the existing calendar_events sources.
+  const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
 
 
   const [drillDown, setDrillDown] = useState<{
@@ -135,7 +146,7 @@ export default function HubPage() {
     entityType: string;
   } | null>(null);
 
-  useEffect(() => { loadCalendar(); }, [selectedYear, selectedMonth]);
+  useEffect(() => { loadCalendar(); loadOperationsBlocks(); }, [selectedYear, selectedMonth]);
 
   const loadCalendar = async () => {
     try {
@@ -147,6 +158,34 @@ export default function HubPage() {
       }
     } catch (err) { console.error('Failed to load calendar:', err); }
     finally { setLoading(false); }
+  };
+
+  /**
+   * Fetch Operations daily-plan items for the visible month. Mirrors the
+   * other Hub fetches' error-handling pattern (console.error on failure,
+   * empty state). The items GET nests calendar_blocks + task summary so
+   * a single fetch is enough to feed the calendar.
+   */
+  const loadOperationsBlocks = async () => {
+    try {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const monthIdx = selectedMonth; // 0-based
+      const from = `${selectedYear}-${pad(monthIdx + 1)}-01`;
+      // Last day of the visible month — Date(yyyy, monthIdx+1, 0) returns the
+      // last day of monthIdx (because month rollover with day 0 = previous day).
+      const lastDay = new Date(selectedYear, monthIdx + 1, 0).getDate();
+      const to = `${selectedYear}-${pad(monthIdx + 1)}-${pad(lastDay)}`;
+      const res = await fetch(`/api/operations/daily-plan/items?from=${from}&to=${to}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOperationsItems(data.items || []);
+      } else {
+        setOperationsItems([]);
+      }
+    } catch (err) {
+      console.error('Failed to load operations blocks:', err);
+      setOperationsItems([]);
+    }
   };
 
   const loadCommittedTrips = async () => {
@@ -229,18 +268,24 @@ export default function HubPage() {
   const yearlyBusinessActual = businessBudget.actualGrandTotal;
   const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget + yearlyBusinessBudget;
 
-  // Transform hub events to CalendarGrid format
-  const gridEvents: GridEvent[] = useMemo(() => events.map(e => ({
-    id: e.id,
-    source: e.source,
-    title: e.title,
-    icon: e.icon,
-    startDate: e.start_date,
-    endDate: e.end_date,
-    isRecurring: e.is_recurring,
-    location: e.location,
-    budgetAmount: e.budget_amount,
-  })), [events]);
+  // Transform hub events to CalendarGrid format. Operations blocks are
+  // mapped via mapOperationsBlocks and concatenated — additive, doesn't
+  // affect the existing source rendering.
+  const gridEvents: GridEvent[] = useMemo(() => {
+    const calendarSourceEvents: GridEvent[] = events.map(e => ({
+      id: e.id,
+      source: e.source,
+      title: e.title,
+      icon: e.icon,
+      startDate: e.start_date,
+      endDate: e.end_date,
+      isRecurring: e.is_recurring,
+      location: e.location,
+      budgetAmount: e.budget_amount,
+    }));
+    const operationsEvents = mapOperationsBlocks(operationsItems);
+    return [...calendarSourceEvents, ...operationsEvents];
+  }, [events, operationsItems]);
 
   return (
     <AppLayout>

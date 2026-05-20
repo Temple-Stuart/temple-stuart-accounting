@@ -14,6 +14,16 @@ export type LinkedTaskSummary = {
   id: string;
   title: string;
   status: OperationsTaskStatus;
+  /**
+   * Universal triple (date/time/cost/category) plumbing — surfaced
+   * on the linked task summary so the Hub (and any other calendar
+   * surface) can render cost/category badges on Operations blocks
+   * without a second fetch. Selected in /api/operations/daily-plan/
+   * items GET as of PR-Ops-5.3.
+   */
+  coa_code: string | null;
+  estimated_cost_usd: string | null;  // Prisma Decimal serialized as string
+  actual_cost_usd: string | null;
 };
 
 export type DailyPlanItem = {
