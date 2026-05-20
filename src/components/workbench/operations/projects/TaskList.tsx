@@ -207,7 +207,7 @@ export default function TaskList({ projectId }: Props) {
               placeholder="what does completing this unblock?"
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div>
               <div className={labelClass}>deadline (optional)</div>
               <input
@@ -236,6 +236,21 @@ export default function TaskList({ projectId }: Props) {
                 className={inputClass}
                 placeholder="0.00"
               />
+            </div>
+            <div>
+              <div className={labelClass}>category (optional)</div>
+              <select
+                value={createForm.coa_code}
+                onChange={(e) => setCreateForm({ ...createForm, coa_code: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">— None —</option>
+                {coaAccounts.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex items-center gap-2 pt-2 border-t border-border-light">
