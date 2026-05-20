@@ -81,9 +81,31 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMenuOpen, setScheduleMenuOpen] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState<string>(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+
+  /**
+   * Default for the schedule date picker. Uses task.deadline (matching the
+   * edit-form's deadline.slice(0,10) extraction at taskToForm above) so the
+   * user doesn't re-enter the date they already typed when setting the
+   * deadline. Falls back to today's UTC date when no deadline is set.
+   * PR-Ops-5.4.
+   */
+  const defaultScheduleDate = (): string =>
+    task.deadline ? task.deadline.slice(0, 10) : new Date().toISOString().slice(0, 10);
+
+  const [scheduleDate, setScheduleDate] = useState<string>(defaultScheduleDate);
+
+  /**
+   * Toggle the schedule menu. On open (false → true) re-sync the date
+   * picker to the current deadline so a deadline edit after first render
+   * is honored. Close path keeps the existing toggle semantic (clicking
+   * ↗ schedule while open closes the menu).
+   */
+  const toggleScheduleMenu = () => {
+    if (!scheduleMenuOpen) {
+      setScheduleDate(defaultScheduleDate());
+    }
+    setScheduleMenuOpen((x) => !x);
+  };
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
 
   const enterEdit = () => {
@@ -194,13 +216,6 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
     } catch (e) {
       alert(`Uncomplete failed: ${e instanceof Error ? e.message : 'unknown error'}`);
     }
-  };
-
-  const todayIso = () => new Date().toISOString().slice(0, 10);
-  const tomorrowIso = () => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + 1);
-    return d.toISOString().slice(0, 10);
   };
 
   const handleSchedule = async (targetDate: string) => {
@@ -326,7 +341,7 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
           {task.status !== 'completed' && task.status !== 'cancelled' && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setScheduleMenuOpen((x) => !x); }}
+              onClick={(e) => { e.stopPropagation(); toggleScheduleMenu(); }}
               disabled={scheduling}
               className="px-2 py-0.5 border border-border text-text-muted rounded hover:bg-bg-row disabled:opacity-50 text-xs font-mono"
               title="Schedule this task on a daily plan"
@@ -347,23 +362,6 @@ export default function TaskRow({ task, projectId, index, coaAccounts, onUpdate,
         >
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-text-muted">schedule for:</span>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); handleSchedule(todayIso()); }}
-              disabled={scheduling}
-              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
-            >
-              today
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); handleSchedule(tomorrowIso()); }}
-              disabled={scheduling}
-              className="px-2 py-0.5 border border-border text-text-primary rounded hover:bg-white disabled:opacity-50"
-            >
-              tomorrow
-            </button>
-            <span className="text-text-muted">or</span>
             <input
               type="date"
               value={scheduleDate}
