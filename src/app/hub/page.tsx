@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
+import HubEventCard from '@/components/hub/HubEventCard';
 import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
-import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
+import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
 
 import dynamic from 'next/dynamic';
 
@@ -135,6 +136,26 @@ export default function HubPage() {
   // the gridEvents memo below can map them to CalendarGrid events alongside
   // the existing calendar_events sources.
   const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
+
+  // Info-card selection (PR-Ops-5.5). Set when an Operations event tile is
+  // clicked; the parent item + block are resolved from operationsItems by
+  // event.id (= block.id) so the card can render rich context without a
+  // second fetch.
+  const [cardSelection, setCardSelection] = useState<{ item: DailyPlanItem; block: CalendarBlockSummary } | null>(null);
+
+  const handleEventClick = (event: GridEvent) => {
+    if (event.source !== 'operations') return;
+    for (const item of operationsItems) {
+      const block = item.calendar_blocks.find((b) => b.id === event.id);
+      if (block) {
+        setCardSelection({ item, block });
+        return;
+      }
+    }
+    // Stale state (block deleted server-side since last fetch, etc.) —
+    // do not open a broken card. Log so the gap is visible in dev.
+    console.warn('[Hub] Could not locate item+block for event id:', event.id);
+  };
 
 
   const [drillDown, setDrillDown] = useState<{
@@ -320,8 +341,17 @@ export default function HubPage() {
               defaultView="week"
               showBudgetTotals={true}
               showCategoryLegend={true}
+              onEventClick={handleEventClick}
             />
           </div>
+
+          {cardSelection && (
+            <HubEventCard
+              item={cardSelection.item}
+              block={cardSelection.block}
+              onClose={() => setCardSelection(null)}
+            />
+          )}
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* BUDGET COMPARISON - WALL STREET STYLE */}

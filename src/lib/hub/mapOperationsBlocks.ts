@@ -11,15 +11,17 @@
  * (omits either half if missing) — CalendarGrid renders details[0] as a
  * small muted line under the time range (PR-Ops-5.3).
  *
- * `href` routes clicks to the workbench input/action surface for Operations,
- * intercepted client-side by CalendarGrid's per-event router dispatch.
+ * Clicks are handled by the Hub's onEventClick (PR-Ops-5.5): the Hub
+ * opens an in-place info card (HubEventCard) instead of navigating away.
+ * This file deliberately does NOT set `href` — the previous '/workbench/
+ * operations' href shipped in PR-Ops-5.3 was a dead link (that route
+ * never existed); removing it fixes the 404 and lets onEventClick fire.
  */
 
 import type { CalendarEvent } from '@/components/shared/CalendarGrid';
 import type { DailyPlanItem } from '@/components/workbench/operations/dailyplan/types';
 
 const OPERATIONS_SOURCE = 'operations';
-const OPERATIONS_HREF = '/workbench/operations';
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -71,7 +73,6 @@ export function mapOperationsBlocks(items: DailyPlanItem[]): CalendarEvent[] {
         endTime: end.time,
         budgetAmount: costValid ? (costNum as number) : undefined,
         details: detailLine ? [detailLine] : undefined,
-        href: OPERATIONS_HREF,
       });
     }
   }
