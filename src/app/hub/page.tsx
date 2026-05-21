@@ -8,6 +8,7 @@ import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 import HubEventCard from '@/components/hub/HubEventCard';
 import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
+import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
 import type { DailyPlanItem, CalendarBlockSummary } from '@/components/workbench/operations/dailyplan/types';
 
 import dynamic from 'next/dynamic';
@@ -58,6 +59,9 @@ const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: stri
   // Operations (PR-Ops-5.3) — task time-blocks scheduled via the workbench.
   // Indigo distinguishes from health (emerald), growth (brand-purple/blue), and trip (cyan).
   operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
+  // Routines (PR-Ops-5.6) — recurring time-block routines expanded from RRULE.
+  // Teal distinguishes from operations indigo, growth blue/brand-purple, trip cyan.
+  routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
 };
 
 // CalendarGrid-compatible config derived from SOURCE_CONFIG
@@ -137,6 +141,12 @@ export default function HubPage() {
   // the existing calendar_events sources.
   const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
 
+  // Operations routines window for the visible month (PR-Ops-5.6) — RRULE
+  // occurrences pre-expanded server-side via /api/hub/operations-routines.
+  // One CalendarEvent per (routine, occurrence) pair is emitted by
+  // mapOperationsRoutines and concatenated into gridEvents below.
+  const [routinesWindow, setRoutinesWindow] = useState<RoutinesWindowResponse>({ routines: [], truncated: false });
+
   // Info-card selection (PR-Ops-5.5). Set when an Operations event tile is
   // clicked; the parent item + block are resolved from operationsItems by
   // event.id (= block.id) so the card can render rich context without a
@@ -167,7 +177,7 @@ export default function HubPage() {
     entityType: string;
   } | null>(null);
 
-  useEffect(() => { loadCalendar(); loadOperationsBlocks(); }, [selectedYear, selectedMonth]);
+  useEffect(() => { loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines(); }, [selectedYear, selectedMonth]);
 
   const loadCalendar = async () => {
     try {
@@ -206,6 +216,41 @@ export default function HubPage() {
     } catch (err) {
       console.error('Failed to load operations blocks:', err);
       setOperationsItems([]);
+    }
+  };
+
+  /**
+   * Fetch Operations routines window for the visible month (PR-Ops-5.6).
+   * Mirrors loadOperationsBlocks' pattern. The endpoint expands each
+   * active routine's RRULE server-side; this client just concatenates
+   * the resulting occurrences into gridEvents.
+   *
+   * Performance: the endpoint caps total occurrences at 500 and signals
+   * `truncated: true` when the cap is hit. We surface that via console.warn
+   * — never silently dropped per the North Star.
+   */
+  const loadOperationsRoutines = async () => {
+    try {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const monthIdx = selectedMonth;
+      const from = `${selectedYear}-${pad(monthIdx + 1)}-01`;
+      const lastDay = new Date(selectedYear, monthIdx + 1, 0).getDate();
+      const to = `${selectedYear}-${pad(monthIdx + 1)}-${pad(lastDay)}`;
+      const res = await fetch(`/api/hub/operations-routines?from=${from}&to=${to}`);
+      if (res.ok) {
+        const data: RoutinesWindowResponse = await res.json();
+        setRoutinesWindow(data);
+        if (data.truncated) {
+          console.warn(
+            '[Hub] Routines window truncated — occurrence cap reached. Not all recurring routines may be visible in this view.'
+          );
+        }
+      } else {
+        setRoutinesWindow({ routines: [], truncated: false });
+      }
+    } catch (err) {
+      console.error('Failed to load operations routines:', err);
+      setRoutinesWindow({ routines: [], truncated: false });
     }
   };
 
@@ -289,9 +334,9 @@ export default function HubPage() {
   const yearlyBusinessActual = businessBudget.actualGrandTotal;
   const effectiveYearlyCost = homeMonthsCombined + travelMonthsTravelBudget + yearlyBusinessBudget;
 
-  // Transform hub events to CalendarGrid format. Operations blocks are
-  // mapped via mapOperationsBlocks and concatenated — additive, doesn't
-  // affect the existing source rendering.
+  // Transform hub events to CalendarGrid format. Operations blocks +
+  // routine occurrences are mapped via their respective helpers and
+  // concatenated — purely additive, doesn't change existing rendering.
   const gridEvents: GridEvent[] = useMemo(() => {
     const calendarSourceEvents: GridEvent[] = events.map(e => ({
       id: e.id,
@@ -305,8 +350,9 @@ export default function HubPage() {
       budgetAmount: e.budget_amount,
     }));
     const operationsEvents = mapOperationsBlocks(operationsItems);
-    return [...calendarSourceEvents, ...operationsEvents];
-  }, [events, operationsItems]);
+    const routineEvents = mapOperationsRoutines(routinesWindow);
+    return [...calendarSourceEvents, ...operationsEvents, ...routineEvents];
+  }, [events, operationsItems, routinesWindow]);
 
   return (
     <AppLayout>
