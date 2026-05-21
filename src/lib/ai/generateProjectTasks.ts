@@ -21,6 +21,7 @@
 import { recordUsage } from './recordUsage';
 import { MODEL_SONNET_4 } from './client';
 import { PROJECT_DESIGN_EXEMPLAR } from './exemplars/projectDesign';
+import { formatNorthStarBlock, type NorthStarContext } from './northStarContext';
 
 interface GenerateInput {
   userId: string;
@@ -30,6 +31,7 @@ interface GenerateInput {
   goalItems: string[];
   problemItems: string[];
   diagnosisItems: string[];
+  northStar?: NorthStarContext | null;
 }
 
 interface GeneratedTask {
@@ -92,6 +94,10 @@ INPUTS (from the user, in natural-voice item arrays):
   - GOAL items: "I WANT to ..." (target end states)
   - PROBLEM items: "I HAVE NOT ... / I KEEP ..." (current gaps and recurring obstacles)
   - DIAGNOSIS items: "Because ... / The root cause is ..." (root CAUSES — WHY the gap exists, not solutions). Diagnosis items name causal mechanisms; they do NOT prescribe what to do. Your tasks (this output) are the SOLUTION layer designed against those causes — do not just echo the diagnosis back as a task.
+
+When a NORTH STAR block is present at the top of the user message, treat it as the strategic frame — scope this project's tasks as a coherent part of that vision, respecting its sequencing and dependencies, and do not propose work that contradicts it.
+
+SOLO-FOUNDER OPERATOR CONTEXT: The user is a solo founder and User #1 of their own product. They validate by USING the thing in real production, not by controlled experiments. Favor decide-by-use over A/B tests, completion-rate metrics, abandonment funnels, or "test with N users" studies. Do NOT propose tasks whose only deliverable is a measurement or a study. Institutional rigor here means sequencing and dependency discipline, not corporate product-management ceremony. NOTE: legitimate correctness-validation tasks (verifying a calculation against known-correct examples, reconciling data against a source of truth) ARE real work and SHOULD be proposed when relevant — the guardrail targets ceremony, not correctness checks.
 
 OUTPUTS (you produce, via the return_project_tasks tool):
   An array of 5–30 atomic operational tasks. Each task carries:
@@ -189,7 +195,7 @@ ${JSON.stringify(PROJECT_DESIGN_EXEMPLAR.tasks_exemplar, null, 2)}
 Now produce tasks for the user's project below at this exact rigor. Verify URLs via web_search. Then call return_project_tasks with the structured array.`;
 
 export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
-  const userMessage = `Project title: "${input.projectTitle}"
+  const userMessage = `${formatNorthStarBlock(input.northStar ?? null)}Project title: "${input.projectTitle}"
 
 GOAL items:
 ${bulletList(input.goalItems)}

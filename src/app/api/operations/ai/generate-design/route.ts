@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
+import { toNorthStarContext } from '@/lib/ai/northStarContext';
 
 interface RequestBody {
   title?: string;
@@ -90,6 +91,10 @@ export async function POST(request: NextRequest) {
     const diagnosisResult = validateItems(body.diagnosisItems, 'diagnosisItems');
     if (!diagnosisResult.ok) return NextResponse.json({ error: 'Validation', message: diagnosisResult.message }, { status: 400 });
 
+    const nsRow = await prisma.operations_north_star.findUnique({
+      where: { user_id: user.id },
+    });
+
     const result = await generateProjectDesign({
       userId: user.id,
       userEmail,
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
       goalItems: goalResult.items,
       problemItems: problemResult.items,
       diagnosisItems: diagnosisResult.items,
+      northStar: toNorthStarContext(nsRow),
     });
 
     return NextResponse.json({

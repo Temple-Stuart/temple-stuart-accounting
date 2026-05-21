@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectTasks } from '@/lib/ai/generateProjectTasks';
+import { toNorthStarContext } from '@/lib/ai/northStarContext';
 
 interface RequestBody {
   projectTitle?: unknown;
@@ -114,6 +115,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      const nsRow = await prisma.operations_north_star.findUnique({
+        where: { user_id: user.id },
+      });
+
       const result = await generateProjectTasks({
         userId: user.id,
         userEmail,
@@ -122,6 +127,7 @@ export async function POST(request: NextRequest) {
         goalItems: goalResult.items,
         problemItems: problemResult.items,
         diagnosisItems: diagnosisResult.items,
+        northStar: toNorthStarContext(nsRow),
       });
 
       return NextResponse.json({
