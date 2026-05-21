@@ -55,3 +55,43 @@ export const DEFAULT_NORTH_STAR_FORM: NorthStarForm = {
   current_timezone: 'America/Los_Angeles',
   review_cadence_days: 90,
 };
+
+/**
+ * The North Star sections the optimize-from-reality feature supports.
+ * life_stage is intentionally excluded (too short to benefit from
+ * reality-grounded optimization); current_location_label / timezone /
+ * review_cadence are operational metadata, not vision content.
+ */
+export type OptimizableSection =
+  | 'mission_statement'
+  | 'one_year_target'
+  | 'three_year_target'
+  | 'guiding_principles'
+  | 'core_values';
+
+/** Prose sections produce replacement text; core_values produces a list of chips. */
+export type OptimizableKind = 'prose' | 'chips';
+
+export interface OptimizeSectionRequest {
+  section_name: OptimizableSection;
+  project_ids: string[];
+}
+
+export interface OptimizeSectionInspection {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt: string;
+  userMessage: string;
+  rawResponse: string;
+}
+
+export interface OptimizeSectionResponse {
+  /** Prose sections → the proposed text. Chips → the proposed array of values. */
+  proposed_value: string | string[];
+  usage_id: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string;
+  inspection: OptimizeSectionInspection;
+}

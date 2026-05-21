@@ -18,8 +18,51 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { NorthStar, NorthStarForm } from './types';
+import type {
+  NorthStar,
+  NorthStarForm,
+  OptimizableSection,
+  OptimizeSectionInspection,
+  OptimizeSectionResponse,
+} from './types';
 import { DEFAULT_NORTH_STAR_FORM } from './types';
+import InspectionDrawer from './ai/InspectionDrawer';
+
+interface ProjectSummary {
+  id: string;
+  title: string;
+  status: string;
+  // Rough char count used for the live token/cost estimate. The
+  // server has authoritative cost on response; this is a UX preview.
+  approx_chars: number;
+}
+
+function sectionKindOf(s: OptimizableSection): 'prose' | 'chips' {
+  return s === 'core_values' ? 'chips' : 'prose';
+}
+
+function readableSectionLabel(s: OptimizableSection): string {
+  switch (s) {
+    case 'mission_statement':
+      return 'mission';
+    case 'one_year_target':
+      return '1-year target';
+    case 'three_year_target':
+      return '3-year target';
+    case 'guiding_principles':
+      return 'guiding principles';
+    case 'core_values':
+      return 'core values';
+  }
+}
+
+function approxCostUsd(approxInputChars: number): string {
+  // ~4 chars/token, $3.00 per million input tokens, ~500 output tokens
+  // at $15.00 per million ≈ $0.0075. Surface the input-driven floor.
+  const inputTokens = approxInputChars / 4;
+  const cost = (inputTokens * 3.0) / 1_000_000 + (500 * 15.0) / 1_000_000;
+  return cost.toFixed(4);
+}
 
 function relTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -66,6 +109,22 @@ export default function SectionB_NorthStar() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Optimize-from-reality state — lifted to the parent so the picker
+  // panel and the editor stay in sync about which section is being
+  // optimized.
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [openOptimizer, setOpenOptimizer] = useState<OptimizableSection | null>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [optimizing, setOptimizing] = useState(false);
+  const [lastInspection, setLastInspection] = useState<
+    (OptimizeSectionInspection & { inputTokens: number; outputTokens: number; costUsd: string; usageId: string }) | null
+  >(null);
+  // Original-value snapshot per section captured at optimize-time so
+  // "undo to original" reverts the AI proposal cleanly. Map keyed by
+  // section_name; value is the pre-proposal form value for that section.
+  const [originalValues, setOriginalValues] = useState<Partial<Record<OptimizableSection, string | string[]>>>({});
+
   useEffect(() => {
     let cancelled = false;
     const fetchData = async () => {
@@ -98,6 +157,174 @@ export default function SectionB_NorthStar() {
     const t = setTimeout(() => setSuccessMessage(null), 3000);
     return () => clearTimeout(t);
   }, [successMessage]);
+
+  // Lazy-load projects when the user first opens any optimizer picker.
+  // Char-count per project is a rough proxy for input-token volume so
+  // the live estimate updates as the user toggles checkboxes.
+  useEffect(() => {
+    if (!openOptimizer || projectsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/operations/projects');
+        if (!res.ok) {
+          if (!cancelled) {
+            setError('failed to load projects for optimization picker');
+            setProjects([]);
+            setProjectsLoaded(true);
+          }
+          return;
+        }
+        const body = await res.json();
+        if (cancelled) return;
+        type ProjectRow = {
+          id: string;
+          title: string;
+          status: string;
+          goal: string | null;
+          problem: string | null;
+          diagnosis: string | null;
+          design: string | null;
+          goal_items?: string[] | null;
+          problem_items?: string[] | null;
+          diagnosis_items?: string[] | null;
+        };
+        const list: ProjectSummary[] = ((body.projects ?? []) as ProjectRow[]).map((p) => {
+          const itemsLen =
+            (p.goal_items ?? []).reduce((s, v) => s + v.length, 0) +
+            (p.problem_items ?? []).reduce((s, v) => s + v.length, 0) +
+            (p.diagnosis_items ?? []).reduce((s, v) => s + v.length, 0);
+          const proseLen =
+            (p.goal?.length ?? 0) +
+            (p.problem?.length ?? 0) +
+            (p.diagnosis?.length ?? 0) +
+            (p.design?.length ?? 0);
+          return {
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            // ~600 char overhead per project framing + items + prose.
+            // Per-task chars aren't known until the server fetches tasks;
+            // tasks add to the server-side estimate but the client preview
+            // is bounded to project text. Good-enough for live UX.
+            approx_chars: 600 + p.title.length + itemsLen + proseLen,
+          };
+        });
+        setProjects(list);
+        // Smart default: ALL active projects pre-selected. The user
+        // unchecks irrelevant ones. NO heuristic title-matching — that
+        // would be a hidden fallback.
+        const active = new Set(list.filter((p) => p.status !== 'archived' && p.status !== 'cancelled').map((p) => p.id));
+        setSelectedProjectIds(active);
+        setProjectsLoaded(true);
+      } catch {
+        if (!cancelled) {
+          setError('failed to load projects for optimization picker');
+          setProjects([]);
+          setProjectsLoaded(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openOptimizer, projectsLoaded]);
+
+  const handleOpenOptimizer = (section: OptimizableSection) => {
+    setOpenOptimizer(section);
+    setError(null);
+  };
+
+  const handleCloseOptimizer = () => {
+    setOpenOptimizer(null);
+    setOptimizing(false);
+  };
+
+  const toggleProjectSelection = (id: string) => {
+    setSelectedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleOptimize = async () => {
+    if (!openOptimizer) return;
+    setOptimizing(true);
+    setError(null);
+    try {
+      // Snapshot original value for "undo to original" affordance.
+      const originalForSection =
+        openOptimizer === 'core_values'
+          ? [...form.core_values]
+          : (form[openOptimizer as keyof NorthStarForm] as string);
+
+      const res = await fetch('/api/operations/ai/optimize-north-star-section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section_name: openOptimizer,
+          project_ids: Array.from(selectedProjectIds),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Surface the truthful error — including 413 overflow messages
+        // that tell the user to narrow their project selection. NO
+        // fallback content is injected into the form.
+        setError(body?.message ?? body?.error ?? 'optimization failed');
+        return;
+      }
+      const data = body as OptimizeSectionResponse;
+
+      // Apply the proposal to the form. Original value is preserved in
+      // originalValues so "undo to original" works.
+      setOriginalValues((prev) => ({ ...prev, [openOptimizer]: originalForSection }));
+      if (openOptimizer === 'core_values') {
+        if (!Array.isArray(data.proposed_value)) {
+          setError('AI returned non-array for core_values; refusing to apply');
+          return;
+        }
+        setForm({ ...form, core_values: data.proposed_value });
+      } else {
+        if (typeof data.proposed_value !== 'string') {
+          setError('AI returned non-string for a prose section; refusing to apply');
+          return;
+        }
+        setForm({ ...form, [openOptimizer]: data.proposed_value });
+      }
+
+      setLastInspection({
+        ...data.inspection,
+        inputTokens: data.input_tokens,
+        outputTokens: data.output_tokens,
+        costUsd: data.cost_usd,
+        usageId: data.usage_id,
+      });
+      setSuccessMessage(`AI proposal applied to ${readableSectionLabel(openOptimizer)} — review, edit, then save to commit`);
+      handleCloseOptimizer();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'optimization failed');
+    } finally {
+      setOptimizing(false);
+    }
+  };
+
+  const handleUndoSection = (section: OptimizableSection) => {
+    const original = originalValues[section];
+    if (original === undefined) return;
+    if (section === 'core_values') {
+      setForm({ ...form, core_values: original as string[] });
+    } else {
+      setForm({ ...form, [section]: original as string });
+    }
+    setOriginalValues((prev) => {
+      const next = { ...prev };
+      delete next[section];
+      return next;
+    });
+  };
 
   const addCoreValue = () => {
     const v = coreValueInput.trim();
@@ -212,17 +439,52 @@ export default function SectionB_NorthStar() {
       {loading ? (
         <div className="text-xs font-mono text-text-muted">loading north star…</div>
       ) : editing ? (
-        <NorthStarEditor
-          form={form}
-          setForm={setForm}
-          coreValueInput={coreValueInput}
-          setCoreValueInput={setCoreValueInput}
-          addCoreValue={addCoreValue}
-          removeCoreValue={removeCoreValue}
-          saving={saving}
-          onSave={handleSave}
-          onCancel={northStar ? handleCancelEdit : undefined}
-        />
+        <>
+          <NorthStarEditor
+            form={form}
+            setForm={setForm}
+            coreValueInput={coreValueInput}
+            setCoreValueInput={setCoreValueInput}
+            addCoreValue={addCoreValue}
+            removeCoreValue={removeCoreValue}
+            saving={saving}
+            onSave={handleSave}
+            onCancel={northStar ? handleCancelEdit : undefined}
+            onOpenOptimizer={handleOpenOptimizer}
+            sectionHasProposal={originalValues}
+            onUndoSection={handleUndoSection}
+          />
+          {openOptimizer && (
+            <OptimizePicker
+              sectionName={openOptimizer}
+              projects={projects}
+              projectsLoaded={projectsLoaded}
+              selectedIds={selectedProjectIds}
+              onToggle={toggleProjectSelection}
+              optimizing={optimizing}
+              onOptimize={handleOptimize}
+              onCancel={handleCloseOptimizer}
+            />
+          )}
+          {lastInspection && (
+            <div className="mt-4">
+              <InspectionDrawer
+                data={{
+                  model: lastInspection.model,
+                  temperature: lastInspection.temperature,
+                  maxTokens: lastInspection.maxTokens,
+                  systemPrompt: lastInspection.systemPrompt,
+                  userMessage: lastInspection.userMessage,
+                  rawResponse: lastInspection.rawResponse,
+                  inputTokens: lastInspection.inputTokens,
+                  outputTokens: lastInspection.outputTokens,
+                  costUsd: lastInspection.costUsd,
+                  usageId: lastInspection.usageId,
+                }}
+              />
+            </div>
+          )}
+        </>
       ) : northStar ? (
         <NorthStarDisplay northStar={northStar} />
       ) : (
@@ -330,6 +592,107 @@ function NorthStarDisplay({ northStar }: { northStar: NorthStar }) {
   );
 }
 
+interface OptimizePickerProps {
+  sectionName: OptimizableSection;
+  projects: ProjectSummary[];
+  projectsLoaded: boolean;
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  optimizing: boolean;
+  onOptimize: () => void;
+  onCancel: () => void;
+}
+
+function OptimizePicker({
+  sectionName,
+  projects,
+  projectsLoaded,
+  selectedIds,
+  onToggle,
+  optimizing,
+  onOptimize,
+  onCancel,
+}: OptimizePickerProps) {
+  const selectedList = projects.filter((p) => selectedIds.has(p.id));
+  const selectedChars = selectedList.reduce((s, p) => s + p.approx_chars, 0);
+  const approxTokens = Math.round(selectedChars / 4);
+  const approxCost = approxCostUsd(selectedChars);
+  const kind = sectionKindOf(sectionName);
+
+  return (
+    <div className="mt-4 border border-brand-purple rounded p-3 bg-purple-50/30 text-xs font-mono space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="font-bold text-text-primary">
+          optimize {readableSectionLabel(sectionName)} from reality{' '}
+          <span className="text-text-muted font-normal">
+            ({kind === 'chips' ? 'AI proposes a revised chip set' : 'AI proposes replacement text'})
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-text-muted hover:text-text-primary"
+          title="Close picker"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="text-text-muted">
+        Pick the projects whose tasks should ground the proposal. Full project + task rows are
+        sent to the model — never summarized, never truncated. If the payload exceeds the
+        context window the server returns an error asking you to narrow the selection.
+      </div>
+      {!projectsLoaded ? (
+        <div className="text-text-muted italic">loading projects…</div>
+      ) : projects.length === 0 ? (
+        <div className="text-text-muted italic">
+          no projects yet — the AI will propose based on the current section text alone.
+        </div>
+      ) : (
+        <div className="max-h-48 overflow-y-auto border border-border rounded bg-white">
+          {projects.map((p) => (
+            <label
+              key={p.id}
+              className="flex items-center gap-2 px-2 py-1 border-b border-border-light last:border-b-0 hover:bg-bg-row cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(p.id)}
+                onChange={() => onToggle(p.id)}
+              />
+              <span className="flex-1 truncate text-text-primary">{p.title}</span>
+              <span className="text-text-faint">{p.status}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="text-text-muted">
+        selected: {selectedList.length} of {projects.length} projects · ~
+        {approxTokens.toLocaleString()} input tokens · ~${approxCost} per call (estimate; server
+        logs authoritative cost)
+      </div>
+      <div className="flex items-center gap-2 pt-2 border-t border-border-light">
+        <button
+          type="button"
+          onClick={onOptimize}
+          disabled={optimizing}
+          className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {optimizing ? 'optimizing…' : 'optimize'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={optimizing}
+          className="px-3 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+        >
+          cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface EditorProps {
   form: NorthStarForm;
   setForm: (f: NorthStarForm) => void;
@@ -340,6 +703,45 @@ interface EditorProps {
   saving: boolean;
   onSave: () => void;
   onCancel?: () => void;
+  onOpenOptimizer: (section: OptimizableSection) => void;
+  /** Sections that currently hold an AI proposal (so "undo" is visible). */
+  sectionHasProposal: Partial<Record<OptimizableSection, string | string[]>>;
+  onUndoSection: (section: OptimizableSection) => void;
+}
+
+function OptimizeButton({
+  section,
+  onClick,
+  hasProposal,
+  onUndo,
+}: {
+  section: OptimizableSection;
+  onClick: (s: OptimizableSection) => void;
+  hasProposal: boolean;
+  onUndo: (s: OptimizableSection) => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-mono">
+      <button
+        type="button"
+        onClick={() => onClick(section)}
+        className="px-1.5 py-0.5 border border-brand-purple text-brand-purple rounded hover:bg-purple-50"
+        title="Propose a sharpened version of this section from the reality of your selected projects + tasks"
+      >
+        + optimize from reality
+      </button>
+      {hasProposal && (
+        <button
+          type="button"
+          onClick={() => onUndo(section)}
+          className="text-text-muted hover:text-text-primary underline"
+          title="Revert this section to its pre-proposal value"
+        >
+          🤖 AI proposal · undo
+        </button>
+      )}
+    </span>
+  );
 }
 
 function NorthStarEditor({
@@ -352,6 +754,9 @@ function NorthStarEditor({
   saving,
   onSave,
   onCancel,
+  onOpenOptimizer,
+  sectionHasProposal,
+  onUndoSection,
 }: EditorProps) {
   const labelClass = 'text-text-faint uppercase tracking-wide mb-1 text-xs font-mono';
   const inputClass =
@@ -360,7 +765,15 @@ function NorthStarEditor({
   return (
     <div className="space-y-4">
       <div>
-        <div className={labelClass}>mission statement</div>
+        <div className="flex items-center justify-between mb-1">
+          <div className={labelClass}>mission statement</div>
+          <OptimizeButton
+            section="mission_statement"
+            onClick={onOpenOptimizer}
+            hasProposal={sectionHasProposal.mission_statement !== undefined}
+            onUndo={onUndoSection}
+          />
+        </div>
         <textarea
           value={form.mission_statement}
           onChange={(e) => setForm({ ...form, mission_statement: e.target.value })}
@@ -396,7 +809,15 @@ function NorthStarEditor({
       </div>
 
       <div>
-        <div className={labelClass}>core values</div>
+        <div className="flex items-center justify-between mb-1">
+          <div className={labelClass}>core values</div>
+          <OptimizeButton
+            section="core_values"
+            onClick={onOpenOptimizer}
+            hasProposal={sectionHasProposal.core_values !== undefined}
+            onUndo={onUndoSection}
+          />
+        </div>
         <div className="flex flex-wrap gap-1 mb-2">
           {form.core_values.map((v) => (
             <span
@@ -441,7 +862,15 @@ function NorthStarEditor({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className={labelClass}>1-year target</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className={labelClass}>1-year target</div>
+            <OptimizeButton
+              section="one_year_target"
+              onClick={onOpenOptimizer}
+              hasProposal={sectionHasProposal.one_year_target !== undefined}
+              onUndo={onUndoSection}
+            />
+          </div>
           <textarea
             value={form.one_year_target}
             onChange={(e) => setForm({ ...form, one_year_target: e.target.value })}
@@ -451,7 +880,15 @@ function NorthStarEditor({
           />
         </div>
         <div>
-          <div className={labelClass}>3-year target</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className={labelClass}>3-year target</div>
+            <OptimizeButton
+              section="three_year_target"
+              onClick={onOpenOptimizer}
+              hasProposal={sectionHasProposal.three_year_target !== undefined}
+              onUndo={onUndoSection}
+            />
+          </div>
           <textarea
             value={form.three_year_target}
             onChange={(e) => setForm({ ...form, three_year_target: e.target.value })}
@@ -463,7 +900,15 @@ function NorthStarEditor({
       </div>
 
       <div>
-        <div className={labelClass}>guiding principles</div>
+        <div className="flex items-center justify-between mb-1">
+          <div className={labelClass}>guiding principles</div>
+          <OptimizeButton
+            section="guiding_principles"
+            onClick={onOpenOptimizer}
+            hasProposal={sectionHasProposal.guiding_principles !== undefined}
+            onUndo={onUndoSection}
+          />
+        </div>
         <textarea
           value={form.guiding_principles}
           onChange={(e) => setForm({ ...form, guiding_principles: e.target.value })}
