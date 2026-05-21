@@ -2937,12 +2937,12 @@ model operations_north_star {
   id                     String    @id @default(uuid()) @db.Uuid
   user_id                String    @unique
   mission_statement      String?   @db.Text
-  life_stage             String?   @db.VarChar(50)
+  life_stage             String?   @db.Text
   core_values            String[]  @default([])
   guiding_principles     String?   @db.Text
   one_year_target        String?   @db.Text
   three_year_target      String?   @db.Text
-  current_location_label String?   @db.VarChar(200)
+  current_location_label String?   @db.Text
   current_timezone       String    @default("America/Los_Angeles") @db.VarChar(64)
   review_cadence_days    Int       @default(90)
   last_reviewed_at       DateTime? @db.Timestamptz(6)
