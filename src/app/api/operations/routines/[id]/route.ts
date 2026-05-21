@@ -22,6 +22,12 @@ import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
+function trimNonEmpty(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
+}
+
 /**
  * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
  * (unset). Returns a 400 NextResponse in `error` on malformed input.
@@ -261,6 +267,64 @@ export async function PATCH(
         { error: 'Validation', field: 'end_time', message: 'end_time must be after start_time' },
         { status: 400 }
       );
+    }
+
+    // Mirror task PATCH at src/app/api/operations/projects/[id]/tasks/[taskId]/route.ts:
+    // estimated_cost_usd (:180-188) accepts null/'' → null, string → Decimal,
+    // number → Decimal. No silent coercion of malformed input — Prisma.Decimal
+    // throws on garbage strings, which surfaces as a 500 via the outer catch.
+    if (body.estimated_cost_usd !== undefined) {
+      const v = body.estimated_cost_usd;
+      if (v === null || v === '') {
+        data.estimated_cost_usd = null;
+      } else if (typeof v === 'string' && v.trim().length > 0) {
+        data.estimated_cost_usd = new Prisma.Decimal(v.trim());
+      } else if (typeof v === 'number') {
+        data.estimated_cost_usd = new Prisma.Decimal(v);
+      }
+    }
+
+    // coa_code: strict existence check against the routine's entity COA.
+    // Mirrors task PATCH at .../[taskId]/route.ts:230-270 exactly. Uses
+    // existing.entity_id (immutable on the routine) rather than re-reading
+    // any incoming entity — entity is not editable post-creation.
+    if (body.coa_code !== undefined) {
+      const c = trimNonEmpty(body.coa_code);
+      if (c === null) {
+        data.coa_code = null;
+      } else {
+        if (c.length > 50) {
+          return NextResponse.json(
+            { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
+            { status: 400 }
+          );
+        }
+        const account = await prisma.chart_of_accounts.findUnique({
+          where: {
+            userId_entity_id_code: {
+              userId: user.id,
+              entity_id: existing.entity_id,
+              code: c,
+            },
+          },
+        });
+        if (!account || account.is_archived) {
+          const available = await prisma.chart_of_accounts.findMany({
+            where: { userId: user.id, entity_id: existing.entity_id, is_archived: false },
+            select: { code: true },
+            orderBy: { code: 'asc' },
+          });
+          return NextResponse.json(
+            {
+              error: 'Validation',
+              field: 'coa_code',
+              message: `Unknown coa_code "${c}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
+            },
+            { status: 400 }
+          );
+        }
+        data.coa_code = c;
+      }
     }
 
     // If cadence/timezone changed, recompute next_due_at.

@@ -19,6 +19,7 @@ import RRULEBuilder from './RRULEBuilder';
 import type { CadenceGroup, Routine, RoutineForm } from './types';
 import { CADENCE_GROUP_LABELS, CADENCE_GROUP_ORDER, DEFAULT_ROUTINE_FORM } from './types';
 import type { Scene, Take } from '../content/ContentTable';
+import type { CoaAccountSummary } from '../projects/types';
 
 interface Entity {
   id: string;
@@ -40,6 +41,14 @@ export default function RoutineList({ entities, onCommitted }: Props) {
   const [createForm, setCreateForm] = useState<RoutineForm>(DEFAULT_ROUTINE_FORM);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // COA accounts for the category dropdown — fetched per createForm.entity_id.
+  // Mirrors TaskList.tsx:40-41,73-116 but keyed on the form's chosen entity
+  // (the user selects entity inside the create form here, vs. TaskList which
+  // gets entity_id as a prop). Empty list = no entity selected yet or fetch
+  // failed; dropdown shows only "— None —" in that case.
+  const [coaAccounts, setCoaAccounts] = useState<CoaAccountSummary[]>([]);
+  const [coaFetchedForEntityId, setCoaFetchedForEntityId] = useState<string | null>(null);
 
   const fetchRoutines = async () => {
     setLoading(true);
@@ -67,6 +76,49 @@ export default function RoutineList({ entities, onCommitted }: Props) {
     fetchRoutines();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showInactive]);
+
+  // Fetch COA accounts whenever the create-form's entity changes. Pattern
+  // copied from TaskList.tsx:73-116. Skipping when entity is unset (initial
+  // state); coaFetchedForEntityId is the per-entity cache key.
+  useEffect(() => {
+    const entityId = createForm.entity_id;
+    if (!entityId) return;
+    if (coaFetchedForEntityId === entityId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/chart-of-accounts?entity_id=${encodeURIComponent(entityId)}`);
+        if (!res.ok) {
+          console.error('[RoutineList] COA fetch failed:', res.status);
+          if (!cancelled) {
+            setCoaAccounts([]);
+            setCoaFetchedForEntityId(entityId);
+          }
+          return;
+        }
+        const body = await res.json();
+        if (cancelled) return;
+        type CoaResponseRow = { code: string; name: string; accountType: string; entity_id: string };
+        const list: CoaAccountSummary[] = (body.accounts ?? []).map((a: CoaResponseRow) => ({
+          code: a.code,
+          name: a.name,
+          account_type: a.accountType,
+          entity_id: a.entity_id,
+        }));
+        setCoaAccounts(list);
+        setCoaFetchedForEntityId(entityId);
+      } catch (e) {
+        console.error('[RoutineList] COA fetch error:', e);
+        if (!cancelled) {
+          setCoaAccounts([]);
+          setCoaFetchedForEntityId(entityId);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [createForm.entity_id, coaFetchedForEntityId]);
 
   const refresh = () => {
     fetchRoutines();
@@ -242,7 +294,15 @@ export default function RoutineList({ entities, onCommitted }: Props) {
               <div className={labelClass}>entity</div>
               <select
                 value={createForm.entity_id}
-                onChange={(e) => setCreateForm({ ...createForm, entity_id: e.target.value })}
+                onChange={(e) =>
+                  setCreateForm({
+                    ...createForm,
+                    entity_id: e.target.value,
+                    // Reset coa_code on entity change — COA is entity-scoped.
+                    // No silent carry-over; user picks again for the new entity.
+                    coa_code: '',
+                  })
+                }
                 className={inputClass}
               >
                 <option value="">— select —</option>
@@ -253,9 +313,38 @@ export default function RoutineList({ entities, onCommitted }: Props) {
                 ))}
               </select>
             </div>
+            <div>
+              <div className={labelClass}>category (optional)</div>
+              <select
+                value={createForm.coa_code}
+                onChange={(e) => setCreateForm({ ...createForm, coa_code: e.target.value })}
+                className={inputClass}
+                disabled={!createForm.entity_id}
+              >
+                <option value="">— None —</option>
+                {coaAccounts.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <RRULEBuilder form={createForm} setForm={setCreateForm} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>est. cost usd (optional)</div>
+              <input
+                type="text"
+                value={createForm.estimated_cost_usd}
+                onChange={(e) => setCreateForm({ ...createForm, estimated_cost_usd: e.target.value })}
+                className={inputClass}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

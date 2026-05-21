@@ -22,6 +22,12 @@ import { compileFormToRRule, expandForward } from '@/lib/operations/rruleHelpers
 import type { RoutineForm } from '@/components/workbench/operations/routines/types';
 import { parseTimeOrNull } from '@/lib/operations/parseTime';
 
+function trimNullable(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length > 0 ? t : null;
+}
+
 /**
  * Parse an optional YYYY-MM-DD date-bound value. Empty/null/undefined → null
  * (unset). Returns a 400 NextResponse in `error` on malformed input.
@@ -223,6 +229,51 @@ export async function POST(request: NextRequest) {
       ? body.ideal_time_label.trim()
       : null;
 
+    let estimated_cost_usd: Prisma.Decimal | null = null;
+    if (typeof body.estimated_cost_usd === 'string' && body.estimated_cost_usd.trim().length > 0) {
+      estimated_cost_usd = new Prisma.Decimal(body.estimated_cost_usd.trim());
+    } else if (typeof body.estimated_cost_usd === 'number') {
+      estimated_cost_usd = new Prisma.Decimal(body.estimated_cost_usd);
+    }
+
+    // coa_code is optional at create; if supplied, must reference an
+    // existing non-archived chart_of_accounts row owned by this user for
+    // the routine's entity. Strict-existence mirror of the task POST check
+    // at src/app/api/operations/projects/[id]/tasks/route.ts:159-191.
+    const coa_code: string | null = trimNullable(body.coa_code);
+    if (coa_code !== null) {
+      if (coa_code.length > 50) {
+        return NextResponse.json(
+          { error: 'Validation', field: 'coa_code', message: 'max 50 chars' },
+          { status: 400 }
+        );
+      }
+      const account = await prisma.chart_of_accounts.findUnique({
+        where: {
+          userId_entity_id_code: {
+            userId: user.id,
+            entity_id: entityId,
+            code: coa_code,
+          },
+        },
+      });
+      if (!account || account.is_archived) {
+        const available = await prisma.chart_of_accounts.findMany({
+          where: { userId: user.id, entity_id: entityId, is_archived: false },
+          select: { code: true },
+          orderBy: { code: 'asc' },
+        });
+        return NextResponse.json(
+          {
+            error: 'Validation',
+            field: 'coa_code',
+            message: `Unknown coa_code "${coa_code}" for this entity. Available codes: ${available.map((a) => a.code).join(', ')}`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Compute initial next_due_at.
     let nextDueAt: Date | null = null;
     try {
@@ -257,6 +308,8 @@ export async function POST(request: NextRequest) {
         end_date: endResult.value,
         start_time: startTimeResult.value,
         end_time: endTimeResult.value,
+        estimated_cost_usd,
+        coa_code,
         is_active: body.is_active !== false,
         next_due_at: nextDueAt,
         created_by: userEmail,
