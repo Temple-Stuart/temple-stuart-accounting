@@ -49,18 +49,22 @@ const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const SOURCE_CONFIG: Record<string, { icon: string; color: string; bgColor: string; dotColor: string; calendarColor: string }> = {
-  home: { icon: '🏠', color: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-500', calendarColor: 'bg-amber-400' },
-  auto: { icon: '🚗', color: 'text-slate-600', bgColor: 'bg-slate-50', dotColor: 'bg-slate-400', calendarColor: 'bg-slate-400' },
-  shopping: { icon: '🛒', color: 'text-pink-600', bgColor: 'bg-pink-50', dotColor: 'bg-pink-500', calendarColor: 'bg-pink-400' },
-  personal: { icon: '👤', color: 'text-violet-600', bgColor: 'bg-violet-50', dotColor: 'bg-violet-500', calendarColor: 'bg-violet-400' },
-  health: { icon: '💪', color: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-500', calendarColor: 'bg-emerald-400' },
-  growth: { icon: '📚', color: 'text-brand-purple', bgColor: 'bg-brand-purple-wash', dotColor: 'bg-brand-purple-wash0', calendarColor: 'bg-blue-400' },
+  // PR-Ops-5.11 clean-slate: the six pre-Operations sources (home, auto,
+  // shopping, personal, health, growth) and agenda were removed from the
+  // Hub render. Their feature surfaces are no longer in the primary nav
+  // (AppLayout.tsx:78-83) — Operations replaces them. The underlying
+  // calendar_events rows were NOT deleted (constitutional: never touch
+  // user financial data via raw SQL); they remain dormant in the DB and
+  // can be re-rendered by re-adding entries here + filtering loadCalendar.
+  //
+  // Three sources retained:
+  //   trip       — Travel is a live primary-nav tab actively writing
+  //                source='trip' rows via /api/trips/[id]/commit; trips
+  //                are real future commitments that belong on the Hub.
+  //   operations — PR-Ops-5.3 task time-blocks.
+  //   routines   — PR-Ops-5.6 recurring routine occurrences.
   trip: { icon: '✈️', color: 'text-cyan-600', bgColor: 'bg-cyan-50', dotColor: 'bg-cyan-500', calendarColor: 'bg-cyan-400' },
-  // Operations (PR-Ops-5.3) — task time-blocks scheduled via the workbench.
-  // Indigo distinguishes from health (emerald), growth (brand-purple/blue), and trip (cyan).
   operations: { icon: '🎯', color: 'text-indigo-600', bgColor: 'bg-indigo-50', dotColor: 'bg-indigo-500', calendarColor: 'bg-indigo-400' },
-  // Routines (PR-Ops-5.6) — recurring time-block routines expanded from RRULE.
-  // Teal distinguishes from operations indigo, growth blue/brand-purple, trip cyan.
   routines: { icon: '🔁', color: 'text-teal-600', bgColor: 'bg-teal-50', dotColor: 'bg-teal-500', calendarColor: 'bg-teal-400' },
 };
 
@@ -184,7 +188,16 @@ export default function HubPage() {
       const res = await fetch(`/api/calendar?year=${selectedYear}&month=${selectedMonth + 1}`);
       if (res.ok) {
         const data = await res.json();
-        setEvents(data.events || []);
+        // PR-Ops-5.11 clean-slate filter: /api/calendar returns calendar_events
+        // rows across all sources (home/auto/shopping/personal/health/growth/
+        // trip/agenda). Only `trip` belongs on the Hub today (its source —
+        // the Travel primary-nav tab — is live). The other source values
+        // come from feature surfaces removed from the primary nav; their
+        // calendar_events rows are NOT deleted (constitutional: never SQL-
+        // delete user financial data), just no longer rendered. To restore
+        // them, drop this filter and re-add their SOURCE_CONFIG entries.
+        const raw = (data.events || []) as CalendarEvent[];
+        setEvents(raw.filter((e) => e.source === 'trip'));
         setSummary(data.summary || null);
       }
     } catch (err) { console.error('Failed to load calendar:', err); }
