@@ -402,19 +402,20 @@ export default function SectionD_ProjectBacklog() {
             <ListManager
               items={createForm.problemItems}
               onChange={(next) => setCreateForm({ ...createForm, problemItems: next })}
-              verbPrefix="I DID NOT "
-              altVerbPrefix="I HAVE NOT "
-              placeholder="create an FSA ID yet"
+              verbPrefix="I HAVE NOT "
+              altVerbPrefix="I KEEP "
+              placeholder="created an FSA ID yet"
               disabled={createSaving}
             />
           </div>
           <div>
-            <div className={labelClass}>3 · diagnosis — root cause</div>
+            <div className={labelClass}>3 · diagnosis — root cause of the gap</div>
             <ListManager
               items={createForm.diagnosisItems}
               onChange={(next) => setCreateForm({ ...createForm, diagnosisItems: next })}
-              verbPrefix="I NEED TO "
-              placeholder="complete personal tax return first"
+              verbPrefix="Because "
+              altVerbPrefix="The root cause is "
+              placeholder="I never blocked dedicated time for it"
               disabled={createSaving}
             />
           </div>
