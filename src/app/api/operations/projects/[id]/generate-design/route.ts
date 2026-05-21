@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getVerifiedEmail } from '@/lib/cookie-auth';
 import { generateProjectDesign } from '@/lib/ai/generateProjectDesign';
+import { toNorthStarContext } from '@/lib/ai/northStarContext';
 
 /**
  * Resolve a field's items: prefer the JSONB array, fall back to wrapping
@@ -69,6 +70,10 @@ export async function POST(
       );
     }
 
+    const nsRow = await prisma.operations_north_star.findUnique({
+      where: { user_id: user.id },
+    });
+
     const result = await generateProjectDesign({
       userId: user.id,
       userEmail,
@@ -77,6 +82,7 @@ export async function POST(
       goalItems,
       problemItems,
       diagnosisItems,
+      northStar: toNorthStarContext(nsRow),
     });
 
     return NextResponse.json({
