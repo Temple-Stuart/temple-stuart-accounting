@@ -214,7 +214,14 @@ function getTimezoneOffsetMs(instant: Date, timezone: string): number {
     get('minute'),
     get('second')
   );
-  return tzAsUtc - instant.getTime();
+  // PR-Ops-5.7: sign corrected. Prior implementation returned
+  // `tzAsUtc - instant.getTime()` which had the opposite sign of what the
+  // docstring above promises (negative for behind-UTC zones), causing
+  // shiftFloatingToZone to shift every routine occurrence 2× the timezone
+  // offset in the WRONG direction. Manifested as Alex's SLEEP routine
+  // displaying "expected: 16:00 / missed" for a 00:00–06:00 window in
+  // America/New_York. See audit-reports/pr-ops-5.7-phase-1.md.
+  return instant.getTime() - tzAsUtc;
 }
 
 function addYears(d: Date, n: number): Date {
