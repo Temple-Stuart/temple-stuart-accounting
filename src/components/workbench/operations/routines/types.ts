@@ -51,6 +51,8 @@ export interface Routine {
    * Same ISO-serialization gotcha as start_time — extract HH:MM via .slice(11, 16).
    */
   end_time: string | null;
+  estimated_cost_usd: string | null;
+  coa_code: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -156,6 +158,8 @@ export interface RoutineForm {
   end_date: string;                   // YYYY-MM-DD window end; '' = unset (never expires)
   start_time: string;                 // HH:MM intent-window start; '' = unset
   end_time: string;                   // HH:MM intent-window end; '' = unset
+  estimated_cost_usd: string;         // '' represents null
+  coa_code: string;                   // '' represents null
   is_active: boolean;
 }
 
@@ -178,6 +182,8 @@ export const DEFAULT_ROUTINE_FORM: RoutineForm = {
   end_date: '',
   start_time: '',
   end_time: '',
+  estimated_cost_usd: '',
+  coa_code: '',
   is_active: true,
 };
 

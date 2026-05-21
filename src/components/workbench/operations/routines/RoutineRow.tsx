@@ -14,13 +14,14 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Routine, RoutineForm } from './types';
 import { DEFAULT_ROUTINE_FORM } from './types';
 import RRULEBuilder from './RRULEBuilder';
 import { RoutineStepList } from './RoutineStepList';
 import ScenifyButton from '../content/ScenifyButton';
 import type { Scene, Take } from '../content/ContentTable';
+import type { CoaAccountSummary } from '../projects/types';
 
 interface Entity {
   id: string;
@@ -54,6 +55,8 @@ function routineToForm(r: Routine): RoutineForm {
     start_time: r.start_time ? r.start_time.slice(11, 16) : '',
     end_time: r.end_time ? r.end_time.slice(11, 16) : '',
     is_active: r.is_active,
+    estimated_cost_usd: r.estimated_cost_usd ?? '',
+    coa_code: r.coa_code ?? '',
     cadence_mode: 'custom',
     custom_rrule: r.schedule_rrule,
   };
@@ -80,6 +83,52 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // COA accounts for the edit form's category dropdown. Entity is immutable
+  // post-creation (form select is disabled), so fetch is keyed on
+  // routine.entity_id and only fires when the user opens the edit form.
+  // Mirrors TaskList.tsx:73-116.
+  const [coaAccounts, setCoaAccounts] = useState<CoaAccountSummary[]>([]);
+  const [coaFetched, setCoaFetched] = useState(false);
+  useEffect(() => {
+    if (!editing || coaFetched) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/chart-of-accounts?entity_id=${encodeURIComponent(routine.entity_id)}`
+        );
+        if (!res.ok) {
+          console.error('[RoutineRow] COA fetch failed:', res.status);
+          if (!cancelled) {
+            setCoaAccounts([]);
+            setCoaFetched(true);
+          }
+          return;
+        }
+        const body = await res.json();
+        if (cancelled) return;
+        type CoaResponseRow = { code: string; name: string; accountType: string; entity_id: string };
+        const list: CoaAccountSummary[] = (body.accounts ?? []).map((a: CoaResponseRow) => ({
+          code: a.code,
+          name: a.name,
+          account_type: a.accountType,
+          entity_id: a.entity_id,
+        }));
+        setCoaAccounts(list);
+        setCoaFetched(true);
+      } catch (e) {
+        console.error('[RoutineRow] COA fetch error:', e);
+        if (!cancelled) {
+          setCoaAccounts([]);
+          setCoaFetched(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, coaFetched, routine.entity_id]);
 
   const enterEdit = () => {
     setForm(routineToForm(routine));
@@ -269,6 +318,19 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border-light">
+            <div>
+              <div className={labelClass}>est. cost usd</div>
+              <div className="text-text-primary">
+                {routine.estimated_cost_usd !== null ? `$${routine.estimated_cost_usd}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className={labelClass}>category (coa)</div>
+              <div className="text-text-primary font-mono">{routine.coa_code ?? '—'}</div>
+            </div>
+          </div>
+
           <RoutineStepList routine={routine} onUpdate={onUpdate} onTakeify={onTakeify} />
 
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border-light">
@@ -344,6 +406,28 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
                 ))}
               </select>
             </div>
+            <div>
+              <div className={labelClass}>category (optional)</div>
+              <select
+                value={form.coa_code}
+                onChange={(e) => setForm({ ...form, coa_code: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">— None —</option>
+                {/* If the routine's saved code isn't in the dropdown options
+                    (archived or entity COA changed), still surface it so the
+                    user isn't silently re-categorized when they save.
+                    Mirrors TaskRow.tsx:602-604. */}
+                {form.coa_code !== '' && !coaAccounts.some((a) => a.code === form.coa_code) && (
+                  <option value={form.coa_code}>{form.coa_code} ⚠ (not in current COA)</option>
+                )}
+                {coaAccounts.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <RRULEBuilder form={form} setForm={setForm} />
@@ -386,6 +470,19 @@ export default function RoutineRow({ routine, entities, onUpdate, onDelete, onSc
                 value={form.end_time}
                 onChange={(e) => setForm({ ...form, end_time: e.target.value })}
                 className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={labelClass}>est. cost usd (optional)</div>
+              <input
+                type="text"
+                value={form.estimated_cost_usd}
+                onChange={(e) => setForm({ ...form, estimated_cost_usd: e.target.value })}
+                className={inputClass}
+                placeholder="0.00"
               />
             </div>
           </div>
