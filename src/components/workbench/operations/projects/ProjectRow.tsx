@@ -485,9 +485,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             <ListManager
               items={form.problemItems}
               onChange={(next) => setForm({ ...form, problemItems: next })}
-              verbPrefix="I DID NOT "
-              altVerbPrefix="I HAVE NOT "
-              placeholder="create an FSA ID yet"
+              verbPrefix="I HAVE NOT "
+              altVerbPrefix="I KEEP "
+              placeholder="created an FSA ID yet"
               disabled={saving}
             />
           </div>
@@ -496,8 +496,9 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
             <ListManager
               items={form.diagnosisItems}
               onChange={(next) => setForm({ ...form, diagnosisItems: next })}
-              verbPrefix="I NEED TO "
-              placeholder="complete personal tax return first"
+              verbPrefix="Because "
+              altVerbPrefix="The root cause is "
+              placeholder="I never blocked dedicated time for it"
               disabled={saving}
             />
           </div>
