@@ -423,6 +423,7 @@ export default function HubPage() {
               events={gridEvents}
               sourceConfig={HUB_GRID_CONFIG}
               defaultView="week"
+              enableDayView={true}
               showBudgetTotals={true}
               showCategoryLegend={true}
               onEventClick={handleEventClick}
