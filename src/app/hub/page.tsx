@@ -438,11 +438,15 @@ export default function HubPage() {
             />
           )}
 
-          {/* Unscheduled task pool (PR-Ops-Hub-1) — assign onto the calendar above. */}
-          <UnscheduledTaskTable
-            tasks={unscheduledTasks}
-            onAssigned={() => { loadOperationsBlocks(); loadUnscheduledTasks(); }}
-          />
+          {/* Unscheduled task pool (PR-Ops-Hub-1/2) — per-project queues, assign
+              onto the calendar above. The stack scrolls as a unit in a bounded
+              container so the calendar stays in view while paging the queues. */}
+          <div className="max-h-[640px] overflow-y-auto">
+            <UnscheduledTaskTable
+              tasks={unscheduledTasks}
+              onAssigned={() => { loadOperationsBlocks(); loadUnscheduledTasks(); }}
+            />
+          </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* BUDGET COMPARISON - WALL STREET STYLE */}

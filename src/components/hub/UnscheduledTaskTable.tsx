@@ -1,12 +1,18 @@
 /**
- * UnscheduledTaskTable — the Hub's pool of tasks not yet on the calendar.
+ * UnscheduledTaskTable — the Hub's pool of tasks not yet on the calendar,
+ * grouped into one bounded queue card per project (stacked vertically). Tasks
+ * arrive grouped + sorted by the endpoint (orderBy [project_id, display_order,
+ * id]); the component groups by project.id preserving that order. Each queue
+ * caps at ~6 visible rows then scrolls internally, so all project headers stay
+ * scannable regardless of queue size.
  *
- * Renders under the Hub CalendarGrid. Each row exposes an inline "assign"
- * form (day + start/end time + optional category/cost) that POSTs to the
- * atomic /api/operations/tasks/[id]/assign endpoint. On success the parent
- * refetches the calendar blocks (the task renders) and the pool (the task
- * leaves). On a 409 time conflict the user is shown the conflict and an
- * explicit "schedule anyway" choice — never a silent placement.
+ * Each row exposes an inline "assign" form (day + start/end time + optional
+ * category/cost) that POSTs to the atomic /api/operations/tasks/[id]/assign
+ * endpoint. On success the parent refetches the calendar blocks (the task
+ * renders) and the pool (the task leaves). On a 409 time conflict the user is
+ * shown the conflict and an explicit "schedule anyway" choice — never a silent
+ * placement. A single shared open-form state means one task is assigned at a
+ * time across all queues.
  *
  * blocked tasks are returned by the pool endpoint but dimmed + chipped so
  * they're visible, never silently slotted or hidden.
@@ -14,7 +20,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export interface UnscheduledTask {
   id: string;
@@ -24,6 +30,7 @@ export interface UnscheduledTask {
   estimated_cost_usd: string | null;
   coa_code: string | null;
   deadline: string | null;
+  display_order: number;
   project: { id: string; title: string; entity_id: string };
 }
 
@@ -55,12 +62,38 @@ function toIso(planDate: string, time: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+interface ProjectQueue {
+  projectId: string;
+  projectTitle: string;
+  tasks: UnscheduledTask[];
+}
+
 export default function UnscheduledTaskTable({ tasks, onAssigned }: Props) {
+  // Single shared open form across ALL queues — opening an assign form in one
+  // queue closes any open form elsewhere. One task assigned at a time.
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // Group into per-project queues. Tasks arrive contiguous-per-project and
+  // pre-sorted (server orderBy [project_id, display_order, id]); we build
+  // groups by first-seen project.id and push in arrival order — preserving the
+  // server order with NO client-side re-sort. Group on project.id (UUID),
+  // never project.title.
+  const queues = useMemo<ProjectQueue[]>(() => {
+    const byId = new Map<string, ProjectQueue>();
+    for (const t of tasks) {
+      let q = byId.get(t.project.id);
+      if (!q) {
+        q = { projectId: t.project.id, projectTitle: t.project.title, tasks: [] };
+        byId.set(t.project.id, q);
+      }
+      q.tasks.push(t);
+    }
+    return Array.from(byId.values());
+  }, [tasks]);
+
   return (
-    <div className="mt-6 border border-border rounded bg-white">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+    <div className="mt-6 space-y-3">
+      <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-mono font-bold text-text-primary">Unscheduled Tasks</h3>
         <span className="text-xs font-mono text-text-muted">
           {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
@@ -68,54 +101,67 @@ export default function UnscheduledTaskTable({ tasks, onAssigned }: Props) {
       </div>
 
       {tasks.length === 0 ? (
-        <div className="px-4 py-6 text-xs font-mono text-text-muted italic">
+        <div className="border border-border rounded bg-white px-4 py-6 text-xs font-mono text-text-muted italic">
           nothing unscheduled — every actionable task is on the calendar.
         </div>
       ) : (
-        <div className="divide-y divide-border-light">
-          {/* Header row */}
-          <div className="hidden md:grid grid-cols-[2fr_1.5fr_auto_auto_auto_auto] gap-3 px-4 py-2 text-xs font-mono text-text-faint uppercase tracking-wide">
-            <div>Task</div>
-            <div>Project</div>
-            <div>Est. time</div>
-            <div>Est. cost</div>
-            <div>COA</div>
-            <div className="text-right">&nbsp;</div>
-          </div>
-
-          {tasks.map((t) => (
-            <div key={t.id} className={t.status === 'blocked' ? 'opacity-60' : ''}>
-              <div className="grid grid-cols-1 md:grid-cols-[2fr_1.5fr_auto_auto_auto_auto] gap-3 px-4 py-2 items-center text-xs font-mono">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-text-primary truncate">{t.title}</span>
-                  {t.status === 'blocked' && (
-                    <span className={`px-1.5 py-0 border rounded shrink-0 ${STATUS_CHIP.blocked}`}>blocked</span>
-                  )}
-                  {t.status === 'in_progress' && (
-                    <span className={`px-1.5 py-0 border rounded shrink-0 ${STATUS_CHIP.in_progress}`}>in process</span>
-                  )}
+        queues.map((queue) => (
+          <div key={queue.projectId} className="border border-border rounded bg-white">
+            {/* Capped to ~6 rows then scrolls internally, so every project
+                queue keeps an equal footprint and all headers stay scannable. */}
+            <div className="max-h-[300px] overflow-y-auto">
+              {/* Sticky header: project identity + count, plus column legend.
+                  Project is the queue, so there is no per-row Project column. */}
+              <div className="sticky top-0 bg-white z-10">
+                <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-mono font-bold text-text-primary truncate">{queue.projectTitle}</h4>
+                  <span className="text-xs font-mono text-text-muted shrink-0">{queue.tasks.length}</span>
                 </div>
-                <div className="text-text-muted truncate">{t.project.title}</div>
-                <div className="text-text-muted">{fmtMinutes(t.estimated_minutes)}</div>
-                <div className="text-text-muted">{fmtCost(t.estimated_cost_usd)}</div>
-                <div className="text-text-muted">{t.coa_code ?? '—'}</div>
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(openId === t.id ? null : t.id)}
-                    className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded hover:bg-purple-50"
-                  >
-                    {openId === t.id ? 'close' : 'assign'}
-                  </button>
+                <div className="hidden md:grid grid-cols-[2fr_auto_auto_auto_auto] gap-3 px-4 py-1.5 text-xs font-mono text-text-faint uppercase tracking-wide border-b border-border-light">
+                  <div>Task</div>
+                  <div>Est. time</div>
+                  <div>Est. cost</div>
+                  <div>COA</div>
+                  <div className="text-right">&nbsp;</div>
                 </div>
               </div>
 
-              {openId === t.id && (
-                <AssignForm task={t} onDone={() => { setOpenId(null); onAssigned(); }} />
-              )}
+              <div className="divide-y divide-border-light">
+                {queue.tasks.map((t) => (
+                  <div key={t.id} className={t.status === 'blocked' ? 'opacity-60' : ''}>
+                    <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_auto_auto_auto] gap-3 px-4 py-2 items-center text-xs font-mono">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-text-primary truncate">{t.title}</span>
+                        {t.status === 'blocked' && (
+                          <span className={`px-1.5 py-0 border rounded shrink-0 ${STATUS_CHIP.blocked}`}>blocked</span>
+                        )}
+                        {t.status === 'in_progress' && (
+                          <span className={`px-1.5 py-0 border rounded shrink-0 ${STATUS_CHIP.in_progress}`}>in process</span>
+                        )}
+                      </div>
+                      <div className="text-text-muted">{fmtMinutes(t.estimated_minutes)}</div>
+                      <div className="text-text-muted">{fmtCost(t.estimated_cost_usd)}</div>
+                      <div className="text-text-muted">{t.coa_code ?? '—'}</div>
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => setOpenId(openId === t.id ? null : t.id)}
+                          className="px-2 py-0.5 border border-brand-purple text-brand-purple rounded hover:bg-purple-50"
+                        >
+                          {openId === t.id ? 'close' : 'assign'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {openId === t.id && (
+                      <AssignForm task={t} onDone={() => { setOpenId(null); onAssigned(); }} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))
       )}
     </div>
   );
