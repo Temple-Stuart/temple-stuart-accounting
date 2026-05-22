@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import ResponsiveViewController from './ResponsiveViewController';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -272,13 +272,6 @@ export default function CalendarGrid({
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
-  // ── Mobile auto-default to Day view (PR-Ops-Cal-4) ──
-  const isMobile = useMediaQuery('(max-width: 767px)');
-  useEffect(() => {
-    if (!enableDayView || userPickedView) return;
-    setCalendarView(isMobile ? 'day' : defaultView);
-  }, [enableDayView, userPickedView, isMobile, defaultView]);
-
   // ── Auto-scroll to first timed event ──
   useEffect(() => {
     if (calendarView === 'month' || !scrollRef.current) return;
@@ -302,6 +295,16 @@ export default function CalendarGrid({
 
   return (
     <div className="bg-white rounded border border-border overflow-hidden shadow-sm">
+      {/* Mobile auto-default to Day view (PR-Ops-Cal-4) — opt-in only.
+          Mounting the controller only when enableDayView keeps the responsive
+          hook/listener off the prop-off path entirely. */}
+      {enableDayView && (
+        <ResponsiveViewController
+          userPickedView={userPickedView}
+          defaultView={defaultView}
+          setCalendarView={setCalendarView}
+        />
+      )}
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50">
         <div className="flex items-center gap-4">
