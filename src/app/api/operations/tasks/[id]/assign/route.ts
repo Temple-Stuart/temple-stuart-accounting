@@ -59,6 +59,30 @@ class ConflictError extends Error {
   }
 }
 
+/**
+ * True iff err is a Prisma P2002 unique violation on the
+ * operations_daily_plan_items (task_id, plan_date) index. Matched
+ * specifically — code 'P2002' AND a target naming both columns — so any other
+ * error, including a P2002 on a different constraint, propagates unchanged.
+ * P2002 shape: PrismaClientKnownRequestError with .code === 'P2002' and
+ * .meta.target = the violated index/constraint (Postgres returns the index
+ * name string "operations_daily_plan_items_task_id_plan_date_key"; some
+ * versions return the field-name array ['task_id','plan_date']) — both contain
+ * the substrings "task_id" and "plan_date".
+ */
+function isDuplicatePlanItemError(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') {
+    return false;
+  }
+  const target = err.meta?.target;
+  const asText = Array.isArray(target)
+    ? target.join(',')
+    : typeof target === 'string'
+      ? target
+      : '';
+  return asText.includes('task_id') && asText.includes('plan_date');
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -136,7 +160,7 @@ export async function POST(
 
     const entityId = task.entity_id; // server-derived; never from client
 
-    const result = await prisma.$transaction(async (tx) => {
+    const runAssignTxn = () => prisma.$transaction(async (tx) => {
       // a. Conflict check — replicate the existing blocks endpoint contract
       //    verbatim (detectBlockConflicts.ts:27-40), but on the txn client.
       const conflictRows = await tx.$queryRaw<{ id: string }[]>(
@@ -198,6 +222,26 @@ export async function POST(
 
       return { item, block, conflictingBlockIds };
     });
+
+    // The (task_id, plan_date) unique constraint closes the concurrent-insert
+    // race the UI in-flight-disable cannot: two requests can both pass the
+    // find-or-create find and both insert. The loser's item-create raises
+    // P2002. This is NOT a fallback — the constraint and the find-or-create
+    // enforce the same invariant (exactly one item per task per day). Re-run
+    // the transaction once: the find step now sees the winner's committed item,
+    // skips the create, and attaches this request's block to that item, so the
+    // loser reaches the same one-item end-state as the winner. Only the item
+    // create can raise this P2002, so a single retry is sufficient.
+    let result: Awaited<ReturnType<typeof runAssignTxn>>;
+    try {
+      result = await runAssignTxn();
+    } catch (e) {
+      if (isDuplicatePlanItemError(e)) {
+        result = await runAssignTxn();
+      } else {
+        throw e;
+      }
+    }
 
     await writeAuditLog({
       actor: { user_id: user.id, email: userEmail, type: 'human_user' },
