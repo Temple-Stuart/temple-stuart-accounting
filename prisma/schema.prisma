@@ -2649,6 +2649,7 @@ model operations_daily_plan_items {
   task            operations_project_tasks?    @relation(fields: [task_id], references: [id], onDelete: Cascade)
   calendar_blocks operations_calendar_blocks[]
 
+  @@unique([task_id, plan_date])
   @@index([user_id, plan_date])
   @@index([task_id])
   @@index([entity_id])
