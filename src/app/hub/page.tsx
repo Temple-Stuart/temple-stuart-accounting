@@ -397,8 +397,10 @@ export default function HubPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
           
-          {/* Header - Wall Street Style */}
-          <div className="mb-6 bg-brand-purple text-white p-4">
+          {/* Header - Wall Street Style. Aqua top-rule ties the header block
+              together; hard purple-deep bottom edge marks where the header zone
+              ends against the warm-white page (PR-Ops-Hub-Header-1). */}
+          <div className="mb-6 bg-brand-purple text-white p-4 border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">
@@ -424,6 +426,7 @@ export default function HubPage() {
               sourceConfig={HUB_GRID_CONFIG}
               defaultView="week"
               enableDayView={true}
+              enableHubChrome={true}
               showBudgetTotals={true}
               showCategoryLegend={true}
               onEventClick={handleEventClick}
