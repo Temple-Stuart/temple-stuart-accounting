@@ -94,11 +94,13 @@ export async function GET(request: NextRequest) {
         task: {
           select: {
             id: true,
+            project_id: true,
             title: true,
             status: true,
             coa_code: true,
             estimated_cost_usd: true,
             actual_cost_usd: true,
+            actual_minutes: true,
           },
         },
       },

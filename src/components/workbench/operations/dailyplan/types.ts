@@ -15,6 +15,12 @@ export type LinkedTaskSummary = {
   title: string;
   status: OperationsTaskStatus;
   /**
+   * project_id — needed by the Hub event card to reach the task PATCH
+   * endpoint (/api/operations/projects/[id]/tasks/[taskId]) for in-card
+   * reconcile of actual cost/minutes (PR-Ops-Hub-1).
+   */
+  project_id: string;
+  /**
    * Universal triple (date/time/cost/category) plumbing — surfaced
    * on the linked task summary so the Hub (and any other calendar
    * surface) can render cost/category badges on Operations blocks
@@ -24,6 +30,7 @@ export type LinkedTaskSummary = {
   coa_code: string | null;
   estimated_cost_usd: string | null;  // Prisma Decimal serialized as string
   actual_cost_usd: string | null;
+  actual_minutes: number | null;
 };
 
 export type DailyPlanItem = {

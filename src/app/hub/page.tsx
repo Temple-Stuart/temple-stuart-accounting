@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { AppLayout, Card, Badge } from '@/components/ui';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 import HubEventCard from '@/components/hub/HubEventCard';
+import UnscheduledTaskTable, { type UnscheduledTask } from '@/components/hub/UnscheduledTaskTable';
 import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
@@ -145,6 +146,9 @@ export default function HubPage() {
   // the existing calendar_events sources.
   const [operationsItems, setOperationsItems] = useState<DailyPlanItem[]>([]);
 
+  // Unscheduled-task pool (PR-Ops-Hub-1) — cross-project, user-scoped.
+  const [unscheduledTasks, setUnscheduledTasks] = useState<UnscheduledTask[]>([]);
+
   // Operations routines window for the visible month (PR-Ops-5.6) — RRULE
   // occurrences pre-expanded server-side via /api/hub/operations-routines.
   // One CalendarEvent per (routine, occurrence) pair is emitted by
@@ -182,6 +186,7 @@ export default function HubPage() {
   } | null>(null);
 
   useEffect(() => { loadCalendar(); loadOperationsBlocks(); loadOperationsRoutines(); }, [selectedYear, selectedMonth]);
+  useEffect(() => { loadUnscheduledTasks(); }, []);
 
   const loadCalendar = async () => {
     try {
@@ -229,6 +234,26 @@ export default function HubPage() {
     } catch (err) {
       console.error('Failed to load operations blocks:', err);
       setOperationsItems([]);
+    }
+  };
+
+  /**
+   * Fetch the unscheduled-task pool (PR-Ops-Hub-1). Cross-project,
+   * user-scoped; "unscheduled" = no timed calendar_block. Refetched
+   * after an assign so a placed task leaves the pool.
+   */
+  const loadUnscheduledTasks = async () => {
+    try {
+      const res = await fetch('/api/operations/tasks/unscheduled');
+      if (res.ok) {
+        const data = await res.json();
+        setUnscheduledTasks(data.tasks || []);
+      } else {
+        setUnscheduledTasks([]);
+      }
+    } catch (err) {
+      console.error('Failed to load unscheduled tasks:', err);
+      setUnscheduledTasks([]);
     }
   };
 
@@ -409,8 +434,15 @@ export default function HubPage() {
               item={cardSelection.item}
               block={cardSelection.block}
               onClose={() => setCardSelection(null)}
+              onUpdated={() => { loadOperationsBlocks(); loadUnscheduledTasks(); setCardSelection(null); }}
             />
           )}
+
+          {/* Unscheduled task pool (PR-Ops-Hub-1) — assign onto the calendar above. */}
+          <UnscheduledTaskTable
+            tasks={unscheduledTasks}
+            onAssigned={() => { loadOperationsBlocks(); loadUnscheduledTasks(); }}
+          />
 
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* BUDGET COMPARISON - WALL STREET STYLE */}
