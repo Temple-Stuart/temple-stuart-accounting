@@ -44,9 +44,10 @@ export async function GET() {
       estimated_cost_usd: true,
       coa_code: true,
       deadline: true,
+      display_order: true,
       project: { select: { id: true, title: true, entity_id: true } },
     },
-    orderBy: [{ deadline: { sort: 'asc', nulls: 'last' } }, { display_order: 'asc' }],
+    orderBy: [{ project_id: 'asc' }, { display_order: 'asc' }, { id: 'asc' }],
   });
 
   return NextResponse.json({ tasks });
