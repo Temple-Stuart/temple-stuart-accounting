@@ -452,6 +452,23 @@ export async function DELETE(
     return NextResponse.json({ deleted: true, id: existing.id });
   } catch (error) {
     console.error('[Task DELETE]', error);
+    // Translate DB constraint violations into a clear, non-leaky message
+    // instead of forwarding the raw Postgres string (no-silent-failure:
+    // surface WHY legibly). Covers FK (P2003) + other constraint (P2004)
+    // violations and raw check-constraint errors.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === 'P2003' || error.code === 'P2004')
+    ) {
+      return NextResponse.json(
+        {
+          error: 'ConstraintViolation',
+          message:
+            'Couldn’t delete this task: a linked record blocked it. Remove the linked records first, then try again.',
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to delete task', message: error instanceof Error ? error.message : 'unknown' },
       { status: 500 }
