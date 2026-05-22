@@ -5,6 +5,80 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* ─────────────────────────────────────────────────────────────────────
+     DESIGN TOKENS (PR-Ops-DS-2) — single source for the Hub palette.
+     Palette locked by Alex. tailwind.config.ts reads these via var(); the
+     existing brand/panel/text/border/bg utilities resolve to the SAME values
+     they did before (pure literal→var swap, zero visual change). The NEW
+     tokens (--ts-aqua, --ts-aqua-deep, --ts-white) exist but NO component
+     references them yet — component migration is the next sequenced PR.
+     ───────────────────────────────────────────────────────────────────── */
+
+  /* Purple — command center. Collapses the former 8-way purple spread. */
+  --ts-purple-deep:  #2d1b4e;   /* darkest (= old brand-purple-deep) */
+  --ts-purple:       #3b2d6b;   /* command-center banner (= old brand-purple) */
+  --ts-purple-light: #4e3e85;   /* (= old brand-purple-hover value) */
+  --ts-purple-wash:  #eae7f2;   /* replaces BOTH the old wash AND Tailwind purple-50 */
+
+  /* Aqua — NEW, punchier than the old teal-400. Calendar routine blocks. */
+  --ts-aqua:      #14e0c8;      /* routine blocks */
+  --ts-aqua-deep: #0fb8a8;      /* borders / hover on aqua */
+
+  /* Cyan — Trip source; kept DISTINCT from aqua so Trip never blurs with Routines. */
+  --ts-cyan: #22d3ee;
+
+  /* Indigo — Operations source, tokenized as-is (= SOURCE_CONFIG calendarColor indigo-400). */
+  --ts-indigo: #818cf8;
+
+  /* Surface */
+  --ts-white:   #fafaf9;        /* warm off-white default surface (true #ffffff for max-crisp only) */
+  --ts-bg:      #f7f6f3;        /* app background (= old bg-terminal) */
+  --ts-bg-row:  #f0eee9;        /* zebra / row (= old bg-row) */
+
+  /* Neutrals — text (unchanged values, now named) */
+  --ts-text:           #1a1a2e;
+  --ts-text-secondary: #4a4a5a;
+  --ts-text-muted:     #7a7488;
+  --ts-text-faint:     #a8a2b0;
+
+  /* Borders (unchanged values, now named) */
+  --ts-border:       #e2e0da;
+  --ts-border-light: #f0eee9;
+
+  /* Status (unchanged brand values, now named) */
+  --ts-green: #16a34a;
+  --ts-red:   #c53030;
+  --ts-amber: #d97706;
+
+  /* Gold accent family (unchanged) */
+  --ts-gold:        #7D6B2C;
+  --ts-gold-bright: #8B7D3C;
+  --ts-gold-wash:   rgba(125,107,44,0.07);
+  --ts-accent:      #b4b237;
+  --ts-accent-dark: #9a9630;
+
+  /* Dark "panel / terminal" surfaces (unchanged values, now named) */
+  --ts-panel:           #0d1117;
+  --ts-panel-surface:   #161b22;
+  --ts-panel-border:    #30363d;
+  --ts-panel-hover:     #21262d;
+  --ts-panel-highlight: #1a0f2e;
+
+  /* ── Spacing + radius scale (foundation only) ───────────────────────────
+     Defined as tokens for the design system but NOT yet wired into Tailwind
+     utilities — wiring theme.extend.spacing/borderRadius risks shadowing
+     defaults and shifting existing margins, so that is deferred to a later PR
+     (colors are this PR's priority). Nothing references these yet. */
+  --ts-space-1: 0.25rem;
+  --ts-space-2: 0.5rem;
+  --ts-space-3: 0.75rem;
+  --ts-space-4: 1rem;
+  --ts-space-5: 1.25rem;
+  --ts-space-6: 1.5rem;   /* section gap */
+  --ts-radius-none: 0;     /* banner */
+  --ts-radius-sm:   0.125rem;
+  --ts-radius:      0.25rem; /* default card */
 }
 
 @media (prefers-color-scheme: dark) {
