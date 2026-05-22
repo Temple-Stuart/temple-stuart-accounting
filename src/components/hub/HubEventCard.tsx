@@ -23,7 +23,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   DailyPlanItem,
@@ -34,6 +34,32 @@ interface Props {
   item: DailyPlanItem;
   block: CalendarBlockSummary;
   onClose: () => void;
+  /** Fired after a successful reschedule/reconcile so the parent refetches. */
+  onUpdated: () => void;
+}
+
+const BLOCK_STATUSES = ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'] as const;
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** ISO instant → local { date: YYYY-MM-DD, time: HH:MM } for form inputs. */
+function isoToParts(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
+  return {
+    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
+  };
+}
+
+/** Combine local date + time into an ISO instant; null if either missing/invalid. */
+function partsToIso(date: string, time: string): string | null {
+  if (!date || !time) return null;
+  const d = new Date(`${date}T${time}:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function pad(n: number): string {
@@ -71,9 +97,116 @@ const pillClass =
 
 const labelClass = 'text-text-faint uppercase tracking-wide text-xs font-mono';
 
-export default function HubEventCard({ item, block, onClose }: Props) {
+const fieldClass =
+  'w-full px-2 py-1 border border-border rounded text-xs font-mono text-text-primary focus:outline-none focus:border-brand-purple';
+
+export default function HubEventCard({ item, block, onClose, onUpdated }: Props) {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Inline action panels (reschedule / reconcile). Lean by design — deep
+  // task edits link out to /operations rather than duplicating the editor.
+  const [mode, setMode] = useState<'reschedule' | 'reconcile' | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [conflictIds, setConflictIds] = useState<string[] | null>(null);
+
+  const startParts = isoToParts(block.scheduled_start);
+  const endParts = isoToParts(block.scheduled_end);
+  const actualStartParts = isoToParts(block.actual_start);
+  const actualEndParts = isoToParts(block.actual_end);
+
+  // Reschedule form
+  const [rDate, setRDate] = useState(startParts.date);
+  const [rStart, setRStart] = useState(startParts.time);
+  const [rEnd, setREnd] = useState(endParts.time);
+
+  // Reconcile form
+  const [acDate, setAcDate] = useState(actualStartParts.date || startParts.date);
+  const [acStart, setAcStart] = useState(actualStartParts.time || startParts.time);
+  const [acEnd, setAcEnd] = useState(actualEndParts.time || endParts.time);
+  const [acStatus, setAcStatus] = useState<string>(block.status);
+  const [acCost, setAcCost] = useState(item.task?.actual_cost_usd ?? '');
+  const [acMinutes, setAcMinutes] = useState(
+    item.task?.actual_minutes != null ? String(item.task.actual_minutes) : ''
+  );
+
+  const patchBlock = async (body: Record<string, unknown>): Promise<Response> =>
+    fetch(`/api/operations/daily-plan/blocks/${block.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  const submitReschedule = async (allowConflicts: boolean) => {
+    const start = partsToIso(rDate, rStart);
+    const end = partsToIso(rDate, rEnd);
+    if (!start || !end) {
+      setActionError('pick a valid date, start, and end time');
+      return;
+    }
+    setSaving(true);
+    setActionError(null);
+    try {
+      const res = await patchBlock({ scheduled_start: start, scheduled_end: end, allow_conflicts: allowConflicts });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        setConflictIds(Array.isArray(body.conflicting_block_ids) ? body.conflicting_block_ids : []);
+        return;
+      }
+      if (!res.ok) {
+        setActionError(body?.message ?? body?.error ?? 'failed to reschedule');
+        return;
+      }
+      onUpdated();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'failed to reschedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitReconcile = async () => {
+    setSaving(true);
+    setActionError(null);
+    try {
+      // Block actuals + status.
+      const actualStart = acStart ? partsToIso(acDate, acStart) : null;
+      const actualEnd = acEnd ? partsToIso(acDate, acEnd) : null;
+      const blockRes = await patchBlock({
+        actual_start: actualStart,
+        actual_end: actualEnd,
+        status: acStatus,
+      });
+      if (!blockRes.ok) {
+        const b = await blockRes.json().catch(() => ({}));
+        setActionError(b?.message ?? b?.error ?? 'failed to reconcile block');
+        return;
+      }
+      // Task actuals (cost/minutes) — only when this is a task-linked item.
+      if (item.task) {
+        const taskBody: Record<string, unknown> = {};
+        if (acCost.trim().length > 0) taskBody.actual_cost_usd = acCost.trim();
+        if (acMinutes.trim().length > 0) taskBody.actual_minutes = Number(acMinutes.trim());
+        if (Object.keys(taskBody).length > 0) {
+          const taskRes = await fetch(
+            `/api/operations/projects/${item.task.project_id}/tasks/${item.task.id}`,
+            { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(taskBody) }
+          );
+          if (!taskRes.ok) {
+            const t = await taskRes.json().catch(() => ({}));
+            setActionError(t?.message ?? t?.error ?? 'block updated, but task actuals failed');
+            return;
+          }
+        }
+      }
+      onUpdated();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'failed to reconcile');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Click outside to close. Delay registration so the opening click
   // (which bubbled from the calendar tile) doesn't immediately close.
@@ -220,21 +353,115 @@ export default function HubEventCard({ item, block, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer — LIVE dimension links only */}
-        <div className="border-t border-border bg-bg-row/50 px-5 py-3 flex items-center gap-2">
+        {/* Action panels (reschedule / reconcile) */}
+        {mode && (
+          <div className="border-t border-border px-5 py-4 space-y-3 bg-purple-50/20 text-xs font-mono">
+            {actionError && (
+              <div className="px-2 py-1 rounded border bg-red-50 border-red-200 text-red-800">{actionError}</div>
+            )}
+
+            {mode === 'reschedule' && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <div className={labelClass}>day</div>
+                    <input type="date" value={rDate} onChange={(e) => setRDate(e.target.value)} className={fieldClass} />
+                  </div>
+                  <div>
+                    <div className={labelClass}>start</div>
+                    <input type="time" value={rStart} onChange={(e) => setRStart(e.target.value)} className={fieldClass} />
+                  </div>
+                  <div>
+                    <div className={labelClass}>end</div>
+                    <input type="time" value={rEnd} onChange={(e) => setREnd(e.target.value)} className={fieldClass} />
+                  </div>
+                </div>
+                {conflictIds !== null ? (
+                  <div className="px-2 py-2 rounded border bg-amber-50 border-amber-300 text-amber-900 space-y-2">
+                    <div>Time conflict with {conflictIds.length} existing block{conflictIds.length === 1 ? '' : 's'}. Reschedule anyway?</div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => submitReschedule(true)} disabled={saving} className="px-2 py-0.5 border border-amber-500 bg-amber-500 text-white rounded hover:opacity-90 disabled:opacity-50">
+                        {saving ? 'saving…' : 'reschedule anyway'}
+                      </button>
+                      <button type="button" onClick={() => setConflictIds(null)} disabled={saving} className="px-2 py-0.5 border border-border rounded hover:bg-white disabled:opacity-50">
+                        pick another time
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => submitReschedule(false)} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                    {saving ? 'saving…' : 'save new time'}
+                  </button>
+                )}
+              </>
+            )}
+
+            {mode === 'reconcile' && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <div className={labelClass}>actual day</div>
+                    <input type="date" value={acDate} onChange={(e) => setAcDate(e.target.value)} className={fieldClass} />
+                  </div>
+                  <div>
+                    <div className={labelClass}>actual start</div>
+                    <input type="time" value={acStart} onChange={(e) => setAcStart(e.target.value)} className={fieldClass} />
+                  </div>
+                  <div>
+                    <div className={labelClass}>actual end</div>
+                    <input type="time" value={acEnd} onChange={(e) => setAcEnd(e.target.value)} className={fieldClass} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <div className={labelClass}>status</div>
+                    <select value={acStatus} onChange={(e) => setAcStatus(e.target.value)} className={fieldClass}>
+                      {BLOCK_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
+                    </select>
+                  </div>
+                  {item.task && (
+                    <>
+                      <div>
+                        <div className={labelClass}>actual cost</div>
+                        <input type="text" value={acCost} onChange={(e) => setAcCost(e.target.value)} className={fieldClass} placeholder="0.00" />
+                      </div>
+                      <div>
+                        <div className={labelClass}>actual minutes</div>
+                        <input type="text" value={acMinutes} onChange={(e) => setAcMinutes(e.target.value)} className={fieldClass} placeholder="0" />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button type="button" onClick={submitReconcile} disabled={saving} className="px-3 py-1 border border-brand-purple bg-brand-purple text-white rounded hover:opacity-90 disabled:opacity-50">
+                  {saving ? 'saving…' : 'save actuals'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Footer — actions + LIVE dimension link-outs */}
+        <div className="border-t border-border bg-bg-row/50 px-5 py-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setMode(mode === 'reschedule' ? null : 'reschedule'); setActionError(null); setConflictIds(null); }}
+            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
+          >
+            {mode === 'reschedule' ? 'Cancel' : 'Reschedule'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode(mode === 'reconcile' ? null : 'reconcile'); setActionError(null); }}
+            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
+          >
+            {mode === 'reconcile' ? 'Cancel' : 'Reconcile'}
+          </button>
           <button
             type="button"
             onClick={() => router.push('/operations/projects')}
             className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
           >
             Open in Projects →
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/operations')}
-            className="px-3 py-1.5 text-xs font-mono border border-border rounded hover:bg-white text-text-primary"
-          >
-            Open Daily Plan →
           </button>
         </div>
       </div>
