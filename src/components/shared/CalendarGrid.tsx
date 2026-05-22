@@ -442,10 +442,10 @@ export default function CalendarGrid({
                               style={{ top: `${top}px`, height: `${height}px` }}
                               title={`${block.label}${block.event.budgetAmount ? ' - ' + formatCurrency(block.event.budgetAmount) : ''}`}
                             >
-                              <div className="px-1.5 py-1 h-full overflow-hidden">
+                              <div className="px-2 py-1.5 h-full overflow-hidden">
                                 <div className="text-[11px] font-semibold leading-tight truncate">{block.label}</div>
                                 {block.event.startTime && (
-                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5">
+                                  <div className="text-[10px] opacity-80 leading-tight mt-0.5 truncate">
                                     {formatTime12h(block.event.startTime)}
                                     {block.event.endTime ? ` — ${formatTime12h(block.event.endTime)}` : ''}
                                   </div>
@@ -460,6 +460,20 @@ export default function CalendarGrid({
                                   <div className="text-[10px] opacity-80 leading-tight mt-0.5">{formatCurrency(block.event.budgetAmount)}</div>
                                 )}
                               </div>
+                              {/* Recurrence signal — quiet corner glyph, NOT a text
+                                  replacement (full title+time stay on every block).
+                                  Absolutely positioned so it never steals width from
+                                  the truncating title: the title keeps the full row
+                                  and the badge yields visually in the tightest column. */}
+                              {block.event.isRecurring && (
+                                <span
+                                  className="absolute top-0.5 right-1 text-[10px] leading-none opacity-60 pointer-events-none select-none"
+                                  aria-label="Recurring"
+                                  title="Recurring"
+                                >
+                                  ↻
+                                </span>
+                              )}
                             </div>
                           );
                         })}
