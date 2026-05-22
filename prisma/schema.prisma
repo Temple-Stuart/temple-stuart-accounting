@@ -2646,7 +2646,7 @@ model operations_daily_plan_items {
   updated_at         DateTime @updatedAt @db.Timestamptz(6)
   created_by         String?
 
-  task            operations_project_tasks?    @relation(fields: [task_id], references: [id], onDelete: SetNull)
+  task            operations_project_tasks?    @relation(fields: [task_id], references: [id], onDelete: Cascade)
   calendar_blocks operations_calendar_blocks[]
 
   @@index([user_id, plan_date])
