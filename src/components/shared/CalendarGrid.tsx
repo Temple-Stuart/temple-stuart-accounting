@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -41,7 +42,7 @@ export interface SourceConfig {
 export interface CalendarGridProps {
   events: CalendarEvent[];
   sourceConfig: Record<string, SourceConfig>;
-  defaultView?: 'week' | 'month';
+  defaultView?: 'week' | 'month' | 'day';
   anchorDate?: string;
   highlightStart?: string;
   highlightEnd?: string;
@@ -49,6 +50,13 @@ export interface CalendarGridProps {
   showBudgetTotals?: boolean;
   showCategoryLegend?: boolean;
   compact?: boolean;
+  /**
+   * Opt-in (PR-Ops-Cal-4): enables the Day view + the mobile auto-default to
+   * Day below 768px. Default false — when off there is no Day button, the
+   * auto-default effect is inert, and `calendarView` can never become 'day',
+   * so existing callers (Trading, both Trips) render byte-identically.
+   */
+  enableDayView?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -146,6 +154,7 @@ export default function CalendarGrid({
   showBudgetTotals = false,
   showCategoryLegend = false,
   compact = false,
+  enableDayView = false,
 }: CalendarGridProps) {
   const router = useRouter();
   const now = new Date();
@@ -166,7 +175,7 @@ export default function CalendarGrid({
     onEventClick?.(event, nativeEvent);
   };
 
-  const [calendarView, setCalendarView] = useState<'week' | 'month'>(defaultView);
+  const [calendarView, setCalendarView] = useState<'week' | 'month' | 'day'>(defaultView);
   const [selectedYear, setSelectedYear] = useState(anchor.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(anchor.getMonth());
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
@@ -174,6 +183,10 @@ export default function CalendarGrid({
     d.setDate(d.getDate() - d.getDay());
     return d;
   });
+  // Day-view anchor (PR-Ops-Cal-4). Unused in week/month; day nav moves it.
+  const [selectedDay, setSelectedDay] = useState<Date>(anchor);
+  // Once the user taps any view button, auto-default never re-forces on resize.
+  const [userPickedView, setUserPickedView] = useState(false);
   const [tzMode, setTzMode] = useState<TzMode>('local');
 
   const allSources = Object.keys(sourceConfig);
@@ -225,11 +238,20 @@ export default function CalendarGrid({
   const nextMonth = () => { if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); } else { setSelectedMonth(m => m + 1); } };
   const prevWeek = () => { const ns = new Date(selectedWeekStart); ns.setDate(ns.getDate() - 7); setSelectedWeekStart(ns); setSelectedMonth(ns.getMonth()); setSelectedYear(ns.getFullYear()); };
   const nextWeek = () => { const ns = new Date(selectedWeekStart); ns.setDate(ns.getDate() + 7); setSelectedWeekStart(ns); setSelectedMonth(ns.getMonth()); setSelectedYear(ns.getFullYear()); };
+  const goToDay = (d: Date) => {
+    setSelectedDay(d);
+    setSelectedYear(d.getFullYear()); setSelectedMonth(d.getMonth());
+    const s = new Date(d); s.setDate(d.getDate() - d.getDay()); setSelectedWeekStart(s);
+  };
+  const prevDay = () => { const d = new Date(selectedDay); d.setDate(d.getDate() - 1); goToDay(d); };
+  const nextDay = () => { const d = new Date(selectedDay); d.setDate(d.getDate() + 1); goToDay(d); };
   const goToToday = () => {
     const t = anchorDate ? parseDate(anchorDate) : new Date();
     setSelectedYear(t.getFullYear()); setSelectedMonth(t.getMonth());
     const s = new Date(t); s.setDate(t.getDate() - t.getDay()); setSelectedWeekStart(s);
+    setSelectedDay(t);
   };
+  const selectView = (v: 'week' | 'month' | 'day') => { setCalendarView(v); setUserPickedView(true); };
 
   // ── Calendar arrays ──
   const calendarDays: (number | null)[] = [];
@@ -239,16 +261,28 @@ export default function CalendarGrid({
   const weekDays: Date[] = [];
   for (let i = 0; i < 7; i++) { const d = new Date(selectedWeekStart); d.setDate(selectedWeekStart.getDate() + i); weekDays.push(d); }
 
-  const headerTitle = calendarView === 'week'
+  // Time-grid columns: a single day in Day view, the full week otherwise.
+  const gridDays = calendarView === 'day' ? [selectedDay] : weekDays;
+
+  const headerTitle = calendarView === 'day'
+    ? `${DAYS[selectedDay.getDay()]} ${MONTHS[selectedDay.getMonth()]} ${selectedDay.getDate()}, ${selectedDay.getFullYear()}`
+    : calendarView === 'week'
     ? `${MONTHS[weekDays[0].getMonth()]} ${weekDays[0].getFullYear()}`
     : `${MONTHS[selectedMonth]} ${selectedYear}`;
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
+  // ── Mobile auto-default to Day view (PR-Ops-Cal-4) ──
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  useEffect(() => {
+    if (!enableDayView || userPickedView) return;
+    setCalendarView(isMobile ? 'day' : defaultView);
+  }, [enableDayView, userPickedView, isMobile, defaultView]);
+
   // ── Auto-scroll to first timed event ──
   useEffect(() => {
-    if (calendarView !== 'week' || !scrollRef.current) return;
-    const allWeekEvents = weekDays.flatMap(d => getEventsForDate(d));
+    if (calendarView === 'month' || !scrollRef.current) return;
+    const allWeekEvents = gridDays.flatMap(d => getEventsForDate(d));
     const timedEvents = allWeekEvents.filter(e => e.startTime);
     if (timedEvents.length > 0) {
       const earliest = timedEvents.reduce((min, e) => {
@@ -260,7 +294,7 @@ export default function CalendarGrid({
     } else {
       scrollRef.current.scrollTop = 7 * HOUR_HEIGHT; // default: 7 AM
     }
-  }, [calendarView, selectedWeekStart]);
+  }, [calendarView, selectedWeekStart, selectedDay]);
 
   // ═══════════════════════════════════════════════════════════════
   // RENDER
@@ -272,11 +306,14 @@ export default function CalendarGrid({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50">
         <div className="flex items-center gap-4">
           <div className="flex bg-border/70 rounded p-0.5">
-            <button onClick={() => setCalendarView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
-            <button onClick={() => setCalendarView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
+            {enableDayView && (
+              <button onClick={() => selectView('day')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Day</button>
+            )}
+            <button onClick={() => selectView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
+            <button onClick={() => selectView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
           </div>
           {/* Timezone toggle */}
-          {calendarView === 'week' && (
+          {calendarView !== 'month' && (
             <select
               value={tzMode}
               onChange={e => setTzMode(e.target.value as TzMode)}
@@ -292,10 +329,10 @@ export default function CalendarGrid({
           <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors">
             {anchorDate ? 'Start' : 'Today'}
           </button>
-          <button onClick={calendarView === 'week' ? prevWeek : prevMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors">
+          <button onClick={calendarView === 'day' ? prevDay : calendarView === 'week' ? prevWeek : prevMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <button onClick={calendarView === 'week' ? nextWeek : nextMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors">
+          <button onClick={calendarView === 'day' ? nextDay : calendarView === 'week' ? nextWeek : nextMonth} className="w-8 h-8 flex items-center justify-center text-text-muted rounded hover:bg-bg-row transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
@@ -326,12 +363,12 @@ export default function CalendarGrid({
       <div className="flex">
         {/* Calendar body */}
         <div className="flex-1 min-w-0">
-          {calendarView === 'week' ? (
+          {calendarView !== 'month' ? (
             <div>
-              {/* Week header — sticky */}
+              {/* Week/Day header — sticky */}
               <div className="flex border-b border-border sticky top-0 z-10 bg-white">
                 <div className="w-14 flex-shrink-0" />
-                {weekDays.map((day, idx) => {
+                {gridDays.map((day, idx) => {
                   const isToday = day.toDateString() === now.toDateString();
                   const hl = isInHighlight(day);
                   return (
@@ -345,7 +382,7 @@ export default function CalendarGrid({
 
               {/* All-day events row */}
               {(() => {
-                const allDayEvents = weekDays.map(day => {
+                const allDayEvents = gridDays.map(day => {
                   const dayEvts = getEventsForDate(day);
                   return dayEvts.filter(e => !e.startTime);
                 });
@@ -356,7 +393,7 @@ export default function CalendarGrid({
                     <div className="w-14 flex-shrink-0 text-right pr-2 py-1">
                       <span className="text-[10px] text-text-faint">all day</span>
                     </div>
-                    {weekDays.map((day, idx) => {
+                    {gridDays.map((day, idx) => {
                       const evts = allDayEvents[idx];
                       return (
                         <div key={idx} className="flex-1 border-l border-border-light p-0.5 min-h-[28px]">
@@ -394,7 +431,7 @@ export default function CalendarGrid({
                   </div>
 
                   {/* Day columns */}
-                  {weekDays.map((day, dayIdx) => {
+                  {gridDays.map((day, dayIdx) => {
                     const isToday = day.toDateString() === now.toDateString();
                     const hl = isInHighlight(day);
                     const dayKey = dateToKey(day);
@@ -487,7 +524,7 @@ export default function CalendarGrid({
               {showBudgetTotals && (
                 <div className="flex border-t border-border">
                   <div className="w-14 flex-shrink-0" />
-                  {weekDays.map((day, idx) => {
+                  {gridDays.map((day, idx) => {
                     const dayEvents = getEventsForDate(day);
                     const total = dayEvents.reduce((s, e) => s + (e.budgetAmount || 0), 0);
                     return (
