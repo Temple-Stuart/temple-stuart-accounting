@@ -397,12 +397,15 @@ export default function HubPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="px-4 lg:px-6 pt-0 pb-6">
           
-          {/* Header - Wall Street Style (PR-Ops-Hub-Fullwidth-1): square top so the
-              banner butts FLUSH against the nav (the aqua top-rule is now the
-              nav→banner divider). The hard purple-deep bottom border is the SEAM
-              joining the banner to the calendar below (PR-Ops-Hub-Connect-1); the
-              block's outer bottom corners stay rounded via the calendar wrapper. */}
-          <div className="mb-0 bg-brand-purple text-white p-3 md:p-4 rounded-t-none border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
+          {/* Header - Wall Street Style. Square top butts FLUSH against the nav
+              (aqua top-rule = nav→banner divider, PR-Ops-Hub-Fullwidth-1); the
+              purple-deep bottom border is the SEAM joining the calendar below
+              (PR-Ops-Hub-Connect-1). PR-Ops-Hub-Depth-1: banner is MEDIUM purple
+              (brand-purple-hover #4e3e85) — lighter than the #3b2d6b nav, darker
+              than the wash toolbar — and -mx-4 lg:-mx-6 breaks it out of the
+              container gutter to a full-bleed bar (the calendar wrapper gets the
+              SAME negative margin so the seam stays aligned). */}
+          <div className="-mx-4 lg:-mx-6 mb-0 bg-brand-purple-hover text-white p-3 md:p-4 rounded-t-none border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">
@@ -432,7 +435,7 @@ export default function HubPage() {
               to square so they join the banner flush; -mt-px tucks the card's 1px
               top border under the banner's purple-deep seam so the join reads as a
               single divider, not a double border. CalendarGrid internals untouched. */}
-          <div className="mb-6 -mt-px rounded-b-lg overflow-hidden">
+          <div className="-mx-4 lg:-mx-6 mb-6 -mt-px rounded-b-lg overflow-hidden">
             <CalendarGrid
               events={gridEvents}
               sourceConfig={HUB_GRID_CONFIG}
