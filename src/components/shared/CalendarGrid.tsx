@@ -303,7 +303,7 @@ export default function CalendarGrid({
   const viewBtnExtra = hubMobileToolbar ? 'flex-1 ' : '';
   const toolbarTitleClass = hubMobileToolbar ? 'text-sm font-semibold text-text-primary text-center' : 'text-sm font-semibold text-text-primary';
   const toolbarRightClass = hubMobileToolbar ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2';
-  const viewBtnActive = enableHubChrome ? 'bg-brand-purple text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
+  const viewBtnActive = enableHubChrome ? 'bg-brand-purple-hover text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
   const viewBtnInactive = enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary';
 
   // ── Auto-scroll to first timed event ──
