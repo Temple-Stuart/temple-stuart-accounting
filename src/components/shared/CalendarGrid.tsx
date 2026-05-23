@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -282,9 +283,25 @@ export default function CalendarGrid({
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
   // ── Toolbar chrome (PR-Ops-Hub-Header-1) ── off => byte-identical to before.
+  // ── Mobile toolbar stack (PR-Ops-Hub-Mobile-Header-1) ──────────────────────
+  // `isMobile` is read unconditionally (Rules of Hooks), but only ever CONSUMED
+  // through `hubMobileToolbar`, which is gated on `enableHubChrome`. For callers
+  // that don't opt in (Trading, both Trips) `enableHubChrome` is false, so
+  // `hubMobileToolbar` is permanently false and every class string below is
+  // byte-identical to the pre-mobile build regardless of viewport — the hook
+  // adds only a passive matchMedia listener, no render/behavior change.
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const hubMobileToolbar = enableHubChrome && isMobile;
   const toolbarBarClass = enableHubChrome
-    ? 'flex items-center justify-between px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash'
+    ? (hubMobileToolbar
+        ? 'flex flex-col gap-3 px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash'
+        : 'flex items-center justify-between px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash')
     : 'flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50';
+  const toolbarLeftClass = hubMobileToolbar ? 'flex flex-col gap-2' : 'flex items-center gap-4';
+  const viewTrackExtra = hubMobileToolbar ? 'w-full ' : '';
+  const viewBtnExtra = hubMobileToolbar ? 'flex-1 ' : '';
+  const toolbarTitleClass = hubMobileToolbar ? 'text-sm font-semibold text-text-primary text-center' : 'text-sm font-semibold text-text-primary';
+  const toolbarRightClass = hubMobileToolbar ? 'flex items-center justify-center gap-2' : 'flex items-center gap-2';
   const viewBtnActive = enableHubChrome ? 'bg-brand-purple text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
   const viewBtnInactive = enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary';
 
@@ -310,7 +327,7 @@ export default function CalendarGrid({
   // ═══════════════════════════════════════════════════════════════
 
   return (
-    <div className="bg-white rounded border border-border overflow-hidden shadow-sm">
+    <div className={`bg-white ${hubMobileToolbar ? 'rounded-lg' : 'rounded'} border border-border overflow-hidden shadow-sm`}>
       {/* Mobile auto-default to Day view (PR-Ops-Cal-4) — opt-in only.
           Mounting the controller only when enableDayView keeps the responsive
           hook/listener off the prop-off path entirely. */}
@@ -323,13 +340,13 @@ export default function CalendarGrid({
       )}
       {/* Header bar */}
       <div className={toolbarBarClass}>
-        <div className="flex items-center gap-4">
-          <div className="flex bg-border/70 rounded p-0.5">
+        <div className={toolbarLeftClass}>
+          <div className={`${viewTrackExtra}flex bg-border/70 rounded p-0.5`}>
             {enableDayView && (
-              <button onClick={() => selectView('day')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
+              <button onClick={() => selectView('day')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
             )}
-            <button onClick={() => selectView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
-            <button onClick={() => selectView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
+            <button onClick={() => selectView('week')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
+            <button onClick={() => selectView('month')} className={`${viewBtnExtra}px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
           </div>
           {/* Timezone toggle */}
           {calendarView !== 'month' && (
@@ -343,8 +360,8 @@ export default function CalendarGrid({
             </select>
           )}
         </div>
-        <h2 className="text-sm font-semibold text-text-primary">{headerTitle}</h2>
-        <div className="flex items-center gap-2">
+        <h2 className={toolbarTitleClass}>{headerTitle}</h2>
+        <div className={toolbarRightClass}>
           <button onClick={goToToday} className="px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-row rounded border border-border transition-colors">
             {anchorDate ? 'Start' : 'Today'}
           </button>
