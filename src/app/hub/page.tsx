@@ -395,15 +395,14 @@ export default function HubPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-bg-terminal">
-        <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
+        <div className="px-4 lg:px-6 pt-0 pb-6">
           
-          {/* Header - Wall Street Style. Aqua top-rule crowns the connected
-              header block; the hard purple-deep bottom border is the SEAM that
-              joins the banner to the calendar below (PR-Ops-Hub-Connect-1).
-              Banner: rounded TOP corners only + square bottom + zero bottom
-              margin so it sits flush against the calendar on BOTH breakpoints,
-              forming one continuous block. */}
-          <div className="mb-0 bg-brand-purple text-white p-3 md:p-4 rounded-t-lg border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
+          {/* Header - Wall Street Style (PR-Ops-Hub-Fullwidth-1): square top so the
+              banner butts FLUSH against the nav (the aqua top-rule is now the
+              nav→banner divider). The hard purple-deep bottom border is the SEAM
+              joining the banner to the calendar below (PR-Ops-Hub-Connect-1); the
+              block's outer bottom corners stay rounded via the calendar wrapper. */}
+          <div className="mb-0 bg-brand-purple text-white p-3 md:p-4 rounded-t-none border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">
