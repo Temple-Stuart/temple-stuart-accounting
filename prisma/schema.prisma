@@ -2524,6 +2524,7 @@ enum OperationsTaskStatus {
   blocked
   completed
   cancelled
+  superseded
 }
 
 enum CalendarBlockStatus {
@@ -2568,6 +2569,8 @@ model operations_projects {
   goal_items               Json          @default("[]") @db.JsonB
   problem_items            Json          @default("[]") @db.JsonB
   diagnosis_items          Json          @default("[]") @db.JsonB
+  deep_research_input      String?       @db.Text
+  claude_code_audit_input  String?       @db.Text
   status                   ProjectStatus @default(not_started)
   target_completion_date   DateTime?     @db.Timestamptz(6)
   estimated_total_minutes  Int?

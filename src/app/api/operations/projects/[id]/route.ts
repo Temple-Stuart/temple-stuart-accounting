@@ -115,7 +115,9 @@ export async function PATCH(
     // *_items JSONB arrays; legacy paragraphs persist for backwards-compat
     // until a future cleanup PR drops them. Design field continues to be
     // populated by the AI generate-design endpoint via "use this" acceptance.
-    for (const field of ['goal', 'problem', 'diagnosis', 'design'] as const) {
+    // PR-Ops-Evolve-1: deep_research_input / claude_code_audit_input are manual
+    // paste targets (reality inputs) saved on the same path as the Text sections.
+    for (const field of ['goal', 'problem', 'diagnosis', 'design', 'deep_research_input', 'claude_code_audit_input'] as const) {
       if (body[field] !== undefined) {
         const t = trimNonEmpty(body[field]);
         data[field] = t;

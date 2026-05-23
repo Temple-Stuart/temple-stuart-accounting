@@ -84,6 +84,9 @@ export async function POST(
       problemItems,
       diagnosisItems,
       northStar: toNorthStarContext(nsRow),
+      // PR-Ops-Evolve-1: pasted reality inputs ground the generated task set.
+      deepResearchInput: project.deep_research_input,
+      claudeCodeAuditInput: project.claude_code_audit_input,
     });
 
     return NextResponse.json({

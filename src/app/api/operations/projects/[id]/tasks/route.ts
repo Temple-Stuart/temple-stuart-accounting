@@ -28,6 +28,7 @@ const STATUS_ORDER: Record<OperationsTaskStatus, number> = {
   blocked: 2,
   completed: 3,
   cancelled: 4,
+  superseded: 5,
 };
 
 async function loadAuthorizedProject(projectId: string, userId: string) {

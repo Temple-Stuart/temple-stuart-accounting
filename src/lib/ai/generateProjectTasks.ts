@@ -32,6 +32,11 @@ interface GenerateInput {
   problemItems: string[];
   diagnosisItems: string[];
   northStar?: NorthStarContext | null;
+  // PR-Ops-Evolve-1: optional pasted reality inputs. When present they are
+  // appended to the user message so the generated task set is grounded in
+  // external research (what's true/best) + a codebase audit (what's shipped/stale).
+  deepResearchInput?: string | null;
+  claudeCodeAuditInput?: string | null;
 }
 
 interface GeneratedTask {
@@ -192,9 +197,18 @@ ${JSON.stringify(PROJECT_DESIGN_EXEMPLAR.tasks_exemplar, null, 2)}
 
 ═══════════════════════════════════════════════════════════════════════════════
 
+REALITY INPUTS (when present): the user message may include "Deep Research Findings" and/or "Codebase Audit Findings". When they appear, ground the task set in them — treat research as the authority on what is true/best/current in the world, and the audit as the authority on what is actually shipped, stale, or missing in the codebase. Propose a reality-informed task set that closes the gap between them. Do NOT mark or reference any existing tasks as retired/superseded — this run only proposes a task set; reconciliation against the existing list happens elsewhere.
+
 Now produce tasks for the user's project below at this exact rigor. Verify URLs via web_search. Then call return_project_tasks with the structured array.`;
 
 export async function generateProjectTasks(input: GenerateInput): Promise<GenerateOutput> {
+  // PR-Ops-Evolve-1: only emit a reality block when a box is non-empty — no empty headers.
+  const research = input.deepResearchInput?.trim();
+  const audit = input.claudeCodeAuditInput?.trim();
+  const realityBlock =
+    (research ? `\n## Deep Research Findings (external — what's true/best/current)\n${research}\n` : '') +
+    (audit ? `\n## Codebase Audit Findings (what's actually shipped / stale / missing)\n${audit}\n` : '');
+
   const userMessage = `${formatNorthStarBlock(input.northStar ?? null)}Project title: "${input.projectTitle}"
 
 GOAL items:
@@ -205,7 +219,7 @@ ${bulletList(input.problemItems)}
 
 DIAGNOSIS items:
 ${bulletList(input.diagnosisItems)}
-
+${realityBlock}
 Web-search to verify vendor URLs (max 8 searches). Then call return_project_tasks with the structured task array.`;
 
   const inputsSummary =
