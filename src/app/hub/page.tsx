@@ -399,18 +399,26 @@ export default function HubPage() {
           
           {/* Header - Wall Street Style. Aqua top-rule ties the header block
               together; hard purple-deep bottom edge marks where the header zone
-              ends against the warm-white page (PR-Ops-Hub-Header-1). */}
-          <div className="mb-6 bg-brand-purple text-white p-4 border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
+              ends against the warm-white page (PR-Ops-Hub-Header-1).
+              Mobile (<768px, PR-Ops-Hub-Mobile-Header-1): tighter padding, no
+              bottom gap (continuous stack), rounded-lg card. Desktop (md:)
+              restores the exact prior layout. */}
+          <div className="mb-0 md:mb-6 bg-brand-purple text-white p-3 md:p-4 rounded-lg md:rounded-none border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">
                   {session?.user?.name || 'Dashboard'}
                 </h1>
-                <p className="text-text-faint text-sm mt-0.5 font-mono">Financial Command Center · FY {selectedYear}</p>
+                <p className="text-text-faint text-sm mt-0.5 font-mono whitespace-nowrap"><span className="hidden md:inline">Financial </span>Command Center · FY {selectedYear}</p>
               </div>
               <div className="text-right text-xs">
-                <div className="text-text-faint">Last updated</div>
-                <div className="font-mono">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                {/* mobile: single compact line */}
+                <div className="md:hidden font-mono whitespace-nowrap">Updated {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                {/* desktop: unchanged two-line block */}
+                <div className="hidden md:block">
+                  <div className="text-text-faint">Last updated</div>
+                  <div className="font-mono">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
               </div>
             </div>
           </div>
