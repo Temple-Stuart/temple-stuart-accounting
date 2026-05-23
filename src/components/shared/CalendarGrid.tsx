@@ -57,6 +57,14 @@ export interface CalendarGridProps {
    * so existing callers (Trading, both Trips) render byte-identically.
    */
   enableDayView?: boolean;
+  /**
+   * Opt-in (PR-Ops-Hub-Header-1): applies Hub header chrome to the toolbar zone
+   * — a purple-wash background + strong purple top border so the control surface
+   * reads as its own zone, plus solid-purple active / muted-purple inactive view
+   * buttons. Default false — when off the toolbar markup is byte-identical to
+   * before, so Trading and both Trips are unaffected.
+   */
+  enableHubChrome?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -155,6 +163,7 @@ export default function CalendarGrid({
   showCategoryLegend = false,
   compact = false,
   enableDayView = false,
+  enableHubChrome = false,
 }: CalendarGridProps) {
   const router = useRouter();
   const now = new Date();
@@ -272,6 +281,13 @@ export default function CalendarGrid({
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
 
+  // ── Toolbar chrome (PR-Ops-Hub-Header-1) ── off => byte-identical to before.
+  const toolbarBarClass = enableHubChrome
+    ? 'flex items-center justify-between px-4 py-3 border-b border-border border-t-[3px] border-t-brand-purple bg-brand-purple-wash'
+    : 'flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50';
+  const viewBtnActive = enableHubChrome ? 'bg-brand-purple text-white shadow-sm' : 'bg-white shadow-sm text-text-primary';
+  const viewBtnInactive = enableHubChrome ? 'text-brand-purple/70 hover:text-brand-purple' : 'text-text-muted hover:text-text-secondary';
+
   // ── Auto-scroll to first timed event ──
   useEffect(() => {
     if (calendarView === 'month' || !scrollRef.current) return;
@@ -306,14 +322,14 @@ export default function CalendarGrid({
         />
       )}
       {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-row/50">
+      <div className={toolbarBarClass}>
         <div className="flex items-center gap-4">
           <div className="flex bg-border/70 rounded p-0.5">
             {enableDayView && (
-              <button onClick={() => selectView('day')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Day</button>
+              <button onClick={() => selectView('day')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'day' ? viewBtnActive : viewBtnInactive}`}>Day</button>
             )}
-            <button onClick={() => selectView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Week</button>
-            <button onClick={() => selectView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? 'bg-white shadow-sm text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}>Month</button>
+            <button onClick={() => selectView('week')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'week' ? viewBtnActive : viewBtnInactive}`}>Week</button>
+            <button onClick={() => selectView('month')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${calendarView === 'month' ? viewBtnActive : viewBtnInactive}`}>Month</button>
           </div>
           {/* Timezone toggle */}
           {calendarView !== 'month' && (
