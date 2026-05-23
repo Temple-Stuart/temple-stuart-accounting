@@ -397,13 +397,13 @@ export default function HubPage() {
       <div className="min-h-screen bg-bg-terminal">
         <div className="p-6 lg:p-8 max-w-[1400px] mx-auto">
           
-          {/* Header - Wall Street Style. Aqua top-rule ties the header block
-              together; hard purple-deep bottom edge marks where the header zone
-              ends against the warm-white page (PR-Ops-Hub-Header-1).
-              Mobile (<768px, PR-Ops-Hub-Mobile-Header-1): tighter padding, no
-              bottom gap (continuous stack), rounded-lg card. Desktop (md:)
-              restores the exact prior layout. */}
-          <div className="mb-0 md:mb-6 bg-brand-purple text-white p-3 md:p-4 rounded-lg md:rounded-none border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
+          {/* Header - Wall Street Style. Aqua top-rule crowns the connected
+              header block; the hard purple-deep bottom border is the SEAM that
+              joins the banner to the calendar below (PR-Ops-Hub-Connect-1).
+              Banner: rounded TOP corners only + square bottom + zero bottom
+              margin so it sits flush against the calendar on BOTH breakpoints,
+              forming one continuous block. */}
+          <div className="mb-0 bg-brand-purple text-white p-3 md:p-4 rounded-t-lg border-t-2 border-t-ts-aqua border-b-[3px] border-b-brand-purple-deep">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">
@@ -428,7 +428,12 @@ export default function HubPage() {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* CALENDAR - macOS STYLE (extracted CalendarGrid component) */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
-          <div className="mb-6">
+          {/* Calendar card wrapper (PR-Ops-Hub-Connect-1): rounded BOTTOM corners
+              only + overflow-hidden clips CalendarGrid's own rounded top corners
+              to square so they join the banner flush; -mt-px tucks the card's 1px
+              top border under the banner's purple-deep seam so the join reads as a
+              single divider, not a double border. CalendarGrid internals untouched. */}
+          <div className="mb-6 -mt-px rounded-b-lg overflow-hidden">
             <CalendarGrid
               events={gridEvents}
               sourceConfig={HUB_GRID_CONFIG}
