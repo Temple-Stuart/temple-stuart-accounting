@@ -3,7 +3,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ResponsiveViewController from './ResponsiveViewController';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -284,13 +283,15 @@ export default function CalendarGrid({
 
   // ── Toolbar chrome (PR-Ops-Hub-Header-1) ── off => byte-identical to before.
   // ── Mobile toolbar stack (PR-Ops-Hub-Mobile-Header-1) ──────────────────────
-  // `isMobile` is read unconditionally (Rules of Hooks), but only ever CONSUMED
-  // through `hubMobileToolbar`, which is gated on `enableHubChrome`. For callers
-  // that don't opt in (Trading, both Trips) `enableHubChrome` is false, so
-  // `hubMobileToolbar` is permanently false and every class string below is
-  // byte-identical to the pre-mobile build regardless of viewport — the hook
-  // adds only a passive matchMedia listener, no render/behavior change.
-  const isMobile = useMediaQuery('(max-width: 767px)');
+  // No `useMediaQuery` lives here. The `<768px` signal is owned by the
+  // Cal-4 `ResponsiveViewController`, which is mounted ONLY when `enableDayView`
+  // and mirrors the signal up via `onMobileChange` ONLY when `enableHubChrome`
+  // (see the controller mount below). Callers that opt into neither (Trading,
+  // both Trips) mount no controller, call no hook, subscribe no listener, and
+  // never set this state — so `isMobile` stays `false`, `hubMobileToolbar` stays
+  // `false`, and every class string below is byte-identical to before with zero
+  // extra re-renders.
+  const [isMobile, setIsMobile] = useState(false);
   const hubMobileToolbar = enableHubChrome && isMobile;
   const toolbarBarClass = enableHubChrome
     ? (hubMobileToolbar
@@ -336,6 +337,7 @@ export default function CalendarGrid({
           userPickedView={userPickedView}
           defaultView={defaultView}
           setCalendarView={setCalendarView}
+          onMobileChange={enableHubChrome ? setIsMobile : undefined}
         />
       )}
       {/* Header bar */}
