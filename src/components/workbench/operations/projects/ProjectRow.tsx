@@ -112,6 +112,11 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
   } | null>(null);
   const [flash, setFlash] = useState(false);
   const [showDesignReasoning, setShowDesignReasoning] = useState(false);
+  // PR-Ops-Evolve-1: manual paste targets that feed reality into task generation.
+  const [researchInput, setResearchInput] = useState(project.deep_research_input ?? '');
+  const [auditInput, setAuditInput] = useState(project.claude_code_audit_input ?? '');
+  const [savingInputs, setSavingInputs] = useState(false);
+  const [inputsSaved, setInputsSaved] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
   // When SectionD sets isJumpTarget=true on this row, scroll into view,
@@ -165,6 +170,29 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
       setError(e instanceof Error ? e.message : 'failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // PR-Ops-Evolve-1: save the two reality-input paste boxes via the project PATCH
+  // (same path as the Text sections), then refetch so generation reads the latest.
+  const handleSaveInputs = async () => {
+    setSavingInputs(true);
+    setInputsSaved(false);
+    try {
+      const res = await fetch(`/api/operations/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deep_research_input: researchInput,
+          claude_code_audit_input: auditInput,
+        }),
+      });
+      if (res.ok) {
+        setInputsSaved(true);
+        onUpdate();
+      }
+    } finally {
+      setSavingInputs(false);
     }
   };
 
@@ -385,6 +413,41 @@ export default function ProjectRow({ project, entities, allProjects, onUpdate, o
           </div>
           <div className="pt-2 border-t border-border-light">
             <div className={labelClass}>6 · dependencies</div>
+            {/* PR-Ops-Evolve-1: reality inputs — paste targets that ground task
+                regeneration in external research + a codebase audit. */}
+            <div className="mb-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div>
+                <div className={labelClass}>deep research input</div>
+                <textarea
+                  value={researchInput}
+                  onChange={(e) => { setResearchInput(e.target.value); setInputsSaved(false); }}
+                  placeholder="Paste deep research output here…"
+                  rows={4}
+                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                />
+              </div>
+              <div>
+                <div className={labelClass}>claude code audit input</div>
+                <textarea
+                  value={auditInput}
+                  onChange={(e) => { setAuditInput(e.target.value); setInputsSaved(false); }}
+                  placeholder="Paste Claude Code audit findings here…"
+                  rows={4}
+                  className="w-full text-xs font-mono border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                />
+              </div>
+            </div>
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveInputs}
+                disabled={savingInputs}
+                className="px-2 py-1 border border-border rounded hover:bg-bg-row disabled:opacity-50"
+              >
+                {savingInputs ? 'saving…' : 'save inputs'}
+              </button>
+              {inputsSaved && <span className="text-text-faint text-xs">saved — regenerate tasks to use these</span>}
+            </div>
             <DependencyList
               projectId={project.id}
               allProjects={allProjects}

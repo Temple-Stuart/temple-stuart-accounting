@@ -30,6 +30,8 @@ export interface Project {
   goal_items: string[];
   problem_items: string[];
   diagnosis_items: string[];
+  deep_research_input: string | null;
+  claude_code_audit_input: string | null;
   status: ProjectStatus;
   target_completion_date: string | null;
   estimated_total_minutes: number | null;
