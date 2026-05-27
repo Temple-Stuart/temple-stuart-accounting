@@ -15,11 +15,13 @@ const config: Config = {
         // :root). Each var() resolves to the SAME value as the prior literal
         // — pure value-preserving swap, no visual change.
         brand: {
-          purple: 'var(--ts-purple)',              // #3b2d6b
-          'purple-deep': 'var(--ts-purple-deep)',  // #2d1b4e
-          'purple-hover': 'var(--ts-purple-light)',// #4e3e85 (locked --ts-purple-light == old hover value)
-          'purple-light': '#7b6baa',               // LEGACY, unused (0 refs), not in locked palette — kept as literal to preserve value; retire in component-migration PR
-          'purple-wash': 'var(--ts-purple-wash)',  // #eae7f2
+          // Alpha-compatible: rgb(<channels> / <alpha-value>) so BOTH solid
+          // (bg-brand-purple) AND opacity (bg-brand-purple/90) emit valid CSS.
+          purple: 'rgb(var(--ts-purple) / <alpha-value>)',              // #3b2d6b
+          'purple-deep': 'rgb(var(--ts-purple-deep) / <alpha-value>)',  // #2d1b4e
+          'purple-hover': 'rgb(var(--ts-purple-light) / <alpha-value>)',// #4e3e85 (locked --ts-purple-light == old hover value)
+          'purple-light': 'rgb(123 107 170 / <alpha-value>)',           // #7b6baa LEGACY, unused (0 refs); kept alpha-compatible for family consistency; retire in component-migration PR
+          'purple-wash': 'rgb(var(--ts-purple-wash) / <alpha-value>)',  // #eae7f2
           gold: 'var(--ts-gold)',                  // #7D6B2C
           'gold-bright': 'var(--ts-gold-bright)',  // #8B7D3C
           'gold-wash': 'var(--ts-gold-wash)',      // rgba(125,107,44,0.07)
