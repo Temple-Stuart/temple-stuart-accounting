@@ -37,8 +37,8 @@
 
   /* Surface */
   --ts-white:   #fafaf9;        /* warm off-white default surface (true #ffffff for max-crisp only) */
-  --ts-bg:      #f7f6f3;        /* app background (= old bg-terminal) */
-  --ts-bg-row:  #f0eee9;        /* zebra / row (= old bg-row) */
+  --ts-bg:      247 246 243;    /* #f7f6f3 — app background (= old bg-terminal) */
+  --ts-bg-row:  240 238 233;    /* #f0eee9 — zebra / row (= old bg-row) */
 
   /* Neutrals — text (unchanged values, now named) */
   --ts-text:           #1a1a2e;
@@ -47,20 +47,20 @@
   --ts-text-faint:     #a8a2b0;
 
   /* Borders (unchanged values, now named) */
-  --ts-border:       #e2e0da;
-  --ts-border-light: #f0eee9;
+  --ts-border:       226 224 218;  /* #e2e0da */
+  --ts-border-light: 240 238 233;  /* #f0eee9 */
 
   /* Status (unchanged brand values, now named) */
-  --ts-green: #16a34a;
-  --ts-red:   #c53030;
-  --ts-amber: #d97706;
+  --ts-green: 22 163 74;    /* #16a34a */
+  --ts-red:   197 48 48;    /* #c53030 */
+  --ts-amber: 217 119 6;    /* #d97706 */
 
   /* Gold accent family (unchanged) */
-  --ts-gold:        #7D6B2C;
-  --ts-gold-bright: #8B7D3C;
-  --ts-gold-wash:   rgba(125,107,44,0.07);
-  --ts-accent:      #b4b237;
-  --ts-accent-dark: #9a9630;
+  --ts-gold:        125 107 44;   /* #7D6B2C */
+  --ts-gold-bright: 139 125 60;   /* #8B7D3C */
+  --ts-gold-wash:   rgba(125,107,44,0.07);  /* baked 7% alpha — solid-only, NOT alpha-modified; left as rgba (see token-alpha-fix-part2) */
+  --ts-accent:      180 178 55;   /* #b4b237 */
+  --ts-accent-dark: 154 150 48;   /* #9a9630 */
 
   /* Dark "panel / terminal" surfaces (unchanged values, now named) */
   --ts-panel:           #0d1117;

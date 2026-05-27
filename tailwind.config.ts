@@ -22,14 +22,14 @@ const config: Config = {
           'purple-hover': 'rgb(var(--ts-purple-light) / <alpha-value>)',// #4e3e85 (locked --ts-purple-light == old hover value)
           'purple-light': 'rgb(123 107 170 / <alpha-value>)',           // #7b6baa LEGACY, unused (0 refs); kept alpha-compatible for family consistency; retire in component-migration PR
           'purple-wash': 'rgb(var(--ts-purple-wash) / <alpha-value>)',  // #eae7f2
-          gold: 'var(--ts-gold)',                  // #7D6B2C
-          'gold-bright': 'var(--ts-gold-bright)',  // #8B7D3C
-          'gold-wash': 'var(--ts-gold-wash)',      // rgba(125,107,44,0.07)
-          green: 'var(--ts-green)',                // #16a34a
-          red: 'var(--ts-red)',                    // #c53030
-          amber: 'var(--ts-amber)',                // #d97706
-          accent: 'var(--ts-accent)',              // #b4b237
-          'accent-dark': 'var(--ts-accent-dark)',  // #9a9630
+          gold: 'rgb(var(--ts-gold) / <alpha-value>)',                  // #7D6B2C
+          'gold-bright': 'rgb(var(--ts-gold-bright) / <alpha-value>)',  // #8B7D3C
+          'gold-wash': 'var(--ts-gold-wash)',      // rgba(125,107,44,0.07) — baked alpha, solid-only (NOT alpha-modified)
+          green: 'rgb(var(--ts-green) / <alpha-value>)',                // #16a34a
+          red: 'rgb(var(--ts-red) / <alpha-value>)',                    // #c53030
+          amber: 'rgb(var(--ts-amber) / <alpha-value>)',                // #d97706
+          accent: 'rgb(var(--ts-accent) / <alpha-value>)',              // #b4b237
+          'accent-dark': 'rgb(var(--ts-accent-dark) / <alpha-value>)',  // #9a9630
         },
         panel: {
           DEFAULT: 'var(--ts-panel)',              // #0d1117
@@ -39,8 +39,8 @@ const config: Config = {
           highlight: 'var(--ts-panel-highlight)',  // #1a0f2e
         },
         bg: {
-          terminal: 'var(--ts-bg)',                // #f7f6f3
-          row: 'var(--ts-bg-row)',                 // #f0eee9
+          terminal: 'rgb(var(--ts-bg) / <alpha-value>)',     // #f7f6f3
+          row: 'rgb(var(--ts-bg-row) / <alpha-value>)',      // #f0eee9
         },
         text: {
           primary: 'var(--ts-text)',               // #1a1a2e
@@ -49,8 +49,8 @@ const config: Config = {
           faint: 'var(--ts-text-faint)',           // #a8a2b0
         },
         border: {
-          DEFAULT: 'var(--ts-border)',             // #e2e0da
-          light: 'var(--ts-border-light)',         // #f0eee9
+          DEFAULT: 'rgb(var(--ts-border) / <alpha-value>)',       // #e2e0da
+          light: 'rgb(var(--ts-border-light) / <alpha-value>)',   // #f0eee9
         },
         // NEW design-token family (PR-Ops-DS-2). Enables bg-ts-aqua, text-ts-cyan,
         // bg-ts-white, etc. NOT referenced by any component yet — adoption is the
