@@ -3,9 +3,8 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useEffect, useState, Suspense } from 'react';
-import Link from 'next/link';
-import { BookOpen, User, Briefcase, Plane, TrendingUp, Rocket, Activity, LayoutGrid, Menu, X } from 'lucide-react';
 import TripCreationBar from '@/components/trips/TripCreationBar';
+import Sidebar from '@/components/ui/Sidebar';
 
 export interface LedgerMetrics {
   balance: number;
@@ -51,35 +50,10 @@ interface CookieUser {
 }
 
 // ─── Route Groups ────────────────────────────────────────────────────────────
-
-const BOOKKEEPING_PREFIXES = [
-  '/dashboard', '/accounts', '/chart-of-accounts',
-  '/journal-entries', '/ledger', '/statements',
-  '/transactions', '/net-worth',
-];
-
-const PERSONAL_PREFIXES = [
-  '/personal', '/home', '/auto', '/shopping',
-  '/health', '/growth', '/income', '/hub/itinerary',
-];
-
-const BUSINESS_PREFIXES = ['/business'];
+// Nav route config now lives in Sidebar.tsx (same hrefs/prefixes). Only the
+// Travel prefixes remain here, to gate the Travel search bar below.
 
 const TRAVEL_PREFIXES = ['/budgets/trips', '/trips'];
-
-const TRADING_PREFIXES = ['/trading'];
-
-const COMPLIANCE_PREFIXES = ['/compliance'];
-const OPERATIONS_PREFIXES = ['/operations'];
-
-// Primary nav tabs — order matters (left to right)
-const NAV_TABS = [
-  { name: 'Bookkeeping', href: '/dashboard', Icon: BookOpen, prefixes: BOOKKEEPING_PREFIXES },
-  { name: 'Trading', href: '/trading', Icon: TrendingUp, prefixes: TRADING_PREFIXES },
-  { name: 'Travel', href: '/budgets/trips', Icon: Plane, prefixes: TRAVEL_PREFIXES },
-  { name: 'Compliance', href: '/compliance', Icon: Rocket, prefixes: COMPLIANCE_PREFIXES },
-  { name: 'Operations', href: '/operations', Icon: Activity, prefixes: OPERATIONS_PREFIXES },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +80,6 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cookieUser, setCookieUser] = useState<CookieUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
@@ -140,11 +113,6 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
     }
   }, [checkingAuth, status, isAuthenticated, router]);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
   // ─── Auth Guards ───────────────────────────────────────────────────────────
 
   if (status === 'loading' || checkingAuth) {
@@ -174,61 +142,20 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
 
   // ─── Active State Detection ────────────────────────────────────────────────
 
-  const isHubActive = pathname === '/hub';
-
-  const isTabActive = (prefixes: string[]) =>
-    prefixes.some(p => pathname?.startsWith(p));
-
   const showTravelSearch = TRAVEL_PREFIXES.some(r => pathname?.startsWith(r));
+  const userLabel = currentUser?.name || currentUser?.email?.split('@')[0] || '';
 
   // ─── Render ────────────────────────────────────────────────────────────────
+  // Sidebar shell replaces the former top-nav (Overhaul-PR-1). The prop-driven
+  // context bars (Travel search, bookkeeping, ledger, engine) are preserved and
+  // relocated to the top of the main content column — page {children} unchanged.
 
   return (
-    <div className="min-h-screen bg-bg-terminal">
-      <header className="sticky top-0 z-50">
-        {/* ROW 1 — Top Bar (logo + user) */}
-        <div className="bg-brand-purple">
-          <div className="max-w-[1800px] mx-auto flex items-center justify-between px-6 py-4">
-            <Link href="/hub" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center">
-                <span className="text-white font-bold text-[10px] font-mono leading-none">TS</span>
-              </div>
-              <span className="hidden sm:inline text-lg font-semibold text-white">Temple Stuart</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link href="/hub" className={`hidden lg:flex items-center px-2.5 py-1.5 rounded-full transition-colors ${isHubActive ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`} title="Hub Dashboard">
-                <LayoutGrid className="w-4 h-4" />
-              </Link>
-              <span className="hidden sm:inline text-sm text-white/60">{currentUser?.name || currentUser?.email?.split('@')[0]}</span>
-              <button onClick={handleSignOut} className="text-sm text-white/40 hover:text-white transition-colors">sign out</button>
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-1.5 hover:bg-white/10 rounded-md">
-                {mobileMenuOpen ? <X className="w-5 h-5 text-white/70" /> : <Menu className="w-5 h-5 text-white/70" />}
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-bg-terminal lg:flex">
+      <Sidebar pathname={pathname} userLabel={userLabel} onSignOut={handleSignOut} />
 
-        {/* ROW 2 — Tab Bar (pill-shaped tabs) */}
-        <div className="bg-brand-purple/90 border-t border-white/[.06]">
-          <div className="max-w-[1800px] mx-auto hidden lg:flex items-center gap-2 px-6 py-3">
-            {NAV_TABS.map(tab => {
-              const active = isTabActive(tab.prefixes);
-              return (
-                <Link key={tab.href} href={tab.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    active
-                      ? 'border border-white bg-white/10 text-white'
-                      : 'border border-transparent text-white/70 hover:border-white/40 hover:text-white'
-                  }`}>
-                  <tab.Icon className="w-4 h-4" />
-                  <span>{tab.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ROW 3 — Travel Search Bar (only on Travel routes) */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Travel Search Bar (only on Travel routes) */}
         {showTravelSearch && (
           <div className="bg-brand-purple/80 border-t border-white/[.06]">
             <div className="max-w-[1800px] mx-auto px-6 py-4">
@@ -319,39 +246,8 @@ export default function AppLayout({ children, ledgerMetrics, engineMetrics, onOp
           </div>
         )}
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden bg-brand-purple-deep border-t border-white/10 px-4 py-3">
-            <div className="flex flex-col gap-1">
-              {NAV_TABS.map(tab => {
-                const active = isTabActive(tab.prefixes);
-                return (
-                  <Link key={tab.href} href={tab.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-white/10 text-white border-l-2 border-white'
-                        : 'text-white/70 hover:bg-white/[.05] hover:text-white border-l-2 border-transparent'
-                    }`}>
-                    <tab.Icon className="w-4 h-4" />
-                    <span>{tab.name}</span>
-                  </Link>
-                );
-              })}
-              <div className="border-t border-white/10 mt-2 pt-2">
-                <Link href="/hub"
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    isHubActive ? 'bg-white/10 text-white' : 'text-white/60 hover:bg-white/[.05] hover:text-white'
-                  }`}>
-                  <LayoutGrid className="w-4 h-4" />
-                  <span>Hub Dashboard</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
-
-      <main className="max-w-[1800px] mx-auto">{children}</main>
+        <main className="max-w-[1800px] mx-auto w-full">{children}</main>
+      </div>
     </div>
   );
 }
