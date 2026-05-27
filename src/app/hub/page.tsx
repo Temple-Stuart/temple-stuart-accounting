@@ -7,6 +7,7 @@ import { AppLayout, Card, Badge } from '@/components/ui';
 import BudgetDrillDown from '@/components/hub/BudgetDrillDown';
 import HubEventCard from '@/components/hub/HubEventCard';
 import UnscheduledTaskTable, { type UnscheduledTask } from '@/components/hub/UnscheduledTaskTable';
+import TripExpensesCard from '@/components/hub/TripExpensesCard';
 import CalendarGrid, { CalendarEvent as GridEvent, SourceConfig } from '@/components/shared/CalendarGrid';
 import { mapOperationsBlocks } from '@/lib/hub/mapOperationsBlocks';
 import { mapOperationsRoutines, type RoutinesWindowResponse } from '@/lib/hub/mapOperationsRoutines';
@@ -439,7 +440,7 @@ export default function HubPage() {
             <CalendarGrid
               events={gridEvents}
               sourceConfig={HUB_GRID_CONFIG}
-              defaultView="week"
+              defaultView="day"
               enableDayView={true}
               enableHubChrome={true}
               showBudgetTotals={true}
@@ -465,6 +466,51 @@ export default function HubPage() {
               tasks={unscheduledTasks}
               onAssigned={() => { loadOperationsBlocks(); loadUnscheduledTasks(); }}
             />
+          </div>
+          {/* Zone 2 honest flag: the "Time" column shows the REAL aggregate
+              actual_minutes; per-session start/stop logging is net-new (separate PR). */}
+          <p className="text-xs text-text-faint mt-1 mb-6">
+            Time column shows tracked minutes (operations actual_minutes). Detailed
+            start/stop time logging is coming soon.
+          </p>
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* COMMAND CENTER — Zone 3 (trip expenses) + Zone 4 (budget summary)    */}
+          {/* Overhaul-PR-3b. Real data only; detailed budget tables remain below. */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Zone 3 — Travel expenses ordered by itinerary time */}
+            <TripExpensesCard trips={committedTrips} />
+
+            {/* Zone 4 — Budget summary (budgeted vs actual per entity) */}
+            <div className="bg-white rounded-lg border border-border overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-border bg-brand-purple-wash">
+                <h2 className="text-sm font-semibold text-text-primary">Budget · FY {selectedYear}</h2>
+              </div>
+              <div className="divide-y divide-border-light">
+                <div className="hidden sm:grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-1.5 text-xs font-mono text-text-faint uppercase tracking-wide">
+                  <div>Entity</div>
+                  <div className="text-right">Budgeted</div>
+                  <div className="text-right">Actual</div>
+                </div>
+                {[
+                  { label: 'Homebase', budget: yearlyHomebaseBudget, actual: yearlyHomebaseActual },
+                  { label: 'Travel', budget: yearlyTravelBudget, actual: yearlyTravelActual },
+                  { label: 'Business', budget: yearlyBusinessBudget, actual: yearlyBusinessActual },
+                ].map((row) => (
+                  <div key={row.label} className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 py-2 items-center text-xs font-mono">
+                    <div className="text-text-primary">{row.label}</div>
+                    <div className="text-right text-text-muted">{fmt(row.budget)}</div>
+                    <div className={`text-right font-semibold ${getWsVarianceText(row.budget, row.actual)}`}>{fmt(row.actual)}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Zone 4 honest flag: operations↔budget is NOT wired (coa_code on
+                  tasks is informational only). Do not fabricate a connection. */}
+              <div className="px-4 py-2 border-t border-border text-xs text-brand-amber bg-brand-amber/5">
+                ⚠ Operations costs aren&apos;t connected to budgets yet
+              </div>
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════ */}

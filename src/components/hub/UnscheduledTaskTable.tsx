@@ -28,6 +28,7 @@ export interface UnscheduledTask {
   title: string;
   status: 'open' | 'in_progress' | 'blocked';
   estimated_minutes: number | null;
+  actual_minutes: number | null;
   estimated_cost_usd: string | null;
   coa_code: string | null;
   deadline: string | null;
@@ -167,9 +168,10 @@ export default function UnscheduledTaskTable({ tasks, onAssigned }: Props) {
                 <div className="max-h-[300px] overflow-y-auto">
                   {/* Column legend (sticky now that the title header sits above
                       the scroller). Project is the queue — no per-row Project col. */}
-                  <div className="hidden md:grid grid-cols-[2fr_auto_auto_auto_auto] gap-3 px-4 py-1.5 text-xs font-mono text-text-faint uppercase tracking-wide border-b border-border-light sticky top-0 bg-white z-10">
+                  <div className="hidden md:grid grid-cols-[2fr_auto_auto_auto_auto_auto] gap-3 px-4 py-1.5 text-xs font-mono text-text-faint uppercase tracking-wide border-b border-border-light sticky top-0 bg-white z-10">
                     <div>Task</div>
                     <div>Est. time</div>
+                    <div title="Real tracked time (operations task actual_minutes). Per-session start/stop logging coming soon.">Time</div>
                     <div>Est. cost</div>
                     <div>COA</div>
                     <div className="text-right">&nbsp;</div>
@@ -178,7 +180,7 @@ export default function UnscheduledTaskTable({ tasks, onAssigned }: Props) {
                   <div className="divide-y divide-border-light">
                     {queue.tasks.map((t) => (
                       <div key={t.id} className={t.status === 'blocked' ? 'opacity-60' : ''}>
-                        <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_auto_auto_auto] gap-3 px-4 py-2 items-center text-xs font-mono">
+                        <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_auto_auto_auto_auto] gap-3 px-4 py-2 items-center text-xs font-mono">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-text-primary truncate">{t.title}</span>
                             {t.status === 'blocked' && (
@@ -189,6 +191,7 @@ export default function UnscheduledTaskTable({ tasks, onAssigned }: Props) {
                             )}
                           </div>
                           <div className="text-text-muted">{fmtMinutes(t.estimated_minutes)}</div>
+                          <div className="text-text-secondary">{fmtMinutes(t.actual_minutes)}</div>
                           <div className="text-text-muted">{fmtCost(t.estimated_cost_usd)}</div>
                           <div className="text-text-muted">{t.coa_code ?? '—'}</div>
                           <div className="text-right">
